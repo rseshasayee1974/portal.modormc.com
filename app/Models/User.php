@@ -197,4 +197,14 @@ class User extends Authenticatable implements MustVerifyEmail
 	{
 		return $this->hasAnyRole(['Saas Owner', 'Super Administrator', 'Platform Admin']);
 	}
+
+    /**
+     * Get the codes of all roles assigned to the user.
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public function getRoleCode()
+    {
+        return $this->roles->pluck('code');
+    }
 }

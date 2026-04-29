@@ -1,0 +1,1 @@
+import{m as r}from"./app-Bbi1Q1_2.js";const i=r("ledger",{state:()=>({ledgers:[]}),actions:{setLedgers(e){this.ledgers=e},addLedger(e){this.ledgers.push(e)},updateLedger(e){const s=this.ledgers.findIndex(d=>d.id===e.id);s!==-1&&(this.ledgers[s]=e)},removeLedger(e){this.ledgers=this.ledgers.filter(s=>s.id!==e)}}});export{i as u};
