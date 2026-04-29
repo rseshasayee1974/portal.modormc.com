@@ -1,0 +1,33 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        if (!Schema::hasColumn('mm_machines', 'owner_id')) {
+            Schema::table('mm_machines', function (Blueprint $table) {
+                $table->foreignId('owner_id')->nullable()->after('capacity')->constrained('mm_patrons')->nullOnDelete();
+            });
+        }
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        if (Schema::hasColumn('mm_machines', 'owner_id')) {
+            Schema::table('mm_machines', function (Blueprint $table) {
+                $table->dropForeign(['owner_id']);
+                $table->dropColumn('owner_id');
+            });
+        }
+    }
+};
