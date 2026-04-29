@@ -17,7 +17,7 @@ Route::get('/', function () {
 
 Route::get('/register', function () {
     return redirect()->route('login');
-});
+})->name('register');
 
 // OTP Verification — requires auth but NOT full session clearance
 Route::middleware(['auth:sanctum', config('jetstream.auth_session')])->group(function () {
