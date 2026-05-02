@@ -25,7 +25,7 @@ interface Product {
     is_service?: boolean;
     product_type?: string;
     stock_alert?: number;
-    convertsion_quantity?: number;
+    conversion_quantity?: number;
 }
 
 interface Option {
@@ -66,7 +66,7 @@ const form = useForm({
     is_service: Boolean(props.product.is_service ?? false),
     product_type: props.product.product_type ?? 'Purchase',
     stock_alert: Number(props.product.stock_alert ?? 0),
-    convertsion_quantity: Number(props.product.convertsion_quantity ?? 0),
+    conversion_quantity: Number(props.product.conversion_quantity ?? 0),
 });
 
 const categoryOptions = computed(() =>
@@ -210,10 +210,10 @@ const submit = () => {
         </div>
         <div class="field-group">
             <BaseInput 
-                v-model="form.convertsion_quantity" 
+                v-model="form.conversion_quantity" 
                 label="Conversion Qty"
                 type="number"
-                :error="form.errorFor('convertsion_quantity')"
+                :error="form.errorFor('conversion_quantity')"
             />
         </div>
     </div>

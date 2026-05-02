@@ -28,21 +28,6 @@ const rows = ref(15);
 
 <template>
     <div class="card bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
-        <div class="bg-gray-50/50 dark:bg-gray-900/20 border-b border-gray-100 dark:border-gray-700/50 p-4">
-            <div class="flex flex-wrap items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
-                        <BookOpenIcon class="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100 uppercase tracking-tight">General Ledger</h2>
-                        <p class="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Financial Accounts</p>
-                    </div>
-                </div>
-                <Button label="New Ledger" icon="pi pi-plus" @click="$emit('create')" class="!rounded-md !px-4" />
-            </div>
-        </div>
-
         <BaseDataTable 
             :value="ledgers" 
             v-model:filters="filters"
@@ -50,7 +35,14 @@ const rows = ref(15);
             :globalFilterFields="['code', 'title', 'account_type.title']"
             showSerial 
             showSearch
+            heading="General Ledger Master"
+            headingIcon="BookOpenIcon"
+            showExport
+            exportFilename="general-ledger-report"
         >
+            <template #toolbar>
+                <Button label="New Ledger" icon="pi pi-plus" @click="$emit('create')" class="!rounded-lg !px-4 !h-10 !text-xs !font-black !uppercase !tracking-widest" />
+            </template>
             <Column field="code" header="Code" sortable>
                 <template #body="slotProps">
                     <span class="font-mono font-bold text-indigo-600">{{ slotProps.data.code }}</span>

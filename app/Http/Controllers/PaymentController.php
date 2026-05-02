@@ -50,6 +50,10 @@ class PaymentController extends Controller
             'status'            => 'required|in:pending,completed,failed',
         ]);
 
+        if (isset($validated['transaction_date'])) {
+            $validated['transaction_date'] = \Carbon\Carbon::parse($validated['transaction_date'])->format('Y-m-d H:i:s');
+        }
+
         $validated['plant_id'] = session('active_plant_id', 1);
 
         Payment::create($validated);
@@ -82,6 +86,10 @@ class PaymentController extends Controller
             'reference'         => 'nullable|string|max:100',
             'status'            => 'required|in:pending,completed,failed',
         ]);
+
+        if (isset($validated['transaction_date'])) {
+            $validated['transaction_date'] = \Carbon\Carbon::parse($validated['transaction_date'])->format('Y-m-d H:i:s');
+        }
 
         $Payment->update($validated);
 

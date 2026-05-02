@@ -23,6 +23,7 @@ const props = defineProps<{
     batches: any[];
     workOrders: any[];
     trucks: any[];
+    customers: any[];
     transporters: any[];
     personnel: any[];
     taxes: any[];
@@ -33,6 +34,7 @@ const props = defineProps<{
     statuses: { label: string; value: number }[];
     schemaWarning?: string | null;
     nextBatchNo: number;
+    batchingSettings: any;
 }>();
 
 const dropdownData = computed(() => ({
@@ -48,6 +50,28 @@ const dropdownData = computed(() => ({
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
     status: { value: null, matchMode: 'equals' },
+    'work_order.id': { value: null, matchMode: 'equals' },
+    'work_order.customer.id': { value: null, matchMode: 'equals' },
+});
+
+const dateFrom = ref(null);
+const dateTo = ref(null);
+
+const filteredBatches = computed(() => {
+    let result = props.batches;
+    
+    if (dateFrom.value) {
+        const from = new Date(dateFrom.value);
+        result = result.filter(b => new Date(b.created_at) >= from);
+    }
+    
+    if (dateTo.value) {
+        const to = new Date(dateTo.value);
+        to.setHours(23, 59, 59, 999);
+        result = result.filter(b => new Date(b.created_at) <= to);
+    }
+    
+    return result;
 });
 
 const expandedRows = ref({});
@@ -105,6 +129,9 @@ const destroy = (row: any) => {
         });
     });
 };
+const downloadPdf = (id: number) => {
+    window.open(route('batches.download', id), '_blank');
+};
 </script>
 
 <template>
@@ -133,55 +160,16 @@ const destroy = (row: any) => {
 
                 <hr class="border-slate-200 border-dashed" />
 
-                <div class="bg-white shadow-xl sm:rounded-lg p-8">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-lg bg-cyan-50 flex items-center justify-center shadow-sm border border-cyan-100/50">
-                                <ListBulletIcon class="w-5 h-5 text-cyan-600" />
-                            </div>
-                            <div>
-                                <h3 class="text-md font-semibold text-slate-800 uppercase">List Of Batches</h3>
-                                <div class="flex items-center gap-2 mt-0.5">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    <p class="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none">Batch Execution Directory</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                            <BaseSelect 
-                                v-model="rows" 
-                                :options="entriesOptions" 
-                                optionLabel="label" 
-                                optionValue="value"
-                                class="!h-10 w-20 flex items-center justify-center font-bold text-xs"
-                                :pt="{
-                                    root: { class: 'border border-slate-300 rounded-md' },
-                                    label: { class: 'text-xs p-2' }
-                                }"
-                            />
-                            <BaseInput
-                                v-model="filters.global.value"
-                                placeholder="Search order/batch/truck..."
-                                inputClass="!h-9 !w-72"
-                            />
-                            <BaseSelect
-                                v-model="filters.status.value"
-                                :options="[{label: 'All Statuses', value: null}, ...statuses]"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="Filter status"
-                                class="w-44"
-                            />
-                        </div>
-                    </div>
+                <div class="bg-white shadow-xl sm:rounded-lg">
 
                     <BaseDataTable
-                        :value="batches"
+                        :value="filteredBatches"
                         v-model:first="first"
                         v-model:rows="rows"
                         v-model:filters="filters"
                         v-model:expandedRows="expandedRows"
+                        v-model:dateFrom="dateFrom"
+                        v-model:dateTo="dateTo"
                         dataKey="id"
                         paginator
                         stripedRows
@@ -189,10 +177,53 @@ const destroy = (row: any) => {
                         rowHover
                         filterDisplay="menu"
                         class="cursor-pointer"
-                        :globalFilterFields="['batch_no', 'work_order.order_no', 'truck.registration']"
+                        :globalFilterFields="['batch_no', 'work_order.order_no', 'truck.registration', 'work_order.customer.legal_name', 'work_order.mix_design.design_name']"
                         showSerial
-                        :showSearch="false"
+                        heading="List Of Batches"
+                        headingIcon="ListBulletIcon"
+                        :showSearch="true"
+                        showExport
+                        exportFilename="batch-report"
                     >
+                        <template #filters>
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by Work Order</label>
+                                <BaseSelect 
+                                    v-model="filters['work_order.id'].value"
+                                    :options="[{order_no: 'All Orders', id: null}, ...workOrders]"
+                                    optionLabel="order_no"
+                                    optionValue="id"
+                                    placeholder="Select Order"
+                                    class="!h-9 !text-xs !rounded-lg"
+                                />
+                            </div>
+
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by Customer</label>
+                                <BaseSelect 
+                                    v-model="filters['work_order.customer.id'].value"
+                                    :options="[{legal_name: 'All Customers', id: null}, ...customers]"
+                                    optionLabel="legal_name"
+                                    optionValue="id"
+                                    placeholder="Select Customer"
+                                    class="!h-9 !text-xs !rounded-lg"
+                                    filter
+                                />
+                            </div>
+                        </template>
+                        <Column field="empty_time" header="Empty Time" sortable>
+                            <template #body="slotProps">
+                                <div v-if="slotProps.data.empty_time" class="flex flex-col">
+                                    <span class="text-xs font-bold text-slate-700">
+                                        {{ new Date(slotProps.data.empty_time).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) }}
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 font-medium uppercase">
+                                        {{ new Date(slotProps.data.empty_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) }}
+                                    </span>
+                                </div>
+                                <span v-else class="text-xs text-slate-300 italic">N/A</span>
+                            </template>
+                        </Column>
                         <Column field="batch_no" header="Order / Batch" sortable>
                             <template #body="slotProps">
                                 <div>
@@ -203,7 +234,25 @@ const destroy = (row: any) => {
                                     >
                                         B{{ slotProps.data.batch_no }}
                                     </button>
-                                    <div class="text-xs text-slate-500">{{ slotProps.data.work_order?.order_no || '-' }}</div>
+                                    <div class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{{ slotProps.data.work_order?.order_no || '-' }}</div>
+                                </div>
+                            </template>
+                        </Column>
+
+                        <Column field="work_order.customer.legal_name" header="Customer" sortable>
+                            <template #body="slotProps">
+                                <div class="flex flex-col">
+                                    <span class="text-xs font-bold text-slate-700">{{ slotProps.data.work_order?.customer?.legal_name || '-' }}</span>
+                                    <span class="text-[10px] text-slate-400 font-medium uppercase">{{ slotProps.data.work_order?.site?.name || 'Main Site' }}</span>
+                                </div>
+                            </template>
+                        </Column>
+
+                        <Column field="work_order.mix_design.design_name" header="Design" sortable>
+                            <template #body="slotProps">
+                                <div class="flex flex-col">
+                                    <span class="text-xs font-black text-slate-800">{{ slotProps.data.work_order?.mix_design?.design_name || '-' }}</span>
+                                    <span class="text-[10px] text-emerald-600 font-black tracking-tighter uppercase">{{ slotProps.data.work_order?.mix_design?.design_code || '-' }}</span>
                                 </div>
                             </template>
                         </Column>
@@ -220,11 +269,7 @@ const destroy = (row: any) => {
                             </template>
                         </Column>
 
-                        <Column header="Materials">
-                            <template #body="slotProps">
-                                <span class="text-xs text-slate-500">{{ slotProps.data.materials?.length || 0 }} line(s)</span>
-                            </template>
-                        </Column>
+                        
 
                         <Column field="status" header="Status" sortable>
                             <template #body="slotProps">
@@ -236,6 +281,23 @@ const destroy = (row: any) => {
                             <template #body="slotProps">
                                 <div class="flex justify-end gap-2">
                                     <BaseButton
+                                        icon="pi pi-eye"
+                                        severity="secondary"
+                                        variant="text"
+                                        rounded
+                                        @click.stop="router.get(route('batches.report', slotProps.data.id))"
+                                        title="Preview Batch Sheet"
+                                    />
+                                    <BaseButton
+                                        icon="pi pi-download"
+                                        severity="info"
+                                        variant="text"
+                                        rounded
+                                        @click.stop="downloadPdf(slotProps.data.id)"
+                                        title="Download PDF"
+                                    />
+                                    <BaseButton
+                                        v-if="slotProps.data.status < 3"
                                         icon="pi pi-trash"
                                         severity="danger"
                                         variant="text"
@@ -250,7 +312,8 @@ const destroy = (row: any) => {
                         <template #expansion="slotProps">
                             <div class="p-1 bg-slate-50/50 border-y border-slate-100">
                                 <TabView class="compact-tabs">
-                                    <TabPanel header="Batching">
+                                    <!-- v-if="slotProps.data.status < 3" -->
+                                    <TabPanel header="Batching" >
                                         <div class="">
                                             <BatchEditForm
                                                 :batch="slotProps.data"
@@ -272,6 +335,9 @@ const destroy = (row: any) => {
                                                 :batch="slotProps.data" 
                                                 :workOrder="slotProps.data.work_order"
                                                 :dropdownData="dropdownData"
+                                                :settings="batchingSettings"
+                                                @saved="collapseExpandedRows"
+                                                @cancel="collapseExpandedRows"
                                             />
                                         </div>
                                     </TabPanel>

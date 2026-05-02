@@ -207,7 +207,7 @@ class PurchaseOrder extends Model
                 'plant_id' => $plantId,
                 'created_by' => $userId,
                 'updated_by' => $userId,
-                'state' => $headerData['state'] ?? 'purchase',
+                'state' => $headerData['state'] ?? 'draft',
             ]));
 
             foreach ($items as $itemData) {

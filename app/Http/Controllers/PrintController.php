@@ -16,7 +16,7 @@ class PrintController extends Controller
      * Example: /print/purchase_orders/12/view
      * Example: /print/invoices/5/download
      */
-    public function handle(Request $request, string $module, int $id, string $action = 'view')
+    public function handle(Request $request, string $module, string $id, string $action = 'view')
     {
         // 1. Resolve Model and Data
         $data = $this->resolveData($module, $id);
@@ -45,19 +45,26 @@ class PrintController extends Controller
     /**
      * Maps module keys to their respective data formatting logic.
      */
-    protected function resolveData(string $module, int $id): ?array
+    protected function resolveData(string $module, string $id): ?array
     {
+        try {
+            $decryptedId = decrypt($id);
+            $realId = $decryptedId;
+        } catch (\Exception $e) {
+            $realId = $id;
+        }
+
         switch ($module) {
             case 'purchase_orders':
-                $model = \App\Models\PurchaseOrder::find($id);
+                $model = \App\Models\PurchaseOrder::find($realId);
                 return $model ? PrintDataFormatter::fromPurchaseOrder($model) : null;
 
             case 'invoices':
-                $model = \App\Models\Invoice::find($id);
+                $model = \App\Models\Invoice::find($realId);
                 return $model ? PrintDataFormatter::fromInvoice($model) : null;
 
             case 'quotations':
-                $model = \App\Models\Quotation::find($id);
+                $model = \App\Models\Quotation::find($realId);
                 return $model ? PrintDataFormatter::fromQuotation($model) : null;
 
             // Add more modules here (delivery_notes, credit_notes, etc.)

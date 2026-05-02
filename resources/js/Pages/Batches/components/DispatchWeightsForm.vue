@@ -39,6 +39,28 @@ watch(
     }
 );
 
+watch(
+    () => props.modelValue.batch_size,
+    (val) => {
+        const v = Number(val || 0);
+        // If weights are not set, update load_units
+        if (!props.modelValue.weights.loaded_weight_truck) {
+            props.modelValue.financials.load_units = v;
+        }
+        props.modelValue.financials.unload_units = v;
+        props.modelValue.financials.transport_units = v;
+    }
+);
+
+watch(
+    () => props.modelValue.financials.load_rate,
+    (val) => {
+        const v = Number(val || 0);
+        props.modelValue.financials.unload_rate = v;
+        props.modelValue.financials.transport_rate = v;
+    }
+);
+
 const statusOptions = [
     { label: 'Draft', value: 'Draft' },
     // { label: 'Pending', value: 'Pending' },
@@ -91,73 +113,42 @@ const calculateSubtotal = (units: number, rate: number) => {
                 <div class="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
                     <!-- Weight Section -->
                     <div class="p-4 bg-slate-50/50 border-b border-slate-100">
-                        <div class="grid grid-cols-6 gap-4 mb-4">
-                            <BaseInputNumber v-model="modelValue.weights.empty_weight_truck" label="Empty Truck (kg)" :error="errors['weights.empty_weight_truck']" />
-                            <BaseInputNumber v-model="modelValue.weights.loaded_weight_truck" label="Loaded Truck (kg)" :error="errors['weights.loaded_weight_truck']" />
-                            <BaseInputNumber v-model="modelValue.financials.load_units" label="Load Quantity" />
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <BaseInputNumber v-model="modelValue.weights.empty_weight_truck" label="Empty Truck " :disabled="true" :error="errors['weights.empty_weight_truck']" />
+                            <BaseInputNumber v-model="modelValue.weights.loaded_weight_truck" label="Loaded Truck " :disabled="true" :error="errors['weights.loaded_weight_truck']" />
+                            <BaseInputNumber v-model="modelValue.financials.load_units" label="Net Quantity" :disabled="true" />
                             <BaseSelect v-model="modelValue.financials.load_uom_id" :options="uoms" optionLabel="unit_code" optionValue="id" label="Unit of Measure" filter />
                             
                             <BaseInputNumber v-model="modelValue.financials.load_rate" label="Load Rate" :minFractionDigits="2" />
                             <BaseSelect v-model="modelValue.financials.load_tax_id" :options="taxes" optionLabel="tax_name" optionValue="id" label="Tax Group" filter showClear />
-                        </div>
-                        <div class="grid grid-cols-5 gap-4">
-                            <BaseSelect v-model="modelValue.load_site_id" :options="loading_sites" optionLabel="name" optionValue="id" filter label="Loading Site" />
+                            
+                            <BaseInputNumber v-model="modelValue.batch_size" :disabled="true" label="Batch Quantity (m³)" :minFractionDigits="2" :error="errors.batch_size" />
+                            
+                            <!-- <BaseSelect v-model="modelValue.load_site_id" :options="loading_sites" optionLabel="name" optionValue="id" filter label="Loading Site" /> -->
                             <BaseDatePicker v-model="modelValue.weights.empty_weight_time_load" label="Empty Time" showTime fluid />
                             <BaseDatePicker v-model="modelValue.weights.loaded_weight_time_load" label="Loaded Time" showTime fluid />
                         </div>
-                        <div class="mt-4 flex items-center justify-between p-3 rounded-xl bg-indigo-50/50 border border-indigo-100">
+                        <!-- <div class="mt-4 flex items-center justify-between p-3 rounded-xl bg-indigo-50/50 border border-indigo-100">
                             <span class="text-[10px] font-black uppercase text-indigo-400">Load Subtotal</span>
                             <span class="text-lg font-black text-indigo-700">₹ {{ calculateSubtotal(modelValue.financials.load_units, modelValue.financials.load_rate) }}</span>
-                        </div>
+                        </div> -->
                     </div>
                 </div>
             </div>
 </div>
 
-<div class="grid grid-cols-12 gap-1">
-    
-            <!-- Destination / Unloading Side -->
-            <div class="col-span-12 space-y-2">
-                <div class="flex items-center gap-2 mt-2">
-                    <ScaleIcon class="h-4 w-4 text-emerald-500" />
-                    <h4 class="text-[11px] font-black uppercase tracking-widest text-slate-500">Destination: Unloading Reconciliation</h4>
-                </div>
-
-                <div class="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-                    <!-- Weight Section -->
-                    <div class="p-4 bg-slate-50/50 border-b border-slate-100">
-                        <div class="grid grid-cols-6 gap-4 mb-4">
-                            <BaseInputNumber v-model="modelValue.weights.empty_weight_unload" label="Empty Site (kg)" :error="errors['weights.empty_weight_unload']" />
-                            <BaseInputNumber v-model="modelValue.weights.loaded_weight_unload" label="Loaded Site (kg)" :error="errors['weights.loaded_weight_unload']" />
-                            <BaseInputNumber v-model="modelValue.financials.unload_units" label="Unload Quantity" />
-                            <BaseSelect v-model="modelValue.financials.unload_uom_id" :options="uoms" optionLabel="unit_code" optionValue="id" label="Unit of Measure" filter />
-                            <BaseInputNumber v-model="modelValue.financials.unload_rate" label="Unload Rate" :minFractionDigits="2" />
-                            <BaseSelect v-model="modelValue.financials.unload_tax_id" :options="taxes" optionLabel="tax_name" optionValue="id" label="Tax Group" filter showClear />
-                           </div>
-                            <div class="grid grid-cols-5 gap-4 mb-4">
-                            <BaseSelect v-model="modelValue.unload_site_id" :options="unloading_sites" optionLabel="name" optionValue="id" filter label="Unloading Site" />
-                            <BaseDatePicker v-model="modelValue.weights.empty_weight_time_unload" label="Empty Time" showTime fluid />
-                            <BaseDatePicker v-model="modelValue.weights.loaded_weight_time_unload" label="Loaded Time" showTime fluid />
-                        </div>
-                        <div class="mt-4 flex items-center justify-between p-3 rounded-xl bg-emerald-50/50 border border-emerald-100">
-                            <span class="text-[10px] font-black uppercase text-emerald-400">Unload Subtotal</span>
-                            <span class="text-lg font-black text-emerald-700">₹ {{ calculateSubtotal(modelValue.financials.unload_units, modelValue.financials.unload_rate) }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        
 
         <!-- 3. Logistics & Billing Details -->
-        <div class="grid grid-cols-12 gap-8 p-4 border-t border-slate-100">
-            <div class="col-span-12 md:col-span-12 space-y-4">
+        <div class="grid grid-cols-8 gap-8 p-4 border-t border-slate-100">
+            <div class="col-span-8 md:col-span-8 space-y-4">
                 <div class="flex items-center gap-2">
                     <TruckIcon class="h-4 w-4 text-slate-400" />
                     <h4 class="text-[11px] font-black uppercase tracking-widest text-slate-500">Logistics Data</h4>
                 </div>
-                <div class="grid grid-cols-5 gap-4">
-                    <BaseInput v-model="modelValue.status.invoice_number" label="Sales Invoice #" />
-                    <BaseDatePicker v-model="modelValue.status.invoice_date" label="Invoice Date" showTime fluid />
+                <div class="grid grid-cols-3 gap-4">
+                    <BaseInput v-model="modelValue.financials.invoice_number" label="Sales Invoice #" />
+                    <BaseDatePicker v-model="modelValue.financials.invoice_date" label="Invoice Date" showTime fluid />
                     <!-- <BaseInput v-model="modelValue.status.invoice_date" label="Invoice Date" type="date" /> -->
                 </div>
                 <!-- <div class="grid grid-cols-2 gap-4"> -->
@@ -167,13 +158,13 @@ const calculateSubtotal = (units: number, rate: number) => {
                 <!-- <BaseInput v-model="modelValue.status.transport_km" label="Total Distance (KM)" type="number" step="0.01" /> -->
             </div>
 </div>
-<div class="grid grid-cols-12 gap-1 p-4">
-            <div class="col-span-12 md:col-span-12 space-y-4">
+<div class="grid grid-cols-8 gap-1 p-4">
+            <div class="col-span-12 md:col-span-8 space-y-4">
                 <div class="flex items-center gap-2">
                     <BanknotesIcon class="h-4 w-4 text-slate-400" />
                     <h4 class="text-[11px] font-black uppercase tracking-widest text-slate-500">Adjustments & Reconciliation</h4>
                 </div>
-                <div class="grid grid-cols-5 gap-4">
+                <div class="grid grid-cols-4 gap-4">
                     <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" />
                     <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" />
                 <!-- </div>
@@ -183,7 +174,7 @@ const calculateSubtotal = (units: number, rate: number) => {
                 <!-- </div>
                 <div class="grid grid-cols-2 gap-4"> -->
                     <!-- <BaseInputNumber v-model="modelValue.weights.round_off" label="Tolerance" :minFractionDigits="2" /> -->
-                    <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" />
+                    <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" />
                 </div>
             </div>
         </div>

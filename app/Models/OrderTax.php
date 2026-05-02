@@ -57,8 +57,9 @@ class OrderTax extends Model
      * @param  Invoice  $invoice
      * @param  float    $taxableAmount
      * @param  float    $fullRate     e.g. 18 (will be split as 9+9)
+     * @param  int|null $taxId
      */
-    public static function createIntraStateSplit(Invoice $invoice, float $taxableAmount, float $fullRate): void
+    public static function createIntraStateSplit(Invoice $invoice, float $taxableAmount, float $fullRate, ?int $taxId = null): void
     {
         $half   = $fullRate / 2;
         $splits = [
@@ -68,9 +69,9 @@ class OrderTax extends Model
 
         foreach ($splits as $split) {
             self::create([
-                'order_type'  => Invoice::class,
+                'order_type'  => 'Invoice',
                 'order_id'    => $invoice->id,
-                'tax_id'      => $invoice->tax_id,
+                'tax_id'      => $taxId,
                 'name'        => $split['name'],
                 'rate'        => $split['rate'],
                 'amount'      => round($taxableAmount * ($split['rate'] / 100), 2),
@@ -82,12 +83,12 @@ class OrderTax extends Model
     /**
      * Create IGST split (inter-state) for an invoice.
      */
-    public static function createInterStateSplit(Invoice $invoice, float $taxableAmount, float $fullRate): void
+    public static function createInterStateSplit(Invoice $invoice, float $taxableAmount, float $fullRate, ?int $taxId = null): void
     {
         self::create([
-            'order_type' => Invoice::class,
+            'order_type' => 'Invoice',
             'order_id'   => $invoice->id,
-            'tax_id'     => $invoice->tax_id,
+            'tax_id'     => $taxId,
             'name'       => 'IGST ' . $fullRate . '%',
             'rate'       => $fullRate,
             'amount'     => round($taxableAmount * ($fullRate / 100), 2),

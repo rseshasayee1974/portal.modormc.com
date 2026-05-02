@@ -57,7 +57,7 @@ class InvoiceSeeder extends Seeder
                 'hsn_code' => '996511',
                 'quantity' => 1,
                 'price_unit' => 50000,
-                'discount_type' => 'percent',
+                'discount_type' => '%',
                 'discount' => 0,
             ]);
             $item->compute($tax ? $tax->tax_rate : 0);

@@ -30,8 +30,7 @@ import Textarea from 'primevue/textarea';
 
 const props = defineProps({
     purchaseOrder: Object,
-    vendors: Array,
-    vehicles: Array,
+    vendors: Array,    
     currencies: Array,
     taxes: Array,
     ref_no: Object,
@@ -65,6 +64,7 @@ const form = useForm({
     discount_amount: props.purchaseOrder?.discount_amount || 0,
     shipping_charges: props.purchaseOrder?.shipping_charges || 0,
     adjustment: props.purchaseOrder?.adjustment || 0,
+    rounding_value: props.purchaseOrder?.rounding_value || 0,
     notes: props.purchaseOrder?.notes || '',
     terms_conditions: props.purchaseOrder?.terms_conditions || '',
     items: props.purchaseOrder?.items ? props.purchaseOrder.items.map(i => ({ 
@@ -157,10 +157,10 @@ const calculateFinalTotals = () => {
     // amount_untaxed is net before tax (including all discounts)
     form.amount_untaxed = itemSubtotalsSum - (Number(form.discount_amount) || 0);
     form.amount_tax = itemTaxesTotal;
-    form.amount_total = form.amount_untaxed + form.amount_tax + (Number(form.shipping_charges) || 0) + (Number(form.adjustment) || 0);
+    form.amount_total = form.amount_untaxed + form.amount_tax + (Number(form.shipping_charges) || 0) + (Number(form.adjustment) || 0) + (Number(form.rounding_value) || 0);
 };
 
-watch(() => [form.shipping_charges, form.adjustment, form.discount_amount], calculateFinalTotals);
+watch(() => [form.shipping_charges, form.adjustment, form.rounding_value, form.discount_amount], calculateFinalTotals);
 
 const submit = () => {
     const routeName = isEdit ? 'purchaseorder.update' : 'purchaseorder.store';
@@ -239,7 +239,7 @@ const discountTypeOptions = [{ label: '%', value: 'percentage' }, { label: 'Fixe
 </script>
 
 <template>
-    <div class="create-panel" :class="{ 'create-panel--open': isOpen }">
+    <div class="no-print create-panel" :class="{ 'create-panel--open': isOpen }">
         <button class="create-panel__header" @click="toggle" type="button">
             <div class="flex items-center gap-3">
                 <div class="create-panel__icon">
@@ -435,8 +435,13 @@ const discountTypeOptions = [{ label: '%', value: 'percentage' }, { label: 'Fixe
                                 </div>
 
                                 <div class="flex justify-between items-center gap-4">
-                                    <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Round Off / Adj (+/-)</span>
+                                    <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Other Adjustment (+/-)</span>
                                     <BaseInputNumber v-model="form.adjustment" size="small" class="w-24" @update:modelValue="calculateFinalTotals" />
+                                </div>
+
+                                <div class="flex justify-between items-center gap-4">
+                                    <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Round Off (+/-)</span>
+                                    <BaseInputNumber v-model="form.rounding_value" size="small" class="w-24" @update:modelValue="calculateFinalTotals" />
                                 </div>
 
                                 <div class="flex justify-between items-center border-t border-slate-200 pt-4 mt-4">

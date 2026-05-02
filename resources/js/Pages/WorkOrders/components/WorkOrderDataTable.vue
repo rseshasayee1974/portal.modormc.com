@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
+import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import Button from 'primevue/button';
@@ -24,19 +25,11 @@ const props = withDefaults(defineProps<{
     statuses: () => [],
 });
 
-const search = ref('');
-const expandedRows = ref<Record<number, boolean>>({});
-
-const filteredRows = computed(() => {
-    const query = search.value.trim().toLowerCase();
-    if (!query) return props.workOrders;
-
-    return props.workOrders.filter((row) =>
-        [row.order_no, row.customer?.legal_name, row.site?.name, row.mix_design?.design_name]
-            .filter(Boolean)
-            .some((value) => String(value).toLowerCase().includes(query))
-    );
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
+    status: { value: null, matchMode: 'equals' },
 });
+const expandedRows = ref<Record<number, boolean>>({});
 
 const statusSeverity = (status: number) => {
     if (status === 3) return 'success';
@@ -67,32 +60,36 @@ const onSaved = () => {
 </script>
 
 <template>
-    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-100 px-4 py-3">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-start gap-2.5">
-                    <div class="rounded-lg bg-indigo-50 p-1.5 text-indigo-600">
-                        <ClipboardDocumentListIcon class="h-4 w-4" />
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-700">Work Orders</h2>
-                        <p class="mt-1 text-xs text-slate-400">Click any row to expand and edit inline.</p>
-                    </div>
-                </div>
-                <!-- <BaseInput v-model="search" placeholder="Search order/customer/site..." /> -->
-            </div>
-        </div>
-
+    <div class="bg-white dark:bg-gray-800 shadow-xl sm:rounded-xl">
         <BaseDataTable
             v-model:expandedRows="expandedRows"
-            :value="filteredRows"
+            v-model:filters="filters"
+            :value="workOrders"
             :paginator="true"
             :rows="30"
             :showSearch="true"
             dataKey="id"
             showSerial
-            
+            heading="List Of Work Orders"
+            headingIcon="ClipboardDocumentListIcon"
+            showExport
+            exportFilename="work-orders-report"
+            :globalFilterFields="['order_no', 'customer.legal_name', 'site.name', 'mix_design.design_name']"
         >
+            <template #toolbar>
+                <div class="flex items-center gap-2">
+                    <BaseSelect 
+                        v-model="filters.status.value" 
+                        :options="[{label: 'All Statuses', value: null}, ...statuses]" 
+                        optionLabel="label" 
+                        optionValue="value" 
+                        placeholder="Filter Status" 
+                        class="w-44 !h-9 !rounded-lg !border-slate-300 !text-[11px]"
+                        pt:label:class="!px-3 !py-1"
+                    />
+                </div>
+            </template>
+
             <Column field="order_no" header="Order No" sortable>
                 <template #body="{ data }">
                     <span class="font-mono text-xs font-bold text-indigo-600">{{ data.order_no }}</span>

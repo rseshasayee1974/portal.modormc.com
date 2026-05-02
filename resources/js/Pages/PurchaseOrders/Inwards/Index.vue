@@ -46,6 +46,27 @@ const filters = ref({
     global: { value: null, matchMode: 'contains' },
 });
 
+const dateFrom = ref(null);
+const dateTo = ref(null);
+
+const filteredInwards = computed(() => {
+    let result = props.inwards;
+    
+    if (dateFrom.value) {
+        const from = new Date(dateFrom.value);
+        from.setHours(0, 0, 0, 0);
+        result = result.filter(i => new Date(i.received_date) >= from);
+    }
+    
+    if (dateTo.value) {
+        const to = new Date(dateTo.value);
+        to.setHours(23, 59, 59, 999);
+        result = result.filter(i => new Date(i.received_date) <= to);
+    }
+    
+    return result;
+});
+
 const formatDate = (date: string) => {
     if (!date) return '--';
     return new Date(date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -333,15 +354,26 @@ const deleteInward = (inward: any) => {
 
                     <div class="bg-white rounded-sm shadow-sm border border-slate-200 overflow-hidden">
                         <BaseDataTable 
-                            :value="inwards" 
+                            :value="filteredInwards" 
                             v-model:filters="filters"
                             v-model:rows="entriesPerPage"
+                            v-model:dateFrom="dateFrom"
+                            v-model:dateTo="dateTo"
                             :rowsPerPageOptions="[30, 50, 100, 200]"
                             :globalFilterFields="['inward_no', 'order.po_number', 'product.title', 'order.vendor.legal_name']"
                             showSearch
                             showSerial
                             stripedRows
+                            heading="Stock Inward Registry"
+                            headingIcon="ArchiveBoxIcon"
+                            showExport
+                            exportFilename="stock-inward-report"
                         >
+                            <template #toolbar>
+                                <div class="flex items-center gap-2 px-3 py-1 bg-indigo-50 rounded-lg border border-indigo-100">
+                                    <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{{ filteredInwards.length }} arrivals recorded</span>
+                                </div>
+                            </template>
                             <Column header="Inward #" sortable field="inward_no" style="min-width: 160px" class="py-4 px-4">
                                 <template #body="slotProps">
                                     <div class="flex flex-col">

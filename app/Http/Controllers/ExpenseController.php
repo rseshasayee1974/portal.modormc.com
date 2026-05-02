@@ -24,13 +24,10 @@ class ExpenseController extends Controller
                 ->where('plant_id', $plantId)
                 ->latest()
                 ->get(),
-            'expenseTypes' => ExpenseType::where('plant_id', $plantId)
-                ->where('status', true)
-                ->select('id', 'name')
-                ->get(),
-            'ledgers'  => Ledger::select('id', 'name', 'code')->get(),
+            'expenseTypes' => toSelectOptions(ExpenseTypesDropdown($plantId), 'name'),
+            'ledgers'  => toSelectOptions(LedgersDropdown($plantId), 'title'),
             'machines' => MachinesDropdown($plantId),
-            'patrons'  => PatronsDropdown($plantId),
+            'patrons'  => toSelectOptions(PatronsDropdown($plantId), 'legal_name'),
         ]);
     }
 

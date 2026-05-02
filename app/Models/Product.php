@@ -141,7 +141,7 @@ class Product extends Model
         'title',
         'material_code',
         'product_type',
-        'convertsion_quantity',
+        'conversion_quantity',
         'code',
         'alias',
         'description',

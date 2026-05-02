@@ -1,3 +1,7 @@
+@php
+    $pdfSettings = $data['settings']['pdf'] ?? [];
+    $labels = $pdfSettings['labels'] ?? [];
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -67,14 +71,20 @@
     {{-- HEADER --}}
     <div class="inv-header">
         <div class="header-left">
-            <div class="co-name">{{ $data['company']['name'] }}</div>
-            <div class="co-detail">{{ $data['company']['address'] }}</div>
-            <div class="co-detail">{{ $data['company']['city'] }}, {{ $data['company']['state'] }} - {{ $data['company']['pin'] }}</div>
-            @if($data['company']['gstin']) <div class="co-detail">GSTIN: {{ $data['company']['gstin'] }}</div> @endif
+            @if($pdfSettings['company_name'] ?? true) <div class="co-name">{{ $data['company']['name'] }}</div> @endif
+            @if($pdfSettings['address'] ?? true) 
+                <div class="co-detail">{{ $data['company']['address'] }}</div>
+                <div class="co-detail">{{ $data['company']['city'] }}, {{ $data['company']['state'] }} - {{ $data['company']['pin'] }}</div>
+            @endif
+            @if(($pdfSettings['gstin'] ?? true) && $data['company']['gstin']) <div class="co-detail">GSTIN: {{ $data['company']['gstin'] }}</div> @endif
         </div>
         <div class="header-right">
-            <div class="inv-title">{{ $data['doc_title'] }}</div>
-            <div class="inv-ref">{{ str_contains($data['doc_title'], 'INVOICE') ? 'Invoice#' : ($data['doc_title'] === 'PURCHASE ORDER' ? 'PO#' : 'Ref#') }} <strong>{{ $data['doc_no'] }}</strong></div>
+            @if($pdfSettings['invoice_title'] ?? true) <div class="inv-title">{{ $data['doc_title'] }}</div> @endif
+            <div class="inv-ref">
+                @if($pdfSettings['invoice_number'] ?? true)
+                    {{ str_contains($data['doc_title'], 'INVOICE') ? 'Invoice#' : ($data['doc_title'] === 'PURCHASE ORDER' ? 'PO#' : 'Ref#') }} <strong>{{ $data['doc_no'] }}</strong>
+                @endif
+            </div>
         </div>
     </div>
 
@@ -83,13 +93,15 @@
         <tr>
             <td class="info-cell" style="width:33%">
                 <table class="kv-table">
-                    @foreach([
-                        'Date'     => $data['doc_date'],
-                        'Due Date' => $data['due_date'],
-                        'Delivery' => $data['delivery_date'],
-                        'PO#'      => $data['meta']['po_number'] ?? '',
-                        'Status'   => $data['state'],
-                    ] as $label => $val)
+                    @php
+                        $infoLines = [];
+                        if($pdfSettings['date'] ?? true) $infoLines['Date'] = $data['doc_date'];
+                        if($pdfSettings['due_date'] ?? true) $infoLines['Due Date'] = $data['due_date'];
+                        $infoLines['Delivery'] = $data['delivery_date'];
+                        $infoLines['PO#'] = $data['meta']['po_number'] ?? '';
+                        if($pdfSettings['status'] ?? false) $infoLines['Status'] = $data['state'];
+                    @endphp
+                    @foreach($infoLines as $label => $val)
                         @if($val)
                         <tr>
                             <td class="kv-key">{{ $label }}</td>
@@ -101,17 +113,21 @@
                 </table>
             </td>
             <td class="info-cell" style="width:34%">
-                <div class="addr-hdr">Bill To</div>
-                <div class="addr-name">{{ $data['bill_to']['name'] }}</div>
-                <div class="addr-line">{{ $data['bill_to']['address'] }}</div>
-                <div class="addr-line">{{ $data['bill_to']['city'] }}, {{ $data['bill_to']['state'] }} {{ $data['bill_to']['pin'] }}</div>
-                @if($data['bill_to']['gstin']) <div class="addr-line small">GSTIN: {{ $data['bill_to']['gstin'] }}</div> @endif
+                @if($pdfSettings['bill_to'] ?? true)
+                    <div class="addr-hdr">{{ $labels['bill_to'] ?? 'Bill To' }}</div>
+                    <div class="addr-name">{{ $data['bill_to']['name'] }}</div>
+                    <div class="addr-line">{{ $data['bill_to']['address'] }}</div>
+                    <div class="addr-line">{{ $data['bill_to']['city'] }}, {{ $data['bill_to']['state'] }} {{ $data['bill_to']['pin'] }}</div>
+                    @if(($pdfSettings['gstin'] ?? true) && $data['bill_to']['gstin']) <div class="addr-line small">GSTIN: {{ $data['bill_to']['gstin'] }}</div> @endif
+                @endif
             </td>
             <td class="info-cell no-right" style="width:33%">
-                <div class="addr-hdr">Ship To</div>
-                <div class="addr-name">{{ $data['ship_to']['name'] }}</div>
-                <div class="addr-line">{{ $data['ship_to']['address'] }}</div>
-                <div class="addr-line">{{ $data['ship_to']['city'] }}, {{ $data['ship_to']['state'] }} {{ $data['ship_to']['pin'] }}</div>
+                @if($pdfSettings['ship_to'] ?? true)
+                    <div class="addr-hdr">{{ $labels['ship_to'] ?? 'Ship To' }}</div>
+                    <div class="addr-name">{{ $data['ship_to']['name'] }}</div>
+                    <div class="addr-line">{{ $data['ship_to']['address'] }}</div>
+                    <div class="addr-line">{{ $data['ship_to']['city'] }}, {{ $data['ship_to']['state'] }} {{ $data['ship_to']['pin'] }}</div>
+                @endif
             </td>
         </tr>
     </table>
@@ -125,10 +141,10 @@
             <tr>
                 <th class="text-center" style="width:28px">#</th>
                 <th class="text-left">Item &amp; Description</th>
-                <th class="text-right" style="width:55px">Qty</th>
-                <th class="text-center" style="width:50px">Unit</th>
-                <th class="text-right" style="width:80px">Rate</th>
-                <th class="text-right" style="width:80px">Amount</th>
+                @if($pdfSettings['qty'] ?? true) <th class="text-right" style="width:55px">Qty</th> @endif
+                @if($pdfSettings['unit'] ?? true) <th class="text-center" style="width:50px">Unit</th> @endif
+                <th class="text-right" style="width:80px">{{ $labels['rate'] ?? 'Rate' }}</th>
+                <th class="text-right" style="width:80px">{{ $labels['amount'] ?? 'Amount' }}</th>
             </tr>
         </thead>
         <tbody>
@@ -137,10 +153,11 @@
                 <td class="text-center">{{ $item['no'] }}</td>
                 <td>
                     <div class="item-name">{{ $item['name'] }}</div>
-                    @if($item['description']) <div class="item-sub">{{ $item['description'] }}</div> @endif
+                    @if(($pdfSettings['description'] ?? true) && $item['description']) <div class="item-sub">{{ $item['description'] }}</div> @endif
+                    @if(($pdfSettings['hsn_code'] ?? true) && ($item['hsn'] ?? false)) <div class="small muted">HSN: {{ $item['hsn'] }}</div> @endif
                 </td>
-                <td class="text-right bold">{{ number_format($item['qty'], 2) }}</td>
-                <td class="text-center">{{ $item['unit'] }}</td>
+                @if($pdfSettings['qty'] ?? true) <td class="text-right bold">{{ number_format($item['qty'], 2) }}</td> @endif
+                @if($pdfSettings['unit'] ?? true) <td class="text-center">{{ $item['unit'] }}</td> @endif
                 <td class="text-right">{{ number_format($item['unit_price'], 2) }}</td>
                 <td class="text-right bold">{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($item['total'], 2) }}</td>
             </tr>
@@ -151,23 +168,33 @@
     {{-- TOTALS SPLIT --}}
     <div class="totals-split">
         <div class="totals-left">
-            @if($data['meta']['notes'] ?? false)
+            @if(($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
                 <div class="small muted" style="margin-bottom:6px">Notes</div>
                 <div style="margin-bottom:8px;font-size:var(--size-base)">{{ $data['meta']['notes'] }}</div>
             @endif
-            <div class="tow-label">Total In Words</div>
-            <div class="tow-value">{{ $data['meta']['total_words'] ?: ($data['meta']['currency_code'] ?? 'INR') . ' ' . number_format($data['totals']['grand_total'], 2) . ' Only' }}</div>
+            @if($pdfSettings['total_words'] ?? true)
+                <div class="tow-label">Total In Words</div>
+                <div class="tow-value">{{ $data['meta']['total_words'] ?: ($data['meta']['currency_code'] ?? 'INR') . ' ' . number_format($data['totals']['grand_total'], 2) . ' Only' }}</div>
+            @endif
         </div>
         <div class="totals-right">
             <table class="breakdown-table">
                 <tr><td class="bt-label">Sub Total</td><td class="bt-val">{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['sub_total'], 2) }}</td></tr>
-                @if($data['totals']['discount'] > 0)
+                @if(($pdfSettings['discount'] ?? true) && $data['totals']['discount'] > 0)
                 <tr><td class="bt-label red">Discount (-)</td><td class="bt-val red">{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['discount'], 2) }}</td></tr>
                 @endif
                 @foreach($data['totals']['tax_lines'] as $tl)
-                <tr><td class="bt-label">{{ $tl['label'] }}</td><td class="bt-val">{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($tl['amount'], 2) }}</td></tr>
+                    @php
+                        $showTax = true;
+                        if(str_contains($tl['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) $showTax = false;
+                        if(str_contains($tl['label'], 'SGST') && !($pdfSettings['sgst'] ?? true)) $showTax = false;
+                        if(str_contains($tl['label'], 'IGST') && !($pdfSettings['igst'] ?? true)) $showTax = false;
+                    @endphp
+                    @if($showTax)
+                        <tr><td class="bt-label">{{ $tl['label'] }}</td><td class="bt-val">{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($tl['amount'], 2) }}</td></tr>
+                    @endif
                 @endforeach
-                @if($data['totals']['shipping'] > 0)
+                @if(($pdfSettings['shipping'] ?? true) && $data['totals']['shipping'] > 0)
                 <tr><td class="bt-label">Shipping</td><td class="bt-val">{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['shipping'], 2) }}</td></tr>
                 @endif
                 <tr class="bt-total-row"><td class="bt-label bold">Total</td><td class="bt-val bold">{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['grand_total'], 2) }}</td></tr>
@@ -177,7 +204,7 @@
     </div>
 
     {{-- TERMS --}}
-    @if($data['meta']['terms_text'] ?? false)
+    @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? false))
     <div style="padding:7px 12px;border-bottom:1px solid var(--color-border);font-size:var(--size-base)">
         <div class="small muted" style="margin-bottom:2px">Terms &amp; Conditions</div>
         <div style="font-size:10px;color:var(--color-light)">{!! nl2br(e($data['meta']['terms_text'])) !!}</div>
@@ -185,12 +212,14 @@
     @endif
 
     {{-- SIGNATURE --}}
+    @if($pdfSettings['signature'] ?? true)
     <div class="sig-section" style="min-height:80px">
         <div class="sig-left"></div>
         <div class="sig-right" style="padding-bottom:10px">
             <div class="sig-line">Authorized Signatory<br><span class="small muted">For {{ $data['company']['name'] }}</span></div>
         </div>
     </div>
+    @endif
 
     @include('pdfs.partials._footer')
 </div>

@@ -19,6 +19,20 @@ class Dispatch extends Model
     protected $casts = [
         'dispatch_time' => 'datetime',
         'delivered_qty' => 'decimal:3',
+        'load_rate' => 'decimal:2',
+        'load_tax_amount' => 'decimal:2',
+        'load_untax_amount' => 'decimal:2',
+        'load_total_amount' => 'decimal:2',
+        'pass_amount' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'transport_expenses' => 'decimal:2',
+        'adjustment_amount' => 'decimal:2',
+        'round_off' => 'decimal:2',
+        'transport_rate' => 'decimal:2',
+        'transport_tax_rate' => 'decimal:2',
+        'transport_tax_amount' => 'decimal:2',
+        'transport_total_amount' => 'decimal:2',
+        'total_amount' => 'decimal:2',
     ];
 
     /**
@@ -32,6 +46,11 @@ class Dispatch extends Model
     public function batch(): BelongsTo
     {
         return $this->belongsTo(Batch::class);
+    }
+
+    public function plant(): BelongsTo
+    {
+        return $this->belongsTo(Plant::class);
     }
 
     public function truck(): BelongsTo
@@ -72,19 +91,6 @@ class Dispatch extends Model
     public function cleaner(): BelongsTo
     {
         return $this->belongsTo(Personnel::class, 'cleaner_id');
-    }
-
-    /**
-     * Extended Data
-     */
-    public function weights(): HasOne
-    {
-        return $this->hasOne(DispatchWeight::class, 'dispatch_id');
-    }
-
-    public function financials(): HasOne
-    {
-        return $this->hasOne(DispatchFinancial::class, 'dispatch_id');
     }
 
     public function status(): HasOne

@@ -30,6 +30,8 @@ class Batch extends Model
         // 'load_tax_id',
         'site_id',
         'status',
+        'empty_time',
+        'load_time',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -39,6 +41,8 @@ class Batch extends Model
         'batch_size' => 'decimal:2',
         'start_time' => 'datetime',
         'end_time' => 'datetime',
+        'empty_time' => 'datetime',
+        'load_time' => 'datetime',
     ];
 
     public const STATUS_PLANNED = 1;
@@ -73,9 +77,34 @@ class Batch extends Model
         return $this->belongsTo(Machine::class, 'truck_id');
     }
 
+    public function transport()
+    {
+        return $this->belongsTo(Patron::class, 'transport_id');
+    }
+
+    public function driver()
+    {
+        return $this->belongsTo(Personnel::class, 'driver_id');
+    }
+
+    public function site()
+    {
+        return $this->belongsTo(Site::class, 'site_id');
+    }
+
+    public function uom()
+    {
+        return $this->belongsTo(ProductUnit::class, 'uom_id');
+    }
+
     public function materials()
     {
         return $this->hasMany(BatchMaterial::class, 'batch_id');
+    }
+
+    public function photos()
+    {
+        return $this->hasMany(MmImage::class, 'ref_no', 'id')->where('category', 'Batching');
     }
 
     public function dispatches()

@@ -14,6 +14,7 @@ import QuotationEditForm from './components/QuotationEditForm.vue';
 import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
+import { ListBulletIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps<{
     quotations: any[];
@@ -169,43 +170,8 @@ const updateConversion = (quotation: any) => {
 
                 <hr class="border-slate-200 border-dashed" />
 
-                <div class="bg-white shadow-xl sm:rounded-lg p-8">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-                        <div>
-                            <h3 class="text-md font-semibold text-slate-800 uppercase">Quotation Directory</h3>
-                            <p class="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none mt-1">
-                                Manage estimates and revisions
-                            </p>
-                        </div>
-
-                        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                            <BaseSelect 
-                                v-model="rows" 
-                                :options="entriesOptions" 
-                                optionLabel="label" 
-                                optionValue="value"
-                                class="!h-10 w-20 flex items-center justify-center font-bold text-xs"
-                                :pt="{
-                                    root: { class: 'border border-slate-300 rounded-md' },
-                                    label: { class: 'text-xs p-2' }
-                                }"
-                            />
-                            <BaseInput
-                                v-model="filters.global.value"
-                                placeholder="Search by Ref, Customer, Site"
-                                inputClass="!h-9 !w-72"
-                            />
-                            <BaseSelect
-                                v-model="filters.status.value"
-                                :options="stateOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="Filter status"
-                                class="w-44"
-                            />
-                        </div>
-                    </div>
-
+                <!-- Listing Table -->
+                <div class="bg-white shadow-xl sm:rounded-xl">
                     <BaseDataTable
                         :value="quotations"
                         v-model:first="first"
@@ -221,7 +187,25 @@ const updateConversion = (quotation: any) => {
                         class="quotation-table cursor-pointer"
                         :globalFilterFields="['reference', 'patron.legal_name', 'site.name']"
                         showSerial
+                        heading="Quotation Directory"
+                        headingIcon="ListBulletIcon"
+                        showExport
+                        showSearch
+                        exportFilename="quotation-directory"
                     >
+                        <template #toolbar>
+                            <div class="flex items-center gap-2">
+                                <BaseSelect
+                                    v-model="filters.status.value"
+                                    :options="stateOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="Filter Status"
+                                    class="w-44 !h-9 !rounded-lg !border-slate-300 !text-[11px]"
+                                    pt:label:class="!px-3 !py-1"
+                                />
+                            </div>
+                        </template>
 
 
                         <Column field="reference" header="Reference" sortable>

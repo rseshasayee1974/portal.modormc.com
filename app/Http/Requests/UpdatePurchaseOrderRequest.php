@@ -48,6 +48,7 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'discount_amount' => 'nullable|numeric',
             'shipping_charges' => 'nullable|numeric',
             'adjustment' => 'nullable|numeric',
+            'rounding_value' => 'nullable|numeric',
             'common_tax_id' => 'nullable|exists:mm_taxes,id',
             'shipping_tax_id' => 'nullable|exists:mm_taxes,id',
             'state' => 'sometimes|string|in:draft,to_approve,approved,purchase,done,cancel',

@@ -72,14 +72,21 @@ const onRowClick = (event: any) => {
         paginator
         :rows="perPage"
         @update:rows="perPage = $event"
-        heading="List of Entities"
-        headingIcon="pi pi-building"
+        heading="Entity Directory"
+        headingIcon="BuildingOfficeIcon"
         showSearch
         showSerial
         :expandedRows="expandedRows"
         @update:expandedRows="$emit('update:expandedRows', $event)"
         @row-click="onRowClick"
+        showExport
+        exportFilename="entity-directory-report"
     >
+        <template #toolbar>
+            <div class="flex items-center gap-2 px-3 py-1 bg-violet-50 rounded-lg border border-violet-100">
+                <span class="text-[10px] font-black text-violet-600 uppercase tracking-widest">{{ entities.length }} entities registered</span>
+            </div>
+        </template>
         <!-- ── Organization Column ── -->
         <Column field="legal_name" header="Organization" sortable>
             <template #body="slotProps">

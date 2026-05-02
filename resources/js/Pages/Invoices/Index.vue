@@ -9,9 +9,11 @@ import InvoiceIndexList from './components/InvoiceIndexList.vue';
 const props = defineProps<{
     invoices: any[];
     patrons: any[];
-    taxes: any[];
-    trucks: any[];
+    taxes: any[]; 
     accounts: any[];
+    mixdesign: any[];
+    units: any[];
+    instant_invoice_patron: number | boolean;
 }>();
 
 </script>
@@ -25,29 +27,28 @@ const props = defineProps<{
         <Head title="Invoice Management" />
         <Toast />
 
-        <div class="min-h-screen pb-20">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+        <div class="min-h-screen py-8">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
                 
-                <!-- v4: Invoice create form want to need for table top -->
                 <section>
                     <InvoiceCreateForm 
                         :patrons="patrons"
-                        :taxes="taxes"
-                        :trucks="trucks"
+                        :taxes="taxes" 
                         :accounts="accounts"
+                        :mixdesign="mixdesign"
+                        :units="units"
+                        :instant_invoice_patron="instant_invoice_patron"
                     />
                 </section>
 
-                <hr class="border-slate-200 border-dashed" />
-
-                <!-- v4: and below datatable show -->
                 <section>
                     <InvoiceIndexList 
                         :invoices="invoices"
                         :patrons="patrons"
-                        :taxes="taxes"
-                        :trucks="trucks"
+                        :taxes="taxes" 
                         :accounts="accounts"
+                        :mixdesign="mixdesign"
+                        :units="units"
                     />
                 </section>
 

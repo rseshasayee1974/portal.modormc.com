@@ -9,6 +9,10 @@ use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 use App\Http\Responses\LoginResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -43,5 +47,46 @@ class AppServiceProvider extends ServiceProvider
             $this->softDeletes(); // adds deleted_at
             $this->foreignId('deleted_by')->nullable()->constrained('users')->nullOnDelete();
         });
+
+        // Record last_login, ip_address, location and set login_status = true on every successful login
+        Event::listen(Login::class, function (Login $event) {
+            $ip = request()->ip();
+            $location = 'Local / Unknown';
+            
+            // Try to resolve location for non-local IPs
+            if ($ip !== '127.0.0.1' && $ip !== '::1') {
+                try {
+                    $response = Http::timeout(3)->get("http://ip-api.com/json/{$ip}");
+                    if ($response->successful()) {
+                        $data = $response->json();
+                        if (($data['status'] ?? '') === 'success') {
+                            $location = ($data['city'] ?? '') . ', ' . ($data['regionName'] ?? '') . ', ' . ($data['country'] ?? '');
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Fail silently, location stays as 'Local / Unknown'
+                }
+            }
+
+            $event->user->forceFill([
+                'last_login'     => now(),
+                'login_status'   => true,
+                'ip_address'     => $ip,
+                'login_location' => $location,
+            ])->saveQuietly();
+        });
+
+        // Set login_status = false and clear ip_address when user logs out
+        Event::listen(Logout::class, function (Logout $event) {
+            if ($event->user) {
+                $event->user->forceFill([
+                    'login_status' => false,
+                ])->saveQuietly();
+            }
+        });
+
+        \Illuminate\Database\Eloquent\Relations\Relation::morphMap([
+            'Invoice' => \App\Models\Invoice::class,
+        ]);
     }
 }

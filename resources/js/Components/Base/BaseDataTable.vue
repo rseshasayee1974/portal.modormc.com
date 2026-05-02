@@ -1,14 +1,38 @@
 <script setup lang="ts">
-import { useSlots } from 'vue';
+import { useSlots, ref } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Skeleton from 'primevue/skeleton';
 import Select from 'primevue/select';
+import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import InputGroup from 'primevue/inputgroup';
 import InputGroupAddon from 'primevue/inputgroupaddon';
-import { MagnifyingGlassIcon } from '@heroicons/vue/24/outline';
+import { 
+    MagnifyingGlassIcon, 
+    ListBulletIcon, 
+    ClipboardDocumentListIcon, 
+    FunnelIcon, 
+    TruckIcon, 
+    CubeIcon, 
+    BeakerIcon, 
+    UserGroupIcon, 
+    BuildingOfficeIcon, 
+    BookOpenIcon, 
+    ArchiveBoxIcon,
+    PlusIcon,
+    ArrowPathIcon,
+    CheckCircleIcon,
+    ArrowDownTrayIcon,
+    CreditCardIcon,
+    DocumentTextIcon,
+    TagIcon,
+    ShoppingCartIcon
+} from '@heroicons/vue/24/outline';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
+import Popover from 'primevue/popover';
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+import BaseSelect from '@/Components/Base/BaseSelect.vue';
 
 const props = withDefaults(
     defineProps<{
@@ -45,6 +69,14 @@ const props = withDefaults(
         deleteUrl?: (row: any) => string;
         deleteTitle?: string;
         deleteText?: string;
+
+        // Export Props
+        showExport?: boolean;
+        exportFilename?: string;
+
+        // Advanced Filter Props
+        dateFrom?: any;
+        dateTo?: any;
     }>(),
     {
         loading: false,
@@ -62,7 +94,9 @@ const props = withDefaults(
         showSerial: false,
         showSearch: false,
         heading : "",
-        headingIcon:''
+        headingIcon:'',
+        showExport: false,
+        exportFilename: 'report'
     }
 );
 
@@ -77,6 +111,8 @@ const emit = defineEmits<{
     (e: 'rowExpand', ev: any): void;
     (e: 'rowCollapse', ev: any): void;
     (e: 'update:expandedRows', val: any): void;
+    (e: 'update:dateFrom', val: any): void;
+    (e: 'update:dateTo', val: any): void;
 }>();
 
 const slots = useSlots();
@@ -86,25 +122,41 @@ const getRowSerial = (index: number) => {
 };
 
 const handleRowClick = (event: any) => {
+    if (!event || !event.originalEvent) return;
     emit('row-click', event);
     
     // Auto-toggle expansion if the expansion slot is provided
     // and the click wasn't on an action button or the expander icon itself
     if (slots.expansion) {
         const target = event.originalEvent.target;
+        if (!target) return;
+        
         const isExpander = target.closest('.p-row-toggler');
         const isAction = target.closest('button') || target.closest('a');
         
         if (!isExpander && !isAction) {
-            const id = event.data[props.dataKey || 'id'];
-            const newExpandedRows = props.expandedRows ? { ...props.expandedRows } : {};
-            
-            if (newExpandedRows[id]) {
-                delete newExpandedRows[id];
+            let newExpandedRows;
+            const id = event.data?.[props.dataKey || 'id'];
+            if (id === undefined) return;
+
+            if (Array.isArray(props.expandedRows)) {
+                newExpandedRows = [...props.expandedRows];
+                const index = newExpandedRows.findIndex(row => (row[props.dataKey || 'id'] || row) === id);
+                if (index > -1) {
+                    newExpandedRows.splice(index, 1);
+                } else {
+                    // Usually we only want one row expanded at a time for these forms
+                    newExpandedRows = [event.data];
+                }
             } else {
-                // Usually we only want one row expanded at a time for these forms
-                Object.keys(newExpandedRows).forEach(key => delete newExpandedRows[key]);
-                newExpandedRows[id] = true;
+                newExpandedRows = props.expandedRows ? { ...props.expandedRows } : {};
+                if (newExpandedRows[id]) {
+                    delete newExpandedRows[id];
+                } else {
+                    // Single expansion mode: clear others
+                    Object.keys(newExpandedRows).forEach(key => delete newExpandedRows[key]);
+                    newExpandedRows[id] = true;
+                }
             }
             
             emit('update:expandedRows', newExpandedRows);
@@ -127,51 +179,120 @@ const handleSearch = (val: string) => {
     newFilters.global.value = val;
     emit('update:filters', newFilters);
 };
+
+const dt = ref();
+
+const exportCSV = () => {
+    dt.value.exportCSV();
+};
+
+const printReport = () => {
+    window.print();
+};
+
+const IconMap = {
+    ListBulletIcon,
+    MagnifyingGlassIcon,
+    ClipboardDocumentListIcon,
+    TruckIcon,
+    CubeIcon,
+    BeakerIcon,
+    UserGroupIcon,
+    BuildingOfficeIcon,
+    BookOpenIcon,
+    ArchiveBoxIcon,
+    PlusIcon,
+    ArrowPathIcon,
+    CheckCircleIcon,
+    ArrowDownTrayIcon,
+    CreditCardIcon,
+    DocumentTextIcon,
+    TagIcon,
+    ShoppingCartIcon
+};
+
+const filterPopover = ref();
+const toggleFilterPopover = (event: any) => {
+    filterPopover.value.toggle(event);
+};
 </script>
 
 <template>
     <div class="base-datatable-wrapper border border-slate-200 rounded-sm overflow-hidden shadow-sm">
-
-       
-
-        <div v-if="showSearch" class="bg-slate-50/30 border-b border-slate-100 px-4 py-2.5 flex items-center justify-between">
-            <div v-if="heading" class="mr-auto flex items-center gap-2"> 
-                <i v-if="headingIcon" :class="[headingIcon, 'text-xl text-indigo-500']"></i>
-                <h3 class="text-lg font-semibold text-slate-800">
-                    {{ heading }}
-                </h3>
-               
-            </div>
-            <!-- Entries per page -->
-             <div class="flex items-end justify-end gap-2">
-            <Select
-                :modelValue="rows"
-                @update:modelValue="$emit('update:rows', $event)"
-                :options="internalPageOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Entries"
-                class="!h-10 !text-[11px] pt-1 !font-bold !bg-white !border-slate-200 !rounded-lg w-32 shadow-sm"
-            />
-
-            <!-- Search -->
-            <InputGroup class="!rounded-md overflow-hidden border border-slate-200 shadow-sm group focus-within:border-indigo-400 transition-all bg-white h-10" style="width: 200px">
-                <InputText 
-                    :modelValue="filters?.global?.value" 
-                    @update:modelValue="handleSearch"
-                    placeholder="Search records..." 
-                    class="!border-none !text-[13px] !font-bold !bg-transparent !px-3 h-full placeholder:text-slate-300" 
-                />
-                <InputGroupAddon class="!bg-transparent !border-none !px-2">
-                    <div class="p-1 rounded-md bg-slate-50 group-focus-within:bg-indigo-50 transition-colors">
-                        <MagnifyingGlassIcon class="w-3 h-3 text-slate-400 group-focus-within:text-indigo-500" />
-                    </div>
-                </InputGroupAddon>
-            </InputGroup>
+        
+        <!-- Print Only Header -->
+        <div class="print-only-header hidden">
+            <div class="flex justify-between items-end border-b-2 border-slate-900 pb-4 mb-6">
+                <div>
+                    <h1 class="text-3xl font-black text-slate-900 uppercase tracking-tighter">{{ heading || 'Data Report' }}</h1>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Generated: {{ new Date().toLocaleString('en-IN') }}</p>
+                </div>
+                <div class="text-right">
+                    <h2 class="text-xl font-black text-indigo-600 tracking-tighter">MODOR RMC</h2>
+                    <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest leading-none">Portal Reporting System</p>
+                </div>
             </div>
         </div>
 
+        <div v-if="heading || showSearch || $slots.toolbar" class="no-print bg-white border-b border-slate-100 px-5 py-4 flex flex-wrap items-center justify-between gap-4">
+            <div v-if="heading" class="flex items-center gap-3"> 
+                <div v-if="headingIcon" class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center shadow-sm border border-indigo-100/50">
+                    <component v-if="IconMap[headingIcon]" :is="IconMap[headingIcon]" class="w-6 h-6 text-indigo-600" />
+                    <i v-else :class="[headingIcon, 'text-xl text-indigo-500']"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-bold text-slate-800 tracking-tight leading-none">
+                        {{ heading }}
+                    </h3>
+                    <div v-if="value?.length > 0" class="flex items-center gap-2 mt-1">
+                        <div class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ value.length }} Records Found</span>
+                    </div>
+                </div>
+            </div>
+           
+            <div class="flex items-center flex-wrap gap-3 ml-auto">
+                <slot name="toolbar"></slot>
+
+                <div v-if="showSearch" class="flex items-center gap-3">
+                    <Select
+                        :modelValue="rows"
+                        @update:modelValue="$emit('update:rows', $event)"
+                        :options="internalPageOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        placeholder="Entries"
+                        class="!h-10 !text-[11px] !font-bold !bg-slate-50 !border-slate-200 !rounded-lg w-32 shadow-sm"
+                    />
+
+                    <InputGroup class="!rounded-lg overflow-hidden border border-slate-200 shadow-sm group focus-within:border-indigo-400 focus-within:ring-2 focus-within:ring-indigo-50 transition-all bg-white h-10" style="width: 240px">
+                        <InputGroupAddon class="!bg-transparent !border-none !px-3">
+                            <MagnifyingGlassIcon class="w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                        </InputGroupAddon>
+                        <InputText 
+                            :modelValue="filters?.global?.value" 
+                            @update:modelValue="handleSearch"
+                            placeholder="Quick search..." 
+                            class="!border-none !text-[13px] !font-semibold !bg-transparent !px-0 h-full placeholder:text-slate-400 placeholder:font-medium" 
+                        />
+                    </InputGroup>
+                    
+                    <Button 
+                        icon="pi pi-filter" 
+                        severity="secondary" 
+                        text 
+                        rounded 
+                        class="!h-10 !w-10 !border !border-slate-200 !bg-white !shadow-sm hover:!border-indigo-400 group transition-all"
+                        v-tooltip.bottom="'Advanced Filters'"
+                        @click="toggleFilterPopover"
+                    />
+                </div>
+            </div>
+
+        </div>
+
         <DataTable
+            ref="dt"
             :value="value"
             :dataKey="dataKey || 'id'"
             :loading="loading"
@@ -190,6 +311,7 @@ const handleSearch = (val: string) => {
             :removableSort="removableSort"
             :responsiveLayout="responsiveLayout"
             :expandedRows="expandedRows"
+            :exportFilename="exportFilename"
             @update:first="$emit('update:first', $event)"
             @update:rows="$emit('update:rows', $event)"
             @update:filters="$emit('update:filters', $event)"
@@ -248,6 +370,62 @@ const handleSearch = (val: string) => {
                 <slot name="expansion" v-bind="slotProps" />
             </template>
         </DataTable>
+
+        <Popover ref="filterPopover" class="!shadow-2xl !border !border-slate-200 !rounded-xl overflow-hidden">
+            <div class="flex flex-col w-80 p-5 gap-6">
+                <div class="flex items-center gap-3 pb-4 border-b border-slate-100">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                        <FunnelIcon class="w-4 h-4" />
+                    </div>
+                    <span class="text-sm font-bold text-slate-800 uppercase tracking-wider">Advanced Filters</span>
+                </div>
+
+                <div class="flex flex-col gap-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">From Date</label>
+                            <BaseDatePicker 
+                                :modelValue="dateFrom" 
+                                @update:modelValue="$emit('update:dateFrom', $event)"
+                                class="!h-9"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">To Date</label>
+                            <BaseDatePicker 
+                                :modelValue="dateTo" 
+                                @update:modelValue="$emit('update:dateTo', $event)"
+                                class="!h-9"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="$slots.filters" class="flex flex-col gap-4 pt-4 border-t border-slate-100">
+                    <slot name="filters" />
+                </div>
+
+                <div v-if="showExport" class="flex flex-col gap-3 pt-4 border-t border-slate-100">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Export Options</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <Button 
+                            label="Excel" 
+                            icon="pi pi-file-excel" 
+                            severity="success" 
+                            class="!py-2 !text-xs font-bold shadow-sm"
+                            @click="exportCSV" 
+                        />
+                        <Button 
+                            label="PDF" 
+                            icon="pi pi-print" 
+                            severity="danger" 
+                            class="!py-2 !text-xs font-bold shadow-sm"
+                            @click="printReport" 
+                        />
+                    </div>
+                </div>
+            </div>
+        </Popover>
     </div>
 </template>
 

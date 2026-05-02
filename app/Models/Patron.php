@@ -166,6 +166,11 @@ class Patron extends Model
         return $this->belongsToMany(Personnel::class, 'mm_personnel_patron_rels', 'patron_id', 'employee_id');
     }
 
+    public function addresses()
+    {
+        return $this->morphToMany(Address::class, 'addressable', 'mm_address_relation');
+    }
+
     public static function generateCode($plantId, $patronTypes)
     {
         $types = (array) $patronTypes;

@@ -17,9 +17,7 @@ class DispatchStatus extends Model
     protected $casts = [
         'is_closed' => 'boolean',
         'is_load_tax_inclusive' => 'boolean',
-        'is_unload_tax_inclusive' => 'boolean',
         'invoice_date' => 'date',
-        'transport_date' => 'date',
         'transport_km' => 'decimal:2',
     ];
 

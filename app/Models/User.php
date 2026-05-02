@@ -39,6 +39,8 @@ use App\Helpers\DateTimeHelper;
  * @property int $failed_attempts
  * @property Carbon|null $last_login
  * @property string|null $last_visit_page
+ * @property bool $login_status
+ * @property string|null $login_location
  * @property string|null $ip_address
  * @property Carbon|null $lockout_until
  * @property string|null $otp_secret
@@ -66,6 +68,7 @@ class User extends Authenticatable implements MustVerifyEmail
 		'failed_attempts' => 'int',
 		'last_login' => 'datetime',
 		'lockout_until' => 'datetime',
+		'login_status' => 'boolean',
 		'created_by' => 'int',
 		'updated_by' => 'int',
 		'deleted_by' => 'int'
@@ -104,6 +107,8 @@ class User extends Authenticatable implements MustVerifyEmail
 		'failed_attempts',
 		'last_login',
 		'last_visit_page',
+		'login_status',
+		'login_location',
 		'ip_address',
 		'lockout_until',
 		'otp_secret',

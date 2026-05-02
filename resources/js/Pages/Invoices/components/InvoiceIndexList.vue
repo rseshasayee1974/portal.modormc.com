@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import axios from 'axios';
 import { router } from '@inertiajs/vue3';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
@@ -19,8 +20,9 @@ const props = defineProps<{
     invoices: any[];
     patrons: any[];
     taxes: any[];
-    trucks: any[];
     accounts: any[];
+    mixdesign: any[];
+    units: any[];
 }>();
 
 const expandedRows = ref<Record<number, boolean>>({});
@@ -56,38 +58,58 @@ const deleteInvoice = (invoice: any) => {
         confirmButtonText: 'Yes, Void'
     }).then((result) => {
         if (result.isConfirmed) {
-            router.delete(route('invoices.destroy', invoice.id));
+            router.delete(route('invoices.destroy', invoice.encrypted_id));
         }
     });
 };
 
-const toggleEdit = (data: any) => {
-    if (expandedRows.value[data.id]) {
-        expandedRows.value = {};
-    } else {
-        expandedRows.value = { [data.id]: true };
+const loadingRows = ref<Record<number, boolean>>({});
+const invoiceDetails = ref<Record<number, any>>({});
+
+const fetchInvoiceDetails = async (data: any) => {
+    const id = data.id;
+    const encryptedId = data.encrypted_id;
+    if (loadingRows.value[id] || invoiceDetails.value[id]) return;
+    
+    loadingRows.value[id] = true;
+    try {
+        const response = await axios.get(route('invoices.show', encryptedId));
+        invoiceDetails.value[id] = response.data;
+    } catch (error) {
+        console.error('Failed to fetch invoice details', error);
+    } finally {
+        loadingRows.value[id] = false;
     }
+};
+const toggleEdit = async (data: any) => {
+    const id = data.id;
+    const isExpanded = !!expandedRows.value[id];
+    
+    if (!isExpanded) {
+        await fetchInvoiceDetails(data);
+    }
+    
+    // Reset all expanded rows to ensure only one is open at a time
+    const nextExpanded = {};
+    if (!isExpanded) {
+        nextExpanded[id] = true;
+    }
+    
+    expandedRows.value = nextExpanded;
+};
+
+const onRowExpand = (event: any) => {
+    fetchInvoiceDetails(event.data);
+};
+
+const printInvoice = (data: any) => {
+    window.open(route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'view' }), '_blank');
 };
 
 </script>
 
 <template>
-    <div class="bg-white dark:bg-slate-800 shadow-xl rounded-2xl border border-slate-200 dark:border-slate-700 p-8 overflow-hidden transition-all duration-300">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-            <div class="flex items-center gap-5">
-                <div class="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-slate-900/50 flex items-center justify-center border border-indigo-100/50 dark:border-slate-700 shadow-sm">
-                    <ListBulletIcon class="w-6 h-6 text-indigo-600" />
-                </div>
-                <div>
-                    <h3 class="text-md font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">Invoice Directory</h3>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        <p class="text-[10px] text-slate-400 font-extrabold uppercase tracking-[0.2em] leading-none">Complete Logistics History</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+    <div class="bg-white dark:bg-slate-800 shadow-xl rounded-lg border border-slate-200 dark:border-slate-700  overflow-hidden transition-all duration-300">
         <BaseDataTable
             :value="invoices" 
             v-model:expandedRows="expandedRows"
@@ -99,14 +121,19 @@ const toggleEdit = (data: any) => {
             class="p-datatable-sm"
             showSearch
             showSerial
+            @rowExpand="onRowExpand"
+            @row-click="toggleEdit($event.data)"
+            heading="Invoice Directory"
+            headingIcon="DocumentTextIcon"
+            showExport
+            exportFilename="invoice-directory-report"
         >
             <Column field="invoice_number" header="Invoice #" sortable>
                 <template #body="slotProps">
                     <div class="flex flex-col">
                         <div class="flex items-center gap-2">
                             <span 
-                                @click="toggleEdit(slotProps.data)"
-                                class="text-sm font-bold text-indigo-600 cursor-pointer hover:underline uppercase"
+                                class="text-sm font-bold text-indigo-600 hover:underline uppercase"
                             >
                                 {{ slotProps.data.invoice_number }}
                             </span>
@@ -178,7 +205,12 @@ const toggleEdit = (data: any) => {
             <Column header="Actions" class="text-right">
                 <template #body="slotProps">
                     <div class="flex justify-end gap-1">
-                        <Button icon="pi pi-print" text rounded severity="secondary" />
+                        <Button 
+                            icon="pi pi-print" 
+                            text rounded severity="secondary" 
+                            @click.stop="printInvoice(slotProps.data)"
+                            title="Print Invoice"
+                        />
                         <Button 
                             icon="pi pi-pencil" 
                             text rounded severity="info" 
@@ -196,17 +228,25 @@ const toggleEdit = (data: any) => {
             </Column>
 
             <template #expansion="slotProps">
-                <div class="p-8 bg-slate-50/50 dark:bg-slate-900/10 border-t border-slate-100 dark:border-slate-800">
-                    <BaseExpansionPanel :title="`Invoice Editor: ${slotProps.data.invoice_number}`">
+                <div class="">
+                    <div class="max-w-6xl mx-auto">
+                        <div v-if="loadingRows[slotProps.data.id]" class="flex flex-col items-center justify-center py-12 gap-4">
+                            <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                            <p class="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">Retrieving Document Details...</p>
+                        </div>
                         <InvoiceEditForm 
-                            :invoice="slotProps.data" 
+                            v-else-if="invoiceDetails[slotProps.data.id]"
+                            :key="slotProps.data.id"
+                            :invoice="invoiceDetails[slotProps.data.id]" 
                             :patrons="patrons"
                             :taxes="taxes"
-                            :trucks="trucks"
                             :accounts="accounts"
+                            :mixdesign="mixdesign"
+                            :units="units"
+                            @saved="expandedRows = {}"
                             @cancel="expandedRows = {}"
                         />
-                    </BaseExpansionPanel>
+                    </div>
                 </div>
             </template>
         </BaseDataTable>

@@ -47,7 +47,7 @@ class DispatchStoreRequest extends FormRequest
             'weights.loaded_weight_time_unload' => 'nullable|date',
             'weights.empty_weight_image' => 'nullable|string',
             'weights.loaded_weight_image' => 'nullable|string',
-            'weights.round_off' => 'nullable|numeric',
+            'weights.round_off' => 'nullable|numeric|min:0|max:99',
 
             // Financials
             'financials' => 'nullable|array',
@@ -64,7 +64,7 @@ class DispatchStoreRequest extends FormRequest
             'financials.discount_amount' => 'nullable|numeric',
             'financials.transport_expenses' => 'nullable|numeric',
             'financials.adjustment_amount' => 'nullable|numeric',
-            'financials.round_off' => 'nullable|numeric',
+            'financials.round_off' => 'nullable|numeric|min:0|max:99',
 
             // Status
             'status' => 'nullable|array',

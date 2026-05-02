@@ -14,8 +14,11 @@ class InvoiceItem extends Model
 
     protected $fillable = [
         'invoice_id',
+        'mix_design_id',
+        'uom_id',
         'item_name',
         'hsn_code',
+        'tax_id',
         'quantity',
         'price_unit',
         'discount_type',
@@ -27,6 +30,8 @@ class InvoiceItem extends Model
     ];
 
     protected $casts = [
+        'tax_id'          => 'integer',
+        'uom_id'          => 'integer',
         'quantity'        => 'decimal:2',
         'price_unit'      => 'decimal:2',
         'discount'        => 'decimal:2',
@@ -53,12 +58,12 @@ class InvoiceItem extends Model
      */
     public function compute(float $taxRate = 0): void
     {
-        $gross = $this->quantity * $this->price_unit;
+        $gross = (float)$this->quantity * (float)$this->price_unit;
 
         // Discount
-        $discountAmount = $this->discount_type === 'fixed'
-            ? $this->discount
-            : round($gross * ($this->discount / 100), 2);
+        $discountAmount = ($this->discount_type === '₹' || $this->discount_type === 'fixed')
+            ? (float)$this->discount
+            : round($gross * ((float)$this->discount / 100), 2);
 
         $subtotal        = $gross - $discountAmount;
         $lineTaxAmount   = round($subtotal * ($taxRate / 100), 2);
@@ -73,6 +78,16 @@ class InvoiceItem extends Model
     public function invoice()
     {
         return $this->belongsTo(Invoice::class);
+    }
+
+    public function tax()
+    {
+        return $this->belongsTo(Tax::class);
+    }
+
+    public function uom()
+    {
+        return $this->belongsTo(ProductUnit::class, 'uom_id');
     }
 
     /**

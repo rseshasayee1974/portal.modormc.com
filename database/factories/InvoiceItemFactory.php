@@ -24,7 +24,7 @@ class InvoiceItemFactory extends Factory
             'hsn_code'        => $this->faker->numerify('6810##'),
             'quantity'        => $qty,
             'price_unit'      => $price,
-            'discount_type'   => 'percent',
+            'discount_type'   => '%',
             'discount'        => $discount,
             'discount_amount' => round($qty * $price * $discount / 100, 2),
             'subtotal'        => $subtotal,

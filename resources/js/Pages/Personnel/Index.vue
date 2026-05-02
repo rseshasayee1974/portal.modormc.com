@@ -239,13 +239,20 @@ watch(
                             dataKey="id"
                             stripedRows 
                             heading="Personnel Directory"
-                            headingIcon="pi pi-users"
-                            lazy  showSearch showSerial
+                            headingIcon="UserGroupIcon"
+                            showSearch showSerial
                             paginator
                             :rows="10" 
                             :totalRecords="filteredPersonnel.length"
                             class="p-datatable-sm"
+                            showExport
+                            exportFilename="personnel-directory-report"
                         >
+                            <template #toolbar>
+                                <div class="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ filteredPersonnel.length }} total personnel</span>
+                                </div>
+                            </template>
                             <!-- <Column expander style="width: 3rem" /> -->
                             <Column header="Name">
                                 <template #body="slotProps">

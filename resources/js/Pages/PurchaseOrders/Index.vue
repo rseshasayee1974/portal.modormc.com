@@ -1,6 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 import Column from 'primevue/column';
@@ -29,13 +29,11 @@ import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
 
 const props = defineProps({
     purchaseOrders: Array,
-    // entities: Array,
-    // plants: Array,
     vendors: Array,
     ref_no: Object,
-    vehicles: Array,
     currencies: Array,
     taxes: Array,
+    accounts:Array,
     products: Array,
     productUnits: Array,
 });
@@ -43,10 +41,8 @@ const props = defineProps({
 const states = [
     { label: 'All States', value: null },
     { label: 'Draft', value: 'draft' },
-    { label: 'To Approve', value: 'to_approve' },
     { label: 'Approved', value: 'approved' },
-    { label: 'Purchase', value: 'purchase' },
-    { label: 'Done', value: 'done' },
+    { label: 'Billed', value: 'billed' },
     { label: 'Cancelled', value: 'cancel' }
 ];
 const pageSizeOptions = [30, 50, 100];
@@ -60,6 +56,27 @@ const expandedRows = ref({});
 const first = ref(0);
 const rows = ref(30);
 
+const dateFrom = ref(null);
+const dateTo = ref(null);
+
+const filteredPurchaseOrders = computed(() => {
+    let result = props.purchaseOrders;
+    
+    if (dateFrom.value) {
+        const from = new Date(dateFrom.value);
+        from.setHours(0, 0, 0, 0);
+        result = result.filter(po => new Date(po.date_order) >= from);
+    }
+    
+    if (dateTo.value) {
+        const to = new Date(dateTo.value);
+        to.setHours(23, 59, 59, 999);
+        result = result.filter(po => new Date(po.date_order) <= to);
+    }
+    
+    return result;
+});
+
 const onExpandedRowsUpdate = (rows) => {
     expandedRows.value = rows;
 };
@@ -67,10 +84,8 @@ const onExpandedRowsUpdate = (rows) => {
 const getStatusSeverity = (state) => {
     switch (state) {
         case 'draft': return 'secondary';
-        case 'to_approve': return 'warn';
         case 'approved': return 'info';
-        case 'purchase': return 'success';
-        case 'done': return 'success';
+        case 'billed': return 'success';
         case 'cancel': return 'danger';
         default: return 'secondary';
     }
@@ -139,8 +154,7 @@ const formatStateLabel = (state) => {
                 <div>
                     <PurchaseOrderForm   
                         :ref_no="ref_no"
-                        :vendors="vendors" 
-                        :vehicles="vehicles" 
+                        :vendors="vendors"  
                         :currencies="currencies" 
                         :taxes="taxes" 
                         :products="products" 
@@ -151,44 +165,15 @@ const formatStateLabel = (state) => {
                 <hr class="border-slate-200 border-dashed" />
 
                 <!-- Listing Table -->
-                <div class="bg-white dark:bg-gray-800 shadow-xl sm:rounded-xl p-8">
-                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
-                        <div class="flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center shadow-sm border border-indigo-100/50">
-                                <ListBulletIcon class="w-5 h-5 text-indigo-600" />
-                            </div>
-                            <div>
-                                <h3 class="text-md font-semibold text-slate-800 uppercase ">List Of Purchase Orders</h3>
-                                <div class="flex items-center gap-2 mt-0.5">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    <p class="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] leading-none">Global Procurement Directory</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                            <Link :href="route('inwards.index')">
-                                <Button label=" " icon="pi pi-archive" severity="secondary" variant="text" class="!text-[10px] !font-black !uppercase !tracking-widest !h-11" />
-                            </Link>
-
-                            <BaseSelect 
-                                v-model="filters['state'].value" 
-                                :options="states" 
-                                optionLabel="label" 
-                                optionValue="value" 
-                                placeholder="Filter Status" 
-                                class="w-full sm:w-44 !rounded-lg !border-slate-300 !text-xs   !flex !items-center "
-                                pt:label:class="!px-4"
-                            />
-                        </div>
-                    </div>
-
+                <div class="bg-white dark:bg-gray-800 shadow-xl sm:rounded-xl">
                     <BaseDataTable
-                        :value="purchaseOrders" 
+                        :value="filteredPurchaseOrders" 
                         v-model:expandedRows="expandedRows"
                         v-model:first="first"
                         v-model:rows="rows"
                         v-model:filters="filters"
+                        v-model:dateFrom="dateFrom"
+                        v-model:dateTo="dateTo"
                         dataKey="id"
                         paginator 
                         :rowsPerPageOptions="[30, 50, 100]"
@@ -200,7 +185,29 @@ const formatStateLabel = (state) => {
                         :globalFilterFields="['po_number', 'vendor.legal_name', 'ref_no']"
                         showSearch
                         showSerial
+                        heading="Purchase Order Directory"
+                        headingIcon="ShoppingCartIcon"
+                        showExport
+                        exportFilename="purchase-orders"
                     >
+                        <template #toolbar>
+                            <div class="flex items-center gap-2">
+                                <Link :href="route('inwards.index')">
+                                    <Button label=" " icon="pi pi-archive" severity="secondary" text class="!h-9" v-tooltip.bottom="'View Inwards'" />
+                                </Link>
+
+                                <BaseSelect 
+                                    v-model="filters['state'].value" 
+                                    :options="states" 
+                                    optionLabel="label" 
+                                    optionValue="value" 
+                                    placeholder="Filter Status" 
+                                    class="w-44 !h-9 !rounded-lg !border-slate-300 !text-[11px]"
+                                    pt:label:class="!px-3 !py-1"
+                                />
+                            </div>
+                        </template>
+
                         <Column field="po_number" header="PO Number" sortable>
                             <template #body="slotProps">
                                 <div>
@@ -271,6 +278,7 @@ const formatStateLabel = (state) => {
                                     :taxes="taxes"
                                     :products="products"
                                     :productUnits="productUnits"
+                                    :accounts="accounts"
                                 />
                             </BaseExpansionPanel>
                         </template>

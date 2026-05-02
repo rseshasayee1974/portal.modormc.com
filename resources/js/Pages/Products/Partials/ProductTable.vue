@@ -77,25 +77,6 @@ watch([filters, filterCategory], () => {
 
 <template>
     <div class="unit-table-card">
-        <div class="unit-toolbar">
-            <div class="flex items-center gap-2">
-                <span class="toolbar-accent"></span>
-                <span class="toolbar-title">Products Directory</span>
-                <span class="toolbar-count">{{ products.length }} records</span>
-            </div>
-
-            <div class="flex items-center gap-2 flex-wrap">
-                <BaseSelect
-                    v-model="filterCategory"
-                    :options="categories"
-                    optionLabel="name"
-                    optionValue="id"
-                    placeholder="All Categories"
-                    class="filter-select"
-                />
-            </div>
-        </div>
-
         <BaseDataTable
             v-model:expandedRows="expandedRows"
             v-model:filters="filters"
@@ -104,11 +85,26 @@ watch([filters, filterCategory], () => {
             v-model:rows="perPage"
             :rowsPerPageOptions="[30, 50, 100, 200]"
             stripedRows
-            class="unit-datatable bg-gray-400"
+            class="unit-datatable"
             showSearch
             :globalFilterFields="['title', 'code', 'hsn_code', 'product_type']"
             showSerial
+            heading="Products Directory"
+            headingIcon="CubeIcon"
+            showExport
+            exportFilename="products-catalog"
         >
+            <template #toolbar>
+                <BaseSelect
+                    v-model="filterCategory"
+                    :options="categories"
+                    optionLabel="name"
+                    optionValue="id"
+                    placeholder="All Categories"
+                    class="!h-9 !text-xs !w-48"
+                    clearable
+                />
+            </template>
             <Column field="code" header="Code" sortable style="width: 120px">
                 <template #body="{ data }">
                     <code class="code-chip">{{ data.code || '—' }}</code>

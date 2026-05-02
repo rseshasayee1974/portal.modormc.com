@@ -15,6 +15,8 @@ return new class extends Migration
             $table->decimal('empty_weight_truck', 15, 3)->nullable()->after('truck_id');
              $table->decimal('loaded_weight_truck', 15, 3)->nullable()->after('empty_weight_truck');
              $table->decimal('net_weight', 15, 3)->nullable()->after('loaded_weight_truck');
+                 $table->timestamp('empty_time')->nullable();
+            $table->timestamp('load_time')->nullable();
         });
     }
 

@@ -67,7 +67,10 @@ const form = useForm({
     status: 1,
     start_time: new Date() as Date | null,
     end_time: null as Date | null,
+    empty_time: new Date() as Date | null,
+    load_time: new Date() as Date | null,
     materials: [blankMaterial()] as BatchMaterial[],
+    empty_weight_photo: null as string | null,
 });
 
 const addMaterial = () => form.materials.push(blankMaterial());
@@ -153,7 +156,32 @@ watch(() => form.truck_id, () => {
 
 import { useWeighbridge } from '@/Composables/useWeighbridge';
 
-const { isScaleConnected, captureWeight } = useWeighbridge();
+const { isScaleConnected, captureWeight, captureCameraSnap } = useWeighbridge();
+
+const handleWeightCapture = () => {
+    captureWeight(async (w) => {
+        form.empty_weight_truck = w;
+        form.empty_time = new Date();
+        
+        if (customSettings?.batching?.camera == 1 && (customSettings?.batching?.camera_url || customSettings?.batching?.camera_url_1)) {
+            const cameraUrl = customSettings.batching.camera_url_1 || customSettings.batching.camera_url;
+            try {
+                const snap = await captureCameraSnap(cameraUrl);
+                    form.empty_weight_photo = snap;
+            } catch (err) {
+                console.error('Camera capture failed:', err);
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'warning',
+                    title: 'Weight captured, but camera failed',
+                    showConfirmButton: false,
+                    timer: 2500
+                });
+            }
+        }
+    });
+};
 
 const submit = () => {
     form.clearErrors();
@@ -177,10 +205,25 @@ const submit = () => {
 
     if (hasErrors) return;
 
+    const formatDateTime = (date: Date | null | string) => {
+        if (!date) return null;
+        const d = date instanceof Date ? date : new Date(date);
+        if (isNaN(d.getTime())) return null;
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        const seconds = String(d.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    };
+
     form.transform((data) => ({
         ...data,
-        start_time: data.start_time instanceof Date ? data.start_time.toISOString() : data.start_time,
-        end_time: data.end_time instanceof Date ? data.end_time.toISOString() : data.end_time,
+        start_time: formatDateTime(data.start_time),
+        end_time: formatDateTime(data.end_time),
+        empty_time: formatDateTime(data.empty_time),
+        load_time: formatDateTime(data.load_time),
         materials: data.materials.map((item: BatchMaterial) => ({
             ...item,
             material_name: item.material_name || props.products.find((p: any) => p.id === item.product_id)?.title || 'Material',
@@ -210,7 +253,7 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div class="no-print rounded-xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-100 px-4 py-3">
             <div class="flex items-start justify-between gap-2.5">
                 <div class="flex items-start gap-2.5">
@@ -285,7 +328,7 @@ const submit = () => {
                                 <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter"  />
                             </div>
                             <div class="col-span-12 md:col-span-3">
-                                <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="first_name" optionValue="id" filter label="Driver"  />
+                                <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver"  />
                             </div>
                             <div class="col-span-12 md:col-span-3">
                                 <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.2" :minFractionDigits="1" :maxFractionDigits="1" :max="9.9" required :error="form.errors.batch_size" />
@@ -293,13 +336,27 @@ const submit = () => {
                             <div class="col-span-12 md:col-span-3">
                                 <div class="flex items-end">
                                     <div class="flex-1">
-                                        <BaseInputNumber v-model="form.empty_weight_truck" :disabled="customSettings.batching.manual_weight" label="Empty Weight" :error="form.errors.empty_weight_truck" />
+                                        <BaseInputNumber v-model="form.empty_weight_truck" :disabled="customSettings?.batching?.manual_weight" label="Empty Weight" :error="form.errors.empty_weight_truck" />
                                     </div>
-                                    <button @click="captureWeight((w) => form.empty_weight_truck = w)" type="button" v-if="customSettings.batching.manual_weight" 
+                                    <button @click="handleWeightCapture" type="button" v-if="customSettings?.batching?.manual_weight" 
                                         :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
                                         :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
-                                        <ArrowDownTrayIcon class="w-4 h-4" />
+                                        <div class="flex flex-col items-center gap-0.5">
+                                            <ArrowDownTrayIcon class="w-4 h-4" />
+                                            <span v-if="customSettings?.batching?.camera == 1" class="text-[8px] font-bold"> + SNAP</span>
+                                        </div>
                                     </button>
+                                </div>
+                                <div v-if="form.empty_weight_photo" class="mt-2 relative group">
+                                    <img :src="form.empty_weight_photo" class="w-full h-24 object-cover rounded-lg border border-slate-200" />
+                                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                        <button @click="form.empty_weight_photo = null" type="button" class="text-white text-xs font-bold bg-red-500 px-2 py-1 rounded">Remove</button>
+                                    </div>
+                                </div>
+                                <!-- Test Direct Proxy Link -->
+                                <div v-if="customSettings?.batching?.camera_url || customSettings?.batching?.camera_url_1" class="mt-2 text-[8px] text-slate-400">
+                                    <p>Direct Proxy Test:</p>
+                                    <img :src="'http://127.0.0.1:8089/api/camera?img_url=http://admin:Karur%40321@192.168.1.207/snapshot.JPG' + encodeURIComponent(customSettings.batching.camera_url_1 || customSettings.batching.camera_url)" class="w-20 h-10 border border-dotted border-slate-300" />
                                 </div>
                             </div>
                             <!-- <div class="col-span-12 md:col-span-3">
@@ -307,9 +364,13 @@ const submit = () => {
                             </div> -->
                             
                             
-                            <div class="col-span-12 md:col-span-3">
+                            <!-- <div class="col-span-12 md:col-span-3">
                                 <BaseDatePicker v-model="form.start_time" label="Scheduled Start" showTime hourFormat="24" fluid :error="form.errors.start_time" />
+                            </div> -->
+                            <div class="col-span-12 md:col-span-3">
+                                <BaseDatePicker v-model="form.empty_time" label="Empty Time" showTime hourFormat="24" fluid :error="form.errors.empty_time" />
                             </div>
+                           
                             
                         </div>
                     </div>

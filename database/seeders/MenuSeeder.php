@@ -25,7 +25,7 @@ class MenuSeeder extends Seeder
 
             // Sidebar Navigation for 'Membership' (parent_id = 6)
             ['id' => 11, 'menutype' => 2, 'title' => 'User Management', 'alias' => 'Users', 'link' => 'membership/users', 'published' => true, 'parent_id' => 6, 'level' => 1, 'ordering' => 1, 'icon' => 'UsersIcon', 'permission_name' => 'USER.VIEW'],
-            ['id' => 39, 'menutype' => 2, 'title' => 'Patrons', 'alias' => 'PatronsList', 'link' => 'membership/patrons', 'published' => true, 'parent_id' => 6, 'level' => 1, 'ordering' => 2, 'icon' => 'UserGroupIcon', 'permission_name' => 'PATRON.VIEW'],
+            ['id' => 39, 'menutype' => 2, 'title' => 'Patrons', 'alias' => 'PatronsList', 'link' => 'settings/patrons', 'published' => true, 'parent_id' => 6, 'level' => 1, 'ordering' => 2, 'icon' => 'UserGroupIcon', 'permission_name' => 'PATRON.VIEW'],
             ['id' => 63, 'menutype' => 2, 'title' => 'Personnel', 'alias' => 'personnel', 'link' => 'membership/personnel', 'published' => true, 'parent_id' => 6, 'level' => 1, 'ordering' => 3, 'icon' => 'IdentificationIcon', 'permission_name' => 'PERSONNEL.VIEW'],
 
             // Sidebar Navigation for 'Tenant' (parent_id = 7)

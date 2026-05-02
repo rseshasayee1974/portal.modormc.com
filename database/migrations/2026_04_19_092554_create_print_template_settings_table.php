@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('mm_print_template_settings', function (Blueprint $table) {
             $table->id();
-            $table->string('mm_module_key')->index(); // purchase_orders, invoices, etc.
+            $table->string('module_key')->index(); // purchase_orders, invoices, etc.
             $table->foreignId('print_template_id')->constrained('mm_print_templates');
             $table->unsignedBigInteger('plant_id')->nullable()->index();
             $table->unsignedBigInteger('entity_id')->nullable()->index();

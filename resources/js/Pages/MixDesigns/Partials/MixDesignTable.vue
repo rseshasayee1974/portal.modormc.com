@@ -26,23 +26,6 @@ const onSaved = () => { expandedRows.value = {}; };
 
 <template>
     <div class="mix-table-container">
-        <!-- Table Title Bar -->
-        <div class="table-title-bar">
-            <div class="flex items-center gap-3">
-                <div class="table-title-icon">
-                    <TableCellsIcon class="w-4 h-4 text-indigo-500" />
-                </div>
-                <div>
-                    <h2 class="table-title-text">Mix Designs</h2>
-                    <p class="table-title-sub">Concrete ingredient matrices & grade assignments</p>
-                </div>
-            </div>
-            <div class="table-title-badge">
-                <BeakerIcon class="w-3 h-3" />
-                <span>{{ filteredDesigns.length }} Records</span>
-            </div>
-        </div>
-
         <BaseDataTable
             v-model:expandedRows="expandedRows"
             v-model:filters="filters"
@@ -54,10 +37,20 @@ const onSaved = () => { expandedRows.value = {}; };
             class="unit-datatable"
             :globalFilterFields="['design_name', 'design_code', 'design_type']"
             showSerial
+            heading="Mix Designs Registry"
+            headingIcon="BeakerIcon"
+            showExport
+            exportFilename="mix-designs-report"
             :deleteUrl="(row) => route('mixdesigns.destroy', row.id)"
             deleteTitle="Delete Mix Design?"
             deleteText="This mix design and all its ingredients will be removed."
         >
+            <template #toolbar>
+                <div class="flex items-center gap-2 px-3 py-1 bg-indigo-50/50 rounded-lg border border-indigo-100">
+                    <BeakerIcon class="w-3.5 h-3.5 text-indigo-500" />
+                    <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{{ filteredDesigns.length }} Recipes</span>
+                </div>
+            </template>
             <!-- Design Name -->
             <Column header="Design Name" sortable field="design_name">
                 <template #body="slotProps">

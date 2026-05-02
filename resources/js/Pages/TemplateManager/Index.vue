@@ -116,6 +116,16 @@ const getSelectedTemplateName = (moduleKey: string) => {
                                     </div>
                                 </button>
                             </div>
+
+                            <div class="mt-6 pt-4 border-t border-slate-50">
+                                <Link 
+                                    :href="route('templates.customize', module.key)"
+                                    class="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-50 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 rounded-xl transition-all font-black text-[10px] uppercase tracking-widest border border-dashed border-slate-200 hover:border-indigo-200"
+                                >
+                                    <AdjustmentsHorizontalIcon class="w-4 h-4" />
+                                    Smart Customize Fields
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </div>

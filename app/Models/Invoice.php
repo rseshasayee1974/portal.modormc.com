@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use App\Traits\AuditFields;
 
 class Invoice extends Model
@@ -15,8 +15,8 @@ class Invoice extends Model
     protected $table = 'mm_invoices';
 
     protected $fillable = [
-        'plant_id', 'partner_id', 'account_id', 'journal_id',
-        'invoice_type', 'invoice_label', 'ref_id', 'ref_title', 'truck_id',
+        'plant_id', 'partner_id', 'account_id', 
+        'invoice_type', 'invoice_label', 'ref_id', 'ref_title',  
         'invoice_number', 'prefix', 'invoice_date', 'due_date', 'period',
         'subtotal', 'discount_total', 'tax_amount', 'adjustment',
         'shipping_charges', 'shipping_tax_id',
@@ -25,6 +25,13 @@ class Invoice extends Model
         'is_active',
         'created_by', 'updated_by',
     ];
+
+    protected $appends = ['encrypted_id'];
+
+    public function getEncryptedIdAttribute()
+    {
+        return encrypt($this->id);
+    }
 
     protected $casts = [
         'invoice_date' => 'date',
@@ -56,9 +63,20 @@ class Invoice extends Model
      */
     public static function generateNumber(int $plantId): string
     {
-        $last = self::where('plant_id', $plantId)->orderBy('id', 'desc')->first();
-        $next = $last ? $last->id + 1 : 1;
-        return 'INV-' . date('Ym') . '-' . str_pad($next, 4, '0', STR_PAD_LEFT);
+        $now = now();
+        $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
+        $endYear = $startYear + 1;
+        $fy = substr((string)$startYear, 2) . substr((string)$endYear, 2);
+
+        $fyStart = \Carbon\Carbon::create($startYear, 4, 1, 0, 0, 0);
+        
+        $count = self::where('plant_id', $plantId)
+            ->where('created_at', '>=', $fyStart)
+            ->count();
+            
+        $next = $count + 1;
+
+        return "INV-{$fy}-" . str_pad((string)$next, 2, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -140,15 +158,15 @@ class Invoice extends Model
         return $this->belongsTo(Accounts::class, 'account_id');
     }
 
-    public function journal()
-    {
-        return $this->belongsTo(JournalEntry::class, 'journal_id');
-    }
+    // public function journal()
+    // {
+    //     return $this->belongsTo(JournalEntry::class, 'journal_id');
+    // }
 
-    public function truck()
-    {
-        return $this->belongsTo(Machine::class, 'truck_id');
-    }
+    // public function truck()
+    // {
+    //     return $this->belongsTo(Machine::class, 'truck_id');
+    // }
 
     public function shippingTax()
     {
@@ -169,24 +187,27 @@ class Invoice extends Model
             $itemsData = $data['items'] ?? [];
             unset($data['items']);
 
-            $taxRate = 0;
-            if (!empty($data['tax_id'])) {
-                $tax = Tax::find($data['tax_id']);
-                $taxRate = $tax?->rate ?? 0;
-            }
-
             $invoice = self::create($data);
 
             foreach ($itemsData as $itemData) {
+                $itemTaxRate = 0;
+                if (!empty($itemData['tax_id'])) {
+                    $tax = Tax::find($itemData['tax_id']);
+                    $itemTaxRate = $tax?->rate ?? 0;
+                }
+
                 $item = new InvoiceItem($itemData);
                 $item->invoice_id = $invoice->id;
-                $item->compute($taxRate);
+                $item->compute($itemTaxRate);
                 $item->save();
             }
 
             $invoice->refresh();
             $invoice->recalculate();
-            $invoice->syncTaxSplits($taxRate);
+            
+            // For now, we still sync aggregated splits at invoice level using a weighted average or just the first item's rate for split naming
+            // In a full implementation, we might want per-item splits, but let's stick to the invoice level for now as per syncTaxSplits signature.
+            $invoice->syncTaxSplits();
 
             return $invoice;
         });
@@ -201,18 +222,18 @@ class Invoice extends Model
             $itemsData = $data['items'] ?? [];
             unset($data['items']);
 
-            $taxRate = 0;
-            if (!empty($data['tax_id'])) {
-                $tax = Tax::find($data['tax_id']);
-                $taxRate = $tax?->rate ?? 0;
-            }
-
             $this->update($data);
 
             $keptIds = collect($itemsData)->pluck('id')->filter()->toArray();
             $this->items()->whereNotIn('id', $keptIds)->delete();
 
             foreach ($itemsData as $itemData) {
+                $itemTaxRate = 0;
+                if (!empty($itemData['tax_id'])) {
+                    $tax = Tax::find($itemData['tax_id']);
+                    $itemTaxRate = $tax?->rate ?? 0;
+                }
+
                 if (!empty($itemData['id'])) {
                     $item = InvoiceItem::find($itemData['id']);
                     $item->fill($itemData);
@@ -220,13 +241,13 @@ class Invoice extends Model
                     $item = new InvoiceItem($itemData);
                     $item->invoice_id = $this->id;
                 }
-                $item->compute($taxRate);
+                $item->compute($itemTaxRate);
                 $item->save();
             }
 
             $this->refresh();
             $this->recalculate();
-            $this->syncTaxSplits($taxRate);
+            $this->syncTaxSplits();
 
             return $this;
         });
@@ -235,22 +256,61 @@ class Invoice extends Model
     /**
      * Sync CGST/SGST/IGST splits at invoice level.
      */
-    public function syncTaxSplits(float $taxRate): void
+    public function syncTaxSplits(): void
     {
         $this->orderTaxes()->delete();
 
-        if ($taxRate > 0) {
-            $taxableAmount = $this->subtotal;
+        // 1. Group items by tax_id to handle multiple tax rates correctly
+        $groupedItems = $this->items()->with('tax')->get()->groupBy('tax_id');
+
+        foreach ($groupedItems as $taxId => $items) {
+            $taxableAmount = $items->sum('subtotal');
+            $taxAmount     = $items->sum('line_tax_amount');
             
-            // Basic logic: use state from partner's address vs plant's address
-            $plantState   = $this->plant?->addresses()?->first()?->state?->state_code;
-            $partnerState = $this->partner?->addresses()?->first()?->state?->state_code;
+            if ($taxAmount <= 0) continue;
+
+            $tax = Tax::find($taxId);
+            // Derive rate from items if tax record missing (fallback)
+            $fullRate = $tax ? $tax->tax_rate : (($taxableAmount > 0) ? ($taxAmount / $taxableAmount) * 100 : 0);
+
+            if ($fullRate <= 0) continue;
+
+            $plantAddr   = $this->plant?->addresses()?->first();
+            $partnerAddr = $this->partner?->addresses()?->first();
+            
+            $plantState   = $plantAddr?->state?->state_code ?? $plantAddr?->state_code;
+            $partnerState = $partnerAddr?->state?->state_code ?? $partnerAddr?->state_code;
 
             if ($plantState && $partnerState && $plantState === $partnerState) {
-                OrderTax::createIntraStateSplit($this, $taxableAmount, $taxRate);
+                OrderTax::createIntraStateSplit($this, $taxableAmount, $fullRate, $taxId);
             } else {
-                OrderTax::createInterStateSplit($this, $taxableAmount, $taxRate);
+                OrderTax::createInterStateSplit($this, $taxableAmount, $fullRate, $taxId);
             }
+        }
+
+        // 2. Handle shipping tax split if applicable
+        if ($this->shipping_charges > 0 && $this->shipping_tax_id) {
+            $shippingTax = Tax::find($this->shipping_tax_id);
+            if ($shippingTax && $shippingTax->tax_rate > 0) {
+                $plantState   = $this->plant?->addresses()?->first()?->state?->state_code;
+                $partnerState = $this->partner?->addresses()?->first()?->state?->state_code;
+
+                if ($plantState && $partnerState && $plantState === $partnerState) {
+                    OrderTax::createIntraStateSplit($this, $this->shipping_charges, $shippingTax->tax_rate, $this->shipping_tax_id);
+                } else {
+                    OrderTax::createInterStateSplit($this, $this->shipping_charges, $shippingTax->tax_rate, $this->shipping_tax_id);
+                }
+            }
+        }
+    }
+
+    public function resolveRouteBinding($value, $field = null)
+    {
+        try {
+            $decrypted = decrypt($value);
+            return $this->where($field ?? $this->getRouteKeyName(), $decrypted)->first();
+        } catch (\Exception $e) {
+            return parent::resolveRouteBinding($value, $field);
         }
     }
 }

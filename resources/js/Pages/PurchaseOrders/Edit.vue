@@ -18,6 +18,7 @@ const props = defineProps<{
     taxes: any[];
     products: any[];
     productUnits: any[];
+    accounts: any[];
 }>();
 
 const page = usePage();
@@ -205,6 +206,7 @@ const submit = () => {
                     :addItem="addItem"
                     :removeItem="removeItem"
                     :submit="submit"
+                    :accounts="accounts"
                 />
             </div>
         </div>

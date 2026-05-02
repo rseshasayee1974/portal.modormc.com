@@ -1,3 +1,7 @@
+@php
+    $pdfSettings = $data['settings']['pdf'] ?? [];
+    $labels = $pdfSettings['labels'] ?? [];
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -53,11 +57,14 @@
     {{-- GST HEADER (3-col: company | doc title | brand) --}}
     <div class="gst-header">
         <div class="gh-left">
-            <div class="co-name">{{ $data['company']['name'] }}</div>
-            <div class="co-det">{{ $data['company']['address'] }}<br>{{ $data['company']['city'] }}, {{ $data['company']['state'] }} - {{ $data['company']['pin'] }}<br>GSTIN: {{ $data['company']['gstin'] ?? 'N/A' }}</div>
+            @if($pdfSettings['company_name'] ?? true) <div class="co-name">{{ $data['company']['name'] }}</div> @endif
+            @if($pdfSettings['address'] ?? true)
+                <div class="co-det">{{ $data['company']['address'] }}<br>{{ $data['company']['city'] }}, {{ $data['company']['state'] }} - {{ $data['company']['pin'] }}</div>
+            @endif
+            @if(($pdfSettings['gstin'] ?? true) && $data['company']['gstin']) <div class="co-det">GSTIN: {{ $data['company']['gstin'] }}</div> @endif
         </div>
         <div class="gh-right">
-            <div class="gst-title">Tax Invoice</div>
+            <div class="gst-title">{{ $data['doc_title'] }}</div>
             <div class="gst-orig">Original for Recipient</div>
         </div>
         <div class="gh-brand">
@@ -69,7 +76,7 @@
     <div class="gst-meta">
         <div class="gmt-cell"><div class="gmt-key">Invoice No.</div><div class="gmt-val">{{ $data['doc_no'] }}</div></div>
         <div class="gmt-cell"><div class="gmt-key">Invoice Date</div><div class="gmt-val">{{ $data['doc_date'] }}</div></div>
-        <div class="gmt-cell"><div class="gmt-key">Due Date</div><div class="gmt-val">{{ $data['due_date'] }}</div></div>
+        @if($pdfSettings['due_date'] ?? true) <div class="gmt-cell"><div class="gmt-key">Due Date</div><div class="gmt-val">{{ $data['due_date'] }}</div></div> @endif
         <div class="gmt-cell"><div class="gmt-key">Place of Supply</div><div class="gmt-val">{{ $data['bill_to']['state'] ?? $data['meta']['state_of_supply'] ?? 'Tamil Nadu' }}</div></div>
         <div class="gmt-cell"><div class="gmt-key">Currency</div><div class="gmt-val">{{ $data['meta']['currency_code'] ?? 'INR' }}</div></div>
     </div>
@@ -77,17 +84,21 @@
     {{-- PARTY (Bill To | Ship To) --}}
     <div class="party-row">
         <div class="pr-cell">
-            <div class="pr-hdr">Billed To</div>
-            <div class="pr-name">{{ $data['bill_to']['name'] }}</div>
-            <div>{{ $data['bill_to']['address'] }}, {{ $data['bill_to']['city'] }}</div>
-            <div>{{ $data['bill_to']['state'] }} - {{ $data['bill_to']['pin'] }}</div>
-            @if($data['bill_to']['gstin']) <div style="margin-top:2px;font-size:9.5px">GSTIN: <strong>{{ $data['bill_to']['gstin'] }}</strong></div> @endif
+            @if($pdfSettings['bill_to'] ?? true)
+                <div class="pr-hdr">{{ $labels['bill_to'] ?? 'Billed To' }}</div>
+                <div class="pr-name">{{ $data['bill_to']['name'] }}</div>
+                <div>{{ $data['bill_to']['address'] }}, {{ $data['bill_to']['city'] }}</div>
+                <div>{{ $data['bill_to']['state'] }} - {{ $data['bill_to']['pin'] }}</div>
+                @if(($pdfSettings['gstin'] ?? true) && $data['bill_to']['gstin']) <div style="margin-top:2px;font-size:9.5px">GSTIN: <strong>{{ $data['bill_to']['gstin'] }}</strong></div> @endif
+            @endif
         </div>
         <div class="pr-cell">
-            <div class="pr-hdr">Shipped To</div>
-            <div class="pr-name">{{ $data['ship_to']['name'] }}</div>
-            <div>{{ $data['ship_to']['address'] }}, {{ $data['ship_to']['city'] }}</div>
-            <div>{{ $data['ship_to']['state'] }} - {{ $data['ship_to']['pin'] }}</div>
+            @if($pdfSettings['ship_to'] ?? true)
+                <div class="pr-hdr">{{ $labels['ship_to'] ?? 'Shipped To' }}</div>
+                <div class="pr-name">{{ $data['ship_to']['name'] }}</div>
+                <div>{{ $data['ship_to']['address'] }}, {{ $data['ship_to']['city'] }}</div>
+                <div>{{ $data['ship_to']['state'] }} - {{ $data['ship_to']['pin'] }}</div>
+            @endif
         </div>
     </div>
 
@@ -97,10 +108,10 @@
             <tr>
                 <th style="width:22px">#</th>
                 <th style="text-align:left;min-width:120px">Product Description</th>
-                <th style="width:60px">HSN/SAC</th>
+                @if($pdfSettings['hsn_code'] ?? true) <th style="width:60px">HSN/SAC</th> @endif
                 <th style="width:50px">Qty</th>
-                <th style="width:40px">Unit</th>
-                <th style="width:70px">Unit Price</th>
+                @if($pdfSettings['unit'] ?? true) <th style="width:40px">Unit</th> @endif
+                <th style="width:70px">{{ $labels['rate'] ?? 'Unit Price' }}</th>
                 <th style="width:55px">Taxable Value</th>
                 <th style="width:55px">CGST %</th>
                 <th style="width:55px">CGST Rs</th>
@@ -113,17 +124,20 @@
             @foreach($data['items'] as $item)
             @php
                 $taxableVal = $item['unit_price'] * $item['qty'];
-                $cgstRate = $item['tax_group'] === 'GST' ? $item['tax_rate'] / 2 : 0;
+                $cgstRate = ($item['tax_group'] ?? '') === 'GST' ? $item['tax_rate'] / 2 : 0;
                 $sgstRate = $cgstRate;
-                $cgstAmt  = $item['tax_group'] === 'GST' ? $item['tax_amount'] / 2 : 0;
+                $cgstAmt  = ($item['tax_group'] ?? '') === 'GST' ? $item['tax_amount'] / 2 : 0;
                 $sgstAmt  = $cgstAmt;
             @endphp
             <tr>
                 <td class="text-center">{{ $item['no'] }}</td>
-                <td><div class="item-name">{{ $item['name'] }}</div>@if($item['description'])<div class="item-sub">{{ $item['description'] }}</div>@endif</td>
-                <td class="text-center">{{ $item['hsn'] }}</td>
+                <td>
+                    <div class="item-name">{{ $item['name'] }}</div>
+                    @if(($pdfSettings['description'] ?? true) && $item['description']) <div class="item-sub">{{ $item['description'] }}</div> @endif
+                </td>
+                @if($pdfSettings['hsn_code'] ?? true) <td class="text-center">{{ $item['hsn'] }}</td> @endif
                 <td class="text-right">{{ number_format($item['qty'], 2) }}</td>
-                <td class="text-center">{{ $item['unit'] }}</td>
+                @if($pdfSettings['unit'] ?? true) <td class="text-center">{{ $item['unit'] }}</td> @endif
                 <td class="text-right">{{ number_format($item['unit_price'], 2) }}</td>
                 <td class="text-right">{{ number_format($taxableVal, 2) }}</td>
                 <td class="text-center">{{ $cgstRate }}%</td>
@@ -139,8 +153,13 @@
     {{-- GST TOTALS --}}
     <div class="gst-totals">
         <div class="gt-left">
-            <div style="font-size:9px;color:#888;margin-bottom:2px">Amount in Words</div>
-            <div style="font-style:italic;font-weight:700;font-size:11px;line-height:1.5">{{ $data['meta']['total_words'] ?: ($data['meta']['currency_code'] ?? 'INR') . ' ' . number_format($data['totals']['grand_total'], 2) . ' Only' }}</div>
+            @if($pdfSettings['total_words'] ?? true)
+                <div style="font-size:9px;color:#888;margin-bottom:2px">Amount in Words</div>
+                <div style="font-style:italic;font-weight:700;font-size:11px;line-height:1.5">{{ $data['meta']['total_words'] ?: ($data['meta']['currency_code'] ?? 'INR') . ' ' . number_format($data['totals']['grand_total'], 2) . ' Only' }}</div>
+            @endif
+            @if(($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
+                <div style="margin-top:8px;font-size:9.5px"><strong>Notes:</strong> {{ $data['meta']['notes'] }}</div>
+            @endif
         </div>
         <div class="gt-right">
             <table class="gst-summary">
@@ -171,14 +190,16 @@
         I/We hereby certify that my/our registration under the GST Act has not been cancelled and my/our registration is in force as on the date on which the supply of goods/services as detailed above is made by me/us and that the transaction of supply covered under this tax invoice shall be accounted for in the turnover and the due tax, if any, payable on such supply has been paid or shall be paid.
     </div>
 
-    @if($data['meta']['terms_text'] ?? '')
+    @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? ''))
     <div style="padding:6px 10px;font-size:9.5px;border-bottom:1px solid #ccc;"><strong>Terms &amp; Conditions:</strong> {!! nl2br(e($data['meta']['terms_text'])) !!}</div>
     @endif
 
+    @if($pdfSettings['signature'] ?? true)
     <div class="sig-row">
         <div class="sig-left"><span style="font-size:9px;color:#aaa">E. &amp; O.E.</span></div>
         <div class="sig-right" style="padding-bottom:8px"><div class="sig-line">Authorized Signatory<br><span style="font-size:9px">For {{ $data['company']['name'] }}</span></div></div>
     </div>
+    @endif
 
     @include('pdfs.partials._footer')
 </div>

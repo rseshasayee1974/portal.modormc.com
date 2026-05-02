@@ -46,6 +46,7 @@ use App\Models\AddressType;
 use App\Models\BankAccountType;
 use App\Models\StateCode;
 use App\Models\MixDesign;
+use App\Models\ExpenseType;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entity / Plant helpers  (unchanged – no new scope needed)
@@ -237,14 +238,17 @@ if (!function_exists('PersonnelDropdown')) {
      */
     function PersonnelDropdown($plantId, int $excludeId = null, int $entityId = null)
     {
-        $query = Personnel::forPlant($plantId, $entityId)
-            ->select('id', 'first_name', 'last_name', 'plant_id');
-
-        if ($excludeId !== null) {
-            $query->excludeId($excludeId);     // edit – exclude self
-        }
-
-        return $query->whereNull('deleted_at')->orderBy('first_name')->get();
+        return Personnel::forPlant($plantId, $entityId)
+            ->when($excludeId, fn($q) => $q->excludeId($excludeId))
+            ->whereNull('deleted_at')
+            ->get()
+            ->map(fn($p) => [
+                'id' => $p->id,
+                'label' => trim($p->first_name . ' ' . $p->last_name),
+                'first_name' => $p->first_name,
+                'last_name' => $p->last_name,
+                'value' => $p->id
+            ]);
     }
 }
 
@@ -294,11 +298,41 @@ if (!function_exists('MixDesignsDropdown')) {
      */
     function MixDesignsDropdown($plantId)
     {
-        return MixDesign::where('plant_id', $plantId)
+        return  MixDesign::query()
+            ->where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->select('id', 'design_name as title', 'design_code as code', 'rate_per_qty as rate', 'unit_id')
             ->orderBy('design_name')
             ->get();
+    }
+}
+
+if (!function_exists('MixDesignsOptions')) {
+    /**
+     * Map mix designs to select options with extra metadata (rate, uom_id).
+     */
+    function MixDesignsOptions($plantId)
+    {
+        return collect(MixDesignsDropdown($plantId))->map(fn($d) => [
+            'label' => $d->title,
+            'value' => $d->id,
+            'rate'  => $d->rate,
+            'uom_id'=> $d->unit_id,
+        ]);
+    }
+}
+
+if (!function_exists('ExpenseTypesDropdown')) {
+    /**
+     * Active expense types for a plant.
+     */
+    function ExpenseTypesDropdown($plantId)
+    {
+        return ExpenseType::where('plant_id', $plantId)
+            ->where('status', true)
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 }
 
@@ -477,9 +511,23 @@ if (!function_exists('LedgersDropdown')) {
      *
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function LedgersDropdown()
+    function LedgersDropdown($plantId = null, $type = null)
     {
-        return Ledger::select('id', 'title')->whereNull('deleted_at')->get();
+        $query = Ledger::query();
+        
+        if ($plantId) {
+            $query->where('plant_id', $plantId);
+        }
+        
+        if ($type) {
+            $query->whereHas('accountType.account', function($q) use ($type) {
+                $q->where('title', $type);
+            });
+        }
+
+        return $query->select('id', 'code as name', 'title') // Keep name for toSelectOptions compatibility
+            ->whereNull('deleted_at')
+            ->get();
     }
 }
 
@@ -562,10 +610,8 @@ if (!function_exists('PurchaseOrderStatusesDropdown')) {
     {
         return [
             ['label' => 'Draft', 'value' => 'draft'],
-            ['label' => 'To Approve', 'value' => 'to_approve'],
             ['label' => 'Approved', 'value' => 'approved'],
-            ['label' => 'Purchase Order', 'value' => 'purchase'],
-            ['label' => 'Done', 'value' => 'done'],
+            ['label' => 'Billed', 'value' => 'billed'],
             ['label' => 'Cancelled', 'value' => 'cancel'],
         ];
     }

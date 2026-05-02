@@ -26,10 +26,8 @@ const close = () => {
 const getStatusSeverity = (state) => {
     switch (state) {
         case 'draft': return 'secondary';
-        case 'to_approve': return 'warn';
         case 'approved': return 'info';
-        case 'purchase': return 'success';
-        case 'done': return 'success';
+        case 'billed': return 'success';
         case 'cancel': return 'danger';
         default: return 'secondary';
     }

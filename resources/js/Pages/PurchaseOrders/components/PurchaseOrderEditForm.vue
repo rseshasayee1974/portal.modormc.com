@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { router } from '@inertiajs/vue3';
 import { 
     TrashIcon,
     PlusIcon,
@@ -7,10 +8,13 @@ import {
     ArchiveBoxIcon,
     ClockIcon,
     CurrencyRupeeIcon,
-    ArrowDownTrayIcon
+    ArrowDownTrayIcon,
+    CalendarDaysIcon,
+    WalletIcon
 } from '@heroicons/vue/24/outline';
 import Swal from 'sweetalert2';
 import { useWeighbridge } from '@/Composables/useWeighbridge';
+import Dialog from 'primevue/dialog';
 
 const { isScaleConnected, captureWeight } = useWeighbridge();
 
@@ -30,6 +34,7 @@ const props = defineProps<{
     taxes: any[];
     products: any[];
     productUnits: any[];
+    accounts: any[];
     onProductChange: (index: number) => void;
     calculateItemTotals: (index: number) => void;
     addItem: () => void;
@@ -37,9 +42,16 @@ const props = defineProps<{
     submit: () => void;
     isReceived?: boolean;
 }>();
-
+console.log(props.accounts);
 const isOpen = ref(true);
 const expandedIndex = ref<number | null>(0);
+const showBillDialog = ref(false);
+
+const billForm = ref({
+    account_id: null,
+    invoice_date: new Date().toISOString().substring(0, 10),
+    due_date: props.form.due_date || new Date().toISOString().substring(0, 10)
+});
 
 const toggle = () => {
     isOpen.value = !isOpen.value;
@@ -58,10 +70,8 @@ const discountTypeOptions = [{ label: '%', value: 'percentage' }, { label: 'Fixe
 
 const stateOptions = [
     { label: 'Draft', value: 'draft' },
-    { label: 'To Approve', value: 'to_approve' },
     { label: 'Approved', value: 'approved' },
-    { label: 'Purchase', value: 'purchase' },
-    { label: 'Done', value: 'done' },
+    { label: 'Billed', value: 'billed' },
     { label: 'Cancelled', value: 'cancel' }
 ];
 
@@ -77,20 +87,52 @@ const approveStatusOptions = [
     { label: 'Rejected', value: 2 }
 ];
 
+const handleGenerateBill = () => {
+    showBillDialog.value = true;
+};
+
+const executeBillGeneration = () => {
+    if (!billForm.value.account_id) {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Please select a ledger account', showConfirmButton: false, timer: 3000 });
+        return;
+    }
+
+    router.post(route('purchaseorder.generate-bill', props.form.id), billForm.value, {
+        onSuccess: () => {
+            showBillDialog.value = false;
+        },
+        preserveScroll: true
+    });
+};
+
 
 </script>
 
 <template>
-    <div class="min-h-screen  p-4 lg:p-4" >
+    <div class="p-4 lg:p-4" >
         <!-- Header -->
         
 
       
             <div   class="">
                 <form @submit.prevent="submit" class="space-y-6">
-                    <div v-if="isReceived" class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-xl flex items-center gap-3 text-sm shadow-sm transition-all animate-pulse">
-                        <i class="pi pi-lock"></i>
-                        <span>This Purchase Order is <strong>Locked</strong> (Received, Approved, or Cancelled). Changes are restricted.</span>
+                    <div v-if="isReceived" class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-xl flex items-center justify-between gap-3 text-sm shadow-sm transition-all">
+                        <div class="flex items-center gap-3">
+                            <i class="pi pi-lock"></i>
+                            <span>This Purchase Order is <strong>Locked</strong> (Received, Approved, or Cancelled). Changes are restricted.</span>
+                        </div>
+                        <BaseButton 
+                            v-if="form.state !== 'cancel' && form.invoice_status !== 'invoiced'"
+                            label="Generate Purchase Bill" 
+                            icon="pi pi-file-export" 
+                            severity="success" 
+                            size="small" 
+                            @click="handleGenerateBill" 
+                        />
+                         <div v-else-if="form.invoice_status === 'invoiced'" class="flex items-center gap-2 text-emerald-600 font-bold uppercase tracking-widest text-[10px] bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                            <i class="pi pi-check-circle"></i>
+                            <span>Bill Generated</span>
+                        </div>
                     </div>
                     <!-- General Info Grid -->
                     <div class="grid grid-cols-12 gap-4">
@@ -113,14 +155,14 @@ const approveStatusOptions = [
                             :disabled="isReceived"
                         />
                         </div>
-<div class="col-span-12 md:col-span-3">
-                        <BaseDatePicker 
-                            v-model="form.billed_date" 
-                            label="Billed Date"
-                            dateFormat="yy-mm-dd"  
-                            :disabled="isReceived"
-                        />
-</div>
+                        <div class="col-span-12 md:col-span-3">
+                            <BaseDatePicker 
+                                v-model="form.billed_date" 
+                                label="Billed Date"
+                                dateFormat="yy-mm-dd"  
+                                :disabled="isReceived"
+                            />
+                        </div>
                         <div class="field-group col-span-12 md:col-span-3">
                             <label class="field-label">Ref Number</label>
                              <BaseInput v-model="form.referencenumber" disabled class="w-full bg-slate-50 border-none font-mono font-semibold text-slate-500" />
@@ -274,6 +316,10 @@ const approveStatusOptions = [
                                  <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Discount (-)</span>
                                 <BaseInputNumber v-model="form.discount_amount" class="w-24 p-inputtext-sm text-right" :disabled="isReceived" />
                             </div>
+                            <div class="flex justify-between items-center gap-4">
+                                 <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Round Off (+/-)</span>
+                                <BaseInputNumber v-model="form.rounding_value" class="w-24 p-inputtext-sm text-right" :disabled="isReceived" />
+                            </div>
                              <div class="flex justify-between items-center border-t border-slate-100 pt-3 mt-2">
                                 <div class="flex flex-col">
                                     <span class="text-[11px] font-semibold text-slate-900 uppercase">Total Payable</span>
@@ -301,6 +347,62 @@ const approveStatusOptions = [
                 </form>
             </div>
     </div>
+
+    <!-- Bill Generation Dialog -->
+    <Dialog v-model:visible="showBillDialog" modal header="Generate Purchase Bill" :style="{ width: '30vw' }" class="premium-dialog">
+        <template #header>
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                    <ArrowDownTrayIcon class="w-5 h-5" />
+                </div>
+                <div>
+                    <h3 class="text-lg font-black text-slate-800 tracking-tight uppercase">Bill Posting Details</h3>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Select final ledger and dates</p>
+                </div>
+            </div>
+        </template>
+
+        <div class="space-y-6 py-4">
+            <BaseSelect 
+                v-model="billForm.account_id" 
+                label="Posting Ledger (Expense Account)" 
+                :options="accounts"
+                optionLabel="label" 
+                optionValue="value" 
+                placeholder="Select Account" 
+                filter 
+            />
+
+            <div class="grid grid-cols-2 gap-4">
+                <BaseDatePicker 
+                    v-model="billForm.invoice_date" 
+                    label="Bill Date" 
+                />
+                <BaseDatePicker 
+                    v-model="billForm.due_date" 
+                    label="Due Date" 
+                />
+            </div>
+
+            <div class="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                <div class="flex gap-3">
+                    <div class="mt-0.5">
+                        <ArchiveBoxIcon class="w-4 h-4 text-amber-600" />
+                    </div>
+                    <p class="text-[11px] font-medium text-amber-700 leading-relaxed">
+                        This will generate an approved Purchase Bill in the Invoices module. Ensure the posting ledger correctly reflects your chart of accounts.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <template #footer>
+            <div class="flex justify-end gap-3 pt-4 border-t border-slate-50">
+                <Button label="Cancel" text severity="secondary" @click="showBillDialog = false" class="!text-xs font-bold uppercase tracking-widest" />
+                <Button label="Generate Bill" severity="success" @click="executeBillGeneration" class="!px-6 !text-xs font-bold uppercase tracking-widest shadow-lg shadow-emerald-200" />
+            </div>
+        </template>
+    </Dialog>
 </template>
 
 

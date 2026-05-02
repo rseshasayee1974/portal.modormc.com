@@ -31,23 +31,6 @@ const onSaved = () => {
 
 <template>
     <div class="grade-table-container">
-        <!-- Table Title Bar -->
-        <div class="table-title-bar">
-            <div class="flex items-center gap-3">
-                <div class="table-title-icon">
-                    <TableCellsIcon class="w-4 h-4 text-indigo-500" />
-                </div>
-                <div>
-                    <h2 class="table-title-text">Mix Specifications</h2>
-                    <p class="table-title-sub">Manage concrete mix grades and yield ratios</p>
-                </div>
-            </div>
-            <div class="table-title-badge">
-                <DocumentTextIcon class="w-3 h-3" />
-                <span>{{ grades.length }} grades configured</span>
-            </div>
-        </div>
-
         <BaseDataTable 
             v-model:expandedRows="expandedRows"
             v-model:filters="filters"
@@ -59,9 +42,19 @@ const onSaved = () => {
             showSearch
             :globalFilterFields="['name', 'concrete_code']"
             showSerial
+            heading="Mix Specifications Registry"
+            headingIcon="ClipboardDocumentListIcon"
+            showExport
+            exportFilename="concrete-grades-report"
             :deleteUrl="(row) => route('concretegrades.destroy', row.id)"
             deleteTitle="Delete Mix Grade?"
         >
+            <template #toolbar>
+                <div class="flex items-center gap-2 px-3 py-1 bg-indigo-50/50 rounded-lg border border-indigo-100">
+                    <DocumentTextIcon class="w-3.5 h-3.5 text-indigo-500" />
+                    <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{{ grades.length }} Specifications</span>
+                </div>
+            </template>
             <Column header="Mix Specification" sortable field="name">
                 <template #body="slotProps">
                     <div class="flex flex-col">

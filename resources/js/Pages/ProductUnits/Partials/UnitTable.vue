@@ -105,7 +105,6 @@ const deleteUnit = (unit: ProductUnit) => {
 
 <template>
     <div class="unit-table-card">
-
         <!-- ── Data Table (Standardized) ────────────────────────────── -->
         <BaseDataTable
             v-model:expandedRows="expandedRows"
@@ -118,7 +117,16 @@ const deleteUnit = (unit: ProductUnit) => {
             showSearch
             :globalFilterFields="['unit_name', 'unit_code']"
             showSerial
+            heading="Measurement Units"
+            headingIcon="ListBulletIcon"
+            showExport
+            exportFilename="measurement-units-report"
         >
+            <template #toolbar>
+                <div class="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ productUnits.length }} total units</span>
+                </div>
+            </template>
             <!-- Unit Name -->
             <Column field="unit_name" header="Unit Name" sortable>
                 <template #body="{ data }">

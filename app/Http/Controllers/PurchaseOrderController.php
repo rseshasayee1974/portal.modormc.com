@@ -22,19 +22,21 @@ class PurchaseOrderController extends Controller
     {
         $this->authorizeModule('menu');
 
-        $allowedPlantIds = $this->allowedPlantIds();
-       
+        $allowedPlantIds = session('active_plant_id');
+
         $purchaseOrders = PurchaseOrder::query()
-            ->whereIn('plant_id', $allowedPlantIds)
+            ->where('plant_id', $allowedPlantIds)
             ->with(['plant', 'vendor', 'currency', 'creator', 'items.product', 'items.uom', 'items.tax'])
             ->latest()
             ->get();
 
         $ref_no = Financialyear::generatePurchaseOrderRefNo(session('active_plant_id'));
-
+// dd(toSelectOptions(LedgersDropdown(session('active_plant_id'), 'EXPENSE'), 'title'));
         return Inertia::render('PurchaseOrders/Index', [
             'purchaseOrders' => $purchaseOrders,
             'ref_no'         => $ref_no,
+            
+            'accounts'      => toSelectOptions(LedgersDropdown(session('active_plant_id'), 'EXPENSE'), 'title'),
             'vendors'        => VendorsDropdown($allowedPlantIds, ['Vendor']),
             'vehicles'       => VehiclesDropdown($allowedPlantIds),
             'currencies'     => CurrenciesDropdown(),
@@ -100,6 +102,7 @@ class PurchaseOrderController extends Controller
             'taxes'         => TaxesDropdown($allowedPlantIds, 'purchase', ['GST', 'IGST']),
             'products'      => ProductsDropdown($allowedPlantIds, 'purchase'),
             'productUnits'  => Productunit('purchase'),
+            'accounts'      => toSelectOptions(LedgersDropdown(session('active_plant_id'), 'EXPENSE'), 'title'),
             'ref_no'        => Financialyear::generatePurchaseOrderRefNo($purchaseOrder->plant_id, $purchaseOrder->date_order?->toDateString()),
             'instant_vendor' => CustomSetting::getForModule(session('active_plant_id'), 'purchase')['instant_vendor'] ?? 0,
         ]);
@@ -127,6 +130,28 @@ class PurchaseOrderController extends Controller
 
         return redirect()->route('purchaseorder.index')
             ->with('success', 'Purchase Order updated successfully.');
+    }
+
+    public function generateBill(Request $request, PurchaseOrder $purchase_order)
+    {
+        $this->authorizeModule('edit');
+        $this->authorizePlantAccess($purchase_order);
+
+        // Optional: Check if already invoiced
+        if ($purchase_order->invoice_status === 'invoiced') {
+            return redirect()->back()->with('error', 'A bill has already been generated for this Purchase Order.');
+        }
+
+        // Use the common invoice generation function
+        $invoice = \App\Http\Controllers\InvoiceController::createFromSource($purchase_order, 'bill', [
+            'account_id'   => $request->input('account_id'),
+            'invoice_date' => $request->input('invoice_date', now()),
+            'due_date'     => $request->input('due_date', $purchase_order->due_date),
+        ]);
+
+        $purchase_order->update(['invoice_status' => 'invoiced', 'state' => 'billed']);
+
+        return redirect()->back()->with('success', 'Purchase Bill generated successfully: ' . $invoice->invoice_number);
     }
 
     public function destroy($id)

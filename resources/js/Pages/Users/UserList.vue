@@ -87,27 +87,6 @@ const onUpdated = (userId: number) => {
 
 <template>
     <BaseCard class="text-sm">
-        <template #header>
-            <div class="flex items-center justify-between gap-4">
-                  
-                    <div class="flex items-center gap-2">
-                        <i class="pi pi-user-plus text-indigo-500" />
-                        <span class="text-md font-semibold uppercase  text-gray-800 dark:text-gray-100">
-                            List of Users
-                        </span>
-                    </div>
-                
-                <!-- <div class="w-full max-w-sm">
-                    <BaseInput
-                        v-model="searchQuery"
-                        placeholder="Search Users..."
-                        @blur="handleSearch"
-                        @update:modelValue="handleSearch"
-                    />
-                </div> -->
-            </div>
-        </template>
-
         <BaseDataTable
             :value="users.data"
             dataKey="id"
@@ -120,7 +99,16 @@ const onUpdated = (userId: number) => {
             @update:expandedRows="expandedRows = $event"
             @page="onPage"
             showSearch showSerial
+            heading="User Directory"
+            headingIcon="UserGroupIcon"
+            showExport
+            exportFilename="user-directory-report"
         >
+            <template #toolbar>
+                <div class="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">{{ users.total }} registered users</span>
+                </div>
+            </template>
             <!-- Row toggle chevron -->
             <!-- <Column  style="width: 3rem" /> -->
 

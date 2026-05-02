@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { usePermissions } from '@/Composables/usePermissions';
@@ -32,7 +32,7 @@ import {
     UserPlusIcon,
     ReceiptPercentIcon,
     ScaleIcon,
-    PaintBrushIcon
+    PaintBrushIcon,BuildingLibraryIcon,TruckIcon,ShoppingCartIcon
 } from '@heroicons/vue/24/outline';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
@@ -61,7 +61,7 @@ const IconMap = {
     UserPlusIcon,
     ReceiptPercentIcon,
     ScaleIcon,
-    PaintBrushIcon
+    PaintBrushIcon,BuildingLibraryIcon,TruckIcon,ShoppingCartIcon
 };
 
 const page = usePage();
@@ -116,6 +116,58 @@ const switchEntity = async (entityId) => {
         console.error('Entity switch failed', e);
     }
 };
+
+// --- Session Idle Timeout Logic ---
+const IDLE_WARN_TIME = 15 * 60 * 1000; // 5 minutes
+const IDLE_LOGOUT_TIME = 20 * 60 * 1000; // 20 minutes
+const CHECK_INTERVAL = 1000; // 1 second
+
+const lastActivity = ref(Date.now());
+const showTimeoutModal = ref(false);
+const remainingTime = ref(0);
+let idleInterval = null;
+
+const resetTimer = async () => {
+    lastActivity.value = Date.now();
+    if (showTimeoutModal.value) {
+        showTimeoutModal.value = false;
+        // Ping server to refresh session lifetime on backend
+        try {
+            await axios.get(route('session.ping'));
+        } catch (e) {
+            console.error('Session refresh failed', e);
+        }
+    }
+};
+
+const checkIdleTime = () => {
+    const now = Date.now();
+    const idleDuration = now - lastActivity.value;
+
+    if (idleDuration >= IDLE_LOGOUT_TIME) {
+        logout();
+        clearInterval(idleInterval);
+    } else if (idleDuration >= IDLE_WARN_TIME) {
+        showTimeoutModal.value = true;
+        remainingTime.value = Math.floor((IDLE_LOGOUT_TIME - idleDuration) / 1000);
+    } else {
+        showTimeoutModal.value = false;
+    }
+};
+
+onMounted(() => {
+    const events = [ 'keypress' ];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+
+    idleInterval = setInterval(checkIdleTime, CHECK_INTERVAL);
+});
+
+onUnmounted(() => {
+    const events = [ 'keypress' ];
+    events.forEach(event => window.removeEventListener(event, resetTimer));
+    
+    if (idleInterval) clearInterval(idleInterval);
+});
 </script>
 
 <template>
@@ -446,10 +498,52 @@ const switchEntity = async (entityId) => {
                                 </div>
                             </header>
 
-                            <!-- Page Content -->
-                            <main class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                             <main class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                                 <slot />
                             </main>
+                        </div>
+
+                        <!-- Session Timeout Modal -->
+                        <div v-if="showTimeoutModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                            <div class="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 dark:border-gray-700 transform animate-in zoom-in-95 duration-300">
+                                <div class="p-8 text-center">
+                                    <div class="mx-auto w-20 h-20 bg-amber-50 dark:bg-amber-900/20 rounded-full flex items-center justify-center mb-6">
+                                        <ClockIcon class="h-10 w-10 text-amber-500 animate-pulse" />
+                                    </div>
+                                    
+                                    <h3 class="text-2xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Session Expiring Soon</h3>
+                                    <p class="text-slate-500 dark:text-gray-400 text-sm mb-8 leading-relaxed">
+                                        You've been inactive for a while. For your security, you will be automatically logged out in:
+                                    </p>
+
+                                    <div class="inline-flex items-center justify-center bg-slate-50 dark:bg-gray-900 px-6 py-4 rounded-2xl mb-8 border border-slate-100 dark:border-gray-700">
+                                        <span class="text-4xl font-mono font-black text-indigo-600 dark:text-indigo-400">
+                                            {{ Math.floor(remainingTime / 60) }}:{{ String(remainingTime % 60).padStart(2, '0') }}
+                                        </span>
+                                    </div>
+
+                                    <div class="flex flex-col gap-3">
+                                        <button 
+                                            @click="resetTimer"
+                                            class="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-200 dark:shadow-none active:scale-[0.98]"
+                                        >
+                                            Keep Me Logged In
+                                        </button>
+                                        <button 
+                                            @click="logout"
+                                            class="w-full py-3 text-slate-400 hover:text-rose-500 font-bold text-sm transition-colors uppercase tracking-widest"
+                                        >
+                                            Logout Now
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="h-1.5 w-full bg-slate-100 dark:bg-gray-700 overflow-hidden">
+                                    <div 
+                                        class="h-full bg-indigo-500 transition-all duration-1000 linear"
+                                        :style="{ width: (remainingTime / (10 * 60) * 100) + '%' }"
+                                    ></div>
+                                </div>
+                            </div>
                         </div>
 
     </div>

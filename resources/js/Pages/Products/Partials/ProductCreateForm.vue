@@ -41,7 +41,7 @@ const form = useForm({
     is_service: false,
     product_type: props.productTypes && props.productTypes.length > 0 ? props.productTypes[0] : 'Purchase',
     stock_alert: 0,
-    convertsion_quantity: 0,
+    conversion_quantity: 0,
 });
 
 const categoryOptions = computed(() =>
@@ -78,7 +78,8 @@ const submit = () => {
         onSuccess: () => {
             toast.add({ severity: 'success', summary: 'Created', detail: 'Product created successfully.', life: 3000 });
             form.reset();
-            isOpen.value = true;
+            isOpen.value = false; // Reset the panel state
+            setTimeout(() => { isOpen.value = true; }, 500);
         },
     });
 };
@@ -214,10 +215,10 @@ const submit = () => {
                     </div>
                     <div class="col-span-12 md:col-span-2">
                         <BaseInput 
-                            v-model="form.convertsion_quantity" 
+                            v-model="form.conversion_quantity" 
                             label="Conversion Qty"
                             type="number"
-                            :error="form.errorFor('convertsion_quantity')"
+                            :error="form.errorFor('conversion_quantity')"
                         />
                     </div>
                 </div>

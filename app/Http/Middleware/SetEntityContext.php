@@ -85,6 +85,28 @@ class SetEntityContext
             }
         }
 
+        // --- FINAL SECURITY CHECK ---
+        // If after the above attempts we still don't have an active_plant_id,
+        // it means the session is invalid or the user has no access. Logout immediately.
+        if (Auth::check() && !session()->has('active_plant_id')) {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            
+            return redirect()->route('login')->withErrors([
+                'email' => 'Session expired or plant context missing. Please login again.'
+            ]);
+        }
+
+        // Track last_visit_page for full Inertia page visits (GET requests only)
+        if (Auth::check() && $request->header('X-Inertia') && $request->isMethod('GET')) {
+            $user = Auth::user();
+            $currentUrl = $request->path();
+            if ($user->last_visit_page !== $currentUrl) {
+                $user->forceFill(['last_visit_page' => $currentUrl])->saveQuietly();
+            }
+        }
+
         return $next($request);
     }
 }

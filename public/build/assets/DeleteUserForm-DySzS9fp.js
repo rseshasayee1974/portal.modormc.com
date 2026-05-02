@@ -1,1 +1,0 @@
-import{h as r,c as t,w as s,o as e}from"./app-Bbi1Q1_2.js";import{_ as a}from"./ActionSection-DfihvJpl.js";import"./_plugin-vue_export-helper-DlAUqK2U.js";const i={__name:"DeleteUserForm",setup(m){return r({password:""}),(n,o)=>(e(),t(a,null,{content:s(()=>[...o[0]||(o[0]=[])]),_:1}))}};export{i as default};

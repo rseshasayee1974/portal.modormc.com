@@ -8,6 +8,7 @@ const props = defineProps<{
     purchaseOrder: any;
     vendors: any[];
     currencies: any[];
+    accounts: any[];
     taxes: any[];
     products: any[];
     productUnits: any[];
@@ -41,11 +42,13 @@ const form = useForm({
     discount_amount: Number(props.purchaseOrder?.discount_amount) || 0,
     shipping_charges: Number(props.purchaseOrder?.shipping_charges) || 0,
     adjustment: Number(props.purchaseOrder?.adjustment) || 0,
+    rounding_value: Number(props.purchaseOrder?.rounding_value) || 0,
     notes: props.purchaseOrder?.notes || '',
     terms_conditions: props.purchaseOrder?.terms_conditions || '',
     state: props.purchaseOrder?.state || 'draft',
     approve_status: props.purchaseOrder?.approve_status || 0,
     receipt_status: props.purchaseOrder?.receipt_status || 0,
+    invoice_status: props.purchaseOrder?.invoice_status || 'no_invoice',
     items: props.purchaseOrder?.items ? props.purchaseOrder.items.map(i => ({ 
         ...i, 
         product_quantity: Number(i.product_quantity) || 0,
@@ -136,10 +139,10 @@ const calculateFinalTotals = () => {
     // amount_untaxed is final net before tax
     form.amount_untaxed = itemSubtotalsSum - (Number(form.discount_amount) || 0);
     form.amount_tax = itemTaxesTotal;
-    form.amount_total = form.amount_untaxed + form.amount_tax + (Number(form.shipping_charges) || 0) + (Number(form.adjustment) || 0);
+    form.amount_total = form.amount_untaxed + form.amount_tax + (Number(form.shipping_charges) || 0) + (Number(form.adjustment) || 0) + (Number(form.rounding_value) || 0);
 };
 
-watch(() => [form.shipping_charges, form.adjustment, form.discount_amount], calculateFinalTotals);
+watch(() => [form.shipping_charges, form.adjustment, form.rounding_value, form.discount_amount], calculateFinalTotals);
 
 const submit = () => {
     form.transform(data => ({
@@ -179,6 +182,7 @@ calculateFinalTotals();
             :onProductChange="onProductChange"
             :calculateItemTotals="calculateItemTotals"
             :addItem="addItem"
+            :accounts="accounts"
             :removeItem="removeItem"
             :submit="submit"
             :isReceived="isReceived"

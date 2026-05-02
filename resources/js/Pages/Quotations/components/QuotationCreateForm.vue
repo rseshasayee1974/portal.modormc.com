@@ -250,7 +250,7 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="quotation-card" :class="{ 'quotation-card--active': isOpen }">
+    <div class="no-print quotation-card" :class="{ 'quotation-card--active': isOpen }">
         <!-- Premium Header -->
         <button @click="isOpen = !isOpen" class="w-full flex items-center justify-between p-5 hover:bg-slate-50 transition-colors">
             <div class="flex items-center gap-4">

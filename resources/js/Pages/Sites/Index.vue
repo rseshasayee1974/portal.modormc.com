@@ -192,9 +192,9 @@ watch(() => createForm.name, (newName) => {
         <Toast />
         <Head title="Logistic Sites | Site Management" />
 
-        <main class="max-w-[1600px] mx-auto p-6 lg:p-10 space-y-12 animate-in fade-in duration-700">
+        <main class="max-w-full mx-auto p-2 space-y-6 animate-in fade-in duration-700">
             <!-- TOP: CREATE FORM SECTION -->
-            <section class="max-w-5xl mx-auto w-full">
+            <section class="max-w-7xl mx-auto w-full">
                 <SiteCreateForm 
                     :form="createForm" 
                     :plants="plants"

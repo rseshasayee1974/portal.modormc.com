@@ -298,16 +298,18 @@ class PrintDataFormatter
     // ─────────────────────────────────────────────────────
     public static function fromInvoice($invoice): array
     {
-        $invoice->loadMissing(['plant', 'plant.entity']);
+        $invoice->loadMissing(['plant', 'plant.entity', 'partner', 'items.tax', 'items.uom', 'orderTaxes']);
 
         $data = self::base();
+        $data['settings'] = self::getCustomSettings($invoice->plant_id, 'invoices');
 
-        $data['doc_title'] = 'TAX INVOICE';
-        $data['doc_no']    = $invoice->invoice_no ?? $invoice->id;
+        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? 'TAX INVOICE';
+        $data['doc_no']    = $invoice->invoice_number ?? $invoice->id;
         $data['doc_date']  = $invoice->invoice_date?->format('d/m/Y') ?? now()->format('d/m/Y');
         $data['due_date']  = $invoice->due_date?->format('d/m/Y') ?? 'N/A';
         $data['state']     = strtoupper($invoice->status ?? 'DRAFT');
 
+        // Company
         $data['company'] = [
             'name'    => $invoice->plant->entity->entity_name ?? $invoice->plant->name ?? 'Company',
             'address' => $invoice->plant->address ?? '',
@@ -319,12 +321,60 @@ class PrintDataFormatter
             'email'   => $invoice->plant->email ?? '',
         ];
 
+        // Bill To
+        $data['bill_to'] = [
+            'name'    => $invoice->partner->legal_name ?? $invoice->partner->name ?? 'N/A',
+            'address' => $invoice->partner->address_line1 ?? '',
+            'city'    => $invoice->partner->city ?? '',
+            'state'   => $invoice->partner->state ?? '',
+            'pin'     => $invoice->partner->pincode ?? '',
+            'gstin'   => $invoice->partner->gstin ?? '',
+            'phone'   => $invoice->partner->phone ?? '',
+        ];
+
+        // Ship To
+        $data['ship_to'] = $data['bill_to'];
+
+        // Items
+        $data['items'] = $invoice->items->map(function ($item, $idx) {
+            return [
+                'no'           => $idx + 1,
+                'name'         => $item->item_name,
+                'description'  => $item->hsn_code ? 'HSN: ' . $item->hsn_code : '',
+                'hsn'          => $item->hsn_code ?? '-',
+                'qty'          => (float)$item->quantity,
+                'unit'         => $item->uom->unit_code ?? 'm³',
+                'unit_price'   => (float)$item->price_unit,
+                'tax_name'     => $item->tax?->tax_name ?? '-',
+                'tax_rate'     => (float)($item->tax?->tax_rate ?? 0),
+                'tax_group'    => $item->tax?->tax_group ?? '',
+                'tax_amount'   => (float)($item->line_tax_amount ?? 0),
+                'total'        => (float)($item->line_total ?? ($item->quantity * $item->price_unit)),
+            ];
+        })->toArray();
+
+        // Totals
+        $taxLines = $invoice->orderTaxes->map(function($ot) {
+            return ['label' => $ot->name, 'amount' => (float)$ot->amount];
+        })->toArray();
+
+        $data['totals'] = [
+            'sub_total'   => (float)$invoice->subtotal,
+            'discount'    => (float)$invoice->discount_total,
+            'tax_lines'   => $taxLines,
+            'shipping'    => (float)$invoice->shipping_charges,
+            'adjustment'  => (float)$invoice->adjustment,
+            'grand_total' => (float)$invoice->total_amount,
+        ];
+
         $data['meta'] = [
             'currency_code'   => 'INR',
             'currency_symbol' => '₹',
             'notes'           => '',
-            'terms_text'      => '',
-            'total_words'     => '',
+            'terms_text'      => "1. Goods once sold will not be taken back.\n2. Interest @ 18% will be charged if not paid within due date.\n3. All disputes are subject to local jurisdiction.",
+            'total_words'     => self::numberToWords($invoice->total_amount, 'INR'),
+            'po_number'       => $invoice->ref_id ?? '',
+            'project_name'    => $invoice->ref_title ?? '',
         ];
 
         return $data;
@@ -482,13 +532,93 @@ class PrintDataFormatter
     // ─────────────────────────────────────────────────────
     public static function supportedTemplates(): array
     {
-        return ['standard', 'elite', 'modern', 'spreadsheet', 'tallysheet', 'compact', 'indian_gst'];
+        return [
+            'standard', 'elite', 'modern', 'spreadsheet', 'tallysheet', 'compact', 'indian_gst',
+            'formal_gst', 'standard_indigo', 'minimalist_lite'
+        ];
     }
 
     public static function resolveView(string $templateKey): string
     {
+        // Internal mapping for keys that share the same blade file
+        $map = [
+            'formal_gst'      => 'indian_gst',
+            'standard_indigo' => 'elite',
+            'minimalist_lite' => 'compact',
+        ];
+
         $supported = self::supportedTemplates();
-        $key = in_array($templateKey, $supported) ? $templateKey : 'standard';
+        $key = in_array($templateKey, $supported) ? ($map[$templateKey] ?? $templateKey) : 'standard';
+        
         return "pdfs.templates.{$key}";
+    }
+
+    /**
+     * Get customization settings for a module.
+     */
+    public static function getCustomSettings(int $plantId, string $module): array
+    {
+        $stored = \App\Models\CustomSetting::getForModule($plantId, $module);
+        $defaults = self::getDefaultSettings($module);
+
+        return array_replace_recursive($defaults, $stored);
+    }
+
+    public static function getDefaultSettings(string $module): array
+    {
+        $settings = [
+            'invoices' => [
+                'pdf' => [
+                    'company_name'   => true,
+                    'logo'           => true,
+                    'address'        => true,
+                    'phone'          => true,
+                    'email'          => true,
+                    'gstin'          => true,
+                    'invoice_title'  => true,
+                    'invoice_number' => true,
+                    'date'           => true,
+                    'due_date'       => true,
+                    'status'         => false,
+                    'bill_to'        => true,
+                    'ship_to'        => true,
+                    'hsn_code'       => true,
+                    'description'    => true,
+                    'unit'           => true,
+                    'discount'       => true,
+                    'tax_percent'    => true,
+                    'cgst'           => true,
+                    'sgst'           => true,
+                    'igst'           => true,
+                    'shipping'       => true,
+                    'round_off'      => true,
+                    'total_words'    => true,
+                    'notes'          => true,
+                    'terms'          => true,
+                    'signature'      => true,
+                    'labels' => [
+                        'invoice_title' => 'TAX INVOICE',
+                        'bill_to'       => 'Bill To',
+                        'ship_to'       => 'Ship To',
+                        'rate'          => 'Rate',
+                        'amount'        => 'Amount',
+                    ]
+                ],
+                'excel' => [
+                    'hsn_code' => true,
+                    'discount' => true,
+                ]
+            ],
+            'purchase_orders' => [
+                'pdf' => [
+                    'company_name' => true,
+                    'logo'         => true,
+                    'terms'        => true,
+                    'signature'    => true,
+                ]
+            ]
+        ];
+
+        return $settings[$module] ?? [];
     }
 }

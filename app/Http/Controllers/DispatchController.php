@@ -27,8 +27,6 @@ class DispatchController extends Controller
             'batch',
             'truck:id,registration',
             'driver:id,legal_name',
-            'weights',
-            'financials',
             'status'
         ])
         ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
@@ -47,31 +45,23 @@ class DispatchController extends Controller
         $validated = $request->validated();
 
         return DB::transaction(function () use ($validated) {
-            // 1. Create Main Dispatch
-            $dispatchData = collect($validated)->except(['weights', 'financials', 'status'])->toArray();
-            $dispatch = Dispatch::create($dispatchData);
-
-            // 2. Create Weights
-            if (!empty($validated['weights'])) {
-                $dispatch->weights()->create($validated['weights']);
-            } else {
-                $dispatch->weights()->create([]);
-            }
-
-            // 3. Create Financials (Calculations should happen here or via observers)
+            // 1. Prepare Flattened Dispatch Data
+            $dispatchData = collect($validated)->except(['status'])->toArray();
+            $dispatchData['plant_id'] = session('active_plant_id');
+            
             if (!empty($validated['financials'])) {
                 $financials = $validated['financials'];
-                // Basic Calculation Logic (Can be expanded)
-                $financials['load_amount'] = ($financials['load_units'] ?? 0) * ($financials['load_rate'] ?? 0);
-                $financials['unload_amount'] = ($financials['unload_units'] ?? 0) * ($financials['unload_rate'] ?? 0);
-                $financials['transport_amount'] = ($financials['transport_units'] ?? 0) * ($financials['transport_rate'] ?? 0);
-                
-                $dispatch->financials()->create($financials);
-            } else {
-                $dispatch->financials()->create([]);
+                // Basic Calculation Logic
+                $financials['load_untax_amount'] = ($financials['load_units'] ?? 0) * ($financials['load_rate'] ?? 0);
+                // Total amount will be calculated in UI or here? 
+                // We'll merge them all into the main record
+                $dispatchData = array_merge($dispatchData, $financials);
             }
 
-            // 4. Create Status
+            // 2. Create Main Dispatch
+            $dispatch = Dispatch::create($dispatchData);
+
+            // 3. Create Status
             if (!empty($validated['status'])) {
                 $dispatch->status()->create($validated['status']);
             } else {
@@ -88,26 +78,19 @@ class DispatchController extends Controller
         $validated = $request->validated();
 
         return DB::transaction(function () use ($validated, $dispatch) {
-            // 1. Update Main Dispatch
-            $dispatchData = collect($validated)->except(['weights', 'financials', 'status'])->toArray();
-            $dispatch->update($dispatchData);
-
-            // 2. Update Weights
-            if (!empty($validated['weights'])) {
-                $dispatch->weights()->updateOrCreate(['dispatch_id' => $dispatch->id], $validated['weights']);
-            }
-
-            // 3. Update Financials
+            // 1. Prepare Flattened Dispatch Data
+            $dispatchData = collect($validated)->except(['status'])->toArray();
+            
             if (!empty($validated['financials'])) {
                 $financials = $validated['financials'];
-                $financials['load_amount'] = ($financials['load_units'] ?? 0) * ($financials['load_rate'] ?? 0);
-                $financials['unload_amount'] = ($financials['unload_units'] ?? 0) * ($financials['unload_rate'] ?? 0);
-                $financials['transport_amount'] = ($financials['transport_units'] ?? 0) * ($financials['transport_rate'] ?? 0);
-
-                $dispatch->financials()->updateOrCreate(['dispatch_id' => $dispatch->id], $financials);
+                $financials['load_untax_amount'] = ($financials['load_units'] ?? 0) * ($financials['load_rate'] ?? 0);
+                $dispatchData = array_merge($dispatchData, $financials);
             }
 
-            // 4. Update Status
+            // 2. Update Main Dispatch
+            $dispatch->update($dispatchData);
+
+            // 3. Update Status
             if (!empty($validated['status'])) {
                 $dispatch->status()->updateOrCreate(['dispatch_id' => $dispatch->id], $validated['status']);
             }

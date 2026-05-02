@@ -41,8 +41,9 @@ class UpdateInvoiceRequest extends FormRequest
             'items.*.hsn_code'     => 'required|string|max:10',
             'items.*.quantity'     => 'required|numeric|min:0.01',
             'items.*.price_unit'   => 'required|numeric|min:0',
-            'items.*.discount_type'=> 'required|in:percent,fixed',
+            'items.*.discount_type'=> 'nullable|in:%,₹',
             'items.*.discount'     => 'nullable|numeric|min:0',
+            'items.*.tax_id'       => 'nullable|exists:mm_taxes,id',
         ];
     }
 }

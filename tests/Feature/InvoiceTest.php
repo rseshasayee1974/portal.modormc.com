@@ -72,7 +72,7 @@ class InvoiceTest extends TestCase
                     'hsn_code' => '9999',
                     'quantity' => 1,
                     'price_unit' => 1000,
-                    'discount_type' => 'percent',
+                    'discount_type' => '%',
                     'discount' => 0,
                 ]
             ]
@@ -109,7 +109,7 @@ class InvoiceTest extends TestCase
                     'hsn_code' => '9999',
                     'quantity' => 1,
                     'price_unit' => 1000,
-                    'discount_type' => 'percent',
+                    'discount_type' => '%',
                     'discount' => 0,
                 ]
             ]

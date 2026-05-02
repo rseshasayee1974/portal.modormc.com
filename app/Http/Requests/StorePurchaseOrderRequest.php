@@ -40,6 +40,7 @@ class StorePurchaseOrderRequest extends FormRequest
             'discount_amount' => 'nullable|numeric|min:0',
             'shipping_charges' => 'nullable|numeric|min:0',
             'adjustment' => 'nullable|numeric',
+            'rounding_value' => 'nullable|numeric',
             'common_tax_id' => 'nullable|exists:mm_taxes,id',
             'shipping_tax_id' => 'nullable|exists:mm_taxes,id',
             'notes' => 'nullable|string',
@@ -66,6 +67,7 @@ class StorePurchaseOrderRequest extends FormRequest
             'discount_amount' => $this->input('discount_amount') ?: 0,
             'shipping_charges' => $this->input('shipping_charges') ?: 0,
             'adjustment' => $this->input('adjustment') ?: 0,
+            'rounding_value' => $this->input('rounding_value') ?: 0,
         ]);
     }
 }

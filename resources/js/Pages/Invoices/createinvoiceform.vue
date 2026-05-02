@@ -26,10 +26,12 @@ import { useToast } from 'primevue/usetoast';
 
 const props = defineProps<{
     patrons: any[];
-    taxes: any[];
-    trucks: any[];
+    taxes: any[]; 
     accounts: any[];
+    mixdesign: any[];
+    units: any[];
     instant_invoice_patron: number | boolean;
+    
 }>();
 
 const page = usePage();
@@ -50,22 +52,30 @@ const form = useForm({
     invoice_date: new Date().toISOString().split('T')[0],
     due_date: null,
     period: '',
+    global_discount_type: '₹',
+    global_discount: 0,
     adjustment: 0,
     shipping_charges: 0,
     shipping_tax_id: null,
     amount_untaxed: 0,
     amount_tax: 0,
     amount_total: 0,
-    items: [createNewItem()]
+    items: [] as any[]
 });
+
+// Initialize with one item
+form.items.push(createNewItem());
 
 function createNewItem() {
     return {
+        mix_design_id: null,
+        uom_id: null,
         item_name: '',
         hsn_code: '',
+        tax_id: null,
         quantity: 1,
         price_unit: 0,
-        discount_type: 'percent',
+        discount_type: '%',
         discount: 0,
         subtotal: 0,
         tax_amount: 0,
@@ -96,19 +106,50 @@ const calculateTotals = () => {
 
     form.items.forEach(item => {
         const gross = (Number(item.quantity) || 0) * (Number(item.price_unit) || 0);
-        const discount = item.discount_type === 'fixed' 
+        const discount = item.discount_type === '₹' 
             ? (Number(item.discount) || 0) 
             : gross * ((Number(item.discount) || 0) / 100);
         
         item.subtotal = gross - discount;
-        // Simple 18% tax estimate if tax logic is not fully provided yet on per-item basis
-        // But for consistency with model, we assume tax is calculated server-side or we can add it here if needed.
-        // For now, let's keep it simple as per previous recalculate logic.
+        
+        // Calculate tax for this line
+        const tax = props.taxes.find(t => t.value === item.tax_id);
+        const rate = tax ? Number(tax.rate) : 0;
+        item.tax_amount = item.subtotal * (rate / 100);
+        
         untaxed += item.subtotal;
+        taxTotal += item.tax_amount;
     });
 
     form.amount_untaxed = untaxed;
-    form.amount_total = untaxed + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0);
+    form.amount_tax = taxTotal;
+    
+    // Calculate global discount
+    const globalDiscount = form.global_discount_type === '₹' 
+        ? (Number(form.global_discount) || 0) 
+        : untaxed * ((Number(form.global_discount) || 0) / 100);
+
+    // Add shipping tax if applicable
+    if (form.shipping_charges > 0 && form.shipping_tax_id) {
+        const sTax = props.taxes.find(t => t.value === form.shipping_tax_id);
+        if (sTax) {
+            form.amount_tax += form.shipping_charges * (Number(sTax.rate) / 100);
+        }
+    }
+
+    form.amount_total = untaxed + taxTotal - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0);
+};
+
+const onMixDesignChange = (index: number) => {
+    const item = form.items[index];
+    const design = props.mixdesign.find(p => p.value === item.mix_design_id);
+    
+    if (design) {
+        item.item_name = design.label;
+        item.price_unit = design.rate || 0;
+        item.uom_id = design.uom_id || null;
+    }
+    calculateTotals();
 };
 
 watch(() => [form.items, form.adjustment, form.shipping_charges], calculateTotals, { deep: true });
@@ -161,6 +202,8 @@ const invoiceTypeOptions = [
     { label: 'Debit Note', value: 'debit_note' },
 ];
 
+const taxOptions = computed(() => props.taxes);
+
 </script>
 
 <template>
@@ -171,7 +214,7 @@ const invoiceTypeOptions = [
                     <DocumentChartBarIcon class="w-5 h-5 text-indigo-600" />
                 </div>
                 <div class="text-left">
-                    <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">Generate New Billing Document</p>
+                    <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">Generate Invoices</p>
                     <p class="text-[11px] text-gray-400 font-medium mt-0.5">Manual Invoice & Logistics Reconciliation Module</p>
                 </div>
             </div>
@@ -227,27 +270,22 @@ const invoiceTypeOptions = [
                             :error="form.errors.invoice_type"
                             required
                         />
-                        <BaseInput 
-                            v-model="form.invoice_label" 
-                            label="Document Label"
-                            placeholder="e.g. Tax Invoice"
-                            :error="form.errors.invoice_label"
-                        />
-                    </div>
+                        
+                    <!-- </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 px-1">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 px-1"> -->
                         <BaseDatePicker
                             v-model="form.invoice_date"
                             label="Invoice Date"
                             required
                             :error="form.errors.invoice_date"
                         />
-                        <BaseDatePicker 
+                        <!-- <BaseDatePicker 
                             v-model="form.due_date" 
-                            label="Payment Due Date" 
+                            label="Due Date" 
                             :error="form.errors.due_date"
-                        />
-                        <BaseSelect 
+                        /> -->
+                        <!-- <BaseSelect 
                             v-model="form.truck_id" 
                             label="Linked Vehicle"
                             :options="trucks"
@@ -256,13 +294,13 @@ const invoiceTypeOptions = [
                             placeholder="Select Truck"
                             :error="form.errors.truck_id"
                             filter
-                        />
-                        <BaseInput 
+                        /> -->
+                        <!-- <BaseInput 
                             v-model="form.prefix" 
-                            label="Invoice Prefix"
+                            label="Prefix"
                             placeholder="INV"
                             :error="form.errors.prefix"
-                        />
+                        /> -->
                     </div>
 
                     <!-- Items Table Area -->
@@ -271,10 +309,12 @@ const invoiceTypeOptions = [
                             <table class="w-full text-left border-collapse min-w-[900px]">
                                 <thead class="bg-slate-50 border-b border-slate-100 uppercase tracking-tighter text-[10px] font-bold text-slate-500">
                                     <tr>
-                                        <th class="px-4 py-3" style="width: 250px;">Item Description</th>
-                                        <th class="px-4 py-3 text-center" style="width: 100px;">HSN</th>
+                                        <th class="px-4 py-3" style="width: 250px;">Product / Service</th>
+                                        <!-- <th class="px-4 py-3" style="width: 200px;">Description</th> -->
                                         <th class="px-4 py-3 text-center" style="width: 100px;">Qty</th>
+                                        <th class="px-4 py-3 text-center" style="width: 100px;">UOM</th>
                                         <th class="px-4 py-3 text-center" style="width: 140px;">Rate</th>
+                                        <th class="px-4 py-3 text-center" style="width: 120px;">TAX</th>
                                         <th class="px-4 py-3 text-center" style="width: 180px;">Discount</th>
                                         <th class="px-4 py-3 text-right">Net Amount</th>
                                         <th class="px-1 py-1" style="width: 50px;">
@@ -287,27 +327,61 @@ const invoiceTypeOptions = [
                                 <tbody class="divide-y divide-slate-50">
                                     <tr v-for="(item, index) in form.items" :key="index" class="hover:bg-indigo-50/20 transition-colors text-[12px]">
                                         <td class="p-2">
-                                            <BaseInput v-model="item.item_name" placeholder="Item Name / Desc" required />
+                                            <BaseSelect 
+                                                v-model="item.mix_design_id" 
+                                                :options="mixdesign" 
+                                                optionLabel="label" 
+                                                optionValue="value" 
+                                                placeholder="Select Mix Design" 
+                                                filter
+                                                @change="onMixDesignChange(index)"
+                                            />
                                         </td>
-                                        <td class="p-2">
-                                            <BaseInput v-model="item.hsn_code" placeholder="HSN" />
-                                        </td>
+                                        <!-- <td class="p-2">
+                                            <BaseInput v-model="item.item_name" placeholder="Description" />
+                                        </td> -->
+                                        
                                         <td class="p-2 text-center">
                                             <BaseInputNumber v-model="item.quantity" :minFractionDigits="2" size="small" />
+                                        </td>
+                                        <td class="p-2">
+                                            <BaseSelect 
+                                                v-model="item.uom_id" 
+                                                :options="units" 
+                                                optionLabel="label" 
+                                                optionValue="value" 
+                                                placeholder="UOM" 
+                                                filter
+                                            />
                                         </td>
                                         <td class="p-2">
                                             <BaseInputNumber v-model="item.price_unit" :minFractionDigits="2" size="small" inputClass="font-semibold text-indigo-600" />
                                         </td>
                                         <td class="p-2">
-                                            <div class="flex gap-1">
-                                                <BaseSelect 
-                                                    v-model="item.discount_type" 
-                                                    :options="[{label: '%', value: 'percent'}, {label: 'Fixed', value: 'fixed'}]" 
-                                                    optionLabel="label" 
-                                                    optionValue="value" 
-                                                    class="!w-24"
-                                                />
-                                                <BaseInputNumber v-model="item.discount" size="small" class="flex-grow" />
+                                            <BaseSelect 
+                                                v-model="item.tax_id" 
+                                                :options="taxes" 
+                                                optionLabel="label" 
+                                                optionValue="value" 
+                                                placeholder="Tax" 
+                                                filter
+                                            />
+                                        </td>
+                                        <td class="p-2">
+                                            <div class="flex flex-col gap-1">
+                                                <div class="flex gap-1">
+                                                    <BaseSelect 
+                                                        v-model="item.discount_type" 
+                                                        :options="[{label: '%', value: '%'}, {label: '₹', value: '₹'}]" 
+                                                        optionLabel="label" 
+                                                        optionValue="value" 
+                                                        class="!w-16"
+                                                    />
+                                                    <BaseInputNumber v-model="item.discount" size="small" class="flex-grow" />
+                                                </div>
+                                                <div v-if="item.discount > 0" class="text-[10px] text-right text-rose-500 font-bold px-1">
+                                                    -{{ (item.discount_type === 'fixed' ? item.discount : (item.quantity * item.price_unit * (item.discount / 100))).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                                </div>
                                             </div>
                                         </td>
                                         <td class="p-2 text-sm text-right font-black text-slate-700">
@@ -332,7 +406,6 @@ const invoiceTypeOptions = [
                                 <Textarea v-model="form.period" rows="4" placeholder="Billing period, reference notes..." class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500" />
                             </div>
                             <div class="grid grid-cols-2 gap-4">
-                                <BaseInput v-model="form.invoice_number" label="Manual Invoice #" placeholder="Auto-gen" />
                                 <BaseInput v-model="form.ref_title" label="Reference Title" placeholder="PO Ref, etc." />
                             </div>
                         </div>
@@ -342,6 +415,17 @@ const invoiceTypeOptions = [
                                 <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
                                     <span>Subtotal (Untaxed)</span>
                                     <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                </div>
+                                <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
+                                    <span>Tax Amount (+)</span>
+                                    <span class="text-slate-900">{{ form.amount_tax.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                </div>
+                                <div class="flex justify-between items-center gap-4">
+                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Global Discount (-)</span>
+                                    <div class="flex gap-1 w-44">
+                                      
+                                        <BaseInputNumber v-model="form.global_discount" size="small" class="flex-grow" />
+                                    </div>
                                 </div>
                                 <div class="flex justify-between items-center gap-4">
                                     <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Shipping Charges (+)</span>
@@ -386,13 +470,11 @@ const invoiceTypeOptions = [
 
 <style scoped>
 .create-panel {
-    @apply bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-2xl shadow-indigo-900/5 overflow-hidden transition-all duration-500 ease-in-out;
+    @apply bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xl shadow-indigo-900/5 overflow-hidden transition-all duration-500 ease-in-out;
 }
-.create-panel--open {
-    @apply mb-10;
-}
+ 
 .create-panel__header {
-    @apply w-full p-6 bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex justify-between items-center border-b border-slate-100 dark:border-slate-700 hover:bg-slate-100/50 transition-colors;
+    @apply w-full p-3 px-8 bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex justify-between items-center border-b border-slate-100 dark:border-slate-700 hover:bg-slate-100/50 transition-colors;
 }
 .create-panel__icon {
     @apply w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center shadow-inner;

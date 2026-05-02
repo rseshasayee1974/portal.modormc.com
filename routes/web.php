@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\SaasDashboardController;
 use App\Http\Controllers\PurchaseOrderInwardController;
+use App\Http\Controllers\PurchaseOrderController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -33,6 +34,10 @@ Route::middleware([
 ])->group(function () {
     
     // 0. Dashboard
+    Route::get('/session-ping', function () {
+        return response()->json(['status' => 'active']);
+    })->name('session.ping');
+
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
@@ -41,6 +46,14 @@ Route::middleware([
         Route::get('/dashboard', [SaasDashboardController::class, 'dashboard'])->name('saas.dashboard');
         Route::get('/billing', [SaasDashboardController::class, 'billing'])->name('saas.billing');
     });
+
+    Route::get('/tools/image-to-gif', function () {
+        return Inertia::render('Tools/ImageToGif');
+    })->name('tools.image-to-gif');
+
+    // 0. Settings
+    Route::get('/settings/customsetting', [\App\Http\Controllers\CustomSettingController::class, 'index'])->name('settings.customsetting');
+    Route::post('/settings/customsetting', [\App\Http\Controllers\CustomSettingController::class, 'update'])->name('settings.customsetting.update');
 
     // 1. Context (Entity/Plant Switcher)
     Route::prefix('context')->group(function () {
@@ -89,25 +102,29 @@ Route::middleware([
         Route::resource('templates', \App\Http\Controllers\PrintTemplateController::class);
         Route::post('templates/assign', [\App\Http\Controllers\PrintTemplateController::class, 'assign'])->name('templates.assign');
         Route::get('templates/{template}/preview', [\App\Http\Controllers\PrintTemplateController::class, 'preview'])->name('templates.preview');
+        Route::get('templates/{module}/customize', [\App\Http\Controllers\PrintTemplateController::class, 'customize'])->name('templates.customize');
+        Route::post('templates/{module}/customize', [\App\Http\Controllers\PrintTemplateController::class, 'saveCustomization'])->name('templates.save-customization');
 
         // Unified Document Printing Engine
         Route::get('print/{module}/{id}/{action?}', [\App\Http\Controllers\PrintController::class, 'handle'])
             ->name('print.document');
+            
+        Route::resource('patrons', \App\Http\Controllers\PatronController::class);
+        Route::post('patrons/batch', [\App\Http\Controllers\PatronController::class, 'batchStore'])->name('patrons.batchstore');
     });
 
     // 5. Patrons & Personnel (Membership)
     Route::prefix('membership')->group(function () {
         Route::resource('users', \App\Http\Controllers\UserController::class);
         Route::resource('personnel', \App\Http\Controllers\PersonnelController::class);
-        Route::resource('patrons', \App\Http\Controllers\PatronController::class);
-        Route::post('patrons/batch', [\App\Http\Controllers\PatronController::class, 'batchStore'])->name('patrons.batchstore');
     });
 
     // 6. Orders & Sales
     Route::prefix('orders')->group(function () {
-        Route::resource('purchaseorder', \App\Http\Controllers\PurchaseOrderController::class)->names('purchaseorder');
-        Route::get('purchaseorder/{purchase_order}/download/{template?}', [\App\Http\Controllers\PurchaseOrderController::class, 'downloadPdf'])->name('purchaseorder.download');
-        Route::get('purchaseorder/{purchase_order}/report', [\App\Http\Controllers\PurchaseOrderController::class, 'report'])->name('purchaseorder.report');
+        Route::resource('purchaseorder', PurchaseOrderController::class)->names('purchaseorder');
+        Route::get('purchaseorder/{purchase_order}/download/{template?}', [PurchaseOrderController::class, 'downloadPdf'])->name('purchaseorder.download');
+        Route::get('purchaseorder/{purchase_order}/report', [PurchaseOrderController::class, 'report'])->name('purchaseorder.report');
+        Route::post('purchaseorder/{purchase_order}/generate-bill', [PurchaseOrderController::class, 'generateBill'])->name('purchaseorder.generate-bill');
         
         Route::resource('quotations', \App\Http\Controllers\QuotationController::class);
         Route::get('quotations/{quotation}/download', [\App\Http\Controllers\QuotationController::class, 'downloadPdf'])->name('quotations.download');
@@ -117,6 +134,8 @@ Route::middleware([
         Route::post('salesorders/{salesOrder}/dispatches', [\App\Http\Controllers\DispatchController::class, 'storeForSalesOrder'])->name('salesorders.dispatches.store');
         Route::resource('workorders', \App\Http\Controllers\WorkOrderController::class);
         Route::resource('batches', \App\Http\Controllers\BatchController::class)->except(['create', 'show', 'edit']);
+        Route::get('batches/{batch}/report', [\App\Http\Controllers\BatchController::class, 'report'])->name('batches.report');
+        Route::get('batches/{batch}/download', [\App\Http\Controllers\BatchController::class, 'downloadPdf'])->name('batches.download');
         Route::get('production/batch', [\App\Http\Controllers\Api\ProductionApiController::class, 'getConsumption'])->name('batches.production');
         Route::resource('dispatches', \App\Http\Controllers\DispatchController::class)->except(['create', 'show', 'edit']);
         
@@ -169,7 +188,7 @@ Route::middleware([
         Route::post('pettycash/{petty_cash}/close', [\App\Http\Controllers\PettyCashController::class, 'close'])->name('pettycash.close');
         
         Route::resource('payments', \App\Http\Controllers\PaymentController::class)->except(['create', 'edit', 'show']);
-        Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit', 'show']);
+        Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit']);
     });
 
     // Bridge Proxy (Bypass CORS for local hardware)

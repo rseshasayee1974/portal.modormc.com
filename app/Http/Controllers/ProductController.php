@@ -50,7 +50,7 @@ class ProductController extends Controller
             'is_service' => 'nullable|boolean',
             'product_type' => 'nullable|string|max:255',
             'stock_alert' => 'nullable|numeric|min:0',
-            'convertsion_quantity' => 'nullable|numeric|min:0',
+            'conversion_quantity' => 'nullable|numeric|min:0',
         ]);
 
         Product::create(array_merge($validated, [
@@ -79,7 +79,7 @@ class ProductController extends Controller
             'is_service' => 'nullable|boolean',
             'product_type' => 'nullable|string|max:255',
             'stock_alert' => 'nullable|numeric|min:0',
-            'convertsion_quantity' => 'nullable|numeric|min:0',
+            'conversion_quantity' => 'nullable|numeric|min:0',
         ]);
 
         $product->update($validated);

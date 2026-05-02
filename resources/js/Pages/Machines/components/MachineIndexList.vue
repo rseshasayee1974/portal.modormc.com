@@ -62,23 +62,6 @@ const onRowClick = (event: any) => {
 
 <template>
     <div class="machine-table-container">
-        <!-- Table Title Bar -->
-        <div class="table-title-bar">
-            <div class="flex items-center gap-3">
-                <div class="table-title-icon">
-                    <TableCellsIcon class="w-4 h-4 text-indigo-500" />
-                </div>
-                <div>
-                    <h2 class="table-title-text">Fleet Inventory Master</h2>
-                    <p class="table-title-sub">Registry of all company and external logistics assets</p>
-                </div>
-            </div>
-            <div class="table-title-badge">
-                <TruckIcon class="w-3 h-3" />
-                <span>{{ machines.length }} Assets Enrolled</span>
-            </div>
-        </div>
-
         <BaseDataTable
             v-model:expandedRows="props.expandedRows"
             v-model:filters="filters"
@@ -90,12 +73,23 @@ const onRowClick = (event: any) => {
             showSearch
             :globalFilterFields="['registration', 'vehicle_model', 'vehicle_type']"
             showSerial
+            heading="Fleet Inventory Master"
+            headingIcon="TruckIcon"
+            showExport
+            exportFilename="fleet-report"
             @update:expandedRows="$emit('update:expandedRows', $event)"
             @row-click="onRowClick"
             :deleteUrl="(row) => route('machines.destroy', row.id)"
             deleteTitle="Decommission Asset?"
             deleteText="This will remove the machine from active reporting."
         >
+            <template #toolbar>
+                <div class="flex items-center gap-2 px-3 py-1 bg-indigo-50/50 rounded-lg border border-indigo-100">
+                    <TruckIcon class="w-3.5 h-3.5 text-indigo-500" />
+                    <span class="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{{ machines.length }} Assets Enrolled</span>
+                </div>
+            </template>
+
             <!-- Columns -->
             <Column field="registration" header="Asset Identity" sortable style="min-width: 200px">
                 <template #body="slotProps">
