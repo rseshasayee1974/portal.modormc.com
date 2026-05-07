@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
+import axios from 'axios';
 import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
@@ -14,10 +15,8 @@ import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import Button from 'primevue/button';
-import TabView from 'primevue/tabview';
-import TabPanel from 'primevue/tabpanel';
 import BaseButton from '@/Components/Base/BaseButton.vue';
-import { CubeIcon, ListBulletIcon } from '@heroicons/vue/24/outline';
+import { CubeIcon, ListBulletIcon, PaperAirplaneIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps<{
     batches: any[];
@@ -35,8 +34,9 @@ const props = defineProps<{
     schemaWarning?: string | null;
     nextBatchNo: number;
     batchingSettings: any;
+    payment_methods: any[];
+    sales_ledgers: any[];
 }>();
-
 const dropdownData = computed(() => ({
     trucks: props.trucks,
     transporters: props.transporters,
@@ -45,6 +45,8 @@ const dropdownData = computed(() => ({
     uoms: props.uoms,
     unloading_sites : props.unloading_sites,
     loading_sites : props.loading_sites,
+    payment_methods: props.payment_methods,
+    sales_ledgers : props.sales_ledgers,
 }));
 
 const filters = ref({
@@ -75,6 +77,9 @@ const filteredBatches = computed(() => {
 });
 
 const expandedRows = ref({});
+const detailedBatches = ref<Record<number, any>>({});
+const isLoadingBatch = ref<Record<number, boolean>>({});
+
 const first = ref(0);
 const rows = ref(30);
 const entriesOptions = [
@@ -83,15 +88,37 @@ const entriesOptions = [
     { label: '100', value: 100 },
 ];
 
-const toggleExpand = (data: any) => {
+const fetchBatchDetails = async (id: number) => {
+    if (!detailedBatches.value[id]) {
+        isLoadingBatch.value[id] = true;
+        try {
+            const response = await axios.get(route('batches.show', id));
+            detailedBatches.value[id] = response.data;
+        } catch (e) {
+            console.error('Failed to fetch batch details:', e);
+        } finally {
+            isLoadingBatch.value[id] = false;
+        }
+    }
+};
+
+const toggleExpand = async (data: any) => {
     if (expandedRows.value[data.id]) {
         expandedRows.value = {};
     } else {
         expandedRows.value = { [data.id]: true };
+        await fetchBatchDetails(data.id);
     }
 };
 
-const collapseExpandedRows = () => {
+const onRowExpand = async (event: any) => {
+    await fetchBatchDetails(event.data.id);
+};
+
+const collapseExpandedRows = (batchId?: number) => {
+    if (batchId) {
+        delete detailedBatches.value[batchId];
+    }
     expandedRows.value = {};
 };
 
@@ -177,13 +204,14 @@ const downloadPdf = (id: number) => {
                         rowHover
                         filterDisplay="menu"
                         class="cursor-pointer"
-                        :globalFilterFields="['batch_no', 'work_order.order_no', 'truck.registration', 'work_order.customer.legal_name', 'work_order.mix_design.design_name']"
+                        :globalFilterFields="['batch_no', 'work_order.order_no', 'work_order.customer.legal_name', 'work_order.mix_design.design_name']"
                         showSerial
                         heading="List Of Batches"
                         headingIcon="ListBulletIcon"
-                        :showSearch="true"
+                        showSearch
                         showExport
                         exportFilename="batch-report"
+                        @rowExpand="onRowExpand"
                     >
                         <template #filters>
                             <div class="flex flex-col gap-1.5">
@@ -211,14 +239,14 @@ const downloadPdf = (id: number) => {
                                 />
                             </div>
                         </template>
-                        <Column field="empty_time" header="Empty Time" sortable>
+                        <Column field="start_time" header="Batch Date" sortable>
                             <template #body="slotProps">
-                                <div v-if="slotProps.data.empty_time" class="flex flex-col">
+                                <div v-if="slotProps.data.start_time" class="flex flex-col">
                                     <span class="text-xs font-bold text-slate-700">
-                                        {{ new Date(slotProps.data.empty_time).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) }}
+                                        {{ new Date(slotProps.data.start_time).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-') }}
                                     </span>
                                     <span class="text-[10px] text-slate-400 font-medium uppercase">
-                                        {{ new Date(slotProps.data.empty_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) }}
+                                        {{ new Date(slotProps.data.start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) }}
                                     </span>
                                 </div>
                                 <span v-else class="text-xs text-slate-300 italic">N/A</span>
@@ -257,9 +285,9 @@ const downloadPdf = (id: number) => {
                             </template>
                         </Column>
 
-                        <Column field="truck.registration" header="Truck" sortable>
+                        <Column header="Truck">
                             <template #body="slotProps">
-                                <span class="text-xs font-semibold text-slate-700">{{ slotProps.data.truck?.registration || '-' }}</span>
+                                <span class="text-xs font-semibold text-slate-700">{{ slotProps.data.dispatches?.[0]?.truck?.registration || '-' }}</span>
                             </template>
                         </Column>
 
@@ -310,38 +338,77 @@ const downloadPdf = (id: number) => {
                         </Column>
 
                         <template #expansion="slotProps">
-                            <div class="p-1 bg-slate-50/50 border-y border-slate-100">
-                                <TabView class="compact-tabs">
-                                    <!-- v-if="slotProps.data.status < 3" -->
-                                    <TabPanel header="Batching" >
-                                        <div class="">
-                                            <BatchEditForm
-                                                :batch="slotProps.data"
-                                                :workOrders="workOrders"
-                                                :trucks="trucks"
-                                                :transporters="transporters"
-                                                :personnel="personnel"
-                                                :products="products"
-                                                :uoms="uoms"
-                                                :statuses="statuses"
-                                                @saved="collapseExpandedRows"
-                                                @cancel="collapseExpandedRows"
-                                            />
+                            <div class="p-4 bg-slate-50/50 border-y border-slate-100 relative min-h-[100px] space-y-6">
+                                <div v-if="isLoadingBatch[slotProps.data.id]" class="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
+                                    <div class="flex flex-col items-center gap-2">
+                                        <i class="pi pi-spinner animate-spin text-indigo-600 text-2xl"></i>
+                                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Loading Details...</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- 1. Batch Production Form -->
+                                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <BatchEditForm
+                                        :batch="detailedBatches[slotProps.data.id] || slotProps.data"
+                                        :workOrders="workOrders"
+                                        :trucks="trucks"
+                                        :transporters="transporters"
+                                        :personnel="personnel"
+                                        :products="products"
+                                        :uoms="uoms"
+                                        :statuses="statuses"
+                                        :loading_sites="loading_sites"
+                                        @saved="collapseExpandedRows(slotProps.data.id)"
+                                        @cancel="collapseExpandedRows()"
+                                    />
+                                </div>
+
+                                <!-- 2. Dispatch History (Only if exists) -->
+                                <!-- <div v-if="(detailedBatches[slotProps.data.id] || slotProps.data).dispatches?.length" class="p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
+                                    <div class="flex items-center gap-2 mb-4">
+                                        <div class="p-2 bg-indigo-50 rounded-lg text-indigo-600">
+                                            <PaperAirplaneIcon class="w-4 h-4" />
                                         </div>
-                                    </TabPanel>
-                                    <TabPanel header="Dispatching">
-                                        <div class="">
-                                            <DispatchSection 
-                                                :batch="slotProps.data" 
-                                                :workOrder="slotProps.data.work_order"
-                                                :dropdownData="dropdownData"
-                                                :settings="batchingSettings"
-                                                @saved="collapseExpandedRows"
-                                                @cancel="collapseExpandedRows"
-                                            />
-                                        </div>
-                                    </TabPanel>
-                                </TabView>
+                                        <h4 class="text-xs font-black uppercase tracking-widest text-slate-800">Batch Dispatch History</h4>
+                                    </div>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-left border-collapse">
+                                            <thead>
+                                                <tr class="border-b border-slate-50 bg-slate-50/50">
+                                                    <th class="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Dispatch #</th>
+                                                    <th class="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Ref #</th>
+                                                    <th class="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Truck</th>
+                                                    <th class="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Qty</th>
+                                                    <th class="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-50">
+                                                <tr v-for="d in (detailedBatches[slotProps.data.id] || slotProps.data).dispatches" :key="d.id" class="hover:bg-slate-50/50 transition-colors">
+                                                    <td class="px-4 py-3 text-xs font-black text-indigo-600">{{ d.prefix }}{{ d.dispatch_no }}</td>
+                                                    <td class="px-4 py-3 text-xs font-bold text-slate-600">{{ d.dispatch_reference || '---' }}</td>
+                                                    <td class="px-4 py-3 text-xs font-semibold text-slate-700">{{ d.truck?.registration || '---' }}</td>
+                                                    <td class="px-4 py-3 text-xs font-black text-slate-800">{{ d.delivered_qty }} m³</td>
+                                                    <td class="px-4 py-3">
+                                                        <Tag :value="d.dispatch_status" :severity="d.dispatch_status === 'Delivered' ? 'success' : 'warn'" rounded class="!text-[9px] !font-black !px-2" />
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div> -->
+
+                                <!-- 3. Dispatch Generation/Edit Form -->
+                                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <DispatchSection 
+                                        :batch="detailedBatches[slotProps.data.id] || slotProps.data" 
+                                        :workOrder="(detailedBatches[slotProps.data.id] || slotProps.data).work_order"
+                                        :dispatch="(detailedBatches[slotProps.data.id] || slotProps.data).dispatches?.[0]"
+                                        :dropdownData="dropdownData"
+                                        :settings="batchingSettings"
+                                        @saved="collapseExpandedRows(slotProps.data.id)"
+                                        @cancel="collapseExpandedRows()"
+                                    />
+                                </div>
                             </div>
                         </template>
                     </BaseDataTable>

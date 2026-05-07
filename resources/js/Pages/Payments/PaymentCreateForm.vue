@@ -63,45 +63,83 @@ const handleCreate = () => {
 
         <div class="p-8 lg:p-10">
             <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                <div class="flex flex-col gap-2">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Type *</label>
-                    <BaseSelect v-model="createForm.transaction_type" :options="[{label:'Payment',value:'payment'},{label:'Receipt',value:'receipt'}]" optionLabel="label" optionValue="value" class="w-full" />
-                </div>
+                <BaseSelect 
+                    v-model="createForm.transaction_type" 
+                    label="Type"
+                    required
+                    :options="[{label:'Payment',value:'payment'},{label:'Receipt',value:'receipt'}]" 
+                    optionLabel="label" 
+                    optionValue="value" 
+                    class="w-full" 
+                />
                 
-                <div class="flex flex-col gap-2">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Partner Type *</label>
-                    <BaseSelect v-model="createForm.partner_type" :options="[{label:'Master',value:'Master'},{label:'Other',value:'Other'}]" optionLabel="label" optionValue="value" class="w-full" />
-                </div>
+                <BaseSelect 
+                    v-model="createForm.partner_type" 
+                    label="Partner Type"
+                    required
+                    :options="[{label:'Master',value:'Master'},{label:'Other',value:'Other'}]" 
+                    optionLabel="label" 
+                    optionValue="value" 
+                    class="w-full" 
+                />
 
-                <div class="flex flex-col gap-2">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Partner *</label>
-                    <BaseSelect v-model="createForm.patron_id" :options="patronOptions" optionLabel="label" optionValue="value" filter placeholder="None" class="w-full" />
-                </div>
+                <BaseSelect 
+                    v-model="createForm.patron_id" 
+                    label="Partner"
+                    required
+                    :options="patronOptions" 
+                    optionLabel="label" 
+                    optionValue="value" 
+                    filter 
+                    placeholder="None" 
+                    class="w-full" 
+                />
 
-                <div class="flex flex-col gap-2">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Amount *</label>
-                    <BaseInputNumber v-model="createForm.amount" class="w-full" :minFractionDigits="2" />
-                </div>
+                <BaseInputNumber 
+                    v-model="createForm.amount" 
+                    label="Amount"
+                    required
+                    class="w-full" 
+                    :minFractionDigits="2" 
+                />
 
-                <div class="flex flex-col gap-2">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Journal *</label>
-                    <BaseSelect v-model="createForm.ledger_id" :options="ledgerOptions" optionLabel="label" optionValue="value" filter placeholder="Select Journal..." class="w-full" />
-                </div>
+                <BaseSelect 
+                    v-model="createForm.ledger_id" 
+                    label="Journal"
+                    required
+                    :options="ledgerOptions" 
+                    optionLabel="label" 
+                    optionValue="value" 
+                    filter 
+                    placeholder="Select Journal..." 
+                    class="w-full" 
+                />
 
-                <div class="flex flex-col gap-2">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Date *</label>
-                    <DatePicker v-model="createForm.transaction_date" dateFormat="yy-mm-dd" class="w-full !bg-white h-[42px]" />
-                </div>
+                <BaseDatePicker 
+                    v-model="createForm.transaction_date" 
+                    label="Date"
+                    required
+                    dateFormat="yy-mm-dd" 
+                    class="w-full !bg-white h-[42px]" 
+                />
 
-                <div class="flex flex-col gap-2">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Mode*</label>
-                    <BaseSelect v-model="createForm.transaction_mode" :options="[{label:'Cash',value:'Cash'},{label:'Bank',value:'Bank'},{label:'Cheque',value:'Cheque'}]" optionLabel="label" optionValue="value" filter class="w-full" />
-                </div>
+                <BaseSelect 
+                    v-model="createForm.transaction_mode" 
+                    label="Mode"
+                    required
+                    :options="[{label:'Cash',value:'Cash'},{label:'Bank',value:'Bank'},{label:'Cheque',value:'Cheque'}]" 
+                    optionLabel="label" 
+                    optionValue="value" 
+                    filter 
+                    class="w-full" 
+                />
 
-                <div class="flex flex-col gap-2">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Reference</label>
-                    <BaseInput v-model="createForm.reference" placeholder="Ref/Chq No" class="w-full h-[42px] bg-white" />
-                </div>
+                <BaseInput 
+                    v-model="createForm.reference" 
+                    label="Reference"
+                    placeholder="Ref/Chq No" 
+                    class="w-full h-[42px] bg-white" 
+                />
 
                 <div class="md:col-span-2 flex flex-col gap-2">
                     <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Notes</label>

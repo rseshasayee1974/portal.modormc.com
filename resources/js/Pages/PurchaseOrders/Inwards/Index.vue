@@ -83,7 +83,7 @@ const viewOrder = (order: any) => {
 // --- Form Logic ---
 const showForm = ref(true);
 const selectedPoId = ref(null);
-
+console.log(props.purchaseOrders);
 const poOptions = computed(() => {
     return props.purchaseOrders.map(po => ({
         label: `${po.po_number} - ${po.vendor?.legal_name} (${formatDate(po.date_order)})`,

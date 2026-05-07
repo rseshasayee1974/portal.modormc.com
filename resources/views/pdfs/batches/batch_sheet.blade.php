@@ -133,12 +133,12 @@
         </tr>
         <tr>
             <td class="k">Batch Start Time</td><td class="v">: {{ optional($batch->start_time)->format('H:i:s') ?? '-' }}</td>
-            <td class="k">Truck No</td><td class="v">: {{ $batch->truck?->registration ?? '-' }}</td>
+            <td class="k">Truck No</td><td class="v">: {{ $batch->dispatches->first()?->truck?->registration ?? '-' }}</td>
             <td class="k">Production Qty</td><td class="v">: {{ number_format((float)($batch->workOrder?->produced_qty ?? 0), 2) }}</td>
         </tr>
         <tr>
             <td class="k">Batch End Time</td><td class="v">: {{ optional($batch->end_time)->format('H:i:s') ?? '-' }}</td>
-            <td class="k">Truck Driver</td><td class="v">: {{ trim(($batch->driver?->first_name ?? '') . ' ' . ($batch->driver?->last_name ?? '')) ?: '-' }}</td>
+            <td class="k">Truck Driver</td><td class="v">: {{ trim(($batch->dispatches->first()?->driver?->first_name ?? '') . ' ' . ($batch->dispatches->first()?->driver?->last_name ?? '')) ?: '-' }}</td>
             <td class="k">Order No</td><td class="v">: {{ $batch->workOrder?->order_no ?? '-' }}</td>
         </tr>
         <tr>

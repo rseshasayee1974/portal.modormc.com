@@ -52,9 +52,10 @@ const isIdentityLockedInEdit = computed(() => isEditMode.value && !props.canEdit
             <!-- TAB: General -->
             <div v-show="activeTab === 'basic'" class="grid grid-cols-1 md:grid-cols-12 gap-5 animate-in fade-in slide-in-from-top-1 duration-300">
                 <div class="col-span-12 md:col-span-3 flex flex-col gap-1.5">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Legal Entity *</label>
                     <BaseSelect
                         v-model="form.entity_id"
+                        label="Legal Entity"
+                        required
                         :options="entities"
                         optionLabel="legal_name"
                         optionValue="id"
@@ -69,7 +70,8 @@ const isIdentityLockedInEdit = computed(() => isEditMode.value && !props.canEdit
                 <div class="col-span-12 md:col-span-3">
                     <BaseInput 
                         v-model="form.code" 
-                        label="Plant Code *"
+                        label="Plant Code"
+                        required
                         placeholder="XYZ-01" 
                         :error="errors?.code"
                         :disabled="isIdentityLockedInEdit"
@@ -81,7 +83,8 @@ const isIdentityLockedInEdit = computed(() => isEditMode.value && !props.canEdit
                 <div class="col-span-12 md:col-span-3">
                     <BaseInput 
                         v-model="form.name" 
-                        label="Plant Name *"
+                        label="Plant Name"
+                        required
                         placeholder="Enter facility name" 
                         :error="errors?.name"
                         :disabled="isIdentityLockedInEdit"

@@ -63,7 +63,7 @@ const toggleRow = (index: number, item: any) => {
 
 
 const vendorOptions = computed(() => props.vendors?.map(v => ({ label: v.legal_name, value: v.id })) || []);
-const productOptions = computed(() => props.products?.map(p => ({ label: p.title, value: p.id })) || []);
+// const productOptions = computed(() => props.products?.map(p => ({ label: p.title, value: p.id })) || []);
 const unitOptions = computed(() => props.productUnits?.map(u => ({ label: u.unit_code, value: u.id })) || []);
 const taxOptions = computed(() => props.taxes?.map(t => ({ label: t.tax_name, value: t.id })) || []);
 const discountTypeOptions = [{ label: '%', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }];
@@ -105,6 +105,23 @@ const executeBillGeneration = () => {
     });
 };
 
+const handleDeleteBill = () => {
+    Swal.fire({
+        title: 'Void Purchase Bill?',
+        text: 'This will delete the accounting bill and reset this Purchase Order. Are you sure?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, Void'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(route('purchaseorder.delete-bill', props.form.id), {
+                preserveScroll: true
+            });
+        }
+    });
+};
+
 
 </script>
 
@@ -122,16 +139,27 @@ const executeBillGeneration = () => {
                             <span>This Purchase Order is <strong>Locked</strong> (Received, Approved, or Cancelled). Changes are restricted.</span>
                         </div>
                         <BaseButton 
-                            v-if="form.state !== 'cancel' && form.invoice_status !== 'invoiced'"
+                            v-if="form.state !== 'cancel' && Number(form.invoice_status) !== 1"
                             label="Generate Purchase Bill" 
                             icon="pi pi-file-export" 
                             severity="success" 
                             size="small" 
                             @click="handleGenerateBill" 
                         />
-                         <div v-else-if="form.invoice_status === 'invoiced'" class="flex items-center gap-2 text-emerald-600 font-bold uppercase tracking-widest text-[10px] bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-                            <i class="pi pi-check-circle"></i>
-                            <span>Bill Generated</span>
+                         <div v-else-if="Number(form.invoice_status) === 1" class="flex items-center gap-2">
+                            <div class="flex items-center gap-2 text-emerald-600 font-bold uppercase tracking-widest text-[10px] bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                                <i class="pi pi-check-circle"></i>
+                                <span>Bill Generated</span>
+                            </div>
+                            <BaseButton 
+                                label="Void Bill" 
+                                icon="pi pi-trash" 
+                                severity="danger" 
+                                variant="text"
+                                size="small" 
+                                class="!text-[10px] !font-bold uppercase tracking-widest"
+                                @click="handleDeleteBill" 
+                            />
                         </div>
                     </div>
                     <!-- General Info Grid -->
@@ -230,8 +258,8 @@ const executeBillGeneration = () => {
                                             <td class="">
                                                 <BaseSelect
                                                     v-model="item.product_id"
-                                                    :options="productOptions"
-                                                    optionLabel="label" optionValue="value"
+                                                    :options="products"
+                                                    optionLabel="title" optionValue="id"
                                                     placeholder="Product" filter
                                                     class="w-full"
                                                     @update:modelValue="onProductChange(Number(index))"
@@ -398,8 +426,8 @@ const executeBillGeneration = () => {
 
         <template #footer>
             <div class="flex justify-end gap-3 pt-4 border-t border-slate-50">
-                <Button label="Cancel" text severity="secondary" @click="showBillDialog = false" class="!text-xs font-bold uppercase tracking-widest" />
-                <Button label="Generate Bill" severity="success" @click="executeBillGeneration" class="!px-6 !text-xs font-bold uppercase tracking-widest shadow-lg shadow-emerald-200" />
+                <BaseButton label="Cancel" variant="text" severity="secondary" @click="showBillDialog = false" class="!text-xs font-bold uppercase tracking-widest" />
+                <BaseButton label="Generate Bill" variant="filled" severity="success" @click="executeBillGeneration" class="!px-6 !text-xs font-bold uppercase tracking-widest shadow-lg shadow-emerald-200" />
             </div>
         </template>
     </Dialog>

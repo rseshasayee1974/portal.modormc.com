@@ -14,6 +14,7 @@ trait GeneratesAccountingCode
         'LIABILITY' => [2000, 2999],
         'ASSET'     => [1000, 1999],
         'INCOME'    => [4000, 4999],
+        'REVENUE'   => [4000, 4999],
         'EXPENSE'   => [5000, 5999],
     ];
 

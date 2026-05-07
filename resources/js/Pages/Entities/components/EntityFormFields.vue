@@ -65,9 +65,8 @@ const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
             <TabPanel value="0">
                 <div class="grid grid-cols-12  gap-4 pt-4">
                     <!-- Legal Name -->
-                    <div class="col-span-12 md:col-span-3 flex flex-col gap-1">
-                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Legal Name <span class="text-red-400">*</span></label>
-                        <BaseInput v-model="form.legal_name" fluid :disabled="readonly" placeholder="Full registered legal name" />
+                    <div class="col-span-12 md:col-span-3">
+                        <BaseInput v-model="form.legal_name" label="Legal Name" required fluid :disabled="readonly" placeholder="Full registered legal name" />
                         <small v-if="form.errors?.legal_name" class="text-red-500 text-[10px]">{{ form.errors.legal_name }}</small>
                     </div>
 

@@ -151,11 +151,11 @@ const onRowClick = (event: any) => {
                     <div class="flex items-center gap-2 justify-center">
                         <span 
                             class="h-2 w-2 rounded-full" 
-                            :class="slotProps.data.status === 'Active' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'"
+                            :class="(slotProps.data.status === 'Active' || !slotProps.data.status) ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'"
                         ></span>
                         <Tag 
-                            :value="slotProps.data.status ?? 'Active'" 
-                            :severity="slotProps.data.status === 'Active' ? 'success' : 'danger'"
+                            :value="slotProps.data.status || 'Active'" 
+                            :severity="(slotProps.data.status === 'Active' || !slotProps.data.status) ? 'success' : 'danger'"
                             class="!text-[10px] !font-black !uppercase !tracking-widest !rounded-md"
                         />
                     </div>

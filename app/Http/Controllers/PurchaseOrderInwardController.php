@@ -21,9 +21,9 @@ class PurchaseOrderInwardController extends Controller
     public function index()
     {
         $this->authorizeModule('menu');
-        $allowedPlantIds = $this->allowedPlantIds();
+        $allowedPlantId = session('active_plant_id');
 
-        $inwards = PurchaseOrderHistory::whereIn('plant_id', $allowedPlantIds)
+        $inwards = PurchaseOrderHistory::where('plant_id', $allowedPlantId)
             ->with([
                 'order', 
                 'product', 
@@ -39,8 +39,8 @@ class PurchaseOrderInwardController extends Controller
             ])
             ->latest()
             ->get();
-        $allowedPlantIds = $this->allowedPlantIds();
-        $purchase_order_list = PurchaseOrder::whereIn('plant_id', $allowedPlantIds)
+            
+        $purchase_order_list = PurchaseOrder::where('plant_id', $allowedPlantId)
             ->where('receipt_status', '<', 2)
             ->where('state', '=', 'approved')
             ->with(['vendor', 'items.product', 'items.uom'])
@@ -50,21 +50,20 @@ class PurchaseOrderInwardController extends Controller
         return Inertia::render('PurchaseOrders/Inwards/Index', [
             'inwards' => $inwards,
             'purchaseOrders' => $purchase_order_list,
-            'vehicles' => toSelectOptions(VehiclesDropdown($allowedPlantIds), 'registration')
+            'vehicles' => toSelectOptions(VehiclesDropdown($allowedPlantId), 'registration')
         ]);
     }
 
     public function create(PurchaseOrder $purchase_order = null)
     {
         $this->authorizeModule('create');
-        $allowedPlantIds = $this->allowedPlantIds();
+        $allowedPlantId = session('active_plant_id');
 
-        if ($purchase_order) {
-            $this->authorizePlantAccess($purchase_order);
+            if ($purchase_order) {
             $purchase_order->load(['items.product', 'items.uom', 'items.tax', 'items.history', 'vendor']);
         }
 
-        $purchaseOrders = PurchaseOrder::whereIn('plant_id', $allowedPlantIds)
+        $purchaseOrders = PurchaseOrder::where('plant_id', $allowedPlantId)
             ->where('receipt_status', '<', 2) // Not fully received
             ->where('state','=','approved')
             ->with(['vendor', 'items.product', 'items.uom'])
@@ -95,7 +94,6 @@ class PurchaseOrderInwardController extends Controller
         ]);
 
         $order = PurchaseOrder::findOrFail($validated['order_id']);
-        $this->authorizePlantAccess($order);
 
         // Ensure at least one item has a received quantity > 0 OR we are recording initial truck weight
         $hasTotalReceived = collect($validated['items'])->contains(fn($item) => (float)$item['received_qty'] > 0);
@@ -178,7 +176,6 @@ class PurchaseOrderInwardController extends Controller
     public function destroy(PurchaseOrderHistory $inward)
     {
         $this->authorizeModule('delete');
-        $this->authorizePlantAccess($inward->order);
 
         DB::transaction(function () use ($inward) {
             $userId = Auth::id();
@@ -192,7 +189,7 @@ class PurchaseOrderInwardController extends Controller
             }
 
             // 2. Decrement stock balance from Quantity table
-            $stock = Quantity::where([
+            $stock = Quantity::query()->where([
                 'plant_id' => $inward->plant_id,
                 'product_id' => $inward->product_id,
                 'uom_id' => $inward->uom_id,
@@ -220,8 +217,7 @@ class PurchaseOrderInwardController extends Controller
 
     public function updateWeight(Request $request, PurchaseOrderHistory $inward)
     {
-        $this->authorizeModule('edit');
-        $this->authorizePlantAccess($inward->order);
+        $this->authorizeModule('edit'); 
 
         $validated = $request->validate([
             'truck_empty' => 'required|numeric|min:0',
@@ -296,26 +292,6 @@ class PurchaseOrderInwardController extends Controller
         }
     }
 
-    protected function allowedPlantIds(): array
-    {
-        $plantIds = Auth::user()
-            ->entityUsers()
-            ->pluck('plant_id')
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->values()
-            ->toArray();
+   
 
-        $activePlantId = (int) session('active_plant_id');
-        if ($activePlantId > 0 && !in_array($activePlantId, $plantIds, true)) {
-            $plantIds[] = $activePlantId;
-        }
-
-        return $plantIds;
-    }
-
-    protected function authorizePlantAccess(PurchaseOrder $purchaseOrder): void
-    {
-        abort_unless(in_array((int) $purchaseOrder->plant_id, $this->allowedPlantIds(), true), 403);
-    }
 }

@@ -14,13 +14,13 @@ return new class extends Migration
         Schema::create('mm_custom_settings', function (Blueprint $table) {
             $table->id();
             $table->integer('plant_id');
-            $table->integer('mm_module_id')->nullable();
-            $table->string('mm_module_name', 100);   // purchase, sales, invoice
+            $table->integer('module_id')->nullable();
+            $table->string('module_name', 100);   // purchase, sales, invoice
             $table->text('settings');
 
             $table->timestamps();
 
-            $table->unique(['plant_id', 'mm_module_name'], 'unique_module_plant');
+            $table->unique(['plant_id', 'module_name'], 'unique_module_plant');
         });
     }
 

@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\AuditFields;
+
 class JournalEntryLine extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, AuditFields;
 
     protected $table = 'mm_journal_entry_lines';
 
@@ -37,6 +39,20 @@ class JournalEntryLine extends Model
         'is_deleted'    => 'boolean',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($line) {
+            if (!$line->isForceDeleting()) {
+                $line->updateQuietly([
+                    'is_deleted' => 1,
+                    'deleted_by' => auth()->id()
+                ]);
+            }
+        });
+    }
+
     public function entry()
     {
         return $this->belongsTo(JournalEntry::class, 'journal_entry_id');
@@ -45,6 +61,11 @@ class JournalEntryLine extends Model
     public function ledger()
     {
         return $this->belongsTo(Ledger::class, 'account_id');
+    }
+
+    public function partner()
+    {
+        return $this->belongsTo(Patron::class, 'partner_id');
     }
 
     public function plant()

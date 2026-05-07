@@ -57,6 +57,22 @@ class PatronController extends Controller
         $validated['entity_id'] = $entityId;
 
         DB::transaction(function () use ($validated, $plantId, $entityId) {
+            // Resolve default ledger if not provided
+            if (empty($validated['ledger_id'])) {
+                $isVendor = in_array('vendor', array_map('strtolower', $validated['patron_type']));
+                $isCustomer = in_array('customer', array_map('strtolower', $validated['patron_type']));
+                
+                $settingKey = $isVendor ? 'credit_ledger' : ($isCustomer ? 'debit_ledger' : null);
+                
+                if ($settingKey) {
+                    $validated['ledger_id'] = \App\Models\AccountDefaultSetting::where('plant_id', $plantId)
+                        ->where('module_name', 'Patron')
+                        ->where('setting_key', $settingKey)
+                        ->where('is_active', true)
+                        ->value('ledger_id');
+                }
+            }
+
             $patron = Patron::create($validated);
 
             if (!empty($validated['contact_name'])) {

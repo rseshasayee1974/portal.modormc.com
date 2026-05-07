@@ -47,6 +47,7 @@ use App\Models\BankAccountType;
 use App\Models\StateCode;
 use App\Models\MixDesign;
 use App\Models\ExpenseType;
+use App\Models\PaymentMethod;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entity / Plant helpers  (unchanged – no new scope needed)
@@ -216,7 +217,7 @@ if (!function_exists('SitesDropdown')) {
             $query->excludeId($excludeId);     // edit – exclude self
         }
 
-        return $query->whereNull('deleted_at')->orderBy('name')->get();
+        return $query->whereNull('deleted_at')->where('is_active',true)->orderBy('name')->get();
     }
 }
 
@@ -288,7 +289,7 @@ if (!function_exists('ProductsDropdown')) {
             $query->excludeId($excludeId);     // edit – exclude self
         }
 
-        return $query->whereNull('deleted_at')->get();
+        return $query->whereNull('deleted_at')->get(['id','title','code','unit_id','sales_price','purchase_price']);
     }
 }
 
@@ -531,6 +532,26 @@ if (!function_exists('LedgersDropdown')) {
     }
 }
 
+ function SalesLedgersDropdown($plantId = null, $type = null)
+    {
+        $query = Ledger::query();
+        
+        if ($plantId) {
+            $query->where('plant_id', $plantId);
+        }
+        
+        if ($type) {
+             $query->where('title', '=',$type);
+            // $query->whereHas('accountType.account', function($q) use ($type) {
+            //     $q->where('title', $type);
+            // });
+        }
+
+        return $query->select('id', 'code as name', 'title') // Keep name for toSelectOptions compatibility
+            ->whereNull('deleted_at')
+            ->get();
+    }
+
 if (!function_exists('DetailedPatronsDropdown')) {
     /**
      * Detailed active patrons for a plant, latest first.
@@ -614,6 +635,20 @@ if (!function_exists('PurchaseOrderStatusesDropdown')) {
             ['label' => 'Billed', 'value' => 'billed'],
             ['label' => 'Cancelled', 'value' => 'cancel'],
         ];
+    }
+}
+
+if (!function_exists('PaymentMethodsDropdown')) {
+    /**
+     * Active payment methods.
+     */
+    function 
+    PaymentMethodsDropdown()
+    {
+        return PaymentMethod::where('is_active', true)
+            ->whereNull('deleted_at')
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 }
 // ─────────────────────────────────────────────────────────────────────────────

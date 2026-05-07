@@ -18,7 +18,6 @@ return new class extends Migration
             $table->decimal('batch_size', 10, 3)->default(1);
             $table->timestamp('start_time')->nullable();
             $table->timestamp('end_time')->nullable();
-            $table->unsignedBigInteger('truck_id')->nullable();
             $table->tinyInteger('status')->default(1);
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();

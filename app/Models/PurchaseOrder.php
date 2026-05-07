@@ -49,6 +49,8 @@ class PurchaseOrder extends Model
         'rounding_value',
         'common_tax_id',
         'shipping_tax_id',
+        'tds_amount',
+        'tds_tax_id',
         'origin',
         'notes',
         'terms_conditions',
@@ -107,6 +109,11 @@ class PurchaseOrder extends Model
     public function modifier()
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function bill()
+    {
+        return $this->hasOne(Invoice::class, 'ref_id')->where('invoice_type', 'bill');
     }
 
     /**

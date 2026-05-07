@@ -19,7 +19,7 @@ return new class extends Migration
             $table->unsignedBigInteger('entity_id')->nullable()->index();
             $table->timestamps();
             
-            $table->unique(['mm_module_key', 'plant_id'], 'unique_module_plant_template');
+            $table->unique(['module_key', 'plant_id'], 'unique_module_plant_template');
         });
     }
 

@@ -2,27 +2,34 @@
      Shared CSS reset + common variables used by ALL templates --}}
 <style>
     /* ═══ RESET & BASE ═══ */
-    @page { margin: 0; size: A4; }
+    @page { 
+        margin: 15mm; 
+        @bottom-right {
+            content: "Page " counter(page) " of " counter(pages);
+        }
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-        --font-base: Arial, Helvetica, sans-serif;
+        --font-base: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         --font-serif: Georgia, 'Times New Roman', serif;
-        --color-ink: #111;
-        --color-muted: #666;
-        --color-light: #444;
-        --color-border: #aaa;
-        --color-border-light: #e0e0e0;
-        --color-header-bg: #3a3a3a;
-        --color-alt-bg: #f0f0f0;
-        --color-balance-bg: #f2f2f2;
-        --color-red: #cc0000;
-        --color-green: #16a34a;
-        --color-amber: #d97706;
+        --color-ink: #1e293b;
+        --color-muted: #64748b;
+        --color-light: #94a3b8;
+        --color-accent: #4f46e5;
+        --color-accent-light: #f5f3ff;
+        --color-border: #cbd5e1;
+        --color-border-light: #e2e8f0;
+        --color-header-bg: #1e293b;
+        --color-alt-bg: #f8fafc;
+        --color-balance-bg: #f1f5f9;
+        --color-red: #ef4444;
+        --color-green: #10b981;
+        --color-amber: #f59e0b;
         --size-base: 11px;
         --size-small: 10px;
-        --size-xsmall: 9.5px;
-        --size-title: 26px;
+        --size-xsmall: 9px;
+        --size-title: 24px;
     }
 
     body {

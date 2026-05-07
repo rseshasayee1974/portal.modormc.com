@@ -21,14 +21,14 @@ Route::get('/register', function () {
 })->name('register');
 
 // OTP Verification — requires auth but NOT full session clearance
-Route::middleware(['auth:sanctum', config('jetstream.auth_session')])->group(function () {
+Route::middleware(['auth', config('jetstream.auth_session')])->group(function () {
     Route::get('/verifyotp', [\App\Http\Controllers\OtpController::class, 'show'])->name('otp.show');
     Route::post('/verifyotp', [\App\Http\Controllers\OtpController::class, 'verify'])->name('otp.verify');
     Route::post('/resendotp', [\App\Http\Controllers\OtpController::class, 'resend'])->name('otp.resend');
 });
 
 Route::middleware([
-    'auth:sanctum',
+    'auth',
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
@@ -38,10 +38,8 @@ Route::middleware([
         return response()->json(['status' => 'active']);
     })->name('session.ping');
 
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard');
-
+   Route::get('/dashboard', [\App\Http\Controllers\ERPDashboardController::class, 'index'])->name('dashboard');
+        Route::get('dashboard/data', [\App\Http\Controllers\ERPDashboardController::class, 'getData'])->name('dashboard.data');
     Route::prefix('saas')->group(function () {
         Route::get('/dashboard', [SaasDashboardController::class, 'dashboard'])->name('saas.dashboard');
         Route::get('/billing', [SaasDashboardController::class, 'billing'])->name('saas.billing');
@@ -125,6 +123,7 @@ Route::middleware([
         Route::get('purchaseorder/{purchase_order}/download/{template?}', [PurchaseOrderController::class, 'downloadPdf'])->name('purchaseorder.download');
         Route::get('purchaseorder/{purchase_order}/report', [PurchaseOrderController::class, 'report'])->name('purchaseorder.report');
         Route::post('purchaseorder/{purchase_order}/generate-bill', [PurchaseOrderController::class, 'generateBill'])->name('purchaseorder.generate-bill');
+        Route::delete('purchaseorder/{purchase_order}/delete-bill', [PurchaseOrderController::class, 'deleteBill'])->name('purchaseorder.delete-bill');
         
         Route::resource('quotations', \App\Http\Controllers\QuotationController::class);
         Route::get('quotations/{quotation}/download', [\App\Http\Controllers\QuotationController::class, 'downloadPdf'])->name('quotations.download');
@@ -137,6 +136,9 @@ Route::middleware([
         Route::get('batches/{batch}/report', [\App\Http\Controllers\BatchController::class, 'report'])->name('batches.report');
         Route::get('batches/{batch}/download', [\App\Http\Controllers\BatchController::class, 'downloadPdf'])->name('batches.download');
         Route::get('production/batch', [\App\Http\Controllers\Api\ProductionApiController::class, 'getConsumption'])->name('batches.production');
+        Route::get('dispatches/dropdowns', [\App\Http\Controllers\DispatchController::class, 'dropdowns'])->name('dispatches.dropdowns');
+        Route::post('dispatches/{dispatch}/generate-invoice', [\App\Http\Controllers\DispatchController::class, 'generateInvoice'])->name('dispatches.generate-invoice');
+        Route::delete('dispatches/{dispatch}/delete-invoice', [\App\Http\Controllers\DispatchController::class, 'deleteInvoice'])->name('dispatches.delete-invoice');
         Route::resource('dispatches', \App\Http\Controllers\DispatchController::class)->except(['create', 'show', 'edit']);
         
         Route::resource('partyrates', \App\Http\Controllers\PartyRateController::class)->except(['create', 'edit', 'show']);
@@ -164,12 +166,7 @@ Route::middleware([
         Route::resource('machinetypes', \App\Http\Controllers\MachineTypeController::class)->except(['create', 'edit', 'show']);
     });
 
-    // 9. Trips & Operations
-    Route::prefix('rmc')->group(function () {
-        Route::get('trips/dashboard', [\App\Http\Controllers\TripController::class, 'dashboard'])->name('trips.dashboard');
-        Route::post('trips/{trip}/payments', [\App\Http\Controllers\TripController::class, 'recordPayment'])->name('trips.recordpayment');
-        Route::resource('trips', \App\Http\Controllers\TripController::class);
-    });
+    
 
     // 10. Finance & Accounting
     Route::prefix('finance')->group(function () {
@@ -189,6 +186,17 @@ Route::middleware([
         
         Route::resource('payments', \App\Http\Controllers\PaymentController::class)->except(['create', 'edit', 'show']);
         Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit']);
+        Route::resource('billings', \App\Http\Controllers\BillingController::class)->except(['create', 'edit']);
+        
+        Route::get('account-defaults', [\App\Http\Controllers\AccountDefaultSettingController::class, 'index'])->name('settings.account-defaults');
+        Route::post('account-defaults', [\App\Http\Controllers\AccountDefaultSettingController::class, 'store'])->name('settings.account-defaults.store');
+
+        // Unified Reports
+        Route::get('reports', [\App\Http\Controllers\ReportController::class, 'index'])->name('reports.index');
+        Route::get('reports/generate', [\App\Http\Controllers\ReportController::class, 'generate'])->name('reports.generate');
+
+        // ERP Live Dashboard
+       
     });
 
     // Bridge Proxy (Bypass CORS for local hardware)

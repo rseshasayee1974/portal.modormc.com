@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('mm_module', function (Blueprint $table) {
             $table->id();
-            $table->string('mm_module_name', 50)->unique();
+            $table->string('module_name', 50)->unique();
             $table->string('display_value', 100);
             $table->boolean('is_active')->default(true);
             $table->unsignedBigInteger('created_by')->nullable();

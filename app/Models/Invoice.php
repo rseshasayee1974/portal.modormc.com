@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
 use App\Traits\AuditFields;
+use App\Traits\PostsToAccounting;
+use App\Models\JournalEntry;
 
 class Invoice extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+    use HasFactory, SoftDeletes, AuditFields, PostsToAccounting;
 
     protected $table = 'mm_invoices';
 
@@ -20,7 +22,7 @@ class Invoice extends Model
         'invoice_number', 'prefix', 'invoice_date', 'due_date', 'period',
         'subtotal', 'discount_total', 'tax_amount', 'adjustment',
         'shipping_charges', 'shipping_tax_id',
-        'total_amount', 'round_off',
+        'total_amount', 'round_off', 'tds_amount', 'tds_tax_id',
         'status', 'einvoice_status', 'is_duplicate', 'is_sent', 'is_reconciled',
         'is_active',
         'created_by', 'updated_by',
@@ -52,7 +54,50 @@ class Invoice extends Model
         parent::boot();
 
         static::creating(function ($m) {
-            $m->invoice_number = $m->invoice_number ?? self::generateNumber($m->plant_id);
+            $m->invoice_number = $m->invoice_number ?? self::generateNumber($m->plant_id, $m->invoice_label ?? $m->invoice_type);
+        });
+
+        static::deleted(function ($m) {
+            // Use withTrashed() and handle multiple possible ref_module values for backward compatibility
+            JournalEntry::withTrashed()
+                ->whereIn('ref_module', ['invoice', 'bill'])
+                ->where('ref_id', $m->id)
+                ->get()
+                ->each(function($entry) {
+                    // Rename voucher number to avoid unique constraint violations on regeneration
+                    // and mark as deleted for audit purposes.
+                    $entry->updateQuietly([
+                        'voucher_number' => $entry->voucher_number . '/VOID/' . $entry->id,
+                        'is_deleted'     => 1,
+                        'deleted_by'     => auth()->id(),
+                        'deleted_at'     => now(),
+                    ]);
+
+                    // Also update lines
+                    $entry->lines()->withTrashed()->update([
+                        'is_deleted' => 1,
+                        'deleted_by' => auth()->id(),
+                        'deleted_at' => now(),
+                    ]);
+                                        $entry->delete();
+                });
+
+            // Cascading soft deletes for invoice components if not already handled
+            $m->items()->delete();
+            $m->orderTaxes()->delete();
+
+            // Reverse Purchase Order Billed Status if this was a bill generated from PO
+            if ($m->invoice_type === 'bill' && $m->ref_id) {
+                $po = \App\Models\PurchaseOrder::find($m->ref_id);
+                if ($po) {
+                    $po->update([
+                        'invoice_status' => 0,
+                        'state'          => 'approved',
+                        'journal_status' => 0,
+                        'billed_date'    => null
+                    ]);
+                }
+            }
         });
     }
 
@@ -61,22 +106,37 @@ class Invoice extends Model
     /**
      * Auto-generate invoice number: INV-YYYYMM-0001
      */
-    public static function generateNumber(int $plantId): string
+    public static function generateNumber(int $plantId, ?string $label = 'sales'): string
     {
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
         $endYear = $startYear + 1;
-        $fy = substr((string)$startYear, 2) . substr((string)$endYear, 2);
+        $fy = substr((string)$startYear, 2) . "-" . substr((string)$endYear, 2);
 
         $fyStart = \Carbon\Carbon::create($startYear, 4, 1, 0, 0, 0);
         
-        $count = self::where('plant_id', $plantId)
-            ->where('created_at', '>=', $fyStart)
-            ->count();
+        $query = self::where('plant_id', $plantId)
+            ->where('created_at', '>=', $fyStart);
             
+        $normalizedLabel = strtolower($label ?? 'sales');
+        
+        if ($normalizedLabel === 'purchase' || $normalizedLabel === 'bill') {
+             $query->where(function($q) {
+                 $q->where('invoice_type', 'bill')->orWhere('invoice_label', 'purchase');
+             });
+             $prefix = "Bill/{$fy}/";
+        } elseif ($normalizedLabel === 'batching') {
+             $query->where('invoice_label', 'Batching');
+             $prefix = "Inv/{$fy}/";
+        } else {
+             $query->where('invoice_type', 'sales')->whereNull('invoice_label');
+             $prefix = "INV-{$fy}-";
+        }
+            
+        $count = $query->count();
         $next = $count + 1;
 
-        return "INV-{$fy}-" . str_pad((string)$next, 2, '0', STR_PAD_LEFT);
+        return $prefix . str_pad((string)$next, 3, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -260,48 +320,41 @@ class Invoice extends Model
     {
         $this->orderTaxes()->delete();
 
-        // 1. Group items by tax_id to handle multiple tax rates correctly
-        $groupedItems = $this->items()->with('tax')->get()->groupBy('tax_id');
+        // 1. Process line items individually to capture specific item IDs and accounts
+        foreach ($this->items()->with('tax')->get() as $item) {
+            if (!$item->tax_id || $item->line_tax_amount <= 0) continue;
 
-        foreach ($groupedItems as $taxId => $items) {
-            $taxableAmount = $items->sum('subtotal');
-            $taxAmount     = $items->sum('line_tax_amount');
-            
-            if ($taxAmount <= 0) continue;
-
-            $tax = Tax::find($taxId);
-            // Derive rate from items if tax record missing (fallback)
-            $fullRate = $tax ? $tax->tax_rate : (($taxableAmount > 0) ? ($taxAmount / $taxableAmount) * 100 : 0);
-
+            $tax = $item->tax;
+            $fullRate = $tax ? $tax->tax_rate : 0;
             if ($fullRate <= 0) continue;
-
+            $tax_group = $tax->tax_group;
             $plantAddr   = $this->plant?->addresses()?->first();
             $partnerAddr = $this->partner?->addresses()?->first();
-            
+           
             $plantState   = $plantAddr?->state?->state_code ?? $plantAddr?->state_code;
             $partnerState = $partnerAddr?->state?->state_code ?? $partnerAddr?->state_code;
-
-            if ($plantState && $partnerState && $plantState === $partnerState) {
-                OrderTax::createIntraStateSplit($this, $taxableAmount, $fullRate, $taxId);
+ 
+            if ($tax_group == 'GST') {
+                OrderTax::createIntraStateSplit($this, $item->subtotal, $fullRate, $item->tax_id,   $item->id);
             } else {
-                OrderTax::createInterStateSplit($this, $taxableAmount, $fullRate, $taxId);
+                OrderTax::createInterStateSplit($this, $item->subtotal, $fullRate, $item->tax_id,    $item->id);
             }
         }
 
-        // 2. Handle shipping tax split if applicable
-        if ($this->shipping_charges > 0 && $this->shipping_tax_id) {
-            $shippingTax = Tax::find($this->shipping_tax_id);
-            if ($shippingTax && $shippingTax->tax_rate > 0) {
-                $plantState   = $this->plant?->addresses()?->first()?->state?->state_code;
-                $partnerState = $this->partner?->addresses()?->first()?->state?->state_code;
+        // // 2. Handle shipping tax split if applicable
+        // if ($this->shipping_charges > 0 && $this->shipping_tax_id) {
+        //     $shippingTax = Tax::find($this->shipping_tax_id);
+        //     if ($shippingTax && $shippingTax->tax_rate > 0) {
+        //         $plantState   = $this->plant?->addresses()?->first()?->state?->state_code;
+        //         $partnerState = $this->partner?->addresses()?->first()?->state?->state_code;
 
-                if ($plantState && $partnerState && $plantState === $partnerState) {
-                    OrderTax::createIntraStateSplit($this, $this->shipping_charges, $shippingTax->tax_rate, $this->shipping_tax_id);
-                } else {
-                    OrderTax::createInterStateSplit($this, $this->shipping_charges, $shippingTax->tax_rate, $this->shipping_tax_id);
-                }
-            }
-        }
+        //         if ($plantState && $partnerState && $plantState === $partnerState) {
+        //             OrderTax::createIntraStateSplit($this, $this->shipping_charges, $shippingTax->tax_rate, $this->shipping_tax_id, $shippingTax->account_id);
+        //         } else {
+        //             OrderTax::createInterStateSplit($this, $this->shipping_charges, $shippingTax->tax_rate, $this->shipping_tax_id, $shippingTax->account_id);
+        //         }
+        //     }
+        // }
     }
 
     public function resolveRouteBinding($value, $field = null)

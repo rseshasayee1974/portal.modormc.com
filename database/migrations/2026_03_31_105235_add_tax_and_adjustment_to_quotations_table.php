@@ -12,11 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('mm_quotations', function (Blueprint $table) {
-            $table->unsignedBigInteger('tax_id')->nullable()->after('amount_untaxed');
-            $table->decimal('tax_amount', 15, 2)->default(0)->after('tax_id');
-            $table->decimal('adjustment', 15, 2)->default(0)->after('tax_amount');
-            
-            $table->foreign('tax_id')->references('id')->on('mm_taxes');
+           
         });
     }
 

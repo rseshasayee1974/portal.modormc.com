@@ -76,17 +76,29 @@ const visibleNav = computed(() => {
 
 const isTopMenuActive = (item) => {
     const currentUrl = page.url.toLowerCase();
-    
+
     if (item.alias && currentUrl.startsWith('/' + item.alias.toLowerCase())) return true;
     if (item.link && item.link !== '#' && currentUrl.startsWith('/' + item.link.toLowerCase())) return true;
 
-    const children = page.props.menus?.sidebar_nav?.[item.id] || [];
+    // Only consider children the current user is permitted to see
+    const children = (page.props.menus?.sidebar_nav?.[item.id] || []).filter(
+        child => !child.permission_name || can(child.permission_name)
+    );
     for (const child of children) {
         if (child.alias && currentUrl.startsWith('/' + child.alias.toLowerCase())) return true;
         if (child.link && child.link !== '#' && currentUrl.startsWith('/' + child.link.toLowerCase())) return true;
     }
-    
+
     return false;
+};
+
+/**
+ * Returns sidebar children for a given top-nav item, filtered by permission.
+ * Use this wherever the sidebar is rendered instead of reading sidebar_nav directly.
+ */
+const visibleSideNav = (topItemId) => {
+    const children = page.props.menus?.sidebar_nav?.[topItemId] || [];
+    return children.filter(child => !child.permission_name || can(child.permission_name));
 };
 console.log(page.props.auth.user);
 defineProps({
@@ -118,25 +130,33 @@ const switchEntity = async (entityId) => {
 };
 
 // --- Session Idle Timeout Logic ---
-const IDLE_WARN_TIME = 15 * 60 * 1000; // 5 minutes
-const IDLE_LOGOUT_TIME = 20 * 60 * 1000; // 20 minutes
+const IDLE_WARN_TIME = 10 * 60 * 1000; // 10 minutes warning
+const IDLE_LOGOUT_TIME = 15 * 60 * 1000; // 15 minutes logout
 const CHECK_INTERVAL = 1000; // 1 second
 
 const lastActivity = ref(Date.now());
 const showTimeoutModal = ref(false);
 const remainingTime = ref(0);
 let idleInterval = null;
+let heartbeatInterval = null;
 
-const resetTimer = async () => {
-    lastActivity.value = Date.now();
+const resetTimer = () => {
+    const now = Date.now();
+    // Throttle activity updates to once every 2 seconds
+    if (now - lastActivity.value < 2000) return;
+    
+    lastActivity.value = now;
     if (showTimeoutModal.value) {
         showTimeoutModal.value = false;
-        // Ping server to refresh session lifetime on backend
-        try {
-            await axios.get(route('session.ping'));
-        } catch (e) {
-            console.error('Session refresh failed', e);
-        }
+        pingSession();
+    }
+};
+
+const pingSession = async () => {
+    try {
+        await axios.get(route('session.ping'));
+    } catch (e) {
+        console.error('Session heartbeat failed', e);
     }
 };
 
@@ -147,6 +167,7 @@ const checkIdleTime = () => {
     if (idleDuration >= IDLE_LOGOUT_TIME) {
         logout();
         clearInterval(idleInterval);
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
     } else if (idleDuration >= IDLE_WARN_TIME) {
         showTimeoutModal.value = true;
         remainingTime.value = Math.floor((IDLE_LOGOUT_TIME - idleDuration) / 1000);
@@ -156,17 +177,26 @@ const checkIdleTime = () => {
 };
 
 onMounted(() => {
-    const events = [ 'keypress' ];
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
     events.forEach(event => window.addEventListener(event, resetTimer));
 
     idleInterval = setInterval(checkIdleTime, CHECK_INTERVAL);
+    
+    // Send a heartbeat to the server every 4 minutes if the user is active
+    heartbeatInterval = setInterval(() => {
+        const idleDuration = Date.now() - lastActivity.value;
+        if (idleDuration < 5 * 60 * 1000) {
+            pingSession();
+        }
+    }, 4 * 60 * 1000);
 });
 
 onUnmounted(() => {
-    const events = [ 'keypress' ];
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
     events.forEach(event => window.removeEventListener(event, resetTimer));
     
     if (idleInterval) clearInterval(idleInterval);
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
 });
 </script>
 

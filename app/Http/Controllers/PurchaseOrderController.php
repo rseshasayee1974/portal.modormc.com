@@ -137,21 +137,56 @@ class PurchaseOrderController extends Controller
         $this->authorizeModule('edit');
         $this->authorizePlantAccess($purchase_order);
 
-        // Optional: Check if already invoiced
-        if ($purchase_order->invoice_status === 'invoiced') {
+        // Check if already invoiced (using integer comparison for tinyint)
+        if ((int)$purchase_order->invoice_status === 1) {
             return redirect()->back()->with('error', 'A bill has already been generated for this Purchase Order.');
         }
 
         // Use the common invoice generation function
+        // This function already calls postToAccounting() if status is APPROVED
         $invoice = \App\Http\Controllers\InvoiceController::createFromSource($purchase_order, 'bill', [
             'account_id'   => $request->input('account_id'),
             'invoice_date' => $request->input('invoice_date', now()),
             'due_date'     => $request->input('due_date', $purchase_order->due_date),
+            'invoice_label' => 'purchase'
         ]);
 
-        $purchase_order->update(['invoice_status' => 'invoiced', 'state' => 'billed']);
+        $purchase_order->update([
+            'invoice_status' => 1, 
+            'state'          => 'billed',
+            'billed_date'    => $request->input('invoice_date', now()),
+            'journal_status' => 1
+        ]);
 
-        return redirect()->back()->with('success', 'Purchase Bill generated successfully: ' . $invoice->invoice_number);
+        return redirect()->back()->with('success', 'Purchase Bill generated successfully and posted to accounting: ' . $invoice->invoice_number);
+    }
+
+    public function deleteBill(PurchaseOrder $purchase_order)
+    {
+        $this->authorizeModule('edit');
+        $this->authorizePlantAccess($purchase_order);
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($purchase_order) {
+            $bill = $purchase_order->bill;
+
+            if ($bill) {
+                // Deleting the bill will trigger the Invoice model's deleted hook
+                // which handles renaming journal entries (to avoid unique index errors),
+                // marking them as deleted, and resetting the PO status.
+                $bill->delete();
+            } else {
+                // Fallback: If the bill relationship was lost but the PO thinks it's billed, 
+                // we should still reset the status.
+                $purchase_order->update([
+                    'invoice_status' => 0,
+                    'state'          => 'approved',
+                    'journal_status' => 0,
+                    'billed_date'    => null
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Purchase Bill has been voided and the Purchase Order has been reset.');
+        });
     }
 
     public function destroy($id)

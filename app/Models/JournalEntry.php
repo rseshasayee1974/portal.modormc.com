@@ -6,9 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\AuditFields;
+
 class JournalEntry extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, AuditFields;
 
     protected $table = 'mm_journal_entries';
 
@@ -40,6 +42,27 @@ class JournalEntry extends Model
         'total_credit' => 'decimal:4',
         'is_deleted'   => 'boolean',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::deleting(function ($entry) {
+            if (!$entry->isForceDeleting()) {
+                // Mass update lines to ensure is_deleted, deleted_by, and deleted_at are set
+                $entry->lines()->update([
+                    'is_deleted' => 1,
+                    'deleted_by' => auth()->id(),
+                    'deleted_at' => now(),
+                ]);
+
+                $entry->updateQuietly([
+                    'is_deleted' => 1,
+                    'deleted_by' => auth()->id()
+                ]);
+            }
+        });
+    }
 
     public function lines()
     {

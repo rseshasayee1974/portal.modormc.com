@@ -7,10 +7,12 @@ use App\Http\Requests\StoreBatchRequest;
 use App\Http\Requests\UpdateBatchRequest;
 use App\Models\Batch;
 use App\Models\BatchMaterial;
-use App\Models\MmImage;
+use App\Models\Image;
 use App\Models\Product;
 use App\Models\Quantity;
 use App\Models\WorkOrder;
+use App\Models\Dispatch;
+use App\Models\DispatchStatus;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -31,13 +33,14 @@ class BatchController extends Controller
             'workOrder.customer',
             'workOrder.mixDesign',
             'workOrder.site',
-            'truck', 
-            'materials.product:id,title', 
-            'materials.uom:id,unit_name,unit_code'
+            'dispatches.truck',
+            'dispatches.status.invoice.createdBy:id,email',
+            'materials.product',
+            'materials.uom'
         ])
         ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
         ->latest()
-        ->get();
+        ->get(); 
 
         $workOrders = WorkOrder::query()
             ->with(['mixDesign.items.product', 'mixDesign.items.uom', 'mixDesign.concrete_grade', 'customer', 'site'])
@@ -69,6 +72,9 @@ class BatchController extends Controller
             'products' => ProductsDropdown($activePlantId),
             'uoms' => Productunit(),
             'statuses' => Batch::statusOptions(),
+            'payment_methods' => PaymentMethodsDropdown(),
+            
+            'sales_ledgers' => toSelectOptions(LedgersDropdown($activePlantId, 'REVENUE'),'title','id'),
             'nextBatchNo' => $nextBatchNo ?: 1,
             'batchingSettings' => \App\Models\CustomSetting::getForModule($activePlantId, 'batching'),
         ]);
@@ -103,11 +109,68 @@ class BatchController extends Controller
             
             $this->refreshWorkOrderProduction($workOrder);
 
+            // Create initial Dispatch
+            $dispatchData = [
+                'work_order_id' => $payload['work_order_id'],
+                'batch_id' => $batch->id,
+                'plant_id' => session('active_plant_id', $workOrder->plant_id),
+                'customer_id' => $workOrder->customer_id,
+                'mixdesign_id' => $workOrder->mix_design_id,
+                'unload_site_id' => $workOrder->site_id,
+                'truck_id' => $payload['truck_id'] ?? null,
+                'transport_id' => $payload['transport_id'] ?? null,
+                'driver_id' => $payload['driver_id'] ?? null,
+                'empty_weight_truck' => $payload['empty_weight_truck'] ?? 0,
+                'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? null,
+                'net_weight' => $payload['net_weight'] ?? null,
+                'load_site_id' => $payload['site_id'] ?? null,
+                'empty_time' => $payload['empty_time'] ?? null,
+                'load_time' => $payload['load_time'] ?? null,
+                'dispatch_status' => 'Draft',
+            ];
+
+            // Generate Dispatch Number
+            $currentDate = now();
+            $startYear = $currentDate->month >= 4 ? $currentDate->year : $currentDate->year - 1;
+            $endYear = $startYear + 1;
+            $fyString = substr($startYear, -2) . substr($endYear, -2);
+            $prefix = "DP-{$fyString}-";
+            
+            $maxNumber = Dispatch::where('plant_id', $dispatchData['plant_id'])
+                ->where('prefix', $prefix)
+                ->max(DB::raw('CAST(dispatch_no AS UNSIGNED)'));
+            $dispatchData['prefix'] = $prefix;
+            $dispatchData['dispatch_no'] = (string)(($maxNumber ?: 0) + 1);
+
+            $dispatch = Dispatch::create($dispatchData);
+            $dispatch->status()->create();
+
             if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
             if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
         });
 
         return redirect()->back()->with('success', 'Batch created successfully.');
+    }
+
+    public function show(Batch $batch)
+    {
+        $this->authorizeModule('menu');
+        $this->ensurePlantScope($batch->workOrder);
+
+        $batch->load([
+            'workOrder.customer',
+            'workOrder.mixDesign.items.product',
+            'workOrder.mixDesign.items.uom',
+            'workOrder.mixDesign.concrete_grade',
+            'workOrder.site',
+            'materials.product:id,title', 
+            'materials.uom:id,unit_name,unit_code',
+            'dispatches.status.invoice.createdBy:id,username',
+            'dispatches.truck',
+            'dispatches.driver'
+        ]);
+
+        return response()->json($batch);
     }
 
     public function update(UpdateBatchRequest $request, Batch $batch)
@@ -117,7 +180,7 @@ class BatchController extends Controller
         $this->ensurePlantScope($batch->workOrder);
 
         $payload = $request->validated();
-
+        
         $emptyPhoto = $payload['empty_weight_photo'] ?? null;
         $loadedPhoto = $payload['loaded_weight_photo'] ?? null;
         unset($payload['empty_weight_photo'], $payload['loaded_weight_photo']);
@@ -154,6 +217,22 @@ class BatchController extends Controller
             }
             
             $this->refreshWorkOrderProduction($batch->workOrder);
+
+            // Update associated dispatch if it exists
+            $dispatch = $batch->dispatches()->first();
+            if ($dispatch) {
+                $dispatch->update([
+                    'truck_id' => $payload['truck_id'] ?? $dispatch->truck_id,
+                    'transport_id' => $payload['transport_id'] ?? $dispatch->transport_id,
+                    'driver_id' => $payload['driver_id'] ?? $dispatch->driver_id,
+                    'empty_weight_truck' => $payload['empty_weight_truck'] ?? $dispatch->empty_weight_truck,
+                    'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? $dispatch->loaded_weight_truck,
+                    'net_weight' => $payload['net_weight'] ?? $dispatch->net_weight,
+                    'load_site_id' => $payload['site_id'] ?? $dispatch->load_site_id,
+                    'empty_time' => $payload['empty_time'] ?? $dispatch->empty_time,
+                    'load_time' => $payload['load_time'] ?? $dispatch->load_time,
+                ]);
+            }
 
             if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
             if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
@@ -225,9 +304,8 @@ class BatchController extends Controller
             'workOrder.site',
             'workOrder.plant.entity',
             'workOrder.mixDesign.concrete_grade',
-            'truck',
-            'driver',
-            'site',
+            'dispatches.truck',
+            'dispatches.driver',
             'materials.product.category',
             'materials.uom',
         ]);
@@ -362,8 +440,8 @@ class BatchController extends Controller
     private function adjustStock(Batch $batch, array $materials, bool $isReverting = false): void
     {
         $userId = auth()->id();
-        // Use load_time for the consumption date, fallback to now
-        $date = $batch->load_time ? $batch->load_time->toDateString() : now()->toDateString();
+        // Use created_at for the consumption date, fallback to now
+        $date = $batch->created_at ? $batch->created_at->toDateString() : now()->toDateString();
         $plantId = $batch->workOrder->plant_id ?? session('active_plant_id');
 
         foreach ($materials as $item) {
@@ -436,7 +514,7 @@ class BatchController extends Controller
             
             Storage::disk('public')->put($path, $data);
 
-            MmImage::updateOrCreate(
+            Image::updateOrCreate(
                 ['category' => 'Batching', 'ref_no' => (string)$batch->id, 'image_name' => "{$type}_weight_snap"],
                 [
                     'alt_txt' => ucfirst($type) . ' Weight Photo',

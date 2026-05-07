@@ -44,7 +44,8 @@ const activeTab = ref<'basic' | 'location'>('basic');
                 <div class="col-span-12 md:col-span-3">
                     <BaseInput 
                         v-model="form.name" 
-                        label="Site Name *"
+                        label="Site Name"
+                        required
                         placeholder="e.g. Loading Bay A" 
                         :error="errors?.name"
                         :disabled="readonly"
@@ -86,9 +87,10 @@ const activeTab = ref<'basic' | 'location'>('basic');
                 </div>
 
                 <div class="col-span-12 md:col-span-3 flex flex-col gap-1.5" v-if="isPrivileged">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Operation Type *</label>
                     <BaseSelect 
                         v-model="form.type" 
+                        label="Operation Type"
+                        required
                         :options="isPrivileged ? siteTypes.map(t => ({label: t.toUpperCase(), value: t})) : [{label: 'UNLOADING', value: 'unloading'}]" 
                         optionLabel="label" 
                         optionValue="value" 
@@ -101,9 +103,10 @@ const activeTab = ref<'basic' | 'location'>('basic');
                 </div>
 
                 <div v-if="isPrivileged" class="col-span-12 md:col-span-3 flex flex-col gap-1.5">
-                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Parent Facility (Plant) *</label>
                     <BaseSelect 
                         v-model="form.plant_id" 
+                        label="Parent Facility (Plant)"
+                        required
                         :options="plants" 
                         optionLabel="name" 
                         optionValue="id" 

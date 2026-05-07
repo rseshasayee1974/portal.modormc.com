@@ -22,14 +22,13 @@ class DispatchFactory extends Factory
                 'work_order_id' => $workOrder->id,
                 'batch_no' => 1,
                 'batch_size' => 1,
-                'truck_id' => $truckId,
                 'status' => Batch::STATUS_PLANNED,
             ]);
 
         return [
             'work_order_id' => $workOrder->id,
             'batch_id' => $batch->id,
-            'truck_id' => $batch->truck_id,
+            'truck_id' => $truckId,
             'driver_id' => Patron::query()->where('plant_id', $workOrder->plant_id)->inRandomOrder()->value('id'),
             'dispatch_time' => now(),
             'delivered_qty' => $this->faker->randomFloat(3, 0.5, 6),

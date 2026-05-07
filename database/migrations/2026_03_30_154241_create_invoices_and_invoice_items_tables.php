@@ -57,7 +57,11 @@ return new class extends Migration
         Schema::create('mm_invoice_items', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('invoice_id');
+$table->unsignedBigInteger('mix_design_id')->nullable()->after('invoice_id');
+            $table->unsignedBigInteger('uom_id')->nullable()->after('mix_design_id');
 
+            $table->foreign('mix_design_id')->references('id')->on('mm_mix_designs')->nullOnDelete();
+            $table->foreign('uom_id')->references('id')->on('mm_product_units')->nullOnDelete();
             // Item Breakdown
             $table->string('item_name')->nullable();
             $table->string('hsn_code', 10)->nullable();             // mandatory for GST

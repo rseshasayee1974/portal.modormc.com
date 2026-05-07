@@ -51,51 +51,91 @@ const submit = () => {
         <form @submit.prevent="submit">
             <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <!-- Row 1 -->
-                <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Type Payment/Receipt *</label>
-                    <BaseSelect v-model="form.transaction_type" :options="[{label:'Payment',value:'payment'},{label:'Receipt',value:'receipt'}]" optionLabel="label" optionValue="value" class="w-full"  />
-                </div>
+                <BaseSelect 
+                    v-model="form.transaction_type" 
+                    label="Type"
+                    required
+                    :options="[{label:'Payment',value:'payment'},{label:'Receipt',value:'receipt'}]" 
+                    optionLabel="label" 
+                    optionValue="value" 
+                    class="w-full"  
+                />
                 
-                <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Partner Type *</label>
-                    <BaseSelect v-model="form.partner_type" :options="[{label:'Master',value:'Master'},{label:'Other',value:'Other'}]" optionLabel="label" optionValue="value" class="w-full"  />
-                </div>
+                <BaseSelect 
+                    v-model="form.partner_type" 
+                    label="Partner Type"
+                    required
+                    :options="[{label:'Master',value:'Master'},{label:'Other',value:'Other'}]" 
+                    optionLabel="label" 
+                    optionValue="value" 
+                    class="w-full"  
+                />
 
-                <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Partner *</label>
-                    <BaseSelect v-model="form.patron_id" :options="patronOptions" optionLabel="label" optionValue="value" filter placeholder="None" class="w-full"  />
-                </div>
+                <BaseSelect 
+                    v-model="form.patron_id" 
+                    label="Partner"
+                    required
+                    :options="patronOptions" 
+                    optionLabel="label" 
+                    optionValue="value" 
+                    filter 
+                    placeholder="None" 
+                    class="w-full"  
+                />
 
-                <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Amount *</label>
-                    <BaseInputNumber v-model="form.amount" class="w-full font-bold"  />
-                </div>
+                <BaseInputNumber 
+                    v-model="form.amount" 
+                    label="Amount"
+                    required
+                    class="w-full font-bold"  
+                />
 
-                <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Journal Type *</label>
-                    <BaseSelect v-model="form.ledger_id" :options="ledgerOptions" optionLabel="label" optionValue="value" filter class="w-full"  />
-                </div>
+                <BaseSelect 
+                    v-model="form.ledger_id" 
+                    label="Journal Type"
+                    required
+                    :options="ledgerOptions" 
+                    optionLabel="label" 
+                    optionValue="value" 
+                    filter 
+                    class="w-full"  
+                />
 
                 <!-- Row 2 -->
-                <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Date *</label>
-                    <DatePicker v-model="form.transaction_date" dateFormat="yy-mm-dd" class="w-full"  />
-                </div>
+                <BaseDatePicker 
+                    v-model="form.transaction_date" 
+                    label="Date"
+                    required
+                    dateFormat="yy-mm-dd" 
+                    class="w-full"  
+                />
 
-                <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Transaction Mode*</label>
-                    <BaseSelect v-model="form.transaction_mode" :options="[{label:'Cash',value:'Cash'},{label:'Bank Transfer',value:'Bank'},{label:'Cheque',value:'Cheque'}]" optionLabel="label" optionValue="value" filter class="w-full"  />
-                </div>
+                <BaseSelect 
+                    v-model="form.transaction_mode" 
+                    label="Transaction Mode"
+                    required
+                    :options="[{label:'Cash',value:'Cash'},{label:'Bank Transfer',value:'Bank'},{label:'Cheque',value:'Cheque'}]" 
+                    optionLabel="label" 
+                    optionValue="value" 
+                    filter 
+                    class="w-full"  
+                />
 
-                <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Status</label>
-                    <BaseSelect v-model="form.status" :options="[{label:'Pending',value:'pending'},{label:'Completed',value:'completed'}]" optionLabel="label" optionValue="value" class="w-full"  />
-                </div>
+                <BaseSelect 
+                    v-model="form.status" 
+                    label="Status"
+                    :options="[{label:'Pending',value:'pending'},{label:'Completed',value:'completed'}]" 
+                    optionLabel="label" 
+                    optionValue="value" 
+                    class="w-full"  
+                />
 
-                <div class="flex flex-col gap-1.5">
-                    <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Reference No.</label>
-                    <BaseInput v-model="form.reference" placeholder="UTR..." class="w-full"  />
-                </div>
+                <BaseInput 
+                    v-model="form.reference" 
+                    label="Reference No."
+                    placeholder="UTR..." 
+                    class="w-full"  
+                />
 
                 <div class="flex flex-col gap-1.5">
                     <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Notes</label>

@@ -174,7 +174,7 @@ const deleteUnit = (unit: ProductUnit) => {
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4 max-w-4xl bg-white p-6 rounded-sm border border-slate-100 shadow-sm">
                         <div class="field-group">
-                            <label class="field-label">Unit Name <span class="text-rose-400">*</span></label>
+                            <label class="field-label">Unit Name <span class="text-red-500">*</span></label>
                             <BaseInput v-model="editForm.unit_name" :class="{ 'p-invalid': editForm.errors.unit_name }" />
                             <small v-if="editForm.errors.unit_name" class="field-error">{{ editForm.errors.unit_name }}</small>
                         </div>
@@ -184,7 +184,7 @@ const deleteUnit = (unit: ProductUnit) => {
                             <small v-if="editForm.errors.unit_code" class="field-error">{{ editForm.errors.unit_code }}</small>
                         </div>
                         <div class="field-group">
-                            <label class="field-label">Unit Type <span class="text-rose-400">*</span></label>
+                            <label class="field-label">Unit Type <span class="text-red-500">*</span></label>
                             <BaseSelect
                                 v-model="editForm.unit_type"
                                 :options="unitTypeOptions"

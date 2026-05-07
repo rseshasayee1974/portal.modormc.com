@@ -33,6 +33,7 @@ const props = defineProps({
     vendors: Array,    
     currencies: Array,
     taxes: Array,
+    products: Array,
     ref_no: Object,
     productUnits: Array,
     instant_vendor: [Number, Boolean], 
@@ -231,11 +232,11 @@ const handleCreateVendor = async (name) => {
 };
 
 const vendorOptions = computed(() => props.vendors?.map(v => ({ label: v.legal_name, value: v.id })) || []);
-const productOptions = computed(() => props.products?.map(p => ({ label: p.title, value: p.id })) || []);
+// const productOptions = computed(() => props.products?.map(p => ({ label: p.title, value: p.id })) || []);
 const unitOptions = computed(() => props.productUnits?.map(u => ({ label: u.unit_code, value: u.id })) || []);
 const taxOptions = computed(() => props.taxes?.map(t => ({ label: t.tax_name, value: t.id })) || []);
 const discountTypeOptions = [{ label: '%', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }];
-
+ console.log(props.products)
 </script>
 
 <template>
@@ -340,9 +341,9 @@ const discountTypeOptions = [{ label: '%', value: 'percentage' }, { label: 'Fixe
                                         <td class="p-2">
                                             <BaseSelect
                                                 v-model="item.product_id"
-                                                :options="productOptions"
-                                                optionLabel="label" 
-                                                optionValue="value"
+                                                :options="products"
+                                                optionLabel="title" 
+                                                optionValue="id"
                                                 placeholder="Product" 
                                                 filter
                                                 

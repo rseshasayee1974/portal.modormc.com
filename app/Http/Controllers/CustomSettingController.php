@@ -17,7 +17,7 @@ class CustomSettingController extends Controller
 
         // Get settings for batching module
         $batchingSettings = CustomSetting::where('plant_id','=',$plantId)
-            ->where('mm_module_name', 'batching')
+            ->where('module_name', 'batching')
             ->first();
 
         $plant = \App\Models\Plant::find($plantId);
@@ -40,7 +40,7 @@ class CustomSettingController extends Controller
         $settings = $request->input('settings', []);
 
         $customSetting = CustomSetting::where('plant_id', $plantId)
-            ->where('mm_module_name', $module)
+            ->where('module_name', $module)
             ->first();
 
         if ($customSetting) {
@@ -48,9 +48,9 @@ class CustomSettingController extends Controller
         } else {
             CustomSetting::create([
                 'plant_id' => $plantId,
-                'mm_module_name' => $module,
+                'module_name' => $module,
                 'settings' => $settings,
-                'mm_module_id' => 0 // Providing a default for the ID field
+                'module_id' => 0 // Providing a default for the ID field
             ]);
         }
 

@@ -4,15 +4,19 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\AuditFields;
+use App\Models\Tax;
 
 class OrderTax extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'mm_order_taxes';
 
     protected $fillable = [
         'tax_id',
+        'plant_id',
         'order_type',
         'order_id',
         'order_items_id',
@@ -58,41 +62,55 @@ class OrderTax extends Model
      * @param  float    $taxableAmount
      * @param  float    $fullRate     e.g. 18 (will be split as 9+9)
      * @param  int|null $taxId
+     * @param  int|null $accountId
+     * @param  int|null $orderItemsId
      */
-    public static function createIntraStateSplit(Invoice $invoice, float $taxableAmount, float $fullRate, ?int $taxId = null): void
+    public static function createIntraStateSplit(Invoice $invoice, float $taxableAmount, float $fullRate, ?int $taxId = null, $orderItemsId = null): void
     {
-        $half   = $fullRate / 2;
-        $splits = [
-            ['name' => 'CGST ' . $half . '%', 'rate' => $half],
-            ['name' => 'SGST ' . $half . '%', 'rate' => $half],
-        ];
+        $tax = Tax::with('children')->find($taxId);
+        $children = $tax ? $tax->children : collect();
 
-        foreach ($splits as $split) {
-            self::create([
-                'order_type'  => 'Invoice',
-                'order_id'    => $invoice->id,
-                'tax_id'      => $taxId,
-                'name'        => $split['name'],
-                'rate'        => $split['rate'],
-                'amount'      => round($taxableAmount * ($split['rate'] / 100), 2),
-                'status'      => 1,
-            ]);
+        if ($children->isNotEmpty()) {
+            foreach ($children as $child) {
+                self::create([
+                    'order_type'     => 'Invoice',
+                    'order_id'       => $invoice->id,
+                    'plant_id'       => $invoice->plant_id,
+                    'order_items_id' => $orderItemsId,
+                    'account_id'     => $child->account_id,
+                    'tax_id'         => $child->id,
+                    'name'           => $child->tax_name,
+                    'rate'           => $child->tax_rate,
+                    'amount'         => round($taxableAmount * ($child->tax_rate / 100), 2),
+                    'status'         => 1,
+                ]);
+            }
         }
     }
 
     /**
      * Create IGST split (inter-state) for an invoice.
      */
-    public static function createInterStateSplit(Invoice $invoice, float $taxableAmount, float $fullRate, ?int $taxId = null): void
+    public static function createInterStateSplit(Invoice $invoice, float $taxableAmount, float $fullRate, ?int $taxId = null, $orderItemsId = null): void
     {
-        self::create([
-            'order_type' => 'Invoice',
-            'order_id'   => $invoice->id,
-            'tax_id'     => $taxId,
-            'name'       => 'IGST ' . $fullRate . '%',
-            'rate'       => $fullRate,
-            'amount'     => round($taxableAmount * ($fullRate / 100), 2),
-            'status'     => 1,
-        ]);
+        $tax = Tax::with('children')->find($taxId);
+        $children = $tax ? $tax->children : collect();
+
+        if ($children->isNotEmpty()) {
+            foreach ($children as $child) {
+                self::create([
+                    'order_type'     => 'Invoice',
+                    'order_id'       => $invoice->id,
+                    'plant_id'       => $invoice->plant_id,
+                    'order_items_id' => $orderItemsId,
+                    'account_id'     => $child->account_id,
+                    'tax_id'         => $child->id,
+                    'name'           => $child->tax_name,
+                    'rate'           => $child->tax_rate,
+                    'amount'         => round($taxableAmount * ($child->tax_rate / 100), 2),
+                    'status'         => 1,
+                ]);
+            }
+        }
     }
 }

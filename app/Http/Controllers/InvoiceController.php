@@ -33,6 +33,7 @@ class InvoiceController extends Controller
                 'partner_id'       => $params['partner_id'] ?? ($type === 'bill' ? $source->vendor_id : $source->customer_id),
                 'account_id'       => $params['account_id'] ?? null,
                 'invoice_type'     => $type,
+                'invoice_label'    => $params['invoice_label'] ?? null,
                 'ref_id'           => $source->id,
                 'ref_title'        => $params['ref_title'] ?? $source->po_number ?? $source->so_number ?? $source->ref_no,
                 'invoice_date'     => $params['invoice_date'] ?? now(),
@@ -52,24 +53,29 @@ class InvoiceController extends Controller
             // 2. Create Invoice Items
             foreach ($source->items as $item) {
                 $invoice->items()->create([
-                    'product_id'      => $item->product_id,
-                    'item_name'       => $item->product?->title ?? $item->description,
-                    'hsn_code'        => $item->product?->hsn_code,
-                    'quantity'        => $item->product_quantity ?? $item->quantity,
-                    // 'uom_id'          => $item->product_uom ?? $item->uom_id,
-                    'price_unit'      => $item->unit_price,
-                    'discount_type'   => $item->discount_type,
-                    'discount'        => $item->discount_amount,
-                    'discount_amount' => $item->total_discount,
-                    'subtotal'        => $item->price_subtotal,
-                    'line_tax_amount' => $item->price_tax,
-                    'line_total'      => $item->price_total,
-                    'tax_id'          => $item->tax_id,
+                    'mix_design_id'   => $type === 'bill' ? data_get($item, 'product_id') : data_get($item, 'mix_design_id'),
+                    'item_name'       => data_get($item, 'product.title') ?? data_get($item, 'description'),
+                    'hsn_code'        => data_get($item, 'product.hsn_code'),
+                    'quantity'        => data_get($item, 'product_quantity') ?? data_get($item, 'quantity'),
+                    'uom_id'          => data_get($item, 'product_uom') ?? data_get($item, 'uom_id'),
+                    'price_unit'      => data_get($item, 'unit_price'),
+                    'discount_type'   => data_get($item, 'discount_type'),
+                    'discount'        => data_get($item, 'discount_amount'),
+                    'discount_amount' => data_get($item, 'total_discount'),
+                    'subtotal'        => data_get($item, 'price_subtotal'),
+                    'line_tax_amount' => data_get($item, 'price_tax'),
+                    'line_total'      => data_get($item, 'price_total'),
+                    'tax_id'          => data_get($item, 'tax_id'),
                 ]);
             }
 
             // 3. Sync Tax Splits (Generates mm_order_taxes records)
             $invoice->syncTaxSplits();
+
+            // 4. Automated Accounting Posting
+            if ($invoice->status === Invoice::STATUS_APPROVED || $invoice->status === Invoice::STATUS_PAID) {
+                $invoice->postToAccounting();
+            }
 
             return $invoice;
         });
@@ -97,7 +103,7 @@ class InvoiceController extends Controller
             'mixdesign' => MixDesignsOptions($plantId),
             'units'    => toSelectOptions(Productunit(), 'unit_code'),
             'instant_invoice_patron' => CustomSetting::getForModule(session('active_entity_id'), 'invoice')['instant_invoice_patron'] ?? 0,
-            'next_invoice_number' => Invoice::generateNumber($plantId),
+            'next_invoice_number' => Invoice::generateNumber($plantId, 'sales'),
         ]);
     }
 

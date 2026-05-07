@@ -61,20 +61,20 @@ const form = useForm({
     work_order_id: props.batch?.work_order_id ?? null,
     batch_no: props.batch?.batch_no ?? null,
     batch_size: Number(props.batch?.batch_size ?? 1),
-    truck_id: props.batch?.truck_id ?? null,
-    transport_id: props.batch?.transport_id ?? null,
-    driver_id: props.batch?.driver_id ?? null,
-    empty_weight_truck: Number(props.batch?.empty_weight_truck ?? 0),
-    loaded_weight_truck: Number(props.batch?.loaded_weight_truck ?? 0),
+    truck_id: props.batch?.dispatches?.[0]?.truck_id ?? null,
+    transport_id: props.batch?.dispatches?.[0]?.transport_id ?? null,
+    driver_id: props.batch?.dispatches?.[0]?.driver_id ?? null,
+    empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? 0),
+    loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? 0),
         
     loaded_weight_photo: null as string | null,
-    net_weight: Number(props.batch?.net_weight ?? 0),
+    net_weight: Number(props.batch?.dispatches?.[0]?.net_weight ?? 0),
     uom_id: props.batch?.uom_id ?? props.uoms?.find((u: any) => String(u.unit_code).toUpperCase() === 'CBM')?.id ?? null,
     status: Number(props.batch?.status ?? 1),
     start_time: props.batch?.start_time ? new Date(props.batch.start_time) : new Date(),
     end_time: props.batch?.end_time ? new Date(props.batch.end_time) : new Date(),
-    empty_time: props.batch?.empty_time ? new Date(props.batch.empty_time) : new Date(),
-    load_time: props.batch?.load_time ? new Date(props.batch.load_time) : new Date(),
+    empty_time: props.batch?.dispatches?.[0]?.empty_time ? new Date(props.batch.dispatches[0].empty_time) : new Date(),
+    load_time: props.batch?.dispatches?.[0]?.load_time ? new Date(props.batch.dispatches[0].load_time) : new Date(),
     materials: ((props.batch?.materials?.length ?? 0) > 0 ? props.batch.materials : [blankMaterial()]).map((item: any) => ({
         id: item.id,
         product_id: item.product_id,
@@ -138,6 +138,39 @@ watch(() => form.materials, (newMaterials) => {
     });
 }, { deep: true });
 
+watch(() => props.batch, (newBatch) => {
+    if (newBatch) {
+        form.work_order_id = newBatch.work_order_id ?? null;
+        form.batch_no = newBatch.batch_no ?? null;
+        form.batch_size = Number(newBatch.batch_size ?? 1);
+        
+        const dispatch = newBatch.dispatches?.[0];
+        form.truck_id = dispatch?.truck_id ?? null;
+        form.transport_id = dispatch?.transport_id ?? null;
+        form.driver_id = dispatch?.driver_id ?? null;
+        form.empty_weight_truck = Number(dispatch?.empty_weight_truck ?? 0);
+        form.loaded_weight_truck = Number(dispatch?.loaded_weight_truck ?? 0);
+        form.net_weight = Number(dispatch?.net_weight ?? 0);
+        form.empty_time = dispatch?.empty_time ? new Date(dispatch.empty_time) : new Date();
+        form.load_time = dispatch?.load_time ? new Date(dispatch.load_time) : new Date();
+        
+        form.uom_id = newBatch.uom_id ?? props.uoms?.find((u: any) => String(u.unit_code).toUpperCase() === 'CBM')?.id ?? null;
+        form.status = Number(newBatch.status ?? 1);
+        form.start_time = newBatch.start_time ? new Date(newBatch.start_time) : new Date();
+        form.end_time = newBatch.end_time ? new Date(newBatch.end_time) : new Date();
+        
+        form.materials = ((newBatch.materials?.length ?? 0) > 0 ? newBatch.materials : [blankMaterial()]).map((item: any) => ({
+            id: item.id,
+            product_id: item.product_id,
+            material_name: item.material_name || item.product?.title || '',
+            target_qty: Number(item.target_qty || 0),
+            actual_qty: Number(item.actual_qty || 0),
+            deviation_quantity: Number(item.deviation_quantity || (Number(item.actual_qty || 0) - Number(item.target_qty || 0))),
+            uom_id: item.uom_id,
+        }));
+    }
+}, { deep: true, immediate: true });
+
 const { isScaleConnected, captureWeight, captureCameraSnap } = useWeighbridge();
 
 const handleWeightCapture = (type: 'empty' | 'loaded') => {
@@ -188,7 +221,7 @@ const hasConsumptionData = computed(() => {
 const fetchConsumption = async () => {
     isFetchingConsumption.value = true;
     try {
-        const response = await axios.get('/orders/production/batch', {
+        const response = await axios.get(route('batches.production'), {
             params: {
                 batch_no: props.batch?.batch_no,
                 cust_id: selectedWorkOrder.value?.customer?.code,
@@ -369,7 +402,7 @@ const submit = () => {
                             <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver" :error="form.errors.driver_id" />
                         </div>
                         <div class="col-span-12 md:col-span-3">
-                            <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :minFractionDigits="2" :error="form.errors.batch_size" />
+                            <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :minFractionDigits="2" :disabled="true"  :error="form.errors.batch_size" />
                         </div>
                         <div class="col-span-12 md:col-span-3">
                         <BaseSelect
@@ -409,7 +442,7 @@ const submit = () => {
                                 <div class="flex-1">
                                     <BaseInputNumber v-model="form.loaded_weight_truck" :disabled="!customSettings?.batching?.manual_weight" label="Full Weight" :error="form.errors.loaded_weight_truck" />
                                 </div>
-                                <button v-if="customSettings?.batching?.manual_weight" @click="handleWeightCapture('loaded')" type="button" 
+                                <button v-if="customSettings?.batching?.manual_weight && form.net_weight<=0" @click="handleWeightCapture('loaded')" type="button" 
                                     :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
                                     :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
                                     <div class="flex flex-col items-center gap-0.5">

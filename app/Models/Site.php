@@ -65,6 +65,19 @@ class Site extends Model
     {
         return $query->where('mm_sites.id', '!=', $id);
     }
+    protected static function booted()
+    {
+        static::saving(function ($site) {
+            // Sync is_active boolean with status string for dropdown filtering
+            if ($site->status === 'InActive') {
+                $site->is_active = false;
+            } else {
+                // Default to true for 'Active' or null status
+                $site->is_active = true;
+            }
+        });
+    }
+
     protected $table = 'mm_sites';
     protected $fillable = [
         'plant_id',

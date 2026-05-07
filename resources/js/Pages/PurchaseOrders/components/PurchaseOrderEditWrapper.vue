@@ -48,7 +48,7 @@ const form = useForm({
     state: props.purchaseOrder?.state || 'draft',
     approve_status: props.purchaseOrder?.approve_status || 0,
     receipt_status: props.purchaseOrder?.receipt_status || 0,
-    invoice_status: props.purchaseOrder?.invoice_status || 'no_invoice',
+    invoice_status: props.purchaseOrder?.invoice_status || 0,
     items: props.purchaseOrder?.items ? props.purchaseOrder.items.map(i => ({ 
         ...i, 
         product_quantity: Number(i.product_quantity) || 0,

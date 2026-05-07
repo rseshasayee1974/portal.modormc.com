@@ -52,7 +52,7 @@ const emit = defineEmits<{
                 :disabled="disabled"
                 :size="size"
                 :fluid="fluid"
-                class="bg-white"
+                class="!bg-white"
                 :class="[
                     inputClass,
                     invalid ? 'p-invalid' : null,

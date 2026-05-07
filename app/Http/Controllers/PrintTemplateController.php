@@ -82,11 +82,11 @@ class PrintTemplateController extends Controller
         \App\Models\CustomSetting::updateOrCreate(
             [
                 'plant_id' => $plantId,
-                'mm_module_name' => $module,
+                'module_name' => $module,
             ],
             [
                 'settings' => $request->settings,
-                'mm_module_id' => 0
+                'module_id' => 0
             ]
         );
 

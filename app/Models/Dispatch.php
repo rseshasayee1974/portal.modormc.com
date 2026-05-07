@@ -8,9 +8,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+use App\Traits\AuditFields;
+
 class Dispatch extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, AuditFields;
 
     protected $table = 'mm_dispatches';
 
@@ -28,12 +30,37 @@ class Dispatch extends Model
         'transport_expenses' => 'decimal:2',
         'adjustment_amount' => 'decimal:2',
         'round_off' => 'decimal:2',
-        'transport_rate' => 'decimal:2',
-        'transport_tax_rate' => 'decimal:2',
-        'transport_tax_amount' => 'decimal:2',
-        'transport_total_amount' => 'decimal:2',
-        'total_amount' => 'decimal:2',
     ];
+
+    /**
+     * Accounting Compatibility Accessors (for Invoice generation)
+     */
+    public function getAmountUntaxedAttribute() { return $this->load_untax_amount; }
+    public function getAmountTaxAttribute() { return $this->load_tax_amount; }
+    public function getAmountTotalAttribute() { return $this->load_total_amount; }
+    public function getAdjustmentAttribute() { return $this->adjustment_amount; }
+    public function getShippingChargesAttribute() { return $this->transport_expenses; }
+    public function getRoundingValueAttribute() { return $this->round_off; }
+    public function getRefNoAttribute() { return $this->dispatch_no; }
+
+    public function getItemsAttribute()
+    {
+        return collect([(object)[
+            'mix_design_id' => $this->mixdesign_id,
+            'product_id' => null, 
+            'description' => "RMC Dispatch: " . ($this->mixDesign?->design_name ?? 'Concrete'),
+            'quantity' => $this->delivered_qty,
+            'unit_price' => $this->load_rate,
+            'discount_type' => 'fixed',
+            'discount_amount' => 0,
+            'total_discount' => 0,
+            'price_subtotal' => $this->load_untax_amount,
+            'price_tax' => $this->load_tax_amount,
+            'price_total' => $this->load_total_amount,
+            'tax_id' => $this->load_tax_id,
+            'product' => (object)['title' => $this->mixDesign?->design_name, 'hsn_code' => '3824'],
+        ]]);
+    }
 
     /**
      * Relationships
@@ -88,13 +115,13 @@ class Dispatch extends Model
         return $this->belongsTo(Personnel::class, 'driver_id');
     }
 
-    public function cleaner(): BelongsTo
-    {
-        return $this->belongsTo(Personnel::class, 'cleaner_id');
-    }
-
     public function status(): HasOne
     {
         return $this->hasOne(DispatchStatus::class, 'dispatch_id');
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(DispatchPayment::class, 'dispatch_id');
     }
 }

@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('mm_account_default_settings', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('plant_id')->nullable();
-            $table->unsignedBigInteger('mm_module_id')->nullable();
-            $table->string('mm_module_name', 100);
+            $table->unsignedBigInteger('module_id')->nullable();
+            $table->string('module_name', 100);
             $table->string('setting_key', 100);
             $table->unsignedBigInteger('ledger_id');
             $table->boolean('is_active')->default(true);
@@ -27,7 +27,7 @@ return new class extends Migration
             $table->timestamp('updated_at')->nullable();
             $table->softDeletes();
 
-            $table->unique(['mm_module_id', 'setting_key', 'plant_id'], 'uniq_setting');
+            $table->unique(['module_id', 'setting_key', 'plant_id'], 'uniq_setting');
         });
     }
 

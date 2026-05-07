@@ -281,18 +281,15 @@ const deleteCategory = (id: number) => {
         >
             <div class="flex flex-col gap-4 py-2">
                 <div>
-                    <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Name *</label>
-                    <BaseInput v-model="form.name" placeholder="e.g. Aggregates" class="mt-1 w-full" />
+                    <BaseInput v-model="form.name" label="Name" required placeholder="e.g. Aggregates" class="w-full" />
                     <small v-if="form.errors.name" class="text-red-500">{{ form.errors.name }}</small>
                 </div>
                 <div>
-                    <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Code</label>
-                    <BaseInput v-model="form.code" placeholder="Optional short code" class="mt-1 w-full" />
+                    <BaseInput v-model="form.code" label="Code" placeholder="Optional short code" class="w-full" />
                     <small v-if="form.errors.code" class="text-red-500">{{ form.errors.code }}</small>
                 </div>
                 <div>
-                    <label class="text-[10px] font-black uppercase text-slate-400 tracking-wider">Description</label>
-                    <BaseInput v-model="form.description" placeholder="Optional" class="mt-1 w-full" />
+                    <BaseInput v-model="form.description" label="Description" placeholder="Optional" class="w-full" />
                     <small v-if="form.errors.description" class="text-red-500">{{ form.errors.description }}</small>
                 </div>
                 <div class="flex items-center gap-3 pt-1">

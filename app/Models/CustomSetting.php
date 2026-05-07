@@ -14,8 +14,8 @@ class CustomSetting extends Model
 
     protected $fillable = [
         'plant_id',
-        'mm_module_id',
-        'mm_module_name',
+        'module_id',
+        'module_name',
         'settings',
     ];
 
@@ -31,28 +31,28 @@ class CustomSetting extends Model
      */
     public function getModuleNameAttribute()
     {
-        return $this->attributes['mm_module_name'] ?? null;
+        return $this->attributes['module_name'] ?? null;
     }
 
     public function setModuleNameAttribute($value): void
     {
-        $this->attributes['mm_module_name'] = $value;
+        $this->attributes['module_name'] = $value;
     }
 
     public function getModuleIdAttribute()
     {
-        return $this->attributes['mm_module_id'] ?? null;
+        return $this->attributes['module_id'] ?? null;
     }
 
     public function setModuleIdAttribute($value): void
     {
-        $this->attributes['mm_module_id'] = $value;
+        $this->attributes['module_id'] = $value;
     }
 
     public static function getForModule($plantId, $moduleName)
     {
-        $moduleNameColumn = Schema::hasColumn('mm_custom_settings', 'mm_module_name')
-            ? 'mm_module_name'
+        $moduleNameColumn = Schema::hasColumn('mm_custom_settings', 'module_name')
+            ? 'module_name'
             : 'module_name';
 
         return self::where('plant_id', $plantId)

@@ -238,7 +238,7 @@ watch([searchQuery, filterCountry], () => {
                     <div v-if="createOpen" class="create-panel__body">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div class="field-group">
-                                <label class="field-label">Country <span class="text-rose-400">*</span></label>
+                                <label class="field-label">Country <span class="text-red-500">*</span></label>
                                 <BaseSelect
                                     v-model="createForm.country_id"
                                     :options="store.countries"
@@ -251,7 +251,7 @@ watch([searchQuery, filterCountry], () => {
                                 <small v-if="createForm.errors.country_id" class="field-error">{{ createForm.errors.country_id }}</small>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">State Name <span class="text-rose-400">*</span></label>
+                                <label class="field-label">State Name <span class="text-red-500">*</span></label>
                                 <BaseInput
                                     v-model="createForm.state_name"
                                     placeholder="e.g. Maharashtra"
@@ -260,7 +260,7 @@ watch([searchQuery, filterCountry], () => {
                                 <small v-if="createForm.errors.state_name" class="field-error">{{ createForm.errors.state_name }}</small>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">State Code <span class="text-rose-400">*</span></label>
+                                <label class="field-label">State Code <span class="text-red-500">*</span></label>
                                 <BaseInput
                                     v-model="createForm.state_code"
                                     placeholder="e.g. MH"
@@ -362,7 +362,7 @@ watch([searchQuery, filterCountry], () => {
 
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 max-w-4xl">
                                 <div class="field-group">
-                                    <label class="field-label">Country <span class="text-rose-400">*</span></label>
+                                    <label class="field-label">Country <span class="text-red-500">*</span></label>
                                     <BaseSelect
                                         v-model="editForm.country_id"
                                         :options="store.countries"
@@ -374,7 +374,7 @@ watch([searchQuery, filterCountry], () => {
                                     <small v-if="editForm.errors.country_id" class="field-error">{{ editForm.errors.country_id }}</small>
                                 </div>
                                 <div class="field-group">
-                                    <label class="field-label">State Name <span class="text-rose-400">*</span></label>
+                                    <label class="field-label">State Name <span class="text-red-500">*</span></label>
                                     <BaseInput
                                         v-model="editForm.state_name"
                                         :class="{ 'p-invalid': editForm.errors.state_name }"
@@ -382,7 +382,7 @@ watch([searchQuery, filterCountry], () => {
                                     <small v-if="editForm.errors.state_name" class="field-error">{{ editForm.errors.state_name }}</small>
                                 </div>
                                 <div class="field-group">
-                                    <label class="field-label">State Code <span class="text-rose-400">*</span></label>
+                                    <label class="field-label">State Code <span class="text-red-500">*</span></label>
                                     <BaseInput
                                         v-model="editForm.state_code"
                                         :class="{ 'p-invalid': editForm.errors.state_code }"

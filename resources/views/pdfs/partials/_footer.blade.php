@@ -4,8 +4,9 @@
 --}}
 <div class="powered-footer">
     <div class="pf-left">
-        POWERED BY &nbsp;<span class="pf-brand">onemodo.com</span>
-        &nbsp;&bull;&nbsp; {{ now()->format('d/m/Y H:i') }}
+        Generated on {{ now()->format('d M Y, h:i A') }}
     </div>
-    <div class="pf-right">1</div>
+    <div class="pf-right">
+        Powered by <span class="pf-brand">onemodo.com</span>
+    </div>
 </div>

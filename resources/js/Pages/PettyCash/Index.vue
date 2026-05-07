@@ -17,6 +17,7 @@ import Button from 'primevue/button';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import Tag from 'primevue/tag';
 import DatePicker from 'primevue/datepicker';
 import Divider from 'primevue/divider';
@@ -204,25 +205,55 @@ watch(() => page.props.flash, (flash: any) => {
                     <div class="p-8">
                         <div class="grid grid-cols-1 md:grid-cols-24 gap-6 mb-8">
                             <div class="md:col-span-6 flex flex-col gap-1.5">
-                                <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Register Date *</label>
-                                <DatePicker v-model="createForm.date" class="w-full" showTime hourFormat="24" showIcon />
+                                <BaseDatePicker 
+                                    v-model="createForm.date" 
+                                    label="Register Date"
+                                    required
+                                    showTime 
+                                    hourFormat="24" 
+                                />
                                 <small v-if="createForm.errors.date" class="p-error">{{ createForm.errors.date }}</small>
                             </div>
                             <div class="md:col-span-5 flex flex-col gap-1.5">
-                                <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Opening Balance (₹) *</label>
-                                <BaseInputNumber v-model="createForm.opening_balance" :minFractionDigits="2" class="w-full" />
+                                <BaseInputNumber 
+                                    v-model="createForm.opening_balance" 
+                                    label="Opening Balance (₹)"
+                                    required
+                                    :minFractionDigits="2" 
+                                    class="w-full" 
+                                />
                             </div>
                             <div class="md:col-span-4 flex flex-col gap-1.5">
-                                <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Request Amount</label>
-                                <BaseInputNumber v-model="createForm.request_amount" :minFractionDigits="2" class="w-full" />
+                                <BaseInputNumber 
+                                    v-model="createForm.request_amount" 
+                                    label="Request Amount"
+                                    :minFractionDigits="2" 
+                                    class="w-full" 
+                                />
                             </div>
                             <div class="md:col-span-4 flex flex-col gap-1.5">
-                                <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Paid By</label>
-                                <BaseSelect v-model="createForm.paid_by" :options="userOptions" optionLabel="label" optionValue="value" filter placeholder="Select user" class="w-full" />
+                                <BaseSelect 
+                                    v-model="createForm.paid_by" 
+                                    label="Paid By"
+                                    :options="userOptions" 
+                                    optionLabel="label" 
+                                    optionValue="value" 
+                                    filter 
+                                    placeholder="Select user" 
+                                    class="w-full" 
+                                />
                             </div>
                             <div class="md:col-span-5 flex flex-col gap-1.5">
-                                <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Paid To</label>
-                                <BaseSelect v-model="createForm.paid_to" :options="userOptions" optionLabel="label" optionValue="value" filter placeholder="Select user" class="w-full" />
+                                <BaseSelect 
+                                    v-model="createForm.paid_to" 
+                                    label="Paid To"
+                                    :options="userOptions" 
+                                    optionLabel="label" 
+                                    optionValue="value" 
+                                    filter 
+                                    placeholder="Select user" 
+                                    class="w-full" 
+                                />
                             </div>
                         </div>
 

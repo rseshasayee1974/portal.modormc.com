@@ -18,7 +18,7 @@ class CustomSettingSeeder extends Seeder
             \App\Models\CustomSetting::updateOrCreate(
                 [
                     'plant_id' => $plant->id,
-                    'mm_module_name' => 'batching',
+                    'module_name' => 'batching',
                 ],
                 [
                     'settings' => ['newweight' => 1]
@@ -28,7 +28,7 @@ class CustomSettingSeeder extends Seeder
             \App\Models\CustomSetting::updateOrCreate(
                 [
                     'plant_id' => $plant->id,
-                    'mm_module_name' => 'orders',
+                    'module_name' => 'orders',
                 ],
                 [
                     'settings' => ['manualweight' => 0]

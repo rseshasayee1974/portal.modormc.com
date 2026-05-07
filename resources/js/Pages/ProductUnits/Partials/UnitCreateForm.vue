@@ -68,9 +68,10 @@ const submit = () => {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
                     <div class="field-group">
-                        <label class="field-label">Unit Name <span class="text-rose-400">*</span></label>
                         <BaseInput
                             v-model="form.unit_name"
+                            label="Unit Name"
+                            required
                             placeholder="e.g. Kilogram"
                             fluid 
                             :class="{ 'p-invalid': form.errors.unit_name }"
@@ -80,9 +81,9 @@ const submit = () => {
                     </div>
 
                     <div class="field-group">
-                        <label class="field-label">Unit Code</label>
                         <BaseInput
                             v-model="form.unit_code"
+                            label="Unit Code"
                             placeholder="e.g. kg"
                             fluid 
                             :class="{ 'p-invalid': form.errors.unit_code }"
@@ -91,9 +92,10 @@ const submit = () => {
                     </div>
 
                     <div class="field-group">
-                        <label class="field-label">Unit Type <span class="text-rose-400">*</span></label>
                         <BaseSelect
                             v-model="form.unit_type"
+                            label="Unit Type"
+                            required
                             :options="unitTypeOptions"
                             optionLabel="label"
                             optionValue="value"

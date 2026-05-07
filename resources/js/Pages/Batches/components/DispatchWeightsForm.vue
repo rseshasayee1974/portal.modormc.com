@@ -3,181 +3,274 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import { ScaleIcon, BanknotesIcon, ShieldCheckIcon, TruckIcon } from '@heroicons/vue/24/outline';
-import { computed, watch } from 'vue';
+import { ScaleIcon, BanknotesIcon, TruckIcon } from '@heroicons/vue/24/outline';
 
-const props = defineProps<{
-    modelValue: any; // The whole form object now
+const props = withDefaults(defineProps<{
+    modelValue: any; // The whole form object
     uoms: any[];
     taxes: any[];
     loading_sites: any[];
     unloading_sites: any[];
+    trucks?: any[];
+    transporters?: any[];
+    personnel?: any[];
+    payment_methods?: any[];
+    sales_ledgers?: any[];
     errors: any;
-}>();
-
+}>(), {
+    uoms: () => [],
+    taxes: () => [],
+    loading_sites: () => [],
+    unloading_sites: () => [],
+    trucks: () => [],
+    transporters: () => [],
+    personnel: () => [],
+    payment_methods: () => [],
+    sales_ledgers: () => [],
+    errors: () => ({})
+});
+console.log(props.sales_ledgers)
 const emit = defineEmits(['update:modelValue']);
-
-watch(
-    [() => props.modelValue.weights.loaded_weight_truck, () => props.modelValue.weights.empty_weight_truck],
-    ([loaded, empty]) => {
-        const l = Number(loaded || 0);
-        const e = Number(empty || 0);
-        if (l > 0) {
-            props.modelValue.financials.load_units = Number((l - e).toFixed(3));
-        }
-    }
-);
-
-watch(
-    [() => props.modelValue.weights.loaded_weight_unload, () => props.modelValue.weights.empty_weight_unload],
-    ([loaded, empty]) => {
-        const l = Number(loaded || 0);
-        const e = Number(empty || 0);
-        if (l > 0) {
-            props.modelValue.financials.unload_units = Number((l - e).toFixed(3));
-        }
-    }
-);
-
-watch(
-    () => props.modelValue.batch_size,
-    (val) => {
-        const v = Number(val || 0);
-        // If weights are not set, update load_units
-        if (!props.modelValue.weights.loaded_weight_truck) {
-            props.modelValue.financials.load_units = v;
-        }
-        props.modelValue.financials.unload_units = v;
-        props.modelValue.financials.transport_units = v;
-    }
-);
-
-watch(
-    () => props.modelValue.financials.load_rate,
-    (val) => {
-        const v = Number(val || 0);
-        props.modelValue.financials.unload_rate = v;
-        props.modelValue.financials.transport_rate = v;
-    }
-);
 
 const statusOptions = [
     { label: 'Draft', value: 'Draft' },
-    // { label: 'Pending', value: 'Pending' },
-    // { label: 'Loading', value: 'Loading' },
-    // { label: 'In Transit', value: 'In Transit' },
     { label: 'Delivered', value: 'Delivered' },
-    // { label: 'Completed', value: 'Completed' },
     { label: 'Cancelled', value: 'Cancelled' }
 ];
 
-// Helper for subtotal calculations
-const calculateSubtotal = (units: number, rate: number) => {
-    return (Number(units || 0) * Number(rate || 0)).toFixed(2);
-};
+import { watch } from 'vue';
+
+watch(() => props.modelValue.payment_mode, (newMode) => {
+    if (newMode === 'cash') {
+        if (!props.modelValue.payment.payment_method_id) {
+            const cashMethod = props.payment_methods.find(m => 
+                m.name.toLowerCase().includes('cash')
+            );
+            if (cashMethod) {
+                props.modelValue.payment.payment_method_id = cashMethod.id;
+            }
+        }
+    } else {
+        props.modelValue.payment.amount = 0;
+        props.modelValue.payment.payment_method_id = null;
+    }
+});
 </script>
 
 <template>
-    <div class="space-y-1">
-        <!-- 1. Header & Status -->
-        <!-- <div class="flex items-center justify-between border-b border-slate-100 pb-4">
-            <div class="flex items-center gap-3">
-                <div class="p-2 bg-orange-50 rounded-lg">
-                    <ShieldCheckIcon class="h-6 w-6 text-orange-500" />
-                </div>
+    <div class="space-y-4">
+        <!-- 1. Dispatch & Quantity Section -->
+        <div class="px-5 py-2 space-y-2">
+            <div class="flex items-center gap-2 border-b border-slate-50 pb-1">
+                <ScaleIcon class="h-5 w-5 text-indigo-500" />
                 <div>
-                    <h3 class="text-sm font-black text-slate-700 uppercase tracking-tight">Workflow & Status</h3>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dispatch Lifecycle Management</p>
+                    <h4 class="text-[11px] font-black uppercase tracking-widest text-indigo-800">Quantity & Rates</h4>
+                    <!-- <p class="text-[9px] font-bold text-slate-400 uppercase">Core Dispatch Details</p> -->
                 </div>
             </div>
-            <div class="flex items-center gap-4">
-                <div class="w-48">
-                    <BaseSelect v-model="modelValue.status.dispatch_status" :options="statusOptions" optionLabel="label" optionValue="value" placeholder="Select Status" />
-                </div>
-                <div class="flex items-center gap-3 h-10 px-4 rounded-lg bg-slate-50 border border-slate-200">
-                    <input type="checkbox" v-model="modelValue.status.is_closed" id="is_closed_check" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
-                    <label for="is_closed_check" class="text-[10px] font-black text-slate-600 uppercase">Closed</label>
-                </div>
-            </div>
-        </div> -->
-
-        <!-- 2. Dual Column Reconciliation -->
-        <div class="grid grid-cols-12 gap-2">
-            <!-- Source / Loading Side -->
-            <div class="col-span-12 space-y-2">
-                <div class="flex items-center gap-2 ">
-                    <ScaleIcon class="h-4 w-4 text-indigo-500" />
-                    <h4 class="text-[11px] font-black uppercase tracking-widest text-slate-500">Source: Loading Reconciliation</h4>
-                </div>
+            
+            <div class="grid grid-cols-4 gap-4">
+                <!-- <BaseDatePicker v-model="modelValue.dispatch_time" label="Dispatch Time" showTime fluid :error="errors.dispatch_time" /> -->
+                <!-- <BaseInputNumber v-model="modelValue.delivered_qty" label="Delivered Qty" :minFractionDigits="3" :error="errors.delivered_qty" /> -->
+                <!-- <BaseSelect v-model="modelValue.dispatch_status" :options="statusOptions" optionLabel="label" optionValue="value" label="Status" /> -->
+            <!-- </div>
+            <div class="grid grid-cols-4 gap-4"> -->
+                <BaseInputNumber v-model="modelValue.financials.load_rate" label="Load Rate" :minFractionDigits="2" :error="errors['financials.load_rate']" />
+                <BaseSelect v-model="modelValue.financials.load_tax_id" :options="taxes" optionLabel="tax_name" optionValue="id" label="Tax Group" filter showClear />
                 
-                <div class="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-                    <!-- Weight Section -->
-                    <div class="p-4 bg-slate-50/50 border-b border-slate-100">
-                        <div class="grid grid-cols-3 gap-4 mb-4">
-                            <BaseInputNumber v-model="modelValue.weights.empty_weight_truck" label="Empty Truck " :disabled="true" :error="errors['weights.empty_weight_truck']" />
-                            <BaseInputNumber v-model="modelValue.weights.loaded_weight_truck" label="Loaded Truck " :disabled="true" :error="errors['weights.loaded_weight_truck']" />
-                            <BaseInputNumber v-model="modelValue.financials.load_units" label="Net Quantity" :disabled="true" />
-                            <BaseSelect v-model="modelValue.financials.load_uom_id" :options="uoms" optionLabel="unit_code" optionValue="id" label="Unit of Measure" filter />
-                            
-                            <BaseInputNumber v-model="modelValue.financials.load_rate" label="Load Rate" :minFractionDigits="2" />
-                            <BaseSelect v-model="modelValue.financials.load_tax_id" :options="taxes" optionLabel="tax_name" optionValue="id" label="Tax Group" filter showClear />
-                            
-                            <BaseInputNumber v-model="modelValue.batch_size" :disabled="true" label="Batch Quantity (m³)" :minFractionDigits="2" :error="errors.batch_size" />
-                            
-                            <!-- <BaseSelect v-model="modelValue.load_site_id" :options="loading_sites" optionLabel="name" optionValue="id" filter label="Loading Site" /> -->
-                            <BaseDatePicker v-model="modelValue.weights.empty_weight_time_load" label="Empty Time" showTime fluid />
-                            <BaseDatePicker v-model="modelValue.weights.loaded_weight_time_load" label="Loaded Time" showTime fluid />
-                        </div>
-                        <!-- <div class="mt-4 flex items-center justify-between p-3 rounded-xl bg-indigo-50/50 border border-indigo-100">
-                            <span class="text-[10px] font-black uppercase text-indigo-400">Load Subtotal</span>
-                            <span class="text-lg font-black text-indigo-700">₹ {{ calculateSubtotal(modelValue.financials.load_units, modelValue.financials.load_rate) }}</span>
-                        </div> -->
+                <BaseSelect v-model="modelValue.payment_mode" :options="[{label: 'Cash', value: 'cash'}, {label: 'Credit', value: 'credit'}]" optionLabel="label" optionValue="value" label="Payment Mode" />
+                
+                <!-- <div class="flex gap-2">
+                    <BaseInput v-model="modelValue.prefix" label="Prefix" class="w-1/3" disabled />
+                    <BaseInput v-model="modelValue.dispatch_no" label="Number" class="w-2/3" :error="errors.dispatch_no" />
+                </div> -->
+                <BaseInput v-model="modelValue.dispatch_reference" label="Site Ref" />
+
+                
+            </div>
+        </div>
+
+        <!-- 2. Logistics & Delivery Details -->
+        <div class="px-5 py-2 !mt-0 space-y-2">
+            <div class="flex items-center gap-2 border-b border-slate-50 pb-1">
+                <TruckIcon class="h-5 w-5 text-slate-400" />
+                <div>
+                    <h4 class="text-[11px] font-black uppercase tracking-widest text-indigo-800">Logistics & Delivery</h4>
+                    <!-- <p class="text-[9px] font-bold text-slate-400 uppercase">Tracking & Contact Info</p> -->
+                </div>
+            </div>
+            <div class="grid grid-cols-4 gap-4">
+                <BaseSelect v-model="modelValue.truck_id" :options="trucks" optionLabel="registration" optionValue="id" label="Truck" filter showClear :error="errors.truck_id" />
+                <BaseSelect v-model="modelValue.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" label="Transporter" filter showClear :error="errors.transport_id" />
+                <BaseSelect v-model="modelValue.driver_id" :options="personnel" optionLabel="label" optionValue="id" label="Driver" filter showClear :error="errors.driver_id" />
+                <BaseSelect v-model="modelValue.unload_site_id" :options="unloading_sites" optionLabel="name" optionValue="id" label="Delivery Site" filter showClear :error="errors.unload_site_id" />
+            </div>
+            <div class="grid grid-cols-4 gap-4">
+                <BaseInput v-model="modelValue.status.invoice_number" label="Invoice #" :disabled="true" v-if="modelValue.status.dispatch_status"/>
+                <BaseDatePicker v-model="modelValue.status.invoice_date" label="Invoice Date" fluid :disabled="true" v-if="modelValue.status.dispatch_status"/>
+                <BaseInput v-model="modelValue.status.receiver_name" label="Receiver Name" />
+                <BaseInput v-model="modelValue.status.receive_mobile" label="Receiver Mobile" />
+            </div>
+            <div class="grid grid-cols-4 gap-4">
+                <!-- <BaseInputNumber v-model="modelValue.status.transport_km" label="Distance (KM)" :minFractionDigits="2" /> -->
+                <!-- <BaseInput v-model="modelValue.status.transport_invoice_number" label="Trans. Ref" /> -->
+                <!-- <BaseInput v-model="modelValue.status.note" label="Notes" class="col-span-2" /> -->
+            </div>
+        </div>
+
+        <!-- 3. Adjustments -->
+        <div class="px-5 py-2  !mt-0 space-y-2">
+            <div class="flex items-center gap-2 border-b border-slate-50 pb-1">
+                <BanknotesIcon class="h-5 w-5 text-slate-400" />
+                <div>
+                    <h4 class="text-[11px] font-black uppercase tracking-widest text-indigo-800">Financial Adjustments</h4>
+                    <!-- <p class="text-[9px] font-bold text-slate-400 uppercase">Discounts & Charges</p> -->
+                </div>
+            </div>
+            <div class="grid grid-cols-5 gap-4">
+                <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" />
+                <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" />
+                <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" />
+                <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" />
+                <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" />
+            </div>
+        </div>
+        <!-- 4. Payment Collection -->
+        <div v-show="modelValue.payment_mode === 'cash'" class="p-6 bg-emerald-50/30 border border-emerald-100 rounded-2xl space-y-4">
+            <div class="flex items-center gap-2 border-b border-emerald-100/50 pb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-emerald-500">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+                </svg>
+                <div>
+                    <h4 class="text-[11px] font-black uppercase tracking-widest text-emerald-600">Immediate Payment Collection</h4>
+                    <p class="text-[9px] font-bold text-emerald-400 uppercase">Real-time Settlement</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-4 gap-4">
+                <BaseSelect 
+                    v-model="modelValue.payment.payment_method_id" 
+                    label="Payment Method" 
+                    :options="payment_methods" 
+                    optionLabel="name" 
+                    optionValue="id" 
+                    placeholder="Select Method"
+                    filter
+                />
+                <BaseInputNumber v-model="modelValue.payment.amount" label="Amount" :minFractionDigits="2" />
+                <!-- <BaseInput v-model="modelValue.payment.collected_by" label="Collected By" placeholder="Name of collector" /> -->
+                <!-- <BaseInput v-model="modelValue.payment.reference" label="Reference / Trx ID" placeholder="Ref number" /> -->
+            </div>
+        </div>
+
+        <!-- <div class="flex items-center gap-3 pt-4">
+            <button 
+                type="button" 
+                @click="modelValue.generate_invoice = !modelValue.generate_invoice"
+                :class="[modelValue.generate_invoice ? 'bg-indigo-600' : 'bg-slate-200']"
+                class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
+            >
+                <span :class="[modelValue.generate_invoice ? 'translate-x-4' : 'translate-x-0']" class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"></span>
+            </button>
+            <label class="text-[11px] font-black uppercase tracking-widest text-slate-600 cursor-pointer select-none" @click="modelValue.generate_invoice = !modelValue.generate_invoice">
+                Generate Invoice
+            </label>
+        </div> -->
+            
+
+        <!-- 4. Invoice & Billing (Conditional) -->
+        <div v-if="modelValue.status.invoice_status != 1" class="px-5 py-4 bg-indigo-50/20 border border-indigo-100/50 rounded-2xl !mt-2 space-y-4">
+            <div class="flex items-center gap-2 border-b border-indigo-100/30 pb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-indigo-500">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                </svg>
+                <div>
+                    <h4 class="text-[11px] font-black uppercase tracking-widest text-indigo-700">Invoice Generation</h4>
+                    <p class="text-[9px] font-bold text-indigo-400 uppercase">Automated Billing Details</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-3 gap-4">
+                <BaseSelect v-model="modelValue.ledger_id" :options="sales_ledgers" optionLabel="label" optionValue="value" label="Sales Ledger" filter placeholder="Select Sales Account" />
+                <BaseDatePicker v-model="modelValue.invoice_date" label="Invoice Date" />
+                <BaseSelect v-model="modelValue.dispatch_status" :options="statusOptions" optionLabel="label" optionValue="value" label="Dispatch Status" />
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button 
+                    type="button"
+                    @click="$emit('generateInvoice')"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm text-white text-[11px] font-black uppercase tracking-widest rounded-xl"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                    Confirm & Generate Invoice
+                </button>
+            </div>
+        </div>
+
+        <!-- 5. Generated Invoice Information -->
+        <div v-else class="px-5 py-4 bg-emerald-50/20 border border-emerald-100/50 rounded-2xl !mt-2 space-y-4">
+            <div class="flex items-center justify-between border-b border-emerald-100/30 pb-3">
+                <div class="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-emerald-500">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <h4 class="text-[11px] font-black uppercase tracking-widest text-emerald-700">Invoice Linked</h4>
+                        <p class="text-[9px] font-bold text-emerald-800 uppercase">Billing Processed Successfully</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Invoice Details</p>
+                        <p class="text-xs font-black text-slate-700">{{ modelValue.status.invoice_number }}</p>
+                        <p class="text-[9px] font-bold text-slate-400">{{ new Date(modelValue.status.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-') }}</p>
+                    </div>
+                    <div class="h-8 w-px bg-slate-200"></div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Generated On</p>
+                        <p class="text-xs font-black text-slate-700">{{ modelValue.status.invoice?.created_at ? new Date(modelValue.status.invoice.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : '---' }}</p>
+                        <p class="text-[9px] font-bold text-slate-400 uppercase">{{ modelValue.status.invoice?.created_at ? new Date(modelValue.status.invoice.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-') : '' }}</p>
+                    </div>
+                    <div class="h-8 w-px bg-slate-200"></div>
+                    <div class="text-right">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Generated By</p>
+                        <p class="text-xs font-black text-indigo-600 uppercase">{{ modelValue.status.invoice.created_by.email || 'System' }}</p>
                     </div>
                 </div>
             </div>
-</div>
 
-        
-
-        <!-- 3. Logistics & Billing Details -->
-        <div class="grid grid-cols-8 gap-8 p-4 border-t border-slate-100">
-            <div class="col-span-8 md:col-span-8 space-y-4">
-                <div class="flex items-center gap-2">
-                    <TruckIcon class="h-4 w-4 text-slate-400" />
-                    <h4 class="text-[11px] font-black uppercase tracking-widest text-slate-500">Logistics Data</h4>
-                </div>
-                <div class="grid grid-cols-3 gap-4">
-                    <BaseInput v-model="modelValue.financials.invoice_number" label="Sales Invoice #" />
-                    <BaseDatePicker v-model="modelValue.financials.invoice_date" label="Invoice Date" showTime fluid />
-                    <!-- <BaseInput v-model="modelValue.status.invoice_date" label="Invoice Date" type="date" /> -->
-                </div>
-                <!-- <div class="grid grid-cols-2 gap-4"> -->
-                    <!-- <BaseInput v-model="modelValue.status.transport_invoice_number" label="Transport Bill #" /> -->
-                    <!-- <BaseInput v-model="modelValue.status.transport_date" label="Bill Date" type="date" /> -->
-                <!-- </div> -->
-                <!-- <BaseInput v-model="modelValue.status.transport_km" label="Total Distance (KM)" type="number" step="0.01" /> -->
-            </div>
-</div>
-<div class="grid grid-cols-8 gap-1 p-4">
-            <div class="col-span-12 md:col-span-8 space-y-4">
-                <div class="flex items-center gap-2">
-                    <BanknotesIcon class="h-4 w-4 text-slate-400" />
-                    <h4 class="text-[11px] font-black uppercase tracking-widest text-slate-500">Adjustments & Reconciliation</h4>
-                </div>
-                <div class="grid grid-cols-4 gap-4">
-                    <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" />
-                    <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" />
-                <!-- </div>
-                <div class="grid grid-cols-2 gap-4"> -->
-                    <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Padi" :minFractionDigits="2" />
-                    <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" />
-                <!-- </div>
-                <div class="grid grid-cols-2 gap-4"> -->
-                    <!-- <BaseInputNumber v-model="modelValue.weights.round_off" label="Tolerance" :minFractionDigits="2" /> -->
-                    <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" />
-                </div>
+            <div class="flex justify-end gap-3">
+                <!-- <a 
+                    :href="route('invoices.show', modelValue.status.invoice_id)" 
+                    target="_blank"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
+                >
+                    View Invoice
+                </a> -->
+                <a 
+                    v-if="modelValue.status.invoice?.encrypted_id"
+                    :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'view' })" 
+                    target="_blank"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.89l-4.72-4.72m0 0l-1.5-1.5M22.5 12l-1.5 1.5-6.72 6.72-4.72-4.72" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-9h.75m-.75 3h.75m-.75 3h.75m3-9h.75m-.75 3h.75m-.75 3h.75" />
+                    </svg>
+                    Print Invoice
+                </a>
+                <button 
+                    type="button"
+                    @click="$emit('deleteInvoice')"
+                    class="inline-flex items-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-100 transition-colors shadow-sm"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                    Delete Invoice
+                </button>
             </div>
         </div>
     </div>
 </template>
-
