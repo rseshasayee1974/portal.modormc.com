@@ -96,7 +96,7 @@ const removeItem = (index: number) => {
         form.items.splice(index, 1);
         calculateTotals();
     } else {
-        toast.add({ severity: 'warn', summary: 'Warning', detail: 'At least one item is required', life: 3000 });
+        toast.add({ severity: 'warn', summary: 'Warning', detail: 'At least one item is required', life: 1500 });
     }
 };
 
@@ -158,7 +158,7 @@ const submit = () => {
     form.post(route('invoices.store'), {
         onSuccess: () => {
             form.reset();
-            toast.add({ severity: 'success', summary: 'Success', detail: 'Invoice processed successfully', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Invoice processed successfully', life: 1500 });
         },
     });
 };
@@ -179,7 +179,7 @@ const handleCreatePartner = async (name: string) => {
         
         const newPatron = response.data.patron;
         
-        toast.add({ severity: 'success', summary: 'Partner Created', detail: `${name} is now available`, life: 3000 });
+        toast.add({ severity: 'success', summary: 'Partner Created', detail: `${name} is now available`, life: 1500 });
 
         router.reload({
             only: ['patrons'],
@@ -188,7 +188,7 @@ const handleCreatePartner = async (name: string) => {
             }
         });
     } catch (error: any) {
-        toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Failed to create partner', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Failed to create partner', life: 1500 });
     } finally {
         isCreatingPartner.value = false;
     }

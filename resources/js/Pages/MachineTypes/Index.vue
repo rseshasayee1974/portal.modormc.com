@@ -55,14 +55,14 @@ const submitForm = () => {
         form.put(route('machinetypes.update', editingId.value), {
             onSuccess: () => {
                 cancelEdit();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Classification updated', showConfirmButton: false, timer: 3000 });
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Classification updated', showConfirmButton: false, timer: 1500 });
             }
         });
     } else {
         form.post(route('machinetypes.store'), {
             onSuccess: () => {
                 form.reset();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Classification created', showConfirmButton: false, timer: 3000 });
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Classification created', showConfirmButton: false, timer: 1500 });
             }
         });
     }
@@ -83,7 +83,7 @@ const deleteType = (id: number) => {
             form.delete(route('machinetypes.destroy', id), {
                 onSuccess: () => {
                     if (editingId.value === id) cancelEdit();
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted successfully', showConfirmButton: false, timer: 3000 });
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted successfully', showConfirmButton: false, timer: 1500 });
                 }
             });
         }
@@ -91,7 +91,7 @@ const deleteType = (id: number) => {
 };
 
 watch(() => page.props.flash, (flash: any) => {
-    if (flash?.success) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: flash.success, showConfirmButton: false, timer: 3000 });
+    if (flash?.success) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: flash.success, showConfirmButton: false, timer: 1500 });
 }, { immediate: true, deep: true });
 </script>
 

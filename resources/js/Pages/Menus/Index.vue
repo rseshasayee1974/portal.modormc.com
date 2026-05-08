@@ -16,7 +16,8 @@ import {
     ShieldCheckIcon,
     CheckCircleIcon,
     XCircleIcon,
-    Squares2X2Icon
+    Squares2X2Icon,
+    MagnifyingGlassIcon
 } from '@heroicons/vue/24/outline';
 
 // PrimeVue
@@ -54,6 +55,7 @@ const props = defineProps<{
 
 const page = usePage();
 const editingId = ref<number | null>(null);
+const searchQuery = ref('');
 
 const form = useForm({
     title: '',
@@ -120,7 +122,7 @@ const deleteMenu = (id: number) => {
         if (result.isConfirmed) {
             form.delete(route('menus.destroy', id), {
                 onSuccess: () => {
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Menu item deleted', showConfirmButton: false, timer: 3000 });
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Menu item deleted', showConfirmButton: false, timer: 1500 });
                 }
             });
         }
@@ -139,6 +141,16 @@ const flatMenus = computed(() => {
         });
     };
     traverse(props.menus);
+
+    if (searchQuery.value) {
+        const query = searchQuery.value.toLowerCase();
+        return list.filter(item => 
+            item.title.toLowerCase().includes(query) || 
+            item.link.toLowerCase().includes(query) ||
+            (item.permission_name && item.permission_name.toLowerCase().includes(query))
+        );
+    }
+
     return list;
 });
 
@@ -151,7 +163,7 @@ watch(
                 toast: true,
                 position: 'top-end',
                 showConfirmButton: false,
-                timer: 3000,
+                timer: 1500,
                 icon: 'success',
                 title: flash.success
             });
@@ -185,6 +197,13 @@ watch(
                                         <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Internal Title *</label>
                                         <BaseInput v-model="form.title" placeholder="e.g. Machine Fleet" fluid />
                                         <small v-if="form.errors.title" class="p-error">{{ form.errors.title }}</small>
+                                    </div>
+
+                                    <div class="flex flex-col gap-1.5">
+                                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Alias (Slug)</label>
+                                        <BaseInput v-model="form.alias" placeholder="e.g. machine-fleet" fluid />
+                                        <small class="text-[9px] text-gray-400 px-1">Leave blank to auto-generate from title.</small>
+                                        <small v-if="form.errors.alias" class="p-error">{{ form.errors.alias }}</small>
                                     </div>
 
                                     <div class="flex flex-col gap-1.5">
@@ -244,7 +263,7 @@ watch(
                     <!-- Table Column -->
                     <div class="col-span-24 lg:col-span-16">
                         <div class="bg-white dark:bg-slate-900 shadow-xl rounded-[2rem] p-8 border border-slate-100 dark:border-slate-800">
-                            <div class="flex justify-between items-center mb-8">
+                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                                 <div class="flex items-center gap-3">
                                     <div class="p-3 bg-indigo-50 dark:bg-indigo-900/10 text-indigo-600 rounded-2xl">
                                         <Bars3Icon class="w-6 h-6 stroke-[2.5px]" />
@@ -256,9 +275,20 @@ watch(
                                         <Tag severity="info" rounded class="text-[9px] font-black uppercase px-3 tracking-widest">Active Tree</Tag>
                                     </div>
                                 </div>
-                                <div class="hidden md:flex gap-2 text-[10px] font-black text-gray-400 items-center uppercase tracking-widest">
-                                    <Squares2X2Icon class="w-4 h-4"/>
-                                    Hierarchy Visualizer
+                                <div class="flex items-center gap-4 w-full md:w-auto">
+                                    <div class="relative w-full md:w-64">
+                                        <BaseInput 
+                                            v-model="searchQuery" 
+                                            placeholder="Search menus..." 
+                                            class="pl-10 !rounded-2xl !bg-slate-50 dark:!bg-slate-800/50 !border-none focus:!ring-2 focus:!ring-indigo-500/20"
+                                            fluid
+                                        />
+                                        <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    </div>
+                                    <div class="hidden md:flex gap-2 text-[10px] font-black text-gray-400 items-center uppercase tracking-widest">
+                                        <Squares2X2Icon class="w-4 h-4"/>
+                                        Hierarchy Visualizer
+                                    </div>
                                 </div>
                             </div>
                             
@@ -274,6 +304,11 @@ watch(
                                                 {{ slotProps.data.title }}
                                             </span>
                                         </div>
+                                    </template>
+                                </Column>
+                                <Column header="Alias">
+                                    <template #body="slotProps">
+                                        <span class="text-[10px] text-slate-400 font-mono">{{ slotProps.data.alias }}</span>
                                     </template>
                                 </Column>
                                 <Column header="Type">

@@ -6,11 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use App\Traits\ProtectsSystemItems;
 
 class ProductCategory extends Model
 {
     /** @use HasFactory<\Database\Factories\ProductCategoryFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, ProtectsSystemItems;
 
     protected $table = 'mm_product_categories';
 
@@ -52,10 +53,12 @@ class ProductCategory extends Model
         'code',       // auto-generated on create — do NOT send from frontend
         'description',
         'sort_order',
+        'is_system',
         'status',
     ];
 
     protected $casts = [
+        'is_system' => 'boolean',
         'status' => 'boolean',
     ];
 

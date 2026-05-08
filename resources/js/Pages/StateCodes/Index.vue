@@ -109,7 +109,7 @@ const submitCreate = async () => {
             state_name: createForm.value.state_name,
         });
         store.addStateCode(response.data.stateCode);
-        toast.add({ severity: 'success', summary: 'Created', detail: 'State code created successfully.', life: 3000 });
+        toast.add({ severity: 'success', summary: 'Created', detail: 'State code created successfully.', life: 1500 });
         createOpen.value = false;
         resetCreateForm();
     } catch (error: any) {
@@ -118,7 +118,7 @@ const submitCreate = async () => {
         createForm.value.errors.state_code = errs.state_code?.[0] || '';
         createForm.value.errors.state_name = errs.state_name?.[0] || '';
         if (!Object.keys(errs).length) {
-            toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to create state code.', life: 3000 });
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to create state code.', life: 1500 });
         }
     } finally {
         createForm.value.processing = false;
@@ -150,7 +150,7 @@ const submitEdit = async () => {
             state_name: editForm.value.state_name,
         });
         store.updateStateCode(response.data.stateCode);
-        toast.add({ severity: 'success', summary: 'Updated', detail: 'State code updated successfully.', life: 3000 });
+        toast.add({ severity: 'success', summary: 'Updated', detail: 'State code updated successfully.', life: 1500 });
         resetEditForm();
     } catch (error: any) {
         const errs = error?.response?.data?.errors || {};
@@ -158,7 +158,7 @@ const submitEdit = async () => {
         editForm.value.errors.state_code = errs.state_code?.[0] || '';
         editForm.value.errors.state_name = errs.state_name?.[0] || '';
         if (!Object.keys(errs).length) {
-            toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to update state code.', life: 3000 });
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to update state code.', life: 1500 });
         }
     } finally {
         editForm.value.processing = false;
@@ -181,9 +181,9 @@ const deleteStateCode = (row: StateCode) => {
             if (editingId.value === row.id) {
                 resetEditForm();
             }
-            toast.add({ severity: 'warn', summary: 'Deleted', detail: 'State code removed.', life: 3000 });
+            toast.add({ severity: 'warn', summary: 'Deleted', detail: 'State code removed.', life: 1500 });
         } catch {
-            toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete state code.', life: 3000 });
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete state code.', life: 1500 });
         }
     });
 };

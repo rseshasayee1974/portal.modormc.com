@@ -166,6 +166,7 @@ const onRowClick = (event: any) => {
                 <template #body="slotProps">
                     <div class="flex justify-end gap-1">
                         <Button 
+                            v-if="!slotProps.data.is_in_use"
                             icon="pi pi-trash" 
                             text 
                             rounded 
@@ -173,6 +174,13 @@ const onRowClick = (event: any) => {
                             severity="danger" 
                             class="!hover:bg-red-50"
                             @click.stop="$emit('delete', slotProps.data.id)" 
+                        />
+                        <Tag 
+                            v-else
+                            value="In Use" 
+                            severity="secondary"
+                            class="!text-[8px] !font-black !uppercase !tracking-widest !rounded-md"
+                            title="This site cannot be deleted because it is linked to other records."
                         />
                     </div>
                 </template>

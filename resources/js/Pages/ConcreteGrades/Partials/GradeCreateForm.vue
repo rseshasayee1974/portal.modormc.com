@@ -148,7 +148,7 @@ const submit = () => {
         onSuccess: () => {
             toggle();
             form.reset();
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Grade established successfully', timer: 1000, showConfirmButton: true });
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Grade established successfully', timer: 1500, showConfirmButton: true });
         },
     });
 };

@@ -108,6 +108,10 @@ class SiteController extends Controller
 
     public function destroy(Site $site)
     {
+        if ($site->is_in_use) {
+            return redirect()->back()->with('error', 'Site cannot be deleted because it is in use by other records (Work Orders, Quotations, or Dispatches).');
+        }
+
         $site->update(['deleted_by' => Auth::id()]);
         $site->delete();
         

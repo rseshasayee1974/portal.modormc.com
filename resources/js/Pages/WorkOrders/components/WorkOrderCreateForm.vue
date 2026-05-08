@@ -86,7 +86,7 @@ const submit = () => {
                 position: 'top-end',
                 icon: 'success',
                 title: 'Work order created',
-                timer: 2200,
+                timer: 1500,
                 showConfirmButton: false,
             });
             form.reset();
@@ -104,7 +104,7 @@ const handleMixCreated = () => {
         position: 'top-end',
         icon: 'success',
         title: 'New Design available in dropdown',
-        timer: 3000,
+        timer: 1500,
         showConfirmButton: false,
     });
 };

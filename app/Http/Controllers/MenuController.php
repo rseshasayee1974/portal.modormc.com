@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 
+use Illuminate\Support\Str;
+
 class MenuController extends Controller
 {
     use AuthorizesModule;
@@ -52,6 +54,10 @@ class MenuController extends Controller
             'permission_name' => 'nullable|string|max:100',
         ]);
 
+        if (empty($validated['alias'])) {
+            $validated['alias'] = Str::slug($validated['title']);
+        }
+
         Menu::create($validated);
 
         return redirect()->back()->with('success', 'Menu item added successfully.');
@@ -72,6 +78,10 @@ class MenuController extends Controller
             'published' => 'required|boolean',
             'permission_name' => 'nullable|string|max:100',
         ]);
+
+        if (empty($validated['alias'])) {
+            $validated['alias'] = Str::slug($validated['title']);
+        }
 
         $menu->update($validated);
 

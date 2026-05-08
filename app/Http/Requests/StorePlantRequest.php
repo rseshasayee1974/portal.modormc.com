@@ -25,6 +25,8 @@ class StorePlantRequest extends FormRequest
             'entity_id' => ['required', 'exists:mm_entities,id'],
             'code' => ['required', 'string', 'max:255', 'unique:mm_plants,code'],
             'name' => ['required', 'string', 'max:255'],
+            'email_address' => ['required', 'email:rfc,dns', 'max:255'],
+            'mobile_number' => ['nullable', 'string', 'max:20'],
             'plant_type' => ['nullable', 'string', 'max:255'],
             'gstin' => ['nullable', 'string', 'max:255'],
             'latitude' => ['nullable', 'string', 'max:255'],

@@ -121,7 +121,7 @@ const populateEditForm = async (entity: Entity) => {
         editForm.value.bank_accounts = full.bankAccounts || full.bank_accounts || [];
         editForm.value.taxes = full.taxes || [];
     } catch {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load entity details.', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load entity details.', life: 1500 });
     } finally {
         processing.value = false;
     }
@@ -169,10 +169,10 @@ const submitCreate = async () => {
         const res = await axios.post(route('entities.store'), payload);
         store.addEntity(res.data.entity);
         resetCreateForm();
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Entity created successfully.', life: 3000 });
+        toast.add({ severity: 'success', summary: 'Success', detail: 'Entity created successfully.', life: 1500 });
     } catch (e: any) {
         if (e.response?.data?.errors) createForm.value.errors = e.response.data.errors;
-        else toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to create entity.', life: 4000 });
+        else toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to create entity.', life: 1500 });
     } finally {
         createForm.value.processing = false;
     }
@@ -195,10 +195,10 @@ const submitEdit = async () => {
         const res = await axios.put(route('entities.update', editingId.value), payload);
         store.updateEntity(res.data.entity);
         resetEditForm();
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Entity updated successfully.', life: 3000 });
+        toast.add({ severity: 'success', summary: 'Success', detail: 'Entity updated successfully.', life: 1500 });
     } catch (e: any) {
         if (e.response?.data?.errors) editForm.value.errors = e.response.data.errors;
-        else toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to update entity.', life: 4000 });
+        else toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to update entity.', life: 1500 });
     } finally {
         editForm.value.processing = false;
     }
@@ -220,9 +220,9 @@ const deleteEntity = (id: number) => {
                 await axios.delete(route('entities.destroy', id));
                 store.removeEntity(id);
                 if (editingId.value === id) resetEditForm();
-                toast.add({ severity: 'info', summary: 'Deleted', detail: 'Entity removed.', life: 3000 });
+                toast.add({ severity: 'info', summary: 'Deleted', detail: 'Entity removed.', life: 1500 });
             } catch {
-                toast.add({ severity: 'error', summary: 'Error', detail: 'Delete failed.', life: 3000 });
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Delete failed.', life: 1500 });
             }
         }
     });
@@ -234,7 +234,7 @@ const switchToEntity = async (id: number) => {
         await axios.post('/context/selectentity', { entity_id: id });
         window.location.reload();
     } catch {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Context switch failed.', life: 3000 });
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Context switch failed.', life: 1500 });
     }
 };
 </script>

@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Traits\AuditFields;
+use App\Traits\ProtectsSystemItems;
 
 class Product extends Model
 {
     /** @use HasFactory<\Database\Factories\ProductFactory> */
-    use HasFactory, SoftDeletes, AuditFields;
+    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems;
 
     protected $table = 'mm_products';
 
@@ -82,7 +83,7 @@ class Product extends Model
     public function scopeForPlant($query, $plantId, int $entityId = null)
     {
         $query = is_array($plantId)
-            ? $query->whereIn('plant_id', $plantId)
+            ? $query->where('plant_id', $plantId)
             : $query->where('plant_id', $plantId);
 
         if ($entityId !== null) {
@@ -113,7 +114,7 @@ class Product extends Model
     public function scopeOfCategory($query, $categoryId)
     {
         return is_array($categoryId)
-            ? $query->whereIn('category_id', $categoryId)
+            ? $query->where('category_id', $categoryId)
             : $query->where('category_id', $categoryId);
     }
 
@@ -149,6 +150,7 @@ class Product extends Model
         'tax_mode',
         'is_returnable',
         'stock_alert',
+        'is_system',
         'status',
         'created_by',
         'updated_by',
@@ -158,6 +160,7 @@ class Product extends Model
     protected $casts = [
         'is_service' => 'boolean',
         'is_returnable' => 'boolean',
+        'is_system' => 'boolean',
         'status' => 'boolean',
         'tax_mode' => 'boolean',
         'purchase_price' => 'decimal:2',

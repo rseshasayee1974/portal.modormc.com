@@ -137,7 +137,7 @@ const submit = () => {
     form.put(route('concretegrades.update', props.grade.id), {
         onSuccess: () => {
             emit('saved');
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Changes sealed', timer: 2000, showConfirmButton: false });
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Changes sealed', timer: 1500, showConfirmButton: false });
         },
     });
 };

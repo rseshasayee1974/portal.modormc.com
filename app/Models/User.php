@@ -113,6 +113,8 @@ class User extends Authenticatable implements MustVerifyEmail
 		'lockout_until',
 		'otp_secret',
 		'profile_photo_path',
+		'default_entity_id',
+		'default_plant_id',
 		'created_by',
 		'updated_by',
 		'deleted_by'
@@ -121,6 +123,16 @@ class User extends Authenticatable implements MustVerifyEmail
 	public function entityUsers()
 	{
 		return $this->hasMany(EntityUser::class, 'user_id');
+	}
+
+	public function defaultEntity()
+	{
+		return $this->belongsTo(Entity::class, 'default_entity_id');
+	}
+
+	public function defaultPlant()
+	{
+		return $this->belongsTo(Plant::class, 'default_plant_id');
 	}
 
 	public static function saveWithRelations(array $data)

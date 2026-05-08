@@ -141,14 +141,14 @@ const submit = async () => {
 
     try {
         await axios.post(route('users.update', props.user.id), fd);
-        toast.add({ severity: 'success', summary: 'Updated', detail: 'User updated successfully', life: 3000 });
+        toast.add({ severity: 'success', summary: 'Updated', detail: 'User updated successfully', life: 1500 });
         emit('updated');
     } catch (err: any) {
         if (err.response?.status === 422) {
             form.value.errors = err.response.data.errors;
-            toast.add({ severity: 'error', summary: 'Validation Error', detail: 'Please check the form for errors', life: 3000 });
+            toast.add({ severity: 'error', summary: 'Validation Error', detail: 'Please check the form for errors', life: 1500 });
         } else {
-            toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to update user', life: 3000 });
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to update user', life: 1500 });
         }
     } finally {
         form.value.processing = false;

@@ -32,6 +32,8 @@ const blankForm = () => ({
     entity_id: props.entities?.[0]?.id ?? null,
     code: '',
     name: '',
+    email_address: '',
+    mobile_number: '',
     plant_type: '',
     gstin: '',
     latitude: '',
@@ -72,6 +74,8 @@ const populatePlantForm = (form: any, plant: any) => {
     form.entity_id = plant.entity_id;
     form.code = plant.code;
     form.name = plant.name;
+    form.email_address = plant.email_address || '';
+    form.mobile_number = plant.mobile_number || '';
     form.plant_type = plant.plant_type || '';
     form.gstin = plant.gstin || '';
     form.latitude = plant.latitude || '';
@@ -130,7 +134,7 @@ const submitCreate = () => {
         preserveScroll: true,
         onSuccess: () => {
             resetCreateForm();
-            toast.add({ severity: 'success', summary: 'Success', detail: 'Plant created successfully', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Plant created successfully', life: 1500 });
         }
     });
 };
@@ -142,7 +146,7 @@ const submitEdit = () => {
         preserveScroll: true,
         onSuccess: () => {
             resetEditForm();
-            toast.add({ severity: 'success', summary: 'Success', detail: 'Plant updated successfully', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Plant updated successfully', life: 1500 });
         }
     });
 };
@@ -162,7 +166,28 @@ const deletePlant = (id: number) => {
                 preserveScroll: true,
                 onSuccess: () => {
                     if (editingId.value === id) resetEditForm();
-                    toast.add({ severity: 'info', summary: 'Deleted', detail: 'Plant removed', life: 3000 });
+                    toast.add({ severity: 'info', summary: 'Deleted', detail: 'Plant removed', life: 1500 });
+                }
+            });
+        }
+    });
+};
+
+const initializePlant = (id: number) => {
+    Swal.fire({
+        title: 'Initialize Plant?',
+        text: 'This will set up default accounting, taxes, products, and other master data. Recommended for new plants.',
+        icon: 'info',
+        showCancelButton: true,
+        confirmButtonColor: '#6366f1',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Yes, initialize!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.post(route('plants.initialize', id), {}, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.add({ severity: 'success', summary: 'Initialized', detail: 'Plant default settings created', life: 1500 });
                 }
             });
         }
@@ -253,6 +278,7 @@ const handleSort = (event: any) => {
                         @page="handlePageChange"
                         @sort="handleSort"
                         @delete="deletePlant"
+                        @initialize="initializePlant"
                         @submit-edit="submitEdit"
                         @cancel-edit="resetEditForm"
                     />

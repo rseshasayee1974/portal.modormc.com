@@ -72,7 +72,7 @@ const submit = async () => {
         const response = await axios.put(route('ledgers.update', props.ledger.id), form.value);
         store.updateLedger(response.data.ledger);
         toast.removeAllGroups();
-        toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Ledger updated successfully' , life: 1000 });
+        toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Ledger updated successfully' , life: 1500 });
         emit('saved');
         close();
     } catch (error: any) {
@@ -80,7 +80,7 @@ const submit = async () => {
             form.value.errors = error.response.data.errors;
         } else {
             toast.removeAllGroups();
-            toast.add({ severity: 'error', summary: 'Error', detail: 'An unexpected error occurred.', life: 1000 });
+            toast.add({ severity: 'error', summary: 'Error', detail: 'An unexpected error occurred.', life: 1500 });
         }
     } finally {
         form.value.processing = false;

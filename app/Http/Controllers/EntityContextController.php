@@ -35,19 +35,72 @@ class EntityContextController extends Controller
             $entityAccess = EntityUser::with(['entity', 'role'])
                 ->where('user_id', $user->id)
                 ->get()
-                ->map(fn ($eu) => [
-                    'entity_id'    => $eu->entity_id,
-                    'entity_name'  => $eu->entity->legal_name ?? 'Unknown Entity',
-                    'entity_alias' => $eu->entity->alias ?? null,
-                    'entity_logo'  => $eu->entity->logo_file ?? null,
-                    'role_name'    => $eu->role->name ?? 'No Role',
-                    'is_active'    => $eu->entity_id === (int) session('active_entity_id'),
+                ->groupBy('entity_id')
+                ->map(fn ($group) => [
+                    'entity_id'    => $group->first()->entity_id,
+                    'entity_name'  => $group->first()->entity->legal_name ?? 'Unknown Entity',
+                    'entity_alias' => $group->first()->entity->alias ?? null,
+                    'entity_logo'  => $group->first()->entity->logo_file ?? null,
+                    'role_name'    => $group->first()->role->name ?? 'No Role',
+                    'is_active'    => $group->first()->entity_id === (int) session('active_entity_id'),
                 ])
                 ->values();
         }
 
+        // 1. Auto-redirect if user has defaults set (only if session is currently empty)
+        if (!session('active_entity_id') && $user->default_entity_id && $user->default_plant_id) {
+            session([
+                'active_entity_id' => $user->default_entity_id,
+                'active_plant_id'  => $user->default_plant_id
+            ]);
+            return redirect()->route('dashboard');
+        }
+
+        // 2. Auto-redirect if exactly one entity and one plant are available
+        // We do this even if the session is set, because if they only have ONE choice, 
+        // there is no point in showing the selection screen.
+        if ($entityAccess->count() === 1) {
+            $entityId = $entityAccess[0]['entity_id'];
+            
+            $plantsQuery = Plant::where('entity_id', $entityId)->where('is_active', true);
+            
+            if (!$isSuperAdmin) {
+                // For regular users, check their specific assignments
+                $assignments = EntityUser::where('user_id', $user->id)
+                    ->where('entity_id', $entityId)
+                    ->get(['plant_id']);
+                
+                $hasGlobalAccess = $assignments->contains(fn($a) => is_null($a->plant_id));
+                
+                if (!$hasGlobalAccess) {
+                    $plantsQuery->whereIn('id', $assignments->pluck('plant_id'));
+                }
+            }
+            
+            $plants = $plantsQuery->get();
+            
+            // If there's exactly one plant available for this single entity
+            if ($plants->count() === 1) {
+                $plantId = $plants->first()->id;
+                
+                // Only redirect if the current session doesn't match the only choice,
+                // or if we're just landing here for the first time.
+                if (session('active_entity_id') != $entityId || session('active_plant_id') != $plantId) {
+                    session([
+                        'active_entity_id' => $entityId,
+                        'active_plant_id'  => $plantId
+                    ]);
+                    return redirect()->route('dashboard');
+                }
+            }
+        }
+
         return Inertia::render('EntitySelect/Index', [
             'entityAccess' => $entityAccess,
+            'defaults'     => [
+                'entity_id' => $user->default_entity_id,
+                'plant_id'  => $user->default_plant_id,
+            ],
         ]);
     }
 
@@ -161,6 +214,14 @@ class EntityContextController extends Controller
         }
 
         session(['active_plant_id' => $plantId]);
+
+        // Save as default if requested
+        if ($request->boolean('set_as_default')) {
+            $user->update([
+                'default_entity_id' => $entityId,
+                'default_plant_id'  => $plantId,
+            ]);
+        }
 
         return response()->json([
             'status'   => 'plant_set',

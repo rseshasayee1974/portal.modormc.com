@@ -35,7 +35,7 @@ const submit = () => {
         onSuccess: () => {
             form.reset();
             isOpen.value = false;
-            toast.add({ severity: 'success', summary: 'Unit Created', detail: 'New measurement unit added', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Unit Created', detail: 'New measurement unit added', life: 1500 });
         },
     });
 };

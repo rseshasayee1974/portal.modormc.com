@@ -150,7 +150,7 @@ const destroy = (row: any) => {
                     icon: 'success',
                     title: 'Batch deleted successfully.',
                     showConfirmButton: false,
-                    timer: 2500,
+                    timer: 1500,
                 });
             }
         });

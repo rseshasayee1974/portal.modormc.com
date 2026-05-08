@@ -15,9 +15,17 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Services\PlantInitializationService;
 
 class PlantController extends Controller
 {
+    protected $initService;
+
+    public function __construct(PlantInitializationService $initService)
+    {
+        $this->initService = $initService;
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -164,5 +172,40 @@ class PlantController extends Controller
             ->get(['id as value', 'name as label']);
 
         return response()->json($plants);
+    }
+
+    /**
+     * Initialize default masters for a plant.
+     */
+    public function initialize(Plant $plant)
+    {
+        $user = Auth::user();
+
+        // Check permissions: saas-owner, platform-admin, or super-admin
+        if (!$user->hasRole('Saas Owner') && !$user->hasRole('Platform Admin')) {
+            return redirect()->back()->with('error', 'Unauthorized access.');
+        }
+
+        if ($plant->is_initialized) {
+            return redirect()->back()->with('error', 'Plant is already initialized.');
+        }
+
+        // Validate plant email before creating user
+        $validator = \Illuminate\Support\Facades\Validator::make(
+            ['email' => $plant->email_address],
+            ['email' => 'required|email:rfc,dns']
+        );
+
+        if ($validator->fails()) {
+            return redirect()->back()->with('error', 'Invalid plant email address: ' . ($plant->email_address ?: 'Not provided'));
+        }
+
+        $success = $this->initService->initialize($plant);
+
+        if ($success) {
+            return redirect()->back()->with('success', 'Plant initialized with default settings successfully.');
+        }
+
+        return redirect()->back()->with('error', 'Failed to initialize plant.');
     }
 }

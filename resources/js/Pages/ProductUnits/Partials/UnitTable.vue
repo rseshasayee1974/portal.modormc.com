@@ -75,7 +75,7 @@ const saveEdit = () => {
         onSuccess: () => {
             expandedRows.value  = {};
             editingUnitId.value = null;
-            toast.add({ severity: 'success', summary: 'Updated', detail: 'Unit saved successfully', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Updated', detail: 'Unit saved successfully', life: 1500 });
         },
     });
 };
@@ -96,7 +96,7 @@ const deleteUnit = (unit: ProductUnit) => {
         if (result.isConfirmed) {
             router.delete(route('productunits.destroy', unit.id), {
                 onSuccess: () =>
-                    toast.add({ severity: 'warn', summary: 'Deleted', detail: `${unit.unit_name} removed`, life: 3000 }),
+                    toast.add({ severity: 'warn', summary: 'Deleted', detail: `${unit.unit_name} removed`, life: 1500 }),
             });
         }
     });

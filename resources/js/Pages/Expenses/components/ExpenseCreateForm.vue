@@ -51,7 +51,7 @@ const submit = () => {
     form.post(route('expenses.store'), {
         onSuccess: () => {
             form.reset();
-            toast.add({ severity: 'success', summary: 'Recorded', detail: 'Expense synchronized successfully', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Recorded', detail: 'Expense synchronized successfully', life: 1500 });
         },
     });
 };

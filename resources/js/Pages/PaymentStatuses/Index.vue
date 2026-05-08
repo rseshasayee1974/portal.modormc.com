@@ -44,9 +44,9 @@ const deletePaymentStatus = (id: number) => {
             try {
                 await axios.delete(route('paymentstatuses.destroy', id));
                 store.removePaymentStatus(id);
-                toast.add({ severity: 'success', summary: 'Success', detail: 'Payment Status deleted', life: 3000 });
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Payment Status deleted', life: 1500 });
             } catch (error) {
-                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete', life: 3000 });
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete', life: 1500 });
             }
         }
     });
@@ -99,18 +99,18 @@ const submitModal = async () => {
         if (modalMode.value === 'create') {
             const response = await axios.post(route('paymentstatuses.store'), payload);
             store.addPaymentStatus(response.data.paymentStatus);
-            toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 3000 });
+            toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 1500 });
         } else {
             const response = await axios.put(route('paymentstatuses.update', editingId.value), payload);
             store.updatePaymentStatus(response.data.paymentStatus);
-            toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 3000 });
+            toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 1500 });
         }
         closeModal();
     } catch (error: any) {
         if (error.response?.data?.errors) {
             modalForm.value.errors = error.response.data.errors;
         } else {
-            toast.add({ severity: 'error', summary: 'Error', detail: 'An error occurred', life: 3000 });
+            toast.add({ severity: 'error', summary: 'Error', detail: 'An error occurred', life: 1500 });
         }
     } finally {
         modalForm.value.processing = false;

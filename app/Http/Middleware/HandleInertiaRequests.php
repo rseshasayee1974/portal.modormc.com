@@ -44,21 +44,27 @@ class HandleInertiaRequests extends Middleware
         $userEntities = [];
 
         if ($user) {
-            // Auto-seed the session with the first entity if not already set
-            if (!$activeEntityId) {
+            $isSuperAdmin = $user->hasRole('Super Administrator') || $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin');
+
+            // Auto-seed session for system admins if not already set
+            if ($isSuperAdmin && !session('active_entity_id')) {
                 $firstEntityUser = EntityUser::where('user_id', $user->id)->first();
                 if ($firstEntityUser) {
-                    $activeEntityId = $firstEntityUser->entity_id;
-                    session(['active_entity_id' => $activeEntityId]);
-
-                    // Also seed the first plant for this entity user
+                    session(['active_entity_id' => $firstEntityUser->entity_id]);
                     if ($firstEntityUser->plant_id && !session('active_plant_id')) {
                         session(['active_plant_id' => $firstEntityUser->plant_id]);
                     }
+                } else {
+                    // Fallback for admins with no specific EntityUser record
+                    $defaultPlant = Plant::first();
+                    if ($defaultPlant) {
+                        session(['active_entity_id' => $defaultPlant->entity_id]);
+                        session(['active_plant_id'  => $defaultPlant->id]);
+                    }
                 }
+                // Refresh local variable after seeding
+                $activeEntityId = session('active_entity_id');
             }
-
-            $isSuperAdmin = $user->hasRole('Super Administrator') || $user->hasRole('Saas Owner');
 
             if ($isSuperAdmin) {
                 // Super Admin sees every entity in the switcher dropdown

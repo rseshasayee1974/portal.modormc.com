@@ -102,7 +102,7 @@ const submitForm = () => {
             onSuccess: () => {
                 isModalVisible.value = false;
                 form.reset();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Rate updated successfully', showConfirmButton: false, timer: 3000 });
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Rate updated successfully', showConfirmButton: false, timer: 1500 });
             }
         });
     } else {
@@ -110,7 +110,7 @@ const submitForm = () => {
             onSuccess: () => {
                 isModalVisible.value = false;
                 form.reset();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Rate established successfully', showConfirmButton: false, timer: 3000 });
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Rate established successfully', showConfirmButton: false, timer: 1500 });
             }
         });
     }
@@ -134,7 +134,7 @@ const deleteRate = (id: number) => {
                         icon: 'success',
                         title: 'Rate deleted successfully',
                         showConfirmButton: false,
-                        timer: 3000
+                        timer: 1500
                     });
                 }
             });
@@ -143,7 +143,7 @@ const deleteRate = (id: number) => {
 };
 
 watch(() => page.props.flash, (flash: any) => {
-    if (flash?.success) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: flash.success, showConfirmButton: false, timer: 3000 });
+    if (flash?.success) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: flash.success, showConfirmButton: false, timer: 1500 });
 }, { immediate: true, deep: true });
 </script>
 

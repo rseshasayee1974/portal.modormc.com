@@ -93,7 +93,7 @@ const handleGenerateBill = () => {
 
 const executeBillGeneration = () => {
     if (!billForm.value.account_id) {
-        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Please select a ledger account', showConfirmButton: false, timer: 3000 });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Please select a ledger account', showConfirmButton: false, timer: 1500 });
         return;
     }
 

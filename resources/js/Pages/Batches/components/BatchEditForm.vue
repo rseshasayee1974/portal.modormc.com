@@ -204,7 +204,7 @@ const handleWeightCapture = (type: 'empty' | 'loaded') => {
                     icon: 'warning',
                     title: `${type} weight captured, but camera failed`,
                     showConfirmButton: false,
-                    timer: 2500
+                    timer: 1500
                 });
             }
         }
@@ -270,11 +270,11 @@ const fetchConsumption = async () => {
             if (data.start) form.start_time = new Date(data.start);
             
             isConsumptionSynced.value = true;
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Consumption data fetched', showConfirmButton: false, timer: 2200 });
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Consumption data fetched', showConfirmButton: false, timer: 1500 });
         }
     } catch (error) {
         console.error('API fetch failed:', error);
-        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Failed to get consumption', showConfirmButton: false, timer: 2200 });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Failed to get consumption', showConfirmButton: false, timer: 1500 });
     } finally {
         isFetchingConsumption.value = false;
     }
@@ -312,7 +312,7 @@ const submit = () => {
                 position: 'top-end',
                 icon: 'success',
                 title: 'Batch updated',
-                timer: 2200,
+                timer: 1500,
                 showConfirmButton: false,
             });
             isSaved.value = true;

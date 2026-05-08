@@ -54,7 +54,7 @@ const submit = () => {
                 icon: 'success',
                 title: 'Settings updated',
                 showConfirmButton: false,
-                timer: 2000
+                timer: 1500
             });
         }
     });

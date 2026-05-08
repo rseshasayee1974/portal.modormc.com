@@ -148,7 +148,7 @@ const submitInward = () => {
         received_date: data.received_date ? new Date(data.received_date).toISOString().split('T')[0] : null
     })).post(route('inwards.store'), {
         onSuccess: () => {
-             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Recorded successfully', showConfirmButton: false, timer: 3000 });
+             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Recorded successfully', showConfirmButton: false, timer: 1500 });
              showForm.value = true;
              selectedPoId.value = null;
              form.reset();
@@ -163,7 +163,7 @@ const saveEmptyWeight = (inward: any, newWeight: number) => {
         truck_empty: newWeight
     }, {
         onSuccess: () => {
-             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Weight updated', showConfirmButton: false, timer: 3000 });
+             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Weight updated', showConfirmButton: false, timer: 1500 });
         }
     });
 };
@@ -179,7 +179,7 @@ const deleteInward = (inward: any) => {
     }).then((result) => {
         if (result.isConfirmed) {
             router.delete(route('inwards.destroy', inward.id), {
-                onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Record Deleted', showConfirmButton: false, timer: 3000 })
+                onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Record Deleted', showConfirmButton: false, timer: 1500 })
             });
         }
     });

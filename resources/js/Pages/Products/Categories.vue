@@ -90,7 +90,7 @@ const submitForm = () => {
             preserveScroll: true,
             onSuccess: () => {
                 showDialog.value = false;
-                toast.add({ severity: 'success', summary: 'Updated', detail: 'Category saved.', life: 3000 });
+                toast.add({ severity: 'success', summary: 'Updated', detail: 'Category saved.', life: 1500 });
             },
         });
     } else {
@@ -98,7 +98,7 @@ const submitForm = () => {
             preserveScroll: true,
             onSuccess: () => {
                 showDialog.value = false;
-                toast.add({ severity: 'success', summary: 'Added', detail: 'Category created.', life: 3000 });
+                toast.add({ severity: 'success', summary: 'Added', detail: 'Category created.', life: 1500 });
             },
         });
     }
@@ -117,7 +117,7 @@ const deleteCategory = (id: number) => {
             router.delete(route('productcategories.destroy', id), {
                 preserveScroll: true,
                 onSuccess: () =>
-                    toast.add({ severity: 'info', summary: 'Removed', detail: 'Category deleted.', life: 3000 }),
+                    toast.add({ severity: 'info', summary: 'Removed', detail: 'Category deleted.', life: 1500 }),
             });
         }
     });

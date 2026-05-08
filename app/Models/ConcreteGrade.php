@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\ProtectsSystemItems;
 
 class ConcreteGrade extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, ProtectsSystemItems;
     protected $table = 'mm_concrete_grades';
     protected $fillable = [
         'plant_id',
@@ -18,6 +19,7 @@ class ConcreteGrade extends Model
         'cement_ratio',
         'sand_ratio',
         'aggregate_ratio',
+        'is_system',
         'status',
         'created_by',
         'updated_by',
@@ -26,6 +28,7 @@ class ConcreteGrade extends Model
 
     protected $casts = [
         'status' => 'boolean',
+        'is_system' => 'boolean',
         'cement_ratio' => 'decimal:2',
         'sand_ratio' => 'decimal:2',
         'aggregate_ratio' => 'decimal:2',

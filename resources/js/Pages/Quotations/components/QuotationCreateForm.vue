@@ -210,7 +210,7 @@ const handleCreatePatron = async (name: string) => {
             icon: 'success', 
             title: `Customer "${name}" created.`, 
             showConfirmButton: false, 
-            timer: 3000 
+            timer: 1500 
         });
 
         router.reload({

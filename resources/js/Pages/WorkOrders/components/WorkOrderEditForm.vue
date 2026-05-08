@@ -64,7 +64,7 @@ const submit = () => {
             position: 'top-end',
             icon: 'error',
             title: 'Unable to update: missing work order id',
-            timer: 2800,
+            timer: 1500,
             showConfirmButton: false,
         });
         return;
@@ -81,7 +81,7 @@ const submit = () => {
                 position: 'top-end',
                 icon: 'success',
                 title: 'Work order updated',
-                timer: 2200,
+                timer: 1500,
                 showConfirmButton: false,
             });
             emit('saved');

@@ -6,9 +6,11 @@ use App\Models\Entity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\ProtectsSystemItems;
 
 class Accounts extends Model
 {
+    use ProtectsSystemItems;
     use HasFactory, SoftDeletes;
     
     protected $table = 'mm_accounts';
@@ -18,6 +20,7 @@ class Accounts extends Model
         'code',
         'title',
         'status',
+        'is_system',
         'created_by',
         'created',
         'modified',

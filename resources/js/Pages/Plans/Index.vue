@@ -52,9 +52,9 @@ const deletePlan = (id: number) => {
             try {
                 await axios.delete(route('plans.destroy', id));
                 store.removePlan(id);
-                toast.add({ severity: 'success', summary: 'Deleted', detail: 'Plan removed', life: 3000 });
+                toast.add({ severity: 'success', summary: 'Deleted', detail: 'Plan removed', life: 1500 });
             } catch (error) {
-                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete plan', life: 3000 });
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete plan', life: 1500 });
             }
         }
     });
@@ -119,18 +119,18 @@ const submitModal = async () => {
         if (modalMode.value === 'create') {
             const response = await axios.post(route('plans.store'), payload);
             store.addPlan(response.data.plan);
-            toast.add({ severity: 'success', summary: 'Success', detail: 'Plan created', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Plan created', life: 1500 });
         } else {
             const response = await axios.put(route('plans.update', editingId.value), payload);
             store.updatePlan(response.data.plan);
-            toast.add({ severity: 'success', summary: 'Success', detail: 'Plan updated', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Plan updated', life: 1500 });
         }
         closeModal();
     } catch (error: any) {
         if (error.response?.data?.errors) {
             modalForm.value.errors = error.response.data.errors;
         } else {
-            toast.add({ severity: 'error', summary: 'Error', detail: 'An error occurred', life: 3000 });
+            toast.add({ severity: 'error', summary: 'Error', detail: 'An error occurred', life: 1500 });
         }
     } finally {
         modalForm.value.processing = false;

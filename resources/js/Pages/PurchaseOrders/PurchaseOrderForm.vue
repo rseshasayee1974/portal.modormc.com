@@ -107,7 +107,7 @@ const removeItem = (index) => {
         form.items.splice(index, 1);
         calculateFinalTotals();
     } else {
-        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'At least one item required', showConfirmButton: false, timer: 3000 });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'At least one item required', showConfirmButton: false, timer: 1500 });
     }
 };
 
@@ -180,7 +180,7 @@ const submit = () => {
                 icon: 'success', 
                 title: isEdit ? 'Purchase Order updated.' : 'Purchase Order generated.', 
                 showConfirmButton: false, 
-                timer: 3000 
+                timer: 1500 
             });
             if (!isEdit) form.reset();
         }
@@ -209,7 +209,7 @@ const handleCreateVendor = async (name) => {
             icon: 'success', 
             title: `Vendor "${name}" created.`, 
             showConfirmButton: false, 
-            timer: 3000 
+            timer: 1500 
         });
 
         // Reload vendors prop to keep sync with backend and select new vendor

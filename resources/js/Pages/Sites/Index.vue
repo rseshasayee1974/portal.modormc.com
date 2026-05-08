@@ -76,7 +76,7 @@ const submitCreate = () => {
                 severity: 'success', 
                 summary: 'Site Registered', 
                 detail: 'Logistic node has been successfully created.', 
-                life: 3000 
+                life: 1500 
             });
         },
     });
@@ -94,7 +94,7 @@ const submitEdit = () => {
                 severity: 'success', 
                 summary: 'Site Updated', 
                 detail: 'Logistic node information matches the master directory.', 
-                life: 3000 
+                life: 1500 
             });
         },
     });
@@ -119,7 +119,7 @@ const deleteSite = (id: number) => {
                         severity: 'info', 
                         summary: 'Deleted', 
                         detail: 'Site record has been purged successfully.', 
-                        life: 3000 
+                        life: 1500 
                     });
                 }
             });

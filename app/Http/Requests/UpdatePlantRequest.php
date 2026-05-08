@@ -25,6 +25,8 @@ class UpdatePlantRequest extends FormRequest
             'entity_id' => ['required', 'exists:mm_entities,id'],
             'code' => ['required', 'string', 'max:255', \Illuminate\Validation\Rule::unique('mm_plants')->ignore($this->route('plant'))],
             'name' => ['required', 'string', 'max:255'],
+            'email_address' => ['required', 'email:rfc,dns', 'max:255'],
+            'mobile_number' => ['nullable', 'string', 'max:20'],
             'plant_type' => ['nullable', 'string', 'max:255'],
             'gstin' => ['nullable', 'string', 'max:255'],
             'latitude' => ['nullable', 'string', 'max:255'],

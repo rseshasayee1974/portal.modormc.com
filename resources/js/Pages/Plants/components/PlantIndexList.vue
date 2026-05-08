@@ -35,6 +35,7 @@ const emit = defineEmits<{
     'page': [event: any];
     'sort': [event: any];
     'delete': [id: number];
+    'initialize': [id: number];
     'submitEdit': [];
     'cancelEdit': [];
 }>();
@@ -145,6 +146,13 @@ const onRowClick = (event: any) => {
         <Column header="Actions" class="text-right" style="width: 100px">
             <template #body="slotProps">
                 <div class="flex justify-end gap-1">
+                    <BaseActionButton
+                        v-if="!slotProps.data.is_initialized"
+                        icon="pi pi-bolt"
+                        severity="help"
+                        tooltip="Initialize Defaults"
+                        @click.stop="$emit('initialize', slotProps.data.id)"
+                    />
                     <BaseActionButton
                         icon="pi pi-trash"
                         severity="danger"

@@ -31,22 +31,50 @@ class SetEntityContext
             $activePlantId  = session('active_plant_id');
 
             // --- Auto Setup Session if missing ---
-            if (!$activeEntityId) {
-                if ($user->isSystemAdmin()) {
-                    $defaultPlant = \App\Models\Plant::first();
-                    if ($defaultPlant) {
-                        $activeEntityId = $defaultPlant->entity_id;
-                        $activePlantId  = $defaultPlant->id;
+            if (!$activeEntityId || !session()->has('active_plant_id')) {
+                // 1. Check for user-defined defaults
+                if ($user->default_entity_id && $user->default_plant_id) {
+                    $activeEntityId = $user->default_entity_id;
+                    $activePlantId  = $user->default_plant_id;
+                } 
+                // 2. Check for "Only One Choice" scenario
+                else {
+                    $isSuperAdmin = $user->isSystemAdmin();
+                    
+                    // Count entities
+                    if ($isSuperAdmin) {
+                        $entities = \App\Models\Entity::all();
+                    } else {
+                        $entities = EntityUser::where('user_id', $user->id)
+                            ->groupBy('entity_id')
+                            ->get(['entity_id']);
                     }
-                } else {
-                    $defaultAccess = EntityUser::where('user_id', $user->id)->first();
-                    if ($defaultAccess) {
-                        $activeEntityId = $defaultAccess->entity_id;
-                        $activePlantId  = $defaultAccess->plant_id;
+
+                    if ($entities->count() === 1) {
+                        $singleEntityId = $isSuperAdmin ? $entities->first()->id : $entities->first()->entity_id;
+                        
+                        // Count plants for this entity
+                        $plantsQuery = \App\Models\Plant::where('entity_id', $singleEntityId)->where('is_active', true);
+                        if (!$isSuperAdmin) {
+                            $assignments = EntityUser::where('user_id', $user->id)
+                                ->where('entity_id', $singleEntityId)
+                                ->get(['plant_id']);
+                            
+                            $hasGlobalAccess = $assignments->contains(fn($a) => is_null($a->plant_id));
+                            if (!$hasGlobalAccess) {
+                                $plantsQuery->whereIn('id', $assignments->pluck('plant_id'));
+                            }
+                        }
+                        
+                        $plants = $plantsQuery->get();
+                        if ($plants->count() === 1) {
+                            $activeEntityId = $singleEntityId;
+                            $activePlantId  = $plants->first()->id;
+                        }
                     }
                 }
 
-                if ($activeEntityId) {
+                if ($activeEntityId && $activePlantId) {
                     session([
                         'active_entity_id' => $activeEntityId,
                         'active_plant_id'  => $activePlantId,
@@ -87,15 +115,13 @@ class SetEntityContext
 
         // --- FINAL SECURITY CHECK ---
         // If after the above attempts we still don't have an active_plant_id,
-        // it means the session is invalid or the user has no access. Logout immediately.
+        // it means the session is invalid or the user has no access.
+        // Redirect them to the selection page instead of logging out.
         if (Auth::check() && !session()->has('active_plant_id')) {
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-            
-            return redirect()->route('login')->withErrors([
-                'email' => 'Session expired or plant context missing. Please login again.'
-            ]);
+            if ($request->routeIs('entity-context.*')) {
+                return $next($request);
+            }
+            return redirect()->route('entity-context.index');
         }
 
         // Track last_visit_page for full Inertia page visits (GET requests only)

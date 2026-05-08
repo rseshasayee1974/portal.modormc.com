@@ -69,7 +69,7 @@ const deleteTransaction = (id: number) => {
         if (res.isConfirmed) {
             router.delete(route('payments.destroy', id), {
                 onSuccess: () => {
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Transaction voided', showConfirmButton: false, timer: 3000 });
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Transaction voided', showConfirmButton: false, timer: 1500 });
                 }
             });
         }
@@ -97,7 +97,7 @@ const ledgerOptions = computed(() => props.ledgers.map(l => ({ label: l.title, v
 const patronOptions = computed(() => props.patrons.map(p => ({ label: p.legal_name, value: p.id })));
 
 watch(() => page.props.flash, (flash: any) => {
-    if (flash?.success) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: flash.success, showConfirmButton: false, timer: 3000 });
+    if (flash?.success) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: flash.success, showConfirmButton: false, timer: 1500 });
 }, { immediate: true, deep: true });
 
 import { router } from '@inertiajs/vue3';

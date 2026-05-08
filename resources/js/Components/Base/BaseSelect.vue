@@ -87,7 +87,6 @@ const handleShow = () => {
                 :checkmark="true"
                 :size="size"
                 :fluid="fluid"
-                :showClear="showClear"
                 :resetFilterOnHide="true"
                 @show="handleShow"
                 :class="[

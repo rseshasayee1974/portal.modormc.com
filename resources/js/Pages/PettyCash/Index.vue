@@ -150,7 +150,7 @@ const closePc = (id: number) => {
     .then((r) => {
         if (r.isConfirmed) {
             editForm.post(route('pettycash.close', id), { 
-                onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Closed', timer: 2000 }) 
+                onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Closed', timer: 1500 }) 
             });
         }
     });
@@ -167,7 +167,7 @@ const deletePc = (id: number) => {
     .then((r) => {
         if (r.isConfirmed) {
             editForm.delete(route('pettycash.destroy', id), { 
-                onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Voided', timer: 2000 }) 
+                onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Voided', timer: 1500 }) 
             });
         }
     });
@@ -178,8 +178,8 @@ const onRowExpand = (event: any) => {
 };
 
 watch(() => page.props.flash, (flash: any) => {
-    if (flash?.success) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: flash.success, showConfirmButton: false, timer: 3000 });
-    if (flash?.error) Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: flash.error, showConfirmButton: false, timer: 4000 });
+    if (flash?.success) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: flash.success, showConfirmButton: false, timer: 1500 });
+    if (flash?.error) Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: flash.error, showConfirmButton: false, timer: 1500 });
 }, { immediate: true, deep: true });
 </script>
 

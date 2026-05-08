@@ -152,7 +152,7 @@ const addItem = () => {
 
 const removeItem = (index: number) => {
     if (form.items.length === 1) {
-        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'At least one item is required.', showConfirmButton: false, timer: 2500 });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'At least one item is required.', showConfirmButton: false, timer: 1500 });
         return;
     }
     form.items.splice(index, 1);
@@ -175,7 +175,7 @@ const submit = () => {
     })).put(route('quotations.update', props.quotation.id), {
         preserveScroll: true,
         onSuccess: () => {
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Quotation updated successfully.', showConfirmButton: false, timer: 2500 });
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Quotation updated successfully.', showConfirmButton: false, timer: 1500 });
             emit('updated');
         },
     });

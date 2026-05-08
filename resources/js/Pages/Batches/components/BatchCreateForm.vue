@@ -176,7 +176,7 @@ const handleWeightCapture = () => {
                     icon: 'warning',
                     title: 'Weight captured, but camera failed',
                     showConfirmButton: false,
-                    timer: 2500
+                    timer: 1500
                 });
             }
         }
@@ -235,7 +235,7 @@ const submit = () => {
                 position: 'top-end',
                 icon: 'success',
                 title: 'Batch created successfully',
-                timer: 2200,
+                timer: 1500,
                 showConfirmButton: false,
             });
             form.reset();

@@ -54,7 +54,7 @@ const handleClick = (e: MouseEvent) => {
                             position: 'top-end', 
                             icon: 'success', 
                             title: props.successMessage, 
-                            timer: 2000, 
+                            timer: 1500, 
                             showConfirmButton: false 
                         });
                         emit('success');

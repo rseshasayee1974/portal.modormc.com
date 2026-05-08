@@ -205,7 +205,7 @@ onUnmounted(() => {
         <Head :title="title" />
 
                         <Banner />
-                        <Toast />
+                        <Toast :life="1500" />
                         <ConfirmDialog />
 
                         <div class="min-h-screen bg-gray-100 dark:bg-gray-900">

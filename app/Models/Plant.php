@@ -15,12 +15,15 @@ class Plant extends Model
         'entity_id',
         'code',
         'name',
+        'email_address',
+        'mobile_number',
         'plant_type',
         'gstin',
         'latitude',
         'longitude',
         'is_main',
         'is_active',
+        'is_initialized',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -29,6 +32,7 @@ class Plant extends Model
     protected $casts = [
         'is_main' => 'boolean',
         'is_active' => 'boolean',
+        'is_initialized' => 'boolean',
     ];
 
     public function entity()

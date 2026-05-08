@@ -43,9 +43,9 @@ const deleteSubscriptionStatus = (id: number) => {
             try {
                 await axios.delete(route('subscriptionstatuses.destroy', id));
                 store.removeSubscriptionStatus(id);
-                toast.add({ severity: 'success', summary: 'Deleted', detail: 'Subscription status removed', life: 3000 });
+                toast.add({ severity: 'success', summary: 'Deleted', detail: 'Subscription status removed', life: 1500 });
             } catch (error) {
-                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete', life: 3000 });
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete', life: 1500 });
             }
         }
     });

@@ -73,7 +73,7 @@ const handleGradeChange = async () => {
                 cross_quantity: item.cross_quantity,
                 variation_quantity: 0
             }));
-            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, icon: 'info', title: `Loaded ingredients for ${grade.name}` });
+            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'info', title: `Loaded ingredients for ${grade.name}` });
         }
     } catch (e) { console.error(e); }
 };
@@ -104,7 +104,7 @@ const submit = () => {
             form.reset();
             form.items = [blankItem()];
             emit('created');
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Mix Design created', timer: 2500, showConfirmButton: false });
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Mix Design created', timer: 1500, showConfirmButton: false });
         }
     });
 };

@@ -93,7 +93,7 @@ const submit = () => {
     form.put(route('products.update', props.product.id), {
         preserveScroll: true,
         onSuccess: () => {
-            toast.add({ severity: 'success', summary: 'Updated', detail: 'Product updated successfully.', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Updated', detail: 'Product updated successfully.', life: 1500 });
             emit('saved');
         },
     });

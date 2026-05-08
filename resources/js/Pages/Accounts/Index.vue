@@ -116,7 +116,7 @@ const submitModal = async () => {
         if (modalMode.value === 'create') {
             const response = await axios.post(route('accounts.store'), { title: modalForm.value.title, code: modalForm.value.code });
             store.addAccount(response.data.account);
-            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: response.data.message });
+            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: response.data.message });
         } else {
             const response = await axios.put(route('accounts.update', editingId.value), {
                 title: modalForm.value.title,
@@ -124,7 +124,7 @@ const submitModal = async () => {
                 status: modalForm.value.status,
             });
             store.updateAccount(response.data.account);
-            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: response.data.message });
+            Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: response.data.message });
         }
         closeModal();
     } catch (error: any) {
@@ -158,7 +158,7 @@ const deleteAccount = (id: number) => {
             try {
                 const response = await axios.delete(route('accounts.destroy', id));
                 store.removeAccount(id);
-                Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: response.data.message });
+                Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: response.data.message });
             } catch {
                 Swal.fire({ title: 'Error', text: 'Failed to delete Account.', icon: 'error' });
             }
@@ -169,7 +169,7 @@ const deleteAccount = (id: number) => {
 // ── Flash messages ─────────────────────────────────────────
 watch(() => page.props.flash, (flash: any) => {
     if (flash?.success) {
-        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, icon: 'success', title: flash.success });
+        Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'success', title: flash.success });
     }
 }, { immediate: true, deep: true });
 </script>

@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\AuditFields;
+use App\Traits\ProtectsSystemItems;
 
 class Tax extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems;
 
     // ──────────────────────────────────────────────────────────────
     // Dropdown / Lookup Scopes
@@ -102,6 +103,7 @@ class Tax extends Model
         'tax_rate',
         'parent_id',
         'account_id',
+        'is_system',
         'status',
         'created_by',
         'updated_by',
@@ -110,6 +112,7 @@ class Tax extends Model
 
     protected $casts = [
         'tax_rate' => 'decimal:2',
+        'is_system' => 'boolean',
         'status' => 'integer',
         'id' => 'integer',
         'parent_id' => 'integer',

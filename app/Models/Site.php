@@ -6,11 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\AuditFields;
+use App\Traits\ProtectsSystemItems;
 
 class Site extends Model
 {
     /** @use HasFactory<\Database\Factories\SiteFactory> */
-    use HasFactory, SoftDeletes, AuditFields;
+    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems;
 
     const CREATED_AT = 'created_at';
 
@@ -90,6 +91,7 @@ class Site extends Model
         'is_reset',
         'status',   //Active, InActive, Maintenance, 
         'is_active',
+        'is_system',
         'latitude',
         'longitude',
         'created_by',
@@ -97,11 +99,21 @@ class Site extends Model
         'deleted_by',
     ];
 
+    protected $appends = ['is_in_use'];
+
     protected $casts = [
         'is_restricted' => 'boolean',
         'is_reset' => 'boolean',
         'is_active' => 'boolean',
+        'is_system' => 'boolean',
     ];
+
+    public function getIsInUseAttribute()
+    {
+        return \App\Models\WorkOrder::where('site_id', $this->id)->exists() ||
+               \App\Models\Quotation::where('site_id', $this->id)->exists() ||
+               \App\Models\Dispatch::where('load_site_id', $this->id)->orWhere('unload_site_id', $this->id)->exists();
+    }
 
     public function plant()
     {

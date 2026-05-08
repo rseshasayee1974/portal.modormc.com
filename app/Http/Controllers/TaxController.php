@@ -22,10 +22,10 @@ class TaxController extends Controller
         $this->authorizeModule('menu');
         
         return Inertia::render('Taxes/Index', [
-            'taxes'      => Tax::with(['parent', 'plant'])->where('plant_id', session('active_plant_id'))->latest()->get(),
-            'parentTaxes'=> Tax::whereNull('parent_id')->select('id', 'tax_name')->where('plant_id', session('active_plant_id'))->latest()->get(),
+            'taxes'      => Tax::with(['parent', 'plant'])->where('plant_id', session('active_plant_id'))->orderBy('id', 'asc')->get(),
+            'parentTaxes'=> Tax::whereNull('parent_id')->select('id', 'tax_name')->where('plant_id', session('active_plant_id'))->orderBy('id', 'asc')->get(),
            
-            'ledgers'    => Ledger::select('id', 'title')->where('plant_id', session('active_plant_id'))->latest()->get(),
+            'ledgers'    => Ledger::select('id', 'title')->where('plant_id', session('active_plant_id'))->orderBy('title', 'asc')->get(),
             'taxGroups' => ['GST', 'CGST', 'SGST', 'IGST', 'TDS', 'TCS', 'CESS', 'OTHER'],
             'taxTypes' => ['sales', 'purchase', 'other sales', 'other purchase', 'others'],
         ]);

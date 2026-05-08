@@ -148,7 +148,7 @@ const submitCreate = () => {
             createForm.reset();
             createForm.documents = [];
             createForm.loans = [];
-            toast.add({ severity: 'success', summary: 'Enrolled', detail: 'New asset added to fleet', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Enrolled', detail: 'New asset added to fleet', life: 1500 });
         }
     });
 };
@@ -158,7 +158,7 @@ const submitEdit = () => {
     editForm.put(route('machines.update', editingId.value), {
         onSuccess: () => {
             resetEditForm();
-            toast.add({ severity: 'success', summary: 'Updated', detail: 'Asset record synchronized', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Updated', detail: 'Asset record synchronized', life: 1500 });
         }
     });
 };
@@ -178,7 +178,7 @@ const deleteMachine = (id: number) => {
             router.delete(route('machines.destroy', id), {
                 onSuccess: () => {
                    if (editingId.value === id) resetEditForm();
-                   toast.add({ severity: 'info', summary: 'Removed', detail: 'Asset decommissioned', life: 3000 });
+                   toast.add({ severity: 'info', summary: 'Removed', detail: 'Asset decommissioned', life: 1500 });
                 }
             });
         }
@@ -186,7 +186,7 @@ const deleteMachine = (id: number) => {
 };
 
 watch(() => page.props.flash, (flash: any) => {
-    if (flash?.success) toast.add({ severity: 'success', summary: 'Success', detail: flash.success, life: 3000 });
+    if (flash?.success) toast.add({ severity: 'success', summary: 'Success', detail: flash.success, life: 1500 });
 }, { immediate: true, deep: true });
 </script>
 

@@ -156,7 +156,7 @@ const submit = async () => {
 
     try {
         await axios.post(route('users.store'), fd);
-        toast.add({ severity: 'success', summary: 'Created', detail: 'User created successfully', life: 5000 });
+        toast.add({ severity: 'success', summary: 'Created', detail: 'User created successfully', life: 1500 });
         reset();
         emit('created');
     } catch (err: any) {
@@ -166,11 +166,11 @@ const submit = async () => {
                 Object.values(form.value.errors)?.flat?.()?.[0] ||
                 err.response.data?.message ||
                 'Validation error';
-            toast.add({ severity: 'error', summary: 'Validation', detail: firstMessage, life: 5000 });
+            toast.add({ severity: 'error', summary: 'Validation', detail: firstMessage, life: 1500 });
             console.error('users.store validation failed:', err.response.data);
         } else {
             console.error('users.store failed:', err);
-            toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to create user', life: 5000 });
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to create user', life: 1500 });
         }
     } finally {
         form.value.processing = false;

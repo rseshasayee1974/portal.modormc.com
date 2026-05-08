@@ -150,7 +150,7 @@ watch(() => [form.items, form.adjustment, form.shipping_charges, form.global_dis
 const submit = () => {
     form.put(route('billings.update', props.invoice.id), {
         onSuccess: () => {
-            toast.add({ severity: 'success', summary: 'Updated', detail: 'Bill saved', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Updated', detail: 'Bill saved', life: 1500 });
             emit('saved');
         },
     });

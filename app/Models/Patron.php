@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\AuditFields;
+use App\Traits\ProtectsSystemItems;
 
 class Patron extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems;
     
     protected $table = 'mm_patrons';
     
@@ -94,6 +95,7 @@ class Patron extends Model
         'gstin',
         'status',
         'displayed',
+        'is_system',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -102,6 +104,7 @@ class Patron extends Model
     protected $casts = [
         'status' => 'boolean',
         'displayed' => 'boolean',
+        'is_system' => 'boolean',
         'patron_type' => 'array',
     ];
 

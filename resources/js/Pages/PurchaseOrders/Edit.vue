@@ -91,7 +91,7 @@ const removeItem = (index: number) => {
         form.items.splice(index, 1);
         calculateFinalTotals();
     } else {
-        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'At least one item required', showConfirmButton: false, timer: 3000 });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'At least one item required', showConfirmButton: false, timer: 1500 });
     }
 };
 
@@ -156,7 +156,7 @@ const submit = () => {
                 icon: 'success', 
                 title: 'Receipt recorded successfully.', 
                 showConfirmButton: false, 
-                timer: 3000 
+                timer: 1500 
             });
             // Force a full site refresh to reload the latest inward numbers and state
             router.reload({ 

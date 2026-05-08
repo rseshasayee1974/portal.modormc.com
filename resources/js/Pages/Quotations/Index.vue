@@ -118,7 +118,7 @@ const deleteQuotation = (quotation: any) => {
                     icon: 'success',
                     title: 'Quotation deleted successfully.',
                     showConfirmButton: false,
-                    timer: 2500,
+                    timer: 1500,
                 });
             },
         });
@@ -147,7 +147,7 @@ const updateConversion = (quotation: any) => {
                 icon: 'success',
                 title: 'Conversion status updated.',
                 showConfirmButton: false,
-                timer: 2000,
+                timer: 1500,
             });
         }
     });

@@ -63,9 +63,9 @@ const deleteAccountType = (id: number) => {
             try {
                 const response = await axios.delete(route('accounttypes.destroy', id));
                 store.removeAccountType(id);
-                toast.add({ severity: 'success', summary: 'Deleted', detail: response.data.message, life: 3000 });
+                toast.add({ severity: 'success', summary: 'Deleted', detail: response.data.message, life: 1500 });
             } catch {
-                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete record.', life: 3000 });
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete record.', life: 1500 });
             }
         }
     });

@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\AuditFields;
 use Illuminate\Support\Str;
 use App\Http\Controllers\Concerns\GeneratesAccountingCode;
+use App\Traits\ProtectsSystemItems;
 
 class Ledger extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, GeneratesAccountingCode;
+    use HasFactory, SoftDeletes, AuditFields, GeneratesAccountingCode, ProtectsSystemItems;
 
     protected $table = 'mm_ledgers';
 
@@ -26,6 +27,7 @@ class Ledger extends Model
         'slug',
         'notes',
         'description',
+        'is_system',
         'status',
         'created_by',
         'updated_by',
@@ -35,6 +37,7 @@ class Ledger extends Model
     protected $casts = [
         'status'      => 'integer',
         'is_pnl'      => 'boolean',
+        'is_system'   => 'boolean',
     ];
 
     protected static function boot()

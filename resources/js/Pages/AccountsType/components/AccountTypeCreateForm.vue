@@ -70,7 +70,7 @@ const submit = async () => {
         const response = await axios.post(route('accounttypes.store'), form.value);
         store.addAccountType(response.data.account_type);
         toast.removeAll();
-        toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 3000 });
+        toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 1500 });
         emit('saved');
         close();
     } catch (error: any) {
@@ -78,7 +78,7 @@ const submit = async () => {
             form.value.errors = error.response.data.errors;
         } else {
             toast.removeAll();
-            toast.add({ severity: 'error', summary: 'Error', detail: 'An unexpected error occurred.', life: 3000 });
+            toast.add({ severity: 'error', summary: 'Error', detail: 'An unexpected error occurred.', life: 1500 });
         }
     } finally {
         form.value.processing = false;

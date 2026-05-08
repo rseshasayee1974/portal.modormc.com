@@ -76,7 +76,7 @@ const submit = () => {
     form.post(route('products.store'), {
         preserveScroll: true,
         onSuccess: () => {
-            toast.add({ severity: 'success', summary: 'Created', detail: 'Product created successfully.', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Created', detail: 'Product created successfully.', life: 1500 });
             form.reset();
             isOpen.value = false; // Reset the panel state
             setTimeout(() => { isOpen.value = true; }, 500);

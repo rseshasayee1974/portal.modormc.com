@@ -109,7 +109,7 @@ const submit = () => {
         received_date: data.received_date ? new Date(data.received_date).toISOString().split('T')[0] : null
     })).post(route('inwards.store'), {
         onSuccess: () => {
-             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Stock inward recorded successfully', showConfirmButton: false, timer: 3000 });
+             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Stock inward recorded successfully', showConfirmButton: false, timer: 1500 });
         }
     });
 };

@@ -73,7 +73,7 @@ Route::middleware([
         Route::resource('plans', \App\Http\Controllers\PlanController::class)->except(['create', 'edit', 'show']);
         Route::resource('statecodes', \App\Http\Controllers\StateCodeController::class)->except(['create', 'edit', 'show']);
         Route::resource('subscriptionstatuses', \App\Http\Controllers\SubscriptionStatusController::class)->except(['create', 'edit', 'show']);
-        Route::resource('taxes', \App\Http\Controllers\TaxController::class);
+       
     });
 
     // 3. Tenant / Organization
@@ -85,6 +85,7 @@ Route::middleware([
         Route::delete('entities/{entity}/axes/{tax}', [\App\Http\Controllers\EntityController::class, 'destroyTax'])->name('entities.taxes.destroy');
         Route::get('plants/by-entity', [\App\Http\Controllers\PlantController::class, 'getByEntity'])->name('plants.by-entity');
         Route::resource('plants', \App\Http\Controllers\PlantController::class);
+        Route::post('plants/{plant}/initialize', [\App\Http\Controllers\PlantController::class, 'initialize'])->name('plants.initialize');
         
     });
 
@@ -95,13 +96,15 @@ Route::middleware([
         Route::resource('roles', \App\Http\Controllers\RoleController::class);
         Route::resource('menus', \App\Http\Controllers\MenuController::class);
         Route::resource('sites', \App\Http\Controllers\SiteController::class);
-        
+        Route::resource('taxes', \App\Http\Controllers\TaxController::class);
         // Template Management
         Route::resource('templates', \App\Http\Controllers\PrintTemplateController::class);
         Route::post('templates/assign', [\App\Http\Controllers\PrintTemplateController::class, 'assign'])->name('templates.assign');
         Route::get('templates/{template}/preview', [\App\Http\Controllers\PrintTemplateController::class, 'preview'])->name('templates.preview');
         Route::get('templates/{module}/customize', [\App\Http\Controllers\PrintTemplateController::class, 'customize'])->name('templates.customize');
         Route::post('templates/{module}/customize', [\App\Http\Controllers\PrintTemplateController::class, 'saveCustomization'])->name('templates.save-customization');
+  Route::get('default-accounts', [\App\Http\Controllers\AccountDefaultSettingController::class, 'index'])->name('settings.default-accounts');
+        Route::post('default-accounts', [\App\Http\Controllers\AccountDefaultSettingController::class, 'store'])->name('settings.default-accounts.store');
 
         // Unified Document Printing Engine
         Route::get('print/{module}/{id}/{action?}', [\App\Http\Controllers\PrintController::class, 'handle'])
@@ -165,9 +168,11 @@ Route::middleware([
         Route::resource('machines', \App\Http\Controllers\MachineController::class);
         Route::resource('machinetypes', \App\Http\Controllers\MachineTypeController::class)->except(['create', 'edit', 'show']);
     });
-
-    
-
+ Route::prefix('reports')->group(function () {
+     // Unified Reports
+        Route::get('report', [\App\Http\Controllers\ReportController::class, 'index'])->name('reports.index');
+        Route::get('generate', [\App\Http\Controllers\ReportController::class, 'generate'])->name('reports.generate');
+});
     // 10. Finance & Accounting
     Route::prefix('finance')->group(function () {
         Route::resource('accounts', \App\Http\Controllers\AccountsController::class);
@@ -188,12 +193,8 @@ Route::middleware([
         Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit']);
         Route::resource('billings', \App\Http\Controllers\BillingController::class)->except(['create', 'edit']);
         
-        Route::get('account-defaults', [\App\Http\Controllers\AccountDefaultSettingController::class, 'index'])->name('settings.account-defaults');
-        Route::post('account-defaults', [\App\Http\Controllers\AccountDefaultSettingController::class, 'store'])->name('settings.account-defaults.store');
-
-        // Unified Reports
-        Route::get('reports', [\App\Http\Controllers\ReportController::class, 'index'])->name('reports.index');
-        Route::get('reports/generate', [\App\Http\Controllers\ReportController::class, 'generate'])->name('reports.generate');
+      
+       
 
         // ERP Live Dashboard
        

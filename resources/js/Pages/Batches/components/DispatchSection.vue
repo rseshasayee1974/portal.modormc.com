@@ -263,7 +263,7 @@ const submit = () => {
                     icon: 'success',
                     title: 'Dispatch updated successfully',
                     showConfirmButton: false,
-                    timer: 3000
+                    timer: 1500
                 });
                 emit('saved');
             }
@@ -278,7 +278,7 @@ const submit = () => {
                     icon: 'success',
                     title: 'Dispatch created successfully',
                     showConfirmButton: false,
-                    timer: 3000
+                    timer: 1500
                 });
                 emit('saved');
             }

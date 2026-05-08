@@ -230,7 +230,7 @@ const submitCreate = () => {
     createForm.post(route('patrons.store'), {
         onSuccess: () => {
             resetCreateForm();
-            toast.add({ severity: 'success', summary: 'Success', detail: 'Patron created successfully', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Patron created successfully', life: 1500 });
         }
     });
 };
@@ -243,7 +243,7 @@ const submitEdit = () => {
     editForm.put(route('patrons.update', editingId.value), {
         onSuccess: () => {
             resetEditForm();
-            toast.add({ severity: 'success', summary: 'Success', detail: 'Patron updated successfully', life: 3000 });
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Patron updated successfully', life: 1500 });
         }
     });
 };
@@ -264,7 +264,7 @@ const deletePatron = (id: number) => {
                     if (editingId.value === id) {
                         resetEditForm();
                     }
-                    toast.add({ severity: 'info', summary: 'Deleted', detail: 'Patron removed', life: 3000 });
+                    toast.add({ severity: 'info', summary: 'Deleted', detail: 'Patron removed', life: 1500 });
                 }
             });
         }
@@ -321,7 +321,7 @@ const exportPatrons = () => {
     ]);
 
     downloadCsv(`patrons-${new Date().toISOString().slice(0, 10)}.csv`, [importTemplateColumns, ...rows]);
-    toast.add({ severity: 'success', summary: 'Export ready', detail: 'Patron CSV downloaded.', life: 3000 });
+    toast.add({ severity: 'success', summary: 'Export ready', detail: 'Patron CSV downloaded.', life: 1500 });
 };
 
 const downloadImportTemplate = () => {
@@ -332,7 +332,7 @@ const downloadImportTemplate = () => {
     ];
 
     downloadCsv('patron-import-template.csv', sampleRows);
-    toast.add({ severity: 'info', summary: 'Template downloaded', detail: 'Use this CSV format for patron import.', life: 3000 });
+    toast.add({ severity: 'info', summary: 'Template downloaded', detail: 'Use this CSV format for patron import.', life: 1500 });
 };
 
 const openImportDialog = () => {
@@ -460,7 +460,7 @@ const submitImport = () => {
             severity: 'error',
             summary: 'Import failed',
             detail: error instanceof Error ? error.message : 'Unable to parse patron CSV.',
-            life: 5000,
+            life: 1500,
         });
         return;
     }
@@ -474,7 +474,7 @@ const submitImport = () => {
                 severity: 'success',
                 summary: 'Import complete',
                 detail: `${patrons.length} patron record(s) imported successfully.`,
-                life: 3000,
+                life: 1500,
             });
         },
         onError: () => {
@@ -482,7 +482,7 @@ const submitImport = () => {
                 severity: 'error',
                 summary: 'Import failed',
                 detail: 'Please review the CSV data and try again.',
-                life: 5000,
+                life: 1500,
             });
         },
     });

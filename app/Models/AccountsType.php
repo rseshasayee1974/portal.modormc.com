@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\ProtectsSystemItems;
 
 class AccountsType extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, ProtectsSystemItems;
     protected $table = 'mm_account_types';
     public $timestamps = false;
 
@@ -18,6 +19,7 @@ class AccountsType extends Model
         'account_id',
         'parent_id',
         'title',
+        'is_system',
         'status',
         'created_at',
         'created_by',
@@ -29,6 +31,7 @@ class AccountsType extends Model
     ];
 
     protected $casts = [
+        'is_system'   => 'boolean',
         'created_at'  => 'datetime',
         'updated_at'  => 'datetime',
         'deleted_at'  => 'datetime', 

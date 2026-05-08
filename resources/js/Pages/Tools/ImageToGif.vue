@@ -237,7 +237,7 @@ const setAsLoader = () => {
                 icon: 'success',
                 title: 'Global Loader Updated!',
                 showConfirmButton: false,
-                timer: 2000
+                timer: 1500
             });
         });
     }

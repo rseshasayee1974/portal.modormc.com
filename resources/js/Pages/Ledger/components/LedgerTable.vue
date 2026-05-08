@@ -76,7 +76,7 @@ const rows = ref(15);
 
             <Column header="Actions" class="text-right" style="width: 120px">
                 <template #body="slotProps">
-                    <div class="flex justify-end gap-1">
+                    <div class="flex justify-end gap-1" v-if="!slotProps.data.is_system">
                         <Button icon="pi pi-eye" text rounded severity="secondary" @click="$emit('view', slotProps.data)" />
                         <Button icon="pi pi-pencil" text rounded severity="primary" @click="$emit('edit', slotProps.data)" />
                         <Button icon="pi pi-trash" text rounded severity="danger" @click="$emit('delete', slotProps.data.id)" />

@@ -18,7 +18,8 @@ const props = defineProps<{
 
 const activeTab = ref<'basic' | 'location' | 'contact'>('basic');
 const isEditMode = computed(() => Boolean(props.plantId));
-const isIdentityLockedInEdit = computed(() => isEditMode.value && !props.canEditIdentityOnUpdate);
+// const isIdentityLockedInEdit = computed(() => isEditMode.value && !props.canEditIdentityOnUpdate);
+// console.log('isIdentityLockedInEdit',isIdentityLockedInEdit.value);
 </script>
 
 <template>
@@ -74,8 +75,6 @@ const isIdentityLockedInEdit = computed(() => isEditMode.value && !props.canEdit
                         required
                         placeholder="XYZ-01" 
                         :error="errors?.code"
-                        :disabled="isIdentityLockedInEdit"
-                        :hint="isIdentityLockedInEdit ? 'Only Saas Owner can edit plant code.' : undefined"
                         inputClass="!rounded-md !border-slate-200 focus:!ring-indigo-100 font-medium text-sm"
                     />
                 </div>
@@ -87,8 +86,29 @@ const isIdentityLockedInEdit = computed(() => isEditMode.value && !props.canEdit
                         required
                         placeholder="Enter facility name" 
                         :error="errors?.name"
-                        :disabled="isIdentityLockedInEdit"
-                        :hint="isIdentityLockedInEdit ? 'Only Saas Owner can edit plant name.' : undefined"
+                        inputClass="!rounded-md !border-slate-200 focus:!ring-indigo-100 font-medium text-sm"
+                    />
+                </div>
+
+                <div class="col-span-12 md:col-span-3">
+                    <BaseInput 
+                        v-model="form.email_address" 
+                        label="Admin Email"
+                        required
+                        type="email"
+                        placeholder="admin@plant.com" 
+                        :error="errors?.email_address"
+                        hint="Used for automated user creation and login credentials."
+                        inputClass="!rounded-md !border-slate-200 focus:!ring-indigo-100 font-medium text-sm"
+                    />
+                </div>
+
+                <div class="col-span-12 md:col-span-3">
+                    <BaseInput 
+                        v-model="form.mobile_number" 
+                        label="Admin Mobile"
+                        placeholder="9876543210" 
+                        :error="errors?.mobile_number"
                         inputClass="!rounded-md !border-slate-200 focus:!ring-indigo-100 font-medium text-sm"
                     />
                 </div>

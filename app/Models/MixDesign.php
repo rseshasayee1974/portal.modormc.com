@@ -5,10 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\ProtectsSystemItems;
 
 class MixDesign extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, ProtectsSystemItems;
 
     protected $table = 'mm_mix_designs';
 
@@ -21,6 +22,7 @@ class MixDesign extends Model
         'design_type',
         'unit_id',
         'rate_per_qty',
+        'is_system',
         'is_active',
         'created_by',
         'updated_by',
@@ -30,6 +32,7 @@ class MixDesign extends Model
     protected $casts = [
         'rate_per_qty' => 'decimal:4',
         'is_active' => 'boolean',
+        'is_system' => 'boolean',
     ];
 
     public function plant()

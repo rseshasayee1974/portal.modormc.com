@@ -83,7 +83,7 @@ class MenuSeeder extends Seeder
             ['id' => 39, 'menutype' => 2, 'title' => 'Patrons',          'alias' => 'PatronsList',    'link' => 'settings/patrons',      'icon' => 'UserGroupIcon',    'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 2, 'permission_name' => 'PATRON.VIEW'],
             ['id' => 50, 'menutype' => 2, 'title' => 'Site',             'alias' => 'sites',          'link' => 'settings/sites',        'icon' => 'MapPinIcon',       'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 3, 'permission_name' => 'SITE.VIEW'],
             ['id' => 22, 'menutype' => 2, 'title' => 'Print Templates',  'alias' => 'templates',      'link' => 'settings/templates',    'icon' => 'SwatchIcon',       'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 5, 'permission_name' => 'MENU.VIEW'],
-            ['id' => 100,'menutype' => 2, 'title' => 'Account Defaults', 'alias' => 'accountdefaults','link' => 'settings/account-defaults','icon' => 'PaintBrushIcon', 'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 6, 'permission_name' => 'MENU.VIEW'],
+            ['id' => 100,'menutype' => 2, 'title' => 'Default Accounts', 'alias' => 'defaultaccounts','link' => 'settings/default-accounts','icon' => 'PaintBrushIcon', 'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 6, 'permission_name' => 'MENU.VIEW'],
         ];
 
         foreach ($menus as $menu) {

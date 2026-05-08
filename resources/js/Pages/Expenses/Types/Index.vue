@@ -67,14 +67,14 @@ const deleteType = (id: number) => {
     }).then((r) => {
         if (r.isConfirmed) {
             editForm.delete(route('expensetypes.destroy', id), {
-                onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted', showConfirmButton: false, timer: 2000 })
+                onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted', showConfirmButton: false, timer: 1500 })
             });
         }
     });
 };
 
 watch(() => page.props.flash, (flash: any) => {
-    if (flash?.success) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: flash.success, showConfirmButton: false, timer: 3000 });
+    if (flash?.success) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: flash.success, showConfirmButton: false, timer: 1500 });
 }, { immediate: true, deep: true });
 </script>
 

@@ -81,7 +81,7 @@ const submit = async () => {
             form.value.errors = error.response.data.errors;
         } else {
             toast.removeAll();
-            toast.add({ severity: 'error', summary: 'Error', detail: 'An unexpected error occurred.', life: 3000 });
+            toast.add({ severity: 'error', summary: 'Error', detail: 'An unexpected error occurred.', life: 1500 });
         }
     } finally {
         form.value.processing = false;

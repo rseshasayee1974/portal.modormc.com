@@ -16,6 +16,7 @@ import {
     UsersIcon
 } from '@heroicons/vue/24/outline';
 import { ref, onMounted } from 'vue';
+import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 
 const props = defineProps<{
     modules: any[];
@@ -127,7 +128,7 @@ const submit = () => {
                 icon: 'success',
                 title: 'Accounting mappings updated',
                 showConfirmButton: false,
-                timer: 2000
+                timer: 1500
             });
         }
     });
@@ -142,26 +143,29 @@ const getModuleId = (name) => {
 <template>
     <AppLayout title="Default Ledger Settings">
         <template #header>
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                        Accounting Mappings
-                    </h2>
-                    <p class="text-xs text-slate-500 mt-1">Configure default ledgers for automated journal entries</p>
-                </div>
-                <Button 
-                    @click="submit" 
-                    icon="pi pi-save" 
-                    label="Save Mappings" 
-                    class="p-button-raised p-button-indigo shadow-md" 
-                    :loading="form.processing"
-                />
-            </div>
+            <ModuleSubTopNav />
         </template>
 
         <div class="py-12">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
                 
+                <!-- Action Bar -->
+                <div class="flex items-center justify-between mb-8 bg-white dark:bg-slate-900 p-6 rounded-[1.5rem] shadow-sm border border-slate-100 dark:border-slate-800">
+                    <div>
+                        <h2 class="font-black text-2xl text-gray-800 dark:text-gray-100 uppercase tracking-tighter">
+                            Accounting Mappings
+                        </h2>
+                        <p class="text-xs text-slate-500 font-medium uppercase tracking-widest mt-1">Configure default ledgers for automated journal entries</p>
+                    </div>
+                    <Button 
+                        @click="submit" 
+                        icon="pi pi-save" 
+                        label="Sync All Mappings" 
+                        class="p-button-raised p-button-indigo shadow-lg shadow-indigo-500/20 uppercase tracking-widest font-black text-xs px-6 h-12" 
+                        :loading="form.processing"
+                    />
+                </div>
+
                 <Message severity="info" class="mb-8 shadow-sm" :closable="false">
                     <div class="flex items-center gap-2">
                         <ShieldCheckIcon class="w-5 h-5" />

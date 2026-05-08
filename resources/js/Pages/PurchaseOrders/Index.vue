@@ -107,7 +107,7 @@ const deleteOrder = (order) => {
                 return;
             }
             router.delete(route('purchaseorder.destroy', order.id), {
-                onSuccess: () => Swal.fire({ toast: true, position: 'topend', icon: 'success', title: 'Deleted successfully', showConfirmButton: false, timer: 3000 })
+                onSuccess: () => Swal.fire({ toast: true, position: 'topend', icon: 'success', title: 'Deleted successfully', showConfirmButton: false, timer: 1500 })
             });
         }
     });

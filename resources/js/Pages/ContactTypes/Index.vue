@@ -43,9 +43,9 @@ const deleteContactType = (id: number) => {
             try {
                 await axios.delete(route('contacttypes.destroy', id));
                 store.removeContactType(id);
-                toast.add({ severity: 'success', summary: 'Deleted', detail: 'Contact type removed', life: 3000 });
+                toast.add({ severity: 'success', summary: 'Deleted', detail: 'Contact type removed', life: 1500 });
             } catch (error) {
-                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete', life: 3000 });
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete', life: 1500 });
             }
         }
     });
