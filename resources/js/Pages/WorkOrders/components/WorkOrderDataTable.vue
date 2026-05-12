@@ -92,7 +92,7 @@ const onSaved = () => {
 
             <Column field="order_no" header="Order No" sortable>
                 <template #body="{ data }">
-                    <span class="font-mono text-xs font-bold text-indigo-600">{{ data.order_no }}</span>
+                    <span class="font-mono text-xs font-bold text-indigo-600">{{ data.prefix + data.order_no }}</span>
                 </template>
             </Column>
 
