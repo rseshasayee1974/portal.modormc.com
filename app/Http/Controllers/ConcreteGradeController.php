@@ -75,7 +75,7 @@ class ConcreteGradeController extends Controller
         $plantId = session('active_plant_id');
 
         $validated = $request->validate([
-            'name' => 'required|string|max:100|unique:concrete_grades,name,' . $concretegrade->id . ',id,plant_id,' . $plantId,
+            'name' => 'required|string|max:100|unique:mm_concrete_grades,name,' . $concretegrade->id . ',id,plant_id,' . $plantId,
             'concrete_code' => 'nullable|string|max:50',
             'concrete_ratio' => 'nullable|string|max:50',
             'cement_ratio' => 'nullable|numeric',
