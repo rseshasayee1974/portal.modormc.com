@@ -69,14 +69,18 @@ class Patron extends Model
     }
 
     /**
-     * Scope: exclude a specific patron by id (edit/update scenarios).
+     * Scope: exclude one or more patrons by id (edit/update scenarios).
      *
      * @param  \Illuminate\Database\Eloquent\Builder $query
-     * @param  int  $id
+     * @param  int|array  $id
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function scopeExcludeId($query, int $id)
+    public function scopeExcludeId($query, $id)
     {
+        if (is_array($id)) {
+            return $query->whereNotIn('mm_patrons.id', $id);
+        }
+        
         return $query->where('mm_patrons.id', '!=', $id);
     }
 
