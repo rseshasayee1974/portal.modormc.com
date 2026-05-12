@@ -121,7 +121,7 @@ trait PostsToAccounting
             }
 
             // RULE 3: Tax Splits
-            $orderTaxes = $this->orderTaxes ?? [];
+            $orderTaxes = $this->orderTaxes()->get();
             foreach ($orderTaxes as $taxSplit) {
                 $taxAmt = (float) ($taxSplit->amount ?? 0);
                 if ($taxAmt == 0) continue;
