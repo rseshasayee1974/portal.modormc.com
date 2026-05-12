@@ -25,16 +25,13 @@ class MachineController extends Controller
     public function index()
     {
         $this->authorizeModule('menu');
-       $allowedPlantIds = (new PurchaseOrderController())->allowedPlantIds();
-        // dd($this->getDropdownData());
+
         return Inertia::render('Machines/Index', array_merge([
             'machines' => Machine::with(['documents', 'loans.emiPayments'])
                 ->where('plant_id', session('active_plant_id'))
                 ->latest()
                 ->get(),
-               'transportOwners' =>   toSelectOptions(VehiclesDropdown($allowedPlantIds), 'registration'),
-        ], $this->getDropdownData(),
-      ));
+        ], $this->getDropdownData()));
     }
 
     private function getDropdownData()
