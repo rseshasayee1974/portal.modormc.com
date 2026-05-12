@@ -100,10 +100,9 @@ if (!function_exists('PatronsDropdown')) {
      * @param  int|array        $plantId
      * @param  string|array|null $patronTypes  e.g. 'Vendor' or ['Vendor','Transport']
      * @param  int|null          $excludeId    Exclude patron (edit mode)
-     * @param  int|null          $entityId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function PatronsDropdown($patronTypes = null, $excludeId = null, $entityId = null)
+    function PatronsDropdown($patronTypes = null, $excludeId = null)
     {
         $query = Patron::where('plant_id', session('active_plant_id'))
             ->select('id', 'legal_name', 'plant_id');
