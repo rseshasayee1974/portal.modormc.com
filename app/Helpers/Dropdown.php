@@ -186,7 +186,7 @@ if (!function_exists('SitesDropdown')) {
      * @param  int|null          $entityId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function SitesDropdown($type = null, $excludeId = null, $entityId = null)
+    function SitesDropdown($type = null, $excludeId = null)
     {
         $query = Site::where('plant_id', session('active_plant_id'))
             ->select('id', 'name', 'code', 'plant_id');

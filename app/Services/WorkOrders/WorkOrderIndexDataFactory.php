@@ -20,7 +20,7 @@ class WorkOrderIndexDataFactory
             'workOrders' => $this->buildWorkOrdersQuery($activePlantId, $schema)->get()->toArray(),
             'plants' => $activePlantId ? Plant::query()->where('id', $activePlantId)->get(['id', 'name'])->toArray() : [],
             'customers' => $activePlantId ? PatronsDropdown(['Customer'])->toArray() : [],
-            'sites' => $activePlantId ? SitesDropdown($activePlantId)->toArray() : [],
+            'sites' => $activePlantId ? SitesDropdown('Unloading')->toArray() : [],
             'mixDesigns' => $activePlantId ? $this->loadMixDesigns($activePlantId, $schema)->toArray() : [],
             'statuses' => WorkOrder::statusOptions(),
             'activePlantId' => $activePlantId,
