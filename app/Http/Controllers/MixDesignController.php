@@ -28,9 +28,9 @@ class MixDesignController extends Controller
                 ->with(['partner', 'items.product', 'items.uom', 'unit'])
                 ->latest()
                 ->get(),
-            'partners'  => PatronsDropdown($plantId,['Customer']),
+            'partners'  => PatronsDropdown(['Customer']),
             // 'sites'    => SitesDropdown($plantId),
-            'products' => ProductsDropdown($plantId),
+            'products' => ProductsDropdown('Purchase'),
             // 'taxes'    => TaxesDropdown($plantId, 'Sales', ['GST', 'IGST']),
             // 'vehicles' => MachinesDropdown($plantId),
             // 'drivers'  => PersonnelDropdown($plantId),
