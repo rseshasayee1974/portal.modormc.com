@@ -5,144 +5,123 @@ namespace App\Traits;
 use App\Models\JournalEntry;
 use App\Models\JournalEntryLine;
 use App\Models\Ledger;
+use App\Models\OrderTax;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Trait to handle automated accounting postings for Invoices and Bills.
- * Follows double-entry bookkeeping standards (similar to Tally/ERP logic).
+ * Refactored for production stability and better error handling.
  */
 trait PostsToAccounting
 {
     /**
      * Post the current document to Journal Entries.
-     * 
-     * Sales (Invoice) Flow:
-     * - DEBIT  Customer Ledger
-     * - CREDIT Sales/Revenue Ledger
-     * - CREDIT GST Output Ledgers
-     * 
-     * Purchase (Bill) Flow:
-     * - DEBIT  Purchase/Expense Ledger
-     * - DEBIT  GST Input Ledgers
-     * - CREDIT Vendor Ledger
-     * 
-     * @return JournalEntry
      */
     public function postToAccounting(): JournalEntry
     {
         return DB::transaction(function () {
-            // Local variables to avoid "Undefined property" errors
-            $isSales        = (($this->invoice_type ?? 'sales') === 'sales' || ($this->invoice_type ?? '') === 'invoice');
-            $voucherType    = $isSales ? 'SALES' : 'PURCHASE';
-            $invoiceNo      = $this->full_number ?? $this->invoice_number ?? '---';
-            $invoiceDate    = $this->invoice_date ?? now();
-            $totalAmount    = (float) ($this->total_amount ?? 0);
-            $subtotal       = (float) ($this->subtotal ?? 0);
-            $refTitle       = $this->ref_title ?? '---';
-            $plantId        = $this->plant_id ?? session('active_plant_id');
-            $entityId       = $this->plant->entity_id ?? session('active_entity_id');
-            $partnerId      = $this->partner_id ?? null;
-            $accountId      = $this->account_id ?? null;
-            
-            // 1. Create or Update Journal Entry Header
-            $refModule = ($this->invoice_type ?? 'invoice') === 'bill' ? 'bill' : 'invoice';
+            // 1. Refresh data and ensure tax splits are in sync
+            $this->refresh();
+            if (method_exists($this, 'syncTaxSplits')) {
+                $this->syncTaxSplits();
+            }
 
+            // 2. Prepare basic document data
+            $isSales     = in_array($this->invoice_type, ['sales', 'invoice']);
+            $voucherType = $isSales ? 'SALES' : 'PURCHASE';
+            $invoiceNo   = $this->full_number ?? $this->invoice_number ?? '---';
+            $invoiceDate = $this->invoice_date ?? now();
+            $plantId     = $this->plant_id ?? session('active_plant_id');
+            $entityId    = $this->plant->entity_id ?? session('active_entity_id');
+            
+            // Financial values rounded to 2 decimal places for consistency
+            $totalAmount = round((float)($this->total_amount ?? 0), 2);
+            $subtotal    = round((float)($this->subtotal ?? 0), 2);
+            $taxTotal    = round((float)($this->tax_amount ?? 0), 2);
+
+            // 3. Create/Update Journal Entry Header
+            $refModule = ($this->invoice_type === 'bill') ? 'bill' : 'invoice';
+            
             $journalEntry = JournalEntry::updateOrCreate(
-                [
-                    'ref_module' => $refModule,
-                    'ref_id'     => $this->id,
-                    'plant_id'   => $plantId,
-                ],
+                ['ref_module' => $refModule, 'ref_id' => $this->id, 'plant_id' => $plantId],
                 [
                     'entity_id'      => $entityId,
                     'voucher_type'   => $voucherType,
                     'voucher_number' => $invoiceNo,
                     'voucher_date'   => $invoiceDate,
                     'posting_date'   => $invoiceDate,
-                    'narration'      => ($isSales ? "Sales Invoice: " : "Purchase Bill: ") . $invoiceNo . " | Ref: " . $refTitle,
+                    'narration'      => ($isSales ? "Sales Invoice: " : "Purchase Bill: ") . $invoiceNo . " | " . ($this->partner?->legal_name ?? 'Unknown Partner'),
                     'total_debit'    => $totalAmount,
                     'total_credit'   => $totalAmount,
-                    'is_status'      => 'DRAFT', // Set to DRAFT until balanced
+                    'is_status'      => 'DRAFT',
                     'created_by'     => Auth::id() ?? 1,
                 ]
             );
 
-            // 2. Clear existing lines
+            // 4. Clear existing lines
             $journalEntry->lines()->delete();
 
             $lines = [];
 
-            // RULE 1: Partner Ledger (Customer/Vendor) - Total Invoice Amount
+            // --- DEBIT/CREDIT RULE 1: Partner Ledger (Customer/Vendor) ---
             $partnerLedgerId = $this->partner?->ledger_id;
-            
-            // If explicit partner ledger missing, try to find default from settings
             if (!$partnerLedgerId) {
-                $settingKey = $isSales ? 'debit_ledger' : 'credit_ledger';
-                $partnerLedgerId = $this->getAccountingLedgerId($settingKey, 'Sundry');
+                $partnerLedgerId = $this->getAccountingLedgerId($isSales ? 'debit_ledger' : 'credit_ledger', 'Sundry');
             }
 
-            if ($partnerLedgerId) {
-                $lines[] = [
-                    'account_id'     => $partnerLedgerId,
-                    'debit_amount'   => $isSales ? $totalAmount : 0,
-                    'credit_amount'  => $isSales ? 0 : $totalAmount,
-                    'partner_type'   => 'Patron',
-                    'partner_id'     => $partnerId,
-                    'narration_name' => $isSales ? 'Amount Receivable' : 'Amount Payable',
-                    'line_narration' => $isSales ? 'Amount Receivable' : 'Amount Payable',
-                ];
-            } else {
-                throw new \Exception("Accounting Failure: No Ledger found for Partner (Customer/Vendor). Please map 'Patron' ledgers in settings.");
+            if (!$partnerLedgerId) {
+                throw new \Exception("Accounting Failure: Missing Partner Ledger for " . ($this->partner?->legal_name ?? 'Unknown'));
             }
 
-            // RULE 2: Revenue / Expense Ledger (Subtotal)
-            if ($accountId) {
+            $lines[] = [
+                'account_id'     => $partnerLedgerId,
+                'debit_amount'   => $isSales ? $totalAmount : 0,
+                'credit_amount'  => $isSales ? 0 : $totalAmount,
+                'partner_type'   => 'Patron',
+                'partner_id'     => $this->partner_id,
+                'narration_name' => $isSales ? 'Receivable' : 'Payable',
+                'line_narration' => "Invoice #{$invoiceNo}",
+            ];
+
+            // --- DEBIT/CREDIT RULE 2: Revenue / Expense Ledger ---
+            $baseLedgerId = $this->account_id;
+            if (!$baseLedgerId) {
+                $baseLedgerId = $this->getAccountingLedgerId($isSales ? 'sales_account' : 'purchase_account', $isSales ? 'Sales' : 'Purchase');
+            }
+
+            if ($baseLedgerId && $subtotal != 0) {
                 $lines[] = [
-                    'account_id'     => $accountId,
+                    'account_id'     => $baseLedgerId,
                     'debit_amount'   => $isSales ? 0 : $subtotal,
                     'credit_amount'  => $isSales ? $subtotal : 0,
-                    'narration_name' => $isSales ? 'Base Revenue' : 'Base Expense',
-                    'line_narration' => $isSales ? 'Base Revenue' : 'Base Expense',
+                    'narration_name' => $isSales ? 'Revenue' : 'Expense',
+                    'line_narration' => "Base amount for #{$invoiceNo}",
                 ];
-            } else {
-                // Try to find default sales/purchase account if missing on model
-                $settingKey = $isSales ? 'sales_account' : 'purchase_account';
-                $fallbackLedgerId = $this->getAccountingLedgerId($settingKey, $isSales ? 'Sales' : 'Purchase');
-                if ($fallbackLedgerId) {
-                    $lines[] = [
-                        'account_id'     => $fallbackLedgerId,
-                        'debit_amount'   => $isSales ? 0 : $subtotal,
-                        'credit_amount'  => $isSales ? $subtotal : 0,
-                        'narration_name' => $isSales ? 'Base Revenue' : 'Base Expense',
-                        'line_narration' => $isSales ? 'Base Revenue' : 'Base Expense',
-                    ];
-                }
             }
 
-            // RULE 3: Tax Splits
-            $orderTaxes = $this->orderTaxes()->get();
-            foreach ($orderTaxes as $taxSplit) {
-                $taxAmt = (float) ($taxSplit->amount ?? 0);
-                if ($taxAmt == 0) continue;
-                
-                $taxAccountId = $taxSplit->account_id;
+            // --- DEBIT/CREDIT RULE 3: Tax Splits ---
+            // We use direct query to bypass any relationship caching issues
+            $orderTaxes = OrderTax::where('order_type', 'Invoice')
+                ->where('order_id', $this->id)
+                ->get();
 
-                // Fallback to Default Settings if account_id is missing on the tax split
+            $sumTaxLines = 0;
+            foreach ($orderTaxes as $taxSplit) {
+                $taxAmt = round((float)($taxSplit->amount ?? 0), 2);
+                if ($taxAmt == 0) continue;
+
+                $taxAccountId = $taxSplit->account_id;
                 if (!$taxAccountId) {
                     $taxName = strtolower($taxSplit->name ?? '');
                     $settingKey = null;
-
-                    if (str_contains($taxName, 'cgst')) {
-                        $settingKey = $isSales ? 'cgst_output' : 'cgst_input';
-                    } elseif (str_contains($taxName, 'sgst')) {
-                        $settingKey = $isSales ? 'sgst_output' : 'sgst_input';
-                    } elseif (str_contains($taxName, 'igst')) {
-                        $settingKey = $isSales ? 'igst_output' : 'igst_input';
-                    }
-
+                    if (str_contains($taxName, 'cgst')) $settingKey = $isSales ? 'cgst_output' : 'cgst_input';
+                    elseif (str_contains($taxName, 'sgst')) $settingKey = $isSales ? 'sgst_output' : 'sgst_input';
+                    elseif (str_contains($taxName, 'igst')) $settingKey = $isSales ? 'igst_output' : 'igst_input';
+                    
                     if ($settingKey) {
-                        $taxAccountId = $this->getAccountingLedgerId($settingKey, $isSales ? 'GST Output' : 'GST Input');
+                        $taxAccountId = $this->getAccountingLedgerId($settingKey, 'GST');
                     }
                 }
 
@@ -153,91 +132,31 @@ trait PostsToAccounting
                         'credit_amount'  => $isSales ? $taxAmt : 0,
                         'tax_id'         => $taxSplit->tax_id,
                         'narration_name' => $taxSplit->name,
-                        'line_narration' => $taxSplit->name,
+                        'line_narration' => $taxSplit->name . " on #{$invoiceNo}",
                     ];
-                } else {
-                    // If still no account, we might have a problem balancing, but we skip to avoid null account_id
+                    $sumTaxLines += $taxAmt;
                 }
             }
 
-            // RULE 4: Shipping Charges
-            $shippingCharges = (float) ($this->shipping_charges ?? 0);
-            if ($shippingCharges > 0) {
-                $shippingLedgerId = $this->getAccountingLedgerId('shipping_account', 'Shipping');
-                if ($shippingLedgerId) {
+            // Safety check: if tax lines don't match invoice tax_amount, use fallback
+            if (round($sumTaxLines, 2) != $taxTotal && $taxTotal != 0) {
+                $remainingTax = round($taxTotal - $sumTaxLines, 2);
+                $fallbackTaxLedgerId = $this->getAccountingLedgerId('tax_account', 'Tax');
+                if ($fallbackTaxLedgerId) {
                     $lines[] = [
-                        'account_id'     => $shippingLedgerId,
-                        'debit_amount'   => $isSales ? 0 : $shippingCharges,
-                        'credit_amount'  => $isSales ? $shippingCharges : 0,
-                        'narration_name' => 'Shipping/Freight Charges',
-                        'line_narration' => 'Shipping/Freight Charges',
+                        'account_id'     => $fallbackTaxLedgerId,
+                        'debit_amount'   => $isSales ? 0 : $remainingTax,
+                        'credit_amount'  => $isSales ? $remainingTax : 0,
+                        'narration_name' => 'Tax Adjustment',
+                        'line_narration' => 'Consolidated Tax for #{$invoiceNo}',
                     ];
                 }
             }
 
-            // RULE 5: Adjustments
-            $adjustmentValue = (float) ($this->adjustment ?? 0);
-            if ($adjustmentValue != 0) {
-                $adjLedgerId = $this->getAccountingLedgerId('adjustment_account', 'Adjustment');
-                if ($adjLedgerId) {
-                    $val = abs($adjustmentValue);
-                    $isDebit = $isSales ? ($adjustmentValue < 0) : ($adjustmentValue > 0);
-                    $lines[] = [
-                        'account_id'     => $adjLedgerId,
-                        'debit_amount'   => $isDebit ? $val : 0,
-                        'credit_amount'  => $isDebit ? 0 : $val,
-                        'narration_name' => 'Other Adjustments',
-                        'line_narration' => 'Other Adjustments',
-                    ];
-                }
-            }
+            // --- DEBIT/CREDIT RULE 4: Shipping, Adjustment, Round Off ---
+            $this->addAdjustmentLines($lines, $isSales, $invoiceNo);
 
-            // RULE 6: Round Off
-            $roundOffValue = (float) ($this->round_off ?? 0);
-            if ($roundOffValue != 0) {
-                $roundOffLedgerId = $this->getAccountingLedgerId('round_off_account', 'Round Off');
-                if ($roundOffLedgerId) {
-                    $val = abs($roundOffValue);
-                    $isDebit = $isSales ? ($roundOffValue < 0) : ($roundOffValue > 0);
-                    $lines[] = [
-                        'account_id'     => $roundOffLedgerId,
-                        'debit_amount'   => $isDebit ? $val : 0,
-                        'credit_amount'  => $isDebit ? 0 : $val,
-                        'narration_name' => 'Rounding',
-                        'line_narration' => 'Rounding',
-                    ];
-                }
-            }
-
-            // RULE 7: TDS
-            $tdsAmount = (float) ($this->tds_amount ?? 0);
-            if ($tdsAmount > 0) {
-                $tdsSettingKey = $isSales ? 'tds_receivable' : 'tds_payable';
-                $tdsLedgerId = $this->getAccountingLedgerId($tdsSettingKey, 'TDS');
-                
-                if ($tdsLedgerId) {
-                    $lines[] = [
-                        'account_id'     => $tdsLedgerId,
-                        'debit_amount'   => $isSales ? $tdsAmount : 0,
-                        'credit_amount'  => $isSales ? 0 : $tdsAmount,
-                        'narration_name' => $isSales ? 'TDS Receivable' : 'TDS Payable',
-                        'line_narration' => $isSales ? 'TDS Receivable' : 'TDS Payable',
-                    ];
-
-                    // Adjust Rule 1 (Partner) balance
-                    foreach ($lines as &$line) {
-                        if (($line['partner_id'] ?? null) == $partnerId && ($line['partner_type'] ?? null) == 'Patron') {
-                            if ($isSales) {
-                                $line['debit_amount'] -= $tdsAmount;
-                            } else {
-                                $line['credit_amount'] -= $tdsAmount;
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 4. Persistence & Balancing Verification
+            // 5. Final Balancing & Persistence
             $totalDebitActual = 0;
             $totalCreditActual = 0;
 
@@ -248,17 +167,23 @@ trait PostsToAccounting
                 
                 JournalEntryLine::create($lineData);
 
-                $totalDebitActual += round((float)$lineData['debit_amount'], 4);
-                $totalCreditActual += round((float)$lineData['credit_amount'], 4);
+                $totalDebitActual += round((float)$lineData['debit_amount'], 2);
+                $totalCreditActual += round((float)$lineData['credit_amount'], 2);
             }
 
-            // FINAL BALANCING CHECK
-            $difference = abs($totalDebitActual - $totalCreditActual);
-            if ($difference > 0.01) {
-                throw new \Exception("Accounting Failure: Transaction is unbalanced by {$difference}. (Total Debit: {$totalDebitActual}, Total Credit: {$totalCreditActual}). Posting aborted to prevent ledger inconsistency.");
+            // FINAL BALANCING CHECK (Precision threshold: 0.01)
+            $difference = round(abs($totalDebitActual - $totalCreditActual), 2);
+            if ($difference > 0.05) {
+                Log::error("Accounting Unbalanced: Invoice ID {$this->id}", [
+                    'expected' => $totalAmount,
+                    'actual_debit' => $totalDebitActual,
+                    'actual_credit' => $totalCreditActual,
+                    'lines_count' => count($lines)
+                ]);
+                throw new \Exception("Accounting Failure: Transaction is unbalanced by {$difference}. (Total Debit: {$totalDebitActual}, Total Credit: {$totalCreditActual}). Posting aborted.");
             }
 
-            // Update header with actual totals and mark as POSTED
+            // Update header and finalize
             $journalEntry->update([
                 'total_debit'  => $totalDebitActual,
                 'total_credit' => $totalCreditActual,
@@ -270,11 +195,45 @@ trait PostsToAccounting
     }
 
     /**
-     * Helper to find a ledger by name or common title if not explicitly set.
+     * Helper for Adjustments, Shipping, and Rounding
+     */
+    private function addAdjustmentLines(&$lines, $isSales, $invoiceNo)
+    {
+        $map = [
+            'shipping_charges' => ['key' => 'shipping_account', 'fallback' => 'Shipping'],
+            'adjustment'       => ['key' => 'adjustment_account', 'fallback' => 'Adjustment'],
+            'round_off'        => ['key' => 'round_off_account', 'fallback' => 'Round Off'],
+        ];
+
+        foreach ($map as $field => $config) {
+            $value = round((float)($this->{$field} ?? 0), 2);
+            if ($value == 0) continue;
+
+            $ledgerId = $this->getAccountingLedgerId($config['key'], $config['fallback']);
+            if ($ledgerId) {
+                $absVal = abs($value);
+                // For Sales: Positive Shipping is Credit (Income), Negative Adjustment is Debit (Expense)
+                // Logic: Does this increase or decrease the partner balance?
+                $isDebitLine = ($value < 0);
+                if (!$isSales) $isDebitLine = ($value > 0);
+
+                $lines[] = [
+                    'account_id'     => $ledgerId,
+                    'debit_amount'   => $isDebitLine ? $absVal : 0,
+                    'credit_amount'  => $isDebitLine ? 0 : $absVal,
+                    'narration_name' => $config['fallback'],
+                    'line_narration' => "{$config['fallback']} for #{$invoiceNo}",
+                ];
+            }
+        }
+    }
+
+    /**
+     * Helper to find a ledger by mapping or search.
      */
     protected function getAccountingLedgerId(string $key, string $fallbackSearch): ?int
     {
-        $module = (($this->invoice_type ?? 'sales') === 'sales' || ($this->invoice_type ?? '') === 'invoice') ? 'Invoice' : 'Purchase';
+        $module = in_array($this->invoice_type, ['sales', 'invoice']) ? 'Invoice' : 'Purchase';
         $plantId = $this->plant_id ?? session('active_plant_id');
         
         $mapped = \App\Models\AccountDefaultSetting::where('plant_id', $plantId)

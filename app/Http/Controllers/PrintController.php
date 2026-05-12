@@ -63,6 +63,17 @@ class PrintController extends Controller
                 $model = \App\Models\Invoice::find($realId);
                 return $model ? PrintDataFormatter::fromInvoice($model) : null;
 
+            case 'billings':
+            case 'purchase_bills':
+                $model = \App\Models\Invoice::find($realId);
+                if ($model) {
+                    $data = PrintDataFormatter::fromInvoice($model);
+                    // Override document title for bills
+                    $data['doc_title'] = 'PURCHASE BILL';
+                    return $data;
+                }
+                return null;
+
             case 'quotations':
                 $model = \App\Models\Quotation::find($realId);
                 return $model ? PrintDataFormatter::fromQuotation($model) : null;
