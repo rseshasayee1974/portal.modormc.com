@@ -324,6 +324,7 @@ watch(filterForm, () => {
                                     <th class="px-4 py-2">Customer</th>
                                     <th class="px-4 py-2">Status</th>
                                     <th class="px-4 py-2 text-right">Load Qty</th>
+                                    <th class="px-4 py-2 text-center">Notify</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -334,7 +335,15 @@ watch(filterForm, () => {
                                     <td class="px-4 py-4">
                                         <span :class="d.status === 'Billed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'" class="px-2 py-1 rounded text-[10px] font-black uppercase">{{ d.status }}</span>
                                     </td>
-                                    <td class="px-4 py-4 rounded-r-lg text-right font-black text-slate-900">{{ d.qty }} m³</td>
+                                    <td class="px-4 py-4 font-black text-slate-900 text-right">{{ d.qty }} m³</td>
+                                    <td class="px-4 py-4 rounded-r-lg text-center">
+                                        <a v-if="d.whatsapp_url" :href="d.whatsapp_url" target="_blank" class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-sm hover:shadow-emerald-200" title="Send WhatsApp Confirmation">
+                                            <i class="pi pi-whatsapp text-sm"></i>
+                                        </a>
+                                        <span v-else class="text-slate-200">
+                                            <i class="pi pi-whatsapp text-sm"></i>
+                                        </span>
+                                    </td>
                                 </tr>
                                 <tr v-if="dispatches.length === 0">
                                     <td colspan="5" class="py-10 text-center opacity-20 font-black uppercase text-xs">No Active Dispatches</td>

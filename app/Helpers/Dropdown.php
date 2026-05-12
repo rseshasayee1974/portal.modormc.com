@@ -50,7 +50,7 @@ use App\Models\ExpenseType;
 use App\Models\PaymentMethod;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Entity / Plant helpers  (unchanged – no new scope needed)
+// Entity / Plant helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 if (!function_exists('EntitiesDropdown')) {
@@ -103,36 +103,27 @@ if (!function_exists('PatronsDropdown')) {
      * @param  int|null          $entityId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function PatronsDropdown($plantId, $patronTypes = null, int $excludeId = null, int $entityId = null)
+    function PatronsDropdown($patronTypes = null, $excludeId = null, $entityId = null)
     {
-        $query = Patron::forPlant($plantId, $entityId)
+        $query = Patron::where('plant_id', session('active_plant_id'))
             ->select('id', 'legal_name', 'plant_id');
 
         if ($patronTypes !== null) {
-            $query->ofType($patronTypes);            // v2: patron_type condition
+            $query->ofType($patronTypes);
         }
 
         if ($excludeId !== null) {
-            $query->excludeId($excludeId);          // v2: edit – exclude self
+            $query->excludeId($excludeId);
         }
 
         return $query->whereNull('deleted_at')->orderBy('legal_name')->get();
     }
 }
 
-// Keep the old alias for backward-compat with PurchaseOrderController etc.
 if (!function_exists('VendorsDropdown')) {
-    /**
-     * Alias for PatronsDropdown – filters by patron_type.
-     *
-     * @param  int|array         $allowedPlantIds
-     * @param  string|array|null $patronTypes
-     * @param  int|null          $excludeId
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    function VendorsDropdown($allowedPlantIds, $patronTypes = null, int $excludeId = null)
+    function VendorsDropdown($patronTypes = null, $excludeId = null)
     {
-        return PatronsDropdown($allowedPlantIds, $patronTypes, $excludeId);
+        return PatronsDropdown($patronTypes, $excludeId);
     }
 }
 
@@ -154,35 +145,27 @@ if (!function_exists('MachinesDropdown')) {
      * @param  int|null          $entityId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function MachinesDropdown($plantId, $vehicleType = null, int $excludeId = null, int $entityId = null)
+    function MachinesDropdown($vehicleType = null, $excludeId = null, $entityId = null)
     {
-        $query = Machine::forPlant($plantId, $entityId)
+        $query = Machine::where('plant_id', session('active_plant_id'))
             ->select('id', 'registration', 'plant_id');
 
         if ($vehicleType !== null) {
-            $query->ofVehicleType($vehicleType);    // v5: vehicle_type condition
+            $query->where('vehicle_type', $vehicleType);
         }
 
         if ($excludeId !== null) {
-            $query->excludeId($excludeId);          // edit – exclude self
+            $query->excludeId($excludeId);
         }
 
         return $query->whereNull('deleted_at')->orderBy('registration')->get();
     }
 }
 
-// Backward-compat alias used in PurchaseOrderController
 if (!function_exists('VehiclesDropdown')) {
-    /**
-     * Alias for MachinesDropdown.
-     *
-     * @param  int|array         $allowedPlantIds
-     * @param  string|array|null $vehicleType
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    function VehiclesDropdown($allowedPlantIds, $vehicleType = null)
+    function VehiclesDropdown($vehicleType = null)
     {
-        return MachinesDropdown($allowedPlantIds, $vehicleType);
+        return MachinesDropdown($vehicleType);
     }
 }
 
@@ -204,20 +187,20 @@ if (!function_exists('SitesDropdown')) {
      * @param  int|null          $entityId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function SitesDropdown($plantId, $type = null, int $excludeId = null, int $entityId = null)
+    function SitesDropdown($type = null, $excludeId = null, $entityId = null)
     {
-        $query = Site::forPlant($plantId, $entityId)
+        $query = Site::where('plant_id', session('active_plant_id'))
             ->select('id', 'name', 'code', 'plant_id');
 
         if ($type != null) {
-            $query->where('type', $type);              // v6: type condition
+            $query->where('type', $type);
         }
 
         if ($excludeId !== null) {
-            $query->excludeId($excludeId);     // edit – exclude self
+            $query->excludeId($excludeId);
         }
 
-        return $query->whereNull('deleted_at')->where('is_active',true)->orderBy('name')->get();
+        return $query->whereNull('deleted_at')->where('is_active', true)->orderBy('name')->get();
     }
 }
 
@@ -237,9 +220,9 @@ if (!function_exists('PersonnelDropdown')) {
      * @param  int|null   $entityId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function PersonnelDropdown($plantId, int $excludeId = null, int $entityId = null)
+    function PersonnelDropdown($excludeId = null, $entityId = null)
     {
-        return Personnel::forPlant($plantId, $entityId)
+        return Personnel::where('plant_id', session('active_plant_id'))
             ->when($excludeId, fn($q) => $q->excludeId($excludeId))
             ->whereNull('deleted_at')
             ->get()
@@ -272,9 +255,9 @@ if (!function_exists('ProductsDropdown')) {
      * @param  int|null          $entityId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function ProductsDropdown($plantId, string $productType = null, $categoryId = null, int $excludeId = null, int $entityId = null)
+    function ProductsDropdown(string $productType = null, $categoryId = null, $excludeId = null, $entityId = null)
     {
-        $query = Product::forPlant($plantId, $entityId)
+        $query = Product::where('plant_id', session('active_plant_id'))
             ->with('unit');
 
         if ($productType !== null) {
@@ -282,14 +265,14 @@ if (!function_exists('ProductsDropdown')) {
         }
 
         if ($categoryId !== null) {
-            $query->ofCategory($categoryId);    // v3: category_id condition
+            $query->ofCategory($categoryId);
         }
 
         if ($excludeId !== null) {
-            $query->excludeId($excludeId);     // edit – exclude self
+            $query->excludeId($excludeId);
         }
 
-        return $query->whereNull('deleted_at')->get(['id','title','code','unit_id','sales_price','purchase_price']);
+        return $query->whereNull('deleted_at')->get(['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price']);
     }
 }
 
@@ -297,10 +280,10 @@ if (!function_exists('MixDesignsDropdown')) {
     /**
      * Active mix designs for a plant.
      */
-    function MixDesignsDropdown($plantId)
+    function MixDesignsDropdown()
     {
-        return  MixDesign::query()
-            ->where('plant_id', $plantId)
+        return MixDesign::query()
+            ->where('plant_id', session('active_plant_id'))
             ->whereNull('deleted_at')
             ->select('id', 'design_name as title', 'design_code as code', 'rate_per_qty as rate', 'unit_id')
             ->orderBy('design_name')
@@ -312,13 +295,13 @@ if (!function_exists('MixDesignsOptions')) {
     /**
      * Map mix designs to select options with extra metadata (rate, uom_id).
      */
-    function MixDesignsOptions($plantId)
+    function MixDesignsOptions()
     {
-        return collect(MixDesignsDropdown($plantId))->map(fn($d) => [
+        return collect(MixDesignsDropdown())->map(fn($d) => [
             'label' => $d->title,
             'value' => $d->id,
             'rate'  => $d->rate,
-            'uom_id'=> $d->unit_id,
+            'uom_id' => $d->unit_id,
         ]);
     }
 }
@@ -327,9 +310,9 @@ if (!function_exists('ExpenseTypesDropdown')) {
     /**
      * Active expense types for a plant.
      */
-    function ExpenseTypesDropdown($plantId)
+    function ExpenseTypesDropdown()
     {
-        return ExpenseType::where('plant_id', $plantId)
+        return ExpenseType::where('plant_id', session('active_plant_id'))
             ->where('status', true)
             ->whereNull('deleted_at')
             ->orderBy('name')
@@ -341,9 +324,9 @@ if (!function_exists('GradeDropdown')) {
     /**
      * Concrete grades (used for Mix Designs).
      */
-    function GradeDropdown($plantId)
+    function GradeDropdown()
     {
-        return \App\Models\ConcreteGrade::where('plant_id', $plantId)
+        return \App\Models\ConcreteGrade::where('plant_id', session('active_plant_id'))
             ->select('id', 'grade_name as title')
             ->whereNull('deleted_at')
             ->orderBy('grade_name')
@@ -358,9 +341,9 @@ if (!function_exists('ProductCategoriesDropdown')) {
      * @param  int|array  $plantId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function ProductCategoriesDropdown($plantId)
+    function ProductCategoriesDropdown()
     {
-        return ProductCategory::where('plant_id', $plantId)
+        return ProductCategory::where('plant_id', session('active_plant_id'))
             ->whereNull('deleted_at')
             ->where('status', 1)
             ->get(['id', 'name']);
@@ -398,14 +381,13 @@ if (!function_exists('TaxesDropdown')) {
      * @return \Illuminate\Database\Eloquent\Collection
      */
     function TaxesDropdown(
-        $plantId,
         $taxType = null,
         $taxGroup = null,
         bool $parentOnly = true,
         $excludeId = null,
         $includeId = null
     ) {
-        $query = Tax::forPlant($plantId)
+        $query = Tax::where('plant_id', session('active_plant_id'))
             ->where('status', 1)
             ->select('id', 'tax_name', 'tax_rate', 'tax_group', 'tax_type', 'status');
 
@@ -443,9 +425,9 @@ if (!function_exists('SaleTaxesDropdown')) {
     /**
      * Active sale taxes for a plant.
      */
-    function SaleTaxesDropdown($plantId)
+    function SaleTaxesDropdown()
     {
-        return Tax::where('plant_id', $plantId)
+        return Tax::where('plant_id', session('active_plant_id'))
             ->where('tax_type', 'sales')
             ->where('status', 1)
             ->whereNull('deleted_at')
@@ -508,17 +490,15 @@ if (!function_exists('ActivePlantsDropdown')) {
 
 if (!function_exists('LedgersDropdown')) {
     /**
-     * All ledgers.
+     * All ledgers for a specific plant.
      *
+     * @param  int|array  $plantId
+     * @param  string|null $type
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function LedgersDropdown($plantId = null, $type = null)
+    function LedgersDropdown($type = null)
     {
-        $query = Ledger::query();
-        
-        if ($plantId) {
-            $query->where('plant_id', $plantId);
-        }
+        $query = Ledger::query()->where('plant_id', session('active_plant_id'));
         
         if ($type) {
             $query->whereHas('accountType.account', function($q) use ($type) {
@@ -526,31 +506,33 @@ if (!function_exists('LedgersDropdown')) {
             });
         }
 
-        return $query->select('id', 'code as name', 'title') // Keep name for toSelectOptions compatibility
+        return $query->select('id', 'code as name', 'title')
             ->whereNull('deleted_at')
             ->get();
     }
 }
 
- function SalesLedgersDropdown($plantId = null, $type = null)
+if (!function_exists('SalesLedgersDropdown')) {
+    /**
+     * Sales-specific ledgers for a plant.
+     *
+     * @param  int|array  $plantId
+     * @param  string|null $type
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function SalesLedgersDropdown($type = null)
     {
-        $query = Ledger::query();
-        
-        if ($plantId) {
-            $query->where('plant_id', $plantId);
-        }
+        $query = Ledger::query()->where('plant_id', session('active_plant_id'));
         
         if ($type) {
-             $query->where('title', '=',$type);
-            // $query->whereHas('accountType.account', function($q) use ($type) {
-            //     $q->where('title', $type);
-            // });
+             $query->where('title', '=', $type);
         }
 
-        return $query->select('id', 'code as name', 'title') // Keep name for toSelectOptions compatibility
+        return $query->select('id', 'code as name', 'title') 
             ->whereNull('deleted_at')
             ->get();
     }
+}
 
 if (!function_exists('DetailedPatronsDropdown')) {
     /**
@@ -559,9 +541,9 @@ if (!function_exists('DetailedPatronsDropdown')) {
      * @param int|null $plantId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function DetailedPatronsDropdown($plantId)
+    function DetailedPatronsDropdown()
     {
-        return Patron::where('plant_id', $plantId)
+        return Patron::where('plant_id', session('active_plant_id'))
             ->with(['plant', 'ledger', 'contacts.addresses', 'bankAccounts'])
             ->latest()
             ->whereNull('deleted_at')

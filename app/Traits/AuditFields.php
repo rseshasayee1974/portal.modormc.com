@@ -34,9 +34,9 @@ trait AuditFields
 
         if (method_exists(static::class, 'bootSoftDeletes')) {
             static::deleting(function ($model) {
-                if (!$model->isForceDeleting()) {
+                if (method_exists($model, 'isForceDeleting') && !$model->isForceDeleting()) {
                     $model->deleted_by = Auth::id();
-                    $model->save();
+                    $model->saveQuietly();
                 }
             });
         }

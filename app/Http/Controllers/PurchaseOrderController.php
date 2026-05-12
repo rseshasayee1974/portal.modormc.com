@@ -36,12 +36,12 @@ class PurchaseOrderController extends Controller
             'purchaseOrders' => $purchaseOrders,
             'ref_no'         => $ref_no,
             
-            'accounts'      => toSelectOptions(LedgersDropdown(session('active_plant_id'), 'EXPENSE'), 'title'),
-            'vendors'        => VendorsDropdown($allowedPlantIds, ['Vendor']),
-            'vehicles'       => VehiclesDropdown($allowedPlantIds),
+            'accounts'      => toSelectOptions(LedgersDropdown('EXPENSE'), 'title'),
+            'vendors'        => VendorsDropdown(['Vendor']),
+            'vehicles'       => VehiclesDropdown(),
             'currencies'     => CurrenciesDropdown(),
-            'taxes'          => TaxesDropdown($allowedPlantIds, 'purchase', ['GST', 'IGST']),
-            'products'       => ProductsDropdown($allowedPlantIds, 'purchase'),
+            'taxes'          => TaxesDropdown('purchase', ['GST', 'IGST']),
+            'products'       => ProductsDropdown('purchase'),
             'productUnits'   => Productunit(),
             'instant_vendor' => CustomSetting::getForModule(session('active_plant_id'), 'purchase')['instant_vendor'] ?? 0,
         ]);
@@ -51,15 +51,14 @@ class PurchaseOrderController extends Controller
     {
         $this->authorizeModule('create');
 
-        $allowedPlantIds = $this->allowedPlantIds();
         $plantId = session('active_plant_id');
 
         return Inertia::render('PurchaseOrders/Create', [
-            'vendors'      => VendorsDropdown($allowedPlantIds, ['Vendor']),
-            'vehicles'     => VehiclesDropdown($allowedPlantIds),
+            'vendors'      => VendorsDropdown(['Vendor']),
+            'vehicles'     => VehiclesDropdown(),
              
-            'taxes'        => TaxesDropdown($allowedPlantIds, 'purchase', ['GST', 'IGST']),
-            'products'     => ProductsDropdown($allowedPlantIds, 'purchase'),
+            'taxes'        => TaxesDropdown('purchase', ['GST', 'IGST']),
+            'products'     => ProductsDropdown('purchase'),
             'productUnits' => Productunit('purchase'),
             'ref_no'       => Financialyear::generatePurchaseOrderRefNo($plantId),
             'instant_vendor' => CustomSetting::getForModule(session('active_plant_id'), 'purchase')['instant_vendor'] ?? 0,
@@ -91,18 +90,17 @@ class PurchaseOrderController extends Controller
 
         $this->authorizePlantAccess($purchaseOrder);
         $purchaseOrder->load(['items.product', 'items.uom', 'items.tax', 'items.history']);
-
-        $allowedPlantIds = $this->allowedPlantIds();
+ 
 
         return Inertia::render('PurchaseOrders/Edit', [
             'purchaseOrder' => $purchaseOrder,
-            'vendors'       => VendorsDropdown($allowedPlantIds, ['Vendor']),
-            'vehicles'      => VehiclesDropdown($allowedPlantIds),
+            'vendors'       => VendorsDropdown(['Vendor']),
+            'vehicles'      => VehiclesDropdown(),
             'currencies'    => CurrenciesDropdown(),
-            'taxes'         => TaxesDropdown($allowedPlantIds, 'purchase', ['GST', 'IGST']),
-            'products'      => ProductsDropdown($allowedPlantIds, 'purchase'),
+            'taxes'         => TaxesDropdown('purchase', ['GST', 'IGST']),
+            'products'      => ProductsDropdown('purchase'),
             'productUnits'  => Productunit('purchase'),
-            'accounts'      => toSelectOptions(LedgersDropdown(session('active_plant_id'), 'EXPENSE'), 'title'),
+            'accounts'      => toSelectOptions(LedgersDropdown('EXPENSE'), 'title'),
             'ref_no'        => Financialyear::generatePurchaseOrderRefNo($purchaseOrder->plant_id, $purchaseOrder->date_order?->toDateString()),
             'instant_vendor' => CustomSetting::getForModule(session('active_plant_id'), 'purchase')['instant_vendor'] ?? 0,
         ]);
@@ -137,9 +135,21 @@ class PurchaseOrderController extends Controller
         $this->authorizeModule('edit');
         $this->authorizePlantAccess($purchase_order);
 
-        // Check if already invoiced (using integer comparison for tinyint)
-        if ((int)$purchase_order->invoice_status === 1) {
-            return redirect()->back()->with('error', 'A bill has already been generated for this Purchase Order.');
+        // Check if already invoiced - look for any active (non-deleted) bill for this PO
+        $existingBill = \App\Models\Invoice::where('ref_id', $purchase_order->id)
+            ->where('invoice_type', 'bill')
+            ->first();
+
+        if ($existingBill || (int)$purchase_order->invoice_status === 1) {
+            // If invoice_status is 1 but record is missing, it might have been deleted,
+            // but we should still be cautious. If the record exists, we definitely block.
+            if ($existingBill) {
+                return redirect()->back()->with('error', 'A bill (' . $existingBill->invoice_number . ') has already been generated for this Purchase Order.');
+            }
+            
+            // If status is 1 but no record found, it might be an inconsistent state.
+            // For safety, we block if status is 1, unless the user specifically deleted the bill.
+            return redirect()->back()->with('error', 'This Purchase Order is already marked as billed.');
         }
 
         // Use the common invoice generation function
@@ -237,23 +247,7 @@ class PurchaseOrderController extends Controller
         ]);
     }
 
-    public function allowedPlantIds(): array
-    {
-        $plantIds = Auth::user()
-            ->entityUsers()
-            ->pluck('plant_id')
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->values()
-            ->toArray();
-
-        $activePlantId = (int) session('active_plant_id');
-        if ($activePlantId > 0 && !in_array($activePlantId, $plantIds, true)) {
-            $plantIds[] = $activePlantId;
-        }
-
-        return $plantIds;
-    }
+   
 
     protected function authorizePlantAccess(PurchaseOrder $purchaseOrder): void
     {

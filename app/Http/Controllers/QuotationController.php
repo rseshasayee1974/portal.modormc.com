@@ -100,4 +100,31 @@ class QuotationController extends Controller
 
         return redirect()->back()->with('success', 'Sales Order conversion status updated.');
     }
+
+    public function sendEmail(Quotation $quotation)
+    {
+        $this->authorizeModule('menu');
+        
+        $quotation->load(['patron.contacts', 'site']);
+        
+        $primaryContact = $quotation->patron->contacts()->where('is_primary', 1)->first() 
+                        ?? $quotation->patron->contacts()->first();
+        
+        $email = $primaryContact?->email;
+
+        if (!$email) {
+            return redirect()->back()->with('error', 'Customer does not have a primary contact email.');
+        }
+
+        // Send notification
+        \Illuminate\Support\Facades\Notification::route('mail', $email)
+            ->notify(new \App\Notifications\QuotationSentNotification($quotation));
+
+        // Update status if it was draft
+        if ((int)$quotation->status === Quotation::STATUS_DRAFT) {
+            $quotation->update(['status' => Quotation::STATUS_SENT]);
+        }
+
+        return redirect()->back()->with('success', "Quotation sent successfully to $email");
+    }
 }

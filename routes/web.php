@@ -122,16 +122,12 @@ Route::middleware([
 
     // 6. Orders & Sales
     Route::prefix('orders')->group(function () {
-        Route::resource('purchaseorder', PurchaseOrderController::class)->names('purchaseorder');
-        Route::get('purchaseorder/{purchase_order}/download/{template?}', [PurchaseOrderController::class, 'downloadPdf'])->name('purchaseorder.download');
-        Route::get('purchaseorder/{purchase_order}/report', [PurchaseOrderController::class, 'report'])->name('purchaseorder.report');
-        Route::post('purchaseorder/{purchase_order}/generate-bill', [PurchaseOrderController::class, 'generateBill'])->name('purchaseorder.generate-bill');
-        Route::delete('purchaseorder/{purchase_order}/delete-bill', [PurchaseOrderController::class, 'deleteBill'])->name('purchaseorder.delete-bill');
         
         Route::resource('quotations', \App\Http\Controllers\QuotationController::class);
         Route::get('quotations/{quotation}/download', [\App\Http\Controllers\QuotationController::class, 'downloadPdf'])->name('quotations.download');
         Route::get('quotations/{quotation}/report', [\App\Http\Controllers\QuotationController::class, 'report'])->name('quotations.report');
         Route::patch('quotations/{quotation}/convert', [\App\Http\Controllers\QuotationController::class, 'updateConversionStatus'])->name('quotations.convert');
+        Route::post('quotations/{quotation}/send-email', [\App\Http\Controllers\QuotationController::class, 'sendEmail'])->name('quotations.send-email');
         Route::post('salesorders', [\App\Http\Controllers\SalesOrderController::class, 'store'])->name('salesorders.store');
         Route::post('salesorders/{salesOrder}/dispatches', [\App\Http\Controllers\DispatchController::class, 'storeForSalesOrder'])->name('salesorders.dispatches.store');
         Route::resource('workorders', \App\Http\Controllers\WorkOrderController::class);
@@ -149,6 +145,12 @@ Route::middleware([
 
     // 7. Inventory & Production
     Route::prefix('inventory')->group(function () {
+        Route::resource('purchaseorder', PurchaseOrderController::class)->names('purchaseorder');
+        Route::get('purchaseorder/{purchase_order}/download/{template?}', [PurchaseOrderController::class, 'downloadPdf'])->name('purchaseorder.download');
+        Route::get('purchaseorder/{purchase_order}/report', [PurchaseOrderController::class, 'report'])->name('purchaseorder.report');
+        Route::post('purchaseorder/{purchase_order}/generate-bill', [PurchaseOrderController::class, 'generateBill'])->name('purchaseorder.generate-bill');
+        Route::delete('purchaseorder/{purchase_order}/delete-bill', [PurchaseOrderController::class, 'deleteBill'])->name('purchaseorder.delete-bill');
+        
         Route::get('stocks', [\App\Http\Controllers\StockController::class, 'index'])->name('stocks.index');
         Route::resource('inwards', PurchaseOrderInwardController::class);
         Route::get('inwards/create/{purchase_order?}', [PurchaseOrderInwardController::class, 'create'])->name('inwards.create');
@@ -190,6 +192,9 @@ Route::middleware([
         Route::post('pettycash/{petty_cash}/close', [\App\Http\Controllers\PettyCashController::class, 'close'])->name('pettycash.close');
         
         Route::resource('payments', \App\Http\Controllers\PaymentController::class)->except(['create', 'edit', 'show']);
+        Route::get('billings/unbilled-purchase-orders', [\App\Http\Controllers\BillingController::class, 'getUnbilledPurchaseOrders'])->name('billings.unbilled-pos');
+        Route::get('invoices/uninvoiced-dispatches', [\App\Http\Controllers\InvoiceController::class, 'getUninvoicedDispatches'])->name('invoices.uninvoiced-dispatches');
+
         Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit']);
         Route::resource('billings', \App\Http\Controllers\BillingController::class)->except(['create', 'edit']);
         

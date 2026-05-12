@@ -78,9 +78,9 @@ class DispatchController extends Controller
                 // 2. Create Main Dispatch Record
                 $dispatch = Dispatch::create($dispatchData);
 
-                // 4. Create Status / Logistical Record (mm_dispatch_statuses)
+                // 4. Create/Update Status / Logistical Record (mm_dispatch_statuses)
                 $statusData = $validated['status'] ?? [];
-                $dispatch->status()->create($statusData);
+                $dispatch->status()->updateOrCreate(['dispatch_id' => $dispatch->id], $statusData);
 
                 // 5. Process Immediate Payment if provided
                 if ($dispatch->payment_mode === 'cash' && !empty($validated['payment']) && (float)($validated['payment']['amount'] ?? 0) > 0) {
@@ -94,6 +94,16 @@ class DispatchController extends Controller
                
 
           
+
+                // Send Notification
+                $dispatch->load(['customer.contacts']);
+                $primaryContact = $dispatch->customer->contacts()->where('is_primary', 1)->first() 
+                                ?? $dispatch->customer->contacts()->first();
+                
+                if ($primaryContact?->email) {
+                    \Illuminate\Support\Facades\Notification::route('mail', $primaryContact->email)
+                        ->notify(new \App\Notifications\DispatchCompletedNotification($dispatch));
+                }
 
                 return redirect()->back()->with('success', 'Dispatch processed successfully.');
       

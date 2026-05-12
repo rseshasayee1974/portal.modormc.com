@@ -180,6 +180,27 @@ const submit = () => {
         },
     });
 };
+
+const sendEmail = () => {
+    Swal.fire({
+        title: 'Send Quotation?',
+        text: 'This will send the quotation PDF to the customer\'s primary contact email.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, send it',
+        confirmButtonColor: '#4f46e5'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.post(route('quotations.send-email', props.quotation.id), {}, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Quotation sent successfully.', showConfirmButton: false, timer: 1500 });
+                    emit('updated');
+                },
+            });
+        }
+    });
+};
 </script>
 
 <template>
@@ -362,13 +383,23 @@ const submit = () => {
             </div>
 
             <div class="flex justify-end" v-if="!isLocked">
-                <BaseFormActions
-                    label="Update Quotation"
-                    :loading="form.processing"
-                    @submit="submit"
-                    @reset="form.reset()"
-                    cancelLabel="Revert"
-                />
+                <div class="flex items-center gap-3">
+                    <BaseButton
+                        label="Send Email"
+                        icon="pi pi-envelope"
+                        severity="info"
+                        class="!bg-sky-600 hover:!bg-sky-700 !border-sky-600 !px-6 !h-10 text-xs font-bold uppercase tracking-wide shadow-md"
+                        @click="sendEmail"
+                        :disabled="form.processing"
+                    />
+                    <BaseFormActions
+                        label="Update Quotation"
+                        :loading="form.processing"
+                        @submit="submit"
+                        @reset="form.reset()"
+                        cancelLabel="Revert"
+                    />
+                </div>
             </div>
         </form>
     </div>

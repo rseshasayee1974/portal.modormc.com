@@ -184,7 +184,8 @@ class ERPDashboardController extends Controller
             'vehicle' => $d->truck->registration ?? 'N/A',
             'customer' => $d->workOrder->customer->legal_name ?? 'N/A',
             'qty' => (float)$d->delivered_qty,
-            'status' => $d->status && $d->status->invoice_id ? 'Billed' : 'Loaded'
+            'status' => $d->status && $d->status->invoice_id ? 'Billed' : 'Loaded',
+            'whatsapp_url' => $d->getWhatsAppUrl()
         ]);
     }
 

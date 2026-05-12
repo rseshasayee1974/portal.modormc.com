@@ -28,9 +28,9 @@ class Machine extends Model
      */
     public function scopeForPlant($query, $plantId, int $entityId = null)
     {
-        $query = is_array($plantId)
-            ? $query->whereIn('plant_id', $plantId)
-            : $query->where('plant_id', $plantId);
+       
+            $query->where('plant_id', $plantId);
+      
 
         if ($entityId !== null) {
             $query->where('entity_id', $entityId);
@@ -48,9 +48,9 @@ class Machine extends Model
      */
     public function scopeOfVehicleType($query, $types)
     {
-        return is_array($types)
-            ? $query->whereIn('vehicle_type', $types)
-            : $query->where('vehicle_type', $types);
+       
+          return  $query->where('vehicle_type', $types);
+           
     }
 
     /**

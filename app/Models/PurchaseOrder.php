@@ -280,7 +280,7 @@ class PurchaseOrder extends Model
         if (!empty($incomingItemIds)) {
             $deleteQuery->whereNotIn('id', $incomingItemIds);
         }
-        $deleteQuery->delete();
+        $deleteQuery->get()->each->delete();
 
         foreach ($itemsPayload as $itemData) {
             $payload = Arr::except($itemData, ['id']);

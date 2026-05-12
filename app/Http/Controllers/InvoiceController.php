@@ -77,30 +77,47 @@ class InvoiceController extends Controller
                 $invoice->postToAccounting();
             }
 
+            // 5. Update Source Status if applicable (e.g. Dispatch)
+            if ($source instanceof \App\Models\Dispatch) {
+                $source->status()->updateOrCreate(
+                    ['dispatch_id' => $source->id],
+                    [
+                        'invoice_id'     => $invoice->id,
+                        'invoice_number' => $invoice->invoice_number,
+                        'invoice_date'   => $invoice->invoice_date,
+                        'invoice_status' => 1,
+                    ]
+                );
+            }
+
             return $invoice;
         });
     }
 
     public function index()
     {
-        $this->authorizeModule('menu');
+        $this->authorizeModule('menu'); 
         $plantId = session('active_plant_id');
         return Inertia::render('Invoices/Index', [
-            'invoices' => Invoice::with([
+            'invoices' => Invoice::withTrashed()
+                ->with([
                     'partner:id,legal_name',
                     'account:id,title',
+                    'destroyer:id,username',
+                    'items.uom:id,unit_code',
+                    'items.tax',
                 ])
                 ->where('plant_id', $plantId)
                 ->latest()
                 ->get(),
-            'patrons' => toSelectOptions(PatronsDropdown($plantId), 'legal_name'),
-            'taxes'   => collect(TaxesDropdown($plantId, 'sales'))->map(fn($t) => [
+            'patrons' => toSelectOptions(PatronsDropdown(), 'legal_name'),
+            'taxes'   => collect(TaxesDropdown('sales'))->map(fn($t) => [
                 'label' => $t->tax_name,
                 'value' => $t->id,
                 'rate'  => $t->tax_rate,
             ]),
-            'accounts' => toSelectOptions(LedgersDropdown(), 'title'),
-            'mixdesign' => MixDesignsOptions($plantId),
+            'accounts' => toSelectOptions(LedgersDropdown('REVENUE'), 'title'),
+            'mixdesign' => MixDesignsOptions(),
             'units'    => toSelectOptions(Productunit(), 'unit_code'),
             'instant_invoice_patron' => CustomSetting::getForModule(session('active_entity_id'), 'invoice')['instant_invoice_patron'] ?? 0,
             'next_invoice_number' => Invoice::generateNumber($plantId, 'sales'),
@@ -112,13 +129,50 @@ class InvoiceController extends Controller
         $this->authorizeModule('create');
         $plantId = session('active_plant_id');
 
-        $invoice = Invoice::createWithItems(array_merge($request->validated(), [
-            'plant_id'   => $plantId,
-            'status'     => Invoice::STATUS_PAID,
-            'created_by' => Auth::id(),
-        ]));
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $plantId) {
+            $invoice = Invoice::createWithItems(array_merge($request->validated(), [
+                'plant_id'   => $plantId,
+                'status'     => Invoice::STATUS_APPROVED,
+                'created_by' => Auth::id(),
+            ]));
 
-        return redirect()->back()->with('success', 'Invoice created successfully as ' . $invoice->invoice_number);
+            // If dispatch-wise invoicing, update the dispatches with the invoice info
+            if ($request->has('dispatch_ids') && is_array($request->dispatch_ids)) {
+                \App\Models\DispatchStatus::whereIn('dispatch_id', $request->dispatch_ids)->update([
+                    'invoice_id'     => $invoice->id,
+                    'invoice_number' => $invoice->invoice_number,
+                    'invoice_date'   => $invoice->invoice_date,
+                    'invoice_status' => 1,
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'Invoice created successfully as ' . $invoice->invoice_number);
+        });
+    }
+
+    public function getUninvoicedDispatches(Request $request)
+    {
+        $this->authorizeModule('menu');
+        
+        $validated = $request->validate([
+            'partner_id' => 'required|exists:mm_patrons,id',
+            'start_date' => 'required|date',
+            'end_date'   => 'required|date',
+        ]);
+
+        $startDate = \Illuminate\Support\Carbon::parse($validated['start_date'])->startOfDay();
+        $endDate   = \Illuminate\Support\Carbon::parse($validated['end_date'])->endOfDay();
+
+        $dispatches = \App\Models\Dispatch::with(['mixDesign', 'truck', 'status'])
+            ->where('customer_id', $validated['partner_id'])
+            ->whereBetween('dispatch_time', [$startDate, $endDate])
+            ->whereHas('status', function($q) {
+                $q->whereNull('invoice_id');
+            })
+            ->latest()
+            ->get();
+
+        return response()->json($dispatches);
     }
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice)
@@ -138,6 +192,9 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice)
     {
+        // Handle manually if needed or use withTrashed in Route binding if possible.
+        // But since $invoice is already resolved by Route Model Binding, if it was deleted, it would 404.
+        // We should change the Route Binding or handle it here.
         $this->authorizeModule('view');
         
         return response()->json(
@@ -147,7 +204,8 @@ class InvoiceController extends Controller
                 'items.uom:id,unit_code',
                 'orderTaxes',
                 'account:id,title',
-                'createdBy:id,username'
+                'createdBy:id,username',
+                'destroyer:id,username',
             ])
         );
        

@@ -82,8 +82,8 @@ class Invoice extends Model
                                         $entry->delete();
                 });
 
-            // Cascading soft deletes for invoice components if not already handled
-            $m->items()->delete();
+            // Cascading soft deletes for invoice components
+            $m->items->each->delete();
             $m->orderTaxes()->delete();
 
             // Reverse Purchase Order Billed Status if this was a bill generated from PO
@@ -126,17 +126,25 @@ class Invoice extends Model
              });
              $prefix = "Bill/{$fy}/";
         } elseif ($normalizedLabel === 'batching') {
-             $query->where('invoice_label', 'Batching');
+             $query->where('invoice_label', 'Dispatch');
              $prefix = "Inv/{$fy}/";
         } else {
              $query->where('invoice_type', 'sales')->whereNull('invoice_label');
              $prefix = "INV-{$fy}-";
         }
             
-        $count = $query->count();
-        $next = $count + 1;
+        $lastNumber = (clone $query)->where('invoice_number', 'like', $prefix . '%')
+            ->max('invoice_number');
 
-        return $prefix . str_pad((string)$next, 3, '0', STR_PAD_LEFT);
+        if ($lastNumber) {
+            $separator = str_contains($lastNumber, '/') ? '/' : '-';
+            $parts = explode($separator, $lastNumber);
+            $next = ((int) end($parts)) + 1;
+        } else {
+            $next = 1;
+        }
+
+        return $prefix . (string)$next;
     }
 
     /**
@@ -285,7 +293,8 @@ class Invoice extends Model
             $this->update($data);
 
             $keptIds = collect($itemsData)->pluck('id')->filter()->toArray();
-            $this->items()->whereNotIn('id', $keptIds)->delete();
+            // Use get() then delete() to ensure model events (AuditFields) are triggered
+            $this->items()->whereNotIn('id', $keptIds)->get()->each->delete();
 
             foreach ($itemsData as $itemData) {
                 $itemTaxRate = 0;
@@ -361,7 +370,7 @@ class Invoice extends Model
     {
         try {
             $decrypted = decrypt($value);
-            return $this->where($field ?? $this->getRouteKeyName(), $decrypted)->first();
+            return $this->withTrashed()->where($field ?? $this->getRouteKeyName(), $decrypted)->first();
         } catch (\Exception $e) {
             return parent::resolveRouteBinding($value, $field);
         }

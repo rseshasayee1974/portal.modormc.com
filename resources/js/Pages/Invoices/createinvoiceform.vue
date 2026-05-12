@@ -20,7 +20,7 @@ import BaseCreatableSelect from '@/Components/Base/BaseCreatableSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
-import Button from 'primevue/button';
+import BaseButton from '@/Components/Base/BaseButton.vue';
 import Textarea from 'primevue/textarea';
 import { useToast } from 'primevue/usetoast';
 
@@ -60,8 +60,97 @@ const form = useForm({
     amount_untaxed: 0,
     amount_tax: 0,
     amount_total: 0,
-    items: [] as any[]
+    items: [] as any[],
+    dispatch_ids: [] as number[]
 });
+
+const billingMode = ref('manual'); // 'manual' or 'dispatch'
+const dispatchFilters = ref({
+    startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
+});
+const uninvoicedDispatches = ref<any[]>([]);
+const selectedDispatches = ref<number[]>([]);
+const isFetchingDispatches = ref(false);
+
+const fetchDispatches = async () => {
+    if (!form.partner_id) {
+        toast.add({ severity: 'warn', summary: 'Missing Customer', detail: 'Please select a customer first', life: 1500 });
+        return;
+    }
+    isFetchingDispatches.value = true;
+    try {
+        const response = await axios.get(route('invoices.uninvoiced-dispatches'), {
+            params: {
+                partner_id: form.partner_id,
+                start_date: dispatchFilters.value.startDate,
+                end_date: dispatchFilters.value.endDate
+            }
+        });
+        uninvoicedDispatches.value = response.data;
+        if (uninvoicedDispatches.value.length === 0) {
+             toast.add({ severity: 'info', summary: 'No Data', detail: 'No uninvoiced dispatches found for this period.', life: 2000 });
+        }
+    } catch (error) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch dispatches', life: 1500 });
+    } finally {
+        isFetchingDispatches.value = false;
+    }
+};
+
+const mergeSelectedDispatches = () => {
+    if (selectedDispatches.value.length === 0) {
+        toast.add({ severity: 'warn', summary: 'Selection Required', detail: 'Please select at least one dispatch record.', life: 1500 });
+        return;
+    }
+    
+    const grouped: Record<number, any> = {};
+    selectedDispatches.value.forEach(id => {
+        const d = uninvoicedDispatches.value.find(x => x.id === id);
+        if (!d) return;
+        
+        const key = d.mixdesign_id;
+        if (!grouped[key]) {
+            grouped[key] = {
+                mix_design_id: d.mixdesign_id,
+                uom_id: d.uom_id || 1, 
+                item_name: d.mix_design?.design_name || 'RMC',
+                hsn_code: '3824',
+                tax_id: d.load_tax_id,
+                quantity: 0,
+                price_unit: Number(d.load_rate),
+                discount_type: '%',
+                discount: 0,
+                subtotal: 0,
+                tax_amount: 0,
+                total: 0
+            };
+        }
+        grouped[key].quantity += Number(d.delivered_qty);
+    });
+    
+    form.items = Object.values(grouped);
+    form.dispatch_ids = [...selectedDispatches.value];
+    calculateTotals();
+    toast.add({ severity: 'success', summary: 'Merged', detail: `${selectedDispatches.value.length} dispatches consolidated.`, life: 1500 });
+};
+
+const toggleDispatchSelection = (id: number) => {
+    const idx = selectedDispatches.value.indexOf(id);
+    if (idx > -1) {
+        selectedDispatches.value.splice(idx, 1);
+    } else {
+        selectedDispatches.value.push(id);
+    }
+};
+
+const selectAllDispatches = () => {
+    if (selectedDispatches.value.length === uninvoicedDispatches.value.length) {
+        selectedDispatches.value = [];
+    } else {
+        selectedDispatches.value = uninvoicedDispatches.value.map(d => d.id);
+    }
+};
 
 // Initialize with one item
 form.items.push(createNewItem());
@@ -222,6 +311,31 @@ const taxOptions = computed(() => props.taxes);
 
         <Transition name="panel-slide">
             <div v-if="isOpen" class="create-panel__body">
+                <!-- Mode Selector -->
+                <div class="flex items-center gap-4 mb-8 bg-slate-50/50 p-2 rounded-2xl border border-slate-100 w-fit">
+                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-3">Invoicing Strategy:</span>
+                    <div class="flex bg-white rounded-xl p-1 shadow-sm border border-slate-200">
+                        <button 
+                            type="button" 
+                            @click="billingMode = 'manual'" 
+                            :class="billingMode === 'manual' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'"
+                            class="flex items-center gap-2 px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all"
+                        >
+                            <DocumentTextIcon class="w-4 h-4" />
+                            Manual Entry
+                        </button>
+                        <button 
+                            type="button" 
+                            @click="billingMode = 'dispatch'" 
+                            :class="billingMode === 'dispatch' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'"
+                            class="flex items-center gap-2 px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all"
+                        >
+                            <TruckIcon class="w-4 h-4" />
+                            Dispatch-Wise
+                        </button>
+                    </div>
+                </div>
+
                 <form @submit.prevent="submit" class="space-y-6">
                     <!-- Top Info Grid -->
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 px-1">
@@ -301,6 +415,53 @@ const taxOptions = computed(() => props.taxes);
                             placeholder="INV"
                             :error="form.errors.prefix"
                         /> -->
+                    </div>
+
+                    <!-- Dispatch Selection Area (Only in Dispatch Mode) -->
+                    <div v-if="billingMode === 'dispatch'" class="bg-emerald-50/30 p-6 rounded-2xl border border-emerald-100 shadow-sm animate-in fade-in slide-in-from-top-4">
+                        <div class="flex flex-col lg:flex-row lg:items-end gap-4 mb-6">
+                            <BaseDatePicker v-model="dispatchFilters.startDate" label="From Date" size="small" class="w-44" />
+                            <BaseDatePicker v-model="dispatchFilters.endDate" label="To Date" size="small" class="w-44" />
+                            <BaseButton variant="filled" severity="info" label="Find Dispatches" :loading="isFetchingDispatches" @click="fetchDispatches" class="!bg-emerald-600 !border-emerald-600 !h-10 !px-6 text-[10px] uppercase font-black tracking-widest shadow-md" />
+                            
+                            <div class="ml-auto" v-if="uninvoicedDispatches.length > 0">
+                                <BaseButton variant="filled" severity="primary" label="Merge Into Invoice" icon="pi pi-sync" @click="mergeSelectedDispatches" :disabled="selectedDispatches.length === 0" class="!bg-indigo-600 !h-10 !px-6 text-[10px] uppercase font-black tracking-widest shadow-md" />
+                            </div>
+                        </div>
+
+                        <div v-if="uninvoicedDispatches.length > 0" class="overflow-hidden border border-emerald-100 rounded-xl bg-white shadow-inner">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-emerald-50/50 text-[10px] font-black uppercase text-emerald-700 tracking-widest border-b border-emerald-100">
+                                    <tr>
+                                        <th class="p-4 w-12 text-center">
+                                            <input type="checkbox" :checked="selectedDispatches.length === uninvoicedDispatches.length" @change="selectAllDispatches" class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" />
+                                        </th>
+                                        <th class="p-4">Ticket</th>
+                                        <th class="p-4 text-center">Date</th>
+                                        <th class="p-4">Grade</th>
+                                        <th class="p-4">Vehicle</th>
+                                        <th class="p-4 text-right pr-8">Qty (m³)</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-emerald-50">
+                                    <tr v-for="d in uninvoicedDispatches" :key="d.id" class="hover:bg-emerald-50/30 transition-colors cursor-pointer" @click="toggleDispatchSelection(d.id)">
+                                        <td class="p-4 text-center" @click.stop>
+                                            <input type="checkbox" :value="d.id" v-model="selectedDispatches" class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" />
+                                        </td>
+                                        <td class="p-4 font-black text-emerald-700">{{ d.dispatch_no }}</td>
+                                        <td class="p-4 text-center text-slate-500">{{ new Date(d.dispatch_date).toLocaleDateString('en-GB') }}</td>
+                                        <td class="p-4 font-bold text-slate-700">{{ d.mix_design?.design_name || 'RMC' }}</td>
+                                        <td class="p-4 font-medium text-slate-500">{{ d.truck?.registration || '-' }}</td>
+                                        <td class="p-4 text-right font-black text-slate-900 pr-8">{{ d.delivered_qty }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-else-if="!isFetchingDispatches" class="py-12 text-center border-2 border-dashed border-emerald-100 rounded-xl">
+                            <TruckIcon class="w-10 h-10 text-emerald-200 mx-auto mb-3" />
+                            <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">No Pending Dispatches Found</p>
+                            <p class="text-[11px] text-slate-300 mt-1 font-medium">Select a customer and date range above</p>
+                        </div>
                     </div>
 
                     <!-- Items Table Area -->

@@ -45,24 +45,28 @@ trait PostsToAccounting
             $partnerId      = $this->partner_id ?? null;
             $accountId      = $this->account_id ?? null;
             
-            // 1. Create Journal Entry Header (No update option)
+            // 1. Create or Update Journal Entry Header
             $refModule = ($this->invoice_type ?? 'invoice') === 'bill' ? 'bill' : 'invoice';
 
-            $journalEntry = JournalEntry::create([
-                'ref_module'     => $refModule,
-                'ref_id'         => $this->id,
-                'entity_id'      => $entityId,
-                'plant_id'       => $plantId,
-                'voucher_type'   => $voucherType,
-                'voucher_number' => $invoiceNo,
-                'voucher_date'   => $invoiceDate,
-                'posting_date'   => $invoiceDate,
-                'narration'      => ($isSales ? "Sales Invoice: " : "Purchase Bill: ") . $invoiceNo . " | Ref: " . $refTitle,
-                'total_debit'    => $totalAmount,
-                'total_credit'   => $totalAmount,
-                'is_status'      => 'DRAFT', // Set to DRAFT until balanced
-                'created_by'     => Auth::id() ?? 1,
-            ]);
+            $journalEntry = JournalEntry::updateOrCreate(
+                [
+                    'ref_module' => $refModule,
+                    'ref_id'     => $this->id,
+                    'plant_id'   => $plantId,
+                ],
+                [
+                    'entity_id'      => $entityId,
+                    'voucher_type'   => $voucherType,
+                    'voucher_number' => $invoiceNo,
+                    'voucher_date'   => $invoiceDate,
+                    'posting_date'   => $invoiceDate,
+                    'narration'      => ($isSales ? "Sales Invoice: " : "Purchase Bill: ") . $invoiceNo . " | Ref: " . $refTitle,
+                    'total_debit'    => $totalAmount,
+                    'total_credit'   => $totalAmount,
+                    'is_status'      => 'DRAFT', // Set to DRAFT until balanced
+                    'created_by'     => Auth::id() ?? 1,
+                ]
+            );
 
             // 2. Clear existing lines
             $journalEntry->lines()->delete();

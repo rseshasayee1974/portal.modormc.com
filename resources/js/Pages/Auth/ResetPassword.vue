@@ -200,6 +200,15 @@ const submit = () => {
                                 class="w-full rounded-2xl border-0 bg-slate-950 px-5 py-4 text-[15px] font-black text-white shadow-xl shadow-slate-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800 focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 disabled:translate-y-0 disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100 dark:focus:ring-offset-slate-950"
                             />
                         </form>
+
+                        <!-- Powered By Footer -->
+                        <div class="mt-8 flex items-center justify-center gap-2 border-t border-slate-100 pt-6 dark:border-white/5">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Powered by</span>
+                            <div class="flex items-center gap-1.5 leading-none">
+                                <span class="text-[11px] font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">onemodo</span>
+                                <span class="text-[11px] font-black text-indigo-500 uppercase italic tracking-tighter">.com</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

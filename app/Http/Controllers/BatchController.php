@@ -62,19 +62,19 @@ class BatchController extends Controller
         return Inertia::render('Batches/Index', [
             'batches' => $batches,
             'workOrders' => $workOrders,
-            'trucks' => MachinesDropdown($activePlantId),
-            'customers' => PatronsDropdown($activePlantId, 'Customer'),
-            'transporters' => PatronsDropdown($activePlantId), // assuming PatronsDropdown handles this
-            'loading_sites' => SitesDropdown($activePlantId,'loading'),
-            'unloading_sites' => SitesDropdown($activePlantId,'unloading'),
-            'personnel' => PersonnelDropdown($activePlantId),
-            'taxes' => TaxesDropdown($activePlantId,'sales'),
-            'products' => ProductsDropdown($activePlantId),
+            'trucks' => MachinesDropdown(),
+            'customers' => PatronsDropdown('Customer'),
+            'transporters' => PatronsDropdown(), // assuming PatronsDropdown handles this
+            'loading_sites' => SitesDropdown('loading'),
+            'unloading_sites' => SitesDropdown('unloading'),
+            'personnel' => PersonnelDropdown(),
+            'taxes' => TaxesDropdown('sales'),
+            'products' => ProductsDropdown(),
             'uoms' => Productunit(),
             'statuses' => Batch::statusOptions(),
             'payment_methods' => PaymentMethodsDropdown(),
             
-            'sales_ledgers' => toSelectOptions(LedgersDropdown($activePlantId, 'REVENUE'),'title','id'),
+            'sales_ledgers' => toSelectOptions(LedgersDropdown('REVENUE'),'title','id'),
             'nextBatchNo' => $nextBatchNo ?: 1,
             'batchingSettings' => \App\Models\CustomSetting::getForModule($activePlantId, 'batching'),
         ]);
@@ -108,6 +108,11 @@ class BatchController extends Controller
             }
             
             $this->refreshWorkOrderProduction($workOrder);
+
+            // Send notification if batch is created as dispatched or completed
+            if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                auth()->user()->notify(new \App\Notifications\BatchCompletedNotification($batch));
+            }
 
             // Create initial Dispatch
             $dispatchData = [
@@ -143,7 +148,7 @@ class BatchController extends Controller
             $dispatchData['dispatch_no'] = (string)(($maxNumber ?: 0) + 1);
 
             $dispatch = Dispatch::create($dispatchData);
-            $dispatch->status()->create();
+            $dispatch->status()->updateOrCreate(['dispatch_id' => $dispatch->id]);
 
             if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
             if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
@@ -217,6 +222,12 @@ class BatchController extends Controller
             }
             
             $this->refreshWorkOrderProduction($batch->workOrder);
+
+            // Send notification if batch is newly dispatched or completed
+            if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]) && 
+                $oldStatus != $batch->status) {
+                auth()->user()->notify(new \App\Notifications\BatchCompletedNotification($batch));
+            }
 
             // Update associated dispatch if it exists
             $dispatch = $batch->dispatches()->first();
@@ -317,92 +328,7 @@ class BatchController extends Controller
 
     private function prepareBatchSheetData(Batch $batch): array
     {
-        $materials = $batch->materials->map(function ($material) {
-            $name = (string) ($material->material_name ?: ($material->product->title ?? 'Material'));
-            $categoryName = (string) ($material->product->category->name ?? '');
-            
-            return [
-                'key' => $material->id,
-                'name' => $name,
-                'category_name' => $categoryName,
-                'short' => strtoupper(substr(preg_replace('/\s+/', '', $name), 0, 6)),
-                'target' => (float) $material->target_qty,
-                'actual' => (float) $material->actual_qty,
-                'diff_percent' => (float) ($material->deviation_quantity ?? 0),
-            ];
-        })->values();
-
-        $groups = [
-            ['name' => 'Aggregate', 'keywords' => ['SAND', 'AGG', '10MM', '12MM', '20MM', 'DUST', 'GGBS']],
-            ['name' => 'Cement', 'keywords' => ['CEM', 'CEMENT', 'FLY', 'OPC', 'PPC']],
-            ['name' => 'Water / Ice', 'keywords' => ['WTR', 'WATER', 'ICE']],
-            ['name' => 'Admixture', 'keywords' => ['ADM', 'ADMI', 'CHEM', 'RET']],
-            ['name' => 'Silica', 'keywords' => ['SIL', 'SILICA', 'FUME']],
-        ];
-
-        $grouped = [];
-        foreach ($groups as $group) {
-            $grouped[$group['name']] = [];
-        }
-
-        foreach ($materials as $material) {
-            $upperName = strtoupper($material['name']);
-            $upperCategory = strtoupper($material['category_name']);
-            $matched = false;
-
-            foreach ($groups as $group) {
-                foreach ($group['keywords'] as $keyword) {
-                    if (str_contains($upperName, $keyword) || str_contains($upperCategory, $keyword)) {
-                        $grouped[$group['name']][] = $material;
-                        $matched = true;
-                        break 2;
-                    }
-                }
-            }
-
-            if (!$matched) {
-                $grouped['Aggregate'][] = $material;
-            }
-        }
-
-        $groupOrder = array_map(fn ($group) => $group['name'], $groups);
-        $tableMaterials = [];
-        foreach ($groupOrder as $groupName) {
-            if (empty($grouped[$groupName])) {
-                // Add a placeholder for empty groups to maintain table structure
-                $placeholder = [
-                    'key' => 'placeholder-' . $groupName,
-                    'name' => '-',
-                    'category_name' => $groupName,
-                    'short' => '-',
-                    'target' => 0.0,
-                    'actual' => 0.0,
-                    'diff_percent' => 0.0,
-                    'is_placeholder' => true,
-                ];
-                $grouped[$groupName][] = $placeholder;
-                $tableMaterials[] = $placeholder;
-            } else {
-                foreach ($grouped[$groupName] as $entry) {
-                    $tableMaterials[] = $entry;
-                }
-            }
-        }
-
-        $totalSetWeight = collect($tableMaterials)->sum('target');
-        $totalActualWeight = collect($tableMaterials)->sum('actual');
-        $totalDifferencePercent = $totalSetWeight > 0
-            ? (($totalActualWeight - $totalSetWeight) / $totalSetWeight) * 100
-            : 0;
-
-        return [
-            'group_order' => $groupOrder,
-            'grouped' => $grouped,
-            'table_materials' => $tableMaterials,
-            'total_set_weight' => round($totalSetWeight, 2),
-            'total_actual_weight' => round($totalActualWeight, 2),
-            'total_difference_percent' => round($totalDifferencePercent, 2),
-        ];
+        return $batch->getReportData();
     }
 
     private function syncMaterials(Batch $batch, array $materials): void

@@ -28,6 +28,9 @@ class InvoiceItem extends Model
         'subtotal',
         'line_tax_amount',
         'line_total',
+        'created_by',
+        'updated_by',
+        'deleted_by',
     ];
 
     protected $casts = [

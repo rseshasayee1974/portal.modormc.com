@@ -74,4 +74,93 @@ class Batch extends Model
     {
         return $this->hasMany(Dispatch::class, 'batch_id');
     }
+
+    public function getReportData(): array
+    {
+        $materials = $this->materials->map(function ($material) {
+            $name = (string) ($material->material_name ?: ($material->product->title ?? 'Material'));
+            $categoryName = (string) ($material->product->category->name ?? '');
+            
+            return [
+                'key' => $material->id,
+                'name' => $name,
+                'category_name' => $categoryName,
+                'short' => strtoupper(substr(preg_replace('/\s+/', '', $name), 0, 6)),
+                'target' => (float) $material->target_qty,
+                'actual' => (float) $material->actual_qty,
+                'diff_percent' => (float) ($material->deviation_quantity ?? 0),
+            ];
+        })->values();
+
+        $groups = [
+            ['name' => 'Aggregate', 'keywords' => ['SAND', 'AGG', '10MM', '12MM', '20MM', 'DUST', 'GGBS']],
+            ['name' => 'Cement', 'keywords' => ['CEM', 'CEMENT', 'FLY', 'OPC', 'PPC']],
+            ['name' => 'Water / Ice', 'keywords' => ['WTR', 'WATER', 'ICE']],
+            ['name' => 'Admixture', 'keywords' => ['ADM', 'ADMI', 'CHEM', 'RET']],
+            ['name' => 'Silica', 'keywords' => ['SIL', 'SILICA', 'FUME']],
+        ];
+
+        $grouped = [];
+        foreach ($groups as $group) {
+            $grouped[$group['name']] = [];
+        }
+
+        foreach ($materials as $material) {
+            $upperName = strtoupper($material['name']);
+            $upperCategory = strtoupper($material['category_name']);
+            $matched = false;
+
+            foreach ($groups as $group) {
+                foreach ($group['keywords'] as $keyword) {
+                    if (str_contains($upperName, $keyword) || str_contains($upperCategory, $keyword)) {
+                        $grouped[$group['name']][] = $material;
+                        $matched = true;
+                        break 2;
+                    }
+                }
+            }
+
+            if (!$matched) {
+                $grouped['Aggregate'][] = $material;
+            }
+        }
+
+        $groupOrder = array_map(fn ($group) => $group['name'], $groups);
+        $tableMaterials = [];
+        foreach ($groupOrder as $groupName) {
+            if (empty($grouped[$groupName])) {
+                $placeholder = [
+                    'key' => 'placeholder-' . $groupName,
+                    'name' => '-',
+                    'category_name' => $groupName,
+                    'short' => '-',
+                    'target' => 0.0,
+                    'actual' => 0.0,
+                    'diff_percent' => 0.0,
+                    'is_placeholder' => true,
+                ];
+                $grouped[$groupName][] = $placeholder;
+                $tableMaterials[] = $placeholder;
+            } else {
+                foreach ($grouped[$groupName] as $entry) {
+                    $tableMaterials[] = $entry;
+                }
+            }
+        }
+
+        $totalSetWeight = collect($tableMaterials)->sum('target');
+        $totalActualWeight = collect($tableMaterials)->sum('actual');
+        $totalDifferencePercent = $totalSetWeight > 0
+            ? (($totalActualWeight - $totalSetWeight) / $totalSetWeight) * 100
+            : 0;
+
+        return [
+            'group_order' => $groupOrder,
+            'grouped' => $grouped,
+            'table_materials' => $tableMaterials,
+            'total_set_weight' => round($totalSetWeight, 2),
+            'total_actual_weight' => round($totalActualWeight, 2),
+            'total_difference_percent' => round($totalDifferencePercent, 2),
+        ];
+    }
 }

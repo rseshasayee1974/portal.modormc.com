@@ -124,4 +124,29 @@ class Dispatch extends Model
     {
         return $this->hasMany(DispatchPayment::class, 'dispatch_id');
     }
+
+    /**
+     * Generates a WhatsApp Click-to-Chat URL for this dispatch.
+     */
+    public function getWhatsAppUrl(): ?string
+    {
+        $this->load(['customer.contacts', 'workOrder', 'mixDesign', 'truck', 'driver']);
+        
+        $customer = $this->customer;
+        if (!$customer) return null;
+        
+        $contact = $customer->contacts()->where('is_primary', 1)->first() ?? $customer->contacts()->first();
+        if (!$contact || !$contact->mobile) return null;
+
+        $mobile = preg_replace('/[^0-9]/', '', $contact->mobile);
+        // Add country code if 10 digits
+        if (strlen($mobile) === 10) {
+            $mobile = '91' . $mobile;
+        }
+
+        $notification = new \App\Notifications\DispatchCompletedNotification($this);
+        $message = $notification->toWhatsAppMessage();
+
+        return "https://wa.me/" . $mobile . "?text=" . urlencode($message);
+    }
 }

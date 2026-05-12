@@ -64,7 +64,7 @@ const form = useForm({
         tax_amount: 0
     }))
 });
-
+console.log('items',props.invoice);
 function createNewItem() {
     return {
         mix_design_id: null,

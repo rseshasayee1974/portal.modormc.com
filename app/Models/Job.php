@@ -27,7 +27,7 @@ class Job extends Model
 {
 	use HasFactory;
 
-	protected $table = 'jobs';
+	protected $table = 'mm_jobs';
 	public $timestamps = false;
 
 	protected $casts = [
