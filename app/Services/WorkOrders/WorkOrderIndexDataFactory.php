@@ -24,7 +24,7 @@ class WorkOrderIndexDataFactory
             'mixDesigns' => $activePlantId ? $this->loadMixDesigns($activePlantId, $schema)->toArray() : [],
             'statuses' => WorkOrder::statusOptions(),
             'activePlantId' => $activePlantId,
-            'nextReference' => WorkOrder::generateOrderNo('WO'),
+            'nextReference' => $activePlantId ? WorkOrder::generateOrderNo($activePlantId, 'WO')['full_number'] : null,
         ];
     }
 

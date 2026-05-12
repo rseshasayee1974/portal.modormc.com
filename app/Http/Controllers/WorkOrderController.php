@@ -38,7 +38,9 @@ class WorkOrderController extends Controller
         $payload = $request->validated();
 
         if (empty($payload['order_no'])) {
-            $payload['order_no'] = WorkOrder::generateOrderNo($payload['prefix'] ?? 'WO');
+            $details = WorkOrder::generateOrderNo(session('active_plant_id'), $payload['prefix'] ?? 'WO');
+            $payload['prefix'] = $details['prefix'];
+            $payload['order_no'] = $details['next_number'];
         }
 
         $tableColumns = Schema::getColumnListing('mm_work_orders');

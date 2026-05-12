@@ -90,37 +90,41 @@ class WorkOrder extends Model
             ->firstWhere('value', $status)['label'] ?? 'Unknown';
     }
 
-    public static function generateOrderNo(string $prefix = 'WO'): string
+    protected $appends = [
+        'full_number',
+    ];
+
+    public function getFullNumberAttribute()
     {
-        $normalizedPrefix = Str::upper(trim($prefix)) ?: 'WO';
-        
+        return sprintf('%s%04d', $this->prefix, (int)$this->order_no);
+    }
+
+    public static function generateOrderNo(int $plantId, string $prefix = 'WO'): array
+    {
         $now = now();
+        // Financial Year: April to March
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
-        $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
-
-        $hasPrefixColumn = Schema::hasColumn('mm_work_orders', 'prefix');
-        $hasOrderNoColumn = Schema::hasColumn('mm_work_orders', 'order_no');
-        $hasLegacyOrderColumn = Schema::hasColumn('mm_work_orders', 'work_order_number');
-
-        if (!$hasOrderNoColumn && !$hasLegacyOrderColumn) {
-            return sprintf('%s-%s-%04d', $normalizedPrefix, $fyString, 1);
-        }
-
-        $identifierColumn = $hasOrderNoColumn ? 'order_no' : 'work_order_number';
-        $latestQuery = self::query();
-        if ($hasPrefixColumn) {
-            $latestQuery->where('prefix', $normalizedPrefix);
-        }
+        $endYear = $startYear + 1;
+        $fyString = substr($startYear, -2) . substr($endYear, -2);
         
-        $latestQuery->where($identifierColumn, 'LIKE', "{$normalizedPrefix}-{$fyString}-%");
+        $fullPrefix = "{$prefix}/{$fyString}/";
 
-        $latest = $latestQuery->latest('id')->value($identifierColumn);
+        // Get the latest order number for this plant and prefix
+        $latest = self::where('plant_id', $plantId)
+            ->where('prefix', $fullPrefix)
+            ->whereNull('deleted_at')
+            ->orderByRaw('CAST(order_no AS UNSIGNED) DESC')
+            ->value('order_no');
 
-        $sequence = 1;
-        if ($latest && preg_match('/(\d{4})$/', $latest, $matches)) {
-            $sequence = ((int) $matches[1]) + 1;
+        $nextSequence = 1;
+        if ($latest) {
+            $nextSequence = (int)$latest + 1;
         }
 
-        return sprintf('%s-%s-%04d', $normalizedPrefix, $fyString, $sequence);
+        return [
+            'prefix' => $fullPrefix,
+            'next_number' => str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT),
+            'full_number' => $fullPrefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT)
+        ];
     }
 }
