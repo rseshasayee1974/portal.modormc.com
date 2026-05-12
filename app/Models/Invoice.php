@@ -59,7 +59,11 @@ class Invoice extends Model
         parent::boot();
 
         static::creating(function ($m) {
-            $m->invoice_number = $m->invoice_number ?? self::generateNumber($m->plant_id, $m->invoice_label ?? $m->invoice_type);
+            if (empty($m->invoice_number)) {
+                $details = self::generateNumber($m->plant_id, $m->invoice_label ?? $m->invoice_type);
+                $m->prefix = $details['prefix'];
+                $m->invoice_number = $details['next_number'];
+            }
         });
 
         static::deleted(function ($m) {
