@@ -52,9 +52,9 @@ class PlantInitializationService
             $this->seedPatron($plant);
             $this->seedSite($plant);
             $this->seedTemplates($plant);
-            $this->seedModules();
-            $this->seedVoucherTypes($plant);
-            $this->seedPaymentMethods();
+            // $this->seedModules();
+            // $this->seedVoucherTypes($plant);
+            // $this->seedPaymentMethods($plant);
             $this->seedCustomSettings($plant);
             $this->createUserForPlant($plant);
 
@@ -637,7 +637,77 @@ class PlantInitializationService
         }
     }
 
-   
+    // private function seedModules()
+    // {
+    //     $modules = [
+    //         ['module_name' => 'Invoice', 'display_value' => 'Sales Invoicing'],
+    //         ['module_name' => 'Purchase', 'display_value' => 'Purchase Billing'],
+    //         ['module_name' => 'Billing', 'display_value' => 'Purchase Billing'],
+    //         ['module_name' => 'Payment', 'display_value' => 'Payments'],
+    //         ['module_name' => 'Receipt', 'display_value' => 'Receipts'],
+    //         ['module_name' => 'Inventory', 'display_value' => 'Inventory Management'],
+    //         ['module_name' => 'Patron', 'display_value' => 'Patron Ledgers'],
+    //     ];
+
+    //     foreach ($modules as $module) {
+    //         Module::updateOrCreate(
+    //             ['module_name' => $module['module_name']],
+    //             ['display_value' => $module['display_value'], 'is_active' => true]
+    //         );
+    //     }
+    // }
+
+    // private function seedVoucherTypes(Plant $plant)
+    // {
+    //     $voucherTypes = [
+    //         ['journal_name' => 'General Journal', 'short_code' => 'JV', 'is_system_generated' => true, 'prefix' => 'JV-', 'voucher_group' => 'Other'],
+    //         ['journal_name' => 'Purchase Journal', 'short_code' => 'PUR', 'is_system_generated' => true, 'prefix' => 'PUR-', 'voucher_group' => 'Purchase'],
+    //         ['journal_name' => 'Vendor Bill', 'short_code' => 'VBILL', 'is_system_generated' => true, 'prefix' => 'VBILL-', 'voucher_group' => 'Purchase'],
+    //         ['journal_name' => 'Sales Journal', 'short_code' => 'SALE', 'is_system_generated' => true, 'prefix' => 'SALE-', 'voucher_group' => 'Sales'],
+    //         ['journal_name' => 'Payment Journal', 'short_code' => 'PAY', 'is_system_generated' => true, 'prefix' => 'PAY-', 'voucher_group' => 'Payment'],
+    //         ['journal_name' => 'Receipt Journal', 'short_code' => 'REC', 'is_system_generated' => true, 'prefix' => 'REC-', 'voucher_group' => 'Receipt'],
+    //         ['journal_name' => 'Contra Journal', 'short_code' => 'CON', 'is_system_generated' => false, 'prefix' => 'CON-', 'voucher_group' => 'Other'],
+    //         ['journal_name' => 'Debit Note', 'short_code' => 'DN', 'is_system_generated' => true, 'prefix' => 'DN-', 'voucher_group' => 'Debit Note'],
+    //         ['journal_name' => 'Credit Note', 'short_code' => 'CN', 'is_system_generated' => true, 'prefix' => 'CN-', 'voucher_group' => 'Credit Note'],
+    //         ['journal_name' => 'Tax Invoice', 'short_code' => 'TAX', 'is_system_generated' => true, 'prefix' => 'TAX-', 'voucher_group' => 'Sales'],
+    //     ];
+
+    //     foreach ($voucherTypes as $type) {
+    //         VoucherType::updateOrCreate(
+    //             [
+    //                 'short_code' => $type['short_code'],
+    //                 'plant_id'   => $plant->id
+    //             ],
+    //             array_merge($type, [
+    //                 'entity_id' => $plant->entity_id,
+    //                 'plant_id'  => $plant->id
+    //             ])
+    //         );
+    //     }
+    // }
+
+    // private function seedPaymentMethods(Plant $plant)
+    // {
+    //     $methods = [
+    //         ['name' => 'Cash', 'description' => 'Cash Payment'],
+    //         ['name' => 'UPI', 'description' => 'Digital Wallet / UPI'],
+    //         ['name' => 'Bank Transfer', 'description' => 'IMPS/NEFT/RTGS'],
+    //         ['name' => 'Check', 'description' => 'Bank Check'],
+    //     ];
+
+    //     foreach ($methods as $method) {
+    //         PaymentMethod::updateOrCreate(
+    //             [
+    //                 'name'     => $method['name'],
+    //                 'plant_id' => $plant->id
+    //             ],
+    //             array_merge($method, [
+    //                 'plant_id'  => $plant->id,
+    //                 'is_active' => true
+    //             ])
+    //         );
+    //     }
+    // }
 
     private function seedCustomSettings(Plant $plant)
     {
