@@ -24,6 +24,9 @@ use App\Models\Contact;
 use App\Models\EntityUser;
 use Spatie\Permission\Models\Role;
 use App\Models\User;
+use App\Models\VoucherType;
+use App\Models\PaymentMethod;
+use App\Models\CustomSetting;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -49,6 +52,10 @@ class PlantInitializationService
             $this->seedPatron($plant);
             $this->seedSite($plant);
             $this->seedTemplates($plant);
+            $this->seedModules();
+            $this->seedVoucherTypes($plant);
+            $this->seedPaymentMethods();
+            $this->seedCustomSettings($plant);
             $this->createUserForPlant($plant);
 
             $plant->update(['is_initialized' => true]);
@@ -402,6 +409,8 @@ class PlantInitializationService
     {
         $kgUnit = ProductUnit::where('unit_code', 'KGS')->first() ?? ProductUnit::create(['unit_name' => 'KGS', 'unit_code' => 'KGS', 'is_system' => true, 'status' => 1]);
         $m3Unit = ProductUnit::where('unit_code', 'CBM')->first() ?? ProductUnit::create(['unit_name' => 'CBM', 'unit_code' => 'CBM', 'is_system' => true, 'status' => 1]);
+        $bagUnit = ProductUnit::where('unit_code', 'BAG')->first() ?? ProductUnit::create(['unit_name' => 'BAGS', 'unit_code' => 'BAG', 'is_system' => true, 'status' => 1]);
+        $nosUnit = ProductUnit::where('unit_code', 'NOS')->first() ?? ProductUnit::create(['unit_name' => 'NUMBERS', 'unit_code' => 'NOS', 'is_system' => true, 'status' => 1]);
 
         $rmcCategory = ProductCategory::updateOrCreate([
             'plant_id' => $plant->id,
@@ -625,6 +634,167 @@ class PlantInitializationService
                     'print_template_id' => $defaultTemplate->id,
                 ]);
             }
+        }
+    }
+
+    // private function seedModules()
+    // {
+    //     $modules = [
+    //         ['module_name' => 'Invoice', 'display_value' => 'Sales Invoicing'],
+    //         ['module_name' => 'Purchase', 'display_value' => 'Purchase Billing'],
+    //         ['module_name' => 'Billing', 'display_value' => 'Purchase Billing'],
+    //         ['module_name' => 'Payment', 'display_value' => 'Payments'],
+    //         ['module_name' => 'Receipt', 'display_value' => 'Receipts'],
+    //         ['module_name' => 'Inventory', 'display_value' => 'Inventory Management'],
+    //         ['module_name' => 'Patron', 'display_value' => 'Patron Ledgers'],
+    //     ];
+
+    //     foreach ($modules as $module) {
+    //         Module::updateOrCreate(
+    //             ['module_name' => $module['module_name']],
+    //             ['display_value' => $module['display_value'], 'is_active' => true]
+    //         );
+    //     }
+    // }
+
+    // private function seedVoucherTypes(Plant $plant)
+    // {
+    //     $voucherTypes = [
+    //         ['journal_name' => 'General Journal', 'short_code' => 'JV', 'is_system_generated' => true, 'prefix' => 'JV-', 'voucher_group' => 'Other'],
+    //         ['journal_name' => 'Purchase Journal', 'short_code' => 'PUR', 'is_system_generated' => true, 'prefix' => 'PUR-', 'voucher_group' => 'Purchase'],
+    //         ['journal_name' => 'Vendor Bill', 'short_code' => 'VBILL', 'is_system_generated' => true, 'prefix' => 'VBILL-', 'voucher_group' => 'Purchase'],
+    //         ['journal_name' => 'Sales Journal', 'short_code' => 'SALE', 'is_system_generated' => true, 'prefix' => 'SALE-', 'voucher_group' => 'Sales'],
+    //         ['journal_name' => 'Payment Journal', 'short_code' => 'PAY', 'is_system_generated' => true, 'prefix' => 'PAY-', 'voucher_group' => 'Payment'],
+    //         ['journal_name' => 'Receipt Journal', 'short_code' => 'REC', 'is_system_generated' => true, 'prefix' => 'REC-', 'voucher_group' => 'Receipt'],
+    //         ['journal_name' => 'Contra Journal', 'short_code' => 'CON', 'is_system_generated' => false, 'prefix' => 'CON-', 'voucher_group' => 'Other'],
+    //         ['journal_name' => 'Debit Note', 'short_code' => 'DN', 'is_system_generated' => true, 'prefix' => 'DN-', 'voucher_group' => 'Debit Note'],
+    //         ['journal_name' => 'Credit Note', 'short_code' => 'CN', 'is_system_generated' => true, 'prefix' => 'CN-', 'voucher_group' => 'Credit Note'],
+    //         ['journal_name' => 'Tax Invoice', 'short_code' => 'TAX', 'is_system_generated' => true, 'prefix' => 'TAX-', 'voucher_group' => 'Sales'],
+    //     ];
+
+    //     foreach ($voucherTypes as $type) {
+    //         VoucherType::updateOrCreate(
+    //             ['short_code' => $type['short_code'], 'entity_id' => $plant->entity_id],
+    //             array_merge($type, ['entity_id' => $plant->entity_id])
+    //         );
+    //     }
+    // }
+
+    // private function seedPaymentMethods()
+    // {
+    //     $methods = [
+    //         ['name' => 'Cash', 'description' => 'Cash Payment'],
+    //         ['name' => 'UPI', 'description' => 'Digital Wallet / UPI'],
+    //         ['name' => 'Bank Transfer', 'description' => 'IMPS/NEFT/RTGS'],
+    //         ['name' => 'Check', 'description' => 'Bank Check'],
+    //     ];
+
+    //     foreach ($methods as $method) {
+    //         PaymentMethod::updateOrCreate(
+    //             ['name' => $method['name']],
+    //             array_merge($method, ['is_active' => true])
+    //         );
+    //     }
+    // }
+
+    private function seedCustomSettings(Plant $plant)
+    {
+        $settings = [
+            [
+                'module_name' => 'batching',
+                'settings' => [
+                    'newweight' => 1,
+                    'manual_weight' => 1,
+                    'camera' => 1,
+                    'camera_url' => "",
+                    'camera_url_1' => "",
+                    'camera_url_2' => "",
+                    'loader_gif' => null,
+                    'InvoiceInMetricTon' => "1"
+                ]
+            ],
+            [
+                'module_name' => 'orders',
+                'settings' => [
+                    'manualweight' => 1
+                ]
+            ],
+            [
+                'module_name' => 'invoices',
+                'settings' => [
+                    'pdf' => [
+                        'company_name' => false,
+                        'logo' => true,
+                        'address' => true,
+                        'phone' => true,
+                        'email' => true,
+                        'gstin' => true,
+                        'invoice_title' => true,
+                        'invoice_number' => true,
+                        'date' => true,
+                        'due_date' => true,
+                        'status' => false,
+                        'bill_to' => false,
+                        'ship_to' => false,
+                        'hsn_code' => true,
+                        'description' => true,
+                        'unit' => true,
+                        'discount' => true,
+                        'tax_percent' => true,
+                        'cgst' => true,
+                        'sgst' => true,
+                        'igst' => true,
+                        'shipping' => true,
+                        'round_off' => true,
+                        'total_words' => true,
+                        'notes' => true,
+                        'terms' => true,
+                        'signature' => true,
+                        'labels' => [
+                            'invoice_title' => "TAX INVOICE",
+                            'bill_to' => "Bill To",
+                            'ship_to' => "Ship To",
+                            'rate' => "Rate",
+                            'amount' => "Amount"
+                        ]
+                    ],
+                    'excel' => [
+                        'hsn_code' => true,
+                        'discount' => true
+                    ]
+                ]
+            ],
+            [
+                'module_name' => 'billing',
+                'settings' => [
+                    'instant_invoice_patron' => 1,
+                    'prefix' => 'BILL/',
+                    'next_number' => 1
+                ]
+            ],
+            [
+                'module_name' => 'quotation',
+                'settings' => [
+                    'instant_customer' => 1,
+                    'prefix' => 'QTN/',
+                    'next_number' => 1
+                ]
+            ],
+            [
+                'module_name' => 'purchase',
+                'settings' => [
+                    'instant_vendor' => 1,
+                    'prefix' => 'PO/',
+                    'next_number' => 1
+                ]
+            ],
+        ];
+
+        foreach ($settings as $s) {
+            CustomSetting::updateOrCreate(
+                ['plant_id' => $plant->id, 'module_name' => $s['module_name']],
+                ['settings' => $s['settings']]
+            );
         }
     }
 }
