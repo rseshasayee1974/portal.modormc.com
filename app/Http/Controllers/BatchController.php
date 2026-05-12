@@ -299,9 +299,11 @@ class BatchController extends Controller
             'isPreview' => false,
         ])->setPaper('a4', 'landscape');
 
+        $orderNo = $batch->workOrder?->order_no ?? 'order';
+        $safeOrderNo = str_replace(['/', '\\'], '-', $orderNo);
         $filename = sprintf(
             'batch-sheet-%s-%s.pdf',
-            $batch->workOrder?->order_no ?? 'order',
+            $safeOrderNo,
             $batch->batch_no ?? $batch->id
         );
 

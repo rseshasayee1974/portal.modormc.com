@@ -499,10 +499,7 @@ class PlantInitializationService
     }
 
     private function seedConcreteGradesAndMixDesign(Plant $plant)
-    {
-        $kgUnitId = ProductUnit::where('unit_code', 'KGS')->first()->id ?? 1;
-        $m3UnitId = ProductUnit::where('unit_code', 'CBM')->first()->id ?? 1;
-
+    {       
         $grades = [
             'M10' => ['ratio' => '1:3:6', 'cement' => 1, 'sand' => 3, 'aggregate' => 6],
             'M15' => ['ratio' => '1:2:4', 'cement' => 1, 'sand' => 2, 'aggregate' => 4],
