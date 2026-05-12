@@ -64,6 +64,9 @@ class Invoice extends Model
                 $m->prefix = $details['prefix'];
                 $m->invoice_number = $details['next_number'];
             }
+            $m->adjustment = $m->adjustment ?? 0;
+            $m->shipping_charges = $m->shipping_charges ?? 0;
+            $m->round_off = $m->round_off ?? 0;
         });
 
         static::deleted(function ($m) {

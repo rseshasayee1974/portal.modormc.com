@@ -85,6 +85,20 @@ class OrderTax extends Model
                     'status'         => 1,
                 ]);
             }
+        } elseif ($tax) {
+            // Fallback: Create a single split for the parent tax if no children exist
+            self::create([
+                'order_type'     => 'Invoice',
+                'order_id'       => $invoice->id,
+                'plant_id'       => $invoice->plant_id,
+                'order_items_id' => $orderItemsId,
+                'account_id'     => $tax->account_id,
+                'tax_id'         => $tax->id,
+                'name'           => $tax->tax_name,
+                'rate'           => $tax->tax_rate,
+                'amount'         => round($taxableAmount * ($tax->tax_rate / 100), 2),
+                'status'         => 1,
+            ]);
         }
     }
 
@@ -111,6 +125,20 @@ class OrderTax extends Model
                     'status'         => 1,
                 ]);
             }
+        } elseif ($tax) {
+            // Fallback: Create a single split for the parent tax if no children exist
+            self::create([
+                'order_type'     => 'Invoice',
+                'order_id'       => $invoice->id,
+                'plant_id'       => $invoice->plant_id,
+                'order_items_id' => $orderItemsId,
+                'account_id'     => $tax->account_id,
+                'tax_id'         => $tax->id,
+                'name'           => $tax->tax_name,
+                'rate'           => $tax->tax_rate,
+                'amount'         => round($taxableAmount * ($tax->tax_rate / 100), 2),
+                'status'         => 1,
+            ]);
         }
     }
 }
