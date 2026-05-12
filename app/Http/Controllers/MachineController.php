@@ -42,10 +42,7 @@ class MachineController extends Controller
                 ->get(),
             'documentTypes' => ['insurance', 'fc', 'permit', 'road_tax', 'other'],
             'paymentStatuses' => ['pending', 'paid', 'overdue'],
-            'transportOwners' => \App\Models\Patron::ofType(['Transporter'])
-                ->where('plant_id', session('active_plant_id'))
-                ->select('id', 'legal_name')
-                ->get(),
+            'transportOwners' => PatronsDropdown(['Transporter'])->toArray(),
         ];
     }
 
