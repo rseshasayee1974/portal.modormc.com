@@ -28,11 +28,16 @@ class Invoice extends Model
         'created_by', 'updated_by',
     ];
 
-    protected $appends = ['encrypted_id'];
+    protected $appends = ['encrypted_id', 'full_number'];
 
     public function getEncryptedIdAttribute()
     {
         return encrypt($this->id);
+    }
+
+    public function getFullNumberAttribute()
+    {
+        return ($this->prefix ?? '') . ($this->invoice_number ?? '');
     }
 
     protected $casts = [
@@ -88,16 +93,22 @@ class Invoice extends Model
 
             // Reverse Purchase Order Billed Status if this was a bill generated from PO
             if ($m->invoice_type === 'bill' && $m->ref_id) {
-                $po = \App\Models\PurchaseOrder::find($m->ref_id);
-                if ($po) {
-                    $po->update([
-                        'invoice_status' => 0,
-                        'state'          => 'approved',
-                        'journal_status' => 0,
-                        'billed_date'    => null
-                    ]);
-                }
+                $poIds = explode(',', $m->ref_id);
+                \App\Models\PurchaseOrder::whereIn('id', $poIds)->update([
+                    'invoice_status' => 0,
+                    'billing_id'     => null,
+                    'billing_status' => 'Pending',
+                    'journal_status' => '0',
+                    'billed_date'    => null,
+                ]);
             }
+            // Reverse Dispatch Status if applicable
+            \App\Models\DispatchStatus::where('invoice_id', $m->id)->update([
+                'invoice_id'     => null,
+                'invoice_number' => null,
+                'invoice_date'   => null,
+                'invoice_status' => 0,
+            ]);
         });
     }
 
@@ -106,20 +117,16 @@ class Invoice extends Model
     /**
      * Auto-generate invoice number: INV-YYYYMM-0001
      */
-    public static function generateNumber(int $plantId, ?string $label = 'sales'): string
+    public static function generateNumber(int $plantId, ?string $label = 'sales'): array
     {
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
         $endYear = $startYear + 1;
-        $fy = substr((string)$startYear, 2) . "-" . substr((string)$endYear, 2);
+        $fy = substr($startYear, -2) . substr($endYear, -2);
 
-        $fyStart = \Carbon\Carbon::create($startYear, 4, 1, 0, 0, 0);
-        
-        $query = self::where('plant_id', $plantId)
-            ->where('created_at', '>=', $fyStart);
-            
-        $normalizedLabel = strtolower($label ?? 'sales');
-        
+        $normalizedLabel = strtolower($label);
+        $query = self::query()->where('plant_id', $plantId);
+
         if ($normalizedLabel === 'purchase' || $normalizedLabel === 'bill') {
              $query->where(function($q) {
                  $q->where('invoice_type', 'bill')->orWhere('invoice_label', 'purchase');
@@ -130,21 +137,20 @@ class Invoice extends Model
              $prefix = "Inv/{$fy}/";
         } else {
              $query->where('invoice_type', 'sales')->whereNull('invoice_label');
-             $prefix = "INV-{$fy}-";
+             $prefix = "INV/{$fy}/";
         }
             
-        $lastNumber = (clone $query)->where('invoice_number', 'like', $prefix . '%')
-            ->max('invoice_number');
+        $lastInvoice = (clone $query)->where('prefix', $prefix)
+            ->orderByRaw('CAST(invoice_number AS UNSIGNED) DESC')
+            ->first();
 
-        if ($lastNumber) {
-            $separator = str_contains($lastNumber, '/') ? '/' : '-';
-            $parts = explode($separator, $lastNumber);
-            $next = ((int) end($parts)) + 1;
-        } else {
-            $next = 1;
-        }
+        $next = $lastInvoice ? ((int)$lastInvoice->invoice_number + 1) : 1;
 
-        return $prefix . (string)$next;
+        return [
+            'prefix' => $prefix,
+            'next_number' => (string)$next,
+            'full_number' => $prefix . $next
+        ];
     }
 
     /**

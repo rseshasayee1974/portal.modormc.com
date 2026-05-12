@@ -107,7 +107,8 @@ class InvoiceController extends Controller
                     'items.uom:id,unit_code',
                     'items.tax',
                 ])
-                ->where('plant_id', $plantId)
+                ->where('invoice_type', 'sales')
+                ->where('plant_id', $plantId)->where('deleted_at',null)
                 ->latest()
                 ->get(),
             'patrons' => toSelectOptions(PatronsDropdown(), 'legal_name'),
@@ -120,7 +121,8 @@ class InvoiceController extends Controller
             'mixdesign' => MixDesignsOptions(),
             'units'    => toSelectOptions(Productunit(), 'unit_code'),
             'instant_invoice_patron' => CustomSetting::getForModule(session('active_entity_id'), 'invoice')['instant_invoice_patron'] ?? 0,
-            'next_invoice_number' => Invoice::generateNumber($plantId, 'sales'),
+            'next_invoice_number' => Invoice::generateNumber($plantId, 'sales')['full_number'],
+            'next_invoice_details' => Invoice::generateNumber($plantId, 'sales'),
         ]);
     }
 
@@ -130,10 +132,22 @@ class InvoiceController extends Controller
         $plantId = session('active_plant_id');
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $plantId) {
-            $invoice = Invoice::createWithItems(array_merge($request->validated(), [
-                'plant_id'   => $plantId,
-                'status'     => Invoice::STATUS_APPROVED,
-                'created_by' => Auth::id(),
+            $validated = $request->validated();
+            
+            // Auto-generate numbering if not provided
+            if (empty($validated['invoice_number'])) {
+                $details = Invoice::generateNumber($plantId, $validated['invoice_type'] ?? 'sales');
+                $validated['prefix'] = $details['prefix'];
+                $validated['invoice_number'] = $details['next_number'];
+            }
+
+            // Ensure mandatory fields and defaults
+            $invoice = Invoice::createWithItems(array_merge($validated, [
+                'plant_id'        => $plantId,
+                'status'          => Invoice::STATUS_APPROVED,
+                'due_date'        => $validated['due_date'] ?? $validated['invoice_date'],
+                'einvoice_status' => 0,
+                'created_by'      => Auth::id(),
             ]));
 
             // If dispatch-wise invoicing, update the dispatches with the invoice info
@@ -145,6 +159,8 @@ class InvoiceController extends Controller
                     'invoice_status' => 1,
                 ]);
             }
+
+            $invoice->postToAccounting();
 
             return redirect()->back()->with('success', 'Invoice created successfully as ' . $invoice->invoice_number);
         });
@@ -214,10 +230,6 @@ class InvoiceController extends Controller
     public function destroy(Invoice $invoice)
     {
         $this->authorizeModule('delete');
-
-        if (in_array($invoice->status, [Invoice::STATUS_PAID, Invoice::STATUS_APPROVED])) {
-            return redirect()->back()->withErrors(['error' => 'Cannot delete an approved or paid invoice.']);
-        }
 
         $invoice->delete();
         return redirect()->back()->with('success', 'Invoice voided.');

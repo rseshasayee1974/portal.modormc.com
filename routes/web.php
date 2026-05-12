@@ -195,8 +195,10 @@ Route::middleware([
         Route::get('billings/unbilled-purchase-orders', [\App\Http\Controllers\BillingController::class, 'getUnbilledPurchaseOrders'])->name('billings.unbilled-pos');
         Route::get('invoices/uninvoiced-dispatches', [\App\Http\Controllers\InvoiceController::class, 'getUninvoicedDispatches'])->name('invoices.uninvoiced-dispatches');
 
-        Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit']);
-        Route::resource('billings', \App\Http\Controllers\BillingController::class)->except(['create', 'edit']);
+        Route::delete('invoices/{invoice}', [\App\Http\Controllers\InvoiceController::class, 'destroy'])->name('invoices.destroy')->where('invoice', '.*');
+        Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit', 'destroy']);
+        Route::delete('billings/{billing}', [\App\Http\Controllers\BillingController::class, 'destroy'])->name('billings.destroy')->where('billing', '.*');
+        Route::resource('billings', \App\Http\Controllers\BillingController::class)->except(['create', 'edit', 'destroy']);
         
       
        

@@ -51,14 +51,28 @@ const getTypeSeverity = (type: string) => {
 const deleteInvoice = (invoice: any) => {
     Swal.fire({
         title: 'Void Invoice?',
-        text: `Are you sure you want to void ${invoice.invoice_number}?`,
+        text: `Are you sure you want to void ${invoice.invoice_number}? This will reverse accounting entries.`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
-        confirmButtonText: 'Yes, Void'
+        confirmButtonText: 'Yes, Void',
+        cancelButtonText: 'No, Keep'
     }).then((result) => {
         if (result.isConfirmed) {
-            router.delete(route('invoices.destroy', invoice.encrypted_id));
+            router.delete(route('invoices.destroy', { invoice: invoice.encrypted_id }), {
+                onSuccess: () => {
+                    Swal.fire({
+                        title: 'Voided!',
+                        text: 'Invoice has been voided successfully.',
+                        icon: 'success',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                },
+                onError: (errors: any) => {
+                    Swal.fire('Error', errors.error || 'Failed to void invoice. Please check permissions.', 'error');
+                }
+            });
         }
     });
 };
@@ -135,7 +149,7 @@ const printInvoice = (data: any) => {
                             <span 
                                 class="text-sm font-bold text-indigo-600 hover:underline uppercase"
                             >
-                                {{ slotProps.data.invoice_number }}
+                                {{ slotProps.data.full_number }}
                             </span>
                             <Tag v-if="slotProps.data.is_duplicate" value="DUPE" severity="danger" class="!text-[7px] !px-1" />
                         </div>
@@ -217,11 +231,12 @@ const printInvoice = (data: any) => {
                             @click.stop="toggleEdit(slotProps.data)" 
                             :disabled="slotProps.data.status !== 'draft'"
                         />
+                          <!-- :disabled="['approved', 'paid'].includes(slotProps.data.status)" -->
                         <Button 
                             icon="pi pi-trash" 
                             text rounded severity="danger" 
                             @click.stop="deleteInvoice(slotProps.data)"
-                            :disabled="['approved', 'paid'].includes(slotProps.data.status)"
+                          
                         />
                     </div>
                 </template>

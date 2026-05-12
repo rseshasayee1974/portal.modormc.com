@@ -58,7 +58,8 @@ class BillingController extends Controller
             'products'       => ProductsDropdown('purchase'),
             'units'    => toSelectOptions(Productunit(), 'unit_code'),
             'instant_invoice_patron' => CustomSetting::getForModule(session('active_entity_id'), 'billing')['instant_invoice_patron'] ?? 0,
-            'next_invoice_number' => Invoice::generateNumber($plantId, 'bill'),
+            'next_invoice_number' => Invoice::generateNumber($plantId, 'bill')['full_number'],
+            'next_invoice_details' => Invoice::generateNumber($plantId, 'bill'),
         ]);
     }
 
@@ -68,11 +69,23 @@ class BillingController extends Controller
         $plantId = session('active_plant_id');
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $plantId) {
-            $invoice = Invoice::createWithItems(array_merge($request->validated(), [
-                'plant_id'     => $plantId,
-                'invoice_type' => 'bill',
-                'status'       => Invoice::STATUS_PAID,
-                'created_by'   => Auth::id(),
+            $validated = $request->validated();
+// dd($validated );
+            // Auto-generate numbering if not provided
+            if (empty($validated['invoice_number'])) {
+                $details = Invoice::generateNumber($plantId, 'bill');
+                $validated['prefix'] = $details['prefix'];
+                $validated['invoice_number'] = $details['next_number'];
+            }
+
+            $invoice = Invoice::createWithItems(array_merge($validated, [
+                'plant_id'        => $plantId,
+                'ref_id'          => implode(',',$validated['purchase_order_ids']) ?? null,
+                'invoice_type'    => 'bill',
+                'status'          => Invoice::STATUS_APPROVED,
+                'due_date'        => $validated['due_date'] ?? $validated['invoice_date'],
+                'einvoice_status' => 0,
+                'created_by'      => Auth::id(),
             ]));
 
             // If PO-wise billing, update the purchase orders
@@ -81,9 +94,12 @@ class BillingController extends Controller
                     'billing_id'     => $invoice->id,
                     'billing_status' => 'Billed',
                     'invoice_status' => 1, // Legacy status field if exists
+                    'journal_status' => '1',
                     'billed_date'    => $invoice->invoice_date,
                 ]);
             }
+
+            $invoice->postToAccounting();
 
             return redirect()->back()->with('success', 'Bill created successfully as ' . $invoice->invoice_number);
         });
@@ -99,10 +115,14 @@ class BillingController extends Controller
             'end_date'   => 'required|date',
         ]);
 
+        $startDate = \Illuminate\Support\Carbon::parse($validated['start_date'])->startOfDay();
+        $endDate   = \Illuminate\Support\Carbon::parse($validated['end_date'])->endOfDay();
+
         $pos = \App\Models\PurchaseOrder::with(['items.product', 'items.uom'])
             ->where('vendor_id', $validated['partner_id'])
-            ->whereBetween('date_order', [$validated['start_date'], $validated['end_date']])
-            ->where('billing_status', 'Pending')
+            ->whereBetween('date_order', [$startDate, $endDate])
+            ->where('approve_status', 'Approved') // Only bill approved POs
+            ->whereNull('billing_id')
             ->where('plant_id', session('active_plant_id'))
             ->latest()
             ->get();
@@ -151,10 +171,19 @@ class BillingController extends Controller
         $this->authorizeModule('delete');
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($invoice) {
+            // Explicitly reverse PO statuses before deletion
+            if ($invoice->ref_id) {
+                \App\Models\PurchaseOrder::whereIn('id', explode(",", $invoice->ref_id))->update([
+                    'billing_id'     => null,
+                    'billing_status' => 'Pending',
+                    'invoice_status' => 0, 
+                    'journal_status' => '0',
+                    'billed_date'    => null,
+                ]);
+            }
+
             // Soft delete the invoice. 
-            // The Invoice model's 'deleted' hook will handle:
-            // 1. Reversing PO billed status
-            // 2. Voiding associated Journal Entries
+            // The Invoice model's 'deleted' hook also handles cleanup tasks.
             $invoice->delete();
 
             return redirect()->back()->with('success', 'Bill voided successfully and associated Purchase Order has been reset.');

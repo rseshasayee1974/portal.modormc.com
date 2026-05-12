@@ -10,7 +10,8 @@ import {
     CalendarIcon,
     BanknotesIcon,
     DocumentTextIcon,
-    Square3Stack3DIcon
+    Square3Stack3DIcon,
+    CheckCircleIcon
 } from '@heroicons/vue/24/outline';
 
 // Components
@@ -20,6 +21,7 @@ import BaseCreatableSelect from '@/Components/Base/BaseCreatableSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
+import BaseButton from '@/Components/Base/BaseButton.vue';
 import Button from 'primevue/button';
 import Textarea from 'primevue/textarea';
 import { useToast } from 'primevue/usetoast';
@@ -60,9 +62,98 @@ const form = useForm({
     amount_untaxed: 0,
     amount_tax: 0,
     amount_total: 0,
-    items: [] as any[]
+    items: [] as any[],
+    purchase_order_ids: [] as number[],
+    startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0]
 });
 console.log(props.products);
+
+const billingMode = ref('manual'); // 'manual' or 'po'
+const unbilledPOs = ref<any[]>([]);
+const selectedPOs = ref<number[]>([]);
+const isFetchingPOs = ref(false);
+
+const fetchUnbilledPOs = async () => {
+    if (!form.partner_id) {
+        toast.add({ severity: 'warn', summary: 'Missing Vendor', detail: 'Please select a vendor first', life: 1500 });
+        return;
+    }
+    isFetchingPOs.value = true;
+    try {
+        const response = await axios.get(route('billings.unbilled-pos'), {
+            params: {
+                partner_id: form.partner_id,
+                start_date: form.startDate,
+                end_date: form.endDate
+            }
+        });
+        unbilledPOs.value = response.data;
+        if (unbilledPOs.value.length === 0) {
+             toast.add({ severity: 'info', summary: 'No Data', detail: 'No unbilled purchase orders found for this period.', life: 2000 });
+        }
+    } catch (error) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch purchase orders', life: 1500 });
+    } finally {
+        isFetchingPOs.value = false;
+    }
+};
+
+const mergeSelectedPOs = () => {
+    if (selectedPOs.value.length === 0) {
+        toast.add({ severity: 'warn', summary: 'Selection Required', detail: 'Please select at least one purchase order.', life: 1500 });
+        return;
+    }
+    
+    const grouped: Record<number, any> = {};
+    selectedPOs.value.forEach(id => {
+        const po = unbilledPOs.value.find(x => x.id === id);
+        if (!po || !po.items) return;
+        
+        po.items.forEach((item: any) => {
+            const key = item.product_id;
+            if (!grouped[key]) {
+                grouped[key] = {
+                    mix_design_id: item.product_id, 
+                    uom_id: item.product_uom,
+                    item_name: item.product?.title || item.description || 'Product',
+                    hsn_code: item.hsn_code || '',
+                    tax_id: item.tax_id,
+                    quantity: 0,
+                    price_unit: Number(item.unit_price),
+                    discount_type: item.discount_type === 'percentage' ? '%' : '₹',
+                    discount: Number(item.discount_amount),
+                    subtotal: 0,
+                    tax_amount: 0,
+                    total: 0
+                };
+            }
+            grouped[key].quantity += Number(item.product_quantity);
+        });
+    });
+    
+    form.items = Object.values(grouped);
+    form.purchase_order_ids = [...selectedPOs.value];
+    calculateTotals();
+    toast.add({ severity: 'success', summary: 'Merged', detail: `${selectedPOs.value.length} POs consolidated.`, life: 1500 });
+};
+
+const togglePOSelection = (id: number) => {
+    const idx = selectedPOs.value.indexOf(id);
+    if (idx > -1) {
+        selectedPOs.value.splice(idx, 1);
+    } else {
+        selectedPOs.value.push(id);
+    }
+};
+
+const selectAllPOs = () => {
+    if (selectedPOs.value.length === unbilledPOs.value.length) {
+        selectedPOs.value = [];
+    } else {
+        selectedPOs.value = unbilledPOs.value.map(p => p.id);
+    }
+};
 
 // Initialize with one item
 form.items.push(createNewItem());
@@ -281,27 +372,92 @@ const taxOptions = computed(() => props.taxes);
                             required
                             :error="form.errors.invoice_date"
                         />
-                        <!-- <BaseDatePicker 
-                            v-model="form.due_date" 
-                            label="Due Date" 
-                            :error="form.errors.due_date"
-                        /> -->
-                        <!-- <BaseSelect 
-                            v-model="form.truck_id" 
-                            label="Linked Vehicle"
-                            :options="trucks"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Truck"
-                            :error="form.errors.truck_id"
-                            filter
-                        /> -->
-                        <!-- <BaseInput 
-                            v-model="form.prefix" 
-                            label="Prefix"
-                            placeholder="INV"
-                            :error="form.errors.prefix"
-                        /> -->
+                    </div>
+
+                    <!-- Billing Mode Selection -->
+                    <div class="flex gap-4 p-1">
+                        <button 
+                            type="button"
+                            @click="billingMode = 'manual'"
+                            :class="billingMode === 'manual' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'"
+                            class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                        >
+                            Manual Entry
+                        </button>
+                        <button 
+                            type="button"
+                            @click="billingMode = 'po'"
+                            :class="billingMode === 'po' ? 'bg-indigo-600 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'"
+                            class="px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
+                        >
+                            <Square3Stack3DIcon class="w-3.5 h-3.5" />
+                            Pull from Purchase Orders
+                        </button>
+                    </div>
+
+                    <!-- PO Selection Area -->
+                    <div v-if="billingMode === 'po'" class="bg-slate-50/50 rounded-2xl p-6 border border-slate-100 space-y-4">
+                        <div class="flex flex-wrap items-end gap-4">
+                            <BaseDatePicker v-model="form.startDate" label="Start Date" size="small" />
+                            <BaseDatePicker v-model="form.endDate" label="End Date" size="small" />
+                            <BaseButton 
+                                label="Fetch Orders" 
+                                @click="fetchUnbilledPOs" 
+                                :loading="isFetchingPOs"
+                                size="small"
+                                variant="secondary"
+                            />
+                        </div>
+
+                        <div v-if="unbilledPOs.length > 0" class="space-y-4">
+                            <div class="flex items-center justify-between px-2">
+                                <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    {{ unbilledPOs.length }} Orders Found | {{ selectedPOs.length }} Selected
+                                </p>
+                                <button type="button" @click="selectAllPOs" class="text-[10px] font-black text-indigo-600 uppercase hover:underline">
+                                    {{ selectedPOs.length === unbilledPOs.length ? 'Deselect All' : 'Select All' }}
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto p-1">
+                                <div 
+                                    v-for="po in unbilledPOs" 
+                                    :key="po.id"
+                                    @click="togglePOSelection(po.id)"
+                                    :class="selectedPOs.includes(po.id) ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-100 bg-white'"
+                                    class="p-3 rounded-xl border-2 cursor-pointer hover:border-indigo-300 transition-all group"
+                                >
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <p class="text-[10px] font-black text-slate-800 uppercase">{{ po.po_number }}</p>
+                                            <p class="text-[9px] font-bold text-slate-400">{{ new Date(po.date_order).toLocaleDateString() }}</p>
+                                        </div>
+                                        <div 
+                                            :class="selectedPOs.includes(po.id) ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-200'"
+                                            class="w-4 h-4 rounded border flex items-center justify-center transition-colors"
+                                        >
+                                            <CheckCircleIcon v-if="selectedPOs.includes(po.id)" class="w-3 h-3 text-white" />
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap gap-1">
+                                        <Tag v-for="item in po.items" :key="item.id" :value="`${item.quantity} ${item.uom?.unit_code}`" class="!text-[7px] !px-1" severity="secondary" />
+                                    </div>
+                                    <div class="mt-2 text-right">
+                                        <span class="text-xs font-black text-slate-700">₹ {{ Number(po.total_amount).toLocaleString() }}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-center pt-2">
+                                <BaseButton 
+                                    label="Merge & Consolidate Items" 
+                                    @click="mergeSelectedPOs" 
+                                    variant="primary"
+                                    class="!px-8"
+                                    icon="Square3Stack3DIcon"
+                                />
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Items Table Area -->

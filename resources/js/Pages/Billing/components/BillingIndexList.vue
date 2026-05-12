@@ -51,7 +51,7 @@ const getTypeSeverity = (type: string) => {
 const deleteInvoice = (invoice: any) => {
     Swal.fire({
         title: 'Void Bill?',
-        text: `Are you sure you want to void ${invoice.invoice_number}?`,
+        text: `Are you sure you want to void ${invoice.full_number}?`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
@@ -135,7 +135,7 @@ const printInvoice = (data: any) => {
                             <span 
                                 class="text-sm font-bold text-indigo-600 hover:underline uppercase"
                             >
-                                {{ slotProps.data.invoice_number }}
+                                {{ slotProps.data.full_number }}
                             </span>
                             <Tag v-if="slotProps.data.is_duplicate" value="DUPE" severity="danger" class="!text-[7px] !px-1" />
                         </div>

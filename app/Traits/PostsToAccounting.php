@@ -35,7 +35,7 @@ trait PostsToAccounting
             // Local variables to avoid "Undefined property" errors
             $isSales        = (($this->invoice_type ?? 'sales') === 'sales' || ($this->invoice_type ?? '') === 'invoice');
             $voucherType    = $isSales ? 'SALES' : 'PURCHASE';
-            $invoiceNo      = $this->invoice_number ?? $this->id ?? '---';
+            $invoiceNo      = $this->full_number ?? $this->invoice_number ?? '---';
             $invoiceDate    = $this->invoice_date ?? now();
             $totalAmount    = (float) ($this->total_amount ?? 0);
             $subtotal       = (float) ($this->subtotal ?? 0);
