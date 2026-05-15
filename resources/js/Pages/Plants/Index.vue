@@ -40,6 +40,11 @@ const blankForm = () => ({
     longitude: '',
     is_main: false,
     is_active: true,
+    scheduler_api_url: '',
+    scheduler_api_token: '',
+    scheduler_oauth_url: '',
+    scheduler_client_id: '',
+    scheduler_client_secret: '',
     address: {
         address_type_id: props.addressTypes?.[0]?.id ?? null,
         line_1: '', line_2: '', city: '',
@@ -82,6 +87,11 @@ const populatePlantForm = (form: any, plant: any) => {
     form.longitude = plant.longitude || '';
     form.is_main = Boolean(plant.is_main);
     form.is_active = Boolean(plant.is_active);
+    form.scheduler_api_url = plant.scheduler_api_url || '';
+    form.scheduler_api_token = plant.scheduler_api_token || '';
+    form.scheduler_oauth_url = plant.scheduler_oauth_url || '';
+    form.scheduler_client_id = plant.scheduler_client_id || '';
+    form.scheduler_client_secret = plant.scheduler_client_secret || '';
     
     form.address = {
         address_type_id: address.address_type_id || (props.addressTypes?.[0]?.id ?? null),

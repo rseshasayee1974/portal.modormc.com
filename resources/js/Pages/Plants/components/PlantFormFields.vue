@@ -2,7 +2,7 @@
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import ToggleSwitch from 'primevue/toggleswitch';
-import { BuildingOffice2Icon, MapPinIcon, PhoneIcon } from '@heroicons/vue/24/outline';
+import { BuildingOffice2Icon, MapPinIcon, PhoneIcon, LinkIcon } from '@heroicons/vue/24/outline';
 import { computed, ref } from 'vue';
 
 const props = defineProps<{
@@ -31,6 +31,7 @@ const isEditMode = computed(() => Boolean(props.plantId));
                     { key: 'basic', label: 'General Info', icon: BuildingOffice2Icon },
                     { key: 'location', label: 'Location Details', icon: MapPinIcon },
                     { key: 'contact', label: 'Contact Person', icon: PhoneIcon },
+                    { key: 'integration', label: 'API Integrations', icon: LinkIcon },
                 ]"
                 :key="tab.key"
                 type="button"
@@ -286,6 +287,70 @@ const isEditMode = computed(() => Boolean(props.plantId));
                         v-model="form.contact.landline" 
                         label="Landline"
                         placeholder="022-XXXXXXX" 
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+            </div>
+
+            <!-- TAB: Integration -->
+            <div v-show="activeTab === 'integration'" class="grid grid-cols-1 md:grid-cols-12 gap-5 animate-in fade-in slide-in-from-top-1 duration-300">
+                <div class="col-span-12">
+                    <h3 class="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2">Scheduler API Configuration</h3>
+                    <p class="text-xs text-slate-500 mt-1">Configure credentials to automatically push batch data to a third-party scheduler.</p>
+                </div>
+
+                <div class="col-span-12 md:col-span-6">
+                    <BaseInput 
+                        v-model="form.scheduler_api_url" 
+                        label="Scheduler API URL"
+                        placeholder="https://example.com/api/production__Order__data" 
+                        :error="errors?.scheduler_api_url"
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+
+                <div class="col-span-12 md:col-span-6">
+                    <BaseInput 
+                        v-model="form.scheduler_api_token" 
+                        label="Static API Token (Optional)"
+                        placeholder="Long static bearer token" 
+                        :error="errors?.scheduler_api_token"
+                        hint="If provided, dynamic OAuth will be skipped."
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+
+                <div class="col-span-12">
+                    <h3 class="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 mt-4">Dynamic OAuth Credentials</h3>
+                </div>
+
+                <div class="col-span-12 md:col-span-6">
+                    <BaseInput 
+                        v-model="form.scheduler_oauth_url" 
+                        label="OAuth Token URL"
+                        placeholder="https://example.com/oauth/token" 
+                        :error="errors?.scheduler_oauth_url"
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+
+                <div class="col-span-12 md:col-span-3">
+                    <BaseInput 
+                        v-model="form.scheduler_client_id" 
+                        label="Client ID"
+                        placeholder="your_client_id" 
+                        :error="errors?.scheduler_client_id"
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+
+                <div class="col-span-12 md:col-span-3">
+                    <BaseInput 
+                        v-model="form.scheduler_client_secret" 
+                        label="Client Secret"
+                        type="password"
+                        placeholder="••••••••••••" 
+                        :error="errors?.scheduler_client_secret"
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>

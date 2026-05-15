@@ -16,6 +16,7 @@ class WorkOrderIndexDataFactory
     public function build(?int $activePlantId): array
     {
         $schema = $this->schemaFlags();
+       // dd($this->buildWorkOrdersQuery($activePlantId, $schema)->get()->toArray());
         return [
             'workOrders' => $this->buildWorkOrdersQuery($activePlantId, $schema)->get()->toArray(),
             'plants' => $activePlantId ? Plant::query()->where('id', $activePlantId)->get(['id', 'name'])->toArray() : [],

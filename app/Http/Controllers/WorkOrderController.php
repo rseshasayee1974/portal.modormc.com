@@ -25,7 +25,7 @@ class WorkOrderController extends Controller
     {
         $this->authorizeModule('menu');
         $activePlantId = session('active_plant_id');
-// dd($this->indexDataFactory->build($activePlantId !== null ? (int) $activePlantId : null));
+//dd($this->indexDataFactory->build($activePlantId !== null ? (int) $activePlantId : null));
         return Inertia::render(
             'WorkOrders/Index',
             $this->indexDataFactory->build($activePlantId !== null ? (int) $activePlantId : null)
@@ -70,6 +70,7 @@ class WorkOrderController extends Controller
         $this->authorizeModule('edit');
         $this->ensurePlantScope($workorder);
         $payload = $request->validated();
+        
         $tableColumns = Schema::getColumnListing('mm_work_orders');
         $hasPlantIdColumn = in_array('plant_id', $tableColumns, true);
         $hasTotalQtyColumn = in_array('total_qty', $tableColumns, true);
@@ -87,6 +88,7 @@ class WorkOrderController extends Controller
 
         DB::transaction(function () use ($payload, $workorder) {
             $workorder->update($payload);
+            $workorder->refreshProduction();
         });
 
         return redirect()->back()->with('success', 'Work order updated successfully.');

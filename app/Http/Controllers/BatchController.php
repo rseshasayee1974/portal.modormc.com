@@ -13,6 +13,7 @@ use App\Models\Quantity;
 use App\Models\WorkOrder;
 use App\Models\Dispatch;
 use App\Models\DispatchStatus;
+use App\Models\Plant;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -34,6 +35,9 @@ class BatchController extends Controller
             'workOrder.mixDesign',
             'workOrder.site',
             'dispatches.truck',
+            'dispatches.salesExecutive',
+            'dispatches.creator:id,email',
+            'dispatches.modifier:id,email',
             'dispatches.status.invoice.createdBy:id,email',
             'materials.product',
             'materials.uom'
@@ -92,12 +96,23 @@ class BatchController extends Controller
         $loadedPhoto = $payload['loaded_weight_photo'] ?? null;
         unset($payload['empty_weight_photo'], $payload['loaded_weight_photo']);
 
-        DB::transaction(function () use ($payload, $workOrder, $emptyPhoto, $loadedPhoto) {
+        $materialsData = $payload['materials'] ?? [];
+
+        $batch = DB::transaction(function () use ($payload, $workOrder, $emptyPhoto, $loadedPhoto, $materialsData) {
             $payload['batch_no'] = $payload['batch_no'] ?? ($workOrder->batches()->max('batch_no') + 1);
             $payload['status'] = $payload['status'] ?? Batch::STATUS_PLANNED;
 
-            $materials = $payload['materials'] ?? [];
+            $materials = $materialsData;
             unset($payload['materials']);
+
+            // Auto-assign shift if not provided
+            if (empty($payload['shift'])) {
+                $plant = Plant::find(session('active_plant_id', $workOrder->plant_id));
+                if ($plant) {
+                    $shiftInfo = $plant->getCurrentShiftInfo($payload['start_time'] ?? null);
+                    $payload['shift'] = $shiftInfo['shift'];
+                }
+            }
 
             $batch = Batch::create($payload);
             $this->syncMaterials($batch, $materials);
@@ -107,7 +122,7 @@ class BatchController extends Controller
                 $this->adjustStock($batch, $materials);
             }
             
-            $this->refreshWorkOrderProduction($workOrder);
+            $workOrder->refreshProduction();
 
             // Send notification if batch is created as dispatched or completed
             if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
@@ -125,6 +140,7 @@ class BatchController extends Controller
                 'truck_id' => $payload['truck_id'] ?? null,
                 'transport_id' => $payload['transport_id'] ?? null,
                 'driver_id' => $payload['driver_id'] ?? null,
+                'sales_executive_id' => $payload['sales_executive_id'] ?? null,
                 'empty_weight_truck' => $payload['empty_weight_truck'] ?? 0,
                 'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? null,
                 'net_weight' => $payload['net_weight'] ?? null,
@@ -152,9 +168,135 @@ class BatchController extends Controller
 
             if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
             if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
+
+            return $batch;
         });
 
+        // Try to push to scheduler
+        $this->pushToSchedulerAPI($batch, $materialsData);
+
         return redirect()->back()->with('success', 'Batch created successfully.');
+    }
+
+    private function pushToSchedulerAPI(Batch $batch, array $materialsData): bool
+    {
+        try {
+            $workOrder = $batch->workOrder;
+            $workOrder->loadMissing(['plant', 'customer.addresses', 'site', 'mixDesign']);
+            
+            $batchMaterialsForPayload = $materialsData;
+
+            $matArray = [];
+            foreach ($batchMaterialsForPayload as $mat) {
+                $matName = $mat['material_name'] ?? null;
+                if (!$matName && isset($mat['product_id'])) {
+                    $matName = Product::find($mat['product_id'])->title ?? "";
+                }
+                $matArray[] = [
+                    "item" => $matName ?? "",
+                    "tar" => (string)($mat['target_qty'] ?? 0)
+                ];
+            }
+
+            $schedulerPayload = [
+                "plant_sl" => $workOrder->plant->code ?? "",
+                "plant_type" => $workOrder->plant->plant_type ?? "",
+                "order_no" => $workOrder->order_no ?? "",
+                "order_date" => $workOrder->created_at ? $workOrder->created_at->format('Y-m-d') : "",
+                "order_status" => (string)$workOrder->status,
+                "cust_id" => current(explode('-', $workOrder->customer->code ?? "")) ?: ($workOrder->customer->id ?? ""),
+                "cust_name" => $workOrder->customer->legal_name ?? "",
+                "cust_add_l1" => $workOrder->customer->addresses->first()->line_1 ?? "",
+                "cust_add_l2" => $workOrder->customer->addresses->first()->city ?? "",
+                "site_name" => $workOrder->site->name ?? "",
+                "site_add_l1" => $workOrder->site->site_address_1 ?? "",
+                "site_add_l2" => $workOrder->site->zipcode ?? "", 
+                "strength" => "",
+                "consistency" => "",
+                "slump" => "",
+                "wat_cem_ratio" => "",
+                "mix_time" => "",
+                "mix_dis_time" => "",
+                "pre_mix_time" => "",
+                "rec_id" => current(explode('-', $workOrder->mixDesign->design_code ?? "")) ?: ($workOrder->mixDesign->design_code ?? ""),
+                "rec_name" => $workOrder->mixDesign->design_name ?? "",
+                "qty" => (string)($payload['batch_size'] ?? $batch->batch_size ?? "0"),
+                "mat" => $matArray
+            ];
+
+            $token = $this->getSchedulerToken($workOrder->plant);
+            
+            $request = \Illuminate\Support\Facades\Http::withHeaders([
+                'Accept' => 'application/json',
+            ]);
+
+            if ($token) {
+                $request = $request->withToken($token);
+            }
+
+            $apiUrl = $workOrder->plant->scheduler_api_url ?: url('/api/production__Order__data');
+            $response = $request->post($apiUrl, $schedulerPayload);
+            
+            if ($response->successful()) {
+                $batch->sync_status = 'success';
+                if ($batch->status == Batch::STATUS_PLANNED) {
+                    $batch->status = Batch::STATUS_LOADING;
+                }
+                $batch->save();
+                return true;
+            } else {
+                $batch->sync_status = 'failed';
+                $batch->save();
+                return false;
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to post batch data to scheduler: " . $e->getMessage());
+            $batch->sync_status = 'failed';
+            $batch->save();
+            return false;
+        }
+    }
+
+    public function syncToScheduler(Batch $batch)
+    {
+        $this->authorizeModule('edit');
+        $this->ensurePlantScope($batch->workOrder);
+        
+        $success = $this->pushToSchedulerAPI($batch, $batch->materials->toArray());
+        
+        if ($success) {
+            return redirect()->back()->with('success', 'Batch successfully pushed to scheduler.');
+        } else {
+            return redirect()->back()->with('error', 'Failed to push batch to scheduler.');
+        }
+    }
+
+    private function getSchedulerToken(\App\Models\Plant $plant)
+    {
+        if ($staticToken = $plant->scheduler_api_token) {
+            return $staticToken;
+        }
+
+        return \Illuminate\Support\Facades\Cache::remember('scheduler_oauth_token_' . $plant->id, 3000, function() use ($plant) {
+            $authUrl = $plant->scheduler_oauth_url;
+            if (!$authUrl) return '';
+
+            try {
+                $response = \Illuminate\Support\Facades\Http::asForm()->post($authUrl, [
+                    'grant_type' => 'client_credentials',
+                    'client_id' => $plant->scheduler_client_id,
+                    'client_secret' => $plant->scheduler_client_secret,
+                ]);
+
+                if ($response->successful()) {
+                    return $response->json('access_token');
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Failed to generate scheduler OAuth token for plant {$plant->id}: " . $e->getMessage());
+            }
+
+            return '';
+        });
     }
 
     public function show(Batch $batch)
@@ -172,7 +314,10 @@ class BatchController extends Controller
             'materials.uom:id,unit_name,unit_code',
             'dispatches.status.invoice.createdBy:id,username',
             'dispatches.truck',
-            'dispatches.driver'
+            'dispatches.driver',
+            'dispatches.salesExecutive',
+            'dispatches.creator:id,email',
+            'dispatches.modifier:id,email'
         ]);
 
         return response()->json($batch);
@@ -221,7 +366,7 @@ class BatchController extends Controller
                 $this->adjustStock($batch, $materials);
             }
             
-            $this->refreshWorkOrderProduction($batch->workOrder);
+            $batch->workOrder->refreshProduction();
 
             // Send notification if batch is newly dispatched or completed
             if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]) && 
@@ -236,6 +381,7 @@ class BatchController extends Controller
                     'truck_id' => $payload['truck_id'] ?? $dispatch->truck_id,
                     'transport_id' => $payload['transport_id'] ?? $dispatch->transport_id,
                     'driver_id' => $payload['driver_id'] ?? $dispatch->driver_id,
+                    'sales_executive_id' => $payload['sales_executive_id'] ?? $dispatch->sales_executive_id,
                     'empty_weight_truck' => $payload['empty_weight_truck'] ?? $dispatch->empty_weight_truck,
                     'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? $dispatch->loaded_weight_truck,
                     'net_weight' => $payload['net_weight'] ?? $dispatch->net_weight,
@@ -266,9 +412,23 @@ class BatchController extends Controller
                 $this->adjustStock($batch, $materials, true);
             }
 
+            // Set audit fields before deletion
+            $batch->deleted_by = auth()->id();
+            $batch->save();
+
+            // Delete related materials and dispatches
             $batch->materials()->delete();
+            
+            foreach ($batch->dispatches as $dispatch) {
+                $dispatch->deleted_by = auth()->id();
+                $dispatch->save();
+                $dispatch->delete();
+            }
+
             $batch->delete();
-            $this->refreshWorkOrderProduction($batch->workOrder);
+            
+            // Recalculate production quantity for the work order
+            $batch->workOrder->refreshProduction();
         });
 
         return redirect()->back()->with('success', 'Batch deleted successfully.');
@@ -402,25 +562,6 @@ class BatchController extends Controller
             $quantityRecord->updated_by = $userId;
             $quantityRecord->save();
         }
-    }
-
-    private function refreshWorkOrderProduction(WorkOrder $workOrder): void
-    {
-        $producedQty = (float) $workOrder->batches()->sum('batch_size');
-        $status = $workOrder->status;
-
-        if ($producedQty <= 0 && $workOrder->status !== WorkOrder::STATUS_CANCELLED) {
-            $status = WorkOrder::STATUS_SCHEDULED;
-        } elseif ($producedQty > 0 && $producedQty < (float) $workOrder->total_qty && $workOrder->status !== WorkOrder::STATUS_CANCELLED) {
-            $status = WorkOrder::STATUS_IN_PROGRESS;
-        } elseif ($producedQty >= (float) $workOrder->total_qty && $workOrder->status !== WorkOrder::STATUS_CANCELLED) {
-            $status = WorkOrder::STATUS_COMPLETED;
-        }
-
-        $workOrder->update([
-            'produced_qty' => $producedQty,
-            'status' => $status,
-        ]);
     }
 
     private function storeBatchImage(Batch $batch, ?string $base64Data, string $type): void

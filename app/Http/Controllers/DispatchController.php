@@ -176,10 +176,15 @@ class DispatchController extends Controller
                 'plant_id' => $dispatch->plant_id,
                 'invoice_label' => 'Batching'
             ]);
+            $dispatch->update([
+                'dispatch_status' => 'invoiced',
+            ]);
 
             // Update dispatch status with generated invoice info
             $dispatch->status()->updateOrCreate(
-                ['dispatch_id' => $dispatch->id],
+                ['dispatch_id' => $dispatch->id,
+                'plant_id' => $dispatch->plant_id
+            ],
                 [
                     'invoice_id'     => $invoice->id,
                     'invoice_number' => $invoice->invoice_number,

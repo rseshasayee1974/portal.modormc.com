@@ -159,6 +159,23 @@ const destroy = (row: any) => {
 const downloadPdf = (id: number) => {
     window.open(route('batches.download', id), '_blank');
 };
+
+const retrySync = (id: number) => {
+    router.post(route('batches.sync', id), {}, {
+        preserveScroll: true,
+        onSuccess: (page) => {
+            const hasError = page.props?.flash?.error;
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: hasError ? 'error' : 'success',
+                title: hasError ? 'Sync failed again.' : 'Sync successful.',
+                showConfirmButton: false,
+                timer: 2000,
+            });
+        }
+    });
+};
 </script>
 
 <template>
@@ -239,7 +256,7 @@ const downloadPdf = (id: number) => {
                                 />
                             </div>
                         </template>
-                        <Column field="start_time" header="Batch Date" sortable>
+                        <Column field="start_time" header="Date" sortable>
                             <template #body="slotProps">
                                 <div v-if="slotProps.data.start_time" class="flex flex-col">
                                     <span class="text-xs font-bold text-slate-700">
@@ -252,7 +269,7 @@ const downloadPdf = (id: number) => {
                                 <span v-else class="text-xs text-slate-300 italic">N/A</span>
                             </template>
                         </Column>
-                        <Column field="batch_no" header="Order / Batch" sortable>
+                        <Column field="batch_no" header="Batch" sortable>
                             <template #body="slotProps">
                                 <div>
                                     <button
@@ -290,8 +307,14 @@ const downloadPdf = (id: number) => {
                                 <span class="text-xs font-semibold text-slate-700">{{ slotProps.data.dispatches?.[0]?.truck?.registration || '-' }}</span>
                             </template>
                         </Column>
+                        
+                        <!-- <Column header="Sales Exec">
+                            <template #body="slotProps">
+                                <span class="text-xs font-semibold text-slate-700">{{ slotProps.data.dispatches?.[0]?.sales_executive?.label || '-' }}</span>
+                            </template>
+                        </Column> -->
 
-                        <Column field="batch_size" header="Batch Size" sortable>
+                        <Column field="batch_size" header="Qty" sortable>
                             <template #body="slotProps">
                                 <span class="text-xs font-bold text-slate-700">{{ slotProps.data.batch_size }} m³</span>
                             </template>
@@ -301,7 +324,23 @@ const downloadPdf = (id: number) => {
 
                         <Column field="status" header="Status" sortable>
                             <template #body="slotProps">
-                                <Tag :value="statusLabel(slotProps.data.status)" :severity="statusSeverity(slotProps.data.status)" rounded />
+                                <div class="flex items-center gap-2">
+                                    <Tag :value="statusLabel(slotProps.data.status)" :severity="statusSeverity(slotProps.data.status)" rounded />
+                                    
+                                    <i v-if="slotProps.data.sync_status === 'success'" 
+                                       class="pi pi-check-circle text-emerald-500 text-lg cursor-help" 
+                                       v-tooltip.top="'Synced to Scheduler'"></i>
+                                       
+                                    <i v-else-if="slotProps.data.sync_status === 'failed'" 
+                                       class="pi pi-times-circle text-rose-500 text-lg cursor-pointer hover:text-rose-600 transition-colors" 
+                                       v-tooltip.top="'Sync Failed - Click to Retry'" 
+                                       @click.stop="retrySync(slotProps.data.id)"></i>
+                                       
+                                    <i v-else-if="slotProps.data.sync_status === 'pending'" 
+                                       class="pi pi-cloud-upload text-amber-500 text-lg cursor-pointer hover:text-amber-600 transition-colors" 
+                                       v-tooltip.top="'Pending - Click to Post'" 
+                                       @click.stop="retrySync(slotProps.data.id)"></i>
+                                </div>
                             </template>
                         </Column>
 

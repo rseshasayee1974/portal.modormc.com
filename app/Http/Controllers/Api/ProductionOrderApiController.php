@@ -11,9 +11,20 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
+use OpenApi\Attributes as OA;
 
 class ProductionOrderApiController extends Controller
 {
+    #[OA\Post(path: "/production__Order__data", summary: "Ingest production order data", tags: ["Production"])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "plants", type: "object", properties: [
+            new OA\Property(property: "code", type: "string")
+        ]),
+        new OA\Property(property: "order_no", type: "string"),
+        new OA\Property(property: "order_date", type: "string", format: "date"),
+        new OA\Property(property: "production_qty", type: "number")
+    ]))]
+    #[OA\Response(response: 200, description: "Order accepted")]
     public function store(Request $request)
     {
         $raw = $request->json()->all() ?: $request->all();

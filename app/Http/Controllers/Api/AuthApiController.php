@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password;
+use OpenApi\Attributes as OA;
 
 class AuthApiController extends Controller
 {
@@ -20,12 +22,28 @@ class AuthApiController extends Controller
         return in_array('saas owner', $roles, true) || in_array('platform admin', $roles, true);
     }
 
+    #[OA\Post(path: "/auth/register", summary: "Register new user", tags: ["Authentication"])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "name", type: "string"),
+        new OA\Property(property: "email", type: "string"),
+        new OA\Property(property: "password", type: "string"),
+        new OA\Property(property: "plan", type: "string", enum: ["free", "paid"])
+    ]))]
+    #[OA\Response(response: 201, description: "Registered successfully")]
     public function register(Request $request): JsonResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:191'],
             'email' => ['required', 'email', 'max:191', 'unique:mm_users,email'],
-            'password' => ['required', 'string', 'min:8'],
+            'password' => [
+                'required', 
+                'string', 
+                Password::min(8)
+                    ->letters()
+                    ->mixedCase()
+                    ->numbers()
+                    ->symbols()
+            ],
             'plan' => ['nullable', 'in:free,paid'],
         ]);
 
@@ -50,14 +68,20 @@ class AuthApiController extends Controller
         ], 201);
     }
 
+    #[OA\Post(path: "/login", summary: "Web Login", tags: ["Authentication"])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "email", type: "string"),
+        new OA\Property(property: "password", type: "string"),
+        new OA\Property(property: "remember", type: "boolean")
+    ]))]
+    #[OA\Response(response: 200, description: "Login Success")]
     public function login(Request $request): JsonResponse
     {
         $data = $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
             'remember' => ['nullable', 'boolean'],
-        ]);
-
+        ]); 
         $user = User::query()->where('email', $data['email'])->first();
         if (!$user || !Hash::check($data['password'], $user->password)) {
             return response()->json(['message' => 'Invalid email or password.'], 401);
@@ -91,6 +115,11 @@ class AuthApiController extends Controller
         ]);
     }
 
+    #[OA\Post(path: "/send-otp", summary: "Send OTP to email", tags: ["Authentication"])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "email", type: "string")
+    ]))]
+    #[OA\Response(response: 200, description: "OTP sent")]
     public function sendOtp(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -102,7 +131,6 @@ class AuthApiController extends Controller
 
         Cache::put($this->otpCacheKey($user->email), Hash::make($otp), now()->addMinutes(5));
 
-        // Replace this with a notification/mail class when the OTP delivery provider is ready.
         if (app()->environment('local')) {
             Log::info("[EMAIL OTP] User {$user->email} code: {$otp} (expires in 5 minutes)");
         }
@@ -113,6 +141,12 @@ class AuthApiController extends Controller
         ]);
     }
 
+    #[OA\Post(path: "/verify-otp", summary: "Verify email OTP", tags: ["Authentication"])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "email", type: "string"),
+        new OA\Property(property: "otp", type: "string")
+    ]))]
+    #[OA\Response(response: 200, description: "OTP verified")]
     public function verifyOtp(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -150,6 +184,11 @@ class AuthApiController extends Controller
         ]);
     }
 
+    #[OA\Post(path: "/api/resend-verification-email", summary: "Resend verification email", tags: ["Authentication"])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "email", type: "string")
+    ]))]
+    #[OA\Response(response: 200, description: "Email sent")]
     public function resendVerificationEmail(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -169,6 +208,8 @@ class AuthApiController extends Controller
         ]);
     }
 
+    #[OA\Post(path: "/auth/regenerate-key", summary: "Regenerate SaaS API Key", tags: ["SaaS"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Key regenerated")]
     public function regenerateApiKey(Request $request): JsonResponse
     {
         /** @var User $user */
@@ -182,6 +223,8 @@ class AuthApiController extends Controller
         ]);
     }
 
+    #[OA\Get(path: "/auth/ensure-key", summary: "Ensure SaaS API Key exists", tags: ["SaaS"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Key ensured")]
     public function ensureApiKey(Request $request): JsonResponse
     {
         /** @var User $user */

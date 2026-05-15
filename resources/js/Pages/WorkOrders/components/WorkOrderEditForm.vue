@@ -94,7 +94,7 @@ const submit = () => {
     <div class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-4">
         <div class="mb-3 flex items-center justify-between">
             <h3 class="text-xs font-bold uppercase tracking-wide text-indigo-800">Edit Work Order</h3>
-            <span class="font-mono text-xs font-bold text-amber-600">REF # : {{ workOrder.prefix }}-{{ workOrder.order_no }}</span>
+            <span class="font-mono text-xs font-bold text-amber-600">REF # : {{ workOrder.prefix }}{{ workOrder.order_no }}</span>
         </div>
 
         <div class="grid grid-cols-12 gap-4">

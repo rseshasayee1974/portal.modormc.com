@@ -1,0 +1,875 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Mobile Dashboard API",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/api"
+        }
+    ],
+    "paths": {
+        "/auth/register": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Register new user",
+                "operationId": "64b8a5efa5115512353ab843d1a9617f",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "email": {
+                                        "type": "string"
+                                    },
+                                    "password": {
+                                        "type": "string"
+                                    },
+                                    "plan": {
+                                        "type": "string",
+                                        "enum": [
+                                            "free",
+                                            "paid"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Registered successfully"
+                    }
+                }
+            }
+        },
+        "/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Web Login",
+                "operationId": "4a50da69eed48c10c8aaed7d3bc464b7",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "email": {
+                                        "type": "string"
+                                    },
+                                    "password": {
+                                        "type": "string"
+                                    },
+                                    "remember": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login Success"
+                    }
+                }
+            }
+        },
+        "/send-otp": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Send OTP to email",
+                "operationId": "f6ada387a5a5a9c556134ca0d9fadaa2",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "email": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OTP sent"
+                    }
+                }
+            }
+        },
+        "/verify-otp": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Verify email OTP",
+                "operationId": "f803fb8e91dcfbf0979af6a48e7a9330",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "email": {
+                                        "type": "string"
+                                    },
+                                    "otp": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "OTP verified"
+                    }
+                }
+            }
+        },
+        "/api/resend-verification-email": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Resend verification email",
+                "operationId": "59b2b9fd7e5805103886ce1ba807277c",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "email": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Email sent"
+                    }
+                }
+            }
+        },
+        "/auth/regenerate-key": {
+            "post": {
+                "tags": [
+                    "SaaS"
+                ],
+                "summary": "Regenerate SaaS API Key",
+                "operationId": "e69b9d17997f58a692a99d6b09319294",
+                "responses": {
+                    "200": {
+                        "description": "Key regenerated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/auth/ensure-key": {
+            "get": {
+                "tags": [
+                    "SaaS"
+                ],
+                "summary": "Ensure SaaS API Key exists",
+                "operationId": "5766c2cfca57d7b0fa2e5c39ac96839d",
+                "responses": {
+                    "200": {
+                        "description": "Key ensured"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/billing/generate": {
+            "post": {
+                "tags": [
+                    "Billing"
+                ],
+                "summary": "Generate monthly billing",
+                "operationId": "5725bfb33efad0b9d9db71e59466d411",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "entity_id": {
+                                        "type": "integer"
+                                    },
+                                    "plant_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "month": {
+                                        "type": "string",
+                                        "example": "2026-05"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Billing generated"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/billing/history": {
+            "post": {
+                "tags": [
+                    "Billing"
+                ],
+                "summary": "Get billing history",
+                "operationId": "fa9978d3723c0661ad0e50677e9ebeb2",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "entity_id": {
+                                        "type": "integer"
+                                    },
+                                    "plant_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Billing history"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/billing/{billing}/pay": {
+            "post": {
+                "tags": [
+                    "Billing"
+                ],
+                "summary": "Mock payment for billing",
+                "operationId": "e7b7d67ca6149613acc81fbbd02fe682",
+                "parameters": [
+                    {
+                        "name": "billing",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "entity_id": {
+                                        "type": "integer"
+                                    },
+                                    "plant_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    },
+                                    "success": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Payment status updated"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/dashboard": {
+            "post": {
+                "tags": [
+                    "SaaS"
+                ],
+                "summary": "Get SaaS usage dashboard",
+                "operationId": "dbc70282b766e494b3562b4d6bf99a70",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "entity_id": {
+                                        "type": "integer"
+                                    },
+                                    "plant_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Dashboard statistics"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/dashboard/sales-summary": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get sales summary (Donut Chart data)",
+                "operationId": "ac2048c55cd641389f0487fab35cb150",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/dashboard/sales-stats": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get sales statistics (MT, UNIT/CFT, TRIPS)",
+                "operationId": "81c84b5f1e3f50c39cd17355ec26932f",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/dashboard/top-products": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get top selling products",
+                "operationId": "b45446e18fe41f2c035f6cccdd9a48a9",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/dashboard/sales-details": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get detailed sales breakdown (Cash vs Credit)",
+                "operationId": "516b930161da0a498c749cd4cb6e569f",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/dashboard/stock-details": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get current stock levels",
+                "operationId": "b161cede51b5418dcb503927bca1fc0d",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/dashboard/trips-details": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get trip counts by vehicle",
+                "operationId": "e0ce12fc3e3e3735ea08510530eacbd4",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/dashboard/customer-details": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get recent customer activities",
+                "operationId": "80ee7e52aaf79ad87bc8ac87daf36f9f",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/dashboard/alerts": {
+            "get": {
+                "tags": [
+                    "Dashboard"
+                ],
+                "summary": "Get dashboard alerts",
+                "operationId": "9242cc94b1a654b1ae06b366db8937d7",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/master/plants": {
+            "get": {
+                "tags": [
+                    "Master Data"
+                ],
+                "summary": "Get plant list for filtering",
+                "operationId": "64b1803a036836815837800251e20aac",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "User Login",
+                "operationId": "4124f66bc8edaebfbd8670b5f12a4c54",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "mobile": {
+                                        "type": "string",
+                                        "example": "9876543210"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login Success"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "User Logout",
+                "operationId": "7947ef42546e4a12d06235a1520c076a",
+                "responses": {
+                    "200": {
+                        "description": "Logged out successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/chat": {
+            "post": {
+                "tags": [
+                    "AI Modules"
+                ],
+                "summary": "Process chat request",
+                "operationId": "1ed09ce2170af3343a6a822d7484f53a",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "input": {
+                                        "type": "string"
+                                    },
+                                    "entity_id": {
+                                        "type": "integer"
+                                    },
+                                    "plant_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Request processed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/image": {
+            "post": {
+                "tags": [
+                    "AI Modules"
+                ],
+                "summary": "Process image request",
+                "operationId": "1ad5368ee679cfd0e5ecf4c033ce1bfa",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "input": {
+                                        "type": "string"
+                                    },
+                                    "entity_id": {
+                                        "type": "integer"
+                                    },
+                                    "plant_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Request processed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/search": {
+            "post": {
+                "tags": [
+                    "AI Modules"
+                ],
+                "summary": "Process search request",
+                "operationId": "b86a2f129cb848dd2a01c38f9974e231",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "input": {
+                                        "type": "string"
+                                    },
+                                    "entity_id": {
+                                        "type": "integer"
+                                    },
+                                    "plant_id": {
+                                        "type": "integer",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Request processed"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/production/batch": {
+            "get": {
+                "tags": [
+                    "Production"
+                ],
+                "summary": "Get production batch consumption",
+                "operationId": "09709fe111c6112ec557db5ba1500c61",
+                "parameters": [
+                    {
+                        "name": "batch_no",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "cust_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "rec_id",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Batch details"
+                    }
+                }
+            }
+        },
+        "/production__Order__data": {
+            "post": {
+                "tags": [
+                    "Production"
+                ],
+                "summary": "Ingest production order data",
+                "operationId": "52ecd9d3bfa7cbe1511d9d01782493c0",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "plants": {
+                                        "properties": {
+                                            "code": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "type": "object"
+                                    },
+                                    "order_no": {
+                                        "type": "string"
+                                    },
+                                    "order_date": {
+                                        "type": "string",
+                                        "format": "date"
+                                    },
+                                    "production_qty": {
+                                        "type": "number"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Order accepted"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Authentication",
+            "description": "Authentication"
+        },
+        {
+            "name": "SaaS",
+            "description": "SaaS"
+        },
+        {
+            "name": "Billing",
+            "description": "Billing"
+        },
+        {
+            "name": "Dashboard",
+            "description": "Dashboard"
+        },
+        {
+            "name": "Master Data",
+            "description": "Master Data"
+        },
+        {
+            "name": "AI Modules",
+            "description": "AI Modules"
+        },
+        {
+            "name": "Production",
+            "description": "Production"
+        }
+    ]
+}

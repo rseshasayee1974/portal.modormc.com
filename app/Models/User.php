@@ -135,6 +135,11 @@ class User extends Authenticatable implements MustVerifyEmail
 		return $this->belongsTo(Plant::class, 'default_plant_id');
 	}
 
+	public function personnel()
+	{
+		return $this->hasOne(Personnel::class, 'user_id');
+	}
+
 	public static function saveWithRelations(array $data)
 	{
 		return DB::transaction(function () use ($data) {
@@ -158,13 +163,39 @@ class User extends Authenticatable implements MustVerifyEmail
 						'role_id'   => $eu['role_id'],
 					]);
 				}
-			} elseif (isset($data['role_id']) && !empty($data['role_id'])) {
+            } elseif (isset($data['role_id']) && !empty($data['role_id'])) {
                 $user->entityUsers()->create([
                     'entity_id' => session('active_entity_id'),
                     'plant_id'  => session('active_plant_id'),
                     'role_id'   => $data['role_id'],
                 ]);
             }
+
+			// Create Personnel record
+			$personnel = Personnel::create([
+				'user_id' => $user->id,
+				'first_name' => $data['first_name'] ?? $user->username,
+				'last_name' => $data['last_name'] ?? null,
+				'entity_id' => $user->default_entity_id ?? session('active_entity_id'),
+				'plant_id' => $user->default_plant_id ?? session('active_plant_id'),
+				'status' => 'active',
+			]);
+
+            $contactRecord = \App\Models\Contact::create([
+                'plant_id' => $personnel->plant_id,
+                'name' => 'null',
+                'mobile' => '',
+                'contact_type_id' => 1,
+                'is_primary' => 1,
+                'status' => 1,
+            ]);
+
+            $personnel->contacts()->create([
+                'contact_id' => (string) $contactRecord->id,
+                'contact_type_id' => '1',
+                'contact_value' => '',
+                'is_primary' => 1,
+            ]);
 
 			return $user;
 		});

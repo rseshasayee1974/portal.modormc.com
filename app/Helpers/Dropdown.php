@@ -254,7 +254,7 @@ if (!function_exists('ProductsDropdown')) {
      * @param  int|null          $entityId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function ProductsDropdown(string $productType = null, $categoryId = null, $excludeId = null, $entityId = null)
+    function ProductsDropdown(?string $productType = null, $categoryId = null, $excludeId = null, $entityId = null)
     {
         $query = Product::where('plant_id', session('active_plant_id'))
             ->with('unit');
@@ -447,7 +447,7 @@ if (!function_exists('Productunit')) {
      * @param  int|null     $excludeId Exclude unit (edit mode)
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function Productunit(string $unitType = null, int $excludeId = null)
+    function Productunit(?string $unitType = null, ?int $excludeId = null)
     {
         $query = ProductUnit::forDropdown($unitType)
             ->select('id', 'unit_name', 'unit_code');

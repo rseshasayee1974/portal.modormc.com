@@ -24,6 +24,13 @@ class Plant extends Model
         'is_main',
         'is_active',
         'is_initialized',
+        'shift_start_time',
+        'shift_end_time',
+        'scheduler_api_url',
+        'scheduler_api_token',
+        'scheduler_oauth_url',
+        'scheduler_client_id',
+        'scheduler_client_secret',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -48,5 +55,28 @@ class Plant extends Model
     public function contacts()
     {
         return $this->morphToMany(Contact::class, 'contactable', 'mm_contact_relation');
+    }
+
+    /**
+     * Get the shift date and shift name for a given timestamp.
+     * Based on shift_start_time (default 12:00:00).
+     */
+    public function getCurrentShiftInfo(\DateTimeInterface $time = null): array
+    {
+        $time = $time ? \Carbon\Carbon::parse($time) : now();
+        $startTime = $this->shift_start_time ?? '12:00:00';
+        
+        $shiftStartToday = \Carbon\Carbon::parse($time->format('Y-m-d') . ' ' . $startTime);
+        
+        if ($time->lessThan($shiftStartToday)) {
+            $shiftDate = $time->copy()->subDay()->format('Y-m-d');
+        } else {
+            $shiftDate = $time->format('Y-m-d');
+        }
+        
+        return [
+            'shift_date' => $shiftDate,
+            'shift' => 'A', // Default shift name
+        ];
     }
 }

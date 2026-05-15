@@ -10,9 +10,14 @@ use App\Services\BillingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use OpenApi\Attributes as OA;
 
 class BillingApiController extends Controller
 {
+    public function __construct(private readonly BillingService $billingService)
+    {
+    }
+
     private function formatBilling(Billing $billing): array
     {
         $breakdown = collect($billing->breakdown_json ?? [])->map(function ($item, $module) {
@@ -31,10 +36,6 @@ class BillingApiController extends Controller
             'status' => $billing->status,
             'module_breakdown' => $breakdown,
         ];
-    }
-
-    public function __construct(private readonly BillingService $billingService)
-    {
     }
 
     private function authorizeBillingAccess(User $user): void
@@ -65,6 +66,14 @@ class BillingApiController extends Controller
         return [$entityId, $plantId];
     }
 
+    #[OA\Post(path: "/billing/generate", summary: "Generate monthly billing", tags: ["Billing"], security: [["bearerAuth" => []]])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "entity_id", type: "integer"),
+        new OA\Property(property: "plant_id", type: "integer", nullable: true),
+        new OA\Property(property: "month", type: "string", example: "2026-05")
+    ]))]
+    #[OA\Response(response: 200, description: "Billing generated")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
     public function generate(Request $request): JsonResponse
     {
         if (!Schema::hasColumns('billings', ['entity_id', 'plant_id']) || !Schema::hasColumns('usage_summaries', ['entity_id', 'plant_id'])) {
@@ -86,6 +95,13 @@ class BillingApiController extends Controller
         ]);
     }
 
+    #[OA\Post(path: "/billing/history", summary: "Get billing history", tags: ["Billing"], security: [["bearerAuth" => []]])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "entity_id", type: "integer"),
+        new OA\Property(property: "plant_id", type: "integer", nullable: true)
+    ]))]
+    #[OA\Response(response: 200, description: "Billing history")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
     public function history(Request $request): JsonResponse
     {
         if (!Schema::hasColumns('billings', ['entity_id', 'plant_id'])) {
@@ -116,6 +132,15 @@ class BillingApiController extends Controller
         ]);
     }
 
+    #[OA\Post(path: "/billing/{billing}/pay", summary: "Mock payment for billing", tags: ["Billing"], security: [["bearerAuth" => []]])]
+    #[OA\Parameter(name: "billing", in: "path", required: true, schema: new OA\Schema(type: "integer"))]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "entity_id", type: "integer"),
+        new OA\Property(property: "plant_id", type: "integer", nullable: true),
+        new OA\Property(property: "success", type: "boolean")
+    ]))]
+    #[OA\Response(response: 200, description: "Payment status updated")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
     public function mockPay(Request $request, Billing $billing): JsonResponse
     {
         /** @var User $user */

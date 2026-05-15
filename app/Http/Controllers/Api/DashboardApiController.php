@@ -11,6 +11,7 @@ use App\Services\UsageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use OpenApi\Attributes as OA;
 
 class DashboardApiController extends Controller
 {
@@ -27,6 +28,12 @@ class DashboardApiController extends Controller
         return in_array('saas owner', $roles, true) || in_array('platform admin', $roles, true);
     }
 
+    #[OA\Post(path: "/dashboard", summary: "Get SaaS usage dashboard", tags: ["SaaS"], security: [["bearerAuth" => []]])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "entity_id", type: "integer"),
+        new OA\Property(property: "plant_id", type: "integer", nullable: true)
+    ]))]
+    #[OA\Response(response: 200, description: "Dashboard statistics")]
     public function index(Request $request): JsonResponse
     {
         if (!Schema::hasColumns('usage_summaries', ['entity_id', 'plant_id'])) {

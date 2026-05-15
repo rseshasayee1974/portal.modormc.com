@@ -115,6 +115,11 @@ class Dispatch extends Model
         return $this->belongsTo(Personnel::class, 'driver_id');
     }
 
+    public function salesExecutive(): BelongsTo
+    {
+        return $this->belongsTo(Personnel::class, 'sales_executive_id');
+    }
+
     public function status(): HasOne
     {
         return $this->hasOne(DispatchStatus::class, 'dispatch_id');

@@ -120,11 +120,32 @@ class WorkOrder extends Model
         if ($latest) {
             $nextSequence = (int)$latest + 1;
         }
-
+// dd($fullPrefix,str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT));
         return [
             'prefix' => $fullPrefix,
             'next_number' => str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT),
             'full_number' => $fullPrefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT)
         ];
+    }
+    public function refreshProduction(): void
+    {
+        $producedQty = (float) $this->batches()
+            ->where('status', '!=', Batch::STATUS_CANCELLED)
+            ->sum('batch_size');
+        
+        $status = $this->status;
+
+        if ($producedQty <= 0 && $this->status !== self::STATUS_CANCELLED) {
+            $status = self::STATUS_SCHEDULED;
+        } elseif ($producedQty > 0 && $producedQty < (float) $this->total_qty && $this->status !== self::STATUS_CANCELLED) {
+            $status = self::STATUS_IN_PROGRESS;
+        } elseif ($producedQty >= (float) $this->total_qty && $this->status !== self::STATUS_CANCELLED) {
+            $status = self::STATUS_COMPLETED;
+        }
+
+        $this->update([
+            'produced_qty' => $producedQty,
+            'status' => $status,
+        ]);
     }
 }

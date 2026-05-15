@@ -103,13 +103,15 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
                 <BaseSelect v-model="modelValue.truck_id" :options="trucks" optionLabel="registration" optionValue="id" label="Truck" filter showClear :error="errors.truck_id" />
                 <BaseSelect v-model="modelValue.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" label="Transporter" filter showClear :error="errors.transport_id" />
                 <BaseSelect v-model="modelValue.driver_id" :options="personnel" optionLabel="label" optionValue="id" label="Driver" filter showClear :error="errors.driver_id" />
+                <BaseSelect v-model="modelValue.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" label="Sales Executive" filter showClear :error="errors.sales_executive_id" />
                 <BaseSelect v-model="modelValue.unload_site_id" :options="unloading_sites" optionLabel="name" optionValue="id" label="Delivery Site" filter showClear :error="errors.unload_site_id" />
+                <BaseInput v-model="modelValue.status.receiver_name" label="Receiver Name" />
+                <BaseInput v-model="modelValue.status.receive_mobile" label="Receiver Mobile" />
             </div>
             <div class="grid grid-cols-4 gap-4">
                 <BaseInput v-model="modelValue.status.invoice_number" label="Invoice #" :disabled="true" v-if="modelValue.status.dispatch_status"/>
                 <BaseDatePicker v-model="modelValue.status.invoice_date" label="Invoice Date" fluid :disabled="true" v-if="modelValue.status.dispatch_status"/>
-                <BaseInput v-model="modelValue.status.receiver_name" label="Receiver Name" />
-                <BaseInput v-model="modelValue.status.receive_mobile" label="Receiver Mobile" />
+                
             </div>
             <div class="grid grid-cols-4 gap-4">
                 <!-- <BaseInputNumber v-model="modelValue.status.transport_km" label="Distance (KM)" :minFractionDigits="2" /> -->
@@ -224,7 +226,10 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
                     <div class="text-right">
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Invoice Details</p>
                         <p class="text-xs font-black text-slate-700">{{ modelValue.status.invoice_number }}</p>
-                        <p class="text-[9px] font-bold text-slate-400">{{ new Date(modelValue.status.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-') }}</p>
+                        <p class="text-[9px] font-bold text-slate-400">
+                            {{ new Date(modelValue.status.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-') }}
+                            {{ new Date(modelValue.status.invoice_date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) }}
+                        </p>
                     </div>
                     <div class="h-8 w-px bg-slate-200"></div>
                     <div class="text-right">
@@ -270,6 +275,34 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
                     </svg>
                     Delete Invoice
                 </button>
+            </div>
+        </div>
+        
+        <!-- 6. Dispatch Audit Info -->
+        <div class="px-5 py-3 bg-slate-50/50 border-t border-slate-100 mt-4 -mx-5 -mb-4 flex items-center justify-between">
+            <div class="flex items-center gap-6">
+                <div class="flex flex-col">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Created</span>
+                    <div class="flex items-center gap-1.5 mt-0.5">
+                        <span class="text-[10px] font-black text-slate-600">{{ modelValue.creator?.email || 'System' }}</span>
+                        <span class="text-[10px] text-slate-400">@</span>
+                        <span class="text-[10px] font-bold text-slate-500">{{ modelValue.created_at ? new Date(modelValue.created_at).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).replace(/\//g, '-') : '---' }}</span>
+                    </div>
+                </div>
+                <div v-if="modelValue.updated_at && modelValue.updated_at !== modelValue.created_at" class="flex flex-col border-l border-slate-200 pl-6">
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Last Modified</span>
+                    <div class="flex items-center gap-1.5 mt-0.5">
+                        <span class="text-[10px] font-black text-slate-600">{{ modelValue.modifier?.email || modelValue.creator?.email || 'System' }}</span>
+                        <span class="text-[10px] text-slate-400">@</span>
+                        <span class="text-[10px] font-bold text-slate-500">{{ new Date(modelValue.updated_at).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).replace(/\//g, '-') }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <div class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" v-if="modelValue.dispatch_status === 'Delivered'"></div>
+                <span class="text-[9px] font-black uppercase tracking-widest" :class="modelValue.dispatch_status === 'Delivered' ? 'text-emerald-600' : 'text-amber-600'">
+                    {{ modelValue.dispatch_status }}
+                </span>
             </div>
         </div>
     </div>

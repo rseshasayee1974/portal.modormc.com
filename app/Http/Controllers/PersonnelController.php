@@ -47,6 +47,8 @@ class PersonnelController extends Controller
             'date_of_birth' => 'nullable|date',
             'joining_date' => 'nullable|date',
             'status' => 'required|string',
+            'shift_start_time' => 'nullable|date_format:H:i',
+            'shift_end_time' => 'nullable|date_format:H:i',
             
             // Contacts
             'contacts' => 'nullable|array',
@@ -78,7 +80,16 @@ class PersonnelController extends Controller
 
             if (!empty($validated['contacts'])) {
                 foreach ($validated['contacts'] as $contact) {
-                    $contact['contact_id'] = (string) Str::uuid();
+                    $contactRecord = \App\Models\Contact::create([
+                        'plant_id' => $personnel->plant_id,
+                        'name' => trim($personnel->first_name . ' ' . $personnel->last_name),
+                        'mobile' => $contact['contact_type'] === 'Mobile' ? $contact['contact_value'] : '',
+                        'email' => $contact['contact_type'] === 'Email' ? $contact['contact_value'] : '',
+                        'contact_type_id' => 1,
+                        'is_primary' => $contact['is_primary'] ?? 0,
+                        'status' => 1,
+                    ]);
+                    $contact['contact_id'] = (string) $contactRecord->id;
                     $personnel->contacts()->create($contact);
                 }
             }
@@ -103,6 +114,8 @@ class PersonnelController extends Controller
             'date_of_birth' => 'nullable|date',
             'joining_date' => 'nullable|date',
             'status' => 'required|string',
+            'shift_start_time' => 'nullable|date_format:H:i',
+            'shift_end_time' => 'nullable|date_format:H:i',
             
             // Contacts
             'contacts' => 'nullable|array',
@@ -136,9 +149,26 @@ class PersonnelController extends Controller
 
                 foreach ($validated['contacts'] as $contact) {
                     if (isset($contact['contact_id'])) {
-                        PersonnelContact::where('contact_id', $contact['contact_id'])->update($contact);
+                        PersonnelContact::where('contact_id', $contact['contact_id'])->update([
+                            'contact_type' => $contact['contact_type'],
+                            'contact_value' => $contact['contact_value'],
+                            'is_primary' => $contact['is_primary'] ?? 0,
+                        ]);
+                        \App\Models\Contact::where('id', $contact['contact_id'])->update([
+                            'mobile' => $contact['contact_type'] === 'Mobile' ? $contact['contact_value'] : \DB::raw('mobile'),
+                            'email' => $contact['contact_type'] === 'Email' ? $contact['contact_value'] : \DB::raw('email'),
+                        ]);
                     } else {
-                        $contact['contact_id'] = (string) Str::uuid();
+                        $contactRecord = \App\Models\Contact::create([
+                            'plant_id' => $personnel->plant_id,
+                            'name' => trim($personnel->first_name . ' ' . $personnel->last_name),
+                            'mobile' => $contact['contact_type'] === 'Mobile' ? $contact['contact_value'] : '',
+                            'email' => $contact['contact_type'] === 'Email' ? $contact['contact_value'] : '',
+                            'contact_type_id' => 1,
+                            'is_primary' => $contact['is_primary'] ?? 0,
+                            'status' => 1,
+                        ]);
+                        $contact['contact_id'] = (string) $contactRecord->id;
                         $personnel->contacts()->create($contact);
                     }
                 }

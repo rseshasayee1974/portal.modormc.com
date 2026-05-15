@@ -18,12 +18,25 @@ Route::post('/verify-otp', [AuthApiController::class, 'verifyOtp'])->middleware(
 Route::post('/resend-verification-email', [AuthApiController::class, 'resendVerificationEmail'])->middleware('throttle:6,1');
 
 Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthApiController::class, 'register']);
-    Route::post('/login', [AuthApiController::class, 'login']);
+    Route::post('/login', [\App\Http\Controllers\Api\LoginController::class, 'login']);
 });
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/sales-summary', [\App\Http\Controllers\Api\DashboardController::class, 'salesSummary']);
+        Route::get('/sales-stats', [\App\Http\Controllers\Api\DashboardController::class, 'salesStats']);
+        Route::get('/top-products', [\App\Http\Controllers\Api\DashboardController::class, 'topProducts']);
+        Route::get('/sales-details', [\App\Http\Controllers\Api\DashboardController::class, 'salesDetails']);
+        Route::get('/stock-details', [\App\Http\Controllers\Api\DashboardController::class, 'stockDetails']);
+        Route::get('/trips-details', [\App\Http\Controllers\Api\DashboardController::class, 'tripsDetails']);
+        Route::get('/customer-details', [\App\Http\Controllers\Api\DashboardController::class, 'customerDetails']);
+        Route::get('/alerts', [\App\Http\Controllers\Api\DashboardController::class, 'alerts']);
+    });
+    
+    Route::get('/master/plants', [\App\Http\Controllers\Api\DashboardController::class, 'plants']);
+    
     Route::get('/auth/ensure-key', [AuthApiController::class, 'ensureApiKey']);
+    Route::post('/auth/logout', [\App\Http\Controllers\Api\LoginController::class, 'logout']);
 });
 
 Route::middleware(['api.key', 'throttle:60,1'])->group(function () {
@@ -35,9 +48,9 @@ Route::middleware(['api.key', 'throttle:60,1'])->group(function () {
     Route::post('/production__Order__data', [ProductionOrderApiController::class, 'store']);
     Route::post('/production/batch', [\App\Http\Controllers\Api\ProductionApiController::class, 'store']);
 
-    Route::get('/dashboard', [DashboardApiController::class, 'index']);
+    Route::post('/dashboard', [DashboardApiController::class, 'index']);
     Route::post('/billing/generate', [BillingApiController::class, 'generate']);
-    Route::get('/billing/history', [BillingApiController::class, 'history']);
+    Route::post('/billing/history', [BillingApiController::class, 'history']);
     Route::post('/billing/{billing}/pay', [BillingApiController::class, 'mockPay']);
 });
 

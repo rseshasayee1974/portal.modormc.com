@@ -9,6 +9,7 @@ use App\Services\UsageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
+use OpenApi\Attributes as OA;
 
 class ModuleApiController extends Controller
 {
@@ -18,16 +19,37 @@ class ModuleApiController extends Controller
     ) {
     }
 
+    #[OA\Post(path: "/chat", summary: "Process chat request", tags: ["AI Modules"], security: [["bearerAuth" => []]])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "input", type: "string"),
+        new OA\Property(property: "entity_id", type: "integer"),
+        new OA\Property(property: "plant_id", type: "integer", nullable: true)
+    ]))]
+    #[OA\Response(response: 200, description: "Request processed")]
     public function chat(Request $request): JsonResponse
     {
         return $this->handleModule($request, 'chat');
     }
 
+    #[OA\Post(path: "/image", summary: "Process image request", tags: ["AI Modules"], security: [["bearerAuth" => []]])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "input", type: "string"),
+        new OA\Property(property: "entity_id", type: "integer"),
+        new OA\Property(property: "plant_id", type: "integer", nullable: true)
+    ]))]
+    #[OA\Response(response: 200, description: "Request processed")]
     public function image(Request $request): JsonResponse
     {
         return $this->handleModule($request, 'image');
     }
 
+    #[OA\Post(path: "/search", summary: "Process search request", tags: ["AI Modules"], security: [["bearerAuth" => []]])]
+    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
+        new OA\Property(property: "input", type: "string"),
+        new OA\Property(property: "entity_id", type: "integer"),
+        new OA\Property(property: "plant_id", type: "integer", nullable: true)
+    ]))]
+    #[OA\Response(response: 200, description: "Request processed")]
     public function search(Request $request): JsonResponse
     {
         return $this->handleModule($request, 'search');

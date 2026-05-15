@@ -20,6 +20,9 @@ class Batch extends Model
         'start_time',
         'end_time',
         'status',
+        'operator_id',
+        'shift',
+        'sync_status',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -41,9 +44,9 @@ class Batch extends Model
     {
         return [
             ['label' => 'Planned', 'value' => self::STATUS_PLANNED],
-            // ['label' => 'Loading', 'value' => self::STATUS_LOADING],
+            ['label' => 'Loading', 'value' => self::STATUS_LOADING],
             ['label' => 'Dispatched', 'value' => self::STATUS_DISPATCHED],
-            // ['label' => 'Completed', 'value' => self::STATUS_COMPLETED],
+            ['label' => 'Completed', 'value' => self::STATUS_COMPLETED],
             ['label' => 'Cancelled', 'value' => self::STATUS_CANCELLED],
         ];
     }
@@ -51,6 +54,11 @@ class Batch extends Model
     public static function statusLabel(int $status): string
     {
         return collect(self::statusOptions())->firstWhere('value', $status)['label'] ?? 'Unknown';
+    }
+
+    public function operator()
+    {
+        return $this->belongsTo(Personnel::class, 'operator_id');
     }
 
     public function workOrder()
@@ -162,5 +170,15 @@ class Batch extends Model
             'total_actual_weight' => round($totalActualWeight, 2),
             'total_difference_percent' => round($totalDifferencePercent, 2),
         ];
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function modifier()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

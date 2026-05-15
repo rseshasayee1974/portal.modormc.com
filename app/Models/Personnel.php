@@ -54,6 +54,7 @@ class Personnel extends Model
     protected $fillable = [
         'entity_id',
         'plant_id',
+        'user_id',
         'first_name',
         'last_name',
         'employee_type',
@@ -61,10 +62,17 @@ class Personnel extends Model
         'date_of_birth',
         'joining_date',
         'status',
+        'shift_start_time',
+        'shift_end_time',
         'created_by',
         'updated_by',
         'deleted_by',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     public function entity()
     {

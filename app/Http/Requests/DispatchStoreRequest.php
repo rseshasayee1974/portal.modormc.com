@@ -25,6 +25,7 @@ class DispatchStoreRequest extends FormRequest
             'load_site_id' => 'nullable|exists:mm_sites,id',
             'unload_site_id' => 'nullable|exists:mm_sites,id',
             'driver_id' => 'nullable|exists:mm_personnels,id',
+            'sales_executive_id' => 'nullable|exists:mm_personnels,id',
             'payment_mode' => 'required|in:cash,credit',
             'plant_sno' => 'nullable|string',
             'prefix' => 'nullable|string',

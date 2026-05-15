@@ -61,6 +61,7 @@ const form = useForm({
     truck_id: null as number | null,
     transport_id: null as number | null,
     driver_id: null as number | null,
+    sales_executive_id: null as number | null,
     empty_weight_truck: 0,
     uom_id: null as number | null,
     site_id: null as number | null,
@@ -93,6 +94,7 @@ const workOrderDetails = computed(() => {
     if (!selectedWorkOrder.value) return [];
     const wo = selectedWorkOrder.value;
     return [
+        { label: 'Order #', value: wo.full_number },
         { label: 'Customer', value: wo.customer?.legal_name || 'N/A' },
         { label: 'Site', value: wo.site?.name || 'N/A' },
         { label: 'Design', value: wo.mix_design?.design_name || 'N/A' },
@@ -186,13 +188,18 @@ const handleWeightCapture = () => {
 const submit = () => {
     form.clearErrors();
     
-    // Frontend Validation
+    const maxAllowed = selectedWorkOrder.value 
+        ? Math.max(0, Number(selectedWorkOrder.value.total_qty) - Number(selectedWorkOrder.value.produced_qty))
+        : 9.9;
+
     const validations = [
         { condition: !form.work_order_id, field: 'work_order_id', message: 'Work Order is required' },
         { condition: !form.truck_id, field: 'truck_id', message: 'Truck is required' },
         // { condition: !form.transport_id, field: 'transport_id', message: 'Transporter is required' },
         // { condition: !form.driver_id, field: 'driver_id', message: 'Driver is required' },
-        { condition: !form.batch_size || form.batch_size < 0.2 || form.batch_size > 9.9, field: 'batch_size', message: 'Batch Quantity must be between 0.2 and 9.9 m³' }
+        // { condition: !form.sales_executive_id, field: 'sales_executive_id', message: 'Sales Executive is required' },
+        { condition: !form.batch_size || form.batch_size < 0.2 || form.batch_size > 9.9, field: 'batch_size', message: 'Batch Quantity must be between 0.2 and 9.9 m³' },
+        { condition: form.work_order_id && form.batch_size > maxAllowed, field: 'batch_size', message: `Batch Quantity cannot exceed remaining order quantity (${maxAllowed.toFixed(3)} m³)` }
     ];
 
     let hasErrors = false;
@@ -329,6 +336,9 @@ const submit = () => {
                             </div>
                             <div class="col-span-12 md:col-span-3">
                                 <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver"  />
+                            </div>
+                            <div class="col-span-12 md:col-span-3">
+                                <BaseSelect v-model="form.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Sales Executive"  />
                             </div>
                             <div class="col-span-12 md:col-span-3">
                                 <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.2" :minFractionDigits="1" :maxFractionDigits="1" :max="9.9" required :error="form.errors.batch_size" />

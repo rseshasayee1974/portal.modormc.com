@@ -134,6 +134,7 @@ Route::middleware([
         Route::resource('batches', \App\Http\Controllers\BatchController::class)->except(['create', 'show', 'edit']);
         Route::get('batches/{batch}/report', [\App\Http\Controllers\BatchController::class, 'report'])->name('batches.report');
         Route::get('batches/{batch}/download', [\App\Http\Controllers\BatchController::class, 'downloadPdf'])->name('batches.download');
+        Route::post('batches/{batch}/sync', [\App\Http\Controllers\BatchController::class, 'syncToScheduler'])->name('batches.sync');
         Route::get('production/batch', [\App\Http\Controllers\Api\ProductionApiController::class, 'getConsumption'])->name('batches.production');
         Route::get('dispatches/dropdowns', [\App\Http\Controllers\DispatchController::class, 'dropdowns'])->name('dispatches.dropdowns');
         Route::post('dispatches/{dispatch}/generate-invoice', [\App\Http\Controllers\DispatchController::class, 'generateInvoice'])->name('dispatches.generate-invoice');

@@ -52,11 +52,16 @@ const form = useForm({
     load_site_id: props.dispatch?.load_site_id || props.batch?.load_site_id,
     unload_site_id: props.dispatch?.unload_site_id || props.batch?.unload_site_id,
     driver_id: props.dispatch?.driver_id || props.batch?.driver_id,
+    sales_executive_id: props.dispatch?.sales_executive_id || props.batch?.sales_executive_id,
     payment_mode: props.dispatch?.payment_mode || 'credit',
     dispatch_status: props.dispatch?.dispatch_status || 'Draft',
     generate_invoice: false,
     ledger_id: props.dispatch?.ledger_id || null,
     invoice_date: props.dispatch?.invoice_date ? new Date(props.dispatch.invoice_date) : new Date(),
+    created_at: props.dispatch?.created_at || null,
+    updated_at: props.dispatch?.updated_at || null,
+    creator: props.dispatch?.creator || null,
+    modifier: props.dispatch?.modifier || null,
 
     weights: {
         empty_weight_truck: props.dispatch?.empty_weight_truck || props.batch?.empty_weight_truck || 0,
@@ -149,11 +154,16 @@ watch(() => props.dispatch, (newDispatch) => {
         form.truck_id = newDispatch.truck_id || null;
         form.transport_id = newDispatch.transport_id || null;
         form.driver_id = newDispatch.driver_id || null;
+        form.sales_executive_id = newDispatch.sales_executive_id || null;
         form.unload_site_id = newDispatch.unload_site_id || null;
         form.delivered_qty = newDispatch.delivered_qty || 0;
         form.payment_mode = newDispatch.payment_mode || 'credit';
         form.ledger_id = newDispatch.ledger_id || null;
         form.invoice_date = newDispatch.invoice_date || null;
+        form.created_at = newDispatch.created_at || null;
+        form.updated_at = newDispatch.updated_at || null;
+        form.creator = newDispatch.creator || null;
+        form.modifier = newDispatch.modifier || null;
         
         // Sync Status nested object
         if (newDispatch.status) {

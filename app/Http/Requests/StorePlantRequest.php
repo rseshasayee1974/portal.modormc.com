@@ -33,6 +33,14 @@ class StorePlantRequest extends FormRequest
             'longitude' => ['nullable', 'string', 'max:255'],
             'is_main' => ['nullable', 'boolean'],
             'is_active' => ['nullable', 'boolean'],
+            'shift_start_time' => ['nullable', 'date_format:H:i'],
+            'shift_end_time' => ['nullable', 'date_format:H:i'],
+            
+            'scheduler_api_url' => ['nullable', 'url', 'max:255'],
+            'scheduler_api_token' => ['nullable', 'string'],
+            'scheduler_oauth_url' => ['nullable', 'url', 'max:255'],
+            'scheduler_client_id' => ['nullable', 'string', 'max:255'],
+            'scheduler_client_secret' => ['nullable', 'string'],
             
             // Address Validation
             'address' => ['nullable', 'array'],

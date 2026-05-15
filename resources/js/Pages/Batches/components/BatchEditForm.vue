@@ -64,6 +64,7 @@ const form = useForm({
     truck_id: props.batch?.dispatches?.[0]?.truck_id ?? null,
     transport_id: props.batch?.dispatches?.[0]?.transport_id ?? null,
     driver_id: props.batch?.dispatches?.[0]?.driver_id ?? null,
+    sales_executive_id: props.batch?.dispatches?.[0]?.sales_executive_id ?? null,
     empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? 0),
     loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? 0),
         
@@ -148,6 +149,7 @@ watch(() => props.batch, (newBatch) => {
         form.truck_id = dispatch?.truck_id ?? null;
         form.transport_id = dispatch?.transport_id ?? null;
         form.driver_id = dispatch?.driver_id ?? null;
+        form.sales_executive_id = dispatch?.sales_executive_id ?? null;
         form.empty_weight_truck = Number(dispatch?.empty_weight_truck ?? 0);
         form.loaded_weight_truck = Number(dispatch?.loaded_weight_truck ?? 0);
         form.net_weight = Number(dispatch?.net_weight ?? 0);
@@ -400,6 +402,9 @@ const submit = () => {
                         </div>
                         <div class="col-span-12 md:col-span-3">
                             <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver" :error="form.errors.driver_id" />
+                        </div>
+                        <div class="col-span-12 md:col-span-3">
+                            <BaseSelect v-model="form.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Sales Executive" :error="form.errors.sales_executive_id" />
                         </div>
                         <div class="col-span-12 md:col-span-3">
                             <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :minFractionDigits="2" :disabled="true"  :error="form.errors.batch_size" />

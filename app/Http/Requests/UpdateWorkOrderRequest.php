@@ -12,19 +12,19 @@ class UpdateWorkOrderRequest extends FormRequest
         return true;
     }
 
-    protected function prepareForValidation()
-    {
-        if ($this->filled('order_no') && is_numeric($this->order_no)) {
-            $now = now();
-            $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
-            $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
-            $prefix = $this->prefix ?: 'WO';
+    // protected function prepareForValidation()
+    // {
+    //     if ($this->filled('order_no') && is_numeric($this->order_no)) {
+    //         $now = now();
+    //         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
+    //         $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
+    //         $prefix = $this->prefix ?: 'WO';
             
-            $this->merge([
-                'order_no' => sprintf('%s-%s-%04d', strtoupper(trim($prefix)), $fyString, (int)$this->order_no)
-            ]);
-        }
-    }
+    //         $this->merge([
+    //             'order_no' => sprintf('%s-%s-%04d', strtoupper(trim($prefix)), $fyString, (int)$this->order_no)
+    //         ]);
+    //     }
+    // }
 
     public function rules(): array
     {

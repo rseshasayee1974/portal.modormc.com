@@ -5,9 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use OpenApi\Attributes as OA;
 
 class ProductionApiController extends Controller
 {
+    #[OA\Get(path: "/production/batch", summary: "Get production batch consumption", tags: ["Production"])]
+    #[OA\Parameter(name: "batch_no", in: "query", schema: new OA\Schema(type: "string"))]
+    #[OA\Parameter(name: "cust_id", in: "query", schema: new OA\Schema(type: "string"))]
+    #[OA\Parameter(name: "rec_id", in: "query", schema: new OA\Schema(type: "string"))]
+    #[OA\Response(response: 200, description: "Batch details")]
     public function getConsumption(Request $request)
     {
         $batchNo = $request->query('batch_no', '4');
