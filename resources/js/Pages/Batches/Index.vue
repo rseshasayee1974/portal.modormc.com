@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -176,6 +176,10 @@ const retrySync = (id: number) => {
         }
     });
 };
+
+const page = usePage();
+const customSettings = page.props.custom_settings as any;
+const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form);
 </script>
 
 <template>
@@ -189,6 +193,7 @@ const retrySync = (id: number) => {
                 </div>
 
                 <BatchCreateForm
+                    v-if="!hideBatchForm"
                     :workOrders="workOrders"
                     :trucks="trucks"
                     :transporters="transporters"
@@ -386,7 +391,7 @@ const retrySync = (id: number) => {
                                 </div>
                                 
                                 <!-- 1. Batch Production Form -->
-                                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div v-if="!hideBatchForm" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                     <BatchEditForm
                                         :batch="detailedBatches[slotProps.data.id] || slotProps.data"
                                         :workOrders="workOrders"
@@ -437,7 +442,7 @@ const retrySync = (id: number) => {
                                 </div> -->
 
                                 <!-- 3. Dispatch Generation/Edit Form -->
-                                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div v-if="slotProps.data.status === 3"  class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                     <DispatchSection 
                                         :batch="detailedBatches[slotProps.data.id] || slotProps.data" 
                                         :workOrder="(detailedBatches[slotProps.data.id] || slotProps.data).work_order"

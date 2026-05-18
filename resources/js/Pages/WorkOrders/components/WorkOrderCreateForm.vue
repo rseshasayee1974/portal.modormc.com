@@ -111,8 +111,8 @@ const handleMixCreated = () => {
 </script>
 
 <template>
-    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        <div class="border-b border-slate-100 bg-slate-50/50 px-4 py-3 flex items-center justify-between">
+    <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-4 py-3 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
                 <div class="rounded-lg bg-indigo-100 p-1.5 text-indigo-700 ring-1 ring-indigo-200">
                     <PlusCircleIcon class="h-4 w-4" />
@@ -220,8 +220,8 @@ const handleMixCreated = () => {
 
         </div>
 
-        <div class="flex justify-end border-t border-slate-100 px-4 py-3">
-            <Button label="Create Work Order" icon="pi pi-check" :loading="form.processing" @click="submit" />
+        <div class="flex justify-end border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/30 px-4 py-3">
+            <Button label="Create Work Order" icon="pi pi-check" :loading="form.processing" @click="submit" class="p-button-indigo" />
         </div>
     </div>
 </template>

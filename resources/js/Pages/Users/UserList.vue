@@ -90,6 +90,7 @@ const onUpdated = (userId: number) => {
         <BaseDataTable
             :value="users.data"
             dataKey="id"
+            
             lazy
             paginator
             :rows="users.per_page"

@@ -18,6 +18,20 @@ const props = defineProps<{
 
 const activeTab = ref<'basic' | 'location' | 'contact'>('basic');
 const isEditMode = computed(() => Boolean(props.plantId));
+
+const logoPreview = computed(() => {
+    if (props.form.logo && props.form.logo instanceof File) {
+        try {
+            return URL.createObjectURL(props.form.logo);
+        } catch (e) {
+            return null;
+        }
+    }
+    if (props.form.logo_path) {
+        return `/storage/${props.form.logo_path}`;
+    }
+    return null;
+});
 // const isIdentityLockedInEdit = computed(() => isEditMode.value && !props.canEditIdentityOnUpdate);
 // console.log('isIdentityLockedInEdit',isIdentityLockedInEdit.value);
 </script>
@@ -133,6 +147,24 @@ const isEditMode = computed(() => Boolean(props.plantId));
                     />
                 </div>
 
+                <div class="col-span-12 md:col-span-3">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Plant Logo</label>
+                    <div class="mt-1 flex items-center gap-3">
+                        <div v-if="logoPreview" class="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center">
+                            <img 
+                                :src="logoPreview" 
+                                class="w-full h-full object-contain"
+                            />
+                        </div>
+                        <input 
+                            type="file" 
+                            accept="image/*" 
+                            @change="(e: any) => form.logo = e.target.files[0]"
+                            class="text-[10px] text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                        />
+                    </div>
+                </div>
+
                 <div class="md:col-span-3 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Main Unit</label>
                     <div class="flex items-center gap-3 h-11 px-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
@@ -160,8 +192,10 @@ const isEditMode = computed(() => Boolean(props.plantId));
                         optionLabel="type"
                         optionValue="id"
                         placeholder="Address Type"
+                        :class="{'p-invalid': errors?.['address.address_type_id']}"
                         class="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
+                    <small v-if="errors?.['address.address_type_id']" class="p-error px-1">{{ errors['address.address_type_id'][0] }}</small>
                 </div>
 
                 <div class="md:col-span-3">
@@ -169,6 +203,7 @@ const isEditMode = computed(() => Boolean(props.plantId));
                         v-model="form.address.line_1" 
                         label="Address Line 1"
                         placeholder="Flat, Building, Street" 
+                        :error="errors?.['address.line_1']"
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>
@@ -210,6 +245,7 @@ const isEditMode = computed(() => Boolean(props.plantId));
                         v-model="form.address.zipcode" 
                         label="Zipcode"
                         placeholder="6-digit code" 
+                        :error="errors?.['address.zipcode']"
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>
@@ -251,6 +287,7 @@ const isEditMode = computed(() => Boolean(props.plantId));
                         v-model="form.contact.name" 
                         label="Contact Person Name"
                         placeholder="Full Name" 
+                        :error="errors?.['contact.name']"
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>
@@ -259,7 +296,9 @@ const isEditMode = computed(() => Boolean(props.plantId));
                     <BaseInput 
                         v-model="form.contact.email" 
                         label="Email ID"
+                        type="email"
                         placeholder="example@company.com" 
+                        :error="errors?.['contact.email']"
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>
@@ -269,6 +308,7 @@ const isEditMode = computed(() => Boolean(props.plantId));
                         v-model="form.contact.mobile" 
                         label="Mobile Number"
                         placeholder="+91 00000 00000" 
+                        :error="errors?.['contact.mobile']"
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>

@@ -267,6 +267,25 @@ class PatronController extends Controller
         return redirect()->back()->with('success', count($data['patrons']) . ' patrons imported successfully.');
     }
 
+    public function dropdown(Request $request)
+    {
+        $type = $request->query('type');
+        $query = Patron::where('plant_id', session('active_plant_id'));
+        
+        if ($type) {
+            $query->whereJsonContains('patron_type', $type);
+        }
+        
+        return response()->json(
+            $query->select('id as value', 'legal_name as label')->get()
+        );
+    }
+
+    public function show(Patron $patron)
+    {
+        return response()->json($patron);
+    }
+
     public function destroy(Patron $patron)
     {
         $this->authorizeModule('delete');

@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Auth;
 use App\Traits\AuditFields;
+use App\Traits\PlantScoping;
 
 class PettyCash extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
 
     protected $table = 'mm_petty_cash';
 

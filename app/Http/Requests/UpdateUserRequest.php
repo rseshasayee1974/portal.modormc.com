@@ -37,7 +37,7 @@ class UpdateUserRequest extends FormRequest
                 Rule::unique('mm_users', 'email')->ignore($this->route('user'))->whereNull('deleted_at'),
             ],
             'mobile' => 'nullable|string|max:20',
-            'password' => 'nullable|string|min:8',
+            'password' => ['nullable', 'string', \Illuminate\Validation\Rules\Password::default()],
             'is_active' => 'nullable|boolean',
             'is_otp_enabled' => 'nullable|boolean',
             'role_id' => 'nullable|integer',
@@ -47,7 +47,7 @@ class UpdateUserRequest extends FormRequest
                 'required',
                 'integer',
                 function ($attribute, $value, $fail) use ($user) {
-                    if ($user->hasRole('SAAS_OWNER')) {
+                    if ($user->hasRole('Saas Owner')) {
                         if (!Entity::where('id', $value)->exists()) {
                             $fail('The selected entity is invalid.');
                         }
@@ -72,7 +72,7 @@ class UpdateUserRequest extends FormRequest
                     $entityLevel = $user->entityUsers()->with('role')->get()->min('role.level');
                     $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
                     $userLevel = empty($levels) ? 999 : min($levels);
-                    if ($assignedRole->level > $userLevel) {
+                    if ($assignedRole->level >= $userLevel) {
                         $fail('You cannot assign a role equal to or higher than your own.');
                     }
                 }

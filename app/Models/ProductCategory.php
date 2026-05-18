@@ -7,11 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Traits\ProtectsSystemItems;
+use App\Traits\PlantScoping;
 
 class ProductCategory extends Model
 {
     /** @use HasFactory<\Database\Factories\ProductCategoryFactory> */
-    use HasFactory, SoftDeletes, ProtectsSystemItems;
+    use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping;
 
     protected $table = 'mm_product_categories';
 

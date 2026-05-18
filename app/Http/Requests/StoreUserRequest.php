@@ -37,7 +37,7 @@ class StoreUserRequest extends FormRequest
                 Rule::unique('mm_users', 'email')->where('deleted_at', null),
             ],
             'mobile' => 'nullable|string|max:20',
-            'password' => 'required|string|min:8',
+            'password' => ['required', 'string', \Illuminate\Validation\Rules\Password::default()],
             'is_active' => 'nullable|boolean',
             'is_otp_enabled' => 'nullable|boolean',
             
@@ -47,7 +47,7 @@ class StoreUserRequest extends FormRequest
                 'required',
                 'integer',
                 function ($attribute, $value, $fail) use ($user) {
-                    if ($user->hasRole('SAAS_OWNER')) {
+                    if ($user->hasRole('Saas Owner')) {
                         if (!Entity::where('id', $value)->exists()) {
                             $fail('The selected entity is invalid.');
                         }
@@ -73,7 +73,7 @@ class StoreUserRequest extends FormRequest
                     $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
                     $userLevel = empty($levels) ? 999 : min($levels);
                     // dd($assignedRole->level,$userLevel,$spatieLevel,$entityLevel,$levels);
-                    if ($assignedRole->level > $userLevel) {
+                    if ($assignedRole->level >= $userLevel) {
                         $fail('You cannot assign a role equal to or higher than your own.');
                     }
                 }

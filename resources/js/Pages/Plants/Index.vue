@@ -45,6 +45,7 @@ const blankForm = () => ({
     scheduler_oauth_url: '',
     scheduler_client_id: '',
     scheduler_client_secret: '',
+    logo: null as File | null,
     address: {
         address_type_id: props.addressTypes?.[0]?.id ?? null,
         line_1: '', line_2: '', city: '',
@@ -92,6 +93,8 @@ const populatePlantForm = (form: any, plant: any) => {
     form.scheduler_oauth_url = plant.scheduler_oauth_url || '';
     form.scheduler_client_id = plant.scheduler_client_id || '';
     form.scheduler_client_secret = plant.scheduler_client_secret || '';
+    form.logo_path = plant.logo_path || null;
+    form.logo = null;
     
     form.address = {
         address_type_id: address.address_type_id || (props.addressTypes?.[0]?.id ?? null),
@@ -152,7 +155,11 @@ const submitCreate = () => {
 const submitEdit = () => {
     if (!editingId.value) return;
 
-    editForm.put(route('plants.update', editingId.value), {
+    editForm.transform((data) => ({
+        ...data,
+        _method: 'PUT',
+    })).post(route('plants.update', editingId.value), {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             resetEditForm();
@@ -198,6 +205,33 @@ const initializePlant = (id: number) => {
                 preserveScroll: true,
                 onSuccess: () => {
                     toast.add({ severity: 'success', summary: 'Initialized', detail: 'Plant default settings created', life: 1500 });
+                }
+            });
+        }
+    });
+};
+
+const sendCredentials = (id: number) => {
+    const plant = props.plants.data.find((p: any) => p.id === id);
+    if (!plant?.email_address) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Plant email address is missing.', life: 3000 });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Send Credentials?',
+        text: `This will reset the plant admin password and send new login details to ${plant.email_address}.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Yes, send them!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.post(route('plants.send-credentials', id), {}, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.add({ severity: 'success', summary: 'Sent', detail: 'Credentials sent successfully', life: 1500 });
                 }
             });
         }
@@ -289,6 +323,7 @@ const handleSort = (event: any) => {
                         @sort="handleSort"
                         @delete="deletePlant"
                         @initialize="initializePlant"
+                        @send-credentials="sendCredentials"
                         @submit-edit="submitEdit"
                         @cancel-edit="resetEditForm"
                     />

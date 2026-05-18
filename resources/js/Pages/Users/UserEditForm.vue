@@ -8,6 +8,7 @@ import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseActionButton from '@/Components/Base/BaseActionButton.vue';
+import Password from 'primevue/password';
 
 const props = defineProps<{
     user: any;
@@ -196,7 +197,17 @@ const submit = async () => {
 
                 <!-- Password (edit only) -->
                 <div v-if="mode === 'edit'" class="col-span-12 md:col-span-3">
-                    <BaseInput v-model="form.password" type="password" label="New Password" placeholder="Leave blank to keep current" :error="form.errors.password" />
+                    <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">New Password</label>
+                    <Password 
+                        v-model="form.password" 
+                        toggleMask 
+                        :feedback="true" 
+                        class="w-full" 
+                        inputClass="w-full text-sm !bg-white"
+                        :class="form.errors.password ? 'p-invalid' : ''"
+                        placeholder="Leave blank to keep current"
+                    />
+                    <small v-if="form.errors.password" class="p-error text-[10px]">{{ form.errors.password[0] }}</small>
                 </div>
 
                 <!-- Toggles -->
@@ -229,7 +240,7 @@ const submit = async () => {
                 <div class="col-span-12">
                     <div class="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-gray-700 pb-2">
                         <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Entity & Plant Access</span>
-                        <BaseButton v-if="mode === 'edit'" label="Add Assignment" icon="pi pi-plus" class="bg-indigo-50" text  @click="addEntity" />
+                        <BaseActionButton v-if="mode === 'edit'" icon="pi pi-plus" severity="primary" tooltip="Add Assignment" @click="addEntity" />
                     </div>
                     <div class="flex flex-col gap-3">
                         <div
@@ -262,13 +273,13 @@ const submit = async () => {
 
             </div>
 
-            <!-- Footer Actions -->
             <div class="col-span-12 flex justify-end gap-2 pt-4 border-t border-gray-100 dark:border-gray-700 mt-4">
-                <BaseButton label="Close" text severity="secondary" @click="$emit('close')" />
-                <BaseButton
+                <BaseActionButton icon="pi pi-times" severity="secondary" label="Close" @click="$emit('close')" />
+                <BaseActionButton
                     v-if="mode === 'edit'"
-                    label="Update User"
                     icon="pi pi-check"
+                    severity="primary" class="!bg-indigo-500 !text-white"
+                    label="Update User"
                     :loading="form.processing"
                     @click="submit"
                 />

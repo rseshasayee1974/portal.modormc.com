@@ -227,6 +227,27 @@ class InvoiceController extends Controller
        
     }
 
+    public function outstanding(Request $request)
+    {
+        $this->authorizeModule('menu');
+        $plantId = session('active_plant_id');
+// dd($request->all());
+        $query = Invoice::where('plant_id', $plantId)
+            ->where('status', 'approved')
+            ->where('balance_amount', '>', 0);
+
+        if ($request->has('partner_id')) {
+            $query->where('partner_id', $request->partner_id);
+        }
+
+        if ($request->has('type')) {
+            // 'sales' or 'bill'
+            $query->where('invoice_type', $request->type);
+        }
+// dd($query->latest()->get());
+        return response()->json($query->latest()->get());
+    }
+
     public function destroy(Invoice $invoice)
     {
         $this->authorizeModule('delete');

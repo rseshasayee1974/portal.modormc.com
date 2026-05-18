@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 use App\Traits\AuditFields;
+use App\Traits\PlantScoping;
 
 class Dispatch extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
 
     protected $table = 'mm_dispatches';
 

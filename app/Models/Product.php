@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use App\Traits\AuditFields;
 use App\Traits\ProtectsSystemItems;
+use App\Traits\PlantScoping;
 
 class Product extends Model
 {
     /** @use HasFactory<\Database\Factories\ProductFactory> */
-    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems;
+    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems, PlantScoping;
 
     protected $table = 'mm_products';
 

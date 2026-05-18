@@ -21,6 +21,8 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [\App\Http\Controllers\Api\LoginController::class, 'login']);
 });
 
+
+
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('dashboard')->group(function () {
         Route::get('/sales-summary', [\App\Http\Controllers\Api\DashboardController::class, 'salesSummary']);

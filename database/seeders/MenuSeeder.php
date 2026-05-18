@@ -12,19 +12,19 @@ class MenuSeeder extends Seeder
         $menus = [
             // Top Navigation (menutype 1)
             ['id' => 1,  'menutype' => 1, 'title' => 'Dashboard',  'alias' => 'dashboard', 'link' => 'dashboard',           'icon' => 'HomeIcon',                  'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 1,  'permission_name' => 'DASHBOARD.VIEW'],
-            ['id' => 2,  'menutype' => 1, 'title' => 'Master',     'alias' => 'master',    'link' => 'master/taxes',         'icon' => 'Square3Stack3DIcon',         'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 2,  'permission_name' => 'ADDRESS_TYPE.VIEW'],
+            ['id' => 2,  'menutype' => 1, 'title' => 'Master',     'alias' => 'master',    'link' => 'master/accounttypes',         'icon' => 'Square3Stack3DIcon',         'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 2,  'permission_name' => 'ADDRESS_TYPE.VIEW'],
             ['id' => 3,  'menutype' => 0, 'title' => 'Order',      'alias' => 'orders',    'link' => 'orders/purchaseorder', 'icon' => 'CreditCardIcon',             'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 3,  'permission_name' => 'QUOTATION.VIEW'],
             ['id' => 4,  'menutype' => 1, 'title' => 'Machines',      'alias' => 'machines',     'link' => 'fleet/machines',       'icon' => 'TruckIcon',                  'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 4,  'permission_name' => 'MACHINE.VIEW'],
             ['id' => 5,  'menutype' => 1, 'title' => 'Inventory',  'alias' => 'inventory', 'link' => 'inventory/products',   'icon' => 'ShoppingCartIcon',           'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 5,  'permission_name' => 'PRODUCT.VIEW'],
             ['id' => 6,  'menutype' => 1, 'title' => 'Batching',   'alias' => 'Batching',  'link' => 'orders/batches',       'icon' => 'ClipboardDocumentListIcon',  'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 6,  'permission_name' => 'PATRON.VIEW'],
             ['id' => 7,  'menutype' => 1, 'title' => 'Tenant',     'alias' => 'tenant',    'link' => 'tenant/entities',      'icon' => 'BuildingLibraryIcon',        'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 7,  'permission_name' => 'ENTITY.VIEW'],
-            ['id' => 8,  'menutype' => 1, 'title' => 'Membership', 'alias' => 'users',     'link' => 'membership/users',     'icon' => 'IdentificationIcon',         'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 8,  'permission_name' => 'USER.VIEW'],
+            ['id' => 8,  'menutype' => 1, 'title' => 'Personnel', 'alias' => 'Personnel',     'link' => 'membership/users',     'icon' => 'IdentificationIcon',         'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 8,  'permission_name' => 'USER.VIEW'],
             ['id' => 9,  'menutype' => 1, 'title' => 'Finance',    'alias' => 'finance',   'link' => 'finance/ledgers',      'icon' => 'BriefcaseIcon',             'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 9,  'permission_name' => 'ACCOUNT.VIEW'],
             ['id' => 10, 'menutype' => 1, 'title' => 'Report',     'alias' => 'report',    'link' => 'reports/report',                    'icon' => 'ChartBarIcon',               'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 10, 'permission_name' => 'REPORT.VIEW'],
             ['id' => 11, 'menutype' => 1, 'title' => 'Setting',    'alias' => 'Setting',   'link' => 'settings/sites',       'icon' => 'Cog6ToothIcon',              'published' => 1, 'parent_id' => 0, 'level' => 0, 'ordering' => 10, 'permission_name' => 'SITES.VIEW'],
 
             // Sidebar: Membership (parent_id = 8)
-            ['id' => 12, 'menutype' => 2, 'title' => 'User Management', 'alias' => 'Users',     'link' => 'membership/users',     'icon' => 'UsersIcon',           'published' => 1, 'parent_id' => 8,  'level' => 1, 'ordering' => 1, 'permission_name' => 'USER.VIEW'],
+            ['id' => 12, 'menutype' => 2, 'title' => 'User', 'alias' => 'Users',     'link' => 'membership/users',     'icon' => 'UsersIcon',           'published' => 1, 'parent_id' => 8,  'level' => 1, 'ordering' => 1, 'permission_name' => 'USER.VIEW'],
             ['id' => 20, 'menutype' => 2, 'title' => 'Personnel',       'alias' => 'personnel', 'link' => 'membership/personnel', 'icon' => 'IdentificationIcon',  'published' => 1, 'parent_id' => 6,  'level' => 1, 'ordering' => 5, 'permission_name' => 'PERSONNEL.VIEW'],
 
             // Sidebar: Master (parent_id = 2)
@@ -61,13 +61,12 @@ class MenuSeeder extends Seeder
             ['id' => 40, 'menutype' => 2, 'title' => 'Payment',             'alias' => 'payments',           'link' => 'finance/payments',   'icon' => 'DocumentChartBarIcon','published' => 1, 'parent_id' => 9, 'level' => 1, 'ordering' => 5, 'permission_name' => 'PAYMENT.VIEW'],
             ['id' => 55, 'menutype' => 2, 'title' => 'Expense',             'alias' => 'expenses',           'link' => 'finance/expenses',   'icon' => 'BanknotesIcon',      'published' => 1, 'parent_id' => 9, 'level' => 1, 'ordering' => 6, 'permission_name' => 'EXPENSE.VIEW'],
             ['id' => 38, 'menutype' => 2, 'title' => 'Journal Entry',       'alias' => 'journal-entries',    'link' => 'journal-entries',    'icon' => 'DocumentChartBarIcon','published' => 1, 'parent_id' => 9, 'level' => 1, 'ordering' => 5, 'permission_name' => 'JOURNAL_ENTRY.VIEW'],
-            ['id' => 70, 'menutype' => 2, 'title' => 'Accounting Reports',  'alias' => 'accounting_reports', 'link' => 'finance/reports',    'icon' => 'ChartBarIcon',       'published' => 1, 'parent_id' => 9, 'level' => 1, 'ordering' => 8, 'permission_name' => 'LEDGER.VIEW'],
-            ['id' => 71, 'menutype' => 2, 'title' => 'ERP Dashboard',       'alias' => 'erp_dashboard',      'link' => 'finance/dashboard',  'icon' => 'ChartPieIcon',       'published' => 1, 'parent_id' => 9, 'level' => 1, 'ordering' => 0, 'permission_name' => 'ACCOUNT.VIEW'],
+            
 
             // Sidebar: Orders (parent_id = 3)
             ['id' => 53, 'menutype' => 2, 'title' => 'Quotation',       'alias' => 'quotations',    'link' => 'inventory/quotations',   'icon' => 'DocumentChartBarIcon',     'published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 1, 'permission_name' => 'QUOTATION.VIEW'],
             ['id' => 21, 'menutype' => 2, 'title' => 'Purchase Orders', 'alias' => 'purchaseorder', 'link' => 'inventory/purchaseorder','icon' => 'ClipboardDocumentCheckIcon','published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 2, 'permission_name' => 'PURCHASEORDER.VIEW'],
-            ['id' => 52, 'menutype' => 2, 'title' => 'Work Order',      'alias' => 'workorders',    'link' => 'inventory/workorders',   'icon' => 'ClipboardDocumentCheckIcon','published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 3, 'permission_name' => 'WORK_ORDER.VIEW'],
+            ['id' => 52, 'menutype' => 2, 'title' => 'Work Order',      'alias' => 'workorders',    'link' => 'orders/workorders',   'icon' => 'ClipboardDocumentCheckIcon','published' => 1, 'parent_id' => 6, 'level' => 1, 'ordering' => 3, 'permission_name' => 'WORK_ORDER.VIEW'],
             ['id' => 58, 'menutype' => 2, 'title' => 'Party Rate',      'alias' => 'partyrates',    'link' => 'inventory/partyrates',   'icon' => 'CurrencyRupeeIcon',         'published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 3, 'permission_name' => 'PARTY_RATE.VIEW'],
             ['id' => 59, 'menutype' => 2, 'title' => 'Batching',        'alias' => 'Batching',      'link' => 'batching/batches',      'icon' => 'ClipboardDocumentListIcon', 'published' => 1, 'parent_id' => 6, 'level' => 1, 'ordering' => 6, 'permission_name' => 'BATCH.VIEW'],
 
@@ -84,6 +83,7 @@ class MenuSeeder extends Seeder
             ['id' => 50, 'menutype' => 2, 'title' => 'Site',             'alias' => 'sites',          'link' => 'settings/sites',        'icon' => 'MapPinIcon',       'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 3, 'permission_name' => 'SITE.VIEW'],
             ['id' => 22, 'menutype' => 2, 'title' => 'Print Templates',  'alias' => 'templates',      'link' => 'settings/templates',    'icon' => 'SwatchIcon',       'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 5, 'permission_name' => 'MENU.VIEW'],
             ['id' => 100,'menutype' => 2, 'title' => 'Default Accounts', 'alias' => 'defaultaccounts','link' => 'settings/default-accounts','icon' => 'PaintBrushIcon', 'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 6, 'permission_name' => 'MENU.VIEW'],
+            ['id' => 101,'menutype' => 2, 'title' => 'Custom Settings', 'alias' => 'customsetting',  'link' => 'settings/customsetting',   'icon' => 'VariableIcon',   'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 7, 'permission_name' => 'SITES.VIEW'],
         ];
 
         foreach ($menus as $menu) {

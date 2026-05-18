@@ -104,6 +104,29 @@ class LedgerController extends Controller
         ]);
     }
 
+    public function dropdown(Request $request)
+    {
+        $plantId = session('active_plant_id');
+        $type = $request->query('type');
+        
+        $query = Ledger::where('plant_id', $plantId)
+            ->select('id as value', 'code', 'title as label');
+
+        if (in_array(strtolower($type), ['payment', 'receipt'])) {
+            // For payments and receipts, we only show Cash and Bank ledgers
+            $query->whereHas('accountType', function($q) {
+                $q->whereIn('title', ['Current Assets']);
+            });
+        } elseif ($type) {
+            // Generic filter by account category title
+            $query->whereHas('accountType', function($q) use ($type) {
+                $q->where('account_type', strtoupper($type));
+            });
+        }
+
+        return response()->json($query->get());
+    }
+
     /**
      * API: Get the next available code for a specific category.
      */

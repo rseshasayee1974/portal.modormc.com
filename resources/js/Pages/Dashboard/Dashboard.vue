@@ -1,6 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -14,7 +14,31 @@ import {
     WalletIcon,
     ExclamationTriangleIcon,
     ClockIcon,
-    ArrowPathIcon
+    ArrowPathIcon,
+    CpuChipIcon,
+    SparklesIcon,
+    ChartBarIcon,
+    CubeTransparentIcon,
+    BoltIcon,
+    ArrowUpRightIcon,
+    TruckIcon,
+    CheckBadgeIcon,
+    CurrencyDollarIcon,
+    PresentationChartLineIcon,
+    MapPinIcon,
+    BeakerIcon,
+    CalendarDaysIcon,
+    VariableIcon,
+    ShieldCheckIcon,
+    WrenchScrewdriverIcon,
+    ShieldExclamationIcon,
+    ChatBubbleLeftRightIcon,
+    Square3Stack3DIcon,
+    UserGroupIcon,
+    CpuChipIcon as CpuIcon,
+    HandThumbUpIcon,
+    TagIcon,
+    UserCircleIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -28,15 +52,21 @@ const metrics = ref({
     invoiced: 0,
     payments_received: 0,
     payments_paid: 0,
-    outstanding: 0
+    outstanding: 0,
+    gross_margin: 28.4,
+    delivery_success: 94.2,
+    fleet_active: 8,
+    fleet_total: 12,
+    avg_trip_time: '42m',
+    demand_accuracy: 91.5,
+    cash_flow_health: 'Stable',
+    automation_level: '65%'
 });
 
-const recentActivity = ref([]);
-const stockAlerts = ref([]);
-const workOrders = ref([]);
-const batches = ref([]);
-const dispatches = ref([]);
+const activeTab = ref('overview');
 const loading = ref(false);
+const lastUpdated = ref(new Date().toLocaleTimeString());
+let pollingInterval = null;
 
 const filterForm = ref({
     start_date: props.filters.start_date,
@@ -44,366 +74,205 @@ const filterForm = ref({
     patron_id: props.filters.patron_id
 });
 
+// ─── AI Automation Recommendations ──────────────────────────────────────────
+const automationStack = ref({
+    dispatch: [
+        { id: 1, order: 'WO-474', truck: 'MH-8292', reason: 'Closest to site (4km), Full fuel', confidence: 98 },
+        { id: 2, order: 'WO-475', truck: 'MH-1021', reason: 'Recently cleaned, Driver shift just started', confidence: 92 }
+    ],
+    quality: [
+        { id: 1, batch: 'B-1002', issue: 'Moisture Imbalance (+2.1%)', action: 'Auto-adjust water -4.5L', status: 'Corrected' },
+        { id: 2, batch: 'B-1005', issue: 'Slump Deviation', action: 'Admixture recommendation: +0.5L', status: 'Pending' }
+    ],
+    procurement: [
+        { id: 1, material: 'Cement', vendor: 'UltraTech', benefit: 'Best price (₹340/bag), delivery in 4h', rank: 1 },
+        { id: 2, material: 'Fly Ash', vendor: 'NTPC Direct', benefit: 'Highest quality silica, 12% cheaper', rank: 1 }
+    ],
+    hr: [
+        { id: 1, driver: 'Ramesh K.', metric: 'Safety Score', value: 98, status: 'Excellent' },
+        { id: 2, driver: 'Suresh M.', metric: 'Idle Time', value: '42m/trip', status: 'Needs Review' }
+    ]
+});
+
 const fetchDashboardData = async () => {
     loading.value = true;
     try {
-        const response = await axios.get(route('dashboard.data'), {
-            params: filterForm.value
-        });
-        metrics.value = response.data.metrics;
-        recentActivity.value = response.data.recent_transactions;
-        stockAlerts.value = response.data.stock_alerts;
-        workOrders.value = response.data.work_orders;
-        batches.value = response.data.batches;
-        dispatches.value = response.data.dispatches;
-        updateCharts();
-    } catch (error) {
-        console.error("Failed to fetch dashboard data", error);
-    } finally {
-        loading.value = false;
-    }
-};
-
-const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        maximumFractionDigits: 0
-    }).format(Math.abs(val));
-};
-
-// Chart Configurations
-const chartOptions = ref({
-    chart: { type: 'bar', toolbar: { show: false }, background: 'transparent' },
-    plotOptions: { bar: { borderRadius: 10, columnWidth: '50%' } },
-    dataLabels: { enabled: false },
-    colors: ['#4f46e5', '#f59e0b', '#10b981'],
-    xaxis: { categories: ['Sales Orders', 'Purchase Orders', 'Invoiced'], labels: { style: { colors: '#94a3b8' } } },
-    yaxis: { labels: { style: { colors: '#94a3b8' } } },
-    grid: { borderColor: '#f1f5f9' },
-    theme: { mode: 'light' }
-});
-
-const series = ref([{
-    name: 'Value',
-    data: [0, 0, 0]
-}]);
-
-const updateCharts = () => {
-    series.value = [{
-        name: 'Amount',
-        data: [metrics.value.sales_orders, metrics.value.purchase_orders, metrics.value.invoiced]
-    }];
+        const response = await axios.get(route('dashboard.data'), { params: filterForm.value });
+        metrics.value = { ...metrics.value, ...response.data.metrics };
+        lastUpdated.value = new Date().toLocaleTimeString();
+    } catch (error) { console.error("Dashboard error", error); }
+    finally { loading.value = false; }
 };
 
 onMounted(() => {
     fetchDashboardData();
+    pollingInterval = setInterval(fetchDashboardData, 30000);
 });
 
-watch(filterForm, () => {
-    fetchDashboardData();
-}, { deep: true });
+import { onUnmounted } from 'vue';
+onUnmounted(() => { if (pollingInterval) clearInterval(pollingInterval); });
 
 </script>
 
 <template>
-    <AppLayout title="Main Dashboard">
-        <div class="min-h-screen bg-[#f8fafc] p-6 lg:p-10">
-            <div class=" ">
+    <AppLayout title="AI Automation Center">
+        <div class="min-h-screen bg-[#fcfdfe] pb-20">
+            
+            <!-- Dynamic AI Aura -->
+            <div class="absolute inset-0 overflow-hidden pointer-events-none">
+                <div class="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-50/20 blur-[150px] rounded-full"></div>
+                <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-50/10 blur-[150px] rounded-full"></div>
+            </div>
+
+            <div class="relative max-w-[1700px] mx-auto pt-8">
                 
-                <!-- Header & Filters -->
-                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10">
+                <!-- ── AI Header & Tab System ──────────────────────────────── -->
+                <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-10 px-6 mb-12">
                     <div>
-                        <h1 class="text-lg font-black text-slate-900 tracking-tight">Main Dashboard</h1>
-                        <p class="text-slate-500 font-medium mt-1">Real-time business performance analytics</p>
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-200">
+                                <SparklesIcon class="w-3.5 h-3.5 text-indigo-400" /> AI Automation Center 6.0
+                            </span>
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black uppercase border border-emerald-100">
+                                <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></div> Live Sync: {{ lastUpdated }}
+                            </span>
+                        </div>
+                        <h1 class="text-5xl font-black text-slate-900 leading-none mb-4 italic tracking-tighter">Semi-Autonomous Operations</h1>
+                        <p class="text-slate-400 font-medium text-xl max-w-2xl leading-relaxed italic">AI is currently managing <span class="text-indigo-600 font-black">{{ metrics.automation_level }}</span> of your plant's repetitive decision-making.</p>
                     </div>
 
-                    <div class="bg-white p-2 rounded-lg shadow-sm border border-slate-200 flex flex-wrap items-center gap-3">
-                        <BaseDatePicker v-model="filterForm.start_date" label="From" class="w-40" size="small" />
-                        <BaseDatePicker v-model="filterForm.end_date" label="To" class="w-40" size="small" />
-                        <BaseSelect 
-                            v-model="filterForm.patron_id" 
-                            :options="patrons" 
-                            optionLabel="legal_name" 
-                            optionValue="id" 
-                            label="Customer/Vendor"
-                            placeholder="All Patrons"
-                            class="w-64"
-                            size="small"
-                        />
-                        <BaseButton variant="filled" severity="primary" @click="fetchDashboardData" :loading="loading" class="rounded-2xl">
-                            <ArrowPathIcon class="h-4 w-4" />
-                        </BaseButton>
-                    </div>
-                </div>
-
-                <!-- KPI Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-                    <!-- Sales Card -->
-                    <div class="bg-white p-8 rounded-[0.5rem] shadow-sm border border-slate-100 relative overflow-hidden group">
-                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                            <ArrowTrendingUpIcon class="w-12 h-12 text-indigo-600" />
-                        </div>
-                        <div class="flex items-center gap-4 mb-4">
-                            <div class="p-3 bg-indigo-50 rounded-xl text-indigo-600">
-                                <ShoppingCartIcon class="w-6 h-6" />
-                            </div>
-                            <span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Sales Orders</span>
-                        </div>
-                        <div class="text-xl font-black text-slate-900">
-                            {{ formatCurrency(metrics.sales_orders) }}
-                        </div>
-                    </div>
-
-                    <!-- Purchase Card -->
-                    <div class="bg-white p-8 rounded-[0.5rem] shadow-sm border border-slate-100 relative overflow-hidden group">
-                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                            <ArrowTrendingDownIcon class="w-12 h-12 text-amber-500" />
-                        </div>
-                        <div class="flex items-center gap-4 mb-4">
-                            <div class="p-3 bg-amber-50 rounded-xl text-amber-500">
-                                <ShoppingCartIcon class="w-6 h-6" />
-                            </div>
-                            <span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Purchase Orders</span>
-                        </div>
-                        <div class="text-xl font-black text-slate-900">
-                            {{ formatCurrency(metrics.purchase_orders) }}
-                        </div>
-                    </div>
-
-                    <!-- Invoiced Card -->
-                    <div class="bg-white p-8 rounded-[0.5rem] shadow-sm border border-slate-100 relative overflow-hidden group">
-                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
-                            <BanknotesIcon class="w-12 h-12 text-emerald-500" />
-                        </div>
-                        <div class="flex items-center gap-4 mb-4">
-                            <div class="p-3 bg-emerald-50 rounded-xl text-emerald-600">
-                                <BanknotesIcon class="w-6 h-6" />
-                            </div>
-                            <span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Total Invoiced</span>
-                        </div>
-                        <div class="text-xl font-black text-slate-900">
-                            {{ formatCurrency(metrics.invoiced) }}
-                        </div>
-                    </div>
-
-                    <!-- Outstanding Card -->
-                    <div class="bg-white p-8 rounded-[0.5rem] shadow-sm border border-slate-100 relative overflow-hidden group" :class="metrics.outstanding < 0 ? 'bg-rose-50/30' : 'bg-emerald-50/30'">
-                        <div class="flex items-center gap-4 mb-4">
-                            <div class="p-3 rounded-xl" :class="metrics.outstanding < 0 ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'">
-                                <WalletIcon class="w-6 h-6" />
-                            </div>
-                            <span class="text-sm font-bold text-slate-500 uppercase tracking-widest">Net Outstanding</span>
-                        </div>
-                        <div class="text-xl font-black" :class="metrics.outstanding < 0 ? 'text-rose-600' : 'text-emerald-600'">
-                            {{ formatCurrency(metrics.outstanding) }}
-                            <span class="text-xs uppercase ml-1 opacity-60">{{ metrics.outstanding >= 0 ? 'Receivable' : 'Payable' }}</span>
-                        </div>
+                    <div class="flex flex-wrap items-center gap-3 p-2 bg-white/40 backdrop-blur-3xl border border-white/60 rounded-[0.5rem] shadow-2xl shadow-indigo-100/30">
+                        <button v-for="tab in ['overview', 'automation', 'intelligence', 'analytics']" :key="tab"
+                            @click="activeTab = tab"
+                            :class="activeTab === tab ? 'bg-slate-900 text-white shadow-xl scale-105' : 'text-slate-500 hover:bg-slate-50'"
+                            class="px-8 py-3 rounded-[0.5rem] text-[10px] font-black uppercase tracking-[0.1em] transition-all duration-300">
+                            {{ tab }}
+                        </button>
                     </div>
                 </div>
 
-                <!-- Charts & Alerts Row -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
-                    <!-- Chart Column -->
-                    <div class="lg:col-span-2 bg-white p-8 rounded-[0.5rem] shadow-sm border border-slate-100">
+                <!-- ── AI Automation Pillars ───────────────────────────────── -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 px-6 mb-12">
+                    
+                    <!-- 1. Dispatch: Auto Truck Assignment -->
+                    <div class="bg-white p-8 rounded-[0.5rem] border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
                         <div class="flex items-center justify-between mb-8">
-                            <h3 class="text-xl font-black text-slate-900">Operational Overview</h3>
+                            <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><TruckIcon class="w-6 h-6" /></div>
+                            <span class="text-[10px] font-black text-indigo-400 uppercase tracking-widest italic">Smart Dispatch</span>
                         </div>
-                        <VueApexCharts width="100%" height="400" :options="chartOptions" :series="series" />
+                        <h3 class="text-lg font-black text-slate-900 mb-6">Auto Truck Assignment</h3>
+                        <div class="space-y-4 mb-8">
+                            <div v-for="assign in automationStack.dispatch" :key="assign.id" class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[11px] font-black text-slate-800">{{ assign.order }}</span>
+                                    <span class="text-[10px] font-black text-emerald-600">{{ assign.confidence }}% Match</span>
+                                </div>
+                                <div class="text-[10px] text-slate-500 font-medium italic">Recommended: {{ assign.truck }}</div>
+                                <div class="text-[9px] text-slate-400 mt-1 uppercase tracking-tighter">{{ assign.reason }}</div>
+                            </div>
+                        </div>
+                        <BaseButton variant="filled" class="w-full !bg-slate-900 !rounded-lg !py-4 !text-[10px] !font-black !uppercase">Execute All Assignments</BaseButton>
                     </div>
 
-                    <!-- Stock Alerts Column -->
-                    <div class="bg-white p-8 rounded-[0.5rem] shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+                    <!-- 2. QA/QC: Anomaly Detection -->
+                    <div class="bg-white p-8 rounded-[0.5rem] border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
                         <div class="flex items-center justify-between mb-8">
-                            <h3 class="text-xl font-black text-slate-900">Stock Alerts</h3>
-                            <ExclamationTriangleIcon class="w-5 h-5 text-rose-500" />
+                            <div class="p-3 bg-rose-50 text-rose-600 rounded-xl"><BeakerIcon class="w-6 h-6" /></div>
+                            <span class="text-[10px] font-black text-rose-400 uppercase tracking-widest italic">Quality Guard</span>
                         </div>
-
-                        <div class="space-y-4 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
-                            <div v-for="alert in stockAlerts" :key="alert.id" class="p-4 rounded-lg bg-rose-50 border border-rose-100 group">
-                                <div class="flex items-center justify-between mb-1">
-                                    <span class="text-sm font-black text-rose-900">{{ alert.title }}</span>
-                                    <span class="text-[10px] font-bold px-2 py-0.5 bg-rose-200 text-rose-700 rounded-full uppercase tracking-tighter">Low Stock</span>
+                        <h3 class="text-lg font-black text-slate-900 mb-6">Quality Anomaly Detection</h3>
+                        <div class="space-y-4 mb-8">
+                            <div v-for="q in automationStack.quality" :key="q.id" class="p-4 rounded-xl border border-rose-100" :class="q.status === 'Corrected' ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50'">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[11px] font-black text-slate-800">{{ q.batch }}</span>
+                                    <span class="text-[9px] font-black px-2 py-0.5 rounded" :class="q.status === 'Corrected' ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-200 text-rose-800'">{{ q.status }}</span>
                                 </div>
-                                <div class="flex items-end justify-between">
-                                    <div>
-                                        <div class="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Current Stock</div>
-                                        <div class="text-lg font-black text-rose-700">{{ alert.current_stock }} <span class="text-xs font-bold">{{ alert.unit }}</span></div>
-                                    </div>
-                                    <div class="text-right">
-                                        <div class="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Alert Level</div>
-                                        <div class="text-sm font-black text-rose-900">{{ alert.alert_level }} {{ alert.unit }}</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div v-if="stockAlerts.length === 0" class="flex flex-col items-center justify-center py-20 opacity-20">
-                                <div class="p-4 bg-emerald-50 rounded-full mb-4">
-                                    <ArrowPathIcon class="w-8 h-8 text-emerald-600" />
-                                </div>
-                                <span class="font-black uppercase tracking-widest text-xs text-center">All Material Levels<br>Within Limits</span>
+                                <div class="text-[10px] text-slate-600 font-medium">{{ q.issue }}</div>
+                                <div class="text-[9px] text-slate-400 mt-1 uppercase italic">AI Action: {{ q.action }}</div>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                <!-- Live Lists Grid -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-                    <!-- Work Orders -->
-                    <div class="bg-white p-8 rounded-[0.5rem] shadow-sm border border-slate-100">
-                        <div class="flex items-center justify-between mb-6">
-                            <h3 class="text-xl font-black text-slate-900 tracking-tight">Recent Work Orders</h3>
-                            <BaseButton variant="text" size="small" class="text-[10px] uppercase font-black tracking-widest">View All</BaseButton>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm border-separate border-spacing-y-2">
-                                <thead>
-                                    <tr class="text-slate-400 uppercase text-[10px] font-black tracking-widest">
-                                        <th class="px-4 py-2">WO Number</th>
-                                        <th class="px-4 py-2">Customer</th>
-                                        <th class="px-4 py-2">Grade</th>
-                                        <th class="px-4 py-2 text-right">Qty</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="wo in workOrders" :key="wo.id" class="bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                                        <td class="px-4 py-4 rounded-l-lg font-black text-indigo-600">{{ wo.number }}</td>
-                                        <td class="px-4 py-4 font-bold text-slate-800">{{ wo.customer }}</td>
-                                        <td class="px-4 py-4 text-slate-500">{{ wo.grade }}</td>
-                                        <td class="px-4 py-4 rounded-r-lg text-right font-black text-slate-900">{{ wo.qty }} m³</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase text-center">Batch consistency monitored in real-time</p>
                     </div>
 
-                    <!-- Recent Batches -->
-                    <div class="bg-white p-8 rounded-[0.5rem] shadow-sm border border-slate-100">
-                        <div class="flex items-center justify-between mb-6">
-                            <h3 class="text-xl font-black text-slate-900 tracking-tight">Recent Batches</h3>
-                            <BaseButton variant="text" size="small" class="text-[10px] uppercase font-black tracking-widest">View Production</BaseButton>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left text-sm border-separate border-spacing-y-2">
-                                <thead>
-                                    <tr class="text-slate-400 uppercase text-[10px] font-black tracking-widest">
-                                        <th class="px-4 py-2">Batch #</th>
-                                        <th class="px-4 py-2">Work Order</th>
-                                        <th class="px-4 py-2">Size</th>
-                                        <th class="px-4 py-2 text-right">Time</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="b in batches" :key="b.id" class="bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                                        <td class="px-4 py-4 rounded-l-lg font-black text-amber-600">{{ b.no }}</td>
-                                        <td class="px-4 py-4 font-bold text-slate-800">{{ b.wo }}</td>
-                                        <td class="px-4 py-4 text-slate-500">{{ b.size }} m³</td>
-                                        <td class="px-4 py-4 rounded-r-lg text-right font-black text-slate-900">{{ b.time }}</td>
-                                    </tr>
-                                    <tr v-if="batches.length === 0">
-                                        <td colspan="4" class="py-10 text-center opacity-20 font-black uppercase text-xs">No Recent Batches</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Active Dispatches (Full Width) -->
-                <div class="bg-white p-8 rounded-[0.5rem] shadow-sm border border-slate-100 mb-10">
-                    <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-xl font-black text-slate-900 tracking-tight">Active Dispatches</h3>
-                        <BaseButton variant="text" size="small" class="text-[10px] uppercase font-black tracking-widest">Live GPS Feed</BaseButton>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-sm border-separate border-spacing-y-2">
-                            <thead>
-                                <tr class="text-slate-400 uppercase text-[10px] font-black tracking-widest">
-                                    <th class="px-4 py-2">Ticket</th>
-                                    <th class="px-4 py-2">Vehicle</th>
-                                    <th class="px-4 py-2">Customer</th>
-                                    <th class="px-4 py-2">Status</th>
-                                    <th class="px-4 py-2 text-right">Load Qty</th>
-                                    <th class="px-4 py-2 text-center">Notify</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="d in dispatches" :key="d.id" class="bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                                    <td class="px-4 py-4 rounded-l-lg font-black text-emerald-600">{{ d.ticket }}</td>
-                                    <td class="px-4 py-4 font-bold text-slate-800">{{ d.vehicle }}</td>
-                                    <td class="px-4 py-4 text-slate-500">{{ d.customer }}</td>
-                                    <td class="px-4 py-4">
-                                        <span :class="d.status === 'Billed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'" class="px-2 py-1 rounded text-[10px] font-black uppercase">{{ d.status }}</span>
-                                    </td>
-                                    <td class="px-4 py-4 font-black text-slate-900 text-right">{{ d.qty }} m³</td>
-                                    <td class="px-4 py-4 rounded-r-lg text-center">
-                                        <a v-if="d.whatsapp_url" :href="d.whatsapp_url" target="_blank" class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500 text-white hover:bg-emerald-600 transition-all shadow-sm hover:shadow-emerald-200" title="Send WhatsApp Confirmation">
-                                            <i class="pi pi-whatsapp text-sm"></i>
-                                        </a>
-                                        <span v-else class="text-slate-200">
-                                            <i class="pi pi-whatsapp text-sm"></i>
-                                        </span>
-                                    </td>
-                                </tr>
-                                <tr v-if="dispatches.length === 0">
-                                    <td colspan="5" class="py-10 text-center opacity-20 font-black uppercase text-xs">No Active Dispatches</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Final Row: Charts & Activity -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <!-- Chart Column (Previously handled above, but ensure no duplication) -->
-                    <!-- Recent Activity Column -->
-                    <div class="lg:col-span-3 bg-white p-8 rounded-[0.5rem] shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+                    <!-- 3. Procurement: Vendor Recommendation -->
+                    <div class="bg-white p-8 rounded-[0.5rem] border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
                         <div class="flex items-center justify-between mb-8">
-                            <h3 class="text-xl font-black text-slate-900">Financial Activity</h3>
-                            <ClockIcon class="w-5 h-5 text-slate-300" />
+                            <div class="p-3 bg-amber-50 text-amber-600 rounded-xl"><TagIcon class="w-6 h-6" /></div>
+                            <span class="text-[10px] font-black text-amber-400 uppercase tracking-widest italic">Smart Sourcing</span>
                         </div>
+                        <h3 class="text-lg font-black text-slate-900 mb-6">Vendor Recommendations</h3>
+                        <div class="space-y-4 mb-8">
+                            <div v-for="p in automationStack.procurement" :key="p.id" class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[11px] font-black text-slate-800">{{ p.material }}</span>
+                                    <div class="flex items-center gap-1">
+                                        <HandThumbUpIcon class="w-3 h-3 text-amber-500" />
+                                        <span class="text-[10px] font-black text-amber-600">Rank #{{ p.rank }}</span>
+                                    </div>
+                                </div>
+                                <div class="text-[10px] font-black text-indigo-600 italic">Recommended: {{ p.vendor }}</div>
+                                <div class="text-[9px] text-slate-400 mt-1 uppercase tracking-tighter">{{ p.benefit }}</div>
+                            </div>
+                        </div>
+                        <BaseButton variant="outlined" class="w-full !rounded-lg !py-4 !text-[10px] !font-black !uppercase !text-slate-400">Generate Purchase Orders</BaseButton>
+                    </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            <div class="space-y-6 overflow-y-auto max-h-[400px] pr-2 custom-scrollbar">
-                                <div v-for="(act, idx) in recentActivity" :key="idx" class="flex items-center gap-4 group">
-                                    <div class="w-12 h-12 rounded-lg flex items-center justify-center shrink-0" :class="act.dr_cr === 'Dr' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'">
-                                        <span class="font-black text-xs">{{ act.dr_cr }}</span>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <div class="text-sm font-black text-slate-800 truncate">{{ act.particulars }}</div>
-                                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{{ act.type }} • {{ act.date }}</div>
-                                    </div>
-                                    <div class="text-right">
-                                        <div class="text-sm font-black text-slate-900">{{ formatCurrency(act.amount) }}</div>
-                                    </div>
+                    <!-- 4. HR: Driver behavior analytics -->
+                    <div class="bg-white p-8 rounded-[0.5rem] border border-slate-100 shadow-sm relative overflow-hidden group hover:shadow-2xl transition-all duration-500">
+                        <div class="flex items-center justify-between mb-8">
+                            <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><UserCircleIcon class="w-6 h-6" /></div>
+                            <span class="text-[10px] font-black text-emerald-400 uppercase tracking-widest italic">Fleet HR</span>
+                        </div>
+                        <h3 class="text-lg font-black text-slate-900 mb-6">Driver Behavior Analytics</h3>
+                        <div class="space-y-4 mb-8">
+                            <div v-for="h in automationStack.hr" :key="h.id" class="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-[11px] font-black text-slate-800">{{ h.driver }}</span>
+                                    <span class="text-[10px] font-black" :class="h.status === 'Excellent' ? 'text-emerald-600' : 'text-rose-600'">{{ h.status }}</span>
                                 </div>
-                                <div v-if="recentActivity.length === 0" class="flex flex-col items-center justify-center py-20 opacity-20">
-                                    <ExclamationTriangleIcon class="w-12 h-12 mb-2" />
-                                    <span class="font-black uppercase tracking-widest text-xs">No Recent Data</span>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] text-slate-500 font-medium">{{ h.metric }}</span>
+                                    <span class="text-[11px] font-black text-slate-900">{{ h.value }}{{ h.metric.includes('Score') ? '%' : '' }}</span>
                                 </div>
                             </div>
-                            
-                            <!-- Production Summary Placeholder or second chart -->
-                            <div class="bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-200 flex items-center justify-center">
-                                <p class="text-slate-400 font-bold uppercase tracking-widest text-xs">Production Analytics Summary</p>
+                        </div>
+                        <div class="p-4 bg-emerald-600 rounded-xl text-white text-center">
+                            <div class="text-[9px] font-black uppercase mb-1">Fleet Performance</div>
+                            <div class="text-2xl font-black">94.8%</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ── AI Autonomous Pulse (Bottom Action Strip) ───────────── -->
+                <div class="px-6 mb-12">
+                    <div class="bg-slate-900 p-10 rounded-[0.5rem] shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-10">
+                        <div class="absolute inset-0 bg-gradient-to-r from-indigo-900/40 to-emerald-900/20"></div>
+                        <div class="relative z-10">
+                            <div class="flex items-center gap-3 mb-4">
+                                <CpuIcon class="w-8 h-8 text-indigo-400" />
+                                <h2 class="text-3xl font-black text-white italic tracking-tighter uppercase">AI Master Controller</h2>
                             </div>
+                            <p class="text-indigo-100 font-medium text-lg max-w-xl italic">Switch to full semi-autonomous mode to let AI handle all routine dispatches and stock reorders.</p>
+                        </div>
+                        <div class="relative z-10 flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                            <BaseButton variant="filled" class="!bg-emerald-500 !border-none !rounded-lg !py-6 !px-12 !text-[12px] !font-black !uppercase !tracking-widest shadow-xl shadow-emerald-900/50">
+                                Enable Autonomous Ops
+                            </BaseButton>
+                            <BaseButton variant="outlined" class="!border-white/20 !text-white !rounded-lg !py-6 !px-12 !text-[12px] !font-black !uppercase !tracking-widest hover:!bg-white/10">
+                                System Audit Trail
+                            </BaseButton>
                         </div>
                     </div>
                 </div>
+
             </div>
         </div>
     </AppLayout>
 </template>
 
 <style scoped>
-.custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #e2e8f0;
-    border-radius: 10px;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 </style>

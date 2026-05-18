@@ -124,8 +124,8 @@ const close = () => {
                 </div>
             </div>
             <div class="col-span-12 flex flex-col gap-1">
-                <label class="text-[10px] font-bold uppercase text-gray-400">Description</label>
-                <Textarea v-model="form.description" rows="2" placeholder="Purpose of this account..." :disabled="mode === 'view'" />
+                <label class="text-[10px] font-bold uppercase text-gray-400">Prefix</label>
+                <BaseInput v-model="form.description" placeholder="e.g. PC-" :disabled="mode === 'view'" />
                 <small v-if="form.errors.description" class="text-red-500">{{ form.errors.description[0] }}</small>
             </div>
         </div>

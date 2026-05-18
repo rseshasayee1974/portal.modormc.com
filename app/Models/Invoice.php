@@ -8,11 +8,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
 use App\Traits\AuditFields;
 use App\Traits\PostsToAccounting;
+use App\Traits\PlantScoping;
 use App\Models\JournalEntry;
 
 class Invoice extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PostsToAccounting;
+    use HasFactory, SoftDeletes, AuditFields, PostsToAccounting, PlantScoping;
 
     protected $table = 'mm_invoices';
 
@@ -23,6 +24,7 @@ class Invoice extends Model
         'subtotal', 'discount_total', 'tax_amount', 'adjustment',
         'shipping_charges', 'shipping_tax_id',
         'total_amount', 'round_off', 'tds_amount', 'tds_tax_id',
+        'paid_amount', 'balance_amount',
         'status', 'einvoice_status', 'is_duplicate', 'is_sent', 'is_reconciled',
         'is_active',
         'created_by', 'updated_by',
@@ -252,6 +254,11 @@ class Invoice extends Model
     public function shippingTax()
     {
         return $this->belongsTo(Tax::class, 'shipping_tax_id');
+    }
+
+    public function paymentAllocations()
+    {
+        return $this->hasMany(PaymentAllocation::class);
     }
 
     public function createdBy()

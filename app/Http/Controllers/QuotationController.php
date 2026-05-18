@@ -27,12 +27,12 @@ class QuotationController extends Controller
                 ->where('plant_id', $plantId)
                 ->latest()
                 ->get(),
-            'patrons'  => PatronsDropdown($plantId,['Customer']),
-            'sites'    => SitesDropdown($plantId),
-            'mixDesigns' => MixDesignsDropdown($plantId),
-            'taxes'    => TaxesDropdown($plantId, 'Sales', ['GST', 'IGST']),
-            'vehicles' => MachinesDropdown($plantId),
-            'drivers'  => PersonnelDropdown($plantId),
+            'patrons'  => PatronsDropdown(['Customer']),
+            'sites'    => SitesDropdown(),
+            'mixDesigns' => MixDesignsDropdown(),
+            'taxes'    => TaxesDropdown('Sales', ['GST', 'IGST']),
+            'vehicles' => MachinesDropdown(),
+            'drivers'  => PersonnelDropdown(),
             'unitOptions' => Productunit(),
             'instant_customer' => CustomSetting::getForModule(session('active_entity_id'), 'quotation')['instant_customer'] ?? 0,
         ]);

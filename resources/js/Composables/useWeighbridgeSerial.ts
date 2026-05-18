@@ -1,12 +1,32 @@
 import { ref } from 'vue';
 import Swal from 'sweetalert2';
+import axios from 'axios';
 
 const isScaleConnected = ref(false);
 const scaleWeight = ref(0);
+const failureCount = ref(0);
 let serialReader: any = null;
 let keepReading = true;
 let activePort: any = null;
 let isConnecting = false;
+
+const sendFailureAlert = async (errorMessage: string) => {
+    try {
+        await (window as any).axios.post('/orders/weighbridge/alert', {
+            errors: {
+                message: errorMessage,
+                type: 'Serial Connection',
+                browser: navigator.userAgent,
+                url: window.location.href,
+                attempts: failureCount.value,
+                timestamp: new Date().toISOString(),
+            }
+        }, { withCredentials: true });
+        console.log('Detailed serial failure alert sent to support.');
+    } catch (alertError) {
+        console.error('Failed to send serial failure alert:', alertError);
+    }
+};
 
 const readData = async (port: any) => {
     while (port.readable && keepReading) {
@@ -31,6 +51,7 @@ const readData = async (port: any) => {
                         if (!isNaN(w)) {
                             const s = w / 1000;
                             scaleWeight.value = Number(s > 99 ? 0 : s);
+                            failureCount.value = 0; // Reset on data received
                         }
                     }
                 }
@@ -55,6 +76,7 @@ const connectToPort = async (port: any) => {
         activePort = port;
         isScaleConnected.value = true;
         keepReading = true;
+        failureCount.value = 0; // Reset on successful connect
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Scale Connected (Serial)', showConfirmButton: false, timer: 1500 });
         readData(port);
     } catch (e: any) {
@@ -65,7 +87,12 @@ const connectToPort = async (port: any) => {
             return;
         }
         console.error('Failed to open port:', e);
-        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Serial Port Error', showConfirmButton: false, timer: 2500 });
+        failureCount.value++;
+        if (failureCount.value >= 5) {
+            sendFailureAlert(`Serial Port Error: ${e.message}`);
+            failureCount.value = 0;
+        }
+        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: `Serial Port Error (${failureCount.value}/5)`, showConfirmButton: false, timer: 2500 });
     }
 };
 
@@ -82,8 +109,13 @@ export function useWeighbridgeSerial() {
             // @ts-ignore
             const port = await navigator.serial.requestPort();
             await connectToPort(port);
-        } catch (e) {
+        } catch (e: any) {
             console.error('Manual connect failed:', e);
+            failureCount.value++;
+            if (failureCount.value >= 5) {
+                sendFailureAlert('User/System failed to select/connect to serial port after 5 tries');
+                failureCount.value = 0;
+            }
         } finally {
             isConnecting = false;
         }

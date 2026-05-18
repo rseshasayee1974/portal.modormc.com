@@ -29,14 +29,10 @@ class MixDesignController extends Controller
                 ->latest()
                 ->get(),
             'partners'  => PatronsDropdown(['Customer']),
-            // 'sites'    => SitesDropdown($plantId),
             'products' => ProductsDropdown('Purchase'),
-            // 'taxes'    => TaxesDropdown($plantId, 'Sales', ['GST', 'IGST']),
-            // 'vehicles' => MachinesDropdown($plantId),
-            // 'drivers'  => PersonnelDropdown($plantId),
             'units' => $units,
             'defaultUomId' => $defaultUomId,
-            'designTypes' => ConcreteGrade::where('plant_id', '=', $plantId)->select(['id', 'name'])->get(),
+            'designTypes' => ConcreteGrade::query()->where('plant_id', '=', $plantId)->select(['id', 'name'])->get(),
         ]);
     }
 

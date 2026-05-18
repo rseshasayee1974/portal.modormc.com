@@ -127,6 +127,7 @@ class HandleInertiaRequests extends Middleware
                     'plant_id'   => $plant->id,
                     'plant_name' => $plant->name,
                     'plant_code' => $plant->code,
+                    'plant_logo' => $plant->logo_path ? "/storage/{$plant->logo_path}" : null,
                 ];
             }
             $customSettings['batching'] = \App\Models\CustomSetting::getForModule($activePlantId, 'batching');

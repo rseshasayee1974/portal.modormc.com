@@ -15,6 +15,7 @@ class Plant extends Model
         'entity_id',
         'code',
         'name',
+        'logo_path',
         'email_address',
         'mobile_number',
         'plant_type',
@@ -31,6 +32,8 @@ class Plant extends Model
         'scheduler_oauth_url',
         'scheduler_client_id',
         'scheduler_client_secret',
+        'plc_ip',
+        'last_heartbeat_at',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -40,6 +43,7 @@ class Plant extends Model
         'is_main' => 'boolean',
         'is_active' => 'boolean',
         'is_initialized' => 'boolean',
+        'last_heartbeat_at' => 'datetime',
     ];
 
     public function entity()

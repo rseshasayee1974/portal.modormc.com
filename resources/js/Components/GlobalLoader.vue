@@ -20,6 +20,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { isGlobalLoading } from '@/Utils/loadingState';
+const loaderImage = null; // Can be linked to a setting later
 
 const isInertiaLoading = ref(false);
 const isVisible = computed(() => isInertiaLoading.value || isGlobalLoading.value);

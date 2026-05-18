@@ -26,8 +26,7 @@ class AuthApiController extends Controller
     #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
         new OA\Property(property: "name", type: "string"),
         new OA\Property(property: "email", type: "string"),
-        new OA\Property(property: "password", type: "string"),
-        new OA\Property(property: "plan", type: "string", enum: ["free", "paid"])
+        new OA\Property(property: "password", type: "string")
     ]))]
     #[OA\Response(response: 201, description: "Registered successfully")]
     public function register(Request $request): JsonResponse
@@ -44,7 +43,7 @@ class AuthApiController extends Controller
                     ->numbers()
                     ->symbols()
             ],
-            'plan' => ['nullable', 'in:free,paid'],
+            // Plan is now defaulted to free on server side for security
         ]);
 
         $user = User::query()->create([
@@ -52,7 +51,7 @@ class AuthApiController extends Controller
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'api_key' => Str::random(60),
-            'plan' => $data['plan'] ?? 'free',
+            'plan' => 'free', // Default to free on registration
             'is_active' => 1,
         ]);
 
@@ -93,6 +92,14 @@ class AuthApiController extends Controller
 
         if (!$user->api_key) {
             $user->forceFill(['api_key' => Str::random(60)])->save();
+        }
+
+        if ($user->is_otp_enabled) {
+            return response()->json([
+                'message' => 'Two-factor authentication required.',
+                '2fa_required' => true,
+                'email' => $user->email,
+            ], 200); // Or 403/401 depending on frontend preference, but 200 with status is common for SPA
         }
 
         Auth::login($user, (bool) ($data['remember'] ?? false));

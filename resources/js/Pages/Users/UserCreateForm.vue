@@ -9,6 +9,7 @@ import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseActionButton from '@/Components/Base/BaseActionButton.vue';
+import Password from 'primevue/password';
 
 const props = defineProps<{
     entities: Array<{ label: string; value: number }>;
@@ -204,7 +205,17 @@ const submit = async () => {
                 <BaseInput v-model="form.mobile" label="Mobile Number" :error="form.errors.mobile" maxlength="10" />
             </div>
             <div class="col-span-12 md:col-span-3">
-                <BaseInput v-model="form.password" type="password" label="Password" :error="form.errors.password" />
+                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">Password</label>
+                <Password 
+                    v-model="form.password" 
+                    toggleMask 
+                    :feedback="true" 
+                    class="w-full" 
+                    inputClass="w-full text-sm !bg-white"
+                    :class="form.errors.password ? 'p-invalid' : ''"
+                    placeholder="Min. 8 chars, Mixed Case, Symbols"
+                />
+                <small v-if="form.errors.password" class="p-error text-[10px]">{{ form.errors.password[0] }}</small>
             </div>
           
             <!-- Toggles -->
@@ -231,7 +242,7 @@ const submit = async () => {
             <div class="col-span-12">
                 <div class="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-gray-700 pb-2">
                     <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Entity & Plant Access</span>
-                    <BaseButton label="Add Assignment" icon="pi pi-plus" text  @click="addEntity" />
+                    <BaseActionButton label="Add Assignment" icon="pi pi-plus" severity="primary" tooltip="Add Assignment" @click="addEntity" />
                 </div>
                 <div class="flex flex-col gap-3">
                     <div
@@ -264,10 +275,9 @@ const submit = async () => {
 
         </div>
 
-        <!-- Footer Actions -->
         <div class="flex justify-end gap-2 pt-3 border-t border-gray-100 dark:border-gray-700 mt-2">
-            <BaseButton label="Reset" text severity="secondary" @click="reset" />
-            <BaseButton label="Save User" icon="pi pi-check" :loading="form.processing" @click="submit" />
+            <BaseActionButton  label="Reset" icon="pi pi-refresh" severity="secondary"  @click="reset" />
+            <BaseActionButton label="Save User" icon="pi pi-check" severity="primary" class="!bg-indigo-500 !text-white"  :loading="form.processing" @click="submit" />
         </div>
     </BaseCard>
 </template>

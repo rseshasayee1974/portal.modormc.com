@@ -3,17 +3,19 @@
 namespace App\Models;
 
 use App\Traits\AuditFields;
+use App\Traits\PlantScoping;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Batch extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
 
     protected $table = 'mm_batches';
 
     protected $fillable = [
+        'plant_id',
         'work_order_id',
         'batch_no',
         'batch_size',
@@ -23,10 +25,24 @@ class Batch extends Model
         'operator_id',
         'shift',
         'sync_status',
+        'batch_sheet_path',
+        'batch_original_sheet_path',
         'created_by',
         'updated_by',
         'deleted_by',
     ];
+
+    protected $appends = ['sheet_url', 'original_sheet_url'];
+
+    public function getSheetUrlAttribute()
+    {
+        return $this->batch_sheet_path ? \Illuminate\Support\Facades\Storage::url($this->batch_sheet_path) : null;
+    }
+
+    public function getOriginalSheetUrlAttribute()
+    {
+        return $this->batch_original_sheet_path ? \Illuminate\Support\Facades\Storage::url($this->batch_original_sheet_path) : null;
+    }
 
     protected $casts = [
         'batch_size' => 'decimal:2',

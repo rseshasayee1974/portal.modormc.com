@@ -70,6 +70,21 @@ class ProductionOrderApiController extends Controller
             ], 422);
         }
 
+        // Authorization check: ensure the user has access to this plant
+        $user = auth()->user();
+        if (!$user->isSystemAdmin()) {
+            $hasAccess = $user->entityUsers()
+                ->where('plant_id', $plant->id)
+                ->exists();
+                
+            if (!$hasAccess) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Unauthorized: Your API key does not have access to this plant.',
+                ], 403);
+            }
+        }
+
         $customer = $this->resolveCustomer($payload, $plant->id);
         $site = $this->resolveSite($payload, $plant->id);
         $mixDesign = $this->resolveMixDesign($payload, $plant->id);

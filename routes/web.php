@@ -86,6 +86,7 @@ Route::middleware([
         Route::get('plants/by-entity', [\App\Http\Controllers\PlantController::class, 'getByEntity'])->name('plants.by-entity');
         Route::resource('plants', \App\Http\Controllers\PlantController::class);
         Route::post('plants/{plant}/initialize', [\App\Http\Controllers\PlantController::class, 'initialize'])->name('plants.initialize');
+        Route::post('plants/{plant}/send-credentials', [\App\Http\Controllers\PlantController::class, 'sendCredentials'])->name('plants.send-credentials');
         
     });
 
@@ -103,13 +104,14 @@ Route::middleware([
         Route::get('templates/{template}/preview', [\App\Http\Controllers\PrintTemplateController::class, 'preview'])->name('templates.preview');
         Route::get('templates/{module}/customize', [\App\Http\Controllers\PrintTemplateController::class, 'customize'])->name('templates.customize');
         Route::post('templates/{module}/customize', [\App\Http\Controllers\PrintTemplateController::class, 'saveCustomization'])->name('templates.save-customization');
-  Route::get('default-accounts', [\App\Http\Controllers\AccountDefaultSettingController::class, 'index'])->name('settings.default-accounts');
-        Route::post('default-accounts', [\App\Http\Controllers\AccountDefaultSettingController::class, 'store'])->name('settings.default-accounts.store');
+  Route::get('default-accounts', [\App\Http\Controllers\AccountDefaultSettingController::class, 'index'])->name('settings.account-defaults');
+        Route::post('default-accounts', [\App\Http\Controllers\AccountDefaultSettingController::class, 'store'])->name('settings.account-defaults.store');
 
         // Unified Document Printing Engine
         Route::get('print/{module}/{id}/{action?}', [\App\Http\Controllers\PrintController::class, 'handle'])
             ->name('print.document');
             
+        Route::get('patrons/dropdown', [\App\Http\Controllers\PatronController::class, 'dropdown'])->name('patrons.dropdown');
         Route::resource('patrons', \App\Http\Controllers\PatronController::class);
         Route::post('patrons/batch', [\App\Http\Controllers\PatronController::class, 'batchStore'])->name('patrons.batchstore');
     });
@@ -135,6 +137,8 @@ Route::middleware([
         Route::get('batches/{batch}/report', [\App\Http\Controllers\BatchController::class, 'report'])->name('batches.report');
         Route::get('batches/{batch}/download', [\App\Http\Controllers\BatchController::class, 'downloadPdf'])->name('batches.download');
         Route::post('batches/{batch}/sync', [\App\Http\Controllers\BatchController::class, 'syncToScheduler'])->name('batches.sync');
+        Route::post('batches/ocr', [\App\Http\Controllers\Api\BatchOcrController::class, 'process'])->name('batches.ocr');
+        Route::post('weighbridge/alert', [\App\Http\Controllers\Api\WeighbridgeApiController::class, 'sendAlert'])->name('weighbridge.alert');
         Route::get('production/batch', [\App\Http\Controllers\Api\ProductionApiController::class, 'getConsumption'])->name('batches.production');
         Route::get('dispatches/dropdowns', [\App\Http\Controllers\DispatchController::class, 'dropdowns'])->name('dispatches.dropdowns');
         Route::post('dispatches/{dispatch}/generate-invoice', [\App\Http\Controllers\DispatchController::class, 'generateInvoice'])->name('dispatches.generate-invoice');
@@ -180,6 +184,7 @@ Route::middleware([
     Route::prefix('finance')->group(function () {
         Route::resource('accounts', \App\Http\Controllers\AccountsController::class);
         Route::resource('accounttypes', \App\Http\Controllers\AccountsTypeController::class);
+        Route::get('ledgers/dropdown', [\App\Http\Controllers\LedgerController::class, 'dropdown'])->name('ledgers.dropdown');
         Route::resource('ledgers', \App\Http\Controllers\LedgerController::class);
         Route::get('ledgers/nextcode', [\App\Http\Controllers\LedgerController::class, 'getNextCode'])->name('accounting.nextcode');
         
@@ -192,10 +197,13 @@ Route::middleware([
         Route::resource('pettycash', \App\Http\Controllers\PettyCashController::class)->except(['create', 'edit', 'show']);
         Route::post('pettycash/{petty_cash}/close', [\App\Http\Controllers\PettyCashController::class, 'close'])->name('pettycash.close');
         
+        Route::get('payments/next-reference', [\App\Http\Controllers\PaymentController::class, 'getNextReferenceNumber'])->name('payments.next-reference');
+        Route::get('payments/patron-advance-balance', [\App\Http\Controllers\PaymentController::class, 'getPatronAdvanceBalance'])->name('payments.patron-advance-balance');
         Route::resource('payments', \App\Http\Controllers\PaymentController::class)->except(['create', 'edit', 'show']);
         Route::get('billings/unbilled-purchase-orders', [\App\Http\Controllers\BillingController::class, 'getUnbilledPurchaseOrders'])->name('billings.unbilled-pos');
         Route::get('invoices/uninvoiced-dispatches', [\App\Http\Controllers\InvoiceController::class, 'getUninvoicedDispatches'])->name('invoices.uninvoiced-dispatches');
 
+        Route::get('invoices/outstanding', [\App\Http\Controllers\InvoiceController::class, 'outstanding'])->name('invoices.outstanding');
         Route::delete('invoices/{invoice}', [\App\Http\Controllers\InvoiceController::class, 'destroy'])->name('invoices.destroy')->where('invoice', '.*');
         Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit', 'destroy']);
         Route::delete('billings/{billing}', [\App\Http\Controllers\BillingController::class, 'destroy'])->name('billings.destroy')->where('billing', '.*');

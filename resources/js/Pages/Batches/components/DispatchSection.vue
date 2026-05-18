@@ -218,7 +218,7 @@ const displayUnits = computed(() => {
     return isMetricTon.value ? netWeight.value  : form.batch_size;
 });
 
-import { watch } from 'vue';
+
 
 watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount], () => {
     const units = isMetricTon.value ? netWeight.value : Number(form.batch_size || 0);
@@ -341,7 +341,7 @@ const handleDeleteInvoice = () => {
 </script>
 
 <template>
-    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div  class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="bg-slate-50/50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="rounded-lg bg-indigo-600 p-2 text-white shadow-md shadow-indigo-100">
@@ -356,7 +356,7 @@ const handleDeleteInvoice = () => {
             <Button label="Initialize Dispatch" icon="pi pi-send" severity="info" size="small" class="!rounded-lg" @click="submit" :loading="form.processing" v-if="false" />
         </div>
 
-        <div class="grid grid-cols-12">
+        <div class="grid grid-cols-12" >
             <!-- Left Side: Forms -->
             <div class="col-span-12 lg:col-span-8 p-1 border-r border-slate-100 space-y-1">
            

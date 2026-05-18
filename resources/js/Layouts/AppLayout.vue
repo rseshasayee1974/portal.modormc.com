@@ -216,23 +216,23 @@ onUnmounted(() => {
                                         <!-- Desktop Logo -->
                                         <div class="hidden md:flex w-64 shrink-0 items-center mr-2 pl-2">
                                             <Link :href="route('dashboard')" class="flex items-center gap-3 group">
-                                                <div v-if="activeEntity?.entity_logo" class="h-10 w-10 flex items-center justify-center bg-white rounded-lg p-1 shadow-sm transition-transform group-hover:scale-105">
+                                                <!-- Plant Logo Priority -->
+                                                <div v-if="$page.props.active_plant?.plant_logo" class="h-16 w-32 flex items-center justify-center bg-white/10 rounded-xl p-1.5 transition-all group-hover:bg-white/20">
+                                                    <img
+                                                        :src="$page.props.active_plant.plant_logo"
+                                                        alt="Plant Logo"
+                                                        class="h-full w-full object-contain"
+                                                    />
+                                                </div>
+                                                <!-- Entity Logo Fallback -->
+                                                <div v-else-if="activeEntity?.entity_logo" class="h-16 w-32 flex items-center justify-center bg-white/10 rounded-xl p-1.5 transition-all group-hover:bg-white/20">
                                                     <img
                                                         :src="`/storage/${activeEntity.entity_logo}`"
                                                         alt="Logo"
                                                         class="h-full w-full object-contain"
                                                     />
                                                 </div>
-                                                <ApplicationMark v-else class="transition-transform group-hover:scale-105" />
-                                                
-                                                <div class="flex flex-col leading-tight">
-                                                    <span class="text-lg font-black tracking-tighter text-white uppercase italic group-hover:text-amber-300 transition-colors">
-                                                        {{ activeEntity?.entity_name || 'onemodo' }}<span v-if="!activeEntity?.entity_name" class="text-indigo-400">.com</span>
-                                                    </span>
-                                                    <span class="text-[8px] font-bold tracking-[0.25em] text-blue-300 uppercase opacity-70 group-hover:opacity-100 transition-opacity">
-                                                        Enterprise Ops
-                                                    </span>
-                                                </div>
+                                                <ApplicationMark v-else class="h-12 w-auto transition-transform group-hover:scale-105" />
                                             </Link>
                                         </div>
 
@@ -317,12 +317,12 @@ onUnmounted(() => {
                                             </div> -->
 
                                             <!-- Notification Bell -->
-                                            <button class="relative p-2 text-blue-200 hover:text-amber-300 transition-colors mr-1 sm:mr-2 focus:outline-none rounded-full">
+                                            <!-- <button class="relative p-2 text-blue-200 hover:text-amber-300 transition-colors mr-1 sm:mr-2 focus:outline-none rounded-full">
                                                 <BellIcon class="h-6 w-6 md:h-7 md:w-7" aria-hidden="true" />
                                                 <span class="absolute top-1.5 right-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-500 rounded-full ring-2 ring-[#1e3a5f]">
                                                     0
                                                 </span>
-                                            </button>
+                                            </button> -->
                                             <div class="ms-3 relative">
                                                 <!-- Teams Dropdown -->
                                                 <Dropdown v-if="$page.props.jetstream.hasTeamFeatures" align="right" width="60">
@@ -498,10 +498,10 @@ onUnmounted(() => {
                                                         <div class="border-t border-slate-100 my-2 mx-4" />
 
                                                         <!-- Authentication -->
-                                                        <div class="px-2 pb-2">
+                                                        <div class="">
                                                             <form @submit.prevent="logout">
-                                                                <DropdownLink as="button" class="group !rounded-xl !py-4 !px-4">
-                                                                    <div class="flex items-center gap-4 w-full">
+                                                                <DropdownLink as="button" class="group !rounded-xl">
+                                                                    <div class="flex items-center gap-4 w-full !p-4">
                                                                         <div class="text-slate-500 group-hover:text-rose-600 transition-colors">
                                                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-6">
                                                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />

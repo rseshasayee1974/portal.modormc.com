@@ -70,8 +70,23 @@ class PlantController extends Controller
     {
         $validated = $request->validated();
         
-        return DB::transaction(function () use ($validated) {
+        return DB::transaction(function () use ($validated, $request) {
             $plant = Plant::create($validated);
+
+            // Handle Logo Upload
+            if ($request->hasFile('logo')) {
+                $entity = Entity::find($validated['entity_id']);
+                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
+                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
+                
+                $path = $request->file('logo')->storeAs(
+                    "plants/{$entitySlug}/{$plantSlug}",
+                    "logo_" . time() . "." . $request->file('logo')->getClientOriginalExtension(),
+                    'public'
+                );
+                
+                $plant->update(['logo_path' => $path]);
+            }
 
             // Handle Address
             if (!empty($validated['address']['line_1'])) {
@@ -102,12 +117,32 @@ class PlantController extends Controller
         $validated = $request->validated();
         $user = Auth::user();
         
-        return DB::transaction(function () use ($validated, $plant, $user) {
+        return DB::transaction(function () use ($validated, $plant, $user, $request) {
             $updatableFields = $validated;
             if (!$user->hasRole('Saas Owner')) {
                 unset($updatableFields['code'], $updatableFields['name']);
             }
             $plant->update($updatableFields);
+
+            // Handle Logo Upload
+            if ($request->hasFile('logo')) {
+                // Delete old logo if exists
+                if ($plant->logo_path) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($plant->logo_path);
+                }
+
+                $entity = Entity::find($plant->entity_id);
+                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
+                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
+                
+                $path = $request->file('logo')->storeAs(
+                    "plants/{$entitySlug}/{$plantSlug}",
+                    "logo_" . time() . "." . $request->file('logo')->getClientOriginalExtension(),
+                    'public'
+                );
+                
+                $plant->update(['logo_path' => $path]);
+            }
 
             // Handle Address
             if (!empty($validated['address']['line_1'])) {
@@ -207,5 +242,48 @@ class PlantController extends Controller
         }
 
         return redirect()->back()->with('error', 'Failed to initialize plant.');
+    }
+
+    /**
+     * Send or resend plant admin credentials.
+     */
+    public function sendCredentials(Plant $plant)
+    {
+        if (empty($plant->email_address)) {
+            return redirect()->back()->with('error', 'Plant does not have an admin email address.');
+        }
+
+        $password = \Illuminate\Support\Str::random(10);
+        
+        // Ensure user exists or update password
+        $user = \App\Models\User::updateOrCreate(
+            ['email' => $plant->email_address],
+            [
+                'username' => $plant->name . ' Admin',
+                'password' => \Illuminate\Support\Facades\Hash::make($password),
+                'is_active' => 1,
+            ]
+        );
+
+        // Ensure role and entity assignment
+        $role = \Spatie\Permission\Models\Role::where('name', 'Super Admin')->first();
+        if ($role) $user->assignRole($role);
+
+        \App\Models\EntityUser::updateOrCreate([
+            'user_id' => $user->id,
+            'entity_id' => $plant->entity_id,
+            'plant_id' => $plant->id,
+        ], [
+            'role_id' => $role ? $role->id : 3,
+            'created_by' => Auth::id() ?? 1,
+        ]);
+
+        $success = $this->initService->sendPlantCredentials($plant, $password);
+
+        if ($success) {
+            return redirect()->back()->with('success', 'Login credentials sent to ' . $plant->email_address);
+        }
+
+        return redirect()->back()->with('error', 'Failed to send credentials.');
     }
 }

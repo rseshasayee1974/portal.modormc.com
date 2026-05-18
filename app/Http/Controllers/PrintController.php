@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Services\PrintDataFormatter;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -9,6 +10,10 @@ use Illuminate\Support\Str;
 
 class PrintController extends Controller
 {
+    use AuthorizesModule;
+    
+    // Module key mapping for authorization
+    protected string $module = ''; 
     /**
      * Unified method to handle printing/downloading for any supported module.
      * 
@@ -18,11 +23,15 @@ class PrintController extends Controller
      */
     public function handle(Request $request, string $module, string $id, string $action = 'view')
     {
-        // 1. Resolve Model and Data
+        // 1. Set module for authorization check
+        $this->module = $module;
+        $this->authorizeModule('show');
+
+        // 2. Resolve Model and Data with strict plant scoping
         $data = $this->resolveData($module, $id);
         
         if (!$data) {
-            abort(404, "Module or Record not found.");
+            abort(404, "Module or Record not found, or you do not have permission to access it in this plant.");
         }
 
         // 2. Resolve Template (Either forced by request or from DB settings)
@@ -50,38 +59,48 @@ class PrintController extends Controller
      */
     protected function resolveData(string $module, string $id): ?array
     {
-        try {
-            $decryptedId = decrypt($id);
-            $realId = $decryptedId;
-        } catch (\Exception $e) {
-            $realId = $id;
+        $activePlantId = session('active_plant_id');
+        if (!$activePlantId) {
+            abort(403, "No active plant selected.");
         }
+
+        $realId = $id;
+        // Optional: try decryption for backward compatibility with older links
+        try {
+            $realId = decrypt($id);
+        } catch (\Exception $e) { }
 
         switch ($module) {
             case 'purchase_orders':
-                $model = \App\Models\PurchaseOrder::find($realId);
+                $model = \App\Models\PurchaseOrder::where('id', $realId)
+                    ->where('plant_id', $activePlantId)
+                    ->first();
                 return $model ? PrintDataFormatter::fromPurchaseOrder($model) : null;
 
             case 'invoices':
-                $model = \App\Models\Invoice::find($realId);
+                $model = \App\Models\Invoice::where('id', $realId)
+                    ->where('plant_id', $activePlantId)
+                    ->first();
                 return $model ? PrintDataFormatter::fromInvoice($model) : null;
 
             case 'billings':
             case 'purchase_bills':
-                $model = \App\Models\Invoice::find($realId);
+                $model = \App\Models\Invoice::where('id', $realId)
+                    ->where('plant_id', $activePlantId)
+                    ->first();
                 if ($model) {
                     $data = PrintDataFormatter::fromInvoice($model);
-                    // Override document title for bills
                     $data['doc_title'] = 'PURCHASE BILL';
                     return $data;
                 }
                 return null;
 
             case 'quotations':
-                $model = \App\Models\Quotation::find($realId);
+                $model = \App\Models\Quotation::where('id', $realId)
+                    ->where('plant_id', $activePlantId)
+                    ->first();
                 return $model ? PrintDataFormatter::fromQuotation($model) : null;
 
-            // Add more modules here (delivery_notes, credit_notes, etc.)
             default:
                 return null;
         }

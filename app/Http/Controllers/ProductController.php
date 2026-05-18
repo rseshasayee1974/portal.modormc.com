@@ -20,10 +20,10 @@ class ProductController extends Controller
 
         return Inertia::render('Products/Index', [
             'products' => $products,
-            'categories' => ProductCategoriesDropdown($plantId),
+            'categories' => ProductCategoriesDropdown(),
             'units' => Productunit(),
-            'purchaseTaxes' => TaxesDropdown($plantId, 'purchase','GST'),
-            'saleTaxes' => TaxesDropdown($plantId, 'sales','GST'),
+            'purchaseTaxes' => TaxesDropdown('purchase','GST'),
+            'saleTaxes' => TaxesDropdown('sales','GST'),
             'productTypes' => ProductTypesDropdown(),
         ]);
     }

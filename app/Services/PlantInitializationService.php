@@ -98,14 +98,25 @@ class PlantInitializationService
             'created_by' => Auth::id() ?? 1,
         ]);
 
-        // Send Email
+        // Email sending is now handled by a separate method
+        // to allow manual triggering from the UI.
+    }
+
+    public function sendPlantCredentials(Plant $plant, string $password)
+    {
+        if (empty($plant->email_address)) {
+            return false;
+        }
+
         try {
             Mail::raw("Welcome to the portal! Your account for plant {$plant->name} has been created.\n\nEmail: {$plant->email_address}\nPassword: {$password}\n\nPlease login at: " . url('/'), function ($message) use ($plant) {
                 $message->to($plant->email_address)
                     ->subject("Plant Access Created: {$plant->name}");
             });
+            return true;
         } catch (\Exception $e) {
             \Log::error("Failed to send plant initialization email: " . $e->getMessage());
+            return false;
         }
     }
 

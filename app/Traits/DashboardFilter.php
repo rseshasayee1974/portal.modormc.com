@@ -9,8 +9,30 @@ trait DashboardFilter
 {
     public function applyFilters(Builder $query, array $filters, string $dateColumn = 'created_at')
     {
-        if (isset($filters['plant_id'])) {
-            $query->where('plant_id', $filters['plant_id']);
+        $user = auth()->user();
+        
+        if ($user && !$user->isSystemAdmin()) {
+            // Get all plant IDs this user is authorized to view
+            $authorizedPlantIds = $user->entityUsers()
+                ->whereNotNull('plant_id')
+                ->pluck('plant_id')
+                ->unique()
+                ->toArray();
+
+            if (isset($filters['plant_id'])) {
+                $requestedId = (int)$filters['plant_id'];
+                if (in_array($requestedId, $authorizedPlantIds)) {
+                    $query->where($query->getModel()->getTable() . '.plant_id', $requestedId);
+                } else {
+                    // Force zero results if requesting unauthorized plant
+                    $query->whereRaw('1 = 0');
+                }
+            } else {
+                // Default to all authorized plants
+                $query->whereIn($query->getModel()->getTable() . '.plant_id', $authorizedPlantIds);
+            }
+        } elseif (isset($filters['plant_id'])) {
+            $query->where($query->getModel()->getTable() . '.plant_id', $filters['plant_id']);
         }
 
         if (isset($filters['type'])) {

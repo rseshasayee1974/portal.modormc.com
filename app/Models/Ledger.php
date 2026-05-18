@@ -10,10 +10,11 @@ use App\Traits\AuditFields;
 use Illuminate\Support\Str;
 use App\Http\Controllers\Concerns\GeneratesAccountingCode;
 use App\Traits\ProtectsSystemItems;
+use App\Traits\PlantScoping;
 
 class Ledger extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, GeneratesAccountingCode, ProtectsSystemItems;
+    use HasFactory, SoftDeletes, AuditFields, GeneratesAccountingCode, ProtectsSystemItems, PlantScoping;
 
     protected $table = 'mm_ledgers';
 

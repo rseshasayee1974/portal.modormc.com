@@ -571,8 +571,15 @@ class BatchController extends Controller
         try {
             // Extract base64 content
             if (preg_match('/^data:image\/(\w+);base64,/', $base64Data, $typeMatch)) {
-                $data = substr($base64Data, strpos($base64Data, ',') + 1);
                 $extension = strtolower($typeMatch[1]);
+                $allowedExtensions = ['jpeg', 'png', 'jpg', 'gif', 'svg'];
+                
+                if (!in_array($extension, $allowedExtensions)) {
+                    \Illuminate\Support\Facades\Log::warning("Blocked suspicious batch image upload with extension: {$extension}");
+                    return;
+                }
+
+                $data = substr($base64Data, strpos($base64Data, ',') + 1);
                 $data = base64_decode($data);
             } else {
                 return;

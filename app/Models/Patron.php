@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\AuditFields;
 use App\Traits\ProtectsSystemItems;
+use App\Traits\PlantScoping;
 
 class Patron extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems;
+    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems, PlantScoping;
     
     protected $table = 'mm_patrons';
     

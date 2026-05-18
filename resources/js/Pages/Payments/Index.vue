@@ -23,8 +23,6 @@ const page = usePage();
 
 const props = defineProps<{
     payments: any[];
-    ledgers: { id: number; title: string }[];
-    patrons: { id: number; legal_name: string }[];
 }>();
 
 const filters = ref({
@@ -93,8 +91,6 @@ const toggleEdit = (data: any) => {
     }
 };
 
-const ledgerOptions = computed(() => props.ledgers.map(l => ({ label: l.title, value: l.id })));
-const patronOptions = computed(() => props.patrons.map(p => ({ label: p.legal_name, value: p.id })));
 
 watch(() => page.props.flash, (flash: any) => {
     if (flash?.success) Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: flash.success, showConfirmButton: false, timer: 1500 });
@@ -111,12 +107,7 @@ import { router } from '@inertiajs/vue3';
             <div class="max-w-7xl mx-auto mt-4 space-y-6">
 
                 <!-- Creation Desk -->
-                <PaymentCreateForm 
-                    :ledgers="ledgers"
-                    :patrons="patrons"
-                />
-
-                <hr class="border-slate-200 border-dashed" />
+                <PaymentCreateForm />
 
                 <!-- Listing Table -->
                 <div class="bg-white dark:bg-slate-800 shadow-xl sm:rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700">
@@ -170,21 +161,40 @@ import { router } from '@inertiajs/vue3';
                         <Column field="ledger.title" header="Journal / Partner" sortable>
                             <template #body="slotProps">
                                 <div>
-                                    <div class="font-black text-slate-700 dark:text-gray-200 uppercase text-xs tracking-tighter">
+                                    <div class="font-semibold text-slate-700 dark:text-gray-200 text-xs tracking-tighter">
                                         {{ slotProps.data.ledger?.title || '—' }}
                                     </div>
-                                    <div class="text-[10px] text-indigo-500 font-bold uppercase tracking-wider">
+                                    <div class="text-[10px] text-indigo-500 font-bold tracking-wider">
                                         {{ slotProps.data.patron?.legal_name || 'General Ledger' }}
                                     </div>
                                 </div>
                             </template>
                         </Column>
-
+                        <Column field="partner_type" header="Description" sortable>
+                            <template #body="slotProps">
+                                <div>
+                                    <div class="font-semibold text-slate-700 dark:text-gray-200 text-xs tracking-tighter">
+                                        {{ slotProps.data.partner_type || '—' }}
+                                    </div>
+                                </div>
+                            </template>
+                        </Column>
                         <Column field="amount" header="Amount" sortable textAlign="right">
                             <template #body="slotProps">
                                 <div :class="`font-mono font-black text-sm ${slotProps.data.transaction_type === 'receipt' ? 'text-emerald-600' : 'text-slate-800 dark:text-gray-100'}`">
                                     ₹ {{ Number(slotProps.data.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                                 </div>
+                            </template>
+                        </Column>
+
+                        <Column field="status" header="Status" sortable>
+                            <template #body="slotProps">
+                                <Tag 
+                                    :severity="slotProps.data.status === 'paid' ? 'info' : 'warn'"
+                                    :value="slotProps.data.status.toUpperCase()"
+                                    rounded
+                                    class="text-[9px] px-2"
+                                />
                             </template>
                         </Column>
 
@@ -197,10 +207,10 @@ import { router } from '@inertiajs/vue3';
                                         text 
                                         rounded 
                                         @click.stop="toggleEdit(slotProps.data)"
-                                        title="Edit Record"
+                                        :title="slotProps.data.status === 'paid' ? 'View Details' : 'Edit Record'"
                                     >
                                         <template #icon>
-                                            <PencilSquareIcon class="w-4 h-4 text-emerald-600" />
+                                            <PencilSquareIcon :class="`w-4 h-4 ${slotProps.data.status === 'paid' ? 'text-slate-400' : 'text-emerald-600'}`" />
                                         </template>
                                     </Button>
                                     <Button 
@@ -209,6 +219,7 @@ import { router } from '@inertiajs/vue3';
                                         text 
                                         rounded 
                                         @click.stop="deleteTransaction(slotProps.data.id)"
+                                        :disabled="slotProps.data.status === 'paid'"
                                         title="Void"
                                     >
                                         <template #icon>
@@ -223,8 +234,6 @@ import { router } from '@inertiajs/vue3';
                             <BaseExpansionPanel :title="slotProps.data.reference || 'Transaction Details'">
                                 <PaymentEditForm 
                                     :payment="slotProps.data"
-                                    :ledgerOptions="ledgerOptions"
-                                    :patronOptions="patronOptions"
                                     @success="expandedRows = {}"
                                     @close="expandedRows = {}"
                                 />

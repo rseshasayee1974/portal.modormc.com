@@ -3,17 +3,19 @@
 namespace App\Models;
 
 use App\Traits\AuditFields;
+use App\Traits\PlantScoping;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BatchMaterial extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
 
     protected $table = 'mm_batch_materials';
 
     protected $fillable = [
+        'plant_id',
         'batch_id',
         'product_id',
         'material_name',

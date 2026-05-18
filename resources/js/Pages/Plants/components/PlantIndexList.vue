@@ -36,6 +36,7 @@ const emit = defineEmits<{
     'sort': [event: any];
     'delete': [id: number];
     'initialize': [id: number];
+    'send-credentials': [id: number];
     'submitEdit': [];
     'cancelEdit': [];
 }>();
@@ -152,6 +153,13 @@ const onRowClick = (event: any) => {
                         severity="help"
                         tooltip="Initialize Defaults"
                         @click.stop="$emit('initialize', slotProps.data.id)"
+                    />
+                    <BaseActionButton
+                        v-if="slotProps.data.is_initialized"
+                        icon="pi pi-lock"
+                        severity="success"
+                        tooltip="Send/Resend Login Credentials"
+                        @click.stop="$emit('send-credentials', slotProps.data.id)"
                     />
                     <BaseActionButton
                         icon="pi pi-trash"

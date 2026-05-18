@@ -24,6 +24,7 @@ defineEmits(['click']);
 
 <template>
     <BaseButton
+        v-bind="$attrs"
         :icon="icon"
         :severity="severity"
         :text="text"
