@@ -2,228 +2,529 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Invoice;
-use App\Models\PurchaseOrder;
-use App\Models\SalesOrder;
-use App\Models\Patron;
-use App\Models\JournalEntryLine;
-use App\Models\Product;
-use App\Models\WorkOrder;
 use App\Models\Batch;
 use App\Models\Dispatch;
+use App\Models\Invoice;
+use App\Models\JournalEntryLine;
+use App\Models\Patron;
+use App\Models\Plant;
+use App\Models\Product;
+use App\Models\PurchaseOrder;
 use App\Models\Quantity;
+use App\Models\WorkOrder;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class ERPDashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $plantId = session('active_plant_id');
-     
-        // Smarter fallback: Find the first plant that has actual data if none selected
-        if (!$plantId) {
-            $plantId = \App\Models\Invoice::latest('invoice_date')->first()?->plant_id 
-                    ?? \App\Models\WorkOrder::latest()->first()?->plant_id 
-                    ?? \App\Models\Plant::where('is_active', true)->first()?->id;
-        }
+        $plantId = $this->resolvePlantId();
+        [$start, $end] = $this->resolveDateRange(
+            $request->input('start_date'),
+            $request->input('end_date')
+        );
+        $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
 
-        $effectivePlantId = $plantId ?: 1;
-        $patrons = Patron::query()->where('plant_id', $effectivePlantId)->orderBy('legal_name')->get();
-  
+        $patrons = Patron::query()
+            ->when($plantId, fn ($query) => $query->where('plant_id', $plantId))
+            ->orderBy('legal_name')
+            ->get(['id', 'legal_name']);
+
         return Inertia::render('Dashboard/Dashboard', [
             'patrons' => $patrons,
             'filters' => [
-                'start_date' => $request->input('start_date', '2026-01-01'), // Explicitly set to beginning of year
-                'end_date' => $request->input('end_date', now()->toDateString()),
-                'patron_id' => $request->input('patron_id')
-            ]
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'patron_id' => $patronId,
+            ],
+            'initialData' => $plantId
+                ? $this->buildDashboardPayload($plantId, $start, $end, $patronId)
+                : $this->emptyPayload(),
         ]);
     }
 
     public function getData(Request $request)
     {
-        $plantId = session('active_plant_id');
-        
-        // Smarter fallback for data fetch as well
+        $plantId = $this->resolvePlantId();
+
         if (!$plantId) {
-            $plantId = \App\Models\Invoice::latest('invoice_date')->first()?->plant_id 
-                    ?? \App\Models\WorkOrder::latest()->first()?->plant_id 
-                    ?? \App\Models\Plant::where('is_active', true)->first()?->id;
+            return response()->json($this->emptyPayload());
         }
 
-        $start = $request->input('start_date', '2026-01-01');
-        $end = $request->input('end_date', now()->toDateString());
-        $patronId = $request->input('patron_id');
+        [$start, $end] = $this->resolveDateRange(
+            $request->input('start_date'),
+            $request->input('end_date')
+        );
 
-        // 1. Sales Orders / Work Orders 
-        // In RMC, Work Orders are the primary sales driver. Let's use Work Orders if SalesOrders table is empty.
-        $totalSalesOrders = 0;
-        if (SalesOrder::where('plant_id', $plantId)->count() > 0) {
-            $totalSalesOrders = SalesOrder::query()
-                ->join('mm_quotations', 'mm_sales_orders.quotation_id', '=', 'mm_quotations.id')
-                ->where('mm_sales_orders.plant_id', $plantId)
-                ->whereBetween('mm_sales_orders.order_date', [$start, $end])
-                ->sum('mm_quotations.amount_total');
-        } else {
-            // Fallback: If no Sales Orders, show Work Order count or a placeholder
-            // For now, let's just keep it 0 but ensure it doesn't crash
-        }
+        $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
 
-        // 2. Purchase Orders
-        $totalPurchaseOrders = PurchaseOrder::where('plant_id', $plantId)
-            ->whereBetween('date_order', [$start, $end])
-            ->when($patronId, fn($q) => $q->where('vendor_id', $patronId))
-            ->sum('amount_total');
+        return response()->json($this->buildDashboardPayload($plantId, $start, $end, $patronId));
+    }
 
-        // 3. Invoiced (Sales Invoices)
-        $totalInvoiced = Invoice::where('plant_id', $plantId)
-            ->whereBetween('invoice_date', [$start, $end])
-            ->when($patronId, fn($q) => $q->where('partner_id', $patronId))
-            ->sum('total_amount');
+    private function buildDashboardPayload(int $plantId, Carbon $start, Carbon $end, ?int $patronId): array
+    {
+        $stockSnapshot = $this->getStockSnapshot($plantId);
+        $stockOverview = $this->getStockOverview($plantId);
 
-        // 4. Payments Received (Receipts)
-        $paymentsReceived = JournalEntryLine::where('plant_id', $plantId)
-            ->whereHas('entry', function($q) use ($start, $end) {
-                $q->where('voucher_type', 'RECEIPT')->whereBetween('voucher_date', [$start, $end]);
-            })
-            ->when($patronId, fn($q) => $q->where('partner_id', $patronId))
-            ->sum('credit_amount');
-
-        // 5. Payments Paid
-        $paymentsPaid = JournalEntryLine::where('plant_id', $plantId)
-            ->whereHas('entry', function($q) use ($start, $end) {
-                $q->where('voucher_type', 'PAYMENT')->whereBetween('voucher_date', [$start, $end]);
-            })
-            ->when($patronId, fn($q) => $q->where('partner_id', $patronId))
-            ->sum('debit_amount');
-
-        // 6. Outstanding (Cumulative)
-        $netBalance = JournalEntryLine::where('plant_id', $plantId)
-            ->when($patronId, fn($q) => $q->where('partner_id', $patronId))
-            ->selectRaw('SUM(debit_amount) - SUM(credit_amount) as balance')
-            ->value('balance') ?: 0;
-
-        // 7. Stock Alerts
-        $stockAlerts = Product::where('plant_id', $plantId)
-            ->where('stock_alert', '>', 0)
-            ->get()
-            ->map(function($product) use ($plantId) {
-                $currentStock = Quantity::where('product_id', $product->id)
-                    ->where('plant_id', $plantId)
-                    ->sum('quantity');
-                
-                return [
-                    'id' => $product->id,
-                    'title' => $product->title,
-                    'current_stock' => (float)$currentStock,
-                    'alert_level' => (float)$product->stock_alert,
-                    'unit' => $product->unit->unit_name ?? 'Unit',
-                    'is_critical' => $currentStock <= $product->stock_alert
-                ];
-            })
-            ->filter(fn($p) => $p['is_critical'])
-            ->values();
-
-        // 8. AI Intelligence Metrics (Calculated from Real Data)
-        $totalRevenue = (float)$totalInvoiced;
-        $totalCost = (float)$totalPurchaseOrders;
-        $grossMargin = $totalRevenue > 0 ? (($totalRevenue - $totalCost) / $totalRevenue) * 100 : 28.4;
-
-        $totalDispatches = Dispatch::where('plant_id', $plantId)->whereBetween('created_at', [$start, $end])->count();
-        $successfulDispatches = Dispatch::where('plant_id', $plantId)->where('status_id', 4)->whereBetween('created_at', [$start, $end])->count(); // Assuming status 4 is delivered
-        $deliverySuccess = $totalDispatches > 0 ? ($successfulDispatches / $totalDispatches) * 100 : 94.2;
-
-        $fleetTotal = \App\Models\Machine::where('plant_id', $plantId)->count();
-        $fleetActive = Dispatch::where('plant_id', $plantId)->whereNull('end_time')->count(); // Currently on road
-
-        return response()->json([
-            'metrics' => [
-                'sales_orders' => (float)$totalSalesOrders,
-                'purchase_orders' => (float)$totalPurchaseOrders,
-                'invoiced' => (float)$totalInvoiced,
-                'payments_received' => (float)$paymentsReceived,
-                'payments_paid' => (float)$paymentsPaid,
-                'outstanding' => (float)$netBalance,
-                'gross_margin' => round($grossMargin, 1),
-                'delivery_success' => round($deliverySuccess, 1),
-                'fleet_active' => $fleetActive,
-                'fleet_total' => $fleetTotal,
-                'avg_trip_time' => '42m', // Placeholder for now
-                'demand_accuracy' => 91.5, // AI Confidence
-                'fuel_savings' => '14.2%', 
-                'downtime_reduced' => '32%'
-            ],
-            'stock_alerts' => $stockAlerts,
+        return [
+            'generated_at' => now()->toIso8601String(),
+            'metrics' => $this->getMetrics($plantId, $start, $end, $patronId, $stockOverview),
+            'module_cards' => $this->getModuleCards($plantId, $start, $end, $patronId, $stockOverview),
+            'finance_trend' => $this->getFinanceTrend($plantId, $start, $end, $patronId),
+            'dispatch_status' => $this->getDispatchStatusBreakdown($plantId, $start, $end, $patronId),
+            'customer_leaderboard' => $this->getCustomerLeaderboard($plantId, $start, $end, $patronId),
+            'stock_snapshot' => $stockSnapshot,
+            'stock_alerts' => collect($stockSnapshot)->where('is_critical', true)->values(),
             'recent_transactions' => $this->getRecentActivity($plantId, $patronId),
             'work_orders' => $this->getRecentWorkOrders($plantId, $patronId),
-            'batches' => $this->getRecentBatches($plantId, $patronId),
             'dispatches' => $this->getRecentDispatches($plantId, $patronId),
-        ]);
+            'purchase_orders' => $this->getRecentPurchaseOrders($plantId, $patronId),
+        ];
     }
 
-    private function getRecentWorkOrders($plantId, $patronId)
+    private function resolvePlantId(): ?int
     {
-        $query = WorkOrder::query()->with(['customer', 'mixDesign'])->where('plant_id', $plantId)->latest()->limit(5);
-        if ($patronId) $query->where('customer_id', $patronId);
-        return $query->get()->map(fn($wo) => [
-            'id' => $wo->id,
-            'number' => $wo->order_no,
-            'customer' => $wo->customer->legal_name ?? 'N/A',
-            'grade' => $wo->mixDesign->design_name ?? 'N/A',
-            'qty' => (float)$wo->total_qty,
-            'status' => $wo->status,
-        ]);
+        $plantId = session('active_plant_id');
+
+        if ($plantId) {
+            return (int) $plantId;
+        }
+
+        return Invoice::latest('invoice_date')->value('plant_id')
+            ?? WorkOrder::latest()->value('plant_id')
+            ?? Plant::where('is_active', true)->value('id');
     }
 
-    private function getRecentBatches($plantId, $patronId)
+    private function resolveDateRange(?string $startDate, ?string $endDate): array
     {
-        $query = Batch::query()->with('workOrder.customer')->whereHas('workOrder', function($q) use ($plantId, $patronId) {
-            $q->where('plant_id', $plantId);
-            if ($patronId) $q->where('customer_id', $patronId);
-        })->latest()->limit(5);
-        
-        return $query->get()->map(fn($b) => [
-            'id' => $b->id,
-            'no' => $b->batch_no,
-            'wo' => $b->workOrder->order_no ?? 'N/A',
-            'size' => (float)$b->batch_size,
-            'time' => $b->start_time ? $b->start_time->format('H:i') : 'N/A'
-        ]);
+        $start = $startDate ? Carbon::parse($startDate)->startOfDay() : now()->subDays(29)->startOfDay();
+        $end = $endDate ? Carbon::parse($endDate)->endOfDay() : now()->endOfDay();
+
+        if ($start->gt($end)) {
+            [$start, $end] = [$end->copy()->startOfDay(), $start->copy()->endOfDay()];
+        }
+
+        return [$start, $end];
     }
 
-    private function getRecentDispatches($plantId, $patronId)
+    private function salesInvoiceQuery(int $plantId, Carbon $start, Carbon $end, ?int $patronId = null)
     {
-        $query = Dispatch::query()->with(['workOrder.customer', 'truck'])->where('plant_id', $plantId)->latest()->limit(5);
-        if ($patronId) $query->where('customer_id', $patronId);
-
-        return $query->get()->map(fn($d) => [
-            'id' => $d->id,
-            'ticket' => $d->dispatch_no,
-            'vehicle' => $d->truck->registration ?? 'N/A',
-            'customer' => $d->workOrder->customer->legal_name ?? 'N/A',
-            'qty' => (float)$d->delivered_qty,
-            'status' => $d->status && $d->status->invoice_id ? 'Billed' : 'Loaded',
-            'whatsapp_url' => $d->getWhatsAppUrl()
-        ]);
+        $table = (new Invoice)->getTable();
+        return Invoice::query()
+            ->where("{$table}.plant_id", $plantId)
+            ->where("{$table}.invoice_type", 'sales')
+            ->whereBetween("{$table}.invoice_date", [$start->toDateString(), $end->toDateString()])
+            ->when($patronId, fn ($query) => $query->where("{$table}.partner_id", $patronId));
     }
 
-    private function getRecentActivity($plantId, $patronId)
+    private function purchaseOrderQuery(int $plantId, Carbon $start, Carbon $end, ?int $patronId = null)
     {
-        $query = JournalEntryLine::query()->with(['entry', 'ledger'])
+        $table = (new PurchaseOrder)->getTable();
+        return PurchaseOrder::query()
+            ->where("{$table}.plant_id", $plantId)
+            ->whereBetween("{$table}.date_order", [$start->toDateString(), $end->toDateString()])
+            ->when($patronId, fn ($query) => $query->where("{$table}.vendor_id", $patronId));
+    }
+
+    private function dispatchQuery(int $plantId, Carbon $start, Carbon $end, ?int $patronId = null)
+    {
+        $table = (new Dispatch)->getTable();
+        return Dispatch::query()
+            ->where("{$table}.plant_id", $plantId)
+            ->whereBetween("{$table}.dispatch_time", [$start, $end])
+            ->when($patronId, fn ($query) => $query->where("{$table}.customer_id", $patronId));
+    }
+
+    private function journalLineQuery(int $plantId, Carbon $start, Carbon $end, string $voucherType, ?int $patronId = null)
+    {
+        $table = (new JournalEntryLine)->getTable();
+        return JournalEntryLine::query()
+            ->where("{$table}.plant_id", $plantId)
+            ->when($patronId, fn ($query) => $query->where("{$table}.partner_id", $patronId))
+            ->whereHas('entry', function ($query) use ($voucherType, $start, $end) {
+                $query
+                    ->where('voucher_type', $voucherType)
+                    ->whereBetween('voucher_date', [$start->toDateString(), $end->toDateString()]);
+            });
+    }
+
+    private function getMetrics(int $plantId, Carbon $start, Carbon $end, ?int $patronId, array $stockOverview): array
+    {
+        $salesRevenue = (float) $this->salesInvoiceQuery($plantId, $start, $end, $patronId)->sum('total_amount');
+        $purchaseSpend = (float) $this->purchaseOrderQuery($plantId, $start, $end, $patronId)->sum('amount_total');
+        $dispatchRevenue = (float) $this->dispatchQuery($plantId, $start, $end, $patronId)->sum('load_total_amount');
+        $dispatchQuantity = (float) $this->dispatchQuery($plantId, $start, $end, $patronId)->sum('delivered_qty');
+        $dispatchTrips = (int) $this->dispatchQuery($plantId, $start, $end, $patronId)->count();
+        $collections = (float) $this->journalLineQuery($plantId, $start, $end, 'RECEIPT', $patronId)->sum('credit_amount');
+        $payments = (float) $this->journalLineQuery($plantId, $start, $end, 'PAYMENT', $patronId)->sum('debit_amount');
+
+        $receivables = (float) Invoice::query()
             ->where('plant_id', $plantId)
+            ->where('invoice_type', 'sales')
+            ->when($patronId, fn ($query) => $query->where('partner_id', $patronId))
+            ->sum('balance_amount');
+
+        $payables = (float) Invoice::query()
+            ->where('plant_id', $plantId)
+            ->where('invoice_type', 'bill')
+            ->when($patronId, fn ($query) => $query->where('partner_id', $patronId))
+            ->sum('balance_amount');
+
+        $stockValue = (float) ($stockOverview['stock_value'] ?? 0);
+        $lowStockCount = (int) ($stockOverview['low_stock_count'] ?? 0);
+        $openWorkOrders = WorkOrder::query()
+            ->where('plant_id', $plantId)
+            ->when($patronId, fn ($query) => $query->where('customer_id', $patronId))
+            ->whereIn('status', [WorkOrder::STATUS_SCHEDULED, WorkOrder::STATUS_IN_PROGRESS])
+            ->count();
+
+        $activeBatches = Batch::query()
+            ->where('plant_id', $plantId)
+            ->whereIn('status', [Batch::STATUS_PLANNED, Batch::STATUS_LOADING, Batch::STATUS_DISPATCHED])
+            ->whereHas('workOrder', function ($query) use ($patronId) {
+                if ($patronId) {
+                    $query->where('customer_id', $patronId);
+                }
+            })
+            ->count();
+
+        return [
+            'sales_revenue' => round($salesRevenue, 2),
+            'purchase_spend' => round($purchaseSpend, 2),
+            'dispatch_revenue' => round($dispatchRevenue, 2),
+            'dispatch_quantity' => round($dispatchQuantity, 3),
+            'dispatch_trips' => $dispatchTrips,
+            'collections' => round($collections, 2),
+            'payments' => round($payments, 2),
+            'receivables' => round($receivables, 2),
+            'payables' => round($payables, 2),
+            'cash_delta' => round($collections - $payments, 2),
+            'stock_value' => round((float) $stockValue, 2),
+            'low_stock_count' => $lowStockCount,
+            'open_work_orders' => $openWorkOrders,
+            'active_batches' => $activeBatches,
+        ];
+    }
+
+    private function getModuleCards(int $plantId, Carbon $start, Carbon $end, ?int $patronId, array $stockOverview): array
+    {
+        $salesInvoices = $this->salesInvoiceQuery($plantId, $start, $end, $patronId);
+        $purchaseOrders = $this->purchaseOrderQuery($plantId, $start, $end, $patronId);
+        $dispatches = $this->dispatchQuery($plantId, $start, $end, $patronId);
+        $receipts = $this->journalLineQuery($plantId, $start, $end, 'RECEIPT', $patronId);
+        $payments = $this->journalLineQuery($plantId, $start, $end, 'PAYMENT', $patronId);
+
+        return [
+            [
+                'key' => 'sales',
+                'title' => 'Sales',
+                'value' => round((float) $salesInvoices->sum('total_amount'), 2),
+                'meta' => $salesInvoices->count() . ' invoices',
+                'accent' => 'amber',
+            ],
+            [
+                'key' => 'purchase',
+                'title' => 'Purchase',
+                'value' => round((float) $purchaseOrders->sum('amount_total'), 2),
+                'meta' => $purchaseOrders->count() . ' orders',
+                'accent' => 'sky',
+            ],
+            [
+                'key' => 'dispatch',
+                'title' => 'Dispatch',
+                'value' => round((float) $dispatches->sum('delivered_qty'), 3),
+                'meta' => $dispatches->count() . ' trips',
+                'accent' => 'emerald',
+            ],
+            [
+                'key' => 'accounting',
+                'title' => 'Accounting',
+                'value' => round((float) $receipts->sum('credit_amount') - (float) $payments->sum('debit_amount'), 2),
+                'meta' => 'cash delta',
+                'accent' => 'violet',
+            ],
+            [
+                'key' => 'stock',
+                'title' => 'Stock',
+                'value' => round((float) ($stockOverview['total_quantity'] ?? 0), 2),
+                'meta' => (int) ($stockOverview['low_stock_count'] ?? 0) . ' low items',
+                'accent' => 'rose',
+            ],
+        ];
+    }
+
+    private function getStockOverview(int $plantId): array
+    {
+        $quantitySubQuery = Quantity::query()
+            ->selectRaw('product_id, SUM(quantity) as stock_qty')
+            ->where('plant_id', $plantId)
+            ->groupBy('product_id');
+
+        $row = Product::query()
+            ->where('mm_products.plant_id', $plantId)
+            ->leftJoinSub($quantitySubQuery, 'stock_levels', function ($join) {
+                $join->on('stock_levels.product_id', '=', 'mm_products.id');
+            })
+            ->selectRaw('
+                COALESCE(SUM(stock_levels.stock_qty), 0) as total_quantity,
+                COALESCE(SUM(COALESCE(stock_levels.stock_qty, 0) * COALESCE(mm_products.purchase_price, 0)), 0) as stock_value,
+                COALESCE(SUM(CASE WHEN mm_products.stock_alert > 0 AND COALESCE(stock_levels.stock_qty, 0) <= mm_products.stock_alert THEN 1 ELSE 0 END), 0) as low_stock_count
+            ')
+            ->first();
+
+        return [
+            'total_quantity' => round((float) ($row->total_quantity ?? 0), 2),
+            'stock_value' => round((float) ($row->stock_value ?? 0), 2),
+            'low_stock_count' => (int) ($row->low_stock_count ?? 0),
+        ];
+    }
+
+    private function getFinanceTrend(int $plantId, Carbon $start, Carbon $end, ?int $patronId): array
+    {
+        $useMonthly = $start->diffInDays($end) > 45;
+        $bucketFormat = $useMonthly ? '%Y-%m' : '%Y-%m-%d';
+        $labelFormat = $useMonthly ? 'M Y' : 'd M';
+        $periodStart = $useMonthly ? $start->copy()->startOfMonth() : $start->copy()->startOfDay();
+        $periodEnd = $useMonthly ? $end->copy()->startOfMonth() : $end->copy()->startOfDay();
+        $interval = $useMonthly ? '1 month' : '1 day';
+
+        $periods = [];
+        $labels = [];
+        foreach (CarbonPeriod::create($periodStart, $interval, $periodEnd) as $date) {
+            $periods[] = $date->format($useMonthly ? 'Y-m' : 'Y-m-d');
+            $labels[] = $date->format($labelFormat);
+        }
+
+        $salesMap = $this->salesInvoiceQuery($plantId, $start, $end, $patronId)
+            ->selectRaw("DATE_FORMAT(invoice_date, '{$bucketFormat}') as period, SUM(total_amount) as total")
+            ->groupBy(DB::raw("DATE_FORMAT(invoice_date, '{$bucketFormat}')"))
+            ->pluck('total', 'period');
+
+        $purchaseMap = $this->purchaseOrderQuery($plantId, $start, $end, $patronId)
+            ->selectRaw("DATE_FORMAT(date_order, '{$bucketFormat}') as period, SUM(amount_total) as total")
+            ->groupBy(DB::raw("DATE_FORMAT(date_order, '{$bucketFormat}')"))
+            ->pluck('total', 'period');
+
+        $collectionMap = $this->journalLineQuery($plantId, $start, $end, 'RECEIPT', $patronId)
+            ->join('mm_journal_entries as journal', 'journal.id', '=', 'mm_journal_entry_lines.journal_entry_id')
+            ->selectRaw("DATE_FORMAT(journal.voucher_date, '{$bucketFormat}') as period, SUM(mm_journal_entry_lines.credit_amount) as total")
+            ->groupBy(DB::raw("DATE_FORMAT(journal.voucher_date, '{$bucketFormat}')"))
+            ->pluck('total', 'period');
+
+        $dispatchMap = $this->dispatchQuery($plantId, $start, $end, $patronId)
+            ->selectRaw("DATE_FORMAT(dispatch_time, '{$bucketFormat}') as period, SUM(load_total_amount) as total")
+            ->groupBy(DB::raw("DATE_FORMAT(dispatch_time, '{$bucketFormat}')"))
+            ->pluck('total', 'period');
+
+        $seriesFor = function ($map) use ($periods) {
+            return collect($periods)->map(fn ($period) => round((float) ($map[$period] ?? 0), 2))->values()->all();
+        };
+
+        return [
+            'labels' => $labels,
+            'series' => [
+                ['name' => 'Sales', 'data' => $seriesFor($salesMap)],
+                ['name' => 'Purchase', 'data' => $seriesFor($purchaseMap)],
+                ['name' => 'Collections', 'data' => $seriesFor($collectionMap)],
+                ['name' => 'Dispatch', 'data' => $seriesFor($dispatchMap)],
+            ],
+        ];
+    }
+
+    private function getDispatchStatusBreakdown(int $plantId, Carbon $start, Carbon $end, ?int $patronId): array
+    {
+        return $this->dispatchQuery($plantId, $start, $end, $patronId)
+            ->selectRaw("COALESCE(NULLIF(dispatch_status, ''), 'Draft') as status_label, COUNT(*) as total")
+            ->groupBy(DB::raw("COALESCE(NULLIF(dispatch_status, ''), 'Draft')"))
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($row) => [
+                'label' => $row->status_label,
+                'value' => (int) $row->total,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function getCustomerLeaderboard(int $plantId, Carbon $start, Carbon $end, ?int $patronId): array
+    {
+        return $this->dispatchQuery($plantId, $start, $end, $patronId)
+            ->leftJoin('mm_patrons as customers', 'customers.id', '=', 'mm_dispatches.customer_id')
+            ->selectRaw('
+                mm_dispatches.customer_id,
+                COALESCE(customers.legal_name, "Walk-in Customer") as customer_name,
+                COUNT(mm_dispatches.id) as trips,
+                COALESCE(SUM(mm_dispatches.delivered_qty), 0) as quantity,
+                COALESCE(SUM(mm_dispatches.load_total_amount), 0) as revenue
+            ')
+            ->groupBy('mm_dispatches.customer_id', 'customers.legal_name')
+            ->orderByDesc('revenue')
+            ->limit(6)
+            ->get()
+            ->map(fn ($row) => [
+                'customer' => $row->customer_name,
+                'trips' => (int) $row->trips,
+                'quantity' => round((float) $row->quantity, 3),
+                'revenue' => round((float) $row->revenue, 2),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function getStockSnapshot(int $plantId): array
+    {
+        $quantitySubQuery = Quantity::query()
+            ->selectRaw('product_id, SUM(quantity) as stock_qty')
+            ->where('plant_id', $plantId)
+            ->groupBy('product_id');
+
+        return Product::query()
+            ->where('mm_products.plant_id', $plantId)
+            ->leftJoinSub($quantitySubQuery, 'stock_levels', function ($join) {
+                $join->on('stock_levels.product_id', '=', 'mm_products.id');
+            })
+            ->leftJoin('mm_product_units as units', 'units.id', '=', 'mm_products.unit_id')
+            ->selectRaw('
+                mm_products.id,
+                mm_products.title,
+                mm_products.stock_alert,
+                mm_products.purchase_price,
+                COALESCE(stock_levels.stock_qty, 0) as quantity,
+                COALESCE(units.unit_name, "Unit") as unit_name
+            ')
+            ->orderByRaw('CASE WHEN mm_products.stock_alert > 0 AND COALESCE(stock_levels.stock_qty, 0) <= mm_products.stock_alert THEN 0 ELSE 1 END')
+            ->orderBy('quantity')
+            ->limit(8)
+            ->get()
+            ->map(function ($row) {
+                $quantity = (float) $row->quantity;
+                $alertLevel = (float) ($row->stock_alert ?? 0);
+                $coverage = $alertLevel > 0 ? min(100, round(($quantity / $alertLevel) * 100, 1)) : 100;
+
+                return [
+                    'id' => (int) $row->id,
+                    'name' => $row->title,
+                    'quantity' => round($quantity, 2),
+                    'alert_level' => round($alertLevel, 2),
+                    'unit' => $row->unit_name,
+                    'coverage' => $coverage,
+                    'stock_value' => round($quantity * (float) ($row->purchase_price ?? 0), 2),
+                    'is_critical' => $alertLevel > 0 && $quantity <= $alertLevel,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function getRecentWorkOrders(int $plantId, ?int $patronId): array
+    {
+        return WorkOrder::query()
+            ->with(['customer', 'mixDesign'])
+            ->where('plant_id', $plantId)
+            ->when($patronId, fn ($query) => $query->where('customer_id', $patronId))
             ->latest()
-            ->limit(10);
-            
-        if ($patronId) $query->where('partner_id', $patronId);
-        
-        return $query->get()->map(fn($line) => [
-            'date' => $line->entry->voucher_date ? $line->entry->voucher_date->toDateString() : 'N/A',
-            'type' => $line->entry->voucher_type ?? 'N/A',
-            'particulars' => $line->ledger->title ?? 'N/A',
-            'amount' => (float)($line->debit_amount > 0 ? $line->debit_amount : $line->credit_amount),
-            'dr_cr' => $line->debit_amount > 0 ? 'Dr' : 'Cr'
-        ]);
+            ->limit(6)
+            ->get()
+            ->map(fn ($workOrder) => [
+                'id' => $workOrder->id,
+                'number' => $workOrder->full_number,
+                'customer' => $workOrder->customer->legal_name ?? 'N/A',
+                'grade' => $workOrder->mixDesign->design_name ?? 'N/A',
+                'scheduled' => optional($workOrder->scheduled_start)->format('d M, H:i') ?? 'Not scheduled',
+                'qty' => (float) $workOrder->total_qty,
+                'produced_qty' => (float) $workOrder->produced_qty,
+                'status' => WorkOrder::statusLabel((int) $workOrder->status),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function getRecentDispatches(int $plantId, ?int $patronId): array
+    {
+        return Dispatch::query()
+            ->with(['customer', 'truck'])
+            ->where('plant_id', $plantId)
+            ->when($patronId, fn ($query) => $query->where('customer_id', $patronId))
+            ->latest('dispatch_time')
+            ->limit(6)
+            ->get()
+            ->map(fn ($dispatch) => [
+                'id' => $dispatch->id,
+                'ticket' => trim(($dispatch->prefix ?? '') . ($dispatch->dispatch_no ?? '')),
+                'vehicle' => $dispatch->truck->registration ?? 'Unassigned',
+                'customer' => $dispatch->customer->legal_name ?? 'N/A',
+                'qty' => (float) $dispatch->delivered_qty,
+                'amount' => (float) $dispatch->load_total_amount,
+                'status' => $dispatch->dispatch_status ?: 'Draft',
+                'time' => optional($dispatch->dispatch_time)->format('d M, H:i') ?? 'N/A',
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function getRecentPurchaseOrders(int $plantId, ?int $patronId): array
+    {
+        return PurchaseOrder::query()
+            ->with('vendor')
+            ->where('plant_id', $plantId)
+            ->when($patronId, fn ($query) => $query->where('vendor_id', $patronId))
+            ->latest('date_order')
+            ->limit(6)
+            ->get()
+            ->map(fn ($purchaseOrder) => [
+                'id' => $purchaseOrder->id,
+                'number' => $purchaseOrder->po_number,
+                'vendor' => $purchaseOrder->vendor->legal_name ?? 'N/A',
+                'date' => optional($purchaseOrder->date_order)->format('d M Y') ?? 'N/A',
+                'amount' => (float) $purchaseOrder->amount_total,
+                'receipt_status' => (int) $purchaseOrder->receipt_status,
+                'invoice_status' => (int) $purchaseOrder->invoice_status,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function getRecentActivity(int $plantId, ?int $patronId): array
+    {
+        return JournalEntryLine::query()
+            ->with(['entry', 'ledger', 'partner'])
+            ->where('plant_id', $plantId)
+            ->when($patronId, fn ($query) => $query->where('partner_id', $patronId))
+            ->latest()
+            ->limit(8)
+            ->get()
+            ->map(fn ($line) => [
+                'date' => optional($line->entry?->voucher_date)->format('d M Y') ?? 'N/A',
+                'voucher_type' => $line->entry->voucher_type ?? 'N/A',
+                'voucher_no' => $line->entry->voucher_number ?? 'N/A',
+                'ledger' => $line->ledger->title ?? 'N/A',
+                'partner' => $line->partner->legal_name ?? 'General',
+                'amount' => (float) ($line->debit_amount > 0 ? $line->debit_amount : $line->credit_amount),
+                'dr_cr' => $line->debit_amount > 0 ? 'Dr' : 'Cr',
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function emptyPayload(): array
+    {
+        return [
+            'generated_at' => now()->toIso8601String(),
+            'metrics' => [],
+            'module_cards' => [],
+            'finance_trend' => ['labels' => [], 'series' => []],
+            'dispatch_status' => [],
+            'customer_leaderboard' => [],
+            'stock_snapshot' => [],
+            'stock_alerts' => [],
+            'recent_transactions' => [],
+            'work_orders' => [],
+            'dispatches' => [],
+            'purchase_orders' => [],
+        ];
     }
 }

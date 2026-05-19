@@ -180,17 +180,17 @@ const submit = () => {
                     :disabled="isPosted"
                 />
 
-                <BaseInput 
+                <!-- <BaseInput 
                     v-model="form.reference" 
                     label="Reference No."
                     placeholder="UTR..." 
                     class="w-full"  
                     :error="form.errors.reference"
-                />
+                /> -->
 
                 <div class="flex flex-col gap-1.5">
                     <label class="text-[10px] font-bold text-[#4A5568] dark:text-gray-400 uppercase tracking-tighter">Notes</label>
-                    <Textarea v-model="form.description" rows="1" class="w-full"  />
+                    <Textarea v-model="form.description" rows="1" class="w-full !bg-white"  />
                 </div>
 
                 <!-- Submit Row -->

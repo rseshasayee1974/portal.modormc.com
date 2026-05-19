@@ -34,6 +34,9 @@ class StateCode extends Model
 	protected $fillable = [
 		'country_id',
 		'state_code',
-		'state_name'
+		'state_name',
+		'zipcode',
+		'area',
+		'district'
 	];
 }

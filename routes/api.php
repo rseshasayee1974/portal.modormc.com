@@ -26,13 +26,17 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('dashboard')->group(function () {
         Route::get('/sales-summary', [\App\Http\Controllers\Api\DashboardController::class, 'salesSummary']);
-        Route::get('/sales-stats', [\App\Http\Controllers\Api\DashboardController::class, 'salesStats']);
-        Route::get('/top-products', [\App\Http\Controllers\Api\DashboardController::class, 'topProducts']);
         Route::get('/sales-details', [\App\Http\Controllers\Api\DashboardController::class, 'salesDetails']);
         Route::get('/stock-details', [\App\Http\Controllers\Api\DashboardController::class, 'stockDetails']);
-        Route::get('/trips-details', [\App\Http\Controllers\Api\DashboardController::class, 'tripsDetails']);
+        Route::get('/dispatch-batching-summary', [\App\Http\Controllers\Api\DashboardController::class, 'dispatchBatchingSummary']);
+        Route::get('/dispatch-details', [\App\Http\Controllers\Api\DashboardController::class, 'dispatchDetails']);
+        Route::get('/top-mix-designs', [\App\Http\Controllers\Api\DashboardController::class, 'topMixDesigns']);
         Route::get('/customer-details', [\App\Http\Controllers\Api\DashboardController::class, 'customerDetails']);
-        Route::get('/alerts', [\App\Http\Controllers\Api\DashboardController::class, 'alerts']);
+        // Route::get('/sales-stats', [\App\Http\Controllers\Api\DashboardController::class, 'salesStats']);
+        // Route::get('/top-products', [\App\Http\Controllers\Api\DashboardController::class, 'topProducts']);
+        // Route::get('/dispatch-sales-amount', [\App\Http\Controllers\Api\DashboardController::class, 'dispatchSalesAmount']);
+        // Route::get('/trips-details', [\App\Http\Controllers\Api\DashboardController::class, 'tripsDetails']);
+        // Route::get('/alerts', [\App\Http\Controllers\Api\DashboardController::class, 'alerts']);
     });
     
     Route::get('/master/plants', [\App\Http\Controllers\Api\DashboardController::class, 'plants']);

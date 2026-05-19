@@ -2,7 +2,9 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 return new class extends Migration
 {
@@ -41,17 +43,34 @@ return new class extends Migration
         }
 
         // Add unique constraint and index
-        Schema::table('mm_roles', function (Blueprint $table) {
+        $driver = Schema::getConnection()->getDriverName();
+        $existingIndexes = collect(
+            $driver === 'sqlite'
+                ? DB::select("PRAGMA index_list('mm_roles')")
+                : DB::select('SHOW INDEX FROM mm_roles')
+        );
+
+        Schema::table('mm_roles', function (Blueprint $table) use ($driver, $existingIndexes) {
             $table->string('code')->change();
-            // Only add unique index if it doesn't exist
-            $indices = DB::select("SHOW INDEX FROM mm_roles WHERE Key_name = 'mm_roles_code_unique'");
-            if (empty($indices)) {
+
+            $hasCodeUniqueIndex = $existingIndexes->contains(function ($index) use ($driver) {
+                $indexName = $driver === 'sqlite' ? ($index->name ?? null) : ($index->Key_name ?? null);
+
+                return $indexName === 'mm_roles_code_unique';
+            });
+
+            if (!$hasCodeUniqueIndex) {
                 $table->unique('code', 'mm_roles_code_unique');
             }
-            
-            $indicesStatus = DB::select("SHOW INDEX FROM mm_roles WHERE Key_name = 'mm_roles_code_status_index'");
-            if (empty($indicesStatus)) {
-                 $table->index(['code', 'status'], 'mm_roles_code_status_index');
+
+            $hasCodeStatusIndex = $existingIndexes->contains(function ($index) use ($driver) {
+                $indexName = $driver === 'sqlite' ? ($index->name ?? null) : ($index->Key_name ?? null);
+
+                return $indexName === 'mm_roles_code_status_index';
+            });
+
+            if (!$hasCodeStatusIndex) {
+                $table->index(['code', 'status'], 'mm_roles_code_status_index');
             }
         });
     }

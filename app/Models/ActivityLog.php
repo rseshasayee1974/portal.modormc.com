@@ -1,55 +1,61 @@
 <?php
 
-/**
- * Created by Reliese Model.
- */
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * Class ActivityLog
- * 
- * @property int $id
- * @property string|null $log_name
- * @property string $description
- * @property int|null $subject_id
- * @property string|null $subject_type
- * @property string|null $event
- * @property int|null $causer_id
- * @property string|null $causer_type
- * @property array|null $properties
- * @property string|null $batch_uuid
- * @property Carbon|null $created_at
- * @property Carbon|null $updated_at
- *
- * @package App\Models
- */
 class ActivityLog extends Model
 {
-	use HasFactory;
+    use HasFactory;
 
-	protected $table = 'mm_activity_log';
+    protected $table = 'activity_logs';
 
-	protected $casts = [
-		'subject_id' => 'int',
-		'causer_id' => 'int',
-		'properties' => 'json'
-	];
+    protected $casts = [
+        'user_id' => 'int',
+        'plant_id' => 'int',
+        'old_values' => 'json',
+        'new_values' => 'json',
+        'changed_fields' => 'json',
+        'response_status' => 'int',
+        'metadata' => 'json',
+    ];
 
-	protected $fillable = [
-		'log_name',
-		'description',
-		'subject_id',
-		'subject_type',
-		'event',
-		'causer_id',
-		'causer_type',
-		'properties',
-		'batch_uuid'
-	];
+    protected $fillable = [
+        'user_id',
+        'plant_id',
+        'module_name',
+        'entity_type',
+        'entity_id',
+        'action_type',
+        'old_values',
+        'new_values',
+        'changed_fields',
+        'description',
+        'ip_address',
+        'user_agent',
+        'device_type',
+        'browser',
+        'operating_system',
+        'request_method',
+        'request_url',
+        'route_name',
+        'response_status',
+        'trace_id',
+        'metadata',
+        'created_at',
+    ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function scopeForEntity($query, string $entityType, string|int $entityId)
+    {
+        return $query
+            ->where('entity_type', $entityType)
+            ->where('entity_id', (string) $entityId);
+    }
 }

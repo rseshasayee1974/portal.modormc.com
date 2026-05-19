@@ -134,6 +134,13 @@ import { router } from '@inertiajs/vue3';
                         showExport
                         exportFilename="payment-records"
                     >
+                        <Column field="reference" header="Ref No." sortable>
+                            <template #body="slotProps">
+                                <div class="text-[11px] text-slate-500 font-bold uppercase tracking-tight">
+                                    {{ slotProps.data.reference || '---'}}
+                                </div>
+                            </template>
+                        </Column>
                         <Column field="transaction_date" header="Date" sortable>
                             <template #body="slotProps">
                                 <div class="text-[11px] text-slate-500 font-bold uppercase tracking-tight">
@@ -155,26 +162,26 @@ import { router } from '@inertiajs/vue3';
                                         <span>{{ slotProps.data.transaction_type === 'payment' ? 'PAYMENT' : 'RECEIPT' }}</span>
                                     </div>
                                 </Tag>
+                                <div class="font-semibold text-slate-700 dark:text-gray-200 text-xs tracking-tighter">
+                                    {{ slotProps.data.partner_type || '—' }}
+                                </div>
                             </template>
                         </Column>
 
-                        <Column field="ledger.title" header="Journal / Partner" sortable>
+                        <Column field="patron.legal_name" header="Partner" sortable>
                             <template #body="slotProps">
                                 <div>
-                                    <div class="font-semibold text-slate-700 dark:text-gray-200 text-xs tracking-tighter">
-                                        {{ slotProps.data.ledger?.title || '—' }}
-                                    </div>
-                                    <div class="text-[10px] text-indigo-500 font-bold tracking-wider">
+                                    <div class="text-[14px] text-indigo-500 font-bold tracking-wider">
                                         {{ slotProps.data.patron?.legal_name || 'General Ledger' }}
                                     </div>
                                 </div>
                             </template>
                         </Column>
-                        <Column field="partner_type" header="Description" sortable>
+                        <Column field="ledger.title"  header="Journal" sortable>
                             <template #body="slotProps">
                                 <div>
                                     <div class="font-semibold text-slate-700 dark:text-gray-200 text-xs tracking-tighter">
-                                        {{ slotProps.data.partner_type || '—' }}
+                                        {{ slotProps.data.ledger?.title || '—' }}
                                     </div>
                                 </div>
                             </template>

@@ -41,7 +41,7 @@ class Plant extends Model
 
     protected $casts = [
         'is_main' => 'boolean',
-        'is_active' => 'boolean',
+        'is_active' => 'int',
         'is_initialized' => 'boolean',
         'last_heartbeat_at' => 'datetime',
     ];

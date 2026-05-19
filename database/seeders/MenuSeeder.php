@@ -77,6 +77,7 @@ class MenuSeeder extends Seeder
             ['id' => 47, 'menutype' => 2, 'title' => 'Mix Design',     'alias' => 'mixdesigns',      'link' => 'inventory/mixdesigns',     'icon' => 'BeakerIcon',      'published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 4, 'permission_name' => 'MIX_DESIGN.VIEW'],
             ['id' => 48, 'menutype' => 2, 'title' => 'Concrete Grade', 'alias' => 'concretegrades',  'link' => 'inventory/concretegrades', 'icon' => 'CONCRETE_GRADE.VIEW', 'published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 5, 'permission_name' => 'CONCRETE_GRADE.VIEW'],
             ['id' => 45, 'menutype' => 2, 'title' => 'Categories',     'alias' => 'productcategories','link' => 'inventory/productcategories','icon' => 'TagIcon',        'published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 2, 'permission_name' => 'PRODUCT_CATEGORY.VIEW'],
+            ['id' => 62, 'menutype' => 2, 'title' => 'Concrete Quality Tests',     'alias' => 'concretequalitytests','link' => 'concrete-quality-tests','icon' => 'BeakerIcon',        'published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 6, 'permission_name' => 'CONCRETE_QUALITY_TEST.VIEW'],
 
             // Sidebar: Settings (parent_id = 11)
             ['id' => 39, 'menutype' => 2, 'title' => 'Patrons',          'alias' => 'PatronsList',    'link' => 'settings/patrons',      'icon' => 'UserGroupIcon',    'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 2, 'permission_name' => 'PATRON.VIEW'],

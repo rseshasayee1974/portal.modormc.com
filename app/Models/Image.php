@@ -25,6 +25,13 @@ class Image extends Model
         'deleted_by',
     ];
 
+    protected $appends = ['url'];
+
+    public function getUrlAttribute()
+    {
+        return $this->image_path ? \Illuminate\Support\Facades\Storage::url($this->image_path) : null;
+    }
+
     /**
      * Get label mapping for the model attributes.
      */

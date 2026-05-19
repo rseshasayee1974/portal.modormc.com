@@ -31,13 +31,6 @@
                                     },
                                     "password": {
                                         "type": "string"
-                                    },
-                                    "plan": {
-                                        "type": "string",
-                                        "enum": [
-                                            "free",
-                                            "paid"
-                                        ]
                                     }
                                 },
                                 "type": "object"

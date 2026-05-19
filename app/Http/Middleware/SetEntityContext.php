@@ -84,6 +84,22 @@ class SetEntityContext
             // -------------------------------------
 
             if ($activeEntityId) {
+                // Check if the entity is suspended (except for system admins)
+                $entityObj = \App\Models\Entity::find($activeEntityId);
+                if ($entityObj && $entityObj->is_suspended != 0 && !$user->isSystemAdmin()) {
+                    session()->forget(['active_entity_id', 'active_plant_id']);
+                    return redirect()->route('entity-context.index');
+                }
+
+                // Check if the active plant is inactive (is_active !== 1) (except for system admins)
+                if ($activePlantId) {
+                    $plantObj = \App\Models\Plant::find($activePlantId);
+                    if ($plantObj && $plantObj->is_active !== 1 && !$user->isSystemAdmin()) {
+                        session()->forget('active_plant_id');
+                        return redirect()->route('entity-context.index');
+                    }
+                }
+
                 // Build the query for this user + entity
                 $query = EntityUser::with(['entity', 'role', 'plant'])
                     ->where('user_id', $user->id)

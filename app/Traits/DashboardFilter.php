@@ -37,6 +37,14 @@ trait DashboardFilter
 
         if (isset($filters['type'])) {
             switch ($filters['type']) {
+                case 'daily':
+                    if (isset($filters['from_date']) && isset($filters['to_date'])) {
+                        $query->whereBetween($dateColumn, [
+                            Carbon::parse($filters['from_date'])->startOfDay(),
+                            Carbon::parse($filters['to_date'])->endOfDay(),
+                        ]);
+                    }
+                    break;
                 case 'today':
                     $query->whereDate($dateColumn, Carbon::today());
                     break;
@@ -49,9 +57,20 @@ trait DashboardFilter
                 case 'last_week':
                     $query->whereBetween($dateColumn, [Carbon::now()->subWeek()->startOfWeek(), Carbon::now()->subWeek()->endOfWeek()]);
                     break;
+                default:
+                    if (isset($filters['from_date']) && isset($filters['to_date'])) {
+                        $query->whereBetween($dateColumn, [
+                            Carbon::parse($filters['from_date'])->startOfDay(),
+                            Carbon::parse($filters['to_date'])->endOfDay(),
+                        ]);
+                    }
+                    break;
             }
         } elseif (isset($filters['from_date']) && isset($filters['to_date'])) {
-            $query->whereBetween($dateColumn, [$filters['from_date'], $filters['to_date']]);
+            $query->whereBetween($dateColumn, [
+                Carbon::parse($filters['from_date'])->startOfDay(),
+                Carbon::parse($filters['to_date'])->endOfDay(),
+            ]);
         }
 
         return $query;

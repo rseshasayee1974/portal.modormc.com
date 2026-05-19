@@ -6,7 +6,10 @@ use App\Models\JournalEntryLine;
 use App\Models\Ledger;
 use App\Models\Patron;
 use App\Models\Invoice;
+use App\Models\InvoiceItem;
+use App\Models\Dispatch;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
 use App\Models\JournalEntry;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,7 +24,7 @@ class ReportController extends Controller
         $ledgers = Ledger::where('plant_id', $plantId)->orderBy('title')->get();
         $patrons = Patron::where('plant_id', $plantId)->orderBy('legal_name')->get();
 
-        return Inertia::render('Finance/Reports/Index', [
+        return Inertia::render('Reports/Index', [
             'ledgers' => $ledgers,
             'patrons' => $patrons,
             'filters' => [
@@ -66,6 +69,26 @@ class ReportController extends Controller
                 $data = $this->getVoucherReportData('RECEIPT', $patronId, $start, $end);
                 $targetName = $patronId ? Patron::find($patronId)->legal_name : 'All Receipt Vouchers';
                 break;
+            case 'inventory_stock':
+                $data = $this->getInventoryStockData($start, $end);
+                $targetName = 'Stock Level Inventory Report';
+                break;
+            case 'inventory_inward':
+                $data = $this->getInventoryInwardData($start, $end);
+                $targetName = 'Purchase Order Inward Report';
+                break;
+            case 'production_batch':
+                $data = $this->getProductionBatchData($start, $end);
+                $targetName = 'Batch Production Consumption Report';
+                break;
+            case 'machines_list':
+                $data = $this->getMachinesListData();
+                $targetName = 'Fleet & Machine Inventory List';
+                break;
+            case 'payroll_personnel':
+                $data = $this->getPayrollPersonnelData();
+                $targetName = 'Personnel & Payroll Directory';
+                break;
             default:
                 return response()->json(['error' => 'Invalid report type'], 400);
         }
@@ -75,7 +98,8 @@ class ReportController extends Controller
         }
 
         if ($export === 'pdf') {
-            return $this->exportPdf($type, $targetName, $start, $end, $data);
+            $consolidation = $request->input('consolidation', 'po');
+            return $this->exportPdf($type, $targetName, $start, $end, $data, $id, $patronId, $consolidation);
         }
 
         return response()->json($data);
@@ -166,6 +190,7 @@ class ReportController extends Controller
 
                 return [
                     'date' => $line->entry->voucher_date->toDateString(),
+                    'due_date' => $line->entry->due_date ? $line->entry->due_date->toDateString() : null,
                     'voucher_type' => $line->entry->voucher_type,
                     'voucher_no' => $line->entry->voucher_number,
                     'narration' => $patronNamePrefix . $particulars . ' (' . ($line->line_narration ?: $line->entry->narration) . ')',
@@ -176,47 +201,271 @@ class ReportController extends Controller
                 ];
             })->values();
 
-        return ['opening_balance' => (float)$openingBalance, 'transactions' => $transactions];
+        // Account Summary Queries
+        $invoicedTaxTotal = 0;
+        $invoicedNonTaxTotal = 0;
+        $salesDiscount = 0;
+        $purchased = 0;
+        $amountReceived = 0;
+        $amountPaid = 0;
+
+        if ($patronId) {
+            // Fetch Sales Invoices within period
+            $invoices = Invoice::where('partner_id', $patronId)
+                ->where('plant_id', $plantId)
+                ->whereBetween('invoice_date', [$start, $end])
+                ->get();
+            
+            foreach ($invoices as $inv) {
+                if ($inv->tax_amount > 0) {
+                    $invoicedTaxTotal += $inv->total_amount;
+                } else {
+                    $invoicedNonTaxTotal += $inv->total_amount;
+                }
+                $salesDiscount += ($inv->discount_amount ?? 0);
+            }
+
+            // Fetch Purchases
+            $purchased = \App\Models\PurchaseOrder::where('vendor_id', $patronId)
+                ->where('plant_id', $plantId)
+                ->whereBetween('date_order', [$start, $end])
+                ->sum('amount_total');
+
+            // Fetch Receipts (Amount Received)
+            $amountReceived = JournalEntryLine::where('plant_id', $plantId)
+                ->where('partner_id', $patronId)
+                ->where('partner_type', 'Patron')
+                ->whereHas('entry', function($q) use ($start, $end) {
+                    $q->where('voucher_type', 'RECEIPT')->whereBetween('voucher_date', [$start, $end]);
+                })
+                ->sum('credit_amount');
+
+            // Fetch Payments (Amount Paid)
+            $amountPaid = JournalEntryLine::where('plant_id', $plantId)
+                ->where('partner_id', $patronId)
+                ->where('partner_type', 'Patron')
+                ->whereHas('entry', function($q) use ($start, $end) {
+                    $q->where('voucher_type', 'PAYMENT')->whereBetween('voucher_date', [$start, $end]);
+                })
+                ->sum('debit_amount');
+        }
+
+        return [
+            'opening_balance' => (float)$openingBalance,
+            'transactions' => $transactions,
+            'invoiced_tax' => (float)$invoicedTaxTotal,
+            'invoiced_nontax' => (float)$invoicedNonTaxTotal,
+            'sales_discount' => (float)$salesDiscount,
+            'purchased' => (float)$purchased,
+            'amount_received' => (float)$amountReceived,
+            'amount_paid' => (float)$amountPaid,
+            'credits' => 0.00
+        ];
     }
 
     private function getPurchaseReportData($patronId, $start, $end)
     {
         $plantId = session('active_plant_id');
-        $query = PurchaseOrder::with(['vendor'])->where('plant_id', $plantId)->whereBetween('date_order', [$start, $end]);
-        if ($patronId) $query->where('vendor_id', $patronId);
 
-        $bills = $query->get()->map(fn($po) => [
+        // 1. Fetch Purchase Orders (PO-wise transactions)
+        $poQuery = PurchaseOrder::with(['vendor'])->where('plant_id', $plantId)->whereBetween('date_order', [$start, $end]);
+        if ($patronId) $poQuery->where('vendor_id', $patronId);
+
+        $orders = $poQuery->orderBy('date_order')->orderBy('po_number')->get();
+
+        $bills = $orders->map(fn($po) => [
             'date' => $po->date_order->toDateString(),
             'voucher_type' => 'PURCHASE',
             'voucher_no' => $po->po_number,
+            'po_number' => $po->po_number,
+            'vendor_name' => $po->vendor->legal_name ?? 'N/A',
             'narration' => '[' . ($po->vendor->legal_name ?? 'Vendor') . '] Purchase Bill',
             'amount' => (float)$po->amount_total,
+            'amount_total' => (float)$po->amount_total,
+            'amount_untaxed' => (float)$po->amount_untaxed,
+            'amount_tax' => (float)$po->amount_tax,
             'type' => 'Dr',
             'debit' => (float)$po->amount_total,
             'credit' => 0,
         ]);
 
-        return ['opening_balance' => 0, 'transactions' => $bills];
+        // 2. Fetch Product-wise items
+        $itemQuery = PurchaseOrderItem::whereHas('order', function($q) use ($plantId, $start, $end, $patronId) {
+            $q->where('plant_id', $plantId)->whereBetween('date_order', [$start, $end]);
+            if ($patronId) $q->where('vendor_id', $patronId);
+        })->with(['product', 'uom']);
+
+        $items = $itemQuery->get();
+
+        $grouped = $items->groupBy('product_id')->map(function($productItems) {
+            $first = $productItems->first();
+            $productName = $first->product->title ?? 'Unknown Product';
+            $uomName = $first->uom->name ?? $first->uom->code ?? 'Unit';
+            $totalQty = (float)$productItems->sum('product_quantity');
+            $totalUntaxed = (float)$productItems->sum('price_subtotal');
+            $totalTax = (float)$productItems->sum('price_tax');
+            $totalTotal = (float)$productItems->sum('price_total');
+            $avgRate = $totalQty > 0 ? ($totalUntaxed / $totalQty) : 0.00;
+
+            return [
+                'product_name' => $productName,
+                'uom' => $uomName,
+                'quantity' => $totalQty,
+                'avg_rate' => $avgRate,
+                'amount_untaxed' => $totalUntaxed,
+                'amount_tax' => $totalTax,
+                'amount_total' => $totalTotal,
+            ];
+        })->values()->sortBy('product_name')->values();
+
+        return [
+            'opening_balance' => 0,
+            'transactions' => $bills,
+            'total_untaxed' => (float)$orders->sum('amount_untaxed'),
+            'total_tax' => (float)$orders->sum('amount_tax'),
+            'total_amount' => (float)$orders->sum('amount_total'),
+            
+            // Product summary additions
+            'product_summary' => $grouped,
+            'total_quantity' => (float)$grouped->sum('quantity'),
+            'total_product_untaxed' => (float)$grouped->sum('amount_untaxed'),
+            'total_product_tax' => (float)$grouped->sum('amount_tax'),
+            'total_product_amount' => (float)$grouped->sum('amount_total'),
+        ];
     }
 
     private function getSalesReportData($patronId, $start, $end)
     {
         $plantId = session('active_plant_id');
-        $query = Invoice::with(['partner'])->where('plant_id', $plantId)->whereBetween('invoice_date', [$start, $end]);
-        if ($patronId) $query->where('partner_id', $patronId);
 
-        $invoices = $query->get()->map(fn($inv) => [
+        // 1. Fetch Invoices (Sales details)
+        $invoiceQuery = Invoice::with(['partner'])->where('plant_id', $plantId)->whereBetween('invoice_date', [$start, $end]);
+        if ($patronId) $invoiceQuery->where('partner_id', $patronId);
+
+        $invoicesList = $invoiceQuery->orderBy('invoice_date')->orderBy('invoice_number')->get();
+
+        $transactions = $invoicesList->map(fn($inv) => [
             'date' => $inv->invoice_date->toDateString(),
             'voucher_type' => 'SALES',
-            'voucher_no' => $inv->invoice_number,
+            'voucher_no' => ($inv->prefix ?? '') . ($inv->invoice_number ?? ''),
+            'invoice_number' => ($inv->prefix ?? '') . ($inv->invoice_number ?? ''),
+            'customer_name' => $inv->partner->legal_name ?? 'N/A',
             'narration' => '[' . ($inv->partner->legal_name ?? 'Customer') . '] Sales Invoice',
             'amount' => (float)$inv->total_amount,
+            'amount_total' => (float)$inv->total_amount,
+            'amount_untaxed' => (float)$inv->subtotal,
+            'amount_tax' => (float)$inv->tax_amount,
             'type' => 'Cr',
             'debit' => 0,
             'credit' => (float)$inv->total_amount,
         ]);
 
-        return ['opening_balance' => 0, 'transactions' => $invoices];
+        // 2. Fetch Invoice Items (Product-wise Consolidated Summary)
+        $itemQuery = InvoiceItem::whereHas('invoice', function($q) use ($plantId, $start, $end, $patronId) {
+            $q->where('plant_id', $plantId)->whereBetween('invoice_date', [$start, $end]);
+            if ($patronId) $q->where('partner_id', $patronId);
+        })->with(['uom']);
+
+        $items = $itemQuery->get();
+
+        $groupedProducts = $items->groupBy('item_name')->map(function($invoiceItems) {
+            $first = $invoiceItems->first();
+            $itemName = $first->item_name ?? 'Unknown Item';
+            $uomName = $first->uom->name ?? $first->uom->code ?? 'Unit';
+            $totalQty = (float)$invoiceItems->sum('quantity');
+            $totalUntaxed = (float)$invoiceItems->sum('subtotal');
+            $totalTax = (float)$invoiceItems->sum('line_tax_amount');
+            $totalTotal = (float)$invoiceItems->sum('line_total');
+            $avgRate = $totalQty > 0 ? ($totalUntaxed / $totalQty) : 0.00;
+
+            return [
+                'product_name' => $itemName,
+                'uom' => $uomName,
+                'quantity' => $totalQty,
+                'avg_rate' => $avgRate,
+                'amount_untaxed' => $totalUntaxed,
+                'amount_tax' => $totalTax,
+                'amount_total' => $totalTotal,
+            ];
+        })->values()->sortBy('product_name')->values();
+
+        // 3. Fetch Dispatches (Dispatch Consolidated Summary)
+        $dispatchQuery = Dispatch::with(['customer', 'mixDesign.unit'])
+            ->where('plant_id', $plantId)
+            ->whereBetween('dispatch_time', [$start . ' 00:00:00', $end . ' 23:59:59']);
+        if ($patronId) $dispatchQuery->where('customer_id', $patronId);
+
+        $dispatches = $dispatchQuery->get();
+
+        // 3.1 Mix Design & Concrete Grade wise Consolidated Overall
+        $mixDesignSummary = $dispatches->groupBy('mixdesign_id')->map(function($dispatchItems) {
+            $first = $dispatchItems->first();
+            $mixName = $first->mixDesign?->design_name ?? 'Unknown Mix';
+            $gradeName = $first->mixDesign?->grade ?? $first->mixDesign?->design_type ?? 'N/A';
+            $uomName = $first->mixDesign?->unit?->name ?? 'm³';
+            $totalQty = (float)$dispatchItems->sum('delivered_qty');
+            $totalUntaxed = (float)$dispatchItems->sum('load_untax_amount');
+            $totalTax = (float)$dispatchItems->sum('load_tax_amount');
+            $totalTotal = (float)$dispatchItems->sum('load_total_amount');
+            $avgRate = $totalQty > 0 ? ($totalUntaxed / $totalQty) : 0.00;
+
+            return [
+                'mix_name' => $mixName,
+                'concrete_grade' => $gradeName,
+                'uom' => $uomName,
+                'quantity' => $totalQty,
+                'avg_rate' => $avgRate,
+                'amount_untaxed' => $totalUntaxed,
+                'amount_tax' => $totalTax,
+                'amount_total' => $totalTotal,
+            ];
+        })->values()->sortBy('mix_name')->values();
+
+        // 3.2 Party (Customer) wise Consolidated Summary
+        $partySummary = $dispatches->groupBy('customer_id')->map(function($dispatchItems) {
+            $first = $dispatchItems->first();
+            $partyName = $first->customer?->legal_name ?? 'Unknown Customer';
+            $totalQty = (float)$dispatchItems->sum('delivered_qty');
+            $totalUntaxed = (float)$dispatchItems->sum('load_untax_amount');
+            $totalTax = (float)$dispatchItems->sum('load_tax_amount');
+            $totalTotal = (float)$dispatchItems->sum('load_total_amount');
+
+            return [
+                'party_name' => $partyName,
+                'quantity' => $totalQty,
+                'amount_untaxed' => $totalUntaxed,
+                'amount_tax' => $totalTax,
+                'amount_total' => $totalTotal,
+            ];
+        })->values()->sortBy('party_name')->values();
+
+        return [
+            'opening_balance' => 0,
+            'transactions' => $transactions,
+            'total_untaxed' => (float)$invoicesList->sum('subtotal'),
+            'total_tax' => (float)$invoicesList->sum('tax_amount'),
+            'total_amount' => (float)$invoicesList->sum('total_amount'),
+            
+            // Product summary additions
+            'product_summary' => $groupedProducts,
+            'total_quantity' => (float)$groupedProducts->sum('quantity'),
+            'total_product_untaxed' => (float)$groupedProducts->sum('amount_untaxed'),
+            'total_product_tax' => (float)$groupedProducts->sum('amount_tax'),
+            'total_product_amount' => (float)$groupedProducts->sum('amount_total'),
+
+            // Dispatch summaries
+            'mix_design_summary' => $mixDesignSummary,
+            'total_dispatch_quantity' => (float)$mixDesignSummary->sum('quantity'),
+            'total_dispatch_untaxed' => (float)$mixDesignSummary->sum('amount_untaxed'),
+            'total_dispatch_tax' => (float)$mixDesignSummary->sum('amount_tax'),
+            'total_dispatch_amount' => (float)$mixDesignSummary->sum('amount_total'),
+
+            'party_summary' => $partySummary,
+            'total_party_quantity' => (float)$partySummary->sum('quantity'),
+            'total_party_untaxed' => (float)$partySummary->sum('amount_untaxed'),
+            'total_party_tax' => (float)$partySummary->sum('amount_tax'),
+            'total_party_amount' => (float)$partySummary->sum('amount_total'),
+        ];
     }
 
     private function getVoucherReportData($voucherType, $patronId, $start, $end)
@@ -247,7 +496,7 @@ class ReportController extends Controller
         return ['opening_balance' => 0, 'transactions' => $transactions];
     }
 
-    private function exportPdf($type, $targetName, $start, $end, $data)
+    private function exportPdf($type, $targetName, $start, $end, $data, $ledgerId = null, $patronId = null, $consolidation = 'po')
     {
         $viewMap = [
             'LEDGER' => 'reports.ledger_report',
@@ -256,18 +505,72 @@ class ReportController extends Controller
             'PURCHASE' => 'reports.purchase_report',
             'PAYMENT' => 'reports.payment_report',
             'RECEIPT' => 'reports.receipt_report',
+            'INVENTORY_STOCK' => 'reports.generic_report',
+            'INVENTORY_INWARD' => 'reports.generic_report',
+            'PRODUCTION_BATCH' => 'reports.generic_report',
+            'MACHINES_LIST' => 'reports.generic_report',
+            'PAYROLL_PERSONNEL' => 'reports.generic_report',
         ];
 
         $view = $viewMap[strtoupper($type)] ?? 'reports.ledger_report';
 
-        $pdf = Pdf::loadView($view, [
+        $plantId = session('active_plant_id');
+        $plant = \App\Models\Plant::with(['addresses.state', 'contacts'])->find($plantId);
+
+        $patron = null;
+        if ($patronId) {
+            $patron = \App\Models\Patron::with(['addresses.state'])->find($patronId);
+        } elseif ($ledgerId) {
+            $patron = \App\Models\Patron::with(['addresses.state'])->where('ledger_id', $ledgerId)->first();
+        }
+
+        $extraParams = [];
+        if (str_contains(strtolower($type), 'inventory_stock')) {
+            $extraParams = [
+                'headers' => ['Date', 'Product Name', 'UOM', 'Opening Qty', 'Current Stock', 'Status'],
+                'fields' => ['date', 'product_name', 'uom', 'opening_qty', 'quantity', 'status'],
+                'alignments' => ['center', 'left', 'center', 'right', 'right', 'center'],
+                'totals' => ['quantity' => $data['total_quantity'] ?? 0]
+            ];
+        } elseif (str_contains(strtolower($type), 'inventory_inward')) {
+            $extraParams = [
+                'headers' => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Truck No'],
+                'fields' => ['date', 'inward_no', 'po_number', 'vendor_name', 'product_name', 'quantity', 'truck_no'],
+                'alignments' => ['center', 'center', 'center', 'left', 'left', 'right', 'center'],
+                'totals' => ['quantity' => $data['total_quantity'] ?? 0]
+            ];
+        } elseif (str_contains(strtolower($type), 'production_batch')) {
+            $extraParams = [
+                'headers' => ['Start Date', 'Batch No', 'Work Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'],
+                'fields' => ['date', 'batch_no', 'work_order', 'mix_design', 'batch_size', 'operator', 'status'],
+                'alignments' => ['center', 'center', 'center', 'left', 'right', 'left', 'center'],
+                'totals' => ['batch_size' => $data['total_batch_size'] ?? 0]
+            ];
+        } elseif (str_contains(strtolower($type), 'machines_list')) {
+            $extraParams = [
+                'headers' => ['Registration', 'Vehicle Model', 'Vehicle Type', 'Make Year', 'Capacity', 'Owner'],
+                'fields' => ['registration', 'vehicle_model', 'vehicle_type', 'make_year', 'capacity', 'owner'],
+                'alignments' => ['center', 'left', 'center', 'center', 'right', 'left']
+            ];
+        } elseif (str_contains(strtolower($type), 'payroll_personnel')) {
+            $extraParams = [
+                'headers' => ['Name', 'Role / Employee Type', 'Joining Date', 'Status', 'Email', 'Phone'],
+                'fields' => ['name', 'employee_type', 'joining_date', 'status', 'email', 'phone'],
+                'alignments' => ['left', 'left', 'center', 'center', 'left', 'center']
+            ];
+        }
+
+        $pdfData = array_merge([
             'type' => strtoupper($type),
             'target_name' => $targetName,
-            'start' => $start,
-            'end' => $end,
-            'opening_balance' => $data['opening_balance'],
-            'transactions' => $data['transactions']
-        ])->setPaper('a4', 'portrait');
+            'start' => \Carbon\Carbon::parse($start)->format('d-m-Y'),
+            'end' => \Carbon\Carbon::parse($end)->format('d-m-Y'),
+            'plant' => $plant,
+            'patron' => $patron,
+            'consolidation' => $consolidation
+        ], $data, $extraParams);
+
+        $pdf = Pdf::loadView($view, $pdfData)->setPaper('a4', 'portrait');
 
         return $pdf->download("Report_{$type}_{$start}.pdf");
     }
@@ -293,5 +596,133 @@ class ReportController extends Controller
             }
             fclose($file);
         }, 200, $headers);
+    }
+
+    private function getInventoryStockData($start, $end)
+    {
+        $plantId = session('active_plant_id');
+        $stocks = \App\Models\Quantity::where('plant_id', $plantId)
+            ->with(['product', 'uom'])
+            ->whereBetween('date', [$start, $end])
+            ->get();
+
+        return [
+            'transactions' => $stocks->map(fn($s) => [
+                'date' => $s->date->toDateString(),
+                'product_name' => $s->product->title ?? 'N/A',
+                'uom' => $s->uom->name ?? 'N/A',
+                'opening_qty' => (float)$s->opening_quantity,
+                'quantity' => (float)$s->quantity,
+                'status' => $s->status ? 'Active' : 'Inactive',
+            ])->values(),
+            'total_quantity' => (float)$stocks->sum('quantity'),
+            'opening_balance' => 0
+        ];
+    }
+
+    private function getInventoryInwardData($start, $end)
+    {
+        $plantId = session('active_plant_id');
+        $inwards = \App\Models\PurchaseOrderHistory::where('plant_id', $plantId)
+            ->with(['order.vendor', 'product', 'uom', 'truck'])
+            ->whereBetween('received_date', [$start, $end])
+            ->get();
+
+        return [
+            'transactions' => $inwards->map(fn($i) => [
+                'date' => $i->received_date,
+                'inward_no' => $i->inward_no,
+                'po_number' => $i->order->po_number ?? 'N/A',
+                'vendor_name' => $i->order->vendor->legal_name ?? 'N/A',
+                'product_name' => $i->product->title ?? 'N/A',
+                'uom' => $i->uom->name ?? 'N/A',
+                'quantity' => (float)$i->received_qty,
+                'truck_no' => $i->truck->registration ?? 'N/A',
+                'truck_loaded' => (float)$i->truck_loaded,
+                'truck_empty' => (float)$i->truck_empty,
+            ])->values(),
+            'total_quantity' => (float)$inwards->sum('received_qty'),
+            'opening_balance' => 0
+        ];
+    }
+
+    private function getProductionBatchData($start, $end)
+    {
+        $plantId = session('active_plant_id');
+        $batches = \App\Models\Batch::where('plant_id', $plantId)
+            ->with(['operator', 'workOrder.mixDesign', 'materials.product'])
+            ->whereBetween('start_time', [$start . ' 00:00:00', $end . ' 23:59:59'])
+            ->get();
+
+        $materialSummary = [];
+        foreach ($batches as $batch) {
+            foreach ($batch->materials as $mat) {
+                $matName = $mat->material_name ?: ($mat->product->title ?? 'Unknown Material');
+                if (!isset($materialSummary[$matName])) {
+                    $materialSummary[$matName] = [
+                        'material_name' => $matName,
+                        'target_qty' => 0.0,
+                        'actual_qty' => 0.0,
+                    ];
+                }
+                $materialSummary[$matName]['target_qty'] += (float)$mat->target_qty;
+                $materialSummary[$matName]['actual_qty'] += (float)$mat->actual_qty;
+            }
+        }
+
+        return [
+            'transactions' => $batches->map(fn($b) => [
+                'date' => $b->start_time->toDateString(),
+                'batch_no' => $b->batch_no,
+                'work_order' => $b->workOrder->wo_number ?? 'N/A',
+                'mix_design' => $b->workOrder->mixDesign->design_name ?? 'N/A',
+                'batch_size' => (float)$b->batch_size,
+                'operator' => $b->operator->first_name ?? 'N/A',
+                'status' => \App\Models\Batch::statusLabel($b->status),
+            ])->values(),
+            'material_summary' => array_values($materialSummary),
+            'total_batch_size' => (float)$batches->sum('batch_size'),
+            'opening_balance' => 0
+        ];
+    }
+
+    private function getMachinesListData()
+    {
+        $plantId = session('active_plant_id');
+        $machines = \App\Models\Machine::where('plant_id', $plantId)
+            ->with(['owner'])
+            ->get();
+
+        return [
+            'transactions' => $machines->map(fn($m) => [
+                'registration' => $m->registration,
+                'vehicle_model' => $m->vehicle_model ?? 'N/A',
+                'vehicle_type' => $m->vehicle_type ?? 'N/A',
+                'make_year' => $m->make_year ?? 'N/A',
+                'capacity' => $m->capacity ?? 'N/A',
+                'owner' => $m->owner->legal_name ?? 'Self/Company Owned',
+            ])->values(),
+            'opening_balance' => 0
+        ];
+    }
+
+    private function getPayrollPersonnelData()
+    {
+        $plantId = session('active_plant_id');
+        $personnel = \App\Models\Personnel::where('plant_id', $plantId)
+            ->with(['user', 'contacts'])
+            ->get();
+
+        return [
+            'transactions' => $personnel->map(fn($p) => [
+                'name' => trim(($p->first_name ?? '') . ' ' . ($p->last_name ?? '')),
+                'employee_type' => $p->employee_type ?? 'N/A',
+                'joining_date' => $p->joining_date ? \Carbon\Carbon::parse($p->joining_date)->toDateString() : 'N/A',
+                'status' => $p->status ? 'Active' : 'Inactive',
+                'email' => $p->user->email ?? 'N/A',
+                'phone' => $p->contacts->first()->contact_value ?? 'N/A',
+            ])->values(),
+            'opening_balance' => 0
+        ];
     }
 }

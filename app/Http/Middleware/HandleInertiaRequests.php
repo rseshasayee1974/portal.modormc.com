@@ -69,12 +69,13 @@ class HandleInertiaRequests extends Middleware
             if ($isSuperAdmin) {
                 // Super Admin sees every entity in the switcher dropdown
                 $userEntities = Entity::all()->map(fn ($e) => [
-                    'entity_id'   => $e->id,
-                    'entity_name' => $e->legal_name,
-                    'entity_logo' => $e->logo_file ?? null,
-                    'role_id'     => 1,
-                    'role_name'   => 'Super Administrator',
-                    'is_active'   => $e->id === (int) $activeEntityId,
+                    'entity_id'    => $e->id,
+                    'entity_name'  => $e->legal_name,
+                    'entity_logo'  => $e->logo_file ?? null,
+                    'role_id'      => 1,
+                    'role_name'    => 'Super Administrator',
+                    'is_active'    => $e->id === (int) $activeEntityId,
+                    'is_suspended' => (int) $e->is_suspended,
                 ])->values();
             } else {
                 // Normal users only see their assigned entities
@@ -82,19 +83,26 @@ class HandleInertiaRequests extends Middleware
                     ->where('user_id', $user->id)
                     ->get()
                     ->map(fn ($eu) => [
-                        'entity_id'   => $eu->entity_id,
-                        'entity_name' => $eu->entity->legal_name ?? 'Unknown',
-                        'entity_logo' => $eu->entity->logo_file ?? null,
-                        'role_id'     => $eu->role_id ?? null,
-                        'role_name'   => $eu->role->name ?? 'Unknown',
-                        'is_active'   => $eu->entity_id === (int) $activeEntityId,
+                        'entity_id'    => $eu->entity_id,
+                        'entity_name'  => $eu->entity->legal_name ?? 'Unknown',
+                        'entity_logo'  => $eu->entity->logo_file ?? null,
+                        'role_id'      => $eu->role_id ?? null,
+                        'role_name'    => $eu->role->name ?? 'Unknown',
+                        'is_active'    => $eu->entity_id === (int) $activeEntityId,
+                        'is_suspended' => (int) ($eu->entity->is_suspended ?? 0),
                     ])
                     ->values();
             }
 
             // Current active entity details
             if ($activeEntityId) {
-                $activeEntity = $userEntities->firstWhere('entity_id', (int) $activeEntityId);
+                $entityObj = \App\Models\Entity::find($activeEntityId);
+                if ($entityObj && $entityObj->is_suspended != 0 && !$user->isSystemAdmin()) {
+                    session()->forget(['active_entity_id', 'active_plant_id']);
+                    $activeEntityId = null;
+                } else {
+                    $activeEntity = $userEntities->firstWhere('entity_id', (int) $activeEntityId);
+                }
             }
         }
 
@@ -122,13 +130,16 @@ class HandleInertiaRequests extends Middleware
         $customSettings = [];
         if ($activePlantId) {
             $plant = Plant::find($activePlantId);
-            if ($plant) {
+            if ($plant && $plant->is_active === 1) {
                 $activePlant = [
                     'plant_id'   => $plant->id,
                     'plant_name' => $plant->name,
                     'plant_code' => $plant->code,
                     'plant_logo' => $plant->logo_path ? "/storage/{$plant->logo_path}" : null,
                 ];
+            } else {
+                session()->forget('active_plant_id');
+                $activePlantId = null;
             }
             $customSettings['batching'] = \App\Models\CustomSetting::getForModule($activePlantId, 'batching');
             $customSettings['orders'] = \App\Models\CustomSetting::getForModule($activePlantId, 'orders');

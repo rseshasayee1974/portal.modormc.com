@@ -10,6 +10,7 @@ defineProps<{
     states: any[];
     addBank: () => void;
     removeBank: (index: number) => void;
+    allstates?: any[];
 }>();
 
 defineEmits<{
@@ -74,6 +75,7 @@ defineEmits<{
                 :operational-statuses="operationalStatuses"
                 :states="states"
                 :add-bank="addBank"
+                :allstates="allstates"
                 :remove-bank="removeBank"
             />
 

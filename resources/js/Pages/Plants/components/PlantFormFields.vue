@@ -3,7 +3,8 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import ToggleSwitch from 'primevue/toggleswitch';
 import { BuildingOffice2Icon, MapPinIcon, PhoneIcon, LinkIcon } from '@heroicons/vue/24/outline';
-import { computed, ref } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
+import axios from 'axios';
 
 const props = defineProps<{
     form: any;
@@ -16,7 +17,7 @@ const props = defineProps<{
     canEditIdentityOnUpdate?: boolean;
 }>();
 
-const activeTab = ref<'basic' | 'location' | 'contact'>('basic');
+const activeTab = ref<'basic' | 'location' | 'contact' | 'integration'>('basic');
 const isEditMode = computed(() => Boolean(props.plantId));
 
 const logoPreview = computed(() => {
@@ -32,8 +33,151 @@ const logoPreview = computed(() => {
     }
     return null;
 });
-// const isIdentityLockedInEdit = computed(() => isEditMode.value && !props.canEditIdentityOnUpdate);
-// console.log('isIdentityLockedInEdit',isIdentityLockedInEdit.value);
+
+// --- Dynamic Address Lookup Logic ---
+const districts = ref<string[]>([]);
+const allLocations = ref<any[]>([]);
+const uniqueZipcodes = ref<string[]>([]);
+const areas = ref<string[]>([]);
+
+const selectedDistrict = ref('');
+const selectedZipcode = ref('');
+const selectedArea = ref('');
+
+const isLoadingDistricts = ref(false);
+const isLoadingLocations = ref(false);
+
+const districtsOptions = computed(() => districts.value.map(d => ({ label: d, value: d })));
+const zipcodesOptions = computed(() => uniqueZipcodes.value.map(z => ({ label: z, value: z })));
+const areasOptions = computed(() => areas.value.map(a => ({ label: a, value: a })));
+
+const loadDistricts = async (stateId: number, isInitial = false) => {
+    if (!stateId) {
+        districts.value = [];
+        return;
+    }
+    isLoadingDistricts.value = true;
+    try {
+        const res = await axios.get(`/master/statecodes/${stateId}/districts`);
+        districts.value = res.data;
+        
+        if (isInitial && props.form.address.city) {
+            selectedDistrict.value = props.form.address.city;
+            await loadLocations(stateId, selectedDistrict.value, true);
+        }
+    } catch (err) {
+        console.error('Error fetching districts:', err);
+    } finally {
+        isLoadingDistricts.value = false;
+    }
+};
+
+const loadLocations = async (stateId: number, district: string, isInitial = false) => {
+    if (!stateId || !district) {
+        allLocations.value = [];
+        uniqueZipcodes.value = [];
+        return;
+    }
+    isLoadingLocations.value = true;
+    try {
+        const res = await axios.get(`/master/statecodes/${stateId}/zipcodes`, {
+            params: { district }
+        });
+        allLocations.value = res.data;
+        
+        // Extract unique zipcodes
+        const uniqueZips = Array.from(new Set(res.data.map((item: any) => item.zipcode))) as string[];
+        uniqueZipcodes.value = uniqueZips;
+        
+        if (isInitial && props.form.address.zipcode) {
+            selectedZipcode.value = props.form.address.zipcode;
+            updateAreas(selectedZipcode.value);
+            if (props.form.address.line_2) {
+                selectedArea.value = props.form.address.line_2;
+            }
+        }
+    } catch (err) {
+        console.error('Error fetching locations:', err);
+    } finally {
+        isLoadingLocations.value = false;
+    }
+};
+
+const updateAreas = (zip: string) => {
+    if (!zip) {
+        areas.value = [];
+        return;
+    }
+    areas.value = allLocations.value
+        .filter((item: any) => item.zipcode === zip)
+        .map((item: any) => item.area);
+};
+
+// Watch for State ID change
+watch(() => props.form.address.state_id, (newVal) => {
+    if (newVal) {
+        // Reset selections
+        selectedDistrict.value = '';
+        selectedZipcode.value = '';
+        selectedArea.value = '';
+        uniqueZipcodes.value = [];
+        areas.value = [];
+        
+        loadDistricts(newVal);
+    } else {
+        districts.value = [];
+        allLocations.value = [];
+        uniqueZipcodes.value = [];
+        areas.value = [];
+        selectedDistrict.value = '';
+        selectedZipcode.value = '';
+        selectedArea.value = '';
+        props.form.address.city = '';
+        props.form.address.zipcode = '';
+        props.form.address.line_2 = '';
+    }
+});
+
+// Watch for District selection
+watch(selectedDistrict, (newVal) => {
+    if (newVal) {
+        selectedZipcode.value = '';
+        selectedArea.value = '';
+        areas.value = [];
+        
+        loadLocations(props.form.address.state_id, newVal);
+        props.form.address.city = newVal;
+    } else {
+        props.form.address.city = '';
+    }
+});
+
+// Watch for Zipcode selection
+watch(selectedZipcode, (newVal) => {
+    if (newVal) {
+        selectedArea.value = '';
+        updateAreas(newVal);
+        props.form.address.zipcode = newVal;
+    } else {
+        props.form.address.zipcode = '';
+    }
+});
+
+// Watch for Area selection
+watch(selectedArea, (newVal) => {
+    if (newVal) {
+        props.form.address.line_2 = newVal;
+    } else {
+        props.form.address.line_2 = '';
+    }
+});
+
+// Initial load for Edit mode
+onMounted(() => {
+    if (props.form.address.state_id) {
+        loadDistricts(props.form.address.state_id, true);
+    }
+});
 </script>
 
 <template>
@@ -184,7 +328,8 @@ const logoPreview = computed(() => {
 
             <!-- TAB: Location -->
             <div v-show="activeTab === 'location'" class="grid grid-cols-1 md:grid-cols-12 gap-5 animate-in fade-in slide-in-from-top-1 duration-300">
-                <div class="md:col-span-3">
+                <!-- Address Type -->
+                <div class="md:col-span-3 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Address Type</label>
                     <BaseSelect
                         v-model="form.address.address_type_id"
@@ -198,34 +343,7 @@ const logoPreview = computed(() => {
                     <small v-if="errors?.['address.address_type_id']" class="p-error px-1">{{ errors['address.address_type_id'][0] }}</small>
                 </div>
 
-                <div class="md:col-span-3">
-                    <BaseInput 
-                        v-model="form.address.line_1" 
-                        label="Address Line 1"
-                        placeholder="Flat, Building, Street" 
-                        :error="errors?.['address.line_1']"
-                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
-                    />
-                </div>
-
-                <div class="md:col-span-3">
-                    <BaseInput 
-                        v-model="form.address.line_2" 
-                        label="Address Line 2"
-                        placeholder="Locality, Landmark" 
-                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
-                    />
-                </div>
-
-                <div class="md:col-span-3">
-                    <BaseInput 
-                        v-model="form.address.city" 
-                        label="City"
-                        placeholder="Enter City" 
-                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
-                    />
-                </div>
-
+                <!-- 1. State (First Select) -->
                 <div class="md:col-span-3 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">State</label>
                     <BaseSelect
@@ -236,34 +354,122 @@ const logoPreview = computed(() => {
                         filter
                         clearable
                         placeholder="Select State"
-                        class="!w-full !rounded-xl !border-slate-200 font-medium text-sm px-1"
+                        class="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>
 
-                <div class="md:col-span-3">
+                <!-- 2. District Select -->
+                <div class="md:col-span-3 flex flex-col gap-1.5">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">District</label>
+                    <BaseSelect
+                        v-model="selectedDistrict"
+                        :options="districtsOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        filter
+                        clearable
+                        :disabled="!form.address.state_id || isLoadingDistricts"
+                        :placeholder="isLoadingDistricts ? 'Loading...' : 'Select District'"
+                        class="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+
+                <!-- 3. Zipcode Select -->
+                <div class="md:col-span-3 flex flex-col gap-1.5">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Zipcode / Pincode</label>
+                    <BaseSelect
+                        v-model="selectedZipcode"
+                        :options="zipcodesOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        filter
+                        clearable
+                        :disabled="!selectedDistrict || isLoadingLocations"
+                        :placeholder="isLoadingLocations ? 'Loading...' : 'Select Zipcode'"
+                        class="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+
+                <!-- 4. Area Select -->
+                <div class="md:col-span-3 flex flex-col gap-1.5">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Area / Locality</label>
+                    <BaseSelect
+                        v-model="selectedArea"
+                        :options="areasOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        filter
+                        clearable
+                        :disabled="!selectedZipcode"
+                        placeholder="Select Area"
+                        class="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+
+                <!-- 5. Address Line 1 (Only Manual Input) -->
+                <div class="md:col-span-9">
+                    <BaseInput 
+                        v-model="form.address.line_1" 
+                        label="Address Line 1 (Street, Building, Door No.)"
+                        placeholder="e.g. No. 12, Gandhi Street" 
+                        :error="errors?.['address.line_1']"
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+
+                <!-- Address Previews (Read Only) -->
+                <div class="col-span-12 mt-2">
+                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-1">Formatted Address Preview</h4>
+                </div>
+
+                <!-- Address Line 2 (Area) -->
+                <div class="md:col-span-4">
+                    <BaseInput 
+                        v-model="form.address.line_2" 
+                        label="Address Line 2 (Area)"
+                        disabled
+                        placeholder="Selected Area will appear here" 
+                        inputClass="!w-full !rounded-md !border-slate-100 bg-slate-50 text-slate-500 font-medium text-sm cursor-not-allowed"
+                    />
+                </div>
+
+                <!-- City (District) -->
+                <div class="md:col-span-4">
+                    <BaseInput 
+                        v-model="form.address.city" 
+                        label="City / District"
+                        disabled
+                        placeholder="Selected District will appear here" 
+                        inputClass="!w-full !rounded-md !border-slate-100 bg-slate-50 text-slate-500 font-medium text-sm cursor-not-allowed"
+                    />
+                </div>
+
+                <!-- Formatted Zipcode -->
+                <div class="md:col-span-4">
                     <BaseInput 
                         v-model="form.address.zipcode" 
                         label="Zipcode"
-                        placeholder="6-digit code" 
-                        :error="errors?.['address.zipcode']"
-                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                        disabled
+                        placeholder="Selected Zipcode will appear here" 
+                        inputClass="!w-full !rounded-md !border-slate-100 bg-slate-50 text-slate-500 font-medium text-sm cursor-not-allowed"
                     />
                 </div>
 
-                <div class="md:col-span-3">
+                <!-- Latitude & Longitude -->
+                <div class="md:col-span-6">
                     <BaseInput 
                         v-model="form.latitude" 
                         label="Latitude"
-                        placeholder="19.0760" 
+                        placeholder="e.g. 13.0827" 
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>
 
-                <div class="md:col-span-3">
+                <div class="md:col-span-6">
                     <BaseInput 
                         v-model="form.longitude" 
                         label="Longitude"
-                        placeholder="72.8777" 
+                        placeholder="e.g. 80.2707" 
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>

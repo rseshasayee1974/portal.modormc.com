@@ -55,14 +55,13 @@ class PlantController extends Controller
         $plants = $query->orderBy($sortField, $sortDirection)->paginate(10)->withQueryString();
 
         $entities = Entity::getAllowedEntities($allowedEntityIds);
-
         return Inertia::render('Plants/Index', [
             'plants' => $plants,
             'filters' => $request->only(['search', 'sort_field', 'sort_direction']),
             'entities' => $entities,
             'addressTypes' => AddressType::all(['id', 'type']),
             'contactTypes' => ContactType::all(['id', 'type']),
-            'states' => StateCode::all(['id', 'state_name']),
+            'states' => StateCodesDropdown(),
         ]);
     }
 

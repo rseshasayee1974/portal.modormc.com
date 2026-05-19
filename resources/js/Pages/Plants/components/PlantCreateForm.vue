@@ -42,7 +42,7 @@ const emit = defineEmits(['submit', 'reset']);
                 :errors="errors"
             />
 
-            <BaseFormActions
+            <BaseFormActions class="pt-5"
                 submit-label="Create Plant"
                 submit-icon="pi pi-plus"
                 :loading="processing"

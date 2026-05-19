@@ -148,9 +148,22 @@ const totalAllocated = computed(() => {
     return createForm.allocations.reduce((sum, a) => sum + a.amount, 0);
 });
 
+const totalAvailableFunding = computed(() => {
+    let funding = createForm.amount || 0;
+    if (createForm.use_excess_amount) {
+        funding += patronAdvanceBalance.value || 0;
+    }
+    return funding;
+});
+
 watch(() => [createForm.amount, totalAllocated.value, createForm.use_excess_amount], () => {
     if (createForm.use_excess_amount) {
-        createForm.excess_amount = 0;
+        // If they checked use_excess_amount, any fresh cash exceeding the allocation is still saved as new excess_amount
+        if (createForm.amount > totalAllocated.value) {
+            createForm.excess_amount = createForm.amount - totalAllocated.value;
+        } else {
+            createForm.excess_amount = 0;
+        }
     } else if (createForm.amount > totalAllocated.value) {
         createForm.excess_amount = createForm.amount - totalAllocated.value;
     } else {
@@ -158,14 +171,8 @@ watch(() => [createForm.amount, totalAllocated.value, createForm.use_excess_amou
     }
 });
 
-watch(() => [createForm.use_excess_amount, createForm.amount], ([useExcess, amt]) => {
-    if (useExcess && amt > patronAdvanceBalance.value) {
-        createForm.amount = patronAdvanceBalance.value;
-    }
-});
-
 const autoAllocate = () => {
-    let remaining = createForm.amount;
+    let remaining = totalAvailableFunding.value;
     createForm.allocations = [];
     
     for (const inv of outstandingInvoices.value) {
@@ -283,7 +290,7 @@ const handleCreate = () => {
                     label="Date"
                     required
                     dateFormat="yy-mm-dd" 
-                    class="w-full !bg-white h-[42px]" 
+                    class="w-full !bg-white " 
                     :error="createForm.errors.transaction_date"
                 />
 
@@ -303,7 +310,7 @@ const handleCreate = () => {
                     v-model="createForm.reference" 
                     label="Reference"
                     placeholder="Ref/Chq No" 
-                    class="w-full h-[42px] bg-white" 
+                    class="w-full" 
                     :error="createForm.errors.reference"
                 />
 
@@ -354,6 +361,24 @@ const handleCreate = () => {
                 </div>
                 <div class="text-[10px] font-black text-amber-700 dark:text-amber-400 uppercase tracking-wider bg-white dark:bg-amber-950/30 px-3 py-1.5 rounded-lg border border-amber-100 dark:border-amber-900/50 shadow-inner">
                     Will be saved as new Advance Balance
+                </div>
+            </div>
+
+            <!-- Advance Consumed / Applied Amount Box -->
+            <div v-if="createForm.use_excess_amount && totalAllocated > createForm.amount" class="mt-6 p-4 rounded-xl border border-indigo-200 bg-indigo-50 dark:bg-indigo-950/20 dark:border-indigo-850 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-600 p-2 rounded-lg text-white shadow-md">
+                        <BanknotesIcon class="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-black text-indigo-800 dark:text-indigo-200 uppercase tracking-wider">Advance Balance Applied</h4>
+                        <p class="text-xs text-indigo-600 dark:text-indigo-400 font-bold font-mono">
+                            ₹ {{ (totalAllocated - createForm.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                        </p>
+                    </div>
+                </div>
+                <div class="text-[10px] font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider bg-white dark:bg-indigo-950/30 px-3 py-1.5 rounded-lg border border-indigo-100 dark:border-indigo-900/50 shadow-inner">
+                    Applying previous advance to this transaction
                 </div>
             </div>
 
@@ -453,12 +478,12 @@ const handleCreate = () => {
                                     {{ totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </td>
                             </tr>
-                            <tr v-if="createForm.amount !== totalAllocated">
+                            <tr v-if="totalAvailableFunding !== totalAllocated">
                                 <td colspan="4" class="px-4 py-2 text-right font-medium text-slate-500">
-                                    {{ createForm.amount > totalAllocated ? 'Unallocated (Advance)' : 'Over-allocated (Invalid)' }}
+                                    {{ totalAvailableFunding > totalAllocated ? 'Unallocated (Advance)' : 'Over-allocated (Invalid)' }}
                                 </td>
-                                <td :class="`px-4 py-2 text-right font-bold font-mono text-sm border-l border-slate-200 dark:border-slate-700 ${createForm.amount > totalAllocated ? 'text-amber-600 dark:text-amber-500' : 'text-red-600 dark:text-red-500'}`">
-                                    {{ (createForm.amount - totalAllocated).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                <td :class="`px-4 py-2 text-right font-bold font-mono text-sm border-l border-slate-200 dark:border-slate-700 ${totalAvailableFunding > totalAllocated ? 'text-amber-600 dark:text-amber-500' : 'text-red-600 dark:text-red-500'}`">
+                                    {{ (totalAvailableFunding - totalAllocated).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </td>
                             </tr>
                         </tfoot>
@@ -466,14 +491,14 @@ const handleCreate = () => {
                 </div>
             </div>
 
-            <div class="flex justify-end items-center mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
+            <div class="flex justify-end items-center pt-6 border-t border-slate-200 dark:border-slate-700">
                 <Button 
                     @click="handleCreate" 
                     :loading="createForm.processing" 
-                    :disabled="createForm.processing"
-                    class="!h-[48px] !px-10 !bg-indigo-600 hover:!bg-indigo-700 !border-none !shadow-lg !shadow-indigo-200 dark:!shadow-none !rounded-xl transition-all group flex items-center gap-3"
+                    :disabled="createForm.processing || totalAllocated > totalAvailableFunding"
+                    class="!h-[48px] !px-10 !bg-indigo-600 hover:!bg-indigo-700 disabled:!bg-slate-300 disabled:!text-slate-500 disabled:!shadow-none !border-none !shadow-lg !shadow-indigo-200 dark:!shadow-none !rounded-xl transition-all group flex items-center gap-3"
                 >
-                    <span class="text-white font-black uppercase text-[12px] tracking-widest">Post Transaction</span>
+                    <span class="text-white font-black uppercase text-[12px] tracking-widest">Create</span>
                     <ArrowRightEndOnRectangleIcon class="w-5 h-5 text-white/80 transition-transform group-hover:translate-x-1" />
                 </Button>
             </div>

@@ -58,6 +58,7 @@ Route::middleware([
         Route::get('/selectentity', [\App\Http\Controllers\EntityContextController::class, 'index'])->name('entity-context.index');
         Route::post('/selectentity', [\App\Http\Controllers\EntityContextController::class, 'store'])->name('entity-context.store');
         Route::post('/selectplant', [\App\Http\Controllers\EntityContextController::class, 'setPlant'])->name('entity-context.set-plant');
+        Route::post('/toggle-suspension', [\App\Http\Controllers\EntityContextController::class, 'toggleSuspension'])->name('entity-context.toggle-suspension');
     });
 
     // 2. Master Data (Definitions)
@@ -72,6 +73,8 @@ Route::middleware([
         Route::resource('invoicestatuses', \App\Http\Controllers\InvoiceStatusController::class)->except(['create', 'edit', 'show']);
         Route::resource('plans', \App\Http\Controllers\PlanController::class)->except(['create', 'edit', 'show']);
         Route::resource('statecodes', \App\Http\Controllers\StateCodeController::class)->except(['create', 'edit', 'show']);
+        Route::get('statecodes/{state_id}/districts', [\App\Http\Controllers\StateCodeController::class, 'getDistricts'])->name('statecodes.districts');
+        Route::get('statecodes/{state_id}/zipcodes', [\App\Http\Controllers\StateCodeController::class, 'getZipcodes'])->name('statecodes.zipcodes');
         Route::resource('subscriptionstatuses', \App\Http\Controllers\SubscriptionStatusController::class)->except(['create', 'edit', 'show']);
        
     });
@@ -98,6 +101,7 @@ Route::middleware([
         Route::resource('menus', \App\Http\Controllers\MenuController::class);
         Route::resource('sites', \App\Http\Controllers\SiteController::class);
         Route::resource('taxes', \App\Http\Controllers\TaxController::class);
+        Route::get('audit-logs', [\App\Http\Controllers\AuditLogController::class, 'index'])->name('settings.audit-logs');
         // Template Management
         Route::resource('templates', \App\Http\Controllers\PrintTemplateController::class);
         Route::post('templates/assign', [\App\Http\Controllers\PrintTemplateController::class, 'assign'])->name('templates.assign');
@@ -168,6 +172,7 @@ Route::middleware([
         Route::get('mixdesigns/gradeingredients/{gradeId}', [\App\Http\Controllers\MixDesignController::class, 'getGradeIngredients'])->name('mixdesigns.gradeingredients');
         Route::resource('mixdesigns', \App\Http\Controllers\MixDesignController::class);
         Route::resource('concretegrades', \App\Http\Controllers\ConcreteGradeController::class);
+        Route::resource('concrete-quality-tests', \App\Http\Controllers\ConcreteQualityTestController::class);
     });
 
     // 8. Fleet & Personnel Logistics

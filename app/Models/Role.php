@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Carbon\Carbon;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Illuminate\Support\Facades\DB;
+use App\Services\Audit\AuditLogger;
 
 /**
  * Class Role
@@ -87,6 +88,12 @@ class Role extends SpatieRole
 
             if (isset($data['permissions'])) {
                 $role->syncPermissions($data['permissions']);
+                app(AuditLogger::class)->log('PERMISSION_CHANGE', $role, [
+                    'old_values' => ['permissions' => []],
+                    'new_values' => ['permissions' => $role->permissions()->pluck('name')->values()->all()],
+                    'changed_fields' => ['permissions'],
+                    'description' => 'Permissions assigned to role '.$role->name,
+                ]);
             }
 
             return $role;
@@ -99,6 +106,8 @@ class Role extends SpatieRole
     public function updateWithRelations(array $data)
     {
         return DB::transaction(function () use ($data) {
+            $beforePermissions = $this->permissions()->pluck('name')->values()->all();
+
             $this->update([
                 'name'         => $data['name'],
                 'code'         => $data['code'] ?? $this->code,
@@ -111,6 +120,12 @@ class Role extends SpatieRole
 
             if (isset($data['permissions'])) {
                 $this->syncPermissions($data['permissions']);
+                app(AuditLogger::class)->log('PERMISSION_CHANGE', $this, [
+                    'old_values' => ['permissions' => $beforePermissions],
+                    'new_values' => ['permissions' => $this->permissions()->pluck('name')->values()->all()],
+                    'changed_fields' => ['permissions'],
+                    'description' => 'Permissions updated for role '.$this->name,
+                ]);
             }
 
             return tap($this)->refresh();

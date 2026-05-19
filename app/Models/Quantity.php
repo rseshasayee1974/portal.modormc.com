@@ -35,6 +35,20 @@ class Quantity extends Model
         'date'         => 'date',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($model) {
+            if ($model->quantity < 0) {
+                throw new \InvalidArgumentException('Quantity cannot be negative. Negative values are not allowed.');
+            }
+            if ($model->opening_quantity < 0) {
+                throw new \InvalidArgumentException('Opening quantity cannot be negative. Negative values are not allowed.');
+            }
+        });
+    }
+
     public function plant()
     {
         return $this->belongsTo(Plant::class, 'plant_id');

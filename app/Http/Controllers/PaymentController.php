@@ -47,7 +47,18 @@ class PaymentController extends Controller
             'partner_type'      => 'nullable|string',
             'origin'            => 'nullable|string',
             'origin_id'         => 'nullable|integer',
-            'amount'            => 'required|numeric|min:0.01',
+            'amount'            => [
+                'required',
+                'numeric',
+                function ($attribute, $value, $fail) use ($request) {
+                    $useExcess = filter_var($request->input('use_excess_amount'), FILTER_VALIDATE_BOOLEAN);
+                    if (!$useExcess && $value < 0.01) {
+                        $fail('The amount field must be at least 0.01 when not using previous advance.');
+                    } elseif ($value < 0) {
+                        $fail('The amount field cannot be negative.');
+                    }
+                }
+            ],
             'excess_amount'     => 'nullable|numeric|min:0',
             'use_excess_amount' => 'nullable|boolean',
             'transaction_type'  => 'required|in:payment,receipt',
@@ -66,17 +77,134 @@ class PaymentController extends Controller
             $validated['transaction_date'] = \Carbon\Carbon::parse($validated['transaction_date'])->format('Y-m-d');
         }
 
-        $validated['plant_id'] = session('active_plant_id', 1);
+        $plantId = session('active_plant_id');
+        $validated['plant_id'] = $plantId;
         $validated['created_by'] = auth()->id();
 
         try {
-            $payment = DB::transaction(function () use ($validated) {
-                // 1. Create base payment record
+            $payment = DB::transaction(function () use ($validated, $plantId) {
+                $totalAllocated = 0;
+                if (!empty($validated['allocations'])) {
+                    $totalAllocated = array_sum(array_column($validated['allocations'], 'amount'));
+                }
+
+                $freshCash = (float) $validated['amount'];
+                $usePreviousAdvance = !empty($validated['use_excess_amount']);
+                $advanceConsumed = $usePreviousAdvance ? max(0.00, $totalAllocated - $freshCash) : 0.00;
+
+                // A. Split-funding Scenario: Both Fresh Cash AND Previous Advance are used
+                if ($advanceConsumed > 0.00 && !empty($validated['patron_id'])) {
+                    $patronId = $validated['patron_id'];
+
+                    // 1. Calculate and verify available advance balance
+                    $totalExcessAccumulated = Payment::where('plant_id', $plantId)
+                        ->where('patron_id', $patronId)
+                        ->where('status', 'paid')
+                        ->sum('excess_amount');
+
+                    $totalExcessConsumed = Payment::where('plant_id', $plantId)
+                        ->where('patron_id', $patronId)
+                        ->where('status', 'paid')
+                        ->where('use_excess_amount', true)
+                        ->sum('amount');
+
+                    $availableAdvance = max(0.00, $totalExcessAccumulated - $totalExcessConsumed);
+
+                    if (round($advanceConsumed, 2) > round($availableAdvance, 2)) {
+                        throw new \Exception("Insufficient patron advance balance! Available advance: ₹" . number_format($availableAdvance, 2) . ", attempting to use ₹" . number_format($advanceConsumed, 2) . ".");
+                    }
+
+                    // 2. Distribute allocations between fresh cash and previous advance
+                    $freshAllocations = [];
+                    $advanceAllocations = [];
+                    $remainingFresh = $freshCash;
+
+                    foreach ($validated['allocations'] as $alloc) {
+                        $allocAmount = (float) $alloc['amount'];
+                        if ($remainingFresh > 0) {
+                            $takeFresh = min($remainingFresh, $allocAmount);
+                            $freshAllocations[] = [
+                                'invoice_id' => $alloc['invoice_id'],
+                                'amount' => $takeFresh
+                            ];
+                            $remainingFresh -= $takeFresh;
+                            $allocAmount -= $takeFresh;
+                        }
+                        if ($allocAmount > 0) {
+                            $advanceAllocations[] = [
+                                'invoice_id' => $alloc['invoice_id'],
+                                'amount' => $allocAmount
+                            ];
+                        }
+                    }
+
+                    // 3. Create the Fresh Cash Payment
+                    $freshPaymentData = $validated;
+                    $freshPaymentData['use_excess_amount'] = false;
+                    $freshPaymentData['excess_amount'] = 0.00;
+                    $freshPayment = Payment::create(Arr::except($freshPaymentData, ['allocations']));
+
+                    foreach ($freshAllocations as $alloc) {
+                        $invoice = Invoice::findOrFail($alloc['invoice_id']);
+                        PaymentAllocation::create([
+                            'payment_id' => $freshPayment->id,
+                            'invoice_id' => $invoice->id,
+                            'amount'     => $alloc['amount'],
+                            'created_by' => auth()->id(),
+                        ]);
+
+                        $invoice->paid_amount += $alloc['amount'];
+                        $invoice->balance_amount = max(0.00, $invoice->total_amount - $invoice->paid_amount);
+                        if ($invoice->balance_amount <= 0) {
+                            $invoice->status = Invoice::STATUS_PAID;
+                        }
+                        $invoice->save();
+                    }
+
+                    if ($freshPayment->status === 'paid') {
+                        $this->syncTransactions($freshPayment);
+                        $freshPayment->postToAccounting();
+                    }
+
+                    // 4. Create the Advance Consumed Payment
+                    $advancePaymentData = $validated;
+                    $advancePaymentData['amount'] = $advanceConsumed;
+                    $advancePaymentData['use_excess_amount'] = true;
+                    $advancePaymentData['excess_amount'] = 0.00;
+                    $advancePaymentData['reference'] = null; // Let observer generate a fresh auto-incremented number
+                    $advancePaymentData['description'] = trim(($advancePaymentData['description'] ?? '') . " (Advance Balance Applied)");
+                    
+                    $advancePayment = Payment::create(Arr::except($advancePaymentData, ['allocations']));
+
+                    foreach ($advanceAllocations as $alloc) {
+                        $invoice = Invoice::findOrFail($alloc['invoice_id']);
+                        PaymentAllocation::create([
+                            'payment_id' => $advancePayment->id,
+                            'invoice_id' => $invoice->id,
+                            'amount'     => $alloc['amount'],
+                            'created_by' => auth()->id(),
+                        ]);
+
+                        $invoice->paid_amount += $alloc['amount'];
+                        $invoice->balance_amount = max(0.00, $invoice->total_amount - $invoice->paid_amount);
+                        if ($invoice->balance_amount <= 0) {
+                            $invoice->status = Invoice::STATUS_PAID;
+                        }
+                        $invoice->save();
+                    }
+
+                    if ($advancePayment->status === 'paid') {
+                        $this->syncTransactions($advancePayment);
+                        $advancePayment->postToAccounting();
+                    }
+
+                    return $freshPayment;
+                }
+
+                // B. Standard Scenario (No split or pure advance without fresh cash mix)
                 $payment = Payment::create(Arr::except($validated, ['allocations']));
 
-                // 2. Handle Allocations
                 if (!empty($validated['allocations'])) {
-                    $totalAllocated = 0;
                     foreach ($validated['allocations'] as $allocationData) {
                         $invoice = Invoice::findOrFail($allocationData['invoice_id']);
                         
@@ -87,7 +215,6 @@ class PaymentController extends Controller
                             'created_by' => auth()->id(),
                         ]);
 
-                        // Update Invoice paid amounts
                         $invoice->paid_amount += $allocationData['amount'];
                         $invoice->balance_amount = max(0.00, $invoice->total_amount - $invoice->paid_amount);
                         
@@ -95,22 +222,35 @@ class PaymentController extends Controller
                             $invoice->status = Invoice::STATUS_PAID;
                         }
                         $invoice->save();
-
-                        $totalAllocated += $allocationData['amount'];
                     }
 
-                    // Strict protection: allocation sum cannot exceed payment amount
-                    if (round($totalAllocated, 2) > round($payment->amount, 2)) {
-                        throw new \Exception("Total allocated amount (₹" . number_format($totalAllocated, 2) . ") cannot exceed the payment amount (₹" . number_format($payment->amount, 2) . ").");
+                    // Strict protection: allocation sum cannot exceed payment amount (plus previous excess if allowed)
+                    $fundingLimit = $payment->amount;
+                    if ($payment->use_excess_amount && !empty($validated['patron_id'])) {
+                        // verify the advance balance
+                        $patronId = $validated['patron_id'];
+                        $totalExcessAccumulated = Payment::where('plant_id', $plantId)
+                            ->where('patron_id', $patronId)
+                            ->where('status', 'paid')
+                            ->sum('excess_amount');
+
+                        $totalExcessConsumed = Payment::where('plant_id', $plantId)
+                            ->where('patron_id', $patronId)
+                            ->where('status', 'paid')
+                            ->where('use_excess_amount', true)
+                            ->sum('amount');
+
+                        $availableAdvance = max(0.00, $totalExcessAccumulated - $totalExcessConsumed);
+                        $fundingLimit += $availableAdvance;
+                    }
+
+                    if (round($totalAllocated, 2) > round($fundingLimit, 2)) {
+                        throw new \Exception("Total allocated amount (₹" . number_format($totalAllocated, 2) . ") cannot exceed the total available funding (₹" . number_format($fundingLimit, 2) . ").");
                     }
                 }
 
-                // 3. Post to accounting if state is paid
                 if ($payment->status === 'paid') {
-                    // Sync debit/credit lines
                     $this->syncTransactions($payment);
-
-                    // Post journal entry
                     $payment->postToAccounting();
                 }
 
@@ -124,7 +264,6 @@ class PaymentController extends Controller
             return redirect()->back()->with('success', $message);
 
         } catch (\Exception $e) {
-            // Log full stack trace for developer diagnosis
             \Illuminate\Support\Facades\Log::error("Failed to post payment transaction: " . $e->getMessage(), [
                 'exception' => $e,
                 'request_payload' => $request->all()
@@ -151,7 +290,18 @@ class PaymentController extends Controller
             'partner_type'      => 'nullable|string',
             'origin'            => 'nullable|string',
             'origin_id'         => 'nullable|integer',
-            'amount'            => 'required|numeric|min:0.01',
+            'amount'            => [
+                'required',
+                'numeric',
+                function ($attribute, $value, $fail) use ($request) {
+                    $useExcess = filter_var($request->input('use_excess_amount'), FILTER_VALIDATE_BOOLEAN);
+                    if (!$useExcess && $value < 0.01) {
+                        $fail('The amount field must be at least 0.01 when not using previous advance.');
+                    } elseif ($value < 0) {
+                        $fail('The amount field cannot be negative.');
+                    }
+                }
+            ],
             'excess_amount'     => 'nullable|numeric|min:0',
             'use_excess_amount' => 'nullable|boolean',
             'transaction_type'  => 'required|in:payment,receipt',
@@ -227,7 +377,7 @@ class PaymentController extends Controller
             if ($payment->patron_id) {
                 $patronLedgerId = $payment->patron?->ledger_id;
                 if (!$patronLedgerId) {
-                    $patronLedgerId = \App\Models\Ledger::where('title', 'like', "%Sundry Creditor%")
+                    $patronLedgerId = Ledger::where('title', 'like', "%Sundry Creditor%")
                         ->where('plant_id', $plantId)
                         ->value('id');
                 }
@@ -259,7 +409,7 @@ class PaymentController extends Controller
             if ($payment->patron_id) {
                 $patronLedgerId = $payment->patron?->ledger_id;
                 if (!$patronLedgerId) {
-                    $patronLedgerId = \App\Models\Ledger::where('title', 'like', "%Sundry Debtor%")
+                    $patronLedgerId = Ledger::where('title', 'like', "%Sundry Debtor%")
                         ->where('plant_id', $plantId)
                         ->value('id');
                 }

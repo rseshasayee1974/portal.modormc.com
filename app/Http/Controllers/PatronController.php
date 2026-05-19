@@ -40,6 +40,7 @@ class PatronController extends Controller
             'states' => StateCodesDropdown(),
             'operationalStatuses' => OperationalStatusesDropdown(),
             'patronTypes' => PatronTypesDropdown(),
+            'allStates' => StateCode::whereNull('deleted_at')->distinct()->pluck('state_code'),
         ]);
     }
 

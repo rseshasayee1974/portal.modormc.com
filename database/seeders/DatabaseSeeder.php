@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
 
         // ── 3. Reference Data ──────────────────────────────────
         $this->call(\Database\Seeders\CountrySeeder::class);
+        $this->call(\Database\Seeders\StateCodeSeeder::class);
         $this->call(\Database\Seeders\TaxSeeder::class);
         $this->call(\Database\Seeders\ProductUnitSeeder::class);
         $this->call(\Database\Seeders\ProductSeeder::class);
@@ -37,5 +38,6 @@ class DatabaseSeeder extends Seeder
         $this->call(\Database\Seeders\PurchaseOrderSeeder::class);
         $this->call(\Database\Seeders\InvoiceSeeder::class);
         $this->call(\Database\Seeders\PettyCashSeeder::class);
+        $this->call(\Database\Seeders\ConcreteQualityTestSeeder::class);
     }
 }

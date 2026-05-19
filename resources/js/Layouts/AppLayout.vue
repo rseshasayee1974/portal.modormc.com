@@ -129,6 +129,22 @@ const switchEntity = async (entityId) => {
     }
 };
 
+const toggleFooterSuspension = async () => {
+    if (!activeEntity.value) return;
+    if (activeEntity.value.is_suspended !== 0 && !isSuperAdmin.value) {
+        alert("Action Denied:\nOnly a Super Administrator can reactivate a suspended organization.");
+        return;
+    }
+    try {
+        const { data } = await axios.post('/context/toggle-suspension', { entity_id: activeEntity.value.entity_id });
+        if (data.status === 'success') {
+            window.location.href = '/context/selectentity';
+        }
+    } catch (error) {
+        alert(error.response?.data?.error || 'Failed to toggle suspension.');
+    }
+};
+
 // --- Session Idle Timeout Logic ---
 const IDLE_WARN_TIME = 10 * 60 * 1000; // 10 minutes warning
 const IDLE_LOGOUT_TIME = 15 * 60 * 1000; // 15 minutes logout
@@ -198,6 +214,8 @@ onUnmounted(() => {
     if (idleInterval) clearInterval(idleInterval);
     if (heartbeatInterval) clearInterval(heartbeatInterval);
 });
+
+const mobileMenuOpen = ref(false);
 </script>
 
 <template>
@@ -208,16 +226,43 @@ onUnmounted(() => {
                         <Toast :life="1500" />
                         <ConfirmDialog />
 
-                        <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
-                            <nav class="bg-customBlue-600 dark:bg-customBlue-800 border-b border-customBlue-800 w-full z-50 shadow-md">
-                                <!-- ... nav content ... -->
+                        <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col">
+                            <nav class="bg-customBlue-600 dark:bg-customBlue-800 border-b border-customBlue-800 w-full z-50 shadow-md relative">
                                 <div class="w-full px-2 sm:px-4 lg:px-8">
                                     <div class="flex items-center justify-between h-16 md:h-20">
-                                        <!-- Desktop Logo -->
+                                        
+                                        <!-- Mobile Hamburger & Logo Block (visible below md) -->
+                                        <div class="flex items-center md:hidden gap-3 pl-2">
+                                            <button 
+                                                @click="mobileMenuOpen = true"
+                                                class="p-2 rounded-lg text-blue-200 hover:text-amber-300 hover:bg-white/10 focus:outline-none transition-colors"
+                                            >
+                                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                                </svg>
+                                            </button>
+                                            <Link :href="route('dashboard')" class="flex items-center">
+                                                <img
+                                                    v-if="$page.props.active_plant?.plant_logo"
+                                                    :src="$page.props.active_plant.plant_logo"
+                                                    alt="Plant Logo"
+                                                    class="w-auto object-contain bg-white/10 rounded-lg p-1"
+                                                />
+                                                <img
+                                                    v-else-if="activeEntity?.entity_logo"
+                                                    :src="`/storage/${activeEntity.entity_logo}`"
+                                                    alt="Logo"
+                                                    class="h-9 w-auto object-contain bg-white/10 rounded-lg p-1"
+                                                />
+                                                <ApplicationMark v-else class="h-8 w-auto" />
+                                            </Link>
+                                        </div>
+
+                                        <!-- Desktop Logo (visible on md and up) -->
                                         <div class="hidden md:flex w-64 shrink-0 items-center mr-2 pl-2">
                                             <Link :href="route('dashboard')" class="flex items-center gap-3 group">
                                                 <!-- Plant Logo Priority -->
-                                                <div v-if="$page.props.active_plant?.plant_logo" class="h-16 w-32 flex items-center justify-center bg-white/10 rounded-xl p-1.5 transition-all group-hover:bg-white/20">
+                                                <div v-if="$page.props.active_plant?.plant_logo" class=" flex items-center justify-center rounded-xl p-1.5 transition-all group-hover:bg-white/20">
                                                     <img
                                                         :src="$page.props.active_plant.plant_logo"
                                                         alt="Plant Logo"
@@ -236,8 +281,8 @@ onUnmounted(() => {
                                             </Link>
                                         </div>
 
-                                        <!-- Scrollable Center Navigation Items -->
-                                        <div class="flex-1 overflow-x-auto no-scrollbar">
+                                        <!-- Scrollable Navigation Items (Hidden on mobile/tablet below md, visible on md and up) -->
+                                        <div class="hidden md:flex flex-1 overflow-x-auto no-scrollbar">
                                             <div class="flex items-stretch justify-evenly min-w-max md:min-w-0 h-full">
                                                 <Link
                                                     v-for="item in visibleNav"
@@ -519,6 +564,104 @@ onUnmounted(() => {
 
                                     </div>
                                 </div>
+
+                                <!-- Mobile Menu Drawer Backdrop (visible below md breakpoint) -->
+                                <div 
+                                    v-if="mobileMenuOpen" 
+                                    @click="mobileMenuOpen = false" 
+                                    class="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm transition-opacity md:hidden"
+                                ></div>
+
+                                <!-- Mobile Menu Drawer Panel (visible below md breakpoint) -->
+                                <div 
+                                    class="fixed inset-y-0 left-0 z-[70] w-80 max-w-xs bg-white dark:bg-gray-800 shadow-2xl transition-transform duration-300 transform md:hidden flex flex-col"
+                                    :class="mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'"
+                                >
+                                    <!-- Drawer Header -->
+                                    <div class="px-5 py-5 border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900/50 flex justify-between items-center">
+                                        <div class="flex items-center gap-3">
+                                            <img
+                                                v-if="$page.props.active_plant?.plant_logo"
+                                                :src="$page.props.active_plant.plant_logo"
+                                                alt="Plant Logo"
+                                                class="h-9 w-auto object-contain bg-slate-200 dark:bg-gray-700 rounded-lg p-0.5"
+                                            />
+                                            <span class="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">Modo Portal</span>
+                                        </div>
+                                        <button 
+                                            @click="mobileMenuOpen = false"
+                                            class="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-gray-700 text-slate-400 hover:text-slate-600 transition-colors"
+                                        >
+                                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                        </button>
+                                    </div>
+
+                                    <!-- Active User Profile Overview -->
+                                    <div class="px-5 py-4 border-b border-slate-100 dark:border-gray-700 flex items-center gap-3">
+                                        <img class="size-9 rounded-full object-cover border border-slate-200" :src="$page.props.auth.user.profile_photo_url" :alt="$page.props.auth.user.username">
+                                        <div class="flex flex-col min-w-0">
+                                            <span class="text-sm font-bold text-slate-800 dark:text-white truncate">{{ $page.props.auth.user.username }}</span>
+                                            <span class="text-[10px] text-slate-500 dark:text-gray-400 truncate">{{ $page.props.auth.user.email }}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Drawer Navigation Items -->
+                                    <div class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                                        <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 block mb-2">Main Navigation</span>
+                                        <Link
+                                            v-for="item in visibleNav"
+                                            :key="item.id"
+                                            :href="item.link === '#' ? '#' : (item.link.startsWith('/') ? item.link : '/' + item.link)"
+                                            @click="mobileMenuOpen = false"
+                                            class="flex items-center gap-4 px-4 py-3 text-sm font-semibold rounded-xl transition-all"
+                                            :class="[
+                                                isTopMenuActive(item)
+                                                    ? 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border-l-4 border-amber-500'
+                                                    : 'text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 border-l-4 border-transparent'
+                                            ]"
+                                        >
+                                            <component
+                                                :is="IconMap[item.icon] || IconMap['HomeIcon']"
+                                                class="h-5 w-5 shrink-0"
+                                                :class="isTopMenuActive(item) ? 'text-amber-500' : 'text-slate-400'"
+                                            />
+                                            <span>{{ item.title }}</span>
+                                        </Link>
+                                    </div>
+
+                                    <!-- Drawer Footer Actions -->
+                                    <div class="p-4 border-t border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900/30 space-y-2">
+                                        <div v-if="$page.props.plants_count > 1" class="w-full">
+                                            <Link 
+                                                :href="route('entity-context.index')"
+                                                @click="mobileMenuOpen = false"
+                                                class="flex items-center justify-between w-full px-3 py-2.5 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-gray-700 text-xs font-semibold text-slate-700 dark:text-gray-300 hover:bg-slate-50 transition-colors"
+                                            >
+                                                <div class="flex items-center gap-2">
+                                                    <component :is="IconMap['BuildingLibraryIcon']" class="w-4 h-4 text-slate-400" />
+                                                    <span>Switch Plant</span>
+                                                </div>
+                                                <span class="text-[10px] text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded font-black max-w-[100px] truncate">
+                                                    {{ $page.props.active_plant?.plant_name || 'Select' }}
+                                                </span>
+                                            </Link>
+                                        </div>
+                                        
+                                        <form @submit.prevent="logout">
+                                            <button 
+                                                type="submit" 
+                                                class="w-full py-3 bg-rose-50 dark:bg-rose-950/20 hover:bg-rose-100 text-rose-650 dark:text-rose-455 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 border border-rose-100/50"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2050/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+                                                </svg>
+                                                Sign Out
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
                             </nav>
 
                             <!-- Page Heading -->
@@ -528,9 +671,74 @@ onUnmounted(() => {
                                 </div>
                             </header>
 
-                             <main class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+                             <main class="flex-1 max-w-7xl w-full mx-auto sm:px-6 lg:px-8">
                                 <slot />
                             </main>
+
+                            <!-- Global Footer -->
+                            <footer class="bg-[#1d2d3e] text-slate-300 border-t border-[#2a3c50] mt-auto py-8 px-4 sm:px-6 lg:px-8">
+                                <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                                    <!-- Logo & Project Tagline -->
+                                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 max-w-xl">
+                                        <div class="flex items-center gap-2">
+                                            <div class="h-10 w-24 flex items-center justify-center  rounded-lg p-1.5 shrink-0">
+                                                <img
+                                                    v-if="$page.props.active_plant?.plant_logo"
+                                                    :src="$page.props.active_plant.plant_logo"
+                                                    alt="Plant Logo"
+                                                    class="h-full w-full object-contain"
+                                                />
+                                                <img
+                                                    v-else-if="activeEntity?.entity_logo"
+                                                    :src="`/storage/${activeEntity.entity_logo}`"
+                                                    alt="Logo"
+                                                    class="h-full w-full object-contain"
+                                                />
+                                                <ApplicationMark v-else class="h-8 w-auto" />
+                                            </div>
+
+                                            <!-- Invisible suspension lock icon button (visible on hover or always if suspended) -->
+                                            <button 
+                                                v-if="activeEntity"
+                                                @click="toggleFooterSuspension"
+                                                class="p-2.5 rounded-xl transition-all duration-300"
+                                                :class="[
+                                                    activeEntity.is_suspended !== 0 
+                                                        ? 'bg-rose-500/20 border border-rose-500/30 text-rose-450 hover:bg-rose-500/30' 
+                                                        : 'bg-white/5 border border-white/10 text-slate-400 hover:text-rose-500 hover:bg-rose-500/10'
+                                                ]"
+                                                :title="activeEntity.is_suspended !== 0 ? 'Reactivate Organization' : 'Suspend Organization'"
+                                            >
+                                                <!-- Lock Closed Icon (Suspended) -->
+                                                <!-- <svg  xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-4 animate-pulse"> -->
+                                                   <svg v-if="activeEntity.is_suspended !== 0" data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" class="size-4 animate-pulse" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                                       <path stroke-linecap="round" stroke-linejoin="round" d="M11.412 15.655 9.75 21.75l3.745-4.012M9.257 13.5H3.75l2.659-2.849m2.048-2.194L14.25 2.25 12 10.5h8.25l-4.707 5.043M8.457 8.457 3 3m5.457 5.457 7.086 7.086m0 0L21 21"></path>
+                                                </svg>
+                                                <!-- Lock Open Icon (Active) -->
+                                                <svg v-else data-slot="icon" fill="none" stroke-width="1.5" stroke="currentColor" class="size-4 animate-pulse" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                        <div class="flex flex-col">
+                                            <span class="text-xs font-black tracking-wider text-amber-400 uppercase">ModoRmc</span>
+                                            <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                                                Next-generation operational intelligence, automated batching records, and real-time fleet logistics management designed for ready-mix batch plants.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Powered By & Copyright -->
+                                    <div class="flex flex-col md:items-end text-left md:text-right shrink-0">
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                            Powered By <span class="text-amber-400">Onemodo Technologies</span>
+                                        </span>
+                                        <span class="text-[11px] text-slate-500 font-semibold mt-1.5">
+                                            &copy; 2026 Modo RMC. All rights reserved.
+                                        </span>
+                                    </div>
+                                </div>
+                            </footer>
                         </div>
 
                         <!-- Session Timeout Modal -->

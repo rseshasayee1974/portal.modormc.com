@@ -23,6 +23,7 @@ const props = defineProps<{
     states: any[];
     operationalStatuses: any[];
     patronTypes: any[];
+    allStates : any[];
 }>();
 
 const toast = useToast();
@@ -522,6 +523,7 @@ const submitImport = () => {
                     @submit="submitCreate"
                     @export="exportPatrons"
                     @import="openImportDialog"
+                    :allstates="allStates"
                     @template="downloadImportTemplate"
                 />
             </section>

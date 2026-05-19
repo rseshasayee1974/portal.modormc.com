@@ -88,4 +88,43 @@ class StateCodeController extends Controller
 
         return redirect()->route('statecodes.index')->with('success', 'State Code deleted successfully.');
     }
+
+    /**
+     * Get unique districts for a given state.
+     */
+    public function getDistricts($stateId)
+    {
+        $state = StateCode::findOrFail($stateId);
+        
+        $districts = StateCode::where('state_code', $state->state_code)
+            ->whereNotNull('district')
+            ->where('district', '!=', '')
+            ->distinct()
+            ->pluck('district')
+            ->toArray();
+
+        sort($districts);
+
+        return response()->json($districts);
+    }
+
+    /**
+     * Get zipcodes and areas for a given state and district.
+     */
+    public function getZipcodes(Request $request, $stateId)
+    {
+        $state = StateCode::findOrFail($stateId);
+        $district = $request->query('district');
+
+        $locations = StateCode::where('country_id', $state->country_id)
+            ->where('state_code', $state->state_code)
+            ->where('district', $district)
+            ->whereNotNull('zipcode')
+            ->select(['zipcode', 'area'])
+            ->orderBy('zipcode')
+            ->orderBy('area')
+            ->get();
+
+        return response()->json($locations);
+    }
 }

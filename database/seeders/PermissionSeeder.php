@@ -27,38 +27,73 @@ class PermissionSeeder extends Seeder
         // For this refactor, we ensure only our generated permissions exist.
         // Permission::truncate();
 
-        // 2. DEFINE MODULES AND ACTIONS
-        $modules = [
+        // 2. DEFINE MODULES AND THEIR SPECIFIC VALID ACTIONS
+        $moduleActions = [
             // Core System
-            'USER', 'ROLE', 'PERMISSION', 'ENTITY', 'PLANT', 'MENU', 'DASHBOARD',
+            'USER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'ROLE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'PERMISSION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'ENTITY' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'PLANT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'MENU' => ['VIEW'],
+            'DASHBOARD' => ['VIEW'],
+            'SETTING' => ['VIEW', 'UPDATE'],
             
             // Financials
-            'ACCOUNT', 'ACCOUNT_TYPE', 'LEDGER', 'VOUCHER', 'VOUCHER_TYPE', 'JOURNAL_ENTRY', 'FISCAL_YEAR',
-            'EXPENSE', 'EXPENSE_TYPE', 'PETTY_CASH', 'PAYMENT',
+            'ACCOUNT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'ACCOUNT_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'LEDGER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'PDF'],
+            'VOUCHER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'VOUCHER_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'JOURNAL_ENTRY' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'FISCAL_YEAR' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'EXPENSE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'EXPENSE_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'PETTY_CASH' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'PAYMENT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             
             // Commerce
-            'PATRON', 'PRODUCT', 'PRODUCT_CATEGORY', 'PRODUCT_UNIT', 'TAX', 'PRICE_LIST',
-            'QUOTATION', 'SALES_ORDER', 'WORK_ORDER', 'PURCHASE_ORDER', 'INVOICE', 'PARTY_RATE',
+            'PATRON' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
+            'PRODUCT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
+            'PRODUCT_CATEGORY' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'PRODUCT_UNIT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'TAX' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'PRICE_LIST' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'QUOTATION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'SALES_ORDER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'WORK_ORDER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'PURCHASE_ORDER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'INVOICE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'PARTY_RATE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
             
             // Logistics & Ops
-            'TRIP', 'MACHINE', 'MACHINE_TYPE', 'PERSONNEL', 'SITE', 'MIX_DESIGN', 'CONCRETE_GRADE',
+            'TRIP' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'MACHINE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
+            'MACHINE_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'PERSONNEL' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
+            'SITE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'MIX_DESIGN' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
+            'CONCRETE_GRADE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'CONCRETE_QUALITY_TEST' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'PDF'],
             
             // Master Data / Settings
-            'ADDRESS_TYPE', 'ENTITY_TYPE', 'CONTACT_TYPE', 'BANK_ACCOUNT_TYPE', 'COUNTRY', 'CURRENCY', 'STATE_CODE',
-            'INVOICE_STATUS', 'PLAN', 'SUBSCRIPTION_STATUS', 'TERMS_CONDITION', 'SETTING'
+            'ADDRESS_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'ENTITY_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'CONTACT_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'BANK_ACCOUNT_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'COUNTRY' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'CURRENCY' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'STATE_CODE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'INVOICE_STATUS' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'PLAN' => ['VIEW', 'CREATE', 'UPDATE'],
+            'SUBSCRIPTION_STATUS' => ['VIEW', 'CREATE', 'UPDATE'],
+            'TERMS_CONDITION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE']
         ];
-
-        $actions = ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'IMPORT', 'PDF'];
 
         $allPermissionNames = [];
 
-        foreach ($modules as $module) {
+        foreach ($moduleActions as $module => $actions) {
             foreach ($actions as $action) {
-                // Filter out illogical combinations
-                if ($module === 'DASHBOARD' && !in_array($action, ['VIEW', 'EXPORT'])) continue;
-                if ($module === 'MENU' && !in_array($action, ['VIEW'])) continue;
-                if (in_array($module, ['PLAN', 'SUBSCRIPTION_STATUS']) && $action === 'DELETE') continue;
-
                 $name = "{$module}.{$action}";
                 Permission::updateOrCreate(
                     ['name' => $name],
@@ -72,6 +107,9 @@ class PermissionSeeder extends Seeder
                 $allPermissionNames[] = $name;
             }
         }
+
+        // Clean up any old/legacy permissions that are not part of the active list
+        Permission::whereNotIn('name', $allPermissionNames)->delete();
 
         // 3. DEFINE ROLE PERMISSION MAPPING
         

@@ -52,12 +52,47 @@ class DashboardController extends Controller
         return response()->json(['status' => true, 'data' => $data]);
     }
 
+    #[OA\Get(path: "/dashboard/top-mix-designs", summary: "Get top 5 mix designs from batches", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    public function topMixDesigns(Request $request)
+    {
+        $data = $this->service->getTopMixDesignsFromBatches($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
+
     #[OA\Get(path: "/dashboard/sales-details", summary: "Get detailed sales breakdown (Cash vs Credit)", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
     #[OA\Response(response: 200, description: "Successful operation")]
     #[OA\Response(response: 401, description: "Unauthorized")]
     public function salesDetails(Request $request)
     {
         $data = $this->service->getSalesDetails($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
+
+    #[OA\Get(path: "/dashboard/dispatch-sales-amount", summary: "Get dispatch cash and credit sales amounts", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
+    public function dispatchSalesAmount(Request $request)
+    {
+        $data = $this->service->getDispatchSalesAmounts($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
+
+    #[OA\Get(path: "/dashboard/dispatch-batching-summary", summary: "Get dispatch batching summary", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
+    public function dispatchBatchingSummary(Request $request)
+    {
+        $data = $this->service->getDispatchBatchingSummary($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
+
+    #[OA\Get(path: "/dashboard/dispatch-details", summary: "Get truck wise dispatch details", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
+    public function dispatchDetails(Request $request)
+    {
+        $data = $this->service->getDispatchDetailsByTruck($this->getFilters($request));
         return response()->json(['status' => true, 'data' => $data]);
     }
 

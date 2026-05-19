@@ -28,6 +28,11 @@ class DashboardService
         return $this->repository->getTopProducts($filters);
     }
 
+    public function getTopMixDesignsFromBatches(array $filters)
+    {
+        return $this->repository->getTopMixDesignsFromBatches($filters);
+    }
+
     public function getStockDetails(array $filters)
     {
         return $this->repository->getStockDetails($filters);
@@ -55,23 +60,21 @@ class DashboardService
 
     public function getSalesDetails(array $filters)
     {
-        $summary = $this->repository->getSalesSummary($filters);
-        $stats = $this->repository->getSalesStats($filters);
+        return $this->repository->getSalesDetailsByPaymentMode($filters);
+    }
 
-        // This is a simplified version, ideally separate queries for cash/credit breakdown
-        return [
-            'credit_sales' => [
-                'amount' => $summary['credit_sales']['amount'],
-                'trips' => 7, // Placeholder
-                'quantity_mt' => 13.24, // Placeholder
-                'quantity_cft' => 27 // Placeholder
-            ],
-            'cash_sales' => [
-                'amount' => $summary['cash_sales']['amount'],
-                'trips' => 7, // Placeholder
-                'quantity_mt' => 13.24, // Placeholder
-                'quantity_cft' => 27 // Placeholder
-            ]
-        ];
+    public function getDispatchSalesAmounts(array $filters)
+    {
+        return $this->repository->getDispatchSalesAmounts($filters);
+    }
+
+    public function getDispatchBatchingSummary(array $filters)
+    {
+        return $this->repository->getDispatchBatchingSummary($filters);
+    }
+
+    public function getDispatchDetailsByTruck(array $filters)
+    {
+        return $this->repository->getDispatchDetailsByTruck($filters);
     }
 }
