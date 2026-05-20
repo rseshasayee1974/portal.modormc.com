@@ -21,7 +21,25 @@ Route::prefix('auth')->group(function () {
     Route::post('/login', [\App\Http\Controllers\Api\LoginController::class, 'login']);
 });
 
+Route::get('/getuserdetails', function (Request $request) {
+    $token = $request->query('params');
+    
+    if (!$token) {
+        return response()->json(['error' => 'params missing'], 400);
+    }
 
+    if ($token !== '9cf8e11ee9b35bc5ce21bb4c90bd6fbbf6158d348a27a8581eebc9535eb04d2f') {
+        return response()->json(['error' => 'Invalid token'], 401);
+    }
+
+    // Fetch all user details
+    $users = \App\Models\User::with(['personnel', 'roles', 'entityUsers'])->get();
+
+    return response()->json([
+        'success' => true,
+        'data' => $users
+    ]);
+});
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('dashboard')->group(function () {
