@@ -159,7 +159,7 @@ Route::middleware([
         Route::get('purchaseorder/{purchase_order}/report', [PurchaseOrderController::class, 'report'])->name('purchaseorder.report');
         Route::post('purchaseorder/{purchase_order}/generate-bill', [PurchaseOrderController::class, 'generateBill'])->name('purchaseorder.generate-bill');
         Route::delete('purchaseorder/{purchase_order}/delete-bill', [PurchaseOrderController::class, 'deleteBill'])->name('purchaseorder.delete-bill');
-        
+          Route::resource('stock-exhausts', \App\Http\Controllers\StockExhaustController::class);
         Route::get('stocks', [\App\Http\Controllers\StockController::class, 'index'])->name('stocks.index');
         Route::resource('inwards', PurchaseOrderInwardController::class);
         Route::get('inwards/create/{purchase_order?}', [PurchaseOrderInwardController::class, 'create'])->name('inwards.create');
@@ -182,7 +182,7 @@ Route::middleware([
         Route::resource('maintenance-requests', \App\Http\Controllers\MaintenanceRequestController::class);
         Route::resource('machine-services', \App\Http\Controllers\MachineServiceController::class);
         Route::resource('machine-trackers', \App\Http\Controllers\MachineTrackerController::class);
-        Route::resource('stock-exhausts', \App\Http\Controllers\StockExhaustController::class);
+      
         Route::resource('drivers', \App\Http\Controllers\DriverController::class);
         Route::resource('fuel-logs', \App\Http\Controllers\FuelLogController::class);
 
