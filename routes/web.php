@@ -76,7 +76,7 @@ Route::middleware([
         Route::get('statecodes/{state_id}/districts', [\App\Http\Controllers\StateCodeController::class, 'getDistricts'])->name('statecodes.districts');
         Route::get('statecodes/{state_id}/zipcodes', [\App\Http\Controllers\StateCodeController::class, 'getZipcodes'])->name('statecodes.zipcodes');
         Route::resource('subscriptionstatuses', \App\Http\Controllers\SubscriptionStatusController::class)->except(['create', 'edit', 'show']);
-       
+        Route::resource('productunits', \App\Http\Controllers\ProductUnitController::class);
     });
 
     // 3. Tenant / Organization
@@ -102,6 +102,8 @@ Route::middleware([
         Route::resource('sites', \App\Http\Controllers\SiteController::class);
         Route::resource('taxes', \App\Http\Controllers\TaxController::class);
         Route::get('audit-logs', [\App\Http\Controllers\AuditLogController::class, 'index'])->name('settings.audit-logs');
+        
+        Route::resource('productcategories', \App\Http\Controllers\ProductCategoryController::class);
         // Template Management
         Route::resource('templates', \App\Http\Controllers\PrintTemplateController::class);
         Route::post('templates/assign', [\App\Http\Controllers\PrintTemplateController::class, 'assign'])->name('templates.assign');
@@ -164,8 +166,7 @@ Route::middleware([
         Route::resource('inwards', PurchaseOrderInwardController::class);
         Route::get('inwards/create/{purchase_order?}', [PurchaseOrderInwardController::class, 'create'])->name('inwards.create');
         Route::post('inwards/{inward}/update-weight', [PurchaseOrderInwardController::class, 'updateWeight'])->name('inwards.update-weight');
-        Route::resource('productunits', \App\Http\Controllers\ProductUnitController::class);
-        Route::resource('productcategories', \App\Http\Controllers\ProductCategoryController::class);
+       
         Route::resource('products', \App\Http\Controllers\ProductController::class);
         Route::post('products/batch', [\App\Http\Controllers\ProductController::class, 'batchStore'])->name('products.batchstore');
         
