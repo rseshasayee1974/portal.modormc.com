@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PrintTemplate;
 use App\Models\PrintTemplateSetting;
+use App\Services\Audit\AuditLogger;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -29,19 +30,57 @@ class PrintTemplateController extends Controller
     public function assign(Request $request)
     {
         $request->validate([
-            'module_key' => 'required|string',
+            'module_key'        => 'required|string',
             'print_template_id' => 'required|exists:mm_print_templates,id',
         ]);
+
+        $plantId = session('active_plant_id');
+
+        // Capture old assignment before overwriting
+        $existing = PrintTemplateSetting::where('module_key', $request->module_key)
+            ->where('plant_id', $plantId)
+            ->first();
+
+        $oldTemplateId   = $existing?->print_template_id;
+        $oldTemplateName = $oldTemplateId
+            ? PrintTemplate::find($oldTemplateId)?->name
+            : null;
+
+        $newTemplate = PrintTemplate::findOrFail($request->print_template_id);
 
         PrintTemplateSetting::updateOrCreate(
             [
                 'module_key' => $request->module_key,
-                'plant_id' => session('active_plant_id'),
+                'plant_id'   => $plantId,
             ],
             [
                 'print_template_id' => $request->print_template_id,
             ]
         );
+
+        // Audit log
+        app(AuditLogger::class)->log('ASSIGN', null, [
+            'module_name'   => 'print_template',
+            'entity_type'   => PrintTemplateSetting::class,
+            'plant_id'      => $plantId,
+            'description'   => sprintf(
+                'Template assigned for module "%s": "%s" → "%s"',
+                $request->module_key,
+                $oldTemplateName ?? '(none)',
+                $newTemplate->name
+            ),
+            'old_values'    => [
+                'module_key'        => $request->module_key,
+                'print_template_id' => $oldTemplateId,
+                'template_name'     => $oldTemplateName,
+            ],
+            'new_values'    => [
+                'module_key'        => $request->module_key,
+                'print_template_id' => $newTemplate->id,
+                'template_name'     => $newTemplate->name,
+            ],
+            'changed_fields' => ['print_template_id'],
+        ]);
 
         return redirect()->back()->with('success', 'Template assigned successfully.');
     }
@@ -78,17 +117,44 @@ class PrintTemplateController extends Controller
     public function saveCustomization(Request $request, string $module)
     {
         $plantId = session('active_plant_id');
-        
+
+        // Capture previous settings for diff
+        $existing = \App\Models\CustomSetting::where('plant_id', $plantId)
+            ->where('module_name', $module)
+            ->first();
+
+        $oldSettings = $existing?->settings;
+
         \App\Models\CustomSetting::updateOrCreate(
             [
-                'plant_id' => $plantId,
+                'plant_id'    => $plantId,
                 'module_name' => $module,
             ],
             [
-                'settings' => $request->settings,
-                'module_id' => 0
+                'settings'  => $request->settings,
+                'module_id' => 0,
             ]
         );
+
+        // Audit log
+        app(AuditLogger::class)->log('UPDATE', null, [
+            'module_name'    => 'print_template',
+            'entity_type'    => \App\Models\CustomSetting::class,
+            'plant_id'       => $plantId,
+            'description'    => sprintf('Customization fields updated for module "%s"', $module),
+            'old_values'     => [
+                'module_name' => $module,
+                'settings'    => $oldSettings,
+            ],
+            'new_values'     => [
+                'module_name' => $module,
+                'settings'    => $request->settings,
+            ],
+            'changed_fields' => ['settings'],
+            'metadata'       => [
+                'customize_url' => request()->url(),
+            ],
+        ]);
 
         return redirect()->back()->with('success', 'Customization saved successfully.');
     }

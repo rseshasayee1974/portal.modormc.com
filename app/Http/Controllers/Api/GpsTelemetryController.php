@@ -34,7 +34,7 @@ class GpsTelemetryController extends Controller
         $imei = $validated['imei'];
         
         // Find the device
-        $device = GpsDevice::where('imei', $imei)->where('is_active', true)->first();
+        $device = GpsDevice::query()->where('imei', $imei)->where('is_active', true)->first();
         if (!$device) {
             return response()->json([
                 'success' => false,
@@ -73,7 +73,7 @@ class GpsTelemetryController extends Controller
             ]);
 
             // Fetch previous latest position to check geofence enter/exit transitions
-            $previousLatest = GpsLatestPosition::where('device_id', $device->id)->first();
+            $previousLatest = GpsLatestPosition::query()->where('device_id', $device->id)->first();
 
             // Create or update the latest cache
             GpsLatestPosition::updateOrCreate(
@@ -117,7 +117,7 @@ class GpsTelemetryController extends Controller
     protected function processGeofenceChecks($machineId, $plantId, $lat, $lng, $recordedAt, $previousLatest)
     {
         // Get all active geofences for this plant
-        $geofences = Geofence::where('plant_id', $plantId)->where('is_active', true)->get();
+        $geofences = Geofence::query()->where('plant_id', $plantId)->where('is_active', true)->get();
 
         foreach ($geofences as $geofence) {
             $isCurrentlyInside = $this->isPointInGeofence($lat, $lng, $geofence);

@@ -14,11 +14,19 @@ class PrintTemplate extends Model
         'category',
         'thumbnail',
         'is_system',
-        'config'
+        'mm_config',
     ];
 
     protected $casts = [
         'is_system' => 'boolean',
-        'config' => 'array'
+        'mm_config' => 'array',
     ];
+
+    /**
+     * Expose mm_config as `config` to the frontend / templates.
+     */
+    public function getConfigAttribute(): ?array
+    {
+        return $this->mm_config;
+    }
 }
