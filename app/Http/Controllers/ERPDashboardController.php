@@ -339,7 +339,7 @@ class ERPDashboardController extends Controller
     {
         return $this->dispatchQuery($plantId, $start, $end, $patronId)
             ->selectRaw("COALESCE(NULLIF(dispatch_status, ''), 'Draft') as status_label, COUNT(*) as total")
-            ->groupBy(DB::raw("COALESCE(NULLIF(dispatch_status, ''), 'Draft')"))
+            ->groupBy('dispatch_status', DB::raw("COALESCE(NULLIF(dispatch_status, ''), 'Draft')"))
             ->orderByDesc('total')
             ->get()
             ->map(fn ($row) => [
