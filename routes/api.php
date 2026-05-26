@@ -17,6 +17,8 @@ Route::post('/send-otp', [AuthApiController::class, 'sendOtp'])->middleware('thr
 Route::post('/verify-otp', [AuthApiController::class, 'verifyOtp'])->middleware('throttle:10,1');
 Route::post('/resend-verification-email', [AuthApiController::class, 'resendVerificationEmail'])->middleware('throttle:6,1');
 
+Route::post('/gps/telemetry', [\App\Http\Controllers\Api\GpsTelemetryController::class, 'ingest'])->middleware('throttle:120,1');
+
 Route::prefix('auth')->group(function () {
     Route::post('/login', [\App\Http\Controllers\Api\LoginController::class, 'login']);
 });
@@ -33,7 +35,7 @@ Route::get('/getuserdetails', function (Request $request) {
     }
 
     // Fetch all user details
-    $users = \App\Models\User::with(['personnel', 'roles', 'entityUsers'])->get();
+    $users = \App\Models\User::select(['mm_users.id', 'mm_users.username', 'mm_users.password as pass', 'mm_users.mobile', 'mm_users.email'])->with(['personnel', 'roles', 'entityUsers'])->get();
 
     return response()->json([
         'success' => true,

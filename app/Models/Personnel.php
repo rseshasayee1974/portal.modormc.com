@@ -75,6 +75,11 @@ class Personnel extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function driver()
+    {
+        return $this->hasOne(Driver::class, 'personnel_id');
+    }
+
     public function entity()
     {
         return $this->belongsTo(Entity::class, 'entity_id');

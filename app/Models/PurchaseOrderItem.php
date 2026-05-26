@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\OrderTax;
+
 
 class PurchaseOrderItem extends Model
 {
@@ -63,6 +65,16 @@ class PurchaseOrderItem extends Model
     {
         return $this->belongsTo(ProductUnit::class, 'product_uom');
     }
+
+    /**
+     * Rate-wise tax lines for this purchase item (from mm_order_taxes).
+     * Used for CGST/SGST/IGST breakdown in Purchase Register.
+     */
+    public function itemTaxes()
+    {
+        return $this->hasMany(OrderTax::class, 'order_items_id');
+    }
+
 
     public function tax()
     {

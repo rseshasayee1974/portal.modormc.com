@@ -58,6 +58,7 @@ const modules = [
             { id: 'inventory_stock', name: 'Stock Status List', description: 'Product stock levels, opening balances and current status' },
             { id: 'inventory_inward', name: 'Purchase Inward Receipts', description: 'Inward histories, truck weights and purchase records' },
             { id: 'purchase', name: 'Purchase & Bills Summary', description: 'PO breakdown, product cost logs and vendor bills' },
+            { id: 'purchase_register', name: 'Purchase Register Report', description: 'Itemized purchase bills with supplier GST, rate, and values' },
         ]
     },
     {
@@ -65,6 +66,7 @@ const modules = [
         name: 'Production & Dispatch',
         reports: [
             { id: 'sales', name: 'Sales & Dispatches', description: 'Invoice listings, dispatch volumes and concrete grades' },
+            { id: 'sales_register', name: 'Sales Register Report', description: 'Itemized sales invoices with GST breakdown, rate, and taxable values' },
             { id: 'production_batch', name: 'Batch Production Sheet', description: 'Batch mix designs, target vs actual aggregate loads' },
         ]
     },
@@ -73,6 +75,8 @@ const modules = [
         name: 'Fleet & Machinery',
         reports: [
             { id: 'machines_list', name: 'Machine Fleet Inventory', description: 'Active fleet list, mixer capacities and vehicle specs' },
+            { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
+            { id: 'vehicle_pl', name: 'Vehicle Wise Profit & Loss', description: 'Vehicle financial breakdown: revenue, trip costs, fuel/maintenance, total costs, net profit, and profit margin %' },
         ]
     },
     {
@@ -94,6 +98,50 @@ const endDate = ref(props.filters.end_date);
 const loading = ref(false);
 const reportData = ref(null);
 
+const gstType = ref(null);
+const paymentStatus = ref(null);
+const currentPage = ref(1);
+
+const exportProgress = ref(null);
+const pollingInterval = ref(null);
+
+const gstTypeOptions = [
+    { label: 'All GST Types', value: null },
+    { label: 'Intra-State (CGST + SGST)', value: 'intra' },
+    { label: 'Inter-State (IGST)', value: 'inter' }
+];
+
+const paymentStatusOptions = [
+    { label: 'All Statuses', value: null },
+    { label: 'Paid Only', value: 'paid' },
+    { label: 'Unpaid Only', value: 'unpaid' },
+    { label: 'Partially Paid', value: 'partial' }
+];
+
+const checkExportStatus = (key) => {
+    pollingInterval.value = setInterval(async () => {
+        try {
+            const response = await axios.get(route('reports.export-status', { key }));
+            const data = response.data;
+            exportProgress.value = data;
+
+            if (data.status === 'completed') {
+                clearInterval(pollingInterval.value);
+                pollingInterval.value = null;
+                window.open(data.url, '_blank');
+                exportProgress.value = null;
+            } else if (data.status === 'failed') {
+                clearInterval(pollingInterval.value);
+                pollingInterval.value = null;
+                alert('Export failed: ' + data.error);
+                exportProgress.value = null;
+            }
+        } catch (error) {
+            console.error('Error polling export status:', error);
+        }
+    }, 3000);
+};
+
 const activeModule = computed(() => {
     return modules.find(m => m.id === selectedModuleId.value);
 });
@@ -110,11 +158,27 @@ watch(selectedModuleId, (newModuleId) => {
         reportData.value = null;
         selectedId.value = null;
         patronId.value = null;
+        gstType.value = null;
+        paymentStatus.value = null;
+        currentPage.value = 1;
+        if (pollingInterval.value) {
+            clearInterval(pollingInterval.value);
+            pollingInterval.value = null;
+        }
+        exportProgress.value = null;
     }
 });
 
 watch(reportType, () => {
     reportData.value = null;
+    gstType.value = null;
+    paymentStatus.value = null;
+    currentPage.value = 1;
+    if (pollingInterval.value) {
+        clearInterval(pollingInterval.value);
+        pollingInterval.value = null;
+    }
+    exportProgress.value = null;
 });
 
 const generateReport = async () => {
@@ -122,16 +186,52 @@ const generateReport = async () => {
     
     loading.value = true;
     try {
-        const response = await axios.get(route('reports.generate'), {
-            params: {
-                type: reportType.value,
-                id: selectedId.value,
-                patron_id: patronId.value,
-                start_date: startDate.value,
-                end_date: endDate.value,
-                export: 'view'
-            }
-        });
+        let url = route('reports.generate');
+        let params = {
+            type: reportType.value,
+            id: selectedId.value,
+            patron_id: patronId.value,
+            start_date: startDate.value,
+            end_date: endDate.value,
+            export: 'view'
+        };
+
+        if (reportType.value === 'sales_register') {
+            url = route('reports.sales-register');
+            params = {
+                from_date: startDate.value,
+                to_date: endDate.value,
+                customer_id: patronId.value,
+                gst_type: gstType.value,
+                payment_status: paymentStatus.value,
+                page: currentPage.value
+            };
+        } else if (reportType.value === 'purchase_register') {
+            url = route('reports.purchase-register');
+            params = {
+                from_date: startDate.value,
+                to_date: endDate.value,
+                supplier_id: patronId.value,
+                gst_type: gstType.value,
+                page: currentPage.value
+            };
+        } else if (reportType.value === 'machine_summary') {
+            url = route('reports.machine-summary');
+            params = {
+                from_date: startDate.value,
+                to_date: endDate.value,
+                page: currentPage.value
+            };
+        } else if (reportType.value === 'vehicle_pl') {
+            url = route('reports.vehicle-pl');
+            params = {
+                from_date: startDate.value,
+                to_date: endDate.value,
+                page: currentPage.value
+            };
+        }
+
+        const response = await axios.get(url, { params });
         reportData.value = response.data;
     } catch (error) {
         console.error(error);
@@ -141,7 +241,7 @@ const generateReport = async () => {
 };
 
 const exportPdf = () => {
-    const url = route('reports.generate', {
+    let url = route('reports.generate', {
         type: reportType.value,
         id: selectedId.value,
         patron_id: patronId.value,
@@ -149,11 +249,42 @@ const exportPdf = () => {
         end_date: endDate.value,
         export: 'pdf'
     });
+
+    if (reportType.value === 'sales_register') {
+        url = route('reports.sales-register', {
+            from_date: startDate.value,
+            to_date: endDate.value,
+            customer_id: patronId.value,
+            gst_type: gstType.value,
+            payment_status: paymentStatus.value,
+            export: 'pdf'
+        });
+    } else if (reportType.value === 'purchase_register') {
+        url = route('reports.purchase-register', {
+            from_date: startDate.value,
+            to_date: endDate.value,
+            supplier_id: patronId.value,
+            gst_type: gstType.value,
+            export: 'pdf'
+        });
+    } else if (reportType.value === 'machine_summary') {
+        url = route('reports.machine-summary', {
+            from_date: startDate.value,
+            to_date: endDate.value,
+            export: 'pdf'
+        });
+    } else if (reportType.value === 'vehicle_pl') {
+        url = route('reports.vehicle-pl', {
+            from_date: startDate.value,
+            to_date: endDate.value,
+            export: 'pdf'
+        });
+    }
     window.open(url, '_blank');
 };
 
-const exportExcel = () => {
-    const url = route('reports.generate', {
+const exportExcel = async () => {
+    let url = route('reports.generate', {
         type: reportType.value,
         id: selectedId.value,
         patron_id: patronId.value,
@@ -161,7 +292,57 @@ const exportExcel = () => {
         end_date: endDate.value,
         export: 'excel'
     });
-    window.open(url, '_blank');
+
+    if (reportType.value === 'sales_register') {
+        url = route('reports.sales-register', {
+            from_date: startDate.value,
+            to_date: endDate.value,
+            customer_id: patronId.value,
+            gst_type: gstType.value,
+            payment_status: paymentStatus.value,
+            export: 'excel'
+        });
+    } else if (reportType.value === 'purchase_register') {
+        url = route('reports.purchase-register', {
+            from_date: startDate.value,
+            to_date: endDate.value,
+            supplier_id: patronId.value,
+            gst_type: gstType.value,
+            export: 'excel'
+        });
+    } else if (reportType.value === 'machine_summary') {
+        url = route('reports.machine-summary', {
+            from_date: startDate.value,
+            to_date: endDate.value,
+            export: 'excel'
+        });
+    } else if (reportType.value === 'vehicle_pl') {
+        url = route('reports.vehicle-pl', {
+            from_date: startDate.value,
+            to_date: endDate.value,
+            export: 'excel'
+        });
+    }
+
+    if (['sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl'].includes(reportType.value)) {
+        loading.value = true;
+        try {
+            const response = await axios.get(url);
+            if (response.data && response.data.queued) {
+                exportProgress.value = { status: 'queued', progress: 0 };
+                checkExportStatus(response.data.status_key);
+            } else {
+                window.open(url + (url.indexOf('?') !== -1 ? '&direct=1' : '?direct=1'), '_blank');
+            }
+        } catch (error) {
+            console.error('Error initiating Excel export:', error);
+            alert('Export failed to start.');
+        } finally {
+            loading.value = false;
+        }
+    } else {
+        window.open(url, '_blank');
+    }
 };
 
 const transactionsWithBalance = computed(() => {
@@ -179,6 +360,11 @@ const formatCurrency = (val) => {
         style: 'currency',
         currency: 'INR',
     }).format(val);
+};
+
+const sumTotalTaxesKey = (key) => {
+    if (!reportData.value || !reportData.value.data) return 0;
+    return reportData.value.data.reduce((sum, row) => sum + (row.taxes?.[key] || 0), 0);
 };
 </script>
 
@@ -261,6 +447,18 @@ const formatCurrency = (val) => {
                         </select>
                     </div>
 
+                    <!-- Background Progress Alert -->
+                    <div v-if="exportProgress" class="mb-6 bg-[#f2f7fc] border border-[#0064d2] p-4 rounded flex items-center gap-4">
+                        <span class="w-5 h-5 border-2 border-[#0064d2] border-t-transparent rounded-full animate-spin shrink-0"></span>
+                        <div class="flex-1">
+                            <h4 class="text-xs font-bold text-[#0064d2] uppercase">Export Generation in Progress</h4>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Please wait while the server builds your document. This won't block other tasks.</p>
+                            <div v-if="exportProgress.progress" class="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                                <div class="bg-[#0064d2] h-full transition-all duration-300" :style="{ width: exportProgress.progress + '%' }"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- SAP Fiori Smart Filter Bar -->
                     <div class="bg-white rounded border border-slate-200 shadow-sm mb-6">
                         <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
@@ -289,8 +487,10 @@ const formatCurrency = (val) => {
                                 </div>
 
                                 <!-- Patron Dropdown -->
-                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Partner</span>
+                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register'].includes(reportType)" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">
+                                        {{ reportType === 'sales_register' ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
+                                    </span>
                                     <BaseSelect 
                                         v-model="patronId"
                                         :options="patrons"
@@ -299,6 +499,32 @@ const formatCurrency = (val) => {
                                         :filterFields="['legal_name', 'email', 'phone', 'contact_person']"
                                         placeholder="All Partners"
                                         filter
+                                        showClear
+                                    />
+                                </div>
+
+                                <!-- GST Type (Sales & Purchase Register) -->
+                                <div v-if="['sales_register', 'purchase_register'].includes(reportType)" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">GST Type</span>
+                                    <BaseSelect 
+                                        v-model="gstType"
+                                        :options="gstTypeOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        placeholder="All GST Types"
+                                        showClear
+                                    />
+                                </div>
+
+                                <!-- Payment Status (Sales Register only) -->
+                                <div v-if="reportType === 'sales_register'" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Payment Status</span>
+                                    <BaseSelect 
+                                        v-model="paymentStatus"
+                                        :options="paymentStatusOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        placeholder="All Statuses"
                                         showClear
                                     />
                                 </div>
@@ -366,9 +592,54 @@ const formatCurrency = (val) => {
                         </div>
 
                         <div class="p-5">
-                            
                             <!-- KPI Block Grid -->
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                                <!-- Sales Register KPI Block -->
+                                <div v-if="reportType === 'sales_register'" class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Taxable Sales</span>
+                                        <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{ formatCurrency(reportData.totals?.taxable) }}</span>
+                                    </div>
+                                    <BanknotesIcon class="w-5 h-5 text-slate-400" />
+                                </div>
+                                <div v-if="reportType === 'sales_register'" class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total GST Collected</span>
+                                        <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{ formatCurrency(reportData.totals?.gst) }}</span>
+                                    </div>
+                                    <BanknotesIcon class="w-5 h-5 text-slate-400" />
+                                </div>
+                                <div v-if="reportType === 'sales_register'" class="border border-slate-200 rounded p-4 bg-[#e2f0d9] border-[#c5e0b4] flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-[#385723] uppercase tracking-wider block">Grand Sales Total</span>
+                                        <span class="text-lg font-black text-[#385723] mt-1 block">{{ formatCurrency(reportData.totals?.grand_total) }}</span>
+                                    </div>
+                                    <BanknotesIcon class="w-5 h-5 text-[#385723]" />
+                                </div>
+
+                                <!-- Purchase Register KPI Block -->
+                                <div v-if="reportType === 'purchase_register'" class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Taxable Purchases</span>
+                                        <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{ formatCurrency(reportData.totals?.taxable) }}</span>
+                                    </div>
+                                    <BanknotesIcon class="w-5 h-5 text-slate-400" />
+                                </div>
+                                <div v-if="reportType === 'purchase_register'" class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total GST Paid</span>
+                                        <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{ formatCurrency(reportData.totals?.gst) }}</span>
+                                    </div>
+                                    <BanknotesIcon class="w-5 h-5 text-slate-400" />
+                                </div>
+                                <div v-if="reportType === 'purchase_register'" class="border border-slate-200 rounded p-4 bg-[#fce4d6] border-[#f8cbad] flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-[#c65911] uppercase tracking-wider block">Grand Purchase Total</span>
+                                        <span class="text-lg font-black text-[#c65911] mt-1 block">{{ formatCurrency(reportData.totals?.grand_total) }}</span>
+                                    </div>
+                                    <BanknotesIcon class="w-5 h-5 text-[#c65911]" />
+                                </div>
+
                                 <div v-if="reportType === 'inventory_stock'" class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
                                     <div>
                                         <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Consolidated Stock</span>
@@ -401,6 +672,62 @@ const formatCurrency = (val) => {
                                     <TruckIcon class="w-5 h-5 text-slate-400" />
                                 </div>
 
+                                <!-- Machine Summary KPI Block -->
+                                <div v-if="reportType === 'machine_summary'" class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total Trips</span>
+                                        <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{ reportData.totals?.trips_count }}</span>
+                                    </div>
+                                    <TruckIcon class="w-5 h-5 text-slate-400" />
+                                </div>
+                                <div v-if="reportType === 'machine_summary'" class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total Revenue</span>
+                                        <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{ formatCurrency(reportData.totals?.total_revenue) }}</span>
+                                    </div>
+                                    <BanknotesIcon class="w-5 h-5 text-slate-400" />
+                                </div>
+                                <div v-if="reportType === 'machine_summary'" class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Total General Expenses</span>
+                                        <span class="text-lg font-black text-red-650 mt-1 block">{{ formatCurrency(reportData.totals?.general_expenses) }}</span>
+                                    </div>
+                                    <BanknotesIcon class="w-5 h-5 text-red-400" />
+                                </div>
+
+                                <!-- Vehicle PL KPI Block -->
+                                <div v-if="reportType === 'vehicle_pl'" class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Fleet Revenue</span>
+                                        <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{ formatCurrency(reportData.totals?.trip_revenue) }}</span>
+                                    </div>
+                                    <BanknotesIcon class="w-5 h-5 text-slate-400" />
+                                </div>
+                                <div v-if="reportType === 'vehicle_pl'" class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
+                                    <div>
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Fleet Total Expenses</span>
+                                        <span class="text-lg font-black text-slate-700 mt-1 block">{{ formatCurrency(reportData.totals?.total_cost) }}</span>
+                                    </div>
+                                    <BanknotesIcon class="w-5 h-5 text-slate-400" />
+                                </div>
+                                <div v-if="reportType === 'vehicle_pl'" class="border border-slate-200 rounded p-4 flex justify-between items-center"
+                                     :class="(reportData.totals?.net_profit || 0) >= 0 ? 'bg-[#e2f0d9] border-[#c5e0b4]' : 'bg-red-50 border-red-200'"
+                                >
+                                    <div>
+                                        <span class="text-[9px] font-bold uppercase tracking-wider block"
+                                              :class="(reportData.totals?.net_profit || 0) >= 0 ? 'text-[#385723]' : 'text-red-700'"
+                                        >
+                                            Net Profit / Loss
+                                        </span>
+                                        <span class="text-lg font-black mt-1 block"
+                                              :class="(reportData.totals?.net_profit || 0) >= 0 ? 'text-[#385723]' : 'text-red-700'"
+                                        >
+                                            {{ formatCurrency(reportData.totals?.net_profit) }}
+                                        </span>
+                                    </div>
+                                    <BanknotesIcon class="w-5 h-5" :class="(reportData.totals?.net_profit || 0) >= 0 ? 'text-[#385723]' : 'text-red-500'" />
+                                </div>
+
                                 <div v-if="reportType === 'payroll_personnel'" class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
                                     <div>
                                         <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Plant Headcount</span>
@@ -410,8 +737,198 @@ const formatCurrency = (val) => {
                                 </div>
                             </div>
 
+                            <!-- Dynamic View: Sales Register Report -->
+                            <div v-if="reportType === 'sales_register'">
+                                <div class="overflow-x-auto border border-slate-200 rounded">
+                                    <table class="w-full text-left border-collapse min-w-[1200px]">
+                                        <thead>
+                                            <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                                                <th class="py-3 px-4 text-center" width="3%">#</th>
+                                                <th class="py-3 px-4" width="8%">Invoice No</th>
+                                                <th class="py-3 px-4 text-center" width="8%">Date</th>
+                                                <th class="py-3 px-4" width="14%">Customer Name</th>
+                                                <th class="py-3 px-4 text-center" width="9%">GSTIN</th>
+                                                <th class="py-3 px-4" width="10%">Product</th>
+                                                <th class="py-3 px-4 text-right" width="5%">Qty</th>
+                                                <th class="py-3 px-4 text-right" width="6%">Rate</th>
+                                                <th class="py-3 px-4 text-right" width="8%">Taxable Amt</th>
+                                                <th class="py-3 px-4 text-right" width="6%">CGST</th>
+                                                <th class="py-3 px-4 text-right" width="6%">SGST</th>
+                                                <th class="py-3 px-4 text-right" width="6%">IGST</th>
+                                                <!-- Dynamic tax rate columns -->
+                                                <th v-for="col in reportData.tax_columns" :key="col.key" class="py-3 px-4 text-right text-slate-650" width="6%">
+                                                    {{ col.label }}
+                                                </th>
+                                                <th class="py-3 px-4 text-right" width="8%">Net Amt</th>
+                                                <th class="py-3 px-4 text-center" width="8%">Payment</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="text-[11px] font-semibold text-slate-700">
+                                            <tr v-for="(row, idx) in reportData.data" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                                                <td class="py-3 px-4 text-center text-slate-400">
+                                                     {{ (currentPage - 1) * (reportData.pagination?.per_page || 100) + idx + 1 }}
+                                                </td>
+                                                <td class="py-3 px-4 font-bold text-slate-800">{{ row.invoice_no }}</td>
+                                                <td class="py-3 px-4 text-center text-slate-500">{{ row.invoice_date }}</td>
+                                                <td class="py-3 px-4">{{ row.customer_name }}</td>
+                                                <td class="py-3 px-4 text-center text-slate-650">{{ row.gst_number || 'N/A' }}</td>
+                                                <td class="py-3 px-4 text-slate-600">{{ row.product_name }}</td>
+                                                <td class="py-3 px-4 text-right">{{ row.qty.toFixed(2) }}</td>
+                                                <td class="py-3 px-4 text-right">{{ formatCurrency(row.rate) }}</td>
+                                                <td class="py-3 px-4 text-right">{{ formatCurrency(row.taxable_amount) }}</td>
+                                                <td class="py-3 px-4 text-right text-slate-600">{{ formatCurrency(row.cgst) }}</td>
+                                                <td class="py-3 px-4 text-right text-slate-600">{{ formatCurrency(row.sgst) }}</td>
+                                                <td class="py-3 px-4 text-right text-slate-600">{{ formatCurrency(row.igst) }}</td>
+                                                <!-- Dynamic tax rate columns values -->
+                                                <td v-for="col in reportData.tax_columns" :key="col.key" class="py-3 px-4 text-right text-slate-500">
+                                                    {{ formatCurrency(row.taxes?.[col.key] || 0) }}
+                                                </td>
+                                                <td class="py-3 px-4 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.net_amount) }}</td>
+                                                <td class="py-3 px-4 text-center">
+                                                     <span class="px-2 py-0.5 rounded text-[9px] font-bold" 
+                                                         :class="[
+                                                              row.payment_status === 'Paid' ? 'bg-[#e2f0d9] text-[#385723] border border-[#c5e0b4]' : 
+                                                              (row.payment_status === 'Partial' ? 'bg-[#fce4d6] text-[#c65911] border border-[#f8cbad]' : 'bg-red-50 text-red-700 border border-red-200')
+                                                          ]"
+                                                     >
+                                                          {{ row.payment_status }}
+                                                     </span>
+                                                </td>
+                                            </tr>
+                                            <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
+                                                <td colspan="6" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Sales</td>
+                                                <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ reportData.totals?.qty.toFixed(2) }}</td>
+                                                <td></td>
+                                                <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.taxable) }}</td>
+                                                <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.cgst) }}</td>
+                                                <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.sgst) }}</td>
+                                                <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.igst) }}</td>
+                                                <!-- Dynamic tax rate columns totals -->
+                                                <td v-for="col in reportData.tax_columns" :key="col.key" class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">
+                                                    {{ formatCurrency(sumTotalTaxesKey(col.key)) }}
+                                                </td>
+                                                <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black bg-slate-100">{{ formatCurrency(reportData.totals?.grand_total) }}</td>
+                                                <td></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Pagination Controls -->
+                                <div v-if="reportData.pagination && reportData.pagination.last_page > 1" class="mt-4 flex justify-between items-center bg-slate-50 p-3 rounded border border-slate-200">
+                                    <span class="text-xs text-slate-500 font-semibold">
+                                         Showing page {{ reportData.pagination.current_page }} of {{ reportData.pagination.last_page }} (Total {{ reportData.pagination.total }} entries)
+                                    </span>
+                                    <div class="flex gap-2">
+                                         <button 
+                                             @click="currentPage--; generateReport();"
+                                             :disabled="currentPage <= 1"
+                                             class="px-3 py-1.5 border border-slate-200 hover:bg-slate-150 text-xs font-bold text-slate-700 rounded disabled:opacity-50"
+                                         >
+                                             Previous
+                                         </button>
+                                         <button 
+                                             @click="currentPage++; generateReport();"
+                                             :disabled="currentPage >= reportData.pagination.last_page"
+                                             class="px-3 py-1.5 border border-slate-200 hover:bg-slate-150 text-xs font-bold text-slate-700 rounded disabled:opacity-50"
+                                         >
+                                             Next
+                                         </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Dynamic View: Purchase Register Report -->
+                            <div v-else-if="reportType === 'purchase_register'">
+                                <div class="overflow-x-auto border border-slate-200 rounded">
+                                    <table class="w-full text-left border-collapse min-w-[1200px]">
+                                        <thead>
+                                             <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                                                 <th class="py-3 px-4 text-center" width="3%">#</th>
+                                                 <th class="py-3 px-4" width="8%">Bill No</th>
+                                                 <th class="py-3 px-4 text-center" width="8%">Bill Date</th>
+                                                 <th class="py-3 px-4" width="14%">Supplier Name</th>
+                                                 <th class="py-3 px-4 text-center" width="9%">GSTIN</th>
+                                                 <th class="py-3 px-4" width="10%">Product</th>
+                                                 <th class="py-3 px-4 text-right" width="5%">Qty</th>
+                                                 <th class="py-3 px-4 text-right" width="6%">Rate</th>
+                                                 <th class="py-3 px-4 text-right" width="8%">Taxable Amt</th>
+                                                 <th class="py-3 px-4 text-right" width="6%">CGST</th>
+                                                 <th class="py-3 px-4 text-right" width="6%">SGST</th>
+                                                 <th class="py-3 px-4 text-right" width="6%">IGST</th>
+                                                 <!-- Dynamic tax rate columns -->
+                                                 <th v-for="col in reportData.tax_columns" :key="col.key" class="py-3 px-4 text-right text-slate-650" width="6%">
+                                                     {{ col.label }}
+                                                 </th>
+                                                 <th class="py-3 px-4 text-right" width="8%">Net Amt</th>
+                                             </tr>
+                                        </thead>
+                                        <tbody class="text-[11px] font-semibold text-slate-700">
+                                             <tr v-for="(row, idx) in reportData.data" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                                                 <td class="py-3 px-4 text-center text-slate-400">
+                                                     {{ (currentPage - 1) * (reportData.pagination?.per_page || 100) + idx + 1 }}
+                                                 </td>
+                                                 <td class="py-3 px-4 font-bold text-slate-800">{{ row.bill_no }}</td>
+                                                 <td class="py-3 px-4 text-center text-slate-500">{{ row.bill_date }}</td>
+                                                 <td class="py-3 px-4">{{ row.supplier_name }}</td>
+                                                 <td class="py-3 px-4 text-center text-slate-650">{{ row.gst_number || 'N/A' }}</td>
+                                                 <td class="py-3 px-4 text-slate-600">{{ row.product_name }}</td>
+                                                 <td class="py-3 px-4 text-right">{{ row.qty.toFixed(2) }}</td>
+                                                 <td class="py-3 px-4 text-right">{{ formatCurrency(row.purchase_rate) }}</td>
+                                                 <td class="py-3 px-4 text-right">{{ formatCurrency(row.taxable_amount) }}</td>
+                                                 <td class="py-3 px-4 text-right text-slate-600">{{ formatCurrency(row.cgst) }}</td>
+                                                 <td class="py-3 px-4 text-right text-slate-600">{{ formatCurrency(row.sgst) }}</td>
+                                                 <td class="py-3 px-4 text-right text-slate-600">{{ formatCurrency(row.igst) }}</td>
+                                                 <!-- Dynamic tax rate columns values -->
+                                                 <td v-for="col in reportData.tax_columns" :key="col.key" class="py-3 px-4 text-right text-slate-500">
+                                                     {{ formatCurrency(row.taxes?.[col.key] || 0) }}
+                                                 </td>
+                                                 <td class="py-3 px-4 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.net_amount) }}</td>
+                                             </tr>
+                                             <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
+                                                 <td colspan="6" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Purchases</td>
+                                                 <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ reportData.totals?.qty.toFixed(2) }}</td>
+                                                 <td></td>
+                                                 <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.taxable) }}</td>
+                                                 <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.cgst) }}</td>
+                                                 <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.sgst) }}</td>
+                                                 <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.igst) }}</td>
+                                                 <!-- Dynamic tax rate columns totals -->
+                                                 <td v-for="col in reportData.tax_columns" :key="col.key" class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">
+                                                     {{ formatCurrency(sumTotalTaxesKey(col.key)) }}
+                                                 </td>
+                                                 <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black bg-slate-100">{{ formatCurrency(reportData.totals?.grand_total) }}</td>
+                                             </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <!-- Pagination Controls -->
+                                <div v-if="reportData.pagination && reportData.pagination.last_page > 1" class="mt-4 flex justify-between items-center bg-slate-50 p-3 rounded border border-slate-200">
+                                     <span class="text-xs text-slate-500 font-semibold">
+                                         Showing page {{ reportData.pagination.current_page }} of {{ reportData.pagination.last_page }} (Total {{ reportData.pagination.total }} entries)
+                                     </span>
+                                     <div class="flex gap-2">
+                                         <button 
+                                             @click="currentPage--; generateReport();"
+                                             :disabled="currentPage <= 1"
+                                             class="px-3 py-1.5 border border-slate-200 hover:bg-slate-150 text-xs font-bold text-slate-700 rounded disabled:opacity-50"
+                                         >
+                                             Previous
+                                         </button>
+                                         <button 
+                                             @click="currentPage++; generateReport();"
+                                             :disabled="currentPage >= reportData.pagination.last_page"
+                                             class="px-3 py-1.5 border border-slate-200 hover:bg-slate-150 text-xs font-bold text-slate-700 rounded disabled:opacity-50"
+                                         >
+                                             Next
+                                         </button>
+                                     </div>
+                                </div>
+                            </div>
+
                             <!-- Dynamic View: Inventory Stock Levels -->
-                            <div v-if="reportType === 'inventory_stock'">
+                            <div v-else-if="reportType === 'inventory_stock'">
                                 <div class="overflow-x-auto border border-slate-200 rounded">
                                     <table class="w-full text-left border-collapse min-w-[800px]">
                                         <thead>
@@ -575,6 +1092,187 @@ const formatCurrency = (val) => {
                                     </table>
                                 </div>
                             </div>
+
+                            <!-- Dynamic View: Machine Summary Report -->
+                            <div v-else-if="reportType === 'machine_summary'">
+                                <div class="overflow-x-auto border border-slate-200 rounded">
+                                    <table class="w-full text-left border-collapse min-w-[1000px]">
+                                        <thead>
+                                            <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                                                <th class="py-3 px-4 text-center" width="3%">#</th>
+                                                <th class="py-3 px-4 text-center" width="10%">Registration</th>
+                                                <th class="py-3 px-4" width="12%">Model</th>
+                                                <th class="py-3 px-4 text-center" width="10%">Type</th>
+                                                <th class="py-3 px-4 text-center" width="8%">Make Year</th>
+                                                <th class="py-3 px-4 text-right" width="8%">Capacity</th>
+                                                <th class="py-3 px-4" width="12%">Owner</th>
+                                                <th class="py-3 px-4 text-center" width="6%">Trips</th>
+                                                <th class="py-3 px-4 text-right" width="8%">Qty</th>
+                                                <th class="py-3 px-4 text-right" width="10%">Revenue</th>
+                                                <th class="py-3 px-4 text-right" width="10%">Expenses</th>
+                                                <th class="py-3 px-4" width="15%">Alerts</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="text-[11px] font-semibold text-slate-700">
+                                            <tr v-for="(row, idx) in reportData.data" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                                                <td class="py-3 px-4 text-center text-slate-400">
+                                                    {{ (currentPage - 1) * (reportData.pagination?.per_page || 100) + idx + 1 }}
+                                                </td>
+                                                <td class="py-3 px-4 text-center font-bold text-slate-800">{{ row.registration }}</td>
+                                                <td class="py-3 px-4 text-slate-800">{{ row.vehicle_model }}</td>
+                                                <td class="py-3 px-4 text-center">
+                                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
+                                                        {{ row.vehicle_type }}
+                                                    </span>
+                                                </td>
+                                                <td class="py-3 px-4 text-center text-slate-500">{{ row.make_year }}</td>
+                                                <td class="py-3 px-4 text-right text-slate-700">{{ row.capacity }}</td>
+                                                <td class="py-3 px-4 text-slate-650">{{ row.owner }}</td>
+                                                <td class="py-3 px-4 text-center">{{ row.trips_count }}</td>
+                                                <td class="py-3 px-4 text-right">
+                                                    {{ row.total_qty.toFixed(2) }}
+                                                    <div class="text-[9px] text-slate-400 font-normal">{{ row.total_weight_tons.toFixed(2) }} Tons</div>
+                                                </td>
+                                                <td class="py-3 px-4 text-right">{{ formatCurrency(row.total_revenue) }}</td>
+                                                <td class="py-3 px-4 text-right">{{ formatCurrency(row.general_expenses) }}</td>
+                                                <td class="py-3 px-4">
+                                                    <div v-for="(alert, aIdx) in row.alerts" :key="aIdx" 
+                                                         class="text-[9px] font-bold leading-tight"
+                                                         :class="alert.status === 'expired' ? 'text-red-600' : 'text-amber-600'"
+                                                    >
+                                                        ⚠️ {{ alert.message }}
+                                                    </div>
+                                                    <span v-if="!row.alerts || row.alerts.length === 0" class="text-green-600 text-[9px] font-bold">✓ Active</span>
+                                                </td>
+                                            </tr>
+                                            <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
+                                                <td colspan="7" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Fleet Summary</td>
+                                                <td class="py-3.5 px-4 text-center text-[#1d2d3e] font-black">{{ reportData.totals?.trips_count }}</td>
+                                                <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">
+                                                    {{ reportData.totals?.total_qty.toFixed(2) }}
+                                                    <div class="text-[9px] text-slate-500 font-semibold">{{ reportData.totals?.total_weight_tons.toFixed(2) }} Tons</div>
+                                                </td>
+                                                <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black bg-slate-50/50">{{ formatCurrency(reportData.totals?.total_revenue) }}</td>
+                                                <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black bg-slate-50/50">{{ formatCurrency(reportData.totals?.general_expenses) }}</td>
+                                                <td></td>
+                                              </tr>
+                                          </tbody>
+                                      </table>
+                                  </div>
+
+                                  <!-- Pagination Controls -->
+                                  <div v-if="reportData.pagination && reportData.pagination.last_page > 1" class="mt-4 flex justify-between items-center bg-slate-50 p-3 rounded border border-slate-200">
+                                      <span class="text-xs text-slate-500 font-semibold">
+                                           Showing page {{ reportData.pagination.current_page }} of {{ reportData.pagination.last_page }} (Total {{ reportData.pagination.total }} entries)
+                                      </span>
+                                      <div class="flex gap-2">
+                                           <button 
+                                               @click="currentPage--; generateReport();"
+                                               :disabled="currentPage <= 1"
+                                               class="px-3 py-1.5 border border-slate-200 hover:bg-slate-150 text-xs font-bold text-slate-700 rounded disabled:opacity-50"
+                                           >
+                                               Previous
+                                           </button>
+                                           <button 
+                                               @click="currentPage++; generateReport();"
+                                               :disabled="currentPage >= reportData.pagination.last_page"
+                                               class="px-3 py-1.5 border border-slate-200 hover:bg-slate-150 text-xs font-bold text-slate-700 rounded disabled:opacity-50"
+                                           >
+                                               Next
+                                           </button>
+                                      </div>
+                                  </div>
+                              </div>
+
+                              <!-- Dynamic View: Vehicle Wise Profit & Loss Report -->
+                              <div v-else-if="reportType === 'vehicle_pl'">
+                                  <div class="overflow-x-auto border border-slate-200 rounded">
+                                      <table class="w-full text-left border-collapse min-w-[1000px]">
+                                          <thead>
+                                              <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
+                                                  <th class="py-3 px-4 text-center" width="3%">#</th>
+                                                  <th class="py-3 px-4 text-center" width="10%">Registration</th>
+                                                  <th class="py-3 px-4" width="12%">Model</th>
+                                                  <th class="py-3 px-4 text-right" width="11%">Trip Revenue</th>
+                                                  <th class="py-3 px-4 text-right" width="11%">Trip Cost</th>
+                                                  <th class="py-3 px-4 text-right" width="11%">Fuel Expense</th>
+                                                  <th class="py-3 px-4 text-right" width="11%">Maintenance</th>
+                                                  <th class="py-3 px-4 text-right" width="11%">Other Expense</th>
+                                                  <th class="py-3 px-4 text-right" width="11%">Total Cost</th>
+                                                  <th class="py-3 px-4 text-right" width="11%">Net Profit</th>
+                                                  <th class="py-3 px-4 text-right" width="8%">Margin %</th>
+                                              </tr>
+                                          </thead>
+                                          <tbody class="text-[11px] font-semibold text-slate-700">
+                                              <tr v-for="(row, idx) in reportData.data" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
+                                                  <td class="py-3 px-4 text-center text-slate-400">
+                                                      {{ (currentPage - 1) * (reportData.pagination?.per_page || 100) + idx + 1 }}
+                                                  </td>
+                                                  <td class="py-3 px-4 text-center font-bold text-slate-800">{{ row.registration }}</td>
+                                                  <td class="py-3 px-4 text-slate-800">{{ row.vehicle_model }}</td>
+                                                  <td class="py-3 px-4 text-right">{{ formatCurrency(row.trip_revenue) }}</td>
+                                                  <td class="py-3 px-4 text-right">{{ formatCurrency(row.trip_cost) }}</td>
+                                                  <td class="py-3 px-4 text-right">{{ formatCurrency(row.fuel_expenses) }}</td>
+                                                  <td class="py-3 px-4 text-right">{{ formatCurrency(row.maintenance_expenses) }}</td>
+                                                  <td class="py-3 px-4 text-right">{{ formatCurrency(row.other_expenses) }}</td>
+                                                  <td class="py-3 px-4 text-right font-bold text-slate-800 bg-slate-50/20">{{ formatCurrency(row.total_cost) }}</td>
+                                                  <td class="py-3 px-4 text-right font-bold" 
+                                                      :class="row.net_profit >= 0 ? 'text-green-600' : 'text-red-600'"
+                                                  >
+                                                      {{ formatCurrency(row.net_profit) }}
+                                                  </td>
+                                                  <td class="py-3 px-4 text-right font-bold" 
+                                                      :class="row.margin_pct >= 0 ? 'text-green-600 font-extrabold' : 'text-red-600 font-extrabold'"
+                                                  >
+                                                      {{ row.margin_pct.toFixed(2) }}%
+                                                  </td>
+                                              </tr>
+                                              <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
+                                                  <td colspan="3" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total P&L</td>
+                                                  <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.trip_revenue) }}</td>
+                                                  <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.trip_cost) }}</td>
+                                                  <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.fuel_expenses) }}</td>
+                                                  <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.maintenance_expenses) }}</td>
+                                                  <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.other_expenses) }}</td>
+                                                  <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black bg-slate-100">{{ formatCurrency(reportData.totals?.total_cost) }}</td>
+                                                  <td class="py-3.5 px-4 text-right font-black" 
+                                                      :class="(reportData.totals?.net_profit || 0) >= 0 ? 'text-green-600 bg-slate-100' : 'text-red-600 bg-slate-100'"
+                                                  >
+                                                      {{ formatCurrency(reportData.totals?.net_profit) }}
+                                                  </td>
+                                                  <td class="py-3.5 px-4 text-right font-black" 
+                                                      :class="(reportData.totals?.margin_pct || 0) >= 0 ? 'text-green-600 bg-slate-100' : 'text-red-600 bg-slate-100'"
+                                                  >
+                                                      {{ (reportData.totals?.margin_pct || 0).toFixed(2) }}%
+                                                  </td>
+                                              </tr>
+                                          </tbody>
+                                      </table>
+                                  </div>
+
+                                  <!-- Pagination Controls -->
+                                  <div v-if="reportData.pagination && reportData.pagination.last_page > 1" class="mt-4 flex justify-between items-center bg-slate-50 p-3 rounded border border-slate-200">
+                                      <span class="text-xs text-slate-500 font-semibold">
+                                           Showing page {{ reportData.pagination.current_page }} of {{ reportData.pagination.last_page }} (Total {{ reportData.pagination.total }} entries)
+                                      </span>
+                                      <div class="flex gap-2">
+                                           <button 
+                                               @click="currentPage--; generateReport();"
+                                               :disabled="currentPage <= 1"
+                                               class="px-3 py-1.5 border border-slate-200 hover:bg-slate-150 text-xs font-bold text-slate-700 rounded disabled:opacity-50"
+                                           >
+                                               Previous
+                                           </button>
+                                           <button 
+                                               @click="currentPage++; generateReport();"
+                                               :disabled="currentPage >= reportData.pagination.last_page"
+                                               class="px-3 py-1.5 border border-slate-200 hover:bg-slate-150 text-xs font-bold text-slate-700 rounded disabled:opacity-50"
+                                           >
+                                               Next
+                                           </button>
+                                      </div>
+                                  </div>
+                              </div>
 
                             <!-- Dynamic View: Personnel Directory -->
                             <div v-else-if="reportType === 'payroll_personnel'">

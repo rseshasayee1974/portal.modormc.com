@@ -179,12 +179,30 @@ Route::middleware([
     Route::prefix('fleet')->group(function () {
         Route::resource('machines', \App\Http\Controllers\MachineController::class);
         Route::resource('machinetypes', \App\Http\Controllers\MachineTypeController::class)->except(['create', 'edit', 'show']);
+        Route::resource('maintenance-requests', \App\Http\Controllers\MaintenanceRequestController::class);
+        Route::resource('machine-services', \App\Http\Controllers\MachineServiceController::class);
+        Route::resource('machine-trackers', \App\Http\Controllers\MachineTrackerController::class);
+        Route::resource('stock-exhausts', \App\Http\Controllers\StockExhaustController::class);
+        Route::resource('drivers', \App\Http\Controllers\DriverController::class);
+        Route::resource('fuel-logs', \App\Http\Controllers\FuelLogController::class);
+
+        // GPS Tracking & Geofences
+        Route::resource('gps-devices', \App\Http\Controllers\GpsDeviceController::class);
+        Route::resource('geofences', \App\Http\Controllers\GeofenceController::class);
+        Route::get('gps/live', [\App\Http\Controllers\GpsTrackingController::class, 'live'])->name('gps.live');
+        Route::get('gps/playback', [\App\Http\Controllers\GpsTrackingController::class, 'playback'])->name('gps.playback');
+        Route::get('gps/playback-data', [\App\Http\Controllers\GpsTrackingController::class, 'playbackData'])->name('gps.playback-data');
     });
- Route::prefix('reports')->group(function () {
-     // Unified Reports
-        Route::get('report', [\App\Http\Controllers\ReportController::class, 'index'])->name('reports.index');
-        Route::get('generate', [\App\Http\Controllers\ReportController::class, 'generate'])->name('reports.generate');
-});
+  Route::prefix('reports')->group(function () {
+      // Unified Reports
+         Route::get('report', [\App\Http\Controllers\ReportController::class, 'index'])->name('reports.index');
+         Route::get('generate', [\App\Http\Controllers\ReportController::class, 'generate'])->name('reports.generate');
+         Route::get('sales-register', [\App\Http\Controllers\ReportController::class, 'salesRegister'])->name('reports.sales-register');
+         Route::get('purchase-register', [\App\Http\Controllers\ReportController::class, 'purchaseRegister'])->name('reports.purchase-register');
+         Route::get('machine-summary', [\App\Http\Controllers\ReportController::class, 'machineSummary'])->name('reports.machine-summary');
+         Route::get('vehicle-pl', [\App\Http\Controllers\ReportController::class, 'vehiclePL'])->name('reports.vehicle-pl');
+         Route::get('export-status/{key}', [\App\Http\Controllers\ReportController::class, 'getExportStatus'])->name('reports.export-status');
+  });
     // 10. Finance & Accounting
     Route::prefix('finance')->group(function () {
         Route::resource('accounts', \App\Http\Controllers\AccountsController::class);

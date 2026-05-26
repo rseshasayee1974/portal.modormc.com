@@ -52,6 +52,8 @@ class MenuSeeder extends Seeder
             ['id' => 33, 'menutype' => 2, 'title' => 'Daily Tracker', 'alias' => 'tracker',      'link' => 'machine/tracker',   'icon' => 'ClockIcon', 'published' => 1, 'parent_id' => 4, 'level' => 1, 'ordering' => 1, 'permission_name' => 'TRACKER.VIEW'],
             ['id' => 43, 'menutype' => 2, 'title' => 'Machine Fleet', 'alias' => 'machines',     'link' => 'fleet/machines',    'icon' => 'TruckIcon', 'published' => 1, 'parent_id' => 4, 'level' => 1, 'ordering' => 1, 'permission_name' => 'MACHINE.VIEW'],
             ['id' => 61, 'menutype' => 2, 'title' => 'Machine Type',  'alias' => 'machinetypes', 'link' => 'fleet/machinetypes','icon' => 'CogIcon',   'published' => 1, 'parent_id' => 4, 'level' => 1, 'ordering' => 2, 'permission_name' => 'MACHINE_TYPE.VIEW'],
+            ['id' => 65, 'menutype' => 2, 'title' => 'Drivers',       'alias' => 'drivers',      'link' => 'fleet/drivers',     'icon' => 'IdentificationIcon', 'published' => 1, 'parent_id' => 4, 'level' => 1, 'ordering' => 3, 'permission_name' => 'DRIVER.VIEW'],
+            ['id' => 66, 'menutype' => 2, 'title' => 'Fuel Logs',     'alias' => 'fuel-logs',    'link' => 'fleet/fuel-logs',   'icon' => 'SwatchIcon', 'published' => 1, 'parent_id' => 4, 'level' => 1, 'ordering' => 4, 'permission_name' => 'FUEL_LOG.VIEW'],
 
             // Sidebar: Finance (parent_id = 9)
             ['id' => 34, 'menutype' => 2, 'title' => 'Chart of Account',    'alias' => 'Accounts',           'link' => 'finance/accounts',   'icon' => 'BriefcaseIcon',      'published' => 1, 'parent_id' => 9, 'level' => 1, 'ordering' => 1, 'permission_name' => 'ACCOUNT.VIEW'],

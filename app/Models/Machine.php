@@ -99,6 +99,16 @@ class Machine extends Model
         return $this->hasMany(MachineLoan::class, 'machine_id');
     }
 
+    public function gpsDevice()
+    {
+        return $this->hasOne(GpsDevice::class, 'machine_id');
+    }
+
+    public function latestPosition()
+    {
+        return $this->hasOne(GpsLatestPosition::class, 'machine_id');
+    }
+
     /**
      * Sync documents and loans from validated request data.
      */

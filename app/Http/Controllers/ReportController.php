@@ -15,6 +15,9 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\Reports\SalesRegisterService;
+use App\Services\Reports\PurchaseRegisterService;
+use Illuminate\Support\Facades\Cache;
 
 class ReportController extends Controller
 {
@@ -724,5 +727,131 @@ class ReportController extends Controller
             ])->values(),
             'opening_balance' => 0
         ];
+    }
+
+    /**
+     * Generate optimized Sales Register Report.
+     */
+    public function salesRegister(Request $request, SalesRegisterService $service)
+    {
+        $filters = $request->validate([
+            'from_date' => 'required|date',
+            'to_date' => 'required|date|after_or_equal:from_date',
+            'branch_id' => 'nullable|integer',
+            'plant_id' => 'nullable|integer',
+            'customer_id' => 'nullable|integer',
+            'gst_type' => 'nullable|string|in:intra,inter',
+            'invoice_type' => 'nullable|string',
+            'product_id' => 'nullable|integer',
+            'salesman_id' => 'nullable|integer',
+            'payment_status' => 'nullable|string|in:paid,unpaid,partial',
+            'per_page' => 'nullable|integer|min:1|max:500',
+            'export' => 'nullable|string|in:excel,pdf',
+            'refresh' => 'nullable|boolean',
+            'queue' => 'nullable|boolean'
+        ]);
+
+        $response = $service->generate($filters);
+
+        if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse || $response instanceof \Illuminate\Http\Response) {
+            return $response;
+        }
+
+        return response()->json($response);
+    }
+
+    /**
+     * Generate optimized Purchase Register Report.
+     */
+    public function purchaseRegister(Request $request, PurchaseRegisterService $service)
+    {
+        $filters = $request->validate([
+            'from_date' => 'required|date',
+            'to_date' => 'required|date|after_or_equal:from_date',
+            'branch_id' => 'nullable|integer',
+            'plant_id' => 'nullable|integer',
+            'supplier_id' => 'nullable|integer',
+            'gst_type' => 'nullable|string|in:intra,inter',
+            'product_id' => 'nullable|integer',
+            'per_page' => 'nullable|integer|min:1|max:500',
+            'export' => 'nullable|string|in:excel,pdf',
+            'refresh' => 'nullable|boolean',
+            'queue' => 'nullable|boolean'
+        ]);
+
+        $response = $service->generate($filters);
+
+        if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse || $response instanceof \Illuminate\Http\Response) {
+            return $response;
+        }
+
+        return response()->json($response);
+    }
+
+    /**
+     * Get queued export job status.
+     */
+    public function getExportStatus(string $key)
+    {
+        $status = Cache::get($key);
+
+        if (!$status) {
+            return response()->json([
+                'status' => 'not_found',
+                'message' => 'Export job not found or expired.'
+            ], 404);
+        }
+
+        return response()->json($status);
+    }
+
+    /**
+     * Generate Machine Summary Report.
+     */
+    public function machineSummary(Request $request, \App\Services\Reports\MachineReportService $service)
+    {
+        $filters = $request->validate([
+            'from_date' => 'required|date',
+            'to_date' => 'required|date|after_or_equal:from_date',
+            'branch_id' => 'nullable|integer',
+            'plant_id' => 'nullable|integer',
+            'per_page' => 'nullable|integer|min:1|max:500',
+            'export' => 'nullable|string|in:excel,pdf',
+            'refresh' => 'nullable|boolean',
+            'queue' => 'nullable|boolean'
+        ]);
+
+        $response = $service->generateMachineSummary($filters);
+
+        if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse || $response instanceof \Illuminate\Http\Response) {
+            return $response;
+        }
+
+        return response()->json($response);
+    }
+
+    /**
+     * Generate Vehicle Wise Profit & Loss Report.
+     */
+    public function vehiclePL(Request $request, \App\Services\Reports\MachineReportService $service)
+    {
+        $filters = $request->validate([
+            'from_date' => 'required|date',
+            'to_date' => 'required|date|after_or_equal:from_date',
+            'branch_id' => 'nullable|integer',
+            'plant_id' => 'nullable|integer',
+            'per_page' => 'nullable|integer|min:1|max:500',
+            'export' => 'nullable|string|in:excel,pdf',
+            'refresh' => 'nullable|boolean',
+            'queue' => 'nullable|boolean'
+        ]);
+
+        $response = $service->generateVehiclePL($filters);
+
+        if ($response instanceof \Symfony\Component\HttpFoundation\BinaryFileResponse || $response instanceof \Illuminate\Http\Response) {
+            return $response;
+        }
+
+        return response()->json($response);
     }
 }

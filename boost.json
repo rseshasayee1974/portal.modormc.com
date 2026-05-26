@@ -1,0 +1,12 @@
+{
+    "agents": [
+        "gemini"
+    ],
+    "cloud": false,
+    "skills": [
+        "developing-with-fortify",
+        "laravel-best-practices",
+        "inertia-vue-development",
+        "tailwindcss-development"
+    ]
+}

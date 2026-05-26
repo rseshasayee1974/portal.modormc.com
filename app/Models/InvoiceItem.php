@@ -101,4 +101,12 @@ class InvoiceItem extends Model
     {
         return $this->morphMany(OrderTax::class, 'order', 'order_type', 'order_id');
     }
+
+    /**
+     * Direct line-item tax splits relationship.
+     */
+    public function itemTaxes()
+    {
+        return $this->hasMany(OrderTax::class, 'order_items_id', 'id')->where('order_type', 'Invoice');
+    }
 }
