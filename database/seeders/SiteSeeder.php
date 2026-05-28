@@ -19,17 +19,23 @@ class SiteSeeder extends Seeder
         }
 
         foreach ($plants as $plant) {
-            \App\Models\Site::factory()->create([
-                'plant_id' => $plant->id,
-                'name' => $plant->name . ' Loading Bay',
-                'type' => 'loading',
-            ]);
+            $loadingName = $plant->name . ' Loading Bay';
+            if (!\App\Models\Site::where(['plant_id' => $plant->id, 'name' => $loadingName, 'type' => 'loading'])->exists()) {
+                \App\Models\Site::factory()->create([
+                    'plant_id' => $plant->id,
+                    'name' => $loadingName,
+                    'type' => 'loading',
+                ]);
+            }
 
-            \App\Models\Site::factory()->create([
-                'plant_id' => $plant->id,
-                'name' => $plant->name . ' Unloading Zone',
-                'type' => 'unloading',
-            ]);
+            $unloadingName = $plant->name . ' Unloading Zone';
+            if (!\App\Models\Site::where(['plant_id' => $plant->id, 'name' => $unloadingName, 'type' => 'unloading'])->exists()) {
+                \App\Models\Site::factory()->create([
+                    'plant_id' => $plant->id,
+                    'name' => $unloadingName,
+                    'type' => 'unloading',
+                ]);
+            }
         }
     }
 }
