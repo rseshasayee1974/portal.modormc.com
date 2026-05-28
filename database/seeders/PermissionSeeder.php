@@ -38,6 +38,7 @@ class PermissionSeeder extends Seeder
             'MENU' => ['VIEW'],
             'DASHBOARD' => ['VIEW'],
             'SETTING' => ['VIEW', 'UPDATE'],
+            'REPORT' => ['VIEW', 'EXPORT'],
             
             // Financials
             'ACCOUNT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
@@ -65,11 +66,19 @@ class PermissionSeeder extends Seeder
             'PURCHASE_ORDER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'INVOICE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'PARTY_RATE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
+            'BATCH' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'INWARD' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             
             // Logistics & Ops
             'TRIP' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'MACHINE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
             'MACHINE_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'MACHINE_TRACKER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'MACHINE_SERVICE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'MAINTENANCE_REQUEST' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'STOCK_EXHAUST' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'GPS_DEVICE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'GEOFENCE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'PERSONNEL' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
             'DRIVER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'FUEL_LOG' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
