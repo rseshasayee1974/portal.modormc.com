@@ -19,7 +19,7 @@ class ProductCategoryFactory extends Factory
         return [
             'plant_id' => 1,
             'parent_id' => null,
-            'name' => $this->faker->words(2, true),
+            'name' => ucfirst($this->faker->words(2, true)) . ' ' . $this->faker->unique()->numberBetween(1000, 9999),
             'code' => $this->faker->unique()->bothify('CAT-###'),
             'description' => $this->faker->sentence(),
             'sort_order' => $this->faker->numberBetween(0, 10),
