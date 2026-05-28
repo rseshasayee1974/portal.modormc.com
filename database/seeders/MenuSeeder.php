@@ -25,7 +25,13 @@ class MenuSeeder extends Seeder
 
             // Sidebar: Membership (parent_id = 8)
             ['id' => 12, 'menutype' => 2, 'title' => 'User', 'alias' => 'Users',     'link' => 'membership/users',     'icon' => 'UsersIcon',           'published' => 1, 'parent_id' => 8,  'level' => 1, 'ordering' => 1, 'permission_name' => 'USER.VIEW'],
-            ['id' => 20, 'menutype' => 2, 'title' => 'Personnel',       'alias' => 'personnel', 'link' => 'membership/personnel', 'icon' => 'IdentificationIcon',  'published' => 1, 'parent_id' => 6,  'level' => 1, 'ordering' => 5, 'permission_name' => 'PERSONNEL.VIEW'],
+            ['id' => 20, 'menutype' => 2, 'title' => 'Personnel',       'alias' => 'personnel', 'link' => 'membership/personnel', 'icon' => 'IdentificationIcon',  'published' => 1, 'parent_id' => 8,  'level' => 1, 'ordering' => 2, 'permission_name' => 'PERSONNEL.VIEW'],
+            ['id' => 70, 'menutype' => 2, 'title' => 'Departments',      'alias' => 'departments', 'link' => 'membership/departments', 'icon' => 'FolderIcon', 'published' => 1, 'parent_id' => 8, 'level' => 1, 'ordering' => 3, 'permission_name' => 'PERSONNEL.VIEW'],
+            ['id' => 71, 'menutype' => 2, 'title' => 'Designations',     'alias' => 'designations', 'link' => 'membership/designations', 'icon' => 'BriefcaseIcon', 'published' => 1, 'parent_id' => 8, 'level' => 1, 'ordering' => 4, 'permission_name' => 'PERSONNEL.VIEW'],
+            ['id' => 72, 'menutype' => 2, 'title' => 'Shifts',           'alias' => 'shifts', 'link' => 'membership/shifts', 'icon' => 'ClockIcon', 'published' => 1, 'parent_id' => 8, 'level' => 1, 'ordering' => 5, 'permission_name' => 'PERSONNEL.VIEW'],
+            ['id' => 73, 'menutype' => 2, 'title' => 'Attendance',       'alias' => 'attendances', 'link' => 'membership/attendances', 'icon' => 'CalendarIcon', 'published' => 1, 'parent_id' => 8, 'level' => 1, 'ordering' => 6, 'permission_name' => 'PERSONNEL.VIEW'],
+            ['id' => 74, 'menutype' => 2, 'title' => 'Leave Board',      'alias' => 'leave-applications', 'link' => 'membership/leave-applications', 'icon' => 'ClipboardDocumentCheckIcon', 'published' => 1, 'parent_id' => 8, 'level' => 1, 'ordering' => 7, 'permission_name' => 'PERSONNEL.VIEW'],
+            ['id' => 75, 'menutype' => 2, 'title' => 'Payroll Board',    'alias' => 'payslips', 'link' => 'membership/payslips', 'icon' => 'BanknotesIcon', 'published' => 1, 'parent_id' => 8, 'level' => 1, 'ordering' => 8, 'permission_name' => 'PERSONNEL.VIEW'],
 
             // Sidebar: Master (parent_id = 2)
             ['id' => 13, 'menutype' => 2, 'title' => 'Roles',                 'alias' => 'Roles',                 'link' => 'settings/roles',             'icon' => 'ShieldCheckIcon',          'published' => 1, 'parent_id' => 2,  'level' => 1, 'ordering' => 1,  'permission_name' => 'ROLE.VIEW'],
@@ -97,6 +103,7 @@ class MenuSeeder extends Seeder
             ['id' => 22, 'menutype' => 2, 'title' => 'Print Templates',  'alias' => 'templates',      'link' => 'settings/templates',    'icon' => 'SwatchIcon',       'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 5, 'permission_name' => 'MENU.VIEW'],
             ['id' => 100,'menutype' => 2, 'title' => 'Default Accounts', 'alias' => 'defaultaccounts','link' => 'settings/default-accounts','icon' => 'PaintBrushIcon', 'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 6, 'permission_name' => 'MENU.VIEW'],
             ['id' => 101,'menutype' => 2, 'title' => 'Custom Settings', 'alias' => 'customsetting',  'link' => 'settings/customsetting',   'icon' => 'VariableIcon',   'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 7, 'permission_name' => 'SITES.VIEW'],
+            ['id' => 110,'menutype' => 2, 'title' => 'Knowledge Base',  'alias' => 'knowledge',      'link' => 'settings/knowledge',       'icon' => 'BookOpenIcon',   'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 8, 'permission_name' => 'SITES.VIEW'],
         ];
 
         foreach ($menus as $menu) {

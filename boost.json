@@ -2,11 +2,8 @@
     "agents": [
         "gemini"
     ],
-    "cloud": false,
-    "skills": [
-        "developing-with-fortify",
-        "laravel-best-practices",
-        "inertia-vue-development",
-        "tailwindcss-development"
-    ]
+    "cloud": true,
+    "mcp": true,
+    "nightwatch": false,
+    "sail": false
 }

@@ -20,6 +20,51 @@ h4,
     display: none;
 }
 
+/* Upload Button Styles */
+.btn-upload {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.5rem;
+    background-color: white;
+    border: 2px solid #ff6b6b;
+    border-radius: 9999px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.3s ease-in-out;
+}
+
+.btn-upload:hover:not(:disabled) {
+    background-color: #fff5f5;
+    border-color: #ff5252;
+    box-shadow: 0 4px 12px rgba(255, 107, 107, 0.2);
+}
+
+.btn-upload:active:not(:disabled) {
+    background-color: #ffe0e0;
+    transform: scale(0.98);
+}
+
+.btn-upload:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1), 0 0 0 5px rgba(255, 107, 107, 0.05);
+}
+
+.btn-upload:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Button Shortcut Label */
+.btn-shortcut {
+    font-size: 0.875rem;
+    color: #9ca3af;
+    font-weight: 400;
+    margin-left: 0.5rem;
+}
+
 input:where([type='text']),
 input:where(:not([type])),
 input:where([type='email']),
@@ -258,9 +303,31 @@ select {
     height: 38px;
     border-radius: 10px;
     background: linear-gradient(135deg, #eef2ff, #e0e7ff);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+}
+
+/* Reusable neum button helpers */
+.neum {
+    border-radius: 0.625rem;
+    box-shadow: 6px 6px 16px rgba(15, 23, 42, 0.12), -6px -6px 16px rgba(255, 255, 255, 0.65);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.neum:hover {
+    box-shadow: 4px 4px 12px rgba(15, 23, 42, 0.16), -4px -4px 12px rgba(255, 255, 255, 0.7);
+}
+
+.neum-main {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+}
+
+@media (prefers-color-scheme: dark) {
+    .neum {
+        box-shadow: 6px 6px 16px rgba(0, 0, 0, 0.45), -6px -6px 16px rgba(255, 255, 255, 0.08);
+    }
+    .neum:hover {
+        box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.5), -4px -4px 12px rgba(255, 255, 255, 0.1);
+    }
 }
 
 .create-panel__toggle {

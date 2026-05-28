@@ -1,0 +1,42 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\AuditFields;
+use App\Traits\PlantScoping;
+
+class Shift extends Model
+{
+    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
+
+    protected $table = 'mm_shifts';
+
+    protected $fillable = [
+        'plant_id',
+        'shift_name',
+        'start_time',
+        'end_time',
+        'grace_time',
+        'working_hours',
+        'is_night_shift',
+    ];
+
+    protected $casts = [
+        'is_night_shift' => 'boolean',
+    ];
+
+    public function plant()
+    {
+        return $this->belongsTo(Plant::class, 'plant_id');
+    }
+
+    public function personnels()
+    {
+        return $this->belongsToMany(Personnel::class, 'mm_employee_shifts', 'shift_id', 'personnel_id')
+            ->withPivot('effective_from', 'effective_to')
+            ->withTimestamps();
+    }
+}

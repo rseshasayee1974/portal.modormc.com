@@ -56,18 +56,40 @@ class Personnel extends Model
         'entity_id',
         'plant_id',
         'user_id',
+        'contact_id',
+        'department_id',
+        'designation_id',
+        'reporting_manager_id',
+        'employee_code',
         'first_name',
         'last_name',
-        'employee_type',
-        'gender',
+        'email',
+        'mobile',
         'date_of_birth',
         'joining_date',
+        'exit_date',
+        'gender',
+        'employment_type',
         'status',
-        'shift_start_time',
-        'shift_end_time',
+        'pan',
+        'aadhaar',
+        'uan',
+        'esi_number',
+        'bank_account_no',
+        'bank_ifsc',
+        'bank_name',
+        'photo',
+        'meta',
         'created_by',
         'updated_by',
         'deleted_by',
+    ];
+
+    protected $casts = [
+        'meta' => 'json',
+        'date_of_birth' => 'date',
+        'joining_date' => 'date',
+        'exit_date' => 'date',
     ];
 
     public function user()
@@ -98,5 +120,57 @@ class Personnel extends Model
     public function patrons()
     {
         return $this->belongsToMany(Patron::class, 'mm_personnel_patron_rels', 'employee_id', 'patron_id');
+    }
+
+    public function department()
+    {
+        return $this->belongsTo(Department::class, 'department_id');
+    }
+
+    public function designation()
+    {
+        return $this->belongsTo(Designation::class, 'designation_id');
+    }
+
+    public function reportingManager()
+    {
+        return $this->belongsTo(Personnel::class, 'reporting_manager_id');
+    }
+
+    public function subordinates()
+    {
+        return $this->hasMany(Personnel::class, 'reporting_manager_id');
+    }
+
+    public function shifts()
+    {
+        return $this->belongsToMany(Shift::class, 'mm_employee_shifts', 'personnel_id', 'shift_id')
+            ->withPivot('effective_from', 'effective_to')
+            ->withTimestamps();
+    }
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class, 'personnel_id');
+    }
+
+    public function leaveBalances()
+    {
+        return $this->hasMany(EmployeeLeaveBalance::class, 'personnel_id');
+    }
+
+    public function leaveApplications()
+    {
+        return $this->hasMany(LeaveApplication::class, 'personnel_id');
+    }
+
+    public function salaryStructures()
+    {
+        return $this->hasMany(EmployeeSalaryStructure::class, 'personnel_id');
+    }
+
+    public function payslips()
+    {
+        return $this->hasMany(Payslip::class, 'personnel_id');
     }
 }

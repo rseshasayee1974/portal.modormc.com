@@ -338,7 +338,7 @@ class ERPDashboardController extends Controller
     private function getDispatchStatusBreakdown(int $plantId, Carbon $start, Carbon $end, ?int $patronId): array
     {
         return $this->dispatchQuery($plantId, $start, $end, $patronId)
-            ->selectRaw("ANY_VALUE(COALESCE(NULLIF(dispatch_status, ''), 'Draft')) as status_label, COUNT(*) as total")
+            ->selectRaw("COALESCE(NULLIF(dispatch_status, ''), 'Draft') as status_label, COUNT(*) as total")
             ->groupBy('dispatch_status')
             ->orderByDesc('total')
             ->get()

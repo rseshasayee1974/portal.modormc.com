@@ -68,4 +68,14 @@ class EntityAddress extends Model
 		'updated_by',
 		'deleted_by'
 	];
+
+	public function addressType()
+	{
+		return $this->belongsTo(AddressType::class, 'address_type');
+	}
+
+	public function state()
+	{
+		return $this->belongsTo(StateCode::class, 'state_id');
+	}
 }

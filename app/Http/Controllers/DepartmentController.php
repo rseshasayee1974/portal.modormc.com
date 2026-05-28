@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Department;
+use App\Models\Contact;
+use App\Models\Personnel;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use App\Http\Controllers\Concerns\AuthorizesModule;
+
+class DepartmentController extends Controller
+{
+    use AuthorizesModule;
+    protected string $module = 'personnel'; // uses personnel permissions
+
+    public function index()
+    {
+        $this->authorizeModule('menu');
+
+        $activePlantId = session('active_plant_id');
+
+        return Inertia::render('Departments/Index', [
+            'departments' => Department::with('contact')
+                ->where('plant_id', $activePlantId)
+                ->latest()
+                ->get(),
+            'contacts' => Contact::where('plant_id', $activePlantId)->get(['id', 'name', 'email', 'mobile']),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $this->authorizeModule('create');
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'code' => 'nullable|string|max:50',
+            'contact_id' => 'nullable|exists:mm_contacts,id',
+        ]);
+
+        $validated['plant_id'] = session('active_plant_id');
+
+        Department::create($validated);
+
+        return redirect()->back()->with('success', 'Department created successfully.');
+    }
+
+    public function update(Request $request, Department $department)
+    {
+        $this->authorizeModule('edit');
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'code' => 'nullable|string|max:50',
+            'contact_id' => 'nullable|exists:mm_contacts,id',
+        ]);
+
+        $department->update($validated);
+
+        return redirect()->back()->with('success', 'Department updated successfully.');
+    }
+
+    public function destroy(Department $department)
+    {
+        $this->authorizeModule('delete');
+
+        $department->delete();
+
+        return redirect()->back()->with('success', 'Department deleted successfully.');
+    }
+}

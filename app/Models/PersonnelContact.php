@@ -23,6 +23,10 @@ class PersonnelContact extends Model
         'is_primary'
     ];
 
+    protected $casts = [
+        'is_primary' => 'boolean',
+    ];
+
     public function employee()
     {
         return $this->belongsTo(Personnel::class, 'employee_id');

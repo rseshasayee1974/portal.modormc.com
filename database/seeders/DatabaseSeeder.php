@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
         $this->call(\Database\Seeders\MachineSeeder::class);
         $this->call(\Database\Seeders\PersonnelSeeder::class);
         $this->call(\Database\Seeders\SiteSeeder::class);
+        $this->call(\Database\Seeders\HrmsMasterSeeder::class);
         
         // ── 4. Main Modules ────────────────────────────────────
         $this->call(\Database\Seeders\AccountTypeSeeder::class);
@@ -39,5 +40,6 @@ class DatabaseSeeder extends Seeder
         $this->call(\Database\Seeders\InvoiceSeeder::class);
         $this->call(\Database\Seeders\PettyCashSeeder::class);
         $this->call(\Database\Seeders\ConcreteQualityTestSeeder::class);
+        $this->call(\Database\Seeders\RagDocumentSeeder::class);
     }
 }

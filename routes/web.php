@@ -103,6 +103,24 @@ Route::middleware([
         Route::resource('taxes', \App\Http\Controllers\TaxController::class);
         Route::get('audit-logs', [\App\Http\Controllers\AuditLogController::class, 'index'])->name('settings.audit-logs');
         
+        // AI Agent Builder
+        Route::get('agents', [\App\Http\Controllers\AgentBuilderController::class, 'index'])->name('settings.agents.index');
+        Route::get('agents/create', [\App\Http\Controllers\AgentBuilderController::class, 'create'])->name('settings.agents.create');
+        Route::post('agents', [\App\Http\Controllers\AgentBuilderController::class, 'store'])->name('settings.agents.store');
+        Route::post('agents/test', [\App\Http\Controllers\AgentBuilderController::class, 'test'])->name('settings.agents.test');
+        // Agent Chat History
+        Route::post('agents/history', [\App\Http\Controllers\AgentBuilderController::class, 'saveHistory'])->name('settings.agents.history.store');
+        Route::get('agents/history', [\App\Http\Controllers\AgentBuilderController::class, 'chatHistories'])->name('settings.agents.history.index');
+        Route::get('agents/history/{history}', [\App\Http\Controllers\AgentBuilderController::class, 'showHistory'])->name('settings.agents.history.show');
+
+        // Knowledge Base (RAG)
+        Route::get('knowledge', [\App\Http\Controllers\KnowledgeController::class, 'index'])->name('knowledge.index');
+        Route::post('knowledge', [\App\Http\Controllers\KnowledgeController::class, 'store'])->name('knowledge.store');
+        Route::patch('knowledge/{document}/toggle', [\App\Http\Controllers\KnowledgeController::class, 'toggleActive'])->name('knowledge.toggle');
+        Route::post('knowledge/{document}/re-embed', [\App\Http\Controllers\KnowledgeController::class, 'reEmbed'])->name('knowledge.re-embed');
+        Route::delete('knowledge/{document}', [\App\Http\Controllers\KnowledgeController::class, 'destroy'])->name('knowledge.destroy');
+
+        
         Route::resource('productcategories', \App\Http\Controllers\ProductCategoryController::class);
         // Template Management
         Route::resource('templates', \App\Http\Controllers\PrintTemplateController::class);
@@ -126,6 +144,25 @@ Route::middleware([
     Route::prefix('membership')->group(function () {
         Route::resource('users', \App\Http\Controllers\UserController::class);
         Route::resource('personnel', \App\Http\Controllers\PersonnelController::class);
+        
+        // HRMS Routes
+        Route::resource('departments', \App\Http\Controllers\DepartmentController::class);
+        Route::resource('designations', \App\Http\Controllers\DesignationController::class);
+        
+        Route::resource('shifts', \App\Http\Controllers\ShiftController::class);
+        Route::post('shifts/assign', [\App\Http\Controllers\ShiftController::class, 'assignShift'])->name('shifts.assign');
+        Route::delete('shifts/assign/{employeeShift}', [\App\Http\Controllers\ShiftController::class, 'removeShiftAssignment'])->name('shifts.unassign');
+        
+        Route::resource('attendances', \App\Http\Controllers\AttendanceController::class);
+        Route::resource('leave-types', \App\Http\Controllers\LeaveTypeController::class);
+        
+        Route::resource('leave-applications', \App\Http\Controllers\LeaveApplicationController::class);
+        Route::post('leave-applications/{leaveApplication}/approve', [\App\Http\Controllers\LeaveApplicationController::class, 'approve'])->name('leave-applications.approve');
+        
+        Route::resource('salary-components', \App\Http\Controllers\SalaryComponentController::class);
+        Route::resource('payroll-periods', \App\Http\Controllers\PayrollPeriodController::class);
+        Route::post('payslips/generate', [\App\Http\Controllers\PayslipController::class, 'generate'])->name('payslips.generate');
+        Route::resource('payslips', \App\Http\Controllers\PayslipController::class);
     });
 
     // 6. Orders & Sales
@@ -248,4 +285,16 @@ Route::middleware([
             return response('Bridge connection failed', 503);
         }
     })->name('bridge.weight');
+});
+
+Route::get('/test-history-list', function() {
+    try {
+        $histories = \App\Models\AgentChatHistory::all();
+        return response()->json($histories);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'ERROR',
+            'message' => $e->getMessage()
+        ]);
+    }
 });

@@ -32,10 +32,22 @@ import {
     UserPlusIcon,
     ReceiptPercentIcon,
     ScaleIcon,
-    PaintBrushIcon,BuildingLibraryIcon,TruckIcon,ShoppingCartIcon
+    PaintBrushIcon,
+    BuildingLibraryIcon,
+    TruckIcon,
+    ShoppingCartIcon,
+    ChatBubbleLeftEllipsisIcon,
+    XMarkIcon,
+    ArrowPathIcon,
+    CpuChipIcon,
+    ChatBubbleOvalLeftIcon,
+    PaperAirplaneIcon,
+    SparklesIcon
 } from '@heroicons/vue/24/outline';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
+import BaseButton from '@/Components/Base/BaseButton.vue';
+import BaseInput from '@/Components/Base/BaseInput.vue';
 
 
 const IconMap = {
@@ -61,7 +73,16 @@ const IconMap = {
     UserPlusIcon,
     ReceiptPercentIcon,
     ScaleIcon,
-    PaintBrushIcon,BuildingLibraryIcon,TruckIcon,ShoppingCartIcon
+    PaintBrushIcon,
+    BuildingLibraryIcon,
+    TruckIcon,
+    ShoppingCartIcon,
+    ChatBubbleLeftEllipsisIcon,
+    XMarkIcon,
+    ArrowPathIcon,
+    CpuChipIcon,
+    ChatBubbleOvalLeftIcon,
+    SparklesIcon
 };
 
 const page = usePage();
@@ -216,6 +237,548 @@ onUnmounted(() => {
 });
 
 const mobileMenuOpen = ref(false);
+
+// --- AI Chat Assistant Drawer Logic ---
+const isChatDrawerOpen = ref(false);
+const chatMessages = ref([]);
+const currentPrompt = ref('');
+const isSubmitting = ref(false);
+const preferredLanguage = ref('auto');
+const currentChatSessionId = ref(null);
+
+// Speech Recognition (Voice Input)
+const isListening = ref(false);
+const recognitionError = ref(null);
+let activeRecognition = null;
+
+// Speech Synthesis
+const currentlySpeakingMessageIndex = ref(null);
+let currentUtterance = null;
+const voicesList = ref([]);
+
+// Active Category for predetermined questions
+const selectedCategory = ref('');
+
+// Get the user's role-based agent configuration
+const activeAgent = computed(() => {
+    const role = page.props.user_role;
+    if (role === 'Accountant' || role === 'Senior Accountant' || role === 'CFO') {
+        return {
+            name: 'Accountant',
+            class: 'App\\Ai\\Agents\\Accountant',
+            defaultGreeting: 'Hi, I am your Accountant AI Assistant. How can I help you with your RMC ledgers or financial statements today?'
+        };
+    }
+    // Fallback to Onemodo
+    return {
+        name: 'Onemodo',
+        class: 'App\\Ai\\Agents\\Onemodo',
+        defaultGreeting: 'Hi, I am Onemodo, your RMC operations assistant. How can I help you with your plant operations or dispatches today?'
+    };
+});
+
+const openGlobalChat = () => {
+    currentChatSessionId.value = null;
+    chatMessages.value = [
+        { role: 'agent', text: activeAgent.value.defaultGreeting }
+    ];
+    if (activeAgent.value.name === 'Accountant') {
+        selectedCategory.value = 'billing_invoices';
+    } else {
+        selectedCategory.value = 'operations_stock';
+    }
+    isChatDrawerOpen.value = true;
+};
+
+const closeGlobalChat = async () => {
+    window.speechSynthesis.cancel();
+    currentlySpeakingMessageIndex.value = null;
+    currentUtterance = null;
+    stopSpeechRecognition();
+    await saveHistoryToServer();
+    isChatDrawerOpen.value = false;
+    chatMessages.value = [];
+    currentPrompt.value = '';
+    currentChatSessionId.value = null;
+};
+
+// Available Categories depending on the agent
+const availableCategories = computed(() => {
+    const isTamil = preferredLanguage.value === 'ta';
+    if (activeAgent.value.name === 'Accountant') {
+        return [
+            { id: 'billing_invoices', label: isTamil ? 'பில்லிங் & இன்வாய்ஸ்கள்' : 'Billing & Invoices' },
+            { id: 'financial_reports', label: isTamil ? 'நிதி அறிக்கைகள்' : 'Financial Reports' },
+            { id: 'expenses_inventory', label: isTamil ? 'செலவுகள் & இருப்பு' : 'Expenses & Inventory' },
+            { id: 'accounting_guide', label: isTamil ? 'கணக்கியல் வழிகாட்டி' : 'Accounting Guide' }
+        ];
+    }
+    return [
+        { id: 'operations_stock', label: isTamil ? 'செயல்பாடுகள் & இருப்பு' : 'Operations & Stock' },
+        { id: 'troubleshooting', label: isTamil ? 'பழுது நீக்குதல்' : 'Troubleshooting' }
+    ];
+});
+
+// Predefined Questions
+const activeQuestions = computed(() => {
+    const isTamil = preferredLanguage.value === 'ta';
+    if (activeAgent.value.name === 'Accountant') {
+        switch (selectedCategory.value) {
+            case 'billing_invoices':
+                return isTamil ? [
+                    'வருவாய் ஆதாரங்கள் என்ன?',
+                    'வாடிக்கையாளர் பணத்தைத் திருப்பித் தருவதற்கான ஜர்னல் என்ட்ரி என்ன?',
+                    'accounts receivable aging-ஐ எவ்வாறு நிர்வகிப்பது?',
+                    'deferred revenue-க்கு என்ன கணக்கியல் சிகிச்சை அளிக்க வேண்டும்?'
+                ] : [
+                    'What are the main revenue streams for this project?',
+                    'What is the correct journal entry for a customer refund?',
+                    'How do we manage accounts receivable aging?',
+                    'What accounting treatment should we apply for deferred revenue?'
+                ];
+            case 'financial_reports':
+                return isTamil ? [
+                    'மாதாந்திர இலாப நட்டக் கணக்கு சுருக்கத்தை உருவாக்க முடியுமா?',
+                    'தற்போதைய பணப்புழக்க நிலை என்ன?',
+                    'கண்காணிக்க வேண்டிய முக்கிய நிதி விகிதங்கள் யாவை?',
+                    'budget vs actual வேறுபாட்டு பகுப்பாய்வை வழங்க முடியுமா?'
+                ] : [
+                    'Can you generate a monthly profit and loss summary?',
+                    'What is the current cash flow status?',
+                    'What are the key financial ratios we should monitor?',
+                    'Can you provide a budget vs actual variance analysis?'
+                ];
+            case 'expenses_inventory':
+                return isTamil ? [
+                    'செலவுகளை எவ்வாறு வகைப்படுத்துவது?',
+                    'இந்த திட்டத்திற்கான செலவு மையங்களை அடையாளம் காண முடியுமா?',
+                    'திட்டம் சார்ந்த சரக்கு செலவுகளை எவ்வாறு கண்காணிப்பது?',
+                    'செலவு ஒப்புதலுக்கு என்ன உள் கட்டுப்பாடுகள் பரிந்துரைக்கப்படுகின்றன?'
+                ] : [
+                    'How should we classify project expenses in the chart of accounts?',
+                    'Can you identify cost centers for this project?',
+                    'How should we track project-related inventory costs?',
+                    'What internal controls are recommended for expense approval?'
+                ];
+            case 'accounting_guide':
+                return isTamil ? [
+                    'வங்கி பரிவர்த்தனைகளை லெட்ஜருடன் எவ்வாறு சரிசெய்வது?',
+                    'prepaid மற்றும் accrued செலவுகளை எவ்வாறு பதிவு செய்வது?',
+                    'தேய்மானத்தை எவ்வாறு கணக்கிட்டு அறிக்கை செய்வது?',
+                    'வருவாய் அங்கீகாரக் கொள்கையின் ஜிஎஸ்டி தாக்கங்கள் யாவை?',
+                    'indirect செலவுகளை பட்ஜெட்டுகளுக்கு எவ்வாறு ஒதுக்குவது?',
+                    'capital expenditures-க்கான சரியான கணக்கியல் என்ன?',
+                    'liabilities மற்றும் contingent liabilities-ஐ எவ்வாறு அறிக்கை செய்வது?',
+                    'மாதாந்திர புத்தகங்களை மூடுவதற்கான முக்கிய படிகள் யாவை?'
+                ] : [
+                    'How can we reconcile bank transactions with the general ledger?',
+                    'How do we record prepaid expenses versus accrued expenses?',
+                    'How should we calculate and report depreciation for fixed assets?',
+                    'What are the tax implications of the current revenue recognition policy?',
+                    'How do we allocate indirect costs to project budgets?',
+                    'What is the proper accounting for capital expenditures?',
+                    'How should we report liabilities and contingent liabilities?',
+                    'Can you summarize the key steps for closing the monthly books?'
+                ];
+            default:
+                return [];
+        }
+    }
+    
+    switch (selectedCategory.value) {
+        case 'operations_stock':
+            return isTamil ? [
+                'தயாரிப்பு பட்டியல் மற்றும் விலைகளைக் காட்டு',
+                'தற்போதைய இருப்பு அளவைக் காட்டு',
+                'இன்றைய விற்பனை மற்றும் கொள்முதல் சுருக்கத்தைக் காட்டு',
+                'இன்வாய்ஸ் செய்யப்படாத டிஸ்பாட்ச்கள் எத்தனை உள்ளன?',
+                'மொத்த செலவுகள் மற்றும் போக்குவரத்து செலவுகளைக் காட்டு',
+                'கணக்கியல் லெட்ஜர்களைப் பட்டியலிடு',
+                'டிரைவர் விவரங்கள் மற்றும் டிஸ்பாட்ச்களைக் காட்டு'
+            ] : [
+                'Show active products and prices',
+                'Show current physical stock levels',
+                'Show today\'s sales and purchases summary',
+                'How many uninvoiced dispatches do we have?',
+                'Show total expenses and transport costs',
+                'List our accounting ledgers',
+                'Show driver details and completed dispatches'
+            ];
+        case 'troubleshooting':
+            return isTamil ? [
+                'weighbridge சீரியல் போர்ட் எடைக் சிக்கலை எவ்வாறு சரிசெய்வது?',
+                'mixer லாரிகள் வெளியேறின ஆனால் geofence பதிவுகள் வரவில்லை',
+                'இன்வாய்ஸ்களில் டெபிட்/கிரெடிட் பொருந்தா பிழைகளை எவ்வாறு தீர்ப்பது?'
+            ] : [
+                'How do I fix a weighbridge serial port weight issue?',
+                'Mixer trucks exited but geofence logs did not trigger',
+                'How to resolve mismatched debit/credit errors on invoices?'
+            ];
+        default:
+            return [];
+    }
+});
+
+const runPredefinedQuestion = (q) => {
+    currentPrompt.value = q;
+    sendChatPrompt();
+};
+
+// Text-to-Speech (TTS)
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+    const loadVoices = () => {
+        voicesList.value = window.speechSynthesis.getVoices();
+    };
+    loadVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+}
+
+const toggleSpeech = (text, index) => {
+    if (currentlySpeakingMessageIndex.value === index) {
+        window.speechSynthesis.cancel();
+        currentlySpeakingMessageIndex.value = null;
+        currentUtterance = null;
+        return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    let cleanText = text
+        .replace(/```json[\s\S]*?```/g, '')
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/\|/g, ' ')
+        .replace(/\*/g, '')
+        .replace(/`/g, '')
+        .replace(/#/g, '')
+        .replace(/-/g, ' ')
+        .replace(/\t/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (!cleanText) return;
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    currentUtterance = utterance;
+    currentlySpeakingMessageIndex.value = index;
+
+    const containsTamil = /[\u0B80-\u0BFF]/.test(cleanText);
+    const voices = voicesList.value.length > 0 ? voicesList.value : window.speechSynthesis.getVoices();
+    let selectedVoice = null;
+
+    const targetLang = preferredLanguage.value === 'auto'
+        ? (containsTamil ? 'ta' : 'en')
+        : (preferredLanguage.value === 'ta' && !containsTamil ? 'en' : preferredLanguage.value);
+
+    if (targetLang === 'ta') {
+        utterance.lang = 'ta-IN';
+        selectedVoice = voices.find(v => {
+            const lang = v.lang.toLowerCase();
+            const name = v.name.toLowerCase();
+            return lang.startsWith('ta') || lang.includes('ta-in') || name.includes('tamil') || name.includes('valluvar');
+        });
+    } else {
+        utterance.lang = 'en-IN';
+        selectedVoice = voices.find(v => {
+            const lang = v.lang.toLowerCase();
+            return lang.includes('en-in') || lang.startsWith('en');
+        });
+    }
+
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+    }
+
+    utterance.onend = () => {
+        if (currentlySpeakingMessageIndex.value === index) {
+            currentlySpeakingMessageIndex.value = null;
+            currentUtterance = null;
+        }
+    };
+
+    utterance.onerror = (e) => {
+        console.error('SpeechSynthesis error:', e);
+        currentlySpeakingMessageIndex.value = null;
+        currentUtterance = null;
+    };
+
+    window.speechSynthesis.speak(utterance);
+};
+
+// Speech Recognition (Speech to Text)
+const startSpeechRecognition = () => {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        recognitionError.value = 'உங்கள் browser-ல் voice input ஆதரிக்கப்படவில்லை. Chrome / Edge ஐ முயற்சிக்கவும்.';
+        return;
+    }
+
+    window.speechSynthesis.cancel();
+    currentlySpeakingMessageIndex.value = null;
+
+    const recognition = new SpeechRecognition();
+    activeRecognition = recognition;
+
+    const langMap = { ta: 'ta-IN', en: 'en-IN', auto: 'ta-IN' };
+    recognition.lang = langMap[preferredLanguage.value] ?? 'ta-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+
+    recognitionError.value = null;
+    isListening.value = true;
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        currentPrompt.value = (currentPrompt.value ? currentPrompt.value + ' ' : '') + transcript;
+        isListening.value = false;
+        activeRecognition = null;
+    };
+
+    recognition.onerror = (event) => {
+        if (event.error === 'aborted') {
+            // silent
+        } else if (event.error === 'no-speech') {
+            recognitionError.value = 'குரல் கண்டுபிடிக்கப்படவில்லை. மீண்டும் முயற்சிக்கவும்.';
+        } else if (event.error === 'not-allowed') {
+            recognitionError.value = 'Microphone அனுமதி மறுக்கப்பட்டது. Browser settings-ல் allow செய்யவும்.';
+        } else {
+            recognitionError.value = `Recognition error: ${event.error}`;
+        }
+        isListening.value = false;
+        activeRecognition = null;
+    };
+
+    recognition.onend = () => {
+        isListening.value = false;
+        activeRecognition = null;
+    };
+
+    recognition.start();
+};
+
+const stopSpeechRecognition = () => {
+    if (activeRecognition) {
+        try { activeRecognition.abort(); } catch (_) {}
+        activeRecognition = null;
+    }
+    isListening.value = false;
+};
+
+const toggleSpeechRecognition = () => {
+    if (isListening.value) {
+        stopSpeechRecognition();
+    } else {
+        startSpeechRecognition();
+    }
+};
+
+// Send Prompt to Agent Test Sandbox
+const sendChatPrompt = async () => {
+    if (!currentPrompt.value.trim() || isSubmitting.value) return;
+
+    const userText = currentPrompt.value;
+    chatMessages.value.push({ role: 'user', text: userText });
+    currentPrompt.value = '';
+    isSubmitting.value = true;
+
+    // Save user's message immediately
+    saveHistoryToServer();
+
+    try {
+        const response = await axios.post(route('settings.agents.test'), {
+            prompt: userText,
+            agent_class: activeAgent.value.class,
+        });
+
+        const data = response.data;
+
+        if (data.success) {
+            let reply = data.response;
+            if (typeof reply === 'object' && reply !== null) {
+                if ('value' in reply && Object.keys(reply).length === 1) {
+                    reply = reply.value;
+                } else {
+                    reply = '```json\n' + JSON.stringify(reply, null, 2) + '\n```';
+                }
+            }
+            chatMessages.value.push({ role: 'agent', text: reply });
+        } else {
+            chatMessages.value.push({
+                role: 'error',
+                text: data.error || 'An error occurred while executing the prompt.',
+            });
+        }
+    } catch (err) {
+        const errMsg = err.response?.data?.error || err.response?.data?.message || err.message || 'Network request failed.';
+        chatMessages.value.push({
+            role: 'error',
+            text: errMsg,
+        });
+    } finally {
+        isSubmitting.value = false;
+        // Save agent's reply or error response
+        saveHistoryToServer();
+    }
+};
+
+// Save chat history session on close
+const saveHistoryToServer = async () => {
+    const hasUserMsg = chatMessages.value.some(m => m.role === 'user');
+    if (!hasUserMsg) return;
+
+    try {
+        const response = await axios.post(route('settings.agents.history.store'), {
+            id:               currentChatSessionId.value,
+            agent_name:       activeAgent.value.name,
+            agent_class:      activeAgent.value.class,
+            session_language: preferredLanguage.value,
+            messages:         chatMessages.value,
+        });
+        if (response.data.success && response.data.id) {
+            currentChatSessionId.value = response.data.id;
+        }
+    } catch (e) {
+        console.error('Failed to save history:', e.response?.data || e);
+    }
+};
+
+// ── Chat History Replay Drawer in AppLayout ────────────────────
+const isHistoryPanelOpen = ref(false);
+const historyList = ref([]);
+const historyCurrentPage = ref(1);
+const historyLastPage = ref(1);
+const historyLoading = ref(false);
+const historyViewSession = ref(null);
+
+const fetchHistory = async (page = 1) => {
+    historyLoading.value = true;
+    try {
+        const res = await axios.get(route('settings.agents.history.index'), {
+            params: { page, agent: activeAgent.value.name },
+        });
+        historyList.value = res.data.data;
+        historyCurrentPage.value = res.data.current_page;
+        historyLastPage.value = res.data.last_page;
+    } catch (e) {
+        // ignore
+    } finally {
+        historyLoading.value = false;
+    }
+};
+
+const openHistoryPanel = () => {
+    isHistoryPanelOpen.value = true;
+    historyViewSession.value = null;
+    fetchHistory(1);
+};
+
+const closeHistoryPanel = () => {
+    isHistoryPanelOpen.value = false;
+    historyViewSession.value = null;
+};
+
+const viewHistorySession = async (id) => {
+    try {
+        const res = await axios.get(route('settings.agents.history.show', { history: id }));
+        historyViewSession.value = res.data;
+    } catch (e) {
+        // ignore
+    }
+};
+
+const formatHistoryDate = (ts) => {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+        + ' ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+};
+
+// Helper Markdown formatter
+const formatMarkdown = (text) => {
+    if (!text) return '';
+    let escaped = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    
+    const lines = escaped.split('\n');
+    let inTable = false;
+    let tableHtml = '';
+    let headerLength = 0;
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.startsWith('|') && line.endsWith('|')) {
+            const cells = line.split('|').map(c => c.trim()).slice(1, -1);
+            const isSeparator = cells.every(c => /^:?-+:?$/.test(c));
+            
+            if (isSeparator) {
+                lines[i] = '<!-- TABLE_ROW -->';
+                continue;
+            }
+            
+            if (!inTable) {
+                inTable = true;
+                tableHtml = '<div class="overflow-x-auto my-3 border border-slate-200 rounded-xl shadow-sm"><table class="min-w-full text-xs text-left border-collapse bg-white">';
+                tableHtml += '<thead class="bg-indigo-50/70 border-b border-slate-200 text-indigo-850"><tr>';
+                cells.forEach(cell => {
+                    tableHtml += `<th class="px-3 py-2 font-black uppercase tracking-wider">${cell}</th>`;
+                });
+                tableHtml += '</tr></thead><tbody class="divide-y divide-slate-100">';
+                headerLength = cells.length;
+            } else {
+                tableHtml += '<tr class="hover:bg-slate-50/50 transition-colors">';
+                for (let j = 0; j < headerLength; j++) {
+                    const val = cells[j] || '';
+                    const isNumeric = val.startsWith('₹') || /^\d+/.test(val) || val === '0.00' || val.endsWith('%');
+                    const alignClass = isNumeric ? 'text-right' : 'text-left';
+                    tableHtml += `<td class="px-3 py-2 text-slate-700 font-semibold whitespace-nowrap ${alignClass}">${val}</td>`;
+                }
+                tableHtml += '</tr>';
+            }
+            lines[i] = '<!-- TABLE_ROW -->';
+        } else {
+            if (inTable) {
+                inTable = false;
+                tableHtml += '</tbody></table></div>';
+                let lastTableRowIdx = -1;
+                for (let k = 0; k < i; k++) {
+                    if (lines[k] === '<!-- TABLE_ROW -->') {
+                        lastTableRowIdx = k;
+                    }
+                }
+                if (lastTableRowIdx !== -1) {
+                    lines[lastTableRowIdx] = tableHtml;
+                }
+            }
+        }
+    }
+    
+    if (inTable) {
+        tableHtml += '</tbody></table></div>';
+        let lastTableRowIdx = -1;
+        for (let k = 0; k < lines.length; k++) {
+            if (lines[k] === '<!-- TABLE_ROW -->') {
+                lastTableRowIdx = k;
+            }
+        }
+        if (lastTableRowIdx !== -1) {
+            lines[lastTableRowIdx] = tableHtml;
+        }
+    }
+    
+    let formattedText = lines.filter(l => l !== '<!-- TABLE_ROW -->').join('\n');
+    formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formattedText = formattedText.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    formattedText = formattedText.replace(/`(.*?)`/g, '<code class="bg-indigo-50 text-indigo-700 px-1 py-0.5 rounded font-mono text-xs font-semibold">$1</code>');
+    formattedText = formattedText.replace(/^\s*[-*]\s+(.*?)$/gm, '<li class="ml-4 list-disc mt-1 text-slate-750">$1</li>');
+
+    return formattedText;
+};
 </script>
 
 <template>
@@ -367,6 +930,32 @@ const mobileMenuOpen = ref(false);
                                     0
                                 </span>
                             </button> -->
+
+                            <!-- AI Chat Assistant Icon -->
+                            <!-- <button
+                                v-if="$page.props.auth.user"
+                                @click="openGlobalChat"
+                                class="group relative flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-indigo-400/30 hover:border-indigo-400/60 bg-gradient-to-r from-indigo-500/10 via-blue-500/5 to-indigo-500/10 dark:from-indigo-500/20 dark:to-blue-500/10 text-indigo-200 hover:text-amber-300 transition-all duration-300 shadow-[0_0_12px_rgba(99,102,241,0.15)] hover:shadow-[0_0_20px_rgba(99,102,241,0.45)] focus:outline-none mr-2 overflow-hidden cursor-pointer"
+                                title="AI Assistant Chat"
+                            >
+                                 
+                                <div class="absolute inset-0 -translate-x-full group-hover:animate-shimmer bg-gradient-to-r from-transparent via-white/10 to-transparent z-0"></div>
+                                
+                                <div class="relative z-10 flex items-center gap-1.5">
+                                    <component 
+                                        :is="IconMap['SparklesIcon']" 
+                                        class="h-4.5 w-4.5 text-indigo-300 group-hover:text-amber-300 transition-all duration-300 group-hover:rotate-12"
+                                    />
+                                    <span class="text-xs font-bold tracking-wide hidden sm:inline-block">AI Assistant</span>
+                                    
+                                     
+                                    <span class="relative flex h-2 w-2">
+                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                    </span>
+                                </div>
+                            </button> -->
+
                             <div class="ms-3 relative">
                                 <!-- Teams Dropdown -->
                                 <Dropdown v-if="$page.props.jetstream.hasTeamFeatures" align="right" width="60">
@@ -783,6 +1372,486 @@ const mobileMenuOpen = ref(false);
             </div>
         </div>
 
+        <!-- Floating AI Action Button (FAB) -->
+        <div 
+            v-if="$page.props.auth.user && !isChatDrawerOpen" 
+            class="fixed bottom-6 right-6 z-[90] animate-float animate-in fade-in slide-in-from-bottom-5 duration-500"
+        >
+            <button
+                @click="openGlobalChat"
+                class="group relative flex items-center justify-center p-0.5 rounded-full bg-gradient-to-tr from-indigo-650 via-purple-500 to-amber-400 hover:from-indigo-500 hover:via-purple-400 hover:to-amber-300 shadow-2xl transition-all duration-500 hover:scale-105 active:scale-95 cursor-pointer border-0"
+                title="Ask AI Assistant"
+            >
+                <!-- Outer Glow Aura -->
+                <span class="absolute inset-0 rounded-full bg-indigo-500/40 blur-xl opacity-70 group-hover:opacity-100 group-hover:bg-indigo-500/60 transition-opacity duration-300"></span>
+                
+                <!-- Inner Container -->
+                <div class="relative flex items-center gap-2 bg-slate-900/90 dark:bg-slate-900/95 text-white px-4 py-3 rounded-full border border-white/10 backdrop-blur-md transition-all duration-300 group-hover:bg-slate-800/80">
+                    <!-- Spinning glowing background element inside the button -->
+                    <div class="absolute inset-0 rounded-full overflow-hidden opacity-0 group-hover:opacity-10 transition-opacity duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 animate-rotate-slow"></div>
+                    </div>
+                    
+                    <!-- Sparkles Icon with custom spin/scale effect -->
+                    <component 
+                        :is="IconMap['SparklesIcon']" 
+                        class="h-5.5 w-5.5 text-amber-400 group-hover:text-white transition-all duration-500 ease-out transform group-hover:rotate-180 scale-100 group-hover:scale-110"
+                    />
+                    
+                    <!-- Text that slides out / shows -->
+                    <span class="text-xs font-black uppercase tracking-wider pr-1">Ask OSAI</span>
+                    
+                    <!-- Active Status Pulse -->
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+                    </span>
+                </div>
+            </button>
+        </div>
+
+        <!-- Global Chat Playground Sidebar Drawer -->
+        <div v-if="isChatDrawerOpen" class="fixed inset-0 z-[100] overflow-hidden" aria-labelledby="slide-over-title" role="dialog" aria-modal="true">
+            <div class="absolute inset-0 overflow-hidden">
+                <!-- Overlay -->
+                <div class="absolute inset-0 bg-slate-950/45 backdrop-blur-md transition-opacity duration-500" @click="closeGlobalChat"></div>
+
+                <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+                    <div class="pointer-events-auto w-screen max-w-md md:max-w-xl">
+                        <div class="flex h-full flex-col bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.18)] border-l border-slate-200/50 dark:border-slate-800/80">
+                            <!-- Drawer Header -->
+                            <div class="bg-white/80 dark:bg-slate-900/85 px-6 py-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shadow-sm backdrop-blur-md">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2.5 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
+                                        <CpuChipIcon class="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                                    </div>
+                                    <div>
+                                        <h2 class="text-base font-black text-slate-900 dark:text-white leading-none">{{ activeAgent?.name }} AI</h2>
+                                        <div class="flex items-center gap-1.5 mt-1.5">
+                                            <!-- Pulsing status dot -->
+                                            <span class="relative flex h-1.5 w-1.5">
+                                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                                            </span>
+                                            <span class="text-[9px] font-mono text-slate-450 dark:text-slate-400 uppercase tracking-widest leading-none">Live Assistant</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <!-- Language toggle switch -->
+                                    <div class="flex items-center gap-1 bg-slate-150/70 dark:bg-slate-800/80 rounded-lg p-0.5 border border-slate-200/50 dark:border-slate-700/50">
+                                        <button 
+                                            v-for="lang in ['auto', 'en', 'ta']" 
+                                            :key="lang"
+                                            type="button"
+                                            @click="preferredLanguage = lang"
+                                            class="text-[9px] font-black uppercase tracking-wider px-2.5 py-1 rounded transition-all cursor-pointer"
+                                            :class="[
+                                                preferredLanguage === lang 
+                                                    ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-sm' 
+                                                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                                            ]"
+                                        >
+                                            {{ lang === 'auto' ? 'Auto' : lang === 'en' ? 'English' : 'Tamil' }}
+                                        </button>
+                                    </div>
+                                    <!-- History Button -->
+                                    <button
+                                        type="button"
+                                        @click="openHistoryPanel"
+                                        class="rounded-xl p-2 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all cursor-pointer"
+                                        title="Chat History"
+                                    >
+                                        <ClockIcon class="h-5 w-5" />
+                                    </button>
+                                    <button type="button" class="rounded-xl p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer" @click="closeGlobalChat">
+                                        <XMarkIcon class="h-5 w-5" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Drawer Body: Chat History -->
+                            <div class="flex-1 overflow-y-auto p-6 space-y-5 bg-gradient-to-b from-slate-50/50 to-slate-100/30 dark:from-slate-900/30 dark:to-slate-950/20">
+                                <div v-for="(msg, idx) in chatMessages" :key="idx" class="flex flex-col" :class="[msg.role === 'user' ? 'items-end' : 'items-start']">
+                                    <div class="max-w-[85%] rounded-2xl px-4 py-3.5 text-sm shadow-md leading-relaxed transition-all duration-300 hover:shadow-lg"
+                                         :class="[
+                                             msg.role === 'user' 
+                                                 ? 'bg-gradient-to-br from-indigo-600 via-indigo-650 to-purple-650 text-white rounded-br-none shadow-indigo-200/50 dark:shadow-none' 
+                                                 : msg.role === 'error'
+                                                 ? 'bg-red-50 dark:bg-red-950/30 text-red-750 dark:text-red-300 border border-red-200/60 dark:border-red-900/40 rounded-bl-none'
+                                                 : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/60 dark:border-slate-700/50 rounded-bl-none shadow-slate-100/50'
+                                         ]"
+                                    >
+                                        <div v-if="msg.role === 'agent' && msg.text.startsWith('```json')" class="font-mono text-xs">
+                                            <pre class="overflow-x-auto whitespace-pre bg-slate-900 dark:bg-slate-950 text-emerald-455 p-3.5 rounded-xl border border-slate-800 shadow-inner font-semibold leading-relaxed">{{ msg.text.replace(/```json\n|```/g, '') }}</pre>
+                                        </div>
+                                        <div v-else class="whitespace-pre-wrap text-slate-800 dark:text-slate-150" v-html="formatMarkdown(msg.text)"></div>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 mt-1.5 px-1.5">
+                                        <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                            {{ msg.role === 'user' ? 'You' : activeAgent?.name }}
+                                        </span>
+                                        <!-- Speaker Button for Agent responses -->
+                                        <button 
+                                            v-if="msg.role === 'agent'"
+                                            type="button"
+                                            @click="toggleSpeech(msg.text, idx)"
+                                            class="p-0.5 rounded text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                                            title="Listen to response"
+                                        >
+                                            <svg v-if="currentlySpeakingMessageIndex === idx" class="w-3.5 h-3.5 text-indigo-600 animate-pulse" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25v13.5m-7.5-13.5v13.5" />
+                                            </svg>
+                                            <svg v-else class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Running database tools / Executing status card -->
+                                <div v-if="isSubmitting" class="flex flex-col gap-2 bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-150/40 dark:border-indigo-900/30 rounded-2xl p-4 shadow-sm animate-pulse-glow">
+                                    <div class="flex items-center gap-2.5 text-indigo-700 dark:text-indigo-300">
+                                        <ArrowPathIcon class="w-4 h-4 animate-spin" />
+                                        <span class="text-xs font-bold tracking-wide">AI is invoking tools and processing...</span>
+                                    </div>
+                                    <div class="h-1 bg-indigo-100 dark:bg-indigo-950 rounded-full overflow-hidden">
+                                        <div class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 animate-shimmer" style="width: 100%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Drawer Footer: Chat Input -->
+                            <div class="bg-white dark:bg-slate-900 border-t border-slate-200/60 dark:border-slate-800/60 px-6 py-4 shadow-inner">
+                                <!-- Predefined Questions Categories -->
+                                <div class="flex gap-1.5 mb-3 overflow-x-auto pb-1.5 border-b border-slate-100 dark:border-slate-850 scrollbar-none">
+                                    <button 
+                                        v-for="cat in availableCategories" 
+                                        :key="cat.id"
+                                        type="button"
+                                        @click="selectedCategory = cat.id"
+                                        class="text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full transition-all cursor-pointer whitespace-nowrap border"
+                                        :class="[
+                                            selectedCategory === cat.id 
+                                                ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-250 dark:border-indigo-900 shadow-sm font-black' 
+                                                : 'text-slate-450 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/60'
+                                        ]"
+                                    >
+                                        {{ cat.label }}
+                                    </button>
+                                </div>
+
+                                <!-- Predefined Questions in Active Category -->
+                                <div class="flex flex-wrap gap-1.5 mb-4">
+                                    <button 
+                                        v-for="q in activeQuestions" 
+                                        :key="q"
+                                        type="button"
+                                        @click="runPredefinedQuestion(q)"
+                                        :disabled="isSubmitting"
+                                        class="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-950/15 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 border border-indigo-100/50 dark:border-indigo-900/20 rounded-full px-3 py-1 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+                                    >
+                                        {{ q }}
+                                    </button>
+                                </div>
+                                
+                                <!-- Recognition error banner -->
+                                <div v-if="recognitionError" class="mb-3 flex items-center gap-2 bg-red-50 dark:bg-red-950/20 border border-red-200/50 dark:border-red-900/30 rounded-xl px-3.5 py-2.5">
+                                    <svg class="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                                    </svg>
+                                    <span class="text-[10px] font-bold text-red-700 dark:text-red-400 flex-1 leading-snug">{{ recognitionError }}</span>
+                                    <button type="button" @click="recognitionError = null" class="text-red-400 hover:text-red-650 cursor-pointer">
+                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+
+                                <div class="flex gap-3 items-center">
+                                    <div class="relative flex-1 flex items-center">
+                                        <BaseInput
+                                            v-model="currentPrompt"
+                                            :placeholder="preferredLanguage === 'ta' ? 'உங்கள் கேள்வியை தட்டச்சு செய்யுங்கள்...' : 'Type a message...'"
+                                            fieldClass="flex-1"
+                                            inputClass="!py-3 !rounded-xl !pr-10  dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500/25"
+                                            @keydown.enter="sendChatPrompt"
+                                            :disabled="isSubmitting"
+                                        />
+                                    </div>
+
+                                    <!-- Microphone Button -->
+                                    <button
+                                        type="button"
+                                        @click="toggleSpeechRecognition"
+                                        :disabled="isSubmitting"
+                                        :title="isListening ? (preferredLanguage === 'ta' ? 'நிறுத்து' : 'Stop listening') : (preferredLanguage === 'ta' ? 'குரல் உள்ளீடு' : 'Voice input')"
+                                        class="relative flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl border transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 !bg-indigo-650"
+                                        :class="isListening
+                                            ? 'bg-red-500 border-red-400 shadow-lg shadow-red-200 text-white'
+                                            : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:border-indigo-200 dark:hover:border-indigo-900'"
+                                    >
+                                        <!-- Pulsating ring when listening -->
+                                        <span v-if="isListening" class="absolute inset-0 rounded-xl bg-red-400 animate-ping opacity-30"></span>
+
+                                        <!-- Mic icon -->
+                                        <svg :class="isListening ? 'text-white' : 'text-slate-500 dark:text-slate-450'" class="w-5 h-5 relative z-10" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+                                        </svg>
+                                    </button>
+
+                                    <!-- Send Button -->
+                                    <button
+                                        type="button"
+                                        @click="sendChatPrompt"
+                                        :disabled="isSubmitting"
+                                        class="relative flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-indigo-700 hover:bg-indigo-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 shadow-md shadow-indigo-250/30 dark:shadow-none border-0"
+                                        title="Send message"
+                                    >
+                                        <ArrowPathIcon v-if="isSubmitting" class="w-5 h-5 animate-spin" />
+                                        <component v-else :is="PaperAirplaneIcon" class="w-5 h-5" />
+                                    </button>
+                                </div>
+
+                                <!-- Listening status indicator -->
+                                <div v-if="isListening" class="mt-2.5 flex items-center gap-2 bg-red-50/50 dark:bg-red-950/10 px-3 py-1.5 rounded-lg border border-red-100/30 dark:border-red-900/20 max-w-max">
+                                    <span class="flex gap-0.5 items-end h-3">
+                                        <span class="w-0.5 bg-red-500 rounded-full animate-bounce" style="height:4px; animation-delay:0ms"></span>
+                                        <span class="w-0.5 bg-red-500 rounded-full animate-bounce" style="height:8px; animation-delay:100ms"></span>
+                                        <span class="w-0.5 bg-red-500 rounded-full animate-bounce" style="height:11px; animation-delay:200ms"></span>
+                                        <span class="w-0.5 bg-red-500 rounded-full animate-bounce" style="height:8px; animation-delay:300ms"></span>
+                                        <span class="w-0.5 bg-red-500 rounded-full animate-bounce" style="height:4px; animation-delay:400ms"></span>
+                                    </span>
+                                    <span class="text-[9px] font-black text-red-500 uppercase tracking-widest">
+                                        {{ preferredLanguage === 'ta' ? 'கேட்கிறேன்... பேசுங்கள்' : 'Listening... speak now' }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ══ Chat History Slide-Over Panel ══ -->
+        <div v-if="isHistoryPanelOpen" class="fixed inset-0 z-[110] overflow-hidden" role="dialog" aria-modal="true">
+            <div class="absolute inset-0 overflow-hidden">
+                <!-- Overlay -->
+                <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="closeHistoryPanel"></div>
+
+                <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+                    <div class="pointer-events-auto w-screen max-w-2xl">
+                        <div class="flex h-full flex-col bg-white shadow-2xl border-l border-slate-200">
+
+                            <!-- Panel Header -->
+                            <div class="bg-gradient-to-r from-amber-50 to-orange-50 px-6 py-5 border-b border-amber-100 flex items-center justify-between">
+                                <div class="flex items-center gap-3">
+                                    <div class="p-2.5 bg-amber-100 rounded-xl">
+                                        <ClockIcon class="w-5 h-5 text-amber-600" />
+                                    </div>
+                                    <div>
+                                        <h2 class="text-base font-black text-slate-900">Chat History</h2>
+                                        <p class="text-[10px] text-amber-700 font-semibold uppercase tracking-widest">Past conversations — stored for analysis</p>
+                                    </div>
+                                </div>
+                                <button type="button" @click="closeHistoryPanel" class="rounded-xl p-2 text-slate-400 hover:text-slate-700 hover:bg-white/70 transition-all cursor-pointer">
+                                    <XMarkIcon class="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            <!-- Two-column layout: list | session viewer -->
+                            <div class="flex flex-1 min-h-0">
+
+                                <!-- LEFT: Session List -->
+                                <div class="w-80 shrink-0 flex flex-col border-r border-slate-100 bg-slate-50">
+                                    <div class="px-4 py-3 border-b border-slate-100">
+                                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Sessions</p>
+                                    </div>
+
+                                    <!-- Loading state -->
+                                    <div v-if="historyLoading" class="flex-1 flex items-center justify-center">
+                                        <div class="flex flex-col items-center gap-2">
+                                            <ArrowPathIcon class="w-6 h-6 text-amber-500 animate-spin" />
+                                            <span class="text-xs text-slate-400">Loading history...</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Empty state -->
+                                    <div v-else-if="historyList.length === 0" class="flex-1 flex items-center justify-center">
+                                        <div class="text-center px-4">
+                                            <ChatBubbleOvalLeftIcon class="w-10 h-10 text-slate-200 mx-auto mb-2" />
+                                            <p class="text-xs text-slate-400 font-semibold">No chat history yet</p>
+                                            <p class="text-[10px] text-slate-300 mt-1">Sessions will appear here after you close a conversation</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- List -->
+                                    <div v-else class="flex-1 overflow-y-auto divide-y divide-slate-100">
+                                        <button
+                                            v-for="item in historyList"
+                                            :key="item.id"
+                                            type="button"
+                                            @click="viewHistorySession(item.id)"
+                                            class="w-full text-left px-4 py-3 hover:bg-white transition-colors group cursor-pointer"
+                                            :class="historyViewSession?.id === item.id ? 'bg-white border-l-2 border-amber-400' : ''"
+                                        >
+                                            <!-- Agent + Language badge -->
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-100 rounded px-1.5 py-0.5">
+                                                    {{ item.agent_name }}
+                                                </span>
+                                                <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border"
+                                                    :class="item.session_language === 'ta'
+                                                        ? 'text-green-700 bg-green-50 border-green-100'
+                                                        : 'text-slate-500 bg-slate-50 border-slate-200'"
+                                                >
+                                                    {{ item.session_language === 'ta' ? 'Tamil' : item.session_language === 'auto' ? 'Auto' : 'English' }}
+                                                </span>
+                                            </div>
+                                            <!-- Summary -->
+                                            <p class="text-[11px] text-slate-600 font-medium leading-snug line-clamp-2 mb-1.5">
+                                                {{ item.summary || '(No summary)' }}
+                                            </p>
+                                            <!-- Meta -->
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-[9px] text-slate-400">{{ item.message_count }} messages</span>
+                                                <span class="text-[9px] text-slate-400">{{ formatHistoryDate(item.created_at) }}</span>
+                                            </div>
+                                        </button>
+                                    </div>
+
+                                    <!-- Paginator -->
+                                    <div v-if="historyLastPage > 1" class="border-t border-slate-100 px-4 py-2 flex items-center justify-between">
+                                        <button
+                                            type="button"
+                                            :disabled="historyCurrentPage <= 1"
+                                            @click="fetchHistory(historyCurrentPage - 1)"
+                                            class="text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+                                        >← Prev</button>
+                                        <span class="text-[10px] text-slate-400 font-semibold">{{ historyCurrentPage }} / {{ historyLastPage }}</span>
+                                        <button
+                                            type="button"
+                                            :disabled="historyCurrentPage >= historyLastPage"
+                                            @click="fetchHistory(historyCurrentPage + 1)"
+                                            class="text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-all"
+                                        >Next →</button>
+                                    </div>
+                                </div>
+
+                                <!-- RIGHT: Session Viewer -->
+                                <div class="flex-1 flex flex-col min-h-0">
+                                    <!-- Empty state -->
+                                    <div v-if="!historyViewSession" class="flex-1 flex items-center justify-center">
+                                        <div class="text-center">
+                                            <ClockIcon class="w-12 h-12 text-slate-150 mx-auto mb-3" />
+                                            <p class="text-sm font-semibold text-slate-400">Select a session to view</p>
+                                            <p class="text-xs text-slate-300 mt-1">Full conversation will appear here</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Session detail -->
+                                    <div v-else class="flex flex-col h-full">
+                                        <!-- Session meta bar -->
+                                        <div class="px-5 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 border border-indigo-100 rounded px-1.5 py-0.5">
+                                                    {{ historyViewSession.agent_name }}
+                                                </span>
+                                                <span class="text-[10px] text-slate-400 font-semibold">
+                                                    {{ historyViewSession.message_count }} messages
+                                                </span>
+                                                <span class="text-[10px] text-slate-400">
+                                                    {{ formatHistoryDate(historyViewSession.created_at) }}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Messages replay -->
+                                        <div class="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-slate-50/50">
+                                            <div
+                                                v-for="(msg, mi) in historyViewSession.messages"
+                                                :key="mi"
+                                                class="flex"
+                                                :class="msg.role === 'user' ? 'justify-end' : 'justify-start'"
+                                            >
+                                                <div
+                                                    class="max-w-[82%] rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-sm"
+                                                    :class="[
+                                                        msg.role === 'user'
+                                                            ? 'bg-indigo-600 text-white rounded-br-none'
+                                                            : msg.role === 'error'
+                                                            ? 'bg-red-50 text-red-700 border border-red-200 rounded-bl-none'
+                                                            : 'bg-white text-slate-700 border border-slate-200 rounded-bl-none'
+                                                    ]"
+                                                >
+                                                    <!-- Role label -->
+                                                    <p class="text-[8px] font-black uppercase tracking-widest mb-1 opacity-60">
+                                                        {{ msg.role === 'user' ? 'You' : historyViewSession.agent_name }}
+                                                    </p>
+                                                    <div
+                                                        v-if="msg.role === 'agent'"
+                                                        class="whitespace-pre-wrap text-slate-800"
+                                                        v-html="formatMarkdown(msg.text)"
+                                                    ></div>
+                                                    <p v-else class="whitespace-pre-wrap">{{ msg.text }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </template>
+
+<style scoped>
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0px);
+    }
+    50% {
+        transform: translateY(-8px);
+    }
+}
+@keyframes rotate-slow {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 12px rgba(99, 102, 241, 0.25), 0 0 4px rgba(99, 102, 241, 0.15);
+    }
+    50% {
+        box-shadow: 0 0 22px rgba(99, 102, 241, 0.65), 0 0 8px rgba(99, 102, 241, 0.35);
+    }
+}
+.animate-shimmer {
+    animation: shimmer 2s infinite linear;
+}
+.animate-float {
+    animation: float 5s ease-in-out infinite;
+}
+.animate-rotate-slow {
+    animation: rotate-slow 25s linear infinite;
+}
+.animate-pulse-glow {
+    animation: pulse-glow 2s infinite ease-in-out;
+}
+</style>
 
