@@ -8,7 +8,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call(\Database\Seeders\ApiModuleSeeder::class);
+        // $this->call(\Database\Seeders\ApiModuleSeeder::class);
 
         // ── 1. Core Setup ──────────────────────────────────────
         $this->call(\Database\Seeders\EntityTypeSeeder::class);
@@ -35,10 +35,8 @@ class DatabaseSeeder extends Seeder
         // ── 4. Main Modules ────────────────────────────────────
         $this->call(\Database\Seeders\AccountTypeSeeder::class);
         $this->call(\Database\Seeders\LedgerSeeder::class);
-        $this->call(\Database\Seeders\TripSeeder::class); // Finally Trips
-        $this->call(\Database\Seeders\PurchaseOrderSeeder::class);
-        $this->call(\Database\Seeders\InvoiceSeeder::class);
-        $this->call(\Database\Seeders\PettyCashSeeder::class);
+        // $this->call(\Database\Seeders\PurchaseOrderSeeder::class);
+        // $this->call(\Database\Seeders\InvoiceSeeder::class);
         $this->call(\Database\Seeders\ConcreteQualityTestSeeder::class);
         $this->call(\Database\Seeders\RagDocumentSeeder::class);
     }
