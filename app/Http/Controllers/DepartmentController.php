@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
-use App\Models\Contact;
 use App\Models\Personnel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -21,11 +20,9 @@ class DepartmentController extends Controller
         $activePlantId = session('active_plant_id');
 
         return Inertia::render('Departments/Index', [
-            'departments' => Department::with('contact')
-                ->where('plant_id', $activePlantId)
+            'departments' => Department::where('plant_id', $activePlantId)
                 ->latest()
                 ->get(),
-            'contacts' => Contact::where('plant_id', $activePlantId)->get(['id', 'name', 'email', 'mobile']),
         ]);
     }
 
@@ -35,8 +32,7 @@ class DepartmentController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'code' => 'nullable|string|max:50',
-            'contact_id' => 'nullable|exists:mm_contacts,id',
+            'code' => 'nullable|string|max:50'
         ]);
 
         $validated['plant_id'] = session('active_plant_id');
@@ -53,7 +49,6 @@ class DepartmentController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'code' => 'nullable|string|max:50',
-            'contact_id' => 'nullable|exists:mm_contacts,id',
         ]);
 
         $department->update($validated);

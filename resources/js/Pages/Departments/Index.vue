@@ -15,24 +15,14 @@ import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseCard from '@/Components/Base/BaseCard.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 
-interface Contact {
-    id: number;
-    name: string;
-    email: string | null;
-    mobile: string | null;
-}
-
 interface Department {
     id: number;
     name: string;
     code: string | null;
-    contact_id: number | null;
-    contact?: Contact | null;
 }
 
 const props = defineProps<{
     departments: Department[];
-    contacts: Contact[];
 }>();
 
 const page = usePage();
@@ -41,18 +31,12 @@ const editingId = ref<number | null>(null);
 const form = useForm({
     name: '',
     code: '',
-    contact_id: null as number | null,
 });
-
-const contactOptions = computed(() => 
-    props.contacts.map(c => ({ label: c.name, value: c.id }))
-);
 
 const editDepartment = (dept: Department) => {
     editingId.value = dept.id;
     form.name = dept.name;
     form.code = dept.code || '';
-    form.contact_id = dept.contact_id;
 };
 
 const resetForm = () => {
@@ -132,7 +116,7 @@ watch(
                         </template>
 
                         <form @submit.prevent="submitForm" class="space-y-6">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="flex flex-col gap-2">
                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Department Name <span class="text-red-500">*</span></label>
                                     <BaseInput v-model="form.name" placeholder="e.g. Quality Control" :class="{'p-invalid': form.errors.name}" />
@@ -141,10 +125,6 @@ watch(
                                 <div class="flex flex-col gap-2">
                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Department Code</label>
                                     <BaseInput v-model="form.code" placeholder="e.g. QC-DEPT" />
-                                </div>
-                                <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact Person</label>
-                                    <BaseSelect v-model="form.contact_id" :options="contactOptions" optionLabel="label" optionValue="value" placeholder="Select Contact" class="w-full" />
                                 </div>
                             </div>
 
@@ -187,11 +167,7 @@ watch(
                                     </span>
                                 </template>
                             </Column>
-                            <Column header="Contact Person">
-                                <template #body="slotProps">
-                                    <span>{{ slotProps.data.contact ? slotProps.data.contact.name : '-' }}</span>
-                                </template>
-                            </Column>
+
                             <Column header="Actions" alignFrozen="right" frozen>
                                 <template #body="slotProps">
                                     <div class="flex justify-end gap-2">
