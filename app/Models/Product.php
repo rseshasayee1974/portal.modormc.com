@@ -81,7 +81,7 @@ class Product extends Model
      * @param  int|null   $entityId
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function scopeForPlant($query, $plantId, int $entityId = null)
+    public function scopeForPlant($query, $plantId, ?int $entityId = null)
     {
         $query = is_array($plantId)
             ? $query->where('plant_id', $plantId)

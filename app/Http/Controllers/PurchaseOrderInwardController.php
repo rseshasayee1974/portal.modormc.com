@@ -54,7 +54,7 @@ class PurchaseOrderInwardController extends Controller
         ]);
     }
 
-    public function create(PurchaseOrder $purchase_order = null)
+    public function create(?PurchaseOrder $purchase_order = null)
     {
         $this->authorizeModule('create');
         $allowedPlantId = session('active_plant_id');

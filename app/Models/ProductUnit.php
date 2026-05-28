@@ -26,7 +26,7 @@ class ProductUnit extends Model
      * @param  string|null  $unitType  e.g. 'purchase', 'sales'
      * @return \Illuminate\Database\Eloquent\Builder
      */
-    public function scopeForDropdown($query, string $unitType = null)
+    public function scopeForDropdown($query, ?string $unitType = null)
     {
         if ($unitType !== null) {
             $query->where('unit_type', $unitType);

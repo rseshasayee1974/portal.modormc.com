@@ -34,7 +34,7 @@ class Driver extends Model
     /**
      * Scope: active drivers for a plant.
      */
-    public function scopeForPlant($query, $plantId, int $entityId = null)
+    public function scopeForPlant($query, $plantId, ?int $entityId = null)
     {
         $query = is_array($plantId)
             ? $query->whereIn('plant_id', $plantId)

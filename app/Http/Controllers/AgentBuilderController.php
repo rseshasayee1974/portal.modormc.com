@@ -420,6 +420,10 @@ PHP;
                     ? $response->structured 
                     : $response->text;
 
+                if ((is_array($reply) && count($reply) === 0) || ($reply === null) || (is_string($reply) && trim($reply) === '')) {
+                    $reply = $response->text ?? 'No response returned.';
+                }
+
                 return response()->json([
                     'success'  => true,
                     'response' => $reply,
@@ -491,6 +495,10 @@ PHP;
             $reply = $response instanceof \Laravel\Ai\Responses\StructuredAgentResponse 
                 ? $response->structured 
                 : $response->text;
+
+            if ((is_array($reply) && count($reply) === 0) || ($reply === null) || (is_string($reply) && trim($reply) === '')) {
+                $reply = $response->text ?? 'No response returned.';
+            }
 
             return response()->json([
                 'success'  => true,

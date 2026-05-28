@@ -47,7 +47,7 @@ class FuelLog extends Model
     /**
      * Scope: active fuel logs for a plant.
      */
-    public function scopeForPlant($query, $plantId, int $entityId = null)
+    public function scopeForPlant($query, $plantId, ?int $entityId = null)
     {
         $query = is_array($plantId)
             ? $query->whereIn('plant_id', $plantId)
