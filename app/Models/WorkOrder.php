@@ -128,16 +128,20 @@ class WorkOrder extends Model
             'full_number' => $fullPrefix . str_pad((string)$nextSequence, 4, '0', STR_PAD_LEFT)
         ];
     }
-    public function refreshProduction(): void
+    public function refreshProduction(?int $manualStatus = null): void
     {
         $producedQty = (float) $this->batches()
             ->where('status', '!=', Batch::STATUS_CANCELLED)
             ->sum('batch_size');
-        
+
+        // Reload current status from DB (in case it was just updated)
+        $this->refresh();
         $status = $this->status;
 
-        if ($producedQty <= 0 && $this->status !== self::STATUS_CANCELLED) {
-            $status = self::STATUS_SCHEDULED;
+        if ($producedQty <= 0) {
+            // No production yet — respect the manually set status (e.g. In Progress, Cancelled)
+            // Only auto-set to Scheduled if user hasn't changed it away from Scheduled
+            $status = $manualStatus ?? $this->status;
         } elseif ($producedQty > 0 && $producedQty < (float) $this->total_qty && $this->status !== self::STATUS_CANCELLED) {
             $status = self::STATUS_IN_PROGRESS;
         } elseif ($producedQty >= (float) $this->total_qty && $this->status !== self::STATUS_CANCELLED) {
@@ -146,7 +150,7 @@ class WorkOrder extends Model
 
         $this->update([
             'produced_qty' => $producedQty,
-            'status' => $status,
+            'status'       => $status,
         ]);
     }
 }

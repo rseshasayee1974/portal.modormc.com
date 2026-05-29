@@ -62,13 +62,13 @@ class BatchController extends Controller
             ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
             ->where('created_at', '>=', $fyStart)
             ->max('batch_no') + 1;
-
+// dd(PatronsDropdown('Customer'));
         return Inertia::render('Batches/Index', [
             'batches' => $batches,
             'workOrders' => $workOrders,
             'trucks' => MachinesDropdown(),
             'customers' => PatronsDropdown('Customer'),
-            'transporters' => PatronsDropdown(), // assuming PatronsDropdown handles this
+            'transporters' => PatronsDropdown('Transporter'), // assuming PatronsDropdown handles this
             'loading_sites' => SitesDropdown('loading'),
             'unloading_sites' => SitesDropdown('unloading'),
             'personnel' => PersonnelDropdown(),
@@ -173,7 +173,8 @@ class BatchController extends Controller
         });
 
         // Try to push to scheduler
-        $this->pushToSchedulerAPI($batch, $materialsData);
+        
+        // $this->pushToSchedulerAPI($batch, $materialsData);
 
         return redirect()->back()->with('success', 'Batch created successfully.');
     }

@@ -17,6 +17,7 @@ class StockExhaustLine extends Model
 
     protected $fillable = [
         'stock_id',
+        'product_id',
         'issue_date',
         'quantity_issued',
         'no_items_issued',
@@ -64,5 +65,10 @@ class StockExhaustLine extends Model
     public function vehicle()
     {
         return $this->belongsTo(Machine::class, 'vehicle_no');
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'product_id');
     }
 }

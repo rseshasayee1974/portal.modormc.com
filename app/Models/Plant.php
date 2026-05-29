@@ -65,7 +65,7 @@ class Plant extends Model
      * Get the shift date and shift name for a given timestamp.
      * Based on shift_start_time (default 12:00:00).
      */
-    public function getCurrentShiftInfo(?\DateTimeInterface $time = null): array
+    public function getCurrentShiftInfo($time = null): array
     {
         $time = $time ? \Carbon\Carbon::parse($time) : now();
         $startTime = $this->shift_start_time ?? '12:00:00';

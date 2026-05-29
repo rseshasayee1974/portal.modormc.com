@@ -7,18 +7,17 @@ import Swal from 'sweetalert2';
 
 import {
     WrenchScrewdriverIcon, MagnifyingGlassIcon, PencilSquareIcon,
-    TrashIcon, PlusIcon, TagIcon, XMarkIcon, CheckIcon, CalendarIcon, ChevronDownIcon, ChevronUpIcon
+    TrashIcon
 } from '@heroicons/vue/24/outline';
 
 // PrimeVue
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
-import DatePicker from 'primevue/datepicker';
 import BaseInput from '@/Components/Base/BaseInput.vue';
-import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 
-const page = usePage();
+// Partials
+import StockExhaustCreateForm from './Partials/StockExhaustCreateForm.vue';
+import StockExhaustEditForm from './Partials/StockExhaustEditForm.vue';
 
 interface Line {
     id?: number;
@@ -53,25 +52,19 @@ const props = defineProps<{
     stockExhausts: StockExhaust[];
     machines: any[];
     vendors: any[];
+    products: any[];
+    units: any[];
 }>();
 
+const page = usePage();
 const searchQuery = ref('');
-const editingId = ref<number | null>(null);
+const editingVoucher = ref<StockExhaust | null>(null);
 const expandedRows = ref<any[]>([]);
-
-const machineOptions = computed(() => props.machines.map(m => ({ label: m.registration, value: m.id })));
-const vendorOptions = computed(() => props.vendors.map(v => ({ label: v.legal_name, value: v.id })));
 
 const voucherStatuses = [
     { label: 'Draft', value: 0 },
     { label: 'Approved', value: 1 },
     { label: 'Cancelled', value: 2 }
-];
-
-const invoiceStatuses = [
-    { label: 'Unbilled', value: 0 },
-    { label: 'Partially Billed', value: 1 },
-    { label: 'Fully Billed', value: 2 }
 ];
 
 const filteredVouchers = computed(() => {
@@ -84,78 +77,16 @@ const filteredVouchers = computed(() => {
     );
 });
 
-const getInitialForm = () => ({
-    partner_id: null as number | null,
-    name: '',
-    bill_number: '',
-    billed_date: null as any,
-    invoice_status: 0,
-    status: 1,
-    issued_date: null as any,
-    lines: [] as Line[]
-});
-
-const form = useForm(getInitialForm());
-
 const startEdit = (voucher: StockExhaust) => {
-    editingId.value = voucher.id;
-    form.partner_id = voucher.partner_id;
-    form.name = voucher.name;
-    form.bill_number = voucher.bill_number || '';
-    form.billed_date = voucher.billed_date ? new Date(voucher.billed_date) : null;
-    form.invoice_status = voucher.invoice_status;
-    form.status = voucher.status;
-    form.issued_date = voucher.issued_date ? new Date(voucher.issued_date) : null;
-    form.lines = voucher.lines.map(l => ({
-        ...l,
-        issue_date: l.issue_date ? new Date(l.issue_date) : null,
-        quantity_issued: l.quantity_issued ? Number(l.quantity_issued) : null,
-        no_items_issued: Number(l.no_items_issued),
-        changed_km: Number(l.changed_km)
-    }));
+    editingVoucher.value = voucher;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 const cancelEdit = () => {
-    editingId.value = null;
-    form.reset();
-    form.clearErrors();
+    editingVoucher.value = null;
 };
 
-const addLine = () => {
-    form.lines.push({
-        issue_date: new Date(),
-        quantity_issued: null,
-        no_items_issued: 1,
-        units: 'pcs',
-        issued_to: '',
-        vehicle_no: null,
-        changed_km: 0,
-        notes: ''
-    });
-};
-
-const removeLine = (index: number) => {
-    form.lines.splice(index, 1);
-};
-
-const submitForm = () => {
-    if (editingId.value) {
-        form.put(route('stock-exhausts.update', editingId.value), {
-            onSuccess: () => {
-                cancelEdit();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Voucher modified', showConfirmButton: false, timer: 1500 });
-            }
-        });
-    } else {
-        form.post(route('stock-exhausts.store'), {
-            onSuccess: () => {
-                form.reset();
-                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Voucher registered', showConfirmButton: false, timer: 1500 });
-            }
-        });
-    }
-};
+const deleteForm = useForm({});
 
 const deleteVoucher = (id: number) => {
     Swal.fire({
@@ -169,9 +100,9 @@ const deleteVoucher = (id: number) => {
         customClass: { popup: 'rounded-3xl' }
     }).then((result) => {
         if (result.isConfirmed) {
-            form.delete(route('stock-exhausts.destroy', id), {
+            deleteForm.delete(route('stock-exhausts.destroy', id), {
                 onSuccess: () => {
-                    if (editingId.value === id) cancelEdit();
+                    if (editingVoucher.value?.id === id) cancelEdit();
                     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted successfully', showConfirmButton: false, timer: 1500 });
                 }
             });
@@ -191,145 +122,25 @@ watch(() => page.props.flash, (flash: any) => {
         <div class="my-5">
             <div class="max-w-7xl">
 
-                <!-- ── Create / Edit Form Card ── -->
-                <div class="bg-white dark:bg-slate-900 my-6 rounded-lg shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 overflow-hidden transition-all duration-300" :class="editingId ? 'ring-2 ring-indigo-500 ring-offset-4 dark:ring-offset-slate-950' : ''">
-                    <div class="p-8">
-                        <div class="flex items-center gap-4 mb-8">
-                            <div class="flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600">
-                                <WrenchScrewdriverIcon v-if="!editingId" class="w-6 h-6" />
-                                <PencilSquareIcon v-else class="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h2 class="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest">
-                                    {{ editingId ? 'Modify Stock Exhaust Entry' : 'Log Stock Exhaust' }}
-                                </h2>
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
-                                    Add voucher header details, dynamic items issued, and link to vehicles
-                                </p>
-                            </div>
-                        </div>
+                <!-- ── Create / Edit Form component rendering ── -->
+                <StockExhaustEditForm 
+                    v-if="editingVoucher" 
+                    :voucher="editingVoucher"
+                    :machines="machines"
+                    :vendors="vendors"
+                    :products="products"
+                    :units="units"
+                    @cancel="cancelEdit"
+                    @success="cancelEdit"
+                />
 
-                        <form @submit.prevent="submitForm" class="flex flex-col gap-6">
-                            <!-- Header Info -->
-                            <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
-                                <div class="col-span-12 md:col-span-4 field-group">
-                                    <BaseInput v-model="form.name" label="Voucher Label *" placeholder="E.g. Exhaust Tyre replacements, General Spare parts" :error="form.errors.name" />
-                                </div>
-                                <div class="col-span-12 md:col-span-4 field-group">
-                                    <label class="field-label">Partner / Transporter *</label>
-                                    <BaseSelect v-model="form.partner_id" :options="vendorOptions" optionLabel="label" optionValue="value" placeholder="Select Partner" :error="form.errors.partner_id" />
-                                </div>
-                                <div class="col-span-12 md:col-span-4 field-group">
-                                    <BaseInput v-model="form.bill_number" label="Bill Number" placeholder="Bill reference" />
-                                </div>
-
-                                <div class="col-span-6 md:col-span-3 field-group">
-                                    <label class="field-label">Billed Date *</label>
-                                    <DatePicker v-model="form.billed_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
-                                </div>
-                                <div class="col-span-6 md:col-span-3 field-group">
-                                    <label class="field-label">Issued Date *</label>
-                                    <DatePicker v-model="form.issued_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
-                                </div>
-                                <div class="col-span-6 md:col-span-3 field-group">
-                                    <label class="field-label">Voucher Status</label>
-                                    <BaseSelect v-model="form.status" :options="voucherStatuses" optionLabel="label" optionValue="value" />
-                                </div>
-                                <div class="col-span-6 md:col-span-3 field-group">
-                                    <label class="field-label">Invoice Billing Status</label>
-                                    <BaseSelect v-model="form.invoice_status" :options="invoiceStatuses" optionLabel="label" optionValue="value" />
-                                </div>
-                            </div>
-
-                            <!-- Lines Form Section -->
-                            <div class="mt-8 border-t border-slate-100 dark:border-slate-800 pt-6">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Issued Items (Lines)</h3>
-                                    <button type="button" @click="addLine" class="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">
-                                        <PlusIcon class="w-3.5 h-3.5" /> Add Row
-                                    </button>
-                                </div>
-
-                                <div v-if="form.lines.length === 0" class="py-12 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center bg-slate-50/20">
-                                    <WrenchScrewdriverIcon class="w-8 h-8 text-slate-200 dark:text-slate-700 mb-2" />
-                                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest">No issued lines added</p>
-                                </div>
-
-                                <div v-else class="overflow-x-auto">
-                                    <table class="w-full text-left border-collapse min-w-[1200px]">
-                                        <thead>
-                                            <tr class="text-[9px] font-black uppercase text-slate-400 tracking-wider border-b border-slate-100 dark:border-slate-800 pb-3">
-                                                <th class="py-3 pr-2 w-[180px]">Issued To *</th>
-                                                <th class="py-3 px-2 w-[150px]">Vehicle *</th>
-                                                <th class="py-3 px-2 w-[120px]">Qty Issued</th>
-                                                <th class="py-3 px-2 w-[120px]">No of Items *</th>
-                                                <th class="py-3 px-2 w-[100px]">Units *</th>
-                                                <th class="py-3 px-2 w-[130px]">Changed KM *</th>
-                                                <th class="py-3 px-2 w-[150px]">Issue Date *</th>
-                                                <th class="py-3 px-2 w-[200px]">Notes</th>
-                                                <th class="py-3 pl-2 w-[60px] text-right">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr v-for="(line, index) in form.lines" :key="index" class="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/30">
-                                                <td class="py-2 pr-2">
-                                                    <BaseInput v-model="line.issued_to" placeholder="Person name" class="!h-9 text-xs" />
-                                                </td>
-                                                <td class="py-2 px-2">
-                                                    <BaseSelect v-model="line.vehicle_no" :options="machineOptions" optionLabel="label" optionValue="value" placeholder="Select" class="!h-9 text-xs" />
-                                                </td>
-                                                <td class="py-2 px-2">
-                                                    <BaseInput v-model="line.quantity_issued" placeholder="0.00" class="!h-9 text-xs" />
-                                                </td>
-                                                <td class="py-2 px-2">
-                                                    <BaseInput v-model="line.no_items_issued" placeholder="1" class="!h-9 text-xs" />
-                                                </td>
-                                                <td class="py-2 px-2">
-                                                    <BaseInput v-model="line.units" placeholder="pcs" class="!h-9 text-xs" />
-                                                </td>
-                                                <td class="py-2 px-2">
-                                                    <BaseInput v-model="line.changed_km" placeholder="0" class="!h-9 text-xs" />
-                                                </td>
-                                                <td class="py-2 px-2">
-                                                    <DatePicker v-model="line.issue_date" showTime hourFormat="24" dateFormat="yy-mm-dd" class="!w-full h-9 text-xs" />
-                                                </td>
-                                                <td class="py-2 px-2">
-                                                    <BaseInput v-model="line.notes" placeholder="Remarks" class="!h-9 text-xs" />
-                                                </td>
-                                                <td class="py-2 pl-2 text-right">
-                                                    <button type="button" @click="removeLine(index)" class="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                                                        <TrashIcon class="w-4 h-4" />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <div class="flex items-center justify-end gap-2 mt-4">
-                                <button
-                                    type="submit"
-                                    :disabled="form.processing"
-                                    class="flex items-center justify-center gap-3 h-12 px-8 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black text-[11px] uppercase tracking-[0.2em] shadow-lg shadow-indigo-100 dark:shadow-none transition-all duration-200 active:scale-95"
-                                >
-                                    <CheckIcon v-if="!form.processing" class="w-4 h-4 stroke-[3px]" />
-                                    <span v-else class="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
-                                    {{ editingId ? 'Update Voucher' : 'Register Voucher' }}
-                                </button>
-                                
-                                <button
-                                    v-if="editingId"
-                                    @click="cancelEdit"
-                                    type="button"
-                                    class="flex items-center justify-center w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 transition-all active:scale-95"
-                                >
-                                    <XMarkIcon class="w-6 h-6" />
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                <StockExhaustCreateForm 
+                    v-else
+                    :machines="machines"
+                    :vendors="vendors"
+                    :products="products"
+                    :units="units"
+                />
 
                 <!-- ── DataTable Section ── -->
                 <div class="bg-white dark:bg-slate-900 shadow-lg shadow-slate-200/40 dark:shadow-none rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden">
@@ -455,6 +266,7 @@ watch(() => page.props.flash, (flash: any) => {
                             <div class="p-6 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 m-2">
                                 <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Issued Spares / Fuel Details</h4>
                                 <DataTable :value="slotProps.data.lines" class="lines-subtable">
+                                    <Column field="product.title" header="Product" />
                                     <Column field="issued_to" header="Issued To" />
                                     <Column field="vehicle.registration" header="Vehicle No" />
                                     <Column field="quantity_issued" header="Quantity Issued" />
@@ -496,10 +308,6 @@ watch(() => page.props.flash, (flash: any) => {
 </template>
 
 <style scoped>
-:deep(.p-datepicker-input) {
-    @apply h-10 text-sm font-bold border-slate-200 rounded-md !bg-white;
-}
-
 :deep(.stock-exhaust-table .p-datatable-thead > tr > th) {
     @apply !bg-slate-50/50 dark:!bg-slate-950/50 !text-slate-400 !font-black !text-[10px] !uppercase !tracking-[0.2em] !py-6 !border-b !border-slate-100 dark:!border-slate-800 !border-none;
 }
