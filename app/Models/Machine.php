@@ -120,6 +120,14 @@ class Machine extends Model
             $this->documents()->whereNotIn('id', $docIds)->delete();
 
             foreach ($data['documents'] as $doc) {
+                // Sanitize ISO-8601 dates to YYYY-MM-DD
+                if (!empty($doc['issue_date']) && is_string($doc['issue_date']) && str_contains($doc['issue_date'], 'T')) {
+                    $doc['issue_date'] = substr($doc['issue_date'], 0, 10);
+                }
+                if (!empty($doc['expiry_date']) && is_string($doc['expiry_date']) && str_contains($doc['expiry_date'], 'T')) {
+                    $doc['expiry_date'] = substr($doc['expiry_date'], 0, 10);
+                }
+
                 if (isset($doc['id'])) {
                     MachineDocument::where('id', $doc['id'])->update($doc);
                 } else {
@@ -134,6 +142,14 @@ class Machine extends Model
             $this->loans()->whereNotIn('id', $loanIds)->delete();
 
             foreach ($data['loans'] as $loan) {
+                // Sanitize ISO-8601 dates to YYYY-MM-DD
+                if (!empty($loan['start_date']) && is_string($loan['start_date']) && str_contains($loan['start_date'], 'T')) {
+                    $loan['start_date'] = substr($loan['start_date'], 0, 10);
+                }
+                if (!empty($loan['end_date']) && is_string($loan['end_date']) && str_contains($loan['end_date'], 'T')) {
+                    $loan['end_date'] = substr($loan['end_date'], 0, 10);
+                }
+
                 if (isset($loan['id'])) {
                     MachineLoan::where('id', $loan['id'])->update($loan);
                 } else {
