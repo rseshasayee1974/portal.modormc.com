@@ -479,7 +479,7 @@ watch(() => page.props.flash, (flash: any) => {
                         :value="filteredRequests"
                         stripedRows
                         paginator
-                        :rows="10"
+                        :rows="30"
                         v-model:expandedRows="expandedRows"
                         paginatorTemplate="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
                         currentPageReportTemplate="{first}–{last} of {totalRecords}"

@@ -172,7 +172,7 @@ watch(() => page.props.flash, (flash: any) => {
                         :value="filteredTypes"
                         stripedRows
                         paginator
-                        :rows="10"
+                        :rows="30"
                         paginatorTemplate="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
                         currentPageReportTemplate="{first}–{last} of {totalRecords}"
                         class="machinetypes-table"

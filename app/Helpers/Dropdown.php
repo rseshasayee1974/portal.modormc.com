@@ -150,6 +150,7 @@ if (!function_exists('MachinesDropdown')) {
     function MachinesDropdown($vehicleType = null, $excludeId = null, $entityId = null)
     {
         $query = Machine::where('plant_id', session('active_plant_id'))
+            ->where('is_active', true)
             ->select('id', 'registration', 'plant_id');
 
         if ($vehicleType !== null) {

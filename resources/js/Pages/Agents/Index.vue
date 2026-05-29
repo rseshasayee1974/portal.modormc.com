@@ -987,7 +987,7 @@ const getChartSeries = (chartData: any, type: string) => {
                     headingIcon="CpuChipIcon"
                     showSerial
                     paginator
-                    :rows="10"
+                    :rows="30"
                     :totalRecords="agents.length"
                     class="p-datatable-sm"
                 >

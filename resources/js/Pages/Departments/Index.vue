@@ -149,7 +149,7 @@ watch(
                             headingIcon="FolderIcon"
                             showSearch showSerial
                             paginator
-                            :rows="10" 
+                            :rows="30" 
                             :totalRecords="departments.length"
                             class="p-datatable-sm"
                         >

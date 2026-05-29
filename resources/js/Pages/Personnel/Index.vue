@@ -338,7 +338,7 @@ watch(
                             headingIcon="UserGroupIcon"
                             showSearch showSerial
                             paginator
-                            :rows="10" 
+                            :rows="30" 
                             :totalRecords="filteredPersonnel.length"
                             class="p-datatable-sm"
                             showExport

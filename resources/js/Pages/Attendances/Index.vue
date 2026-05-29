@@ -287,7 +287,7 @@ const getStatusSeverity = (status: string) => {
                             headingIcon="CalendarIcon"
                             showSearch showSerial
                             paginator
-                            :rows="10" 
+                            :rows="30" 
                             :totalRecords="attendances.length"
                             class="p-datatable-sm"
                         >

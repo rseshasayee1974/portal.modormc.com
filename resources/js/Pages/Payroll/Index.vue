@@ -328,7 +328,7 @@ const getStatusSeverity = (status: string) => {
                                         headingIcon="ReceiptPercentIcon"
                                         showSearch showSerial
                                         paginator
-                                        :rows="10" 
+                                        :rows="30" 
                                         :totalRecords="payslips.length"
                                         class="p-datatable-sm"
                                     >
@@ -471,7 +471,7 @@ const getStatusSeverity = (status: string) => {
                                         headingIcon="BriefcaseIcon"
                                         showSearch showSerial
                                         paginator
-                                        :rows="10" 
+                                        :rows="30" 
                                         :totalRecords="salaryComponents.length"
                                         class="p-datatable-sm"
                                     >
@@ -580,7 +580,7 @@ const getStatusSeverity = (status: string) => {
                                         headingIcon="CalendarIcon"
                                         showSearch showSerial
                                         paginator
-                                        :rows="10" 
+                                        :rows="30" 
                                         :totalRecords="payrollPeriods.length"
                                         class="p-datatable-sm"
                                     >

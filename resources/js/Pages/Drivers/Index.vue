@@ -229,7 +229,7 @@ watch(() => page.props.flash, (flash: any) => {
                             showSearch
                             showSerial
                             paginator
-                            :rows="10"
+                            :rows="30"
                             :totalRecords="drivers.length"
                             class="p-datatable-sm"
                             showExport

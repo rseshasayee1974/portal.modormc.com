@@ -308,7 +308,7 @@ watch(() => page.props.flash, (flash: any) => {
                             showSearch
                             showSerial
                             paginator
-                            :rows="10"
+                            :rows="30"
                             :totalRecords="fuelLogs.length"
                             class="p-datatable-sm"
                             showExport

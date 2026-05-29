@@ -272,7 +272,7 @@ watch(() => page.props.flash, (flash: any) => {
                             headingIcon="CpuChipIcon"
                             showSerial
                             paginator
-                            :rows="10"
+                            :rows="30"
                             :totalRecords="devices.length"
                             class="p-datatable-sm"
                         >

@@ -280,7 +280,7 @@ watch(
                                         headingIcon="ClockIcon"
                                         showSearch showSerial
                                         paginator
-                                        :rows="10" 
+                                        :rows="30" 
                                         :totalRecords="shifts.length"
                                         class="p-datatable-sm"
                                     >
@@ -394,7 +394,7 @@ watch(
                                         headingIcon="UserGroupIcon"
                                         showSearch showSerial
                                         paginator
-                                        :rows="10" 
+                                        :rows="30" 
                                         :totalRecords="employeeShifts.length"
                                         class="p-datatable-sm"
                                     >

@@ -74,9 +74,14 @@ class Machine extends Model
         'chassis_no',
         'vehicle_type',
         'capacity',
+        'is_active',
         'owner_id',
         'plant_id',
         'entity_id',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
     ];
 
     public function plant()

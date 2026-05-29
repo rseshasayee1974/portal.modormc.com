@@ -246,7 +246,7 @@ watch(() => page.props.flash, (flash: any) => {
                         :value="filteredServices"
                         stripedRows
                         paginator
-                        :rows="10"
+                        :rows="30"
                         paginatorTemplate="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
                         currentPageReportTemplate="{first}–{last} of {totalRecords}"
                         class="services-table"

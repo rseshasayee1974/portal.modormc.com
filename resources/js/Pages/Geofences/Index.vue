@@ -195,7 +195,7 @@ watch(() => page.props.flash, (flash: any) => {
                             headingIcon="MapIcon"
                             showSerial
                             paginator
-                            :rows="10"
+                            :rows="30"
                             :totalRecords="geofences.length"
                             class="p-datatable-sm"
                         >

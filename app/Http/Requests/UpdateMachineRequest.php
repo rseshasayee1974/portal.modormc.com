@@ -29,6 +29,7 @@ class UpdateMachineRequest extends FormRequest
             'chassis_no' => 'nullable|string|max:100',
             'vehicle_type' => 'nullable|string|max:50',
             'capacity' => 'nullable|integer',
+            'is_active' => 'nullable|boolean',
             'owner_id' => 'nullable|exists:mm_patrons,id',
             
             'documents' => 'nullable|array|max:10',

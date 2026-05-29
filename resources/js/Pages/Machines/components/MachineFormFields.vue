@@ -114,6 +114,20 @@ const activeTab = ref<'specs' | 'compliance' | 'finance'>('specs');
                         placeholder="Enter chassis/serial number"
                     />
                 </div>
+
+                <div class="col-span-12 md:col-span-3 field-group">
+                    <label class="field-label">Status</label>
+                    <BaseSelect 
+                        v-model="form.is_active" 
+                        :options="[
+                            { label: 'Active', value: true },
+                            { label: 'Inactive', value: false }
+                        ]" 
+                        optionLabel="label" 
+                        optionValue="value" 
+                        placeholder="Select status" 
+                    />
+                </div>
             </div>
 
             <!-- Section: Compliance Documents -->

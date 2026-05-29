@@ -164,7 +164,7 @@ watch(
                             headingIcon="BriefcaseIcon"
                             showSearch showSerial
                             paginator
-                            :rows="10" 
+                            :rows="30" 
                             :totalRecords="designations.length"
                             class="p-datatable-sm"
                         >

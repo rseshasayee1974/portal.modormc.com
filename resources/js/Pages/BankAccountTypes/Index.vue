@@ -119,7 +119,7 @@ const submitModal = async () => {
 
         <div class="p-6">
             <div class="card bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-lg">
-                <DataTable :value="store.bankAccountTypes" stripedRows class="p-datatable-sm text-sm" :paginator="true" :rows="10">
+                <DataTable :value="store.bankAccountTypes" stripedRows class="p-datatable-sm text-sm" :paginator="true" :rows="30">
                     <template #header>
                         <div class="flex items-center justify-between">
                             <span class="text-xl font-semibold uppercase tracking-tight">Financial Account Types</span>

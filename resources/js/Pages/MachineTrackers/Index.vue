@@ -354,7 +354,7 @@ watch(() => page.props.flash, (flash: any) => {
                         :value="filteredTrackers"
                         stripedRows
                         paginator
-                        :rows="10"
+                        :rows="30"
                         paginatorTemplate="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
                         currentPageReportTemplate="{first}–{last} of {totalRecords}"
                         class="tracker-table"

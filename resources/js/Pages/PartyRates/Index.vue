@@ -182,7 +182,7 @@ watch(() => page.props.flash, (flash: any) => {
 
                 <!-- Rates Table -->
                 <div class="bg-white dark:bg-slate-900 shadow-2xl rounded-[2.5rem] p-6 border border-slate-100 dark:border-slate-800 overflow-hidden">
-                    <DataTable :value="filteredRates" stripedRows paginator :rows="10" class="modern-table">
+                    <DataTable :value="filteredRates" stripedRows paginator :rows="30" class="modern-table">
                         <Column field="patron.name" header="Patron">
                             <template #body="slotProps">
                                 <span class="font-semibold text-gray-800 dark:text-gray-200">{{ slotProps.data.patron?.name || '—' }}</span>

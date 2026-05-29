@@ -42,6 +42,7 @@ interface Machine {
     chassis_no: string | null;
     vehicle_type: string | null;
     capacity: number | null;
+    is_active?: boolean;
     documents: Document[];
     loans: Loan[];
 }
@@ -87,6 +88,7 @@ const getInitialForm = () => ({
     chassis_no: '',
     vehicle_type: null as string | null,
     capacity: null as number | null,
+    is_active: true,
     owner_id: null as number | null,
     documents: [] as Document[],
     loans: [] as Loan[],
@@ -113,6 +115,7 @@ const openEdit = (m: Machine) => {
     editForm.chassis_no = m.chassis_no || '';
     editForm.vehicle_type = m.vehicle_type;
     editForm.capacity = m.capacity ? Number(m.capacity) : null;
+    editForm.is_active = m.is_active !== undefined ? Boolean(m.is_active) : true;
     editForm.owner_id = (m as any).owner_id ? Number((m as any).owner_id) : null;
     editForm.documents = m.documents.map(d => ({ 
         ...d, 

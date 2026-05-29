@@ -338,7 +338,7 @@ watch(() => page.props.flash, (flash: any) => {
                         v-model:expandedRows="expandedRows"
                         :value="filtered"
                         stripedRows
-                        paginator :rows="10"
+                        paginator :rows="30"
                         dataKey="id"
                         @rowExpand="onRowExpand"
                         class="modern-table"

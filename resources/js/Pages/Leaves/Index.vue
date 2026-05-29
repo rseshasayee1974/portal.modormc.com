@@ -299,7 +299,7 @@ const getStatusSeverity = (status: string) => {
                                         headingIcon="CalendarIcon"
                                         showSearch showSerial
                                         paginator
-                                        :rows="10" 
+                                        :rows="30" 
                                         :totalRecords="leaveApplications.length"
                                         class="p-datatable-sm"
                                     >
@@ -423,7 +423,7 @@ const getStatusSeverity = (status: string) => {
                                         headingIcon="CogIcon"
                                         showSearch showSerial
                                         paginator
-                                        :rows="10" 
+                                        :rows="30" 
                                         :totalRecords="leaveTypes.length"
                                         class="p-datatable-sm"
                                     >

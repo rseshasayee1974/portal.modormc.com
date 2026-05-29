@@ -130,11 +130,15 @@ const onRowClick = (event: any) => {
                 </template>
             </Column>
 
-            <Column header="Status" style="width: 120px" align="center">
+            <Column field="is_active" header="Status" style="width: 120px" align="center">
                 <template #body="slotProps">
-                    <div class="flex items-center justify-center gap-2">
+                    <div v-if="slotProps.data.is_active !== false" class="flex items-center justify-center gap-2">
                          <span class="flex h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
                          <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Active</span>
+                    </div>
+                    <div v-else class="flex items-center justify-center gap-2">
+                         <span class="flex h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+                         <span class="text-[10px] font-black text-rose-600 uppercase tracking-widest">Inactive</span>
                     </div>
                 </template>
             </Column>
