@@ -9,59 +9,59 @@
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
-        .inv-root { border: 1px solid var(--color-border); width: 100%; min-height: 297mm; display: flex; flex-direction: column; }
+        .inv-root { border: 1px solid #cbd5e1; width: 100%; min-height: 297mm; display: flex; flex-direction: column; }
 
         /* HEADER */
-        .inv-header { display: table; width: 100%; border-bottom: 1px solid var(--color-border); padding: 10px 14px; }
+        .inv-header { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 10px 14px; }
         .header-left  { display: table-cell; vertical-align: top; }
         .header-right { display: table-cell; vertical-align: top; text-align: right; }
         .co-name   { font-size: 15px; font-weight: 700; }
-        .co-detail { font-size: 10px; color: var(--color-muted); line-height: 1.45; }
-        .inv-title { font-size: var(--size-title); font-weight: 900; line-height: 1.1; }
-        .inv-ref   { font-size: 10.5px; color: var(--color-muted); margin-top: 2px; }
+        .co-detail { font-size: 10px; color: #64748b; line-height: 1.45; }
+        .inv-title { font-size: 24px; font-weight: 900; line-height: 1.1; }
+        .inv-ref   { font-size: 10.5px; color: #64748b; margin-top: 2px; }
 
         /* INFO GRID (3 columns) */
-        .info-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid var(--color-border); }
-        .info-cell  { padding: 7px 12px; vertical-align: top; border-right: 1px solid var(--color-border); font-size: var(--size-base); }
+        .info-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid #cbd5e1; }
+        .info-cell  { padding: 7px 12px; vertical-align: top; border-right: 1px solid #cbd5e1; font-size: 11px; }
         .no-right { border-right: none; }
 
         .kv-table { border-collapse: collapse; width: 100%; }
-        .kv-key   { color: var(--color-muted); white-space: nowrap; padding: 1px 0; min-width: 80px; }
-        .kv-sep   { padding: 1px 5px; color: var(--color-muted); }
-        .kv-val   { color: var(--color-ink); }
+        .kv-key   { color: #64748b; white-space: nowrap; padding: 1px 0; min-width: 80px; }
+        .kv-sep   { padding: 1px 5px; color: #64748b; }
+        .kv-val   { color: #1e293b; }
 
         .addr-hdr  { font-size: 9px; font-weight: 700; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 3px; }
         .addr-name { font-weight: 700; }
-        .addr-line { color: var(--color-light); line-height: 1.5; }
+        .addr-line { color: #94a3b8; line-height: 1.5; }
 
         /* SUBJECT */
-        .subject-row { padding: 4px 12px; border-bottom: 1px solid var(--color-border); background: #fafafa; font-size: var(--size-base); }
+        .subject-row { padding: 4px 12px; border-bottom: 1px solid #cbd5e1; background: #fafafa; font-size: 11px; }
 
         /* ITEMS TABLE */
-        .items-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid var(--color-border); }
+        .items-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid #cbd5e1; }
         .items-table thead tr { background: #fff; }
-        .items-table th { border-top: 1.5px solid var(--color-ink); border-bottom: 1.5px solid var(--color-ink); padding: 5px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; }
-        .items-table td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid var(--color-border-light); font-size: var(--size-base); }
+        .items-table th { border-top: 1.5px solid #1e293b; border-bottom: 1.5px solid #1e293b; padding: 5px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; }
+        .items-table td { padding: 6px 8px; vertical-align: top; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
 
         /* TOTALS + FOOTER BLOCK */
-        .totals-split { display: table; width: 100%; border-bottom: 1px solid var(--color-border); }
-        .totals-left  { display: table-cell; vertical-align: top; padding: 8px 12px; border-right: 1px solid var(--color-border); font-size: var(--size-base); width: 55%; }
+        .totals-split { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; }
+        .totals-left  { display: table-cell; vertical-align: top; padding: 8px 12px; border-right: 1px solid #cbd5e1; font-size: 11px; width: 55%; }
         .totals-right { display: table-cell; vertical-align: top; }
         .breakdown-table { width: 100%; border-collapse: collapse; }
         .breakdown-table td { padding: 3px 10px; vertical-align: middle; }
-        .bt-label { text-align: right; color: var(--color-muted); padding-right: 14px !important; width: 58%; font-size: var(--size-base); }
-        .bt-val   { text-align: right; white-space: nowrap; font-size: var(--size-base); }
-        .bt-total-row   { border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
-        .bt-balance-row { background: var(--color-balance-bg); }
+        .bt-label { text-align: right; color: #64748b; padding-right: 14px !important; width: 58%; font-size: 11px; }
+        .bt-val   { text-align: right; white-space: nowrap; font-size: 11px; }
+        .bt-total-row   { border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
+        .bt-balance-row { background: #f1f5f9; }
         .bt-total-row td, .bt-balance-row td { padding-top: 5px !important; padding-bottom: 5px !important; }
 
-        .tow-label { color: var(--color-muted); font-size: 10px; margin-bottom: 2px; }
-        .tow-value { font-style: italic; font-weight: 700; font-size: var(--size-base); line-height: 1.5; }
+        .tow-label { color: #64748b; font-size: 10px; margin-bottom: 2px; }
+        .tow-value { font-style: italic; font-weight: 700; font-size: 11px; line-height: 1.5; }
 
-        .sig-section { display: table; width: 100%; padding: 8px 12px; border-bottom: 1px solid var(--color-border); }
-        .sig-left    { display: table-cell; vertical-align: bottom; font-size: var(--size-base); width: 60%; }
+        .sig-section { display: table; width: 100%; padding: 8px 12px; border-bottom: 1px solid #cbd5e1; }
+        .sig-left    { display: table-cell; vertical-align: bottom; font-size: 11px; width: 60%; }
         .sig-right   { display: table-cell; vertical-align: bottom; text-align: right; width: 40%; }
-        .sig-line    { display: inline-block; width: 160px; border-top: 1px solid #999; padding-top: 4px; text-align: center; font-size: 10.5px; color: var(--color-muted); }
+        .sig-line    { display: inline-block; width: 160px; border-top: 1px solid #999; padding-top: 4px; text-align: center; font-size: 10.5px; color: #64748b; }
     </style>
 </head>
 <body>
@@ -170,7 +170,7 @@
         <div class="totals-left">
             @if(($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
                 <div class="small muted" style="margin-bottom:6px">Notes</div>
-                <div style="margin-bottom:8px;font-size:var(--size-base)">{{ $data['meta']['notes'] }}</div>
+                <div style="margin-bottom:8px;font-size:11px">{{ $data['meta']['notes'] }}</div>
             @endif
             @if($pdfSettings['total_words'] ?? true)
                 <div class="tow-label">Total In Words</div>
@@ -205,9 +205,9 @@
 
     {{-- TERMS --}}
     @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? false))
-    <div style="padding:7px 12px;border-bottom:1px solid var(--color-border);font-size:var(--size-base)">
+    <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;font-size:11px">
         <div class="small muted" style="margin-bottom:2px">Terms &amp; Conditions</div>
-        <div style="font-size:10px;color:var(--color-light)">{!! nl2br(e($data['meta']['terms_text'])) !!}</div>
+        <div style="font-size:10px;color:#94a3b8">{!! nl2br(e($data['meta']['terms_text'])) !!}</div>
     </div>
     @endif
 

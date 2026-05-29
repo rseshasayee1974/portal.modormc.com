@@ -110,6 +110,8 @@ class MenuSeeder extends Seeder
             ['id' => 72, 'menutype' => 2, 'title' => 'Default Accounts', 'alias' => 'defaultaccounts','link' => 'settings/default-accounts','icon' => 'PaintBrushIcon', 'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 4, 'permission_name' => 'SETTING.VIEW'],
             ['id' => 73, 'menutype' => 2, 'title' => 'Custom Settings',  'alias' => 'customsetting',  'link' => 'settings/customsetting',   'icon' => 'VariableIcon',   'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 5, 'permission_name' => 'SETTING.VIEW'],
             ['id' => 74, 'menutype' => 2, 'title' => 'Knowledge Base',  'alias' => 'knowledge',      'link' => 'settings/knowledge',       'icon' => 'BookOpenIcon',   'published' => 1, 'parent_id' => 11, 'level' => 1, 'ordering' => 6, 'permission_name' => 'SETTING.VIEW'],
+            ['id' => 75, 'menutype' => 2, 'title' => 'Billing',             'alias' => 'billings',           'link' => 'finance/billings',   'icon' => 'DocumentTextIcon',   'published' => 1, 'parent_id' => 9, 'level' => 1, 'ordering' => 8, 'permission_name' => 'BILLING.VIEW'],
+            ['id' => 76, 'menutype' => 2, 'title' => 'Bank Reconciliation', 'alias' => 'reconciliation',     'link' => 'finance/reconciliation', 'icon' => 'BanknotesIcon', 'published' => 1, 'parent_id' => 9, 'level' => 1, 'ordering' => 9, 'permission_name' => 'LEDGER.VIEW'],
         ];
 
         foreach ($menus as $menu) {

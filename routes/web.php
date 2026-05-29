@@ -270,8 +270,15 @@ Route::middleware([
         Route::delete('billings/{billing}', [\App\Http\Controllers\BillingController::class, 'destroy'])->name('billings.destroy')->where('billing', '.*');
         Route::resource('billings', \App\Http\Controllers\BillingController::class)->except(['create', 'edit', 'destroy']);
         
-      
-       
+        // Bank Reconciliation (BRS)
+        Route::prefix('reconciliation')->group(function () {
+            Route::get('/', [\App\Http\Controllers\BankReconciliationController::class, 'index'])->name('reconciliation.index');
+            Route::post('/upload', [\App\Http\Controllers\BankReconciliationController::class, 'upload'])->name('reconciliation.upload');
+            Route::get('/lines', [\App\Http\Controllers\BankReconciliationController::class, 'getLines'])->name('reconciliation.lines');
+            Route::post('/reconcile', [\App\Http\Controllers\BankReconciliationController::class, 'reconcile'])->name('reconciliation.reconcile');
+            Route::post('/unreconcile', [\App\Http\Controllers\BankReconciliationController::class, 'unreconcile'])->name('reconciliation.unreconcile');
+            Route::post('/create-voucher', [\App\Http\Controllers\BankReconciliationController::class, 'createVoucher'])->name('reconciliation.create-voucher');
+        });
 
         // ERP Live Dashboard
        

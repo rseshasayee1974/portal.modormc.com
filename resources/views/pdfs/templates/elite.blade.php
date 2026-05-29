@@ -9,58 +9,58 @@
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
-        .inv-root { border: 1px solid var(--color-border); width: 100%; min-height: 297mm; }
+        .inv-root { border: 1px solid #cbd5e1; width: 100%; min-height: 297mm; }
 
-        .inv-header { display: table; width: 100%; border-bottom: 1px solid var(--color-border); padding: 10px 14px; }
+        .inv-header { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 10px 14px; }
         .header-left  { display: table-cell; vertical-align: top; }
         .header-right { display: table-cell; vertical-align: top; text-align: right; }
         .co-name   { font-size: 15px; font-weight: 700; }
-        .co-detail { font-size: 10px; color: var(--color-muted); line-height: 1.45; }
-        .inv-title { font-size: var(--size-title); font-weight: 900; line-height: 1.1; }
-        .inv-ref   { font-size: 10.5px; color: var(--color-muted); margin-top: 2px; }
+        .co-detail { font-size: 10px; color: #64748b; line-height: 1.45; }
+        .inv-title { font-size: 24px; font-weight: 900; line-height: 1.1; }
+        .inv-ref   { font-size: 10.5px; color: #64748b; margin-top: 2px; }
 
         /* 2-col details bar */
-        .details-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid var(--color-border); }
-        .details-cell  { padding: 7px 12px; vertical-align: top; border-right: 1px solid var(--color-border); width: 50%; }
+        .details-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid #cbd5e1; }
+        .details-cell  { padding: 7px 12px; vertical-align: top; border-right: 1px solid #cbd5e1; width: 50%; }
         .no-right { border-right: none; }
         .kv-table { border-collapse: collapse; width: 100%; }
-        .kv-key   { color: var(--color-muted); white-space: nowrap; padding: 1px 0; min-width: 100px; }
-        .kv-sep   { padding: 1px 6px; color: var(--color-muted); }
-        .kv-val   { color: var(--color-ink); }
+        .kv-key   { color: #64748b; white-space: nowrap; padding: 1px 0; min-width: 100px; }
+        .kv-sep   { padding: 1px 6px; color: #64748b; }
+        .kv-val   { color: #1e293b; }
 
         /* Bill To / Ship To */
-        .addr-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid var(--color-border); }
-        .addr-th { background: var(--color-alt-bg); border-bottom: 1px solid var(--color-border); padding: 5px 12px; font-weight: 700; font-size: var(--size-base); text-align: left; width: 50%; }
-        .addr-th-left { border-right: 1px solid var(--color-border); }
-        .addr-cell { padding: 7px 12px; vertical-align: top; font-size: var(--size-base); }
-        .addr-left { border-right: 1px solid var(--color-border); }
+        .addr-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid #cbd5e1; }
+        .addr-th { background: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 5px 12px; font-weight: 700; font-size: 11px; text-align: left; width: 50%; }
+        .addr-th-left { border-right: 1px solid #cbd5e1; }
+        .addr-cell { padding: 7px 12px; vertical-align: top; font-size: 11px; }
+        .addr-left { border-right: 1px solid #cbd5e1; }
         .addr-name { font-weight: 700; }
-        .addr-line { color: var(--color-light); line-height: 1.5; }
+        .addr-line { color: #94a3b8; line-height: 1.5; }
 
         /* Subject */
-        .subject-row { padding: 4px 12px; border-bottom: 1px solid var(--color-border); font-size: var(--size-base); background: #fafafa; }
+        .subject-row { padding: 4px 12px; border-bottom: 1px solid #cbd5e1; font-size: 11px; background: #fafafa; }
 
         /* Items — dark header */
-        .items-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid var(--color-border); }
-        .items-table thead tr { background: var(--color-header-bg); color: #fff; }
+        .items-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid #cbd5e1; }
+        .items-table thead tr { background: #1e293b; color: #fff; }
         .items-table th { padding: 6px 8px; font-weight: 700; font-size: 10px; border: none; }
-        .items-table td { padding: 5px 8px; vertical-align: top; border-bottom: 1px solid var(--color-border-light); font-size: var(--size-base); }
+        .items-table td { padding: 5px 8px; vertical-align: top; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
         .items-table tbody tr:last-child td { border-bottom: 1px solid #ccc; }
 
         /* Totals */
-        .totals-split { display: table; width: 100%; border-bottom: 1px solid var(--color-border); }
-        .totals-left  { display: table-cell; vertical-align: top; padding: 8px 12px; border-right: 1px solid var(--color-border); width: 55%; }
+        .totals-split { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; }
+        .totals-left  { display: table-cell; vertical-align: top; padding: 8px 12px; border-right: 1px solid #cbd5e1; width: 55%; }
         .totals-right { display: table-cell; vertical-align: top; }
         .breakdown-table { width: 100%; border-collapse: collapse; }
         .breakdown-table td { padding: 3px 10px; }
-        .bt-label { text-align: right; color: var(--color-muted); padding-right: 14px !important; width: 58%; }
+        .bt-label { text-align: right; color: #64748b; padding-right: 14px !important; width: 58%; }
         .bt-val   { text-align: right; white-space: nowrap; }
-        .bt-total-row   { border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
-        .bt-balance-row { background: var(--color-balance-bg); }
+        .bt-total-row   { border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
+        .bt-balance-row { background: #f1f5f9; }
         .bt-total-row td, .bt-balance-row td { padding-top: 5px !important; padding-bottom: 5px !important; }
 
-        .tow-label { color: var(--color-muted); font-size: 10px; margin-bottom: 2px; }
-        .tow-value { font-style: italic; font-weight: 700; font-size: var(--size-base); line-height: 1.5; }
+        .tow-label { color: #64748b; font-size: 10px; margin-bottom: 2px; }
+        .tow-value { font-style: italic; font-weight: 700; font-size: 11px; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -192,7 +192,7 @@
             @endif
             @if(($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
                 <div class="small muted" style="margin-top:8px;">Notes</div>
-                <div style="font-size:var(--size-base)">{{ $data['meta']['notes'] }}</div>
+                <div style="font-size:11px">{{ $data['meta']['notes'] }}</div>
             @endif
         </div>
         <div class="totals-right">
@@ -217,17 +217,17 @@
 
     {{-- TERMS --}}
     @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? false))
-    <div style="padding:7px 12px;border-bottom:1px solid var(--color-border);">
+    <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;">
         <div class="small muted">Terms &amp; Conditions</div>
-        <div style="font-size:10px;color:var(--color-light);margin-top:2px">{!! nl2br(e($data['meta']['terms_text'])) !!}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:2px">{!! nl2br(e($data['meta']['terms_text'])) !!}</div>
     </div>
     @endif
 
     {{-- SIGNATURE --}}
     @if($pdfSettings['signature'] ?? true)
-    <div style="min-height:90px;padding:10px 12px;border-bottom:1px solid var(--color-border);position:relative;text-align:right;">
+    <div style="min-height:90px;padding:10px 12px;border-bottom:1px solid #cbd5e1;position:relative;text-align:right;">
         <div style="margin-top:60px;">
-            <span style="display:inline-block;width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10.5px;color:var(--color-muted)">
+            <span style="display:inline-block;width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10.5px;color:#64748b">
                 Authorized Signatory<br><span style="font-size:9px">For {{ $data['company']['name'] }}</span>
             </span>
         </div>

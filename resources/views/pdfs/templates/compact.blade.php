@@ -10,25 +10,25 @@
     @include('pdfs.partials._common_styles')
     <style>
         body { font-size: 9.5px; }
-        .inv-root { border: 1px solid var(--color-border); width: 100%; min-height: 297mm; }
-        .compact-header { display: table; width: 100%; border-bottom: 1px solid var(--color-border); padding: 5px 8px; }
+        .inv-root { border: 1px solid #cbd5e1; width: 100%; min-height: 297mm; }
+        .compact-header { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 5px 8px; }
         .ch-left  { display: table-cell; vertical-align: middle; }
         .ch-right { display: table-cell; vertical-align: middle; text-align: right; }
         .co-name  { font-size: 11px; font-weight: 700; }
-        .co-det   { font-size: 8.5px; color: var(--color-muted); }
+        .co-det   { font-size: 8.5px; color: #64748b; }
         .inv-title{ font-size: 16px; font-weight: 900; }
-        .inv-ref  { font-size: 9px; color: var(--color-muted); }
-        .meta-strip { display: table; width: 100%; border-bottom: 1px solid var(--color-border); background: #f7f7f7; }
-        .ms-cell  { display: table-cell; padding: 2px 6px; border-right: 1px solid var(--color-border); font-size: 9px; white-space: nowrap; }
+        .inv-ref  { font-size: 9px; color: #64748b; }
+        .meta-strip { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; background: #f7f7f7; }
+        .ms-cell  { display: table-cell; padding: 2px 6px; border-right: 1px solid #cbd5e1; font-size: 9px; white-space: nowrap; }
         .ms-cell:last-child { border-right: none; }
         .ms-key   { color: #888; }
         .ms-val   { font-weight: 700; }
-        .addr-split { display: table; width: 100%; border-bottom: 1px solid var(--color-border); }
-        .as-cell  { display: table-cell; padding: 5px 8px; width: 50%; border-right: 1px solid var(--color-border); font-size: 9.5px; vertical-align: top; }
+        .addr-split { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; }
+        .as-cell  { display: table-cell; padding: 5px 8px; width: 50%; border-right: 1px solid #cbd5e1; font-size: 9.5px; vertical-align: top; }
         .as-cell:last-child { border-right: none; }
         .as-hdr   { font-size: 8px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 1px; }
         .as-name  { font-weight: 700; }
-        .items-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid var(--color-border); }
+        .items-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid #cbd5e1; }
         .items-table th { background: #555; color: #fff; padding: 3px 5px; font-size: 8.5px; font-weight: 700; }
         .items-table td { padding: 3px 5px; vertical-align: top; border-bottom: 1px solid #eee; font-size: 9.5px; }
         .items-table tr:nth-child(even) td { background: #fafafa; }

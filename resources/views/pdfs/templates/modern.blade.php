@@ -15,45 +15,45 @@
         .header-left  { display: table-cell; vertical-align: top; }
         .header-right { display: table-cell; vertical-align: top; text-align: right; }
         .co-name   { font-size: 13px; font-weight: 700; }
-        .co-detail { font-size: 10px; color: var(--color-muted); line-height: 1.5; }
+        .co-detail { font-size: 10px; color: #64748b; line-height: 1.5; }
         .inv-title { font-size: 30px; font-weight: 900; line-height: 1.0; }
-        .inv-ref   { font-size: 10.5px; color: var(--color-muted); margin-top: 3px; }
+        .inv-ref   { font-size: 10.5px; color: #64748b; margin-top: 3px; }
 
         .addr-section  { display: table; width: 100%; padding: 12px 18px 8px; }
         .addr-col      { display: table-cell; width: 50%; padding-right: 20px; vertical-align: top; }
         .addr-label    { color: #888; font-size: 10.5px; margin-bottom: 3px; }
         .addr-name     { font-weight: 700; }
-        .addr-line     { color: var(--color-light); line-height: 1.5; }
+        .addr-line     { color: #94a3b8; line-height: 1.5; }
 
         .subject-block { padding: 8px 18px 14px; }
         .subject-label { color: #888; margin-bottom: 2px; }
-        .subject-value { font-size: var(--size-base); }
+        .subject-value { font-size: 11px; }
 
         /* Dark-header span tables */
         .details-bar { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
-        .dbar-th     { padding: 7px 12px; color: #fff; background: var(--color-header-bg); font-size: 10px; font-weight: 700; text-align: left; }
-        .dbar-td     { padding: 6px 12px; font-size: var(--size-base); color: #333; border-bottom: 1px solid #ddd; text-align: left; }
+        .dbar-th     { padding: 7px 12px; color: #fff; background: #1e293b; font-size: 10px; font-weight: 700; text-align: left; }
+        .dbar-td     { padding: 6px 12px; font-size: 11px; color: #333; border-bottom: 1px solid #ddd; text-align: left; }
 
         .items-table { width: 100%; border-collapse: collapse; }
-        .items-table thead tr { background: var(--color-header-bg); color: #fff; }
+        .items-table thead tr { background: #1e293b; color: #fff; }
         .items-table th { padding: 7px 8px; font-size: 10px; font-weight: 700; }
-        .items-table td { padding: 5px 8px; vertical-align: top; border-bottom: 1px solid var(--color-border-light); font-size: var(--size-base); }
+        .items-table td { padding: 5px 8px; vertical-align: top; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
         .items-table tbody tr:last-child td { border-bottom: 1px solid #ccc; }
 
         .totals-block { text-align: right; padding: 2px 0; }
         .breakdown-table { width: 300px; border-collapse: collapse; margin-left: auto; }
-        .breakdown-table td { padding: 4px 10px; font-size: var(--size-base); }
-        .bt-label { text-align: right; color: var(--color-muted); padding-right: 18px !important; width: 55%; }
+        .breakdown-table td { padding: 4px 10px; font-size: 11px; }
+        .bt-label { text-align: right; color: #64748b; padding-right: 18px !important; width: 55%; }
         .bt-val   { text-align: right; white-space: nowrap; }
         .bt-total-row   { border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; }
         .bt-total-row td, .bt-balance-row td { padding-top: 5px !important; padding-bottom: 5px !important; }
-        .bt-balance-row { background: var(--color-balance-bg); }
+        .bt-balance-row { background: #f1f5f9; }
 
         .tow-row  { width: 300px; margin-left: auto; padding: 6px 10px; }
-        .tow-label{ font-size: 10.5px; color: var(--color-muted); margin-bottom: 2px; }
-        .tow-value{ font-style: italic; font-weight: 700; text-align: right; font-size: var(--size-base); line-height: 1.5; }
+        .tow-label{ font-size: 10.5px; color: #64748b; margin-bottom: 2px; }
+        .tow-value{ font-style: italic; font-weight: 700; text-align: right; font-size: 11px; line-height: 1.5; }
 
-        .bottom-section { padding: 10px 18px; border-top: 1px solid #ccc; font-size: var(--size-base); }
+        .bottom-section { padding: 10px 18px; border-top: 1px solid #ccc; font-size: 11px; }
         .section-label   { color: #888; font-size: 10.5px; margin-bottom: 2px; }
     </style>
 </head>
@@ -185,7 +185,7 @@
 
     @if($pdfSettings['signature'] ?? true)
     <div style="min-height:80px;padding:10px 18px;border-top:1px solid #ccc;text-align:right;">
-        <div style="margin-top:50px;"><span style="display:inline-block;width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:var(--color-muted)">Authorized Signatory<br><span style="font-size:9px">For {{ $data['company']['name'] }}</span></span></div>
+        <div style="margin-top:50px;"><span style="display:inline-block;width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:#64748b">Authorized Signatory<br><span style="font-size:9px">For {{ $data['company']['name'] }}</span></span></div>
     </div>
     @endif
 

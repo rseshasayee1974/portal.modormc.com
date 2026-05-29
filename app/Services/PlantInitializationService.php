@@ -800,18 +800,33 @@ class PlantInitializationService
 
     private function seedTemplates(Plant $plant)
     {
-        $modules = ['invoice', 'purchase_order', 'quotation', 'dispatch', 'batch', 'billings'];
-        $defaultTemplate = PrintTemplate::where('key', 'standard_indigo')->first() 
-            ?? PrintTemplate::where('is_system', true)->first();
+        if (PrintTemplate::count() === 0) {
+            $seeder = new \Database\Seeders\PrintTemplateSeeder();
+            $seeder->run();
+        }
 
-        if ($defaultTemplate) {
-            foreach ($modules as $moduleKey) {
+        $moduleTemplates = [
+            'invoices'        => 'standard_indigo',
+            'purchase_orders' => 'standard_indigo',
+            'quotations'      => 'standard',
+            'delivery_notes'  => 'standard',
+            'credit_notes'    => 'standard',
+            'statements'      => 'tallysheet',
+            'gst_invoices'    => 'indian_gst',
+        ];
+
+        foreach ($moduleTemplates as $moduleKey => $templateKey) {
+            $template = PrintTemplate::where('key', $templateKey)->first()
+                ?? PrintTemplate::where('is_system', true)->first()
+                ?? PrintTemplate::first();
+
+            if ($template) {
                 \App\Models\PrintTemplateSetting::updateOrCreate([
-                    'plant_id' => $plant->id,
+                    'plant_id'   => $plant->id,
                     'module_key' => $moduleKey,
                 ], [
-                    'entity_id' => $plant->entity_id,
-                    'print_template_id' => $defaultTemplate->id,
+                    'entity_id'         => $plant->entity_id,
+                    'print_template_id' => $template->id,
                 ]);
             }
         }

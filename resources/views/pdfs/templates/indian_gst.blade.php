@@ -10,51 +10,51 @@
     @include('pdfs.partials._common_styles')
     <style>
         .inv-root { width: 100%; }
-        .gst-header { display: table; width: 100%; border-bottom: 3px solid var(--color-accent); padding: 0 0 15px 0; margin-bottom: 20px; }
+        .gst-header { display: table; width: 100%; border-bottom: 3px solid #4f46e5; padding: 0 0 15px 0; margin-bottom: 20px; }
         .gh-left  { display: table-cell; vertical-align: bottom; }
         .gh-right { display: table-cell; vertical-align: bottom; text-align: right; }
         
-        .co-name  { font-size: 18px; font-weight: 800; color: var(--color-accent); text-transform: uppercase; margin-bottom: 4px; }
-        .co-det   { font-size: 10px; color: var(--color-muted); line-height: 1.4; }
-        .gst-title { font-size: 22px; font-weight: 900; text-transform: uppercase; color: var(--color-ink); letter-spacing: -0.02em; }
-        .gst-orig  { font-size: 10px; color: var(--color-light); font-weight: 600; text-transform: uppercase; margin-top: 2px; }
+        .co-name  { font-size: 18px; font-weight: 800; color: #4f46e5; text-transform: uppercase; margin-bottom: 4px; }
+        .co-det   { font-size: 10px; color: #64748b; line-height: 1.4; }
+        .gst-title { font-size: 22px; font-weight: 900; text-transform: uppercase; color: #1e293b; letter-spacing: -0.02em; }
+        .gst-orig  { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
 
-        .gst-meta { display: table; width: 100%; border-collapse: collapse; margin-bottom: 20px; background: var(--color-alt-bg); border: 1px solid var(--color-border-light); border-radius: 8px; }
-        .gmt-cell { display: table-cell; padding: 10px 15px; border-right: 1px solid var(--color-border-light); font-size: 10px; vertical-align: top; }
+        .gst-meta { display: table; width: 100%; border-collapse: collapse; margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+        .gmt-cell { display: table-cell; padding: 10px 15px; border-right: 1px solid #e2e8f0; font-size: 10px; vertical-align: top; }
         .gmt-cell:last-child { border-right: none; }
-        .gmt-key  { color: var(--color-muted); font-size: 9px; font-weight: 600; text-transform: uppercase; margin-bottom: 2px; }
-        .gmt-val  { font-weight: 700; color: var(--color-ink); font-size: 11px; }
+        .gmt-key  { color: #64748b; font-size: 9px; font-weight: 600; text-transform: uppercase; margin-bottom: 2px; }
+        .gmt-val  { font-weight: 700; color: #1e293b; font-size: 11px; }
 
         .party-row { display: table; width: 100%; margin-bottom: 25px; gap: 20px; }
         .pr-cell   { display: table-cell; width: 50%; padding: 0 10px 0 0; font-size: 11px; vertical-align: top; }
         .pr-cell:last-child { padding: 0 0 0 10px; }
-        .pr-hdr    { font-size: 9px; font-weight: 800; text-transform: uppercase; color: var(--color-accent); margin-bottom: 6px; border-bottom: 1px solid var(--color-border-light); padding-bottom: 4px; }
-        .pr-name   { font-weight: 800; font-size: 13px; color: var(--color-ink); margin-bottom: 4px; }
-        .pr-det    { color: var(--color-muted); line-height: 1.5; }
+        .pr-hdr    { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #4f46e5; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+        .pr-name   { font-weight: 800; font-size: 13px; color: #1e293b; margin-bottom: 4px; }
+        .pr-det    { color: #64748b; line-height: 1.5; }
 
         .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .items-table th { background: var(--color-header-bg); color: #fff; padding: 8px 10px; font-size: 9px; text-transform: uppercase; font-weight: 700; border: 1px solid var(--color-header-bg); }
-        .items-table td { border: 1px solid var(--color-border-light); padding: 8px 10px; font-size: 10px; color: var(--color-ink); }
-        .items-table tr:nth-child(even) { background: var(--color-alt-bg); }
+        .items-table th { background: #1e293b; color: #fff; padding: 8px 10px; font-size: 9px; text-transform: uppercase; font-weight: 700; border: 1px solid #1e293b; }
+        .items-table td { border: 1px solid #e2e8f0; padding: 8px 10px; font-size: 10px; color: #1e293b; }
+        .items-table tr:nth-child(even) { background: #f8fafc; }
 
         .gst-totals { display: table; width: 100%; margin-top: 10px; }
         .gt-left  { display: table-cell; width: 55%; padding-right: 20px; vertical-align: top; }
         .gt-right { display: table-cell; width: 45%; vertical-align: top; }
         
         .gst-summary { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-        .gst-summary th { background: var(--color-alt-bg); padding: 6px 8px; font-size: 9px; font-weight: 700; border: 1px solid var(--color-border-light); color: var(--color-muted); }
-        .gst-summary td { padding: 6px 8px; border: 1px solid var(--color-border-light); font-size: 10px; }
+        .gst-summary th { background: #f8fafc; padding: 6px 8px; font-size: 9px; font-weight: 700; border: 1px solid #e2e8f0; color: #64748b; }
+        .gst-summary td { padding: 6px 8px; border: 1px solid #e2e8f0; font-size: 10px; }
         
-        .total-payable { background: var(--color-accent); color: #fff; font-weight: 800; font-size: 16px; padding: 12px 15px; border-radius: 6px; text-align: right; margin-top: 5px; }
+        .total-payable { background: #4f46e5; color: #fff; font-weight: 800; font-size: 16px; padding: 12px 15px; border-radius: 6px; text-align: right; margin-top: 5px; }
 
-        .declaration { font-size: 9px; color: var(--color-muted); line-height: 1.6; padding: 15px; background: var(--color-alt-bg); border-radius: 6px; margin-bottom: 20px; border-left: 3px solid var(--color-border); }
-        .terms-box { font-size: 9.5px; color: var(--color-ink); margin-bottom: 25px; }
-        .terms-hdr { font-weight: 800; font-size: 10px; text-transform: uppercase; color: var(--color-muted); margin-bottom: 5px; }
+        .declaration { font-size: 9px; color: #64748b; line-height: 1.6; padding: 15px; background: #f8fafc; border-radius: 6px; margin-bottom: 20px; border-left: 3px solid #cbd5e1; }
+        .terms-box { font-size: 9.5px; color: #1e293b; margin-bottom: 25px; }
+        .terms-hdr { font-weight: 800; font-size: 10px; text-transform: uppercase; color: #64748b; margin-bottom: 5px; }
         
         .sig-row  { display: table; width: 100%; margin-top: 30px; }
-        .sig-left  { display: table-cell; vertical-align: bottom; font-size: 9px; color: var(--color-light); }
+        .sig-left  { display: table-cell; vertical-align: bottom; font-size: 9px; color: #94a3b8; }
         .sig-right { display: table-cell; vertical-align: bottom; text-align: right; }
-        .sig-line  { display: inline-block; width: 200px; border-top: 2px solid var(--color-ink); padding-top: 8px; font-size: 11px; font-weight: 800; color: var(--color-ink); text-align: center; }
+        .sig-line  { display: inline-block; width: 200px; border-top: 2px solid #1e293b; padding-top: 8px; font-size: 11px; font-weight: 800; color: #1e293b; text-align: center; }
     </style>
 </head>
 <body>
@@ -74,7 +74,7 @@
                 </div>
             @endif
             @if(($pdfSettings['gstin'] ?? true) && $data['company']['gstin']) 
-                <div class="co-det" style="margin-top:5px; font-weight:700; color:var(--color-ink)">GSTIN: {{ $data['company']['gstin'] }}</div> 
+                <div class="co-det" style="margin-top:5px; font-weight:700; color:#1e293b">GSTIN: {{ $data['company']['gstin'] }}</div> 
             @endif
         </div>
         <div class="gh-right">
@@ -103,7 +103,7 @@
                     {{ $data['bill_to']['address'] }}, {{ $data['bill_to']['city'] }}<br>
                     {{ $data['bill_to']['state'] }} - {{ $data['bill_to']['pin'] }}
                     @if(($pdfSettings['gstin'] ?? true) && $data['bill_to']['gstin']) 
-                        <div style="margin-top:5px; color:var(--color-ink)">GSTIN: <strong>{{ $data['bill_to']['gstin'] }}</strong></div> 
+                        <div style="margin-top:5px; color:#1e293b">GSTIN: <strong>{{ $data['bill_to']['gstin'] }}</strong></div> 
                     @endif
                 </div>
             @endif
@@ -202,7 +202,7 @@
                 <div style="font-size:10px; font-weight:600; opacity:0.8; margin-bottom:2px">Total Payable</div>
                 {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['grand_total'], 2) }}
             </div>
-            <div style="margin-top:10px; font-size:10px; font-weight:700; color:var(--color-ink); text-align:right">
+            <div style="margin-top:10px; font-size:10px; font-weight:700; color:#1e293b; text-align:right">
                 {{ $data['meta']['total_words'] }}
             </div>
         </div>

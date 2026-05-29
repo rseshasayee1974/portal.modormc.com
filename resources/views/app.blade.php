@@ -22,6 +22,10 @@
 
 <body class="font-sans antialiased">
     @inertia
+
+    @if(config('app.debug'))
+        <x-trace-replay-trace-bar />
+    @endif
 </body>
 
 </html>

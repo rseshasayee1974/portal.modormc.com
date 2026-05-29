@@ -96,6 +96,12 @@ class GpsTelemetryController extends Controller
                 $this->processGeofenceChecks($machineId, $plantId, $latitude, $longitude, $recordedAt, $previousLatest);
             }
 
+            // Real-time Preventive Maintenance check based on odometer reading
+            if ($machineId && $odometer !== null) {
+                app(\App\Services\Logistics\MaintenanceSchedulerService::class)
+                    ->checkAndTrigger($machineId, (float)$odometer, $plantId);
+            }
+
             DB::commit();
             return response()->json([
                 'success' => true,

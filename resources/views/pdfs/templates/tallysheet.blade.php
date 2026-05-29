@@ -5,37 +5,37 @@
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
-        .inv-root { border: 1px solid var(--color-border); width: 100%; min-height: 297mm; }
+        .inv-root { border: 1px solid #cbd5e1; width: 100%; min-height: 297mm; }
         .ledger-header { display: table; width: 100%; border-bottom: 2px solid #111; padding: 8px 12px; }
         .lh-left  { display: table-cell; vertical-align: bottom; }
         .lh-right { display: table-cell; vertical-align: bottom; text-align: right; }
         .co-name  { font-size: 14px; font-weight: 700; }
-        .co-det   { font-size: 9.5px; color: var(--color-muted); }
+        .co-det   { font-size: 9.5px; color: #64748b; }
         .doc-badge { display: inline-block; background: #111; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 16px; }
-        .doc-no    { font-size: 10px; color: var(--color-muted); }
+        .doc-no    { font-size: 10px; color: #64748b; }
 
-        .meta-bar { display: table; width: 100%; border-bottom: 1px solid var(--color-border); background: #f7f7f7; }
-        .mb-cell  { display: table-cell; padding: 5px 10px; border-right: 1px solid var(--color-border); font-size: 10px; vertical-align: top; }
+        .meta-bar { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; background: #f7f7f7; }
+        .mb-cell  { display: table-cell; padding: 5px 10px; border-right: 1px solid #cbd5e1; font-size: 10px; vertical-align: top; }
         .mb-cell:last-child { border-right: none; }
         .mb-key   { font-size: 8.5px; color: #888; text-transform: uppercase; display: block; margin-bottom: 1px; }
         .mb-val   { font-weight: 700; font-size: 10.5px; }
 
         /* Ledger items table */
-        .ledger-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid var(--color-border); }
+        .ledger-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid #cbd5e1; }
         .ledger-table th { background: #111; color: #fff; padding: 5px 8px; font-size: 9.5px; border: 1px solid #333; }
         .ledger-table td { border: 1px solid #ddd; padding: 4px 8px; font-size: 10.5px; vertical-align: middle; }
         .ledger-table .row-sub { background: #fafafa; }
 
-        .totals-ledger { border: 1px solid var(--color-border); margin: 0; }
-        .tl-row { display: table; width: 100%; border-bottom: 1px solid var(--color-border-light); }
-        .tl-label { display: table-cell; width: 78%; text-align: right; padding: 4px 14px; font-size: 10.5px; border-right: 1px solid var(--color-border); }
+        .totals-ledger { border: 1px solid #cbd5e1; margin: 0; }
+        .tl-row { display: table; width: 100%; border-bottom: 1px solid #e2e8f0; }
+        .tl-label { display: table-cell; width: 78%; text-align: right; padding: 4px 14px; font-size: 10.5px; border-right: 1px solid #cbd5e1; }
         .tl-val   { display: table-cell; width: 22%; text-align: right; padding: 4px 12px; font-size: 10.5px; }
         .tl-final { background: #111; color: #fff; }
         .tl-final .tl-label, .tl-final .tl-val { font-weight: 700; font-size: 12px; }
         .sig-row { display: table; width: 100%; padding: 8px 12px; min-height: 80px; }
-        .sig-left  { display: table-cell; vertical-align: bottom; font-size: 10px; color: var(--color-muted); width: 60%; }
+        .sig-left  { display: table-cell; vertical-align: bottom; font-size: 10px; color: #64748b; width: 60%; }
         .sig-right { display: table-cell; vertical-align: bottom; text-align: right; }
-        .sig-line  { display: inline-block; width: 160px; border-top: 1px solid #999; padding-top: 4px; font-size: 10px; color: var(--color-muted); text-align: center; }
+        .sig-line  { display: inline-block; width: 160px; border-top: 1px solid #999; padding-top: 4px; font-size: 10px; color: #64748b; text-align: center; }
     </style>
 </head>
 <body>

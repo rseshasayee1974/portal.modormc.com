@@ -52,6 +52,7 @@ class PermissionSeeder extends Seeder
             'EXPENSE_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'PETTY_CASH' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'PAYMENT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'BILLING' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             
             // Commerce
             'PATRON' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
@@ -146,7 +147,7 @@ class PermissionSeeder extends Seeder
         $accountantRole = Role::where('code', 'ACCOUNTANT')->first();
         if ($accountantRole) {
             $accountantPermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['ACCOUNT', 'LEDGER', 'VOUCHER', 'INVOICE', 'PAYMENT', 'EXPENSE', 'PETTY_CASH', 'TAX', 'CURRENCY'])
+                return Str::startsWith($p, ['ACCOUNT', 'LEDGER', 'VOUCHER', 'INVOICE', 'PAYMENT', 'EXPENSE', 'PETTY_CASH', 'TAX', 'CURRENCY', 'BILLING'])
                        || Str::endsWith($p, '.VIEW');
             });
             $accountantRole->syncPermissions($accountantPermissions);

@@ -27,8 +27,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'api.key' => \App\Http\Middleware\ApiKeyMiddleware::class,
         ]);
+
+        $middleware->append(\TraceReplay\Http\Middleware\TraceMiddleware::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
+            if ($request->expectsJson() && !$request->inertia()) {
+                return response()->json([
+                    'message' => 'Your session has expired. Please log in again.',
+                    'redirect' => route('login'),
+                ], 419);
+            }
+
+            return redirect()->route('login')->with('status', 'Your session has expired. Please log in again.');
+        });
+
         // Normalize JSON error shape for frontend mapping (especially 422 validation).
         $exceptions->respond(function (\Symfony\Component\HttpFoundation\Response $response) {
             if (!request()->expectsJson()) {

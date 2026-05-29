@@ -33,9 +33,9 @@
     }
 
     body {
-        font-family: var(--font-base);
-        font-size: var(--size-base);
-        color: var(--color-ink);
+        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        font-size: 11px;
+        color: #1e293b;
         background: #fff;
         line-height: 1.5;
     }
@@ -46,17 +46,17 @@
     .text-center { text-align: center !important; }
     .bold        { font-weight: 700; }
     .italic      { font-style: italic; }
-    .red         { color: var(--color-red); }
-    .muted       { color: var(--color-muted); }
-    .small       { font-size: var(--size-small); }
+    .red         { color: #ef4444; }
+    .muted       { color: #64748b; }
+    .small       { font-size: 10px; }
     .underline   { text-decoration: underline; }
 
     /* ═══ ITEMS TABLE SHARED ═══ */
-    .item-name { font-weight: 700; color: var(--color-ink); }
-    .item-sub  { font-size: var(--size-xsmall); color: #888; margin-top: 1px; }
+    .item-name { font-weight: 700; color: #1e293b; }
+    .item-sub  { font-size: 9px; color: #888; margin-top: 1px; }
 
-    .badge-done    { color: var(--color-green); font-weight: 700; }
-    .badge-pending { color: var(--color-amber); font-weight: 700; }
+    .badge-done    { color: #10b981; font-weight: 700; }
+    .badge-pending { color: #f59e0b; font-weight: 700; }
 
     /* ═══ FOOTER SHARED ═══ */
     .powered-footer {
