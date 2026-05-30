@@ -30,7 +30,7 @@ import PurchaseOrderPreviewDialog from '../components/PurchaseOrderPreviewDialog
 import { useWeighbridge } from '@/Composables/useWeighbridge';
 
 const page = usePage();
-const isManualWeightDisabled = computed(() => page.props.custom_settings?.orders?.manualweight == 1);
+const isManualWeightDisabled = computed(() => page.props.custom_settings?.batching?.manual_weight == 1);
  console.log(isManualWeightDisabled);
 const { isScaleConnected, captureWeight } = useWeighbridge();
 
@@ -290,14 +290,14 @@ const deleteInward = (inward: any) => {
                                             <BaseInputNumber 
                                                 v-model="item.truck_loaded" 
                                                 placeholder="Inward Weight"
-                                                 :disabled="page.props.custom_settings?.orders?.manualweight == 0"
+                                                 :disabled="page.props.custom_settings?.batching?.manual_weight == 0"
                                                 :max="remainingToReceive(item)"
                                                 :minFractionDigits="2"
                                                 class="w-28 text-right  overflow-hidden"
                                                 inputClass="!text-right !h-8 !bg-white"
                                                 
                                             />
-                                            <button v-if="remainingToReceive(item) > 0 && page.props.custom_settings?.orders?.manualweight == 0" @click="captureWeight((w) => { item.truck_loaded = w; item.received_qty = w; })" type="button" 
+                                            <button v-if="remainingToReceive(item) > 0 && page.props.custom_settings?.batching?.manual_weight == 0" @click="captureWeight((w) => { item.truck_loaded = w; item.received_qty = w; })" type="button" 
                                                     :class="['p-2 rounded transition-colors border shrink-0', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
                                                     :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
                                                     <ArrowDownTrayIcon class="w-4 h-4" />
@@ -451,7 +451,7 @@ const deleteInward = (inward: any) => {
                                                 <input 
                                                     type="number" 
                                                     v-model="slotProps.data.truck_empty"
-                                                    :disabled="page.props.custom_settings?.orders?.manualweight == 0"
+                                                    :disabled="page.props.custom_settings?.batching?.manual_weight == 0"
                                                     class="w-full bg-transparent border-none text-[11px] font-black text-amber-800 focus:ring-0 p-0"
                                                     placeholder="0.00"
                                                     @keyup.enter="saveEmptyWeight(slotProps.data, slotProps.data.truck_empty)"

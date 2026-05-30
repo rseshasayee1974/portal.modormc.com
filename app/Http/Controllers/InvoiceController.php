@@ -120,6 +120,7 @@ class InvoiceController extends Controller
             'accounts' => toSelectOptions(LedgersDropdown('REVENUE'), 'title'),
             'mixdesign' => MixDesignsOptions(),
             'units'    => toSelectOptions(Productunit(), 'unit_code'),
+            'machines' => toSelectOptions(MachinesDropdown(), 'registration', 'registration'),
             'instant_invoice_patron' => CustomSetting::getForModule(session('active_entity_id'), 'invoice')['instant_invoice_patron'] ?? 0,
             'next_invoice_number' => Invoice::generateNumber($plantId, 'sales')['full_number'],
             'next_invoice_details' => Invoice::generateNumber($plantId, 'sales'),

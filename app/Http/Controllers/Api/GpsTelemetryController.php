@@ -103,6 +103,37 @@ class GpsTelemetryController extends Controller
             }
 
             DB::commit();
+
+            // Broadcast GPS location update via WebSockets
+            if ($machineId) {
+                try {
+                    $machine = \App\Models\Machine::find($machineId);
+                    if ($machine) {
+                        $vehiclePayload = [
+                            'id' => $machine->id,
+                            'registration' => $machine->registration,
+                            'vehicle_model' => $machine->vehicle_model,
+                            'vehicle_type' => $machine->vehicle_type,
+                            'imei' => $imei,
+                            'is_online' => true,
+                            'last_ping' => $recordedAt,
+                            'latitude' => floatval($latitude),
+                            'longitude' => floatval($longitude),
+                            'speed' => floatval($speed),
+                            'heading' => floatval($heading),
+                            'ignition' => (bool)$ignition,
+                            'odometer' => floatval($odometer ?? 0),
+                        ];
+                        \App\Services\WebSocketService::broadcast('gps-tracking', [
+                            'event' => 'GpsLocationUpdated',
+                            'vehicle' => $vehiclePayload,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('GPS Broadcast failed: ' . $e->getMessage());
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Telemetry ingested successfully.'

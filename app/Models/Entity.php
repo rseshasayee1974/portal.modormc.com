@@ -68,6 +68,8 @@ class Entity extends Model
 		'email',
 		'url',
 		'api_key',
+		'einv_username',
+		'einv_password',
 		'logo_file',
 		'description',
 		'time_zone',

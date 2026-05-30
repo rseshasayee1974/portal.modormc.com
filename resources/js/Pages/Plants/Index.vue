@@ -45,6 +45,10 @@ const blankForm = () => ({
     scheduler_oauth_url: '',
     scheduler_client_id: '',
     scheduler_client_secret: '',
+    einvoice_client_id: '',
+    einvoice_secret: '',
+    ewaybill_client_id: '',
+    ewaybill_secret: '',
     logo: null as File | null,
     address: {
         address_type_id: props.addressTypes?.[0]?.id ?? null,
@@ -93,6 +97,10 @@ const populatePlantForm = (form: any, plant: any) => {
     form.scheduler_oauth_url = plant.scheduler_oauth_url || '';
     form.scheduler_client_id = plant.scheduler_client_id || '';
     form.scheduler_client_secret = plant.scheduler_client_secret || '';
+    form.einvoice_client_id = plant.einvoice_client_id || '';
+    form.einvoice_secret = plant.einvoice_secret || '';
+    form.ewaybill_client_id = plant.ewaybill_client_id || '';
+    form.ewaybill_secret = plant.ewaybill_secret || '';
     form.logo_path = plant.logo_path || null;
     form.logo = null;
     

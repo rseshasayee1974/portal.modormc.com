@@ -176,6 +176,8 @@ class BatchController extends Controller
         
         // $this->pushToSchedulerAPI($batch, $materialsData);
 
+        $this->broadcastBatchChange('BatchCreated', $batch);
+
         return redirect()->back()->with('success', 'Batch created successfully.');
     }
 
@@ -244,16 +246,19 @@ class BatchController extends Controller
                     $batch->status = Batch::STATUS_LOADING;
                 }
                 $batch->save();
+                $this->broadcastBatchChange('BatchUpdated', $batch);
                 return true;
             } else {
                 $batch->sync_status = 'failed';
                 $batch->save();
+                $this->broadcastBatchChange('BatchUpdated', $batch);
                 return false;
             }
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Failed to post batch data to scheduler: " . $e->getMessage());
             $batch->sync_status = 'failed';
             $batch->save();
+            $this->broadcastBatchChange('BatchUpdated', $batch);
             return false;
         }
     }
@@ -396,6 +401,8 @@ class BatchController extends Controller
             if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
         });
 
+        $this->broadcastBatchChange('BatchUpdated', $batch);
+
         return redirect()->back()->with('success', 'Batch updated successfully.');
     }
 
@@ -405,6 +412,7 @@ class BatchController extends Controller
         $batch->load('workOrder');
         $this->ensurePlantScope($batch->workOrder);
 
+        $batchId = $batch->id;
         DB::transaction(function () use ($batch) {
             $materials = $batch->materials()->get()->toArray();
             
@@ -431,6 +439,8 @@ class BatchController extends Controller
             // Recalculate production quantity for the work order
             $batch->workOrder->refreshProduction();
         });
+
+        $this->broadcastBatchDeletion($batchId);
 
         return redirect()->back()->with('success', 'Batch deleted successfully.');
     }
@@ -608,6 +618,49 @@ class BatchController extends Controller
     {
         if ((int) $workOrder->plant_id !== (int) session('active_plant_id')) {
             abort(403, 'You can only manage batches from the active plant.');
+        }
+    }
+
+    /**
+     * Broadcast batch updates to WebSocket clients.
+     */
+    private function broadcastBatchChange(string $event, Batch $batch): void
+    {
+        try {
+            $batch->loadMissing([
+                'workOrder.customer',
+                'workOrder.mixDesign',
+                'workOrder.site',
+                'dispatches.truck',
+                'dispatches.salesExecutive',
+                'dispatches.creator:id,email',
+                'dispatches.modifier:id,email',
+                'dispatches.status.invoice.createdBy:id,email',
+                'materials.product',
+                'materials.uom'
+            ]);
+
+            \App\Services\WebSocketService::broadcast('batches', [
+                'event' => $event,
+                'batch' => $batch->toArray()
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Batch WebSocket broadcast failed: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Broadcast batch deletion to WebSocket clients.
+     */
+    private function broadcastBatchDeletion(int $batchId): void
+    {
+        try {
+            \App\Services\WebSocketService::broadcast('batches', [
+                'event' => 'BatchDeleted',
+                'id' => $batchId
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("Batch WebSocket deletion broadcast failed: " . $e->getMessage());
         }
     }
 }

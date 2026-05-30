@@ -27,6 +27,8 @@ class Invoice extends Model
         'paid_amount', 'balance_amount',
         'status', 'einvoice_status', 'is_duplicate', 'is_sent', 'is_reconciled',
         'is_active',
+        'einvoice_irn', 'einvoice_ack_no', 'einvoice_ack_date', 'einvoice_qr_code',
+        'eway_bill_no', 'eway_bill_date', 'eway_bill_valid_until',
         'created_by', 'updated_by',
     ];
 
@@ -45,6 +47,9 @@ class Invoice extends Model
     protected $casts = [
         'invoice_date' => 'date',
         'due_date'     => 'date',
+        'einvoice_ack_date' => 'datetime',
+        'eway_bill_date' => 'datetime',
+        'eway_bill_valid_until' => 'datetime',
     ];
 
     // ------------------------------------------------------------------ constants

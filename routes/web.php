@@ -267,6 +267,16 @@ Route::middleware([
         Route::get('invoices/outstanding', [\App\Http\Controllers\InvoiceController::class, 'outstanding'])->name('invoices.outstanding');
         Route::delete('invoices/{invoice}', [\App\Http\Controllers\InvoiceController::class, 'destroy'])->name('invoices.destroy')->where('invoice', '.*');
         Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit', 'destroy']);
+        
+        // E-Invoice & E-Way Bill Compliance
+        Route::post('invoices/{invoice}/generate-einvoice', [\App\Http\Controllers\EInvoiceController::class, 'generate'])->name('invoices.generate-einvoice');
+        Route::post('invoices/{invoice}/cancel-einvoice', [\App\Http\Controllers\EInvoiceController::class, 'cancel'])->name('invoices.cancel-einvoice');
+        Route::post('invoices/{invoice}/generate-ewaybill', [\App\Http\Controllers\EInvoiceController::class, 'generateEWayBill'])->name('invoices.generate-ewaybill');
+        Route::post('invoices/{invoice}/cancel-ewaybill', [\App\Http\Controllers\EInvoiceController::class, 'cancelEWayBill'])->name('invoices.cancel-ewaybill');
+        Route::post('invoices/{invoice}/setup-demo-compliance', [\App\Http\Controllers\EInvoiceController::class, 'setupDemoCompliance'])->name('invoices.setup-demo-compliance');
+        Route::get('compliance/test', [\App\Http\Controllers\EInvoiceController::class, 'testPage'])->name('compliance.test');
+        Route::post('compliance/test-action', [\App\Http\Controllers\EInvoiceController::class, 'testAction'])->name('compliance.test-action');
+
         Route::delete('billings/{billing}', [\App\Http\Controllers\BillingController::class, 'destroy'])->name('billings.destroy')->where('billing', '.*');
         Route::resource('billings', \App\Http\Controllers\BillingController::class)->except(['create', 'edit', 'destroy']);
         

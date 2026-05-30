@@ -13,6 +13,7 @@ const props = defineProps<{
     accounts: any[];
     mixdesign: any[];
     units: any[];
+    machines: any[];
     instant_invoice_patron: number | boolean;
 }>();
 
@@ -49,6 +50,7 @@ const props = defineProps<{
                         :accounts="accounts"
                         :mixdesign="mixdesign"
                         :units="units"
+                        :machines="machines"
                     />
                 </section>
 

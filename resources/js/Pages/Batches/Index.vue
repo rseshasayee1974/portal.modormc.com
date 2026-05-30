@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
+import { useWebSocket } from '@/Composables/useWebSocket';
 import BatchCreateForm from './components/BatchCreateForm.vue';
 import BatchEditForm from './components/BatchEditForm.vue';
 import DispatchSection from './components/DispatchSection.vue';
@@ -56,11 +57,19 @@ const filters = ref({
     'work_order.customer.id': { value: null, matchMode: 'equals' },
 });
 
-const dateFrom = ref(null);
-const dateTo = ref(null);
+const dateFrom = ref<any>(null);
+const dateTo = ref<any>(null);
+
+// Local mutable copy of batches
+const localBatches = ref<any[]>([...props.batches]);
+
+// Sync with Inertia prop updates (like fallback polling or initial load)
+watch(() => props.batches, (newBatches) => {
+    localBatches.value = [...newBatches];
+}, { deep: true });
 
 const filteredBatches = computed(() => {
-    let result = props.batches;
+    let result = localBatches.value;
     
     if (dateFrom.value) {
         const from = new Date(dateFrom.value);
@@ -79,6 +88,48 @@ const filteredBatches = computed(() => {
 const expandedRows = ref({});
 const detailedBatches = ref<Record<number, any>>({});
 const isLoadingBatch = ref<Record<number, boolean>>({});
+
+// Fallback REST polling via Inertia reload
+const fetchBatchesFallback = () => {
+    router.reload({
+        only: ['batches', 'nextBatchNo'],
+        preserveScroll: true
+    });
+};
+
+// WebSocket event message handler
+const handleWebSocketMessage = (data: any) => {
+    if (data.event === 'BatchCreated' && data.batch) {
+        const newBatch = data.batch;
+        const exists = localBatches.value.some(b => b.id === newBatch.id);
+        if (!exists) {
+            localBatches.value.unshift(newBatch);
+        }
+    } else if (data.event === 'BatchUpdated' && data.batch) {
+        const updatedBatch = data.batch;
+        const index = localBatches.value.findIndex(b => b.id === updatedBatch.id);
+        if (index !== -1) {
+            localBatches.value[index] = updatedBatch;
+            if (detailedBatches.value[updatedBatch.id]) {
+                detailedBatches.value[updatedBatch.id] = updatedBatch;
+            }
+        }
+    } else if (data.event === 'BatchDeleted' && data.id) {
+        const deletedId = Number(data.id);
+        localBatches.value = localBatches.value.filter(b => b.id !== deletedId);
+        if (detailedBatches.value[deletedId]) {
+            delete detailedBatches.value[deletedId];
+        }
+    }
+};
+
+// Hook up WebSocket connection with REST fallback
+useWebSocket({
+    channel: 'batches',
+    onMessage: handleWebSocketMessage,
+    fallbackPoll: fetchBatchesFallback,
+    pollIntervalMs: 15000
+});
 
 const first = ref(0);
 const rows = ref(30);

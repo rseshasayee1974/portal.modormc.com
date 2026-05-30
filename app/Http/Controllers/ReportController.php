@@ -18,6 +18,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Services\Reports\SalesRegisterService;
 use App\Services\Reports\PurchaseRegisterService;
 use Illuminate\Support\Facades\Cache;
+use App\Services\SCM\InventoryValuationService;
 
 class ReportController extends Controller
 {
@@ -91,6 +92,11 @@ class ReportController extends Controller
             case 'payroll_personnel':
                 $data = $this->getPayrollPersonnelData();
                 $targetName = 'Personnel & Payroll Directory';
+                break;
+            case 'silo_stock_valuation':
+                $method = $request->input('valuation_method', 'FIFO');
+                $data = $this->getSiloStockValuationData($start, $end, $method);
+                $targetName = 'Silo Stock Valuation Report';
                 break;
             default:
                 return response()->json(['error' => 'Invalid report type'], 400);
@@ -513,6 +519,7 @@ class ReportController extends Controller
             'PRODUCTION_BATCH' => 'reports.generic_report',
             'MACHINES_LIST' => 'reports.generic_report',
             'PAYROLL_PERSONNEL' => 'reports.generic_report',
+            'SILO_STOCK_VALUATION' => 'reports.generic_report',
         ];
 
         $view = $viewMap[strtoupper($type)] ?? 'reports.ledger_report';
@@ -561,6 +568,18 @@ class ReportController extends Controller
                 'fields' => ['name', 'employee_type', 'joining_date', 'status', 'email', 'phone'],
                 'alignments' => ['left', 'left', 'center', 'center', 'left', 'center']
             ];
+        } elseif (str_contains(strtolower($type), 'silo_stock_valuation')) {
+            $extraParams = [
+                'headers' => ['Product Name', 'Category', 'UOM', 'Opening Qty', 'Opening Value', 'Inward Qty', 'Inward Value', 'Consumed Qty', 'COGS Value', 'Ending Qty', 'Ending Value', 'Avg Unit Cost'],
+                'fields' => ['product_name', 'category', 'uom', 'opening_qty', 'opening_value_formatted', 'inward_qty', 'inward_value_formatted', 'consumed_qty', 'consumed_value_formatted', 'ending_qty', 'ending_value_formatted', 'avg_unit_cost_formatted'],
+                'alignments' => ['left', 'left', 'center', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
+                'totals' => [
+                    'opening_value_formatted' => $data['total_opening_value_formatted'] ?? '₹ 0',
+                    'inward_value_formatted' => $data['total_inward_value_formatted'] ?? '₹ 0',
+                    'consumed_value_formatted' => $data['total_consumed_value_formatted'] ?? '₹ 0',
+                    'ending_value_formatted' => $data['total_ending_value_formatted'] ?? '₹ 0',
+                ]
+            ];
         }
 
         $pdfData = array_merge([
@@ -588,14 +607,35 @@ class ReportController extends Controller
             fputcsv($file, ["Report Type:", strtoupper($type)]);
             fputcsv($file, ["Period:", "$start to $end"]);
             fputcsv($file, []);
-            fputcsv($file, ['Date', 'Particulars', 'Voucher Type', 'Voucher No', 'Amount', 'Type', 'Balance']);
 
-            $balance = $data['opening_balance'] ?? 0;
-            if ($balance != 0) fputcsv($file, [$start, 'Opening Balance', '', '', abs($balance), $balance > 0 ? 'Dr' : 'Cr', $balance]);
+            if ($type === 'silo_stock_valuation') {
+                fputcsv($file, ['Product Name', 'Category', 'UOM', 'Opening Qty', 'Opening Value', 'Inward Qty', 'Inward Value', 'Consumed Qty', 'Consumed Value (COGS)', 'Ending Qty', 'Ending Value', 'Avg Unit Cost']);
+                foreach ($data['transactions'] as $row) {
+                    fputcsv($file, [
+                        $row['product_name'],
+                        $row['category'],
+                        $row['uom'],
+                        $row['opening_qty'],
+                        $row['opening_value'],
+                        $row['inward_qty'],
+                        $row['inward_value'],
+                        $row['consumed_qty'],
+                        $row['consumed_value'],
+                        $row['ending_qty'],
+                        $row['ending_value'],
+                        $row['avg_unit_cost']
+                    ]);
+                }
+            } else {
+                fputcsv($file, ['Date', 'Particulars', 'Voucher Type', 'Voucher No', 'Amount', 'Type', 'Balance']);
 
-            foreach ($data['transactions'] as $row) {
-                $balance += ($row['debit'] - $row['credit']);
-                fputcsv($file, [$row['date'], $row['narration'], $row['voucher_type'], $row['voucher_no'], $row['amount'], $row['type'], $balance]);
+                $balance = $data['opening_balance'] ?? 0;
+                if ($balance != 0) fputcsv($file, [$start, 'Opening Balance', '', '', abs($balance), $balance > 0 ? 'Dr' : 'Cr', $balance]);
+
+                foreach ($data['transactions'] as $row) {
+                    $balance += ($row['debit'] - $row['credit']);
+                    fputcsv($file, [$row['date'], $row['narration'], $row['voucher_type'], $row['voucher_no'], $row['amount'], $row['type'], $balance]);
+                }
             }
             fclose($file);
         }, 200, $headers);
@@ -725,6 +765,44 @@ class ReportController extends Controller
                 'email' => $p->user->email ?? 'N/A',
                 'phone' => $p->contacts->first()->contact_value ?? 'N/A',
             ])->values(),
+            'opening_balance' => 0
+        ];
+    }
+
+    private function getSiloStockValuationData($start, $end, $method)
+    {
+        $plantId = session('active_plant_id');
+        $service = new \App\Services\SCM\InventoryValuationService();
+        $result = $service->calculate($plantId, $start, $end, $method);
+
+        $formattedProducts = [];
+        $totalOpeningVal = 0.0;
+        $totalInwardVal = 0.0;
+        $totalConsumedVal = 0.0;
+        $totalEndingVal = 0.0;
+
+        foreach ($result['products'] as $p) {
+            $totalOpeningVal += $p['opening_value'];
+            $totalInwardVal += $p['inward_value'];
+            $totalConsumedVal += $p['consumed_value'];
+            $totalEndingVal += $p['ending_value'];
+
+            $p['opening_value_formatted'] = '₹ ' . number_format($p['opening_value'], 2);
+            $p['inward_value_formatted'] = '₹ ' . number_format($p['inward_value'], 2);
+            $p['consumed_value_formatted'] = '₹ ' . number_format($p['consumed_value'], 2);
+            $p['ending_value_formatted'] = '₹ ' . number_format($p['ending_value'], 2);
+            $p['avg_unit_cost_formatted'] = '₹ ' . number_format($p['avg_unit_cost'], 2);
+
+            $formattedProducts[] = $p;
+        }
+
+        return [
+            'transactions' => $formattedProducts,
+            'products' => $formattedProducts,
+            'total_opening_value_formatted' => '₹ ' . number_format($totalOpeningVal, 2),
+            'total_inward_value_formatted' => '₹ ' . number_format($totalInwardVal, 2),
+            'total_consumed_value_formatted' => '₹ ' . number_format($totalConsumedVal, 2),
+            'total_ending_value_formatted' => '₹ ' . number_format($totalEndingVal, 2),
             'opening_balance' => 0
         ];
     }

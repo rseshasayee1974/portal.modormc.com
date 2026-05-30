@@ -23,6 +23,7 @@ const props = defineProps<{
     accounts: any[];
     mixdesign: any[];
     units: any[];
+    machines: any[];
 }>();
 
 const expandedRows = ref<Record<number, boolean>>({});
@@ -166,7 +167,7 @@ const printInvoice = (data: any) => {
                 </template>
             </Column>
 
-            <Column field="partner.legal_name" header="Entity / Vehicle" sortable>
+            <Column field="partner.legal_name" header="Patron" sortable>
                 <template #body="slotProps">
                     <span class="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight block truncate max-w-[200px]">{{ slotProps.data.partner?.legal_name }}</span>
                     <div class="flex items-center gap-2 mt-0.5">
@@ -202,15 +203,47 @@ const printInvoice = (data: any) => {
             <Column field="status" header="Status" align="center">
                 <template #body="slotProps">
                     <div class="flex flex-col gap-1 items-center">
-                        <Tag 
+                        <!-- <Tag 
                             :severity="getStatusSeverity(slotProps.data.status)" 
                             :value="slotProps.data.status" 
                             class="!text-[9px] !font-black !uppercase !tracking-widest !rounded-lg !px-2"
-                        />
-                        <div class="flex gap-2 mt-1">
+                        /> -->
+                        <!-- <div class="flex gap-2 mt-1 items-center">
                             <CheckCircleIcon v-if="slotProps.data.is_sent" class="w-4 h-4 text-emerald-500" title="Sent" />
                             <ExclamationCircleIcon v-else class="w-4 h-4 text-slate-200" title="Not Sent" />
-                            <Tag v-if="slotProps.data.einvoice_status" :value="slotProps.data.einvoice_status" severity="info" class="!text-[7px] !px-1" />
+                        </div> -->
+                        <div class="flex flex-col gap-1 mt-1 items-center">
+                            <!-- E-Invoice status tag -->
+                            <Tag 
+                                v-if="slotProps.data.einvoice_status === 'generated'"
+                                value="E-INV: ACTIVE" 
+                                severity="success" 
+                                class="!text-[8px] !font-black !px-1.5 !py-0.5" 
+                                title="E-Invoice IRN Active"
+                            />
+                            <Tag 
+                                v-else-if="slotProps.data.einvoice_status === 'cancelled'"
+                                value="E-INV: CANCELLED" 
+                                severity="danger" 
+                                class="!text-[8px] !font-black !px-1.5 !py-0.5" 
+                                title="E-Invoice IRN Cancelled"
+                            />
+                            <Tag 
+                                v-else
+                                value="E-INV: PENDING" 
+                                severity="secondary" 
+                                class="!text-[8px] !font-black !px-1.5 !py-0.5" 
+                                title="E-Invoice IRN Not Generated"
+                            />
+
+                            <!-- E-Way Bill status tag -->
+                            <Tag 
+                                v-if="slotProps.data.eway_bill_no"
+                                :value="`EWAY: ${slotProps.data.eway_bill_no}`" 
+                                severity="info" 
+                                class="!text-[8px] !font-black !px-1.5 !py-0.5" 
+                                title="E-Way Bill Active"
+                            />
                         </div>
                     </div>
                 </template>
@@ -258,6 +291,7 @@ const printInvoice = (data: any) => {
                             :accounts="accounts"
                             :mixdesign="mixdesign"
                             :units="units"
+                            :machines="machines"
                             @saved="expandedRows = {}"
                             @cancel="expandedRows = {}"
                         />

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
+import { useWebSocket } from '@/Composables/useWebSocket';
 
 // Icons
 import {
@@ -55,10 +56,13 @@ const markers = ref<Record<number, L.Marker>>({});
 let geofenceLayers: L.Layer[] = [];
 let pollingInterval: any = null;
 
+// Local mutable copy of vehicles
+const localVehicles = ref<Vehicle[]>([...props.vehicles]);
+
 // Filtered vehicles list
-const filteredVehicles = ref<Vehicle[]>(props.vehicles);
+const filteredVehicles = ref<Vehicle[]>(localVehicles.value);
 const updateFilters = () => {
-    filteredVehicles.value = props.vehicles.filter(v => 
+    filteredVehicles.value = localVehicles.value.filter(v => 
         v.registration.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
         v.vehicle_model.toLowerCase().includes(searchQuery.value.toLowerCase())
     );
@@ -95,7 +99,7 @@ const initMap = () => {
     let defaultLng = 72.8777;
 
     // Center around the first vehicle with valid coordinates
-    const firstActive = props.vehicles.find(v => v.latitude !== null && v.longitude !== null);
+    const firstActive = localVehicles.value.find(v => v.latitude !== null && v.longitude !== null);
     if (firstActive && firstActive.latitude && firstActive.longitude) {
         defaultLat = firstActive.latitude;
         defaultLng = firstActive.longitude;
@@ -148,7 +152,7 @@ const renderGeofences = () => {
 const renderVehicles = () => {
     if (!map) return;
 
-    props.vehicles.forEach(v => {
+    localVehicles.value.forEach(v => {
         if (v.latitude === null || v.longitude === null) return;
 
         const icon = createVehicleIcon(v);
@@ -189,42 +193,65 @@ const focusVehicle = (vehicle: Vehicle) => {
     }
 };
 
-// Perform background Inertia partial reload every 10 seconds
-const startPolling = () => {
-    pollingInterval = setInterval(() => {
-        isRefreshing.value = true;
-        router.reload({
-            only: ['vehicles'],
-            onSuccess: () => {
-                isRefreshing.value = false;
-                renderVehicles();
-                updateFilters();
-                
-                // If a vehicle is selected, adjust map view
-                if (selectedVehicleId.value) {
-                    const active = props.vehicles.find(v => v.id === selectedVehicleId.value);
-                    if (active && active.latitude !== null && active.longitude !== null && map) {
-                        map.panTo([active.latitude, active.longitude]);
-                    }
-                }
-            },
-            onFinish: () => {
-                isRefreshing.value = false;
-            }
-        });
-    }, 10000);
+// Watch Inertia props changes to sync with local state (e.g. initial load or force reloads)
+watch(() => props.vehicles, (newVehicles) => {
+    localVehicles.value = [...newVehicles];
+    renderVehicles();
+    updateFilters();
+}, { deep: true });
+
+// Fallback REST polling via Inertia reload
+const fetchVehiclesFallback = () => {
+    isRefreshing.value = true;
+    router.reload({
+        only: ['vehicles'],
+        onSuccess: () => {
+            isRefreshing.value = false;
+        },
+        onFinish: () => {
+            isRefreshing.value = false;
+        }
+    });
 };
+
+// WebSocket event message handler
+const handleWebSocketMessage = (data: any) => {
+    if (data.event === 'GpsLocationUpdated' && data.vehicle) {
+        const updatedVehicle: Vehicle = data.vehicle;
+        const index = localVehicles.value.findIndex(v => v.id === updatedVehicle.id);
+        if (index !== -1) {
+            localVehicles.value[index] = updatedVehicle;
+        } else {
+            localVehicles.value.push(updatedVehicle);
+        }
+        renderVehicles();
+        updateFilters();
+        
+        // If a vehicle is selected, adjust map view
+        if (selectedVehicleId.value === updatedVehicle.id) {
+            if (updatedVehicle.latitude !== null && updatedVehicle.longitude !== null && map) {
+                map.panTo([updatedVehicle.latitude, updatedVehicle.longitude]);
+            }
+        }
+    }
+};
+
+// Hook up WebSocket connection with REST fallback
+const { isConnected } = useWebSocket({
+    channel: 'gps-tracking',
+    onMessage: handleWebSocketMessage,
+    fallbackPoll: fetchVehiclesFallback,
+    pollIntervalMs: 10000
+});
 
 onMounted(() => {
     nextTick(() => {
         initMap();
         updateFilters();
-        startPolling();
     });
 });
 
 onUnmounted(() => {
-    if (pollingInterval) clearInterval(pollingInterval);
     if (map) {
         map.remove();
         map = null;

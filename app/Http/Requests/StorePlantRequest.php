@@ -43,6 +43,11 @@ class StorePlantRequest extends FormRequest
             'scheduler_client_id' => ['nullable', 'string', 'max:255'],
             'scheduler_client_secret' => ['nullable', 'string'],
             'plc_ip' => ['nullable', 'string', 'max:45'],
+
+            'einvoice_client_id' => ['nullable', 'string', 'max:255'],
+            'einvoice_secret' => ['nullable', 'string', 'max:255'],
+            'ewaybill_client_id' => ['nullable', 'string', 'max:255'],
+            'ewaybill_secret' => ['nullable', 'string', 'max:255'],
             
             // Address Validation
             'address' => ['nullable', 'array'],

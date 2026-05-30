@@ -600,6 +600,53 @@ onMounted(() => {
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>
+
+                <div class="col-span-12">
+                    <h3 class="text-sm font-bold text-slate-800 border-b border-slate-200 pb-2 mt-4">E-Invoice & E-Way Bill Integration</h3>
+                    <p class="text-xs text-slate-500 mt-1">Configure credentials specific to this plant for government compliance portals (overrides Entity defaults).</p>
+                </div>
+
+                <div class="col-span-12 md:col-span-6">
+                    <BaseInput 
+                        v-model="form.einvoice_client_id" 
+                        label="E-Invoice Client ID / Subscription Key"
+                        placeholder="Enter Client ID / Subscription Key" 
+                        :error="errors?.einvoice_client_id"
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+
+                <div class="col-span-12 md:col-span-6">
+                    <BaseInput 
+                        v-model="form.einvoice_secret" 
+                        label="E-Invoice Client Secret / Password"
+                        type="password"
+                        placeholder="••••••••••••" 
+                        :error="errors?.einvoice_secret"
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+
+                <div class="col-span-12 md:col-span-6">
+                    <BaseInput 
+                        v-model="form.ewaybill_client_id" 
+                        label="E-Way Bill Client ID"
+                        placeholder="Enter Client ID" 
+                        :error="errors?.ewaybill_client_id"
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
+
+                <div class="col-span-12 md:col-span-6">
+                    <BaseInput 
+                        v-model="form.ewaybill_secret" 
+                        label="E-Way Bill Client Secret / Password"
+                        type="password"
+                        placeholder="••••••••••••" 
+                        :error="errors?.ewaybill_secret"
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
             </div>
         </div>
     </div>
