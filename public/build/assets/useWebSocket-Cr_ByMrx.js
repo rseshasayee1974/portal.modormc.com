@@ -1,0 +1,1 @@
+import{q as c,M as f,l as a}from"./app-CTrdg6ox.js";function v(e){const o=a(!1),n=a(!1);let l=null,t=!1;const s=()=>{l||(n.value=!0,e.fallbackPoll(),l=setInterval(()=>{e.fallbackPoll()},e.pollIntervalMs||15e3))},r=()=>{l&&(clearInterval(l),l=null),n.value=!1},u=()=>{if(!t){s();return}};return c(()=>{t=!1,u()}),f(()=>{t=!0,r()}),{isConnected:o,isPolling:n}}export{v as u};

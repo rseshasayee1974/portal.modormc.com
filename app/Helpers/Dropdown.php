@@ -48,6 +48,18 @@ use App\Models\StateCode;
 use App\Models\MixDesign;
 use App\Models\ExpenseType;
 use App\Models\PaymentMethod;
+use App\Services\PlantContextService;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Internal helper — single source of truth for the active plant ID in this file.
+// Falls back to user->default_plant_id when the session is unavailable.
+// ─────────────────────────────────────────────────────────────────────────────
+if (!function_exists('_activePlantId')) {
+    function _activePlantId(): ?int
+    {
+        return app(PlantContextService::class)->plantId();
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entity / Plant helpers
@@ -104,8 +116,8 @@ if (!function_exists('PatronsDropdown')) {
      */
     function PatronsDropdown($patronTypes = null, $excludeId = null, $plantId = null)
     {
-        if($plantId == null){
-            $plantId = session('active_plant_id');
+        if ($plantId == null) {
+            $plantId = _activePlantId();
         }
         $query = Patron::where('plant_id', $plantId)
             ->select('id', 'legal_name', 'plant_id');
@@ -149,7 +161,7 @@ if (!function_exists('MachinesDropdown')) {
      */
     function MachinesDropdown($vehicleType = null, $excludeId = null, $entityId = null)
     {
-        $query = Machine::where('plant_id', session('active_plant_id'))
+        $query = Machine::where('plant_id', _activePlantId())
             ->where('is_active', true)
             ->select('id', 'registration', 'plant_id');
 
@@ -192,7 +204,7 @@ if (!function_exists('SitesDropdown')) {
      */
     function SitesDropdown($type = null, $excludeId = null)
     {
-        $query = Site::where('plant_id', session('active_plant_id'))
+        $query = Site::where('plant_id', _activePlantId())
             ->select('id', 'name', 'code', 'plant_id');
 
         if ($type != null) {
@@ -225,7 +237,7 @@ if (!function_exists('PersonnelDropdown')) {
      */
     function PersonnelDropdown($excludeId = null, $entityId = null)
     {
-        return Personnel::where('plant_id', session('active_plant_id'))
+        return Personnel::where('plant_id', _activePlantId())
             ->when($excludeId, fn($q) => $q->excludeId($excludeId))
             ->whereNull('deleted_at')
             ->get()
@@ -260,7 +272,7 @@ if (!function_exists('ProductsDropdown')) {
      */
     function ProductsDropdown(?string $productType = null, $categoryId = null, $excludeId = null, $entityId = null)
     {
-        $query = Product::where('plant_id', session('active_plant_id'))
+        $query = Product::where('plant_id', _activePlantId())
             ->with('unit');
 
         if ($productType !== null) {
@@ -286,7 +298,7 @@ if (!function_exists('MixDesignsDropdown')) {
     function MixDesignsDropdown()
     {
         return MixDesign::query()
-            ->where('plant_id', session('active_plant_id'))
+            ->where('plant_id', _activePlantId())
             ->whereNull('deleted_at')
             ->select('id', 'design_name as title', 'design_code as code', 'rate_per_qty as rate', 'unit_id')
             ->orderBy('design_name')
@@ -315,7 +327,7 @@ if (!function_exists('ExpenseTypesDropdown')) {
      */
     function ExpenseTypesDropdown()
     {
-        return ExpenseType::where('plant_id', session('active_plant_id'))
+        return ExpenseType::where('plant_id', _activePlantId())
             ->where('status', true)
             ->whereNull('deleted_at')
             ->orderBy('name')
@@ -329,7 +341,7 @@ if (!function_exists('GradeDropdown')) {
      */
     function GradeDropdown()
     {
-        return \App\Models\ConcreteGrade::where('plant_id', session('active_plant_id'))
+        return \App\Models\ConcreteGrade::where('plant_id', _activePlantId())
             ->select('id', 'grade_name as title')
             ->whereNull('deleted_at')
             ->orderBy('grade_name')
@@ -346,7 +358,7 @@ if (!function_exists('ProductCategoriesDropdown')) {
      */
     function ProductCategoriesDropdown()
     {
-        return ProductCategory::where('plant_id', session('active_plant_id'))
+        return ProductCategory::where('plant_id', _activePlantId())
             ->whereNull('deleted_at')
             ->where('status', 1)
             ->get(['id', 'name']);
@@ -390,7 +402,7 @@ if (!function_exists('TaxesDropdown')) {
         $excludeId = null,
         $includeId = null
     ) {
-        $query = Tax::where('plant_id', session('active_plant_id'))
+        $query = Tax::where('plant_id', _activePlantId())
             ->where('status', 1)
             ->select('id', 'tax_name', 'tax_rate', 'tax_group', 'tax_type', 'status');
 
@@ -430,7 +442,7 @@ if (!function_exists('SaleTaxesDropdown')) {
      */
     function SaleTaxesDropdown()
     {
-        return Tax::where('plant_id', session('active_plant_id'))
+        return Tax::where('plant_id', _activePlantId())
             ->where('tax_type', 'sales')
             ->where('status', 1)
             ->whereNull('deleted_at')
@@ -501,7 +513,7 @@ if (!function_exists('LedgersDropdown')) {
      */
     function LedgersDropdown($type = null)
     {
-        $query = Ledger::query()->where('plant_id', session('active_plant_id'));
+        $query = Ledger::query()->where('plant_id', _activePlantId());
         
         if ($type) {
             $query->whereHas('accountType.account', function($q) use ($type) {
@@ -525,7 +537,7 @@ if (!function_exists('SalesLedgersDropdown')) {
      */
     function SalesLedgersDropdown($type = null)
     {
-        $query = Ledger::query()->where('plant_id', session('active_plant_id'));
+        $query = Ledger::query()->where('plant_id', _activePlantId());
         
         if ($type) {
              $query->where('title', '=', $type);
@@ -546,7 +558,7 @@ if (!function_exists('DetailedPatronsDropdown')) {
      */
     function DetailedPatronsDropdown()
     {
-        return Patron::where('plant_id', session('active_plant_id'))
+        return Patron::where('plant_id', _activePlantId())
             ->with(['plant', 'ledger', 'contacts.addresses', 'bankAccounts'])
             ->latest()
             ->whereNull('deleted_at')

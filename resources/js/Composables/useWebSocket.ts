@@ -1,5 +1,10 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 
+// ⚠️  TEMPORARY KILL-SWITCH: Set to `false` to re-enable WebSocket connections.
+//     The WSS server on port 6001 is currently offline / not configured on production.
+//     While disabled, the app falls back to HTTP polling automatically.
+const WEBSOCKET_DISABLED = true;
+
 interface UseWebSocketOptions {
     channel: string;
     onMessage: (data: any) => void;
@@ -20,7 +25,6 @@ export function useWebSocket(options: UseWebSocketOptions) {
     const startPolling = () => {
         if (pollInterval) return;
         isPolling.value = true;
-        console.log(`[WebSocket] Starting fallback polling for ${options.channel}`);
         // Run once immediately
         options.fallbackPoll();
         pollInterval = setInterval(() => {
@@ -34,11 +38,16 @@ export function useWebSocket(options: UseWebSocketOptions) {
             pollInterval = null;
         }
         isPolling.value = false;
-        console.log(`[WebSocket] Stopped fallback polling for ${options.channel}`);
     };
 
     const connect = () => {
         if (isManuallyClosed) return;
+
+        // ── KILL-SWITCH: skip WSS entirely and go straight to polling ──
+        if (WEBSOCKET_DISABLED) {
+            startPolling();
+            return;
+        }
 
         // Determine protocol and host
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -88,12 +97,12 @@ export function useWebSocket(options: UseWebSocketOptions) {
     };
 
     const scheduleReconnect = () => {
-        if (reconnectTimeout || isManuallyClosed) return;
-        
+        if (reconnectTimeout || isManuallyClosed || WEBSOCKET_DISABLED) return;
+
         // Exponential backoff
         const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), maxReconnectDelay);
         reconnectAttempts++;
-        
+
         console.log(`[WebSocket] Scheduling reconnect attempt #${reconnectAttempts} in ${delay}ms for channel ${options.channel}`);
         reconnectTimeout = setTimeout(() => {
             reconnectTimeout = null;

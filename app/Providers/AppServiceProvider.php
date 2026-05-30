@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rules\Password;
 use App\Listeners\ModelAuditSubscriber;
 use App\Services\Audit\AuditLogger;
+use App\Services\PlantContextService;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,6 +28,10 @@ class AppServiceProvider extends ServiceProvider
         // Bind our custom LoginResponse so Fortify uses it after successful login
         $this->app->singleton(LoginResponseContract::class, LoginResponse::class);
         $this->app->singleton(AuditLogger::class);
+
+        // Centralised plant/entity context — resolves session → user default → null.
+        // Singleton per request ensures one session read + re-hydration per lifecycle.
+        $this->app->singleton(PlantContextService::class);
     }
 
     /**

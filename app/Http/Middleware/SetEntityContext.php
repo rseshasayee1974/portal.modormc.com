@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
 use App\Models\EntityUser;
+use App\Services\PlantContextService;
 
 class SetEntityContext
 {
@@ -27,8 +28,13 @@ class SetEntityContext
 
         if (Auth::check()) {
             $user           = Auth::user();
-            $activeEntityId = session('active_entity_id');
-            $activePlantId  = session('active_plant_id');
+
+            // Use PlantContextService — resolves session → user default → null.
+            // This is the single call that re-hydrates the session if it was lost.
+            /** @var PlantContextService $ctx */
+            $ctx            = app(PlantContextService::class);
+            $activeEntityId = $ctx->entityId();
+            $activePlantId  = $ctx->plantId();
 
             // --- Auto Setup Session if missing ---
             if (!$activeEntityId || !session()->has('active_plant_id')) {

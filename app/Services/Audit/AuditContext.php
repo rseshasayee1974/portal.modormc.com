@@ -4,6 +4,7 @@ namespace App\Services\Audit;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Services\PlantContextService;
 
 class AuditContext
 {
@@ -14,7 +15,7 @@ class AuditContext
 
         return [
             'user_id' => Auth::id(),
-            'plant_id' => session('active_plant_id') ?: Auth::user()?->default_plant_id,
+            'plant_id' => app(PlantContextService::class)->plantId(),
             'ip_address' => $request?->ip(),
             'user_agent' => $userAgent,
             'device_type' => $this->detectDeviceType($userAgent),
