@@ -80,6 +80,7 @@ class DispatchController extends Controller
 
                 // 4. Create/Update Status / Logistical Record (mm_dispatch_statuses)
                 $statusData = $validated['status'] ?? [];
+                $statusData['plant_id'] = $dispatch->plant_id;
                 $dispatch->status()->updateOrCreate(['dispatch_id' => $dispatch->id], $statusData);
 
                 // 5. Process Immediate Payment if provided
@@ -128,7 +129,9 @@ class DispatchController extends Controller
 
             // 4. Update Status Record
             if (!empty($validated['status'])) {
-                $dispatch->status()->updateOrCreate(['dispatch_id' => $dispatch->id], $validated['status']);
+                $statusData = $validated['status'];
+                $statusData['plant_id'] = $dispatch->plant_id;
+                $dispatch->status()->updateOrCreate(['dispatch_id' => $dispatch->id], $statusData);
             }
 
             // 5. Update Payment
@@ -182,10 +185,9 @@ class DispatchController extends Controller
 
             // Update dispatch status with generated invoice info
             $dispatch->status()->updateOrCreate(
-                ['dispatch_id' => $dispatch->id,
-                'plant_id' => $dispatch->plant_id
-            ],
+                ['dispatch_id' => $dispatch->id],
                 [
+                    'plant_id'       => $dispatch->plant_id,
                     'invoice_id'     => $invoice->id,
                     'invoice_number' => $invoice->invoice_number,
                     'invoice_date'   => $invoice->invoice_date,

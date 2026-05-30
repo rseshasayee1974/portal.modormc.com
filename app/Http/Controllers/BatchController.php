@@ -164,7 +164,10 @@ class BatchController extends Controller
             $dispatchData['dispatch_no'] = (string)(($maxNumber ?: 0) + 1);
 
             $dispatch = Dispatch::create($dispatchData);
-            $dispatch->status()->updateOrCreate(['dispatch_id' => $dispatch->id]);
+            $dispatch->status()->updateOrCreate(
+                ['dispatch_id' => $dispatch->id],
+                ['plant_id' => $dispatch->plant_id]
+            );
 
             if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
             if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');

@@ -626,6 +626,68 @@ class ReportController extends Controller
                         $row['avg_unit_cost']
                     ]);
                 }
+            } elseif ($type === 'inventory_stock') {
+                fputcsv($file, ['Date', 'Product Name', 'UOM', 'Opening Qty', 'Current Stock', 'Status']);
+                foreach ($data['transactions'] as $row) {
+                    fputcsv($file, [
+                        $row['date'],
+                        $row['product_name'],
+                        $row['uom'],
+                        $row['opening_qty'],
+                        $row['quantity'],
+                        $row['status']
+                    ]);
+                }
+            } elseif ($type === 'inventory_inward') {
+                fputcsv($file, ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Truck No']);
+                foreach ($data['transactions'] as $row) {
+                    fputcsv($file, [
+                        $row['date'],
+                        $row['inward_no'],
+                        $row['po_number'],
+                        $row['vendor_name'],
+                        $row['product_name'],
+                        $row['quantity'],
+                        $row['truck_no']
+                    ]);
+                }
+            } elseif ($type === 'production_batch') {
+                fputcsv($file, ['Start Date', 'Batch No', 'Work Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status']);
+                foreach ($data['transactions'] as $row) {
+                    fputcsv($file, [
+                        $row['date'],
+                        $row['batch_no'],
+                        $row['work_order'],
+                        $row['mix_design'],
+                        $row['batch_size'],
+                        $row['operator'],
+                        $row['status']
+                    ]);
+                }
+            } elseif ($type === 'machines_list') {
+                fputcsv($file, ['Registration', 'Vehicle Model', 'Vehicle Type', 'Make Year', 'Capacity', 'Owner']);
+                foreach ($data['transactions'] as $row) {
+                    fputcsv($file, [
+                        $row['registration'],
+                        $row['vehicle_model'],
+                        $row['vehicle_type'],
+                        $row['make_year'],
+                        $row['capacity'],
+                        $row['owner']
+                    ]);
+                }
+            } elseif ($type === 'payroll_personnel') {
+                fputcsv($file, ['Name', 'Role / Employee Type', 'Joining Date', 'Status', 'Email', 'Phone']);
+                foreach ($data['transactions'] as $row) {
+                    fputcsv($file, [
+                        $row['name'],
+                        $row['employee_type'],
+                        $row['joining_date'],
+                        $row['status'],
+                        $row['email'],
+                        $row['phone']
+                    ]);
+                }
             } else {
                 fputcsv($file, ['Date', 'Particulars', 'Voucher Type', 'Voucher No', 'Amount', 'Type', 'Balance']);
 

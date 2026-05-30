@@ -82,6 +82,7 @@ class InvoiceController extends Controller
                 $source->status()->updateOrCreate(
                     ['dispatch_id' => $source->id],
                     [
+                        'plant_id'       => $source->plant_id,
                         'invoice_id'     => $invoice->id,
                         'invoice_number' => $invoice->invoice_number,
                         'invoice_date'   => $invoice->invoice_date,
