@@ -41,6 +41,9 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(request.url);
 
+    // Only handle http/https requests (ignore chrome-extension://, etc.)
+    if (!url.protocol.startsWith('http')) return;
+
     // 1. Static Assets (Compiled Vite bundles, fonts, images) -> Cache-First
     if (url.pathname.includes('/build/assets/') || url.pathname.includes('/assets/') || request.destination === 'font') {
         event.respondWith(
