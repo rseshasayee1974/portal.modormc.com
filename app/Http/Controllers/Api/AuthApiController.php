@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Plant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -118,6 +119,7 @@ class AuthApiController extends Controller
                 'plan' => $user->plan,
                 'api_key' => $user->api_key,
                 'email_verified_at' => $user->email_verified_at,
+                'plants' => $this->getPlantsForUser($user),
             ],
         ]);
     }
@@ -187,6 +189,7 @@ class AuthApiController extends Controller
                 'name' => $user->username,
                 'email' => $user->email,
                 'email_verified_at' => $user->email_verified_at,
+                'plants' => $this->getPlantsForUser($user),
             ],
         ]);
     }
@@ -246,6 +249,21 @@ class AuthApiController extends Controller
             'api_key' => $user->api_key,
             'plan' => $user->plan,
         ]);
+    }
+
+    private function getPlantsForUser(User $user)
+    {
+        if ($user->isSystemAdmin()) {
+            return Plant::select('id', 'name as plant_name')->get();
+        }
+        
+        $authorizedPlantIds = $user->entityUsers()
+            ->whereNotNull('plant_id')
+            ->pluck('plant_id')
+            ->unique()
+            ->toArray();
+            
+        return Plant::whereIn('id', $authorizedPlantIds)->select('id', 'name as plant_name')->get();
     }
 
     private function otpCacheKey(string $email): string

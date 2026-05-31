@@ -643,12 +643,9 @@ class BatchController extends Controller
                 'materials.uom'
             ]);
 
-            \App\Services\WebSocketService::broadcast('batches', [
-                'event' => $event,
-                'batch' => $batch->toArray()
-            ]);
+            broadcast(new \App\Events\BatchUpdated($event, ['batch' => $batch->toArray()]));
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning("Batch WebSocket broadcast failed: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::warning("Batch broadcast failed: " . $e->getMessage());
         }
     }
 
@@ -658,12 +655,9 @@ class BatchController extends Controller
     private function broadcastBatchDeletion(int $batchId): void
     {
         try {
-            \App\Services\WebSocketService::broadcast('batches', [
-                'event' => 'BatchDeleted',
-                'id' => $batchId
-            ]);
+            broadcast(new \App\Events\BatchUpdated('BatchDeleted', ['id' => $batchId]));
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning("Batch WebSocket deletion broadcast failed: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::warning("Batch deletion broadcast failed: " . $e->getMessage());
         }
     }
 }

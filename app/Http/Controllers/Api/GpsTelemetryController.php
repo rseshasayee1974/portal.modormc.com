@@ -124,10 +124,7 @@ class GpsTelemetryController extends Controller
                             'ignition' => (bool)$ignition,
                             'odometer' => floatval($odometer ?? 0),
                         ];
-                        \App\Services\WebSocketService::broadcast('gps-tracking', [
-                            'event' => 'GpsLocationUpdated',
-                            'vehicle' => $vehiclePayload,
-                        ]);
+                        broadcast(new \App\Events\GpsLocationUpdated($vehiclePayload));
                     }
                 } catch (\Exception $e) {
                     Log::warning('GPS Broadcast failed: ' . $e->getMessage());

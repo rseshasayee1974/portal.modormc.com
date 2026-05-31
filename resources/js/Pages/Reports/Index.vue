@@ -1,11 +1,13 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+import ReportScheduleModal from './components/ReportScheduleModal.vue';
 
 // Import child report components
 import StandardLedgerReport from './components/StandardLedgerReport.vue';
@@ -21,6 +23,11 @@ import VehiclePLReport from './components/VehiclePLReport.vue';
 import PayrollPersonnelReport from './components/PayrollPersonnelReport.vue';
 import PurchaseReport from './components/PurchaseReport.vue';
 import SalesReport from './components/SalesReport.vue';
+import Gstr1Report from './components/Gstr1Report.vue';
+import Gstr3bReport from './components/Gstr3bReport.vue';
+import TdsCertificateReport from './components/TdsCertificateReport.vue';
+import EsiPfChallanReport from './components/EsiPfChallanReport.vue';
+
 import { 
     ChartBarIcon,
     DocumentTextIcon, 
@@ -48,6 +55,7 @@ const getModuleIcon = (id) => {
         case 'production': return Cog6ToothIcon;
         case 'machines': return TruckIcon;
         case 'payroll': return UsersIcon;
+        case 'compliance': return DocumentTextIcon;
         default: return DocumentTextIcon;
     }
 };
@@ -99,6 +107,16 @@ const modules = [
         reports: [
             { id: 'payroll_personnel', name: 'Personnel Directory', description: 'Employee master data, contact details and designations' },
         ]
+    },
+    {
+        id: 'compliance',
+        name: 'Taxation & Compliance',
+        reports: [
+            { id: 'gstr1', name: 'GSTR-1 Report', description: 'B2B, B2C, CDNR, and EXP invoice breakups for GST returns' },
+            { id: 'gstr3b', name: 'GSTR-3B Return Summary', description: 'Table 3.1 outward supplies and Table 4 eligible ITC summary' },
+            { id: 'tds_certificate', name: 'TDS Certificate Generation', description: 'TDS details and deduction summary for a given patron' },
+            { id: 'esi_pf_challan', name: 'ESI/PF Challan Generation', description: 'Monthly Employee State Insurance and Provident Fund statutory challan calculations' }
+        ]
     }
 ];
 
@@ -136,6 +154,10 @@ const getReportComponent = (type) => {
         case 'payroll_personnel': return PayrollPersonnelReport;
         case 'purchase': return PurchaseReport;
         case 'sales': return SalesReport;
+        case 'gstr1': return Gstr1Report;
+        case 'gstr3b': return Gstr3bReport;
+        case 'tds_certificate': return TdsCertificateReport;
+        case 'esi_pf_challan': return EsiPfChallanReport;
         default: return StandardLedgerReport;
     }
 };
@@ -390,6 +412,70 @@ const exportExcel = async () => {
         window.open(url, '_blank');
     }
 };
+
+const schedules = ref([]);
+const isScheduleModalOpen = ref(false);
+
+const fetchSchedules = async () => {
+    try {
+        const response = await axios.get(route('reports.schedules.index'));
+        schedules.value = response.data;
+    } catch (err) {
+        console.error('Failed to fetch schedules:', err);
+    }
+};
+
+const deleteSchedule = async (id) => {
+    const result = await Swal.fire({
+        title: 'Cancel Schedule?',
+        text: 'This report will no longer be sent automatically.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, cancel it',
+        cancelButtonText: 'No, keep it',
+        confirmButtonColor: '#dc2626',
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+        await axios.delete(route('reports.schedules.destroy', { schedule: id }));
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Schedule cancelled successfully.',
+            showConfirmButton: false,
+            timer: 2000
+        });
+        fetchSchedules();
+    } catch (err) {
+        console.error('Failed to delete schedule:', err);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to cancel schedule.'
+        });
+    }
+};
+
+const currentReportParams = computed(() => {
+    return {
+        id: selectedId.value,
+        patron_id: patronId.value,
+        gst_type: gstType.value,
+        payment_status: paymentStatus.value,
+        valuation_method: valuationMethod.value,
+    };
+});
+
+const openScheduleModal = () => {
+    isScheduleModalOpen.value = true;
+};
+
+onMounted(() => {
+    fetchSchedules();
+});
 </script>
 
 <template>
@@ -511,7 +597,7 @@ const exportExcel = async () => {
                                 </div>
 
                                 <!-- Patron Dropdown -->
-                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register'].includes(reportType)" class="lg:col-span-1">
+                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                         {{ reportType === 'sales_register' ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
                                     </span>
@@ -583,6 +669,15 @@ const exportExcel = async () => {
                                 <!-- <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Smart Filter floorplan</span> -->
                                 <div class="flex gap-2">
                                     <button 
+                                        @click="openScheduleModal"
+                                        class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded transition-all flex items-center gap-1.5"
+                                    >
+                                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
+                                        </svg>
+                                        Schedule Report
+                                    </button>
+                                    <button 
                                         @click="exportExcel"
                                         class="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold rounded transition-all flex items-center gap-1.5"
                                     >
@@ -624,6 +719,61 @@ const exportExcel = async () => {
                         </div>
                     </div>
 
+                    <!-- Active Schedules Panel -->
+                    <div class="bg-white rounded border border-slate-200 shadow-sm mb-6 no-print">
+                        <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                            <div>
+                                <h3 class="text-xs font-bold text-[#1d2d3e] uppercase tracking-wider">Automated Schedules for this Plant</h3>
+                            </div>
+                            <span class="text-[9px] bg-indigo-50 border border-indigo-200 rounded text-indigo-600 px-2 py-0.5 font-bold uppercase tracking-widest">
+                                {{ schedules.length }} ACTIVE
+                            </span>
+                        </div>
+                        <div class="p-5">
+                            <div v-if="schedules.length === 0" class="text-center py-6 text-xs text-slate-400">
+                                No recurring schedules configured for this plant. Click <strong>Schedule Report</strong> to create one.
+                            </div>
+                            <div v-else class="overflow-x-auto">
+                                <table class="w-full text-left text-xs border-collapse">
+                                    <thead>
+                                        <tr class="border-b border-slate-100 bg-slate-50/50">
+                                            <th class="px-4 py-2 font-bold text-slate-500 uppercase">Report Type</th>
+                                            <th class="px-4 py-2 font-bold text-slate-500 uppercase">Frequency</th>
+                                            <th class="px-4 py-2 font-bold text-slate-500 uppercase">Time</th>
+                                            <th class="px-4 py-2 font-bold text-slate-500 uppercase">Recipients</th>
+                                            <th class="px-4 py-2 font-bold text-slate-500 uppercase">Last Run</th>
+                                            <th class="px-4 py-2 font-bold text-slate-500 uppercase text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        <tr v-for="sch in schedules" :key="sch.id" class="hover:bg-slate-50 transition-colors">
+                                            <td class="px-4 py-3 font-semibold text-slate-700 capitalize">
+                                                {{ sch.report_type.replace('_', ' ') }}
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <span class="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-bold uppercase text-slate-600">
+                                                    {{ sch.frequency }}
+                                                </span>
+                                            </td>
+                                            <td class="px-4 py-3 font-medium text-slate-600">{{ sch.schedule_time }}</td>
+                                            <td class="px-4 py-3 text-slate-500 max-w-xs truncate" :title="sch.email_recipients">
+                                                {{ sch.email_recipients }}
+                                            </td>
+                                            <td class="px-4 py-3 text-slate-400">
+                                                {{ sch.last_run_at ? new Date(sch.last_run_at).toLocaleString('en-IN') : 'Never' }}
+                                            </td>
+                                            <td class="px-4 py-3 text-right">
+                                                <button @click="deleteSchedule(sch.id)" class="text-rose-600 hover:text-rose-800 font-bold hover:underline">
+                                                    Cancel Schedule
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+ 
                     <!-- SAP Fiori Responsive Table Grid -->
                     <div v-if="reportData" class="bg-white rounded border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-200">
                         
@@ -669,6 +819,15 @@ const exportExcel = async () => {
 
             </div>
         </div>
+
+        <!-- Report Scheduling Modal -->
+        <ReportScheduleModal 
+            :is-open="isScheduleModalOpen"
+            :report-type="reportType"
+            :report-params="currentReportParams"
+            @close="isScheduleModalOpen = false"
+            @saved="fetchSchedules"
+        />
     </AppLayout>
 </template>
 

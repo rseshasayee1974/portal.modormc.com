@@ -560,6 +560,15 @@ class DashboardRepository
 
     public function getPlants()
     {
+        $user = auth()->user();
+        if ($user && !$user->isSystemAdmin()) {
+            $authorizedPlantIds = $user->entityUsers()
+                ->whereNotNull('plant_id')
+                ->pluck('plant_id')
+                ->unique()
+                ->toArray();
+            return Plant::whereIn('id', $authorizedPlantIds)->select('id', 'name as plant_name')->get();
+        }
         return Plant::select('id', 'name as plant_name')->get();
     }
 }

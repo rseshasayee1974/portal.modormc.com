@@ -162,6 +162,8 @@ Route::middleware([
         Route::resource('salary-components', \App\Http\Controllers\SalaryComponentController::class);
         Route::resource('payroll-periods', \App\Http\Controllers\PayrollPeriodController::class);
         Route::post('payslips/generate', [\App\Http\Controllers\PayslipController::class, 'generate'])->name('payslips.generate');
+        Route::get('payslips/export-ecr', [\App\Http\Controllers\PayslipController::class, 'exportEcr'])->name('payslips.export-ecr');
+        Route::get('payslips/export-esic', [\App\Http\Controllers\PayslipController::class, 'exportEsic'])->name('payslips.export-esic');
         Route::resource('payslips', \App\Http\Controllers\PayslipController::class);
     });
 
@@ -240,6 +242,9 @@ Route::middleware([
          Route::get('machine-summary', [\App\Http\Controllers\ReportController::class, 'machineSummary'])->name('reports.machine-summary');
          Route::get('vehicle-pl', [\App\Http\Controllers\ReportController::class, 'vehiclePL'])->name('reports.vehicle-pl');
          Route::get('export-status/{key}', [\App\Http\Controllers\ReportController::class, 'getExportStatus'])->name('reports.export-status');
+         Route::get('schedules', [\App\Http\Controllers\ReportController::class, 'listSchedules'])->name('reports.schedules.index');
+         Route::post('schedules', [\App\Http\Controllers\ReportController::class, 'storeSchedule'])->name('reports.schedules.store');
+         Route::delete('schedules/{schedule}', [\App\Http\Controllers\ReportController::class, 'deleteSchedule'])->name('reports.schedules.destroy');
   });
     // 10. Finance & Accounting
     Route::prefix('finance')->group(function () {

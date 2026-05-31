@@ -349,4 +349,218 @@ class PayslipController extends Controller
 
         return redirect()->back()->with('success', 'Payslips generated successfully in draft status.');
     }
+
+    public function show(Payslip $payslip)
+    {
+        $this->authorizeModule('show');
+
+        $activePlantId = session('active_plant_id');
+        if ($payslip->plant_id !== $activePlantId) {
+            abort(403, 'Unauthorized access to this plant\'s payslip.');
+        }
+
+        $payslip->load(['personnel.department', 'personnel.designation', 'payrollPeriod', 'items.salaryComponent']);
+        
+        $plant = \App\Models\Plant::with(['addresses.state', 'contacts', 'entity'])->find($activePlantId);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('payroll.payslip', [
+            'payslip' => $payslip,
+            'plant' => $plant,
+        ]);
+
+        $filename = 'payslip-' . $payslip->payslip_no . '.pdf';
+        
+        if (request('action') === 'view') {
+            return $pdf->stream($filename);
+        }
+        return $pdf->download($filename);
+    }
+
+    public function exportEcr(Request $request)
+    {
+        $this->authorizeModule('show');
+
+        $request->validate([
+            'payroll_period_id' => 'required|exists:mm_payroll_periods,id'
+        ]);
+
+        $activePlantId = session('active_plant_id');
+        $period = PayrollPeriod::where('plant_id', $activePlantId)->findOrFail($request->payroll_period_id);
+
+        $payslips = Payslip::with(['personnel', 'items'])
+            ->where('payroll_period_id', $period->id)
+            ->where('plant_id', $activePlantId)
+            ->whereIn('status', ['approved', 'paid'])
+            ->get();
+
+        if ($payslips->isEmpty()) {
+            return response('No approved or paid payslips found for this cycle.', 400);
+        }
+
+        $pfConfig = StatutoryConfig::where('plant_id', $activePlantId)
+            ->where('statute_name', 'like', '%Provident Fund%')
+            ->first();
+        
+        $pfEmployeeRate = isset($pfConfig->rules['employee_rate']) ? (float)$pfConfig->rules['employee_rate'] : 12.0;
+        $pfEmployerRate = isset($pfConfig->rules['employer_rate']) ? (float)$pfConfig->rules['employer_rate'] : 12.0;
+        $pfCeiling      = isset($pfConfig->rules['wage_ceiling'])  ? (float)$pfConfig->rules['wage_ceiling']  : 15000.0;
+
+        $lines = [];
+        foreach ($payslips as $payslip) {
+            $personnel = $payslip->personnel;
+            if (!$personnel) continue;
+
+            // Find Basic Salary item
+            $grossWages = (float)$payslip->total_earnings;
+            $basicItem = $payslip->items->first(function($item) {
+                return $item->type === 'earning' && str_contains(strtolower($item->component_name), 'basic');
+            });
+            $basicWages = $basicItem ? (float)$basicItem->amount : $grossWages;
+
+            // Find employee PF deduction
+            $pfItem = $payslip->items->first(function($item) {
+                return $item->type === 'deduction' && (str_contains(strtolower($item->component_name), 'provident') || str_contains(strtolower($item->component_name), 'pf'));
+            });
+            $pfEmployeeShare = $pfItem ? (float)$pfItem->amount : 0.0;
+
+            // Filter for employees contributing or eligible
+            if ($pfEmployeeShare > 0 || ($basicWages > 0 && $basicWages <= $pfCeiling)) {
+                $uan = preg_replace('/[^0-9]/', '', $personnel->uan ?? '');
+                
+                $name = trim(($personnel->first_name ?? '') . ' ' . ($personnel->last_name ?? ''));
+                $name = strtoupper(preg_replace('/[^a-zA-Z\s\.]/', '', $name));
+                if (strlen($name) > 80) {
+                    $name = substr($name, 0, 80);
+                }
+
+                $ncpDays = (int)$payslip->absent_days;
+
+                // Determine if they contribute on full basic or ceiling capped basic
+                $pfLimit = $pfCeiling;
+                if ($pfEmployeeShare > ($pfEmployeeRate * $pfCeiling / 100)) {
+                    $pfLimit = $basicWages;
+                }
+                $epfWages = min($basicWages, $pfLimit);
+                $epsWages = min($basicWages, $pfCeiling);
+                $edliWages = min($basicWages, $pfCeiling);
+
+                $employerPfTotal = round($pfEmployerRate * $epfWages / 100, 2);
+                $employerEpsShare = round(8.33 * $epsWages / 100, 2);
+                $employerEpfShare = max(0.0, $employerPfTotal - $employerEpsShare);
+
+                // Round all wage and contribution fields to nearest integer
+                $grossWagesInt = (int)round($grossWages);
+                $epfWagesInt = (int)round($epfWages);
+                $epsWagesInt = (int)round($epsWages);
+                $edliWagesInt = (int)round($edliWages);
+                $epfContributionInt = (int)round($pfEmployeeShare);
+                $epsContributionInt = (int)round($employerEpsShare);
+                $epfEpsDiffInt = (int)round($employerEpfShare);
+                $refunds = 0;
+                $refundOfAdvances = 0;
+
+                $lines[] = implode('~#~', [
+                    $uan,
+                    $name,
+                    $grossWagesInt,
+                    $epfWagesInt,
+                    $epsWagesInt,
+                    $edliWagesInt,
+                    $epfContributionInt,
+                    $epsContributionInt,
+                    $epfEpsDiffInt,
+                    $ncpDays,
+                    $refundOfAdvances
+                ]) . '~#~';
+            }
+        }
+
+        if (empty($lines)) {
+            return response('No eligible PF transactions found for approved/paid payslips in this cycle.', 400);
+        }
+
+        $content = implode("\r\n", $lines);
+        $filename = 'ECR_' . str_replace(' ', '_', $period->name) . '.txt';
+
+        return response($content, 200, [
+            'Content-Type' => 'text/plain',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
+
+    public function exportEsic(Request $request)
+    {
+        $this->authorizeModule('show');
+
+        $request->validate([
+            'payroll_period_id' => 'required|exists:mm_payroll_periods,id'
+        ]);
+
+        $activePlantId = session('active_plant_id');
+        $period = PayrollPeriod::where('plant_id', $activePlantId)->findOrFail($request->payroll_period_id);
+
+        $payslips = Payslip::with(['personnel', 'items'])
+            ->where('payroll_period_id', $period->id)
+            ->where('plant_id', $activePlantId)
+            ->whereIn('status', ['approved', 'paid'])
+            ->get();
+
+        if ($payslips->isEmpty()) {
+            return response('No approved or paid payslips found for this cycle.', 400);
+        }
+
+        $esiConfig = StatutoryConfig::where('plant_id', $activePlantId)
+            ->where('statute_name', 'like', '%Employee State Insurance%')
+            ->first();
+        $esiCeiling = isset($esiConfig->rules['wage_ceiling']) ? (float)$esiConfig->rules['wage_ceiling'] : 21000.0;
+
+        $lines = [];
+        foreach ($payslips as $payslip) {
+            $personnel = $payslip->personnel;
+            if (!$personnel) continue;
+
+            $grossWages = (float)$payslip->total_earnings;
+
+            // Find employee ESI deduction
+            $esiItem = $payslip->items->first(function($item) {
+                return $item->type === 'deduction' && str_contains(strtolower($item->component_name), 'esi');
+            });
+            $esiEmployeeShare = $esiItem ? (float)$esiItem->amount : 0.0;
+
+            // Filter for employees contributing or eligible
+            if ($esiEmployeeShare > 0 || ($grossWages > 0 && $grossWages <= $esiCeiling)) {
+                $esiNumber = preg_replace('/[^0-9]/', '', $personnel->esi_number ?? '');
+
+                $name = trim(($personnel->first_name ?? '') . ' ' . ($personnel->last_name ?? ''));
+                $name = strtoupper(preg_replace('/[^a-zA-Z\s\.]/', '', $name));
+                if (strlen($name) > 80) {
+                    $name = substr($name, 0, 80);
+                }
+
+                $noOfDays = (int)($payslip->present_days + $payslip->paid_leave_days);
+                $totalWages = (int)round($grossWages);
+                $reasonCode = 0;
+
+                $lines[] = implode('~#~', [
+                    $esiNumber,
+                    $name,
+                    $noOfDays,
+                    $totalWages,
+                    $reasonCode
+                ]) . '~#~';
+            }
+        }
+
+        if (empty($lines)) {
+            return response('No eligible ESI transactions found for approved/paid payslips in this cycle.', 400);
+        }
+
+        $content = implode("\r\n", $lines);
+        $filename = 'ESIC_' . str_replace(' ', '_', $period->name) . '.csv';
+
+        return response($content, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ]);
+    }
 }

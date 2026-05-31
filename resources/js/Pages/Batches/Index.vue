@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -60,13 +60,90 @@ const filters = ref({
 const dateFrom = ref<any>(null);
 const dateTo = ref<any>(null);
 
-// Local mutable copy of batches
-const localBatches = ref<any[]>([...props.batches]);
+// Local mutable copy of batches, including offline queued ones
+const localBatches = ref<any[]>([]);
 
-// Sync with Inertia prop updates (like fallback polling or initial load)
+// Set initial batches list and prepend any locally saved offline batches
+const loadInitialBatches = () => {
+    const offline = JSON.parse(localStorage.getItem('offline_batches') || '[]');
+    localBatches.value = [...offline, ...props.batches];
+};
+
 watch(() => props.batches, (newBatches) => {
-    localBatches.value = [...newBatches];
+    const offline = JSON.parse(localStorage.getItem('offline_batches') || '[]');
+    localBatches.value = [...offline, ...newBatches];
 }, { deep: true });
+
+const handleOfflineBatchAdded = (batch: any) => {
+    localBatches.value.unshift(batch);
+};
+
+const isSyncing = ref(false);
+
+const syncOfflineBatches = async () => {
+    if (!navigator.onLine || isSyncing.value) return;
+
+    const offline = JSON.parse(localStorage.getItem('offline_batches') || '[]');
+    if (offline.length === 0) return;
+
+    isSyncing.value = true;
+    let syncedCount = 0;
+    
+    // We make a copy of the queue to iterate
+    const queue = [...offline];
+    
+    for (const batch of queue) {
+        try {
+            // Remove the temporary fields used only on frontend
+            const payload = { ...batch };
+            delete payload.id;
+            delete payload.is_offline_pending;
+            delete payload.truck_registration;
+            delete payload.created_at;
+            
+            await axios.post(route('batches.store'), payload);
+            syncedCount++;
+            
+            // Remove from local storage queue
+            const currentQueue = JSON.parse(localStorage.getItem('offline_batches') || '[]');
+            const updatedQueue = currentQueue.filter((b: any) => b.id !== batch.id);
+            localStorage.setItem('offline_batches', JSON.stringify(updatedQueue));
+            
+            // Remove the temporary record from local list
+            localBatches.value = localBatches.value.filter((b: any) => b.id !== batch.id);
+        } catch (err) {
+            console.error('Failed to sync offline batch:', err);
+            // Stop syncing remaining items if we hit an error (e.g. server down)
+            break;
+        }
+    }
+
+    isSyncing.value = false;
+
+    if (syncedCount > 0) {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: `Synchronized ${syncedCount} offline batches successfully.`,
+            showConfirmButton: false,
+            timer: 2500
+        });
+        
+        // Reload list to get fresh server-side synced records with IDs
+        fetchBatchesFallback();
+    }
+};
+
+onMounted(() => {
+    loadInitialBatches();
+    syncOfflineBatches();
+    window.addEventListener('online', syncOfflineBatches);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('online', syncOfflineBatches);
+});
 
 const filteredBatches = computed(() => {
     let result = localBatches.value;
@@ -256,6 +333,7 @@ const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form
                     :taxes="taxes"
                     :statuses="statuses"
                     :nextBatchNo="nextBatchNo"
+                    @offline-batch-added="handleOfflineBatchAdded"
                 />
 
                 <hr class="border-slate-200 border-dashed" />
@@ -328,7 +406,11 @@ const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form
                         <Column field="batch_no" header="Batch" sortable>
                             <template #body="slotProps">
                                 <div>
+                                    <span v-if="slotProps.data.is_offline_pending" class="text-slate-500 font-inter text-sm font-semibold">
+                                        B{{ slotProps.data.batch_no }}
+                                    </span>
                                     <button
+                                        v-else
                                         class="text-indigo-700 font-inter text-sm font-semibold hover:underline"
                                         type="button"
                                         @click.stop="toggleExpand(slotProps.data)"
@@ -381,28 +463,34 @@ const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form
                         <Column field="status" header="Status" sortable>
                             <template #body="slotProps">
                                 <div class="flex items-center gap-2">
-                                    <Tag :value="statusLabel(slotProps.data.status)" :severity="statusSeverity(slotProps.data.status)" rounded />
-                                    
-                                    <i v-if="slotProps.data.sync_status === 'success'" 
-                                       class="pi pi-check-circle text-emerald-500 text-lg cursor-help" 
-                                       v-tooltip.top="'Synced to Scheduler'"></i>
-                                       
-                                    <i v-else-if="slotProps.data.sync_status === 'failed'" 
-                                       class="pi pi-times-circle text-rose-500 text-lg cursor-pointer hover:text-rose-600 transition-colors" 
-                                       v-tooltip.top="'Sync Failed - Click to Retry'" 
-                                       @click.stop="retrySync(slotProps.data.id)"></i>
-                                       
-                                    <i v-else-if="slotProps.data.sync_status === 'pending'" 
-                                       class="pi pi-cloud-upload text-amber-500 text-lg cursor-pointer hover:text-amber-600 transition-colors" 
-                                       v-tooltip.top="'Pending - Click to Post'" 
-                                       @click.stop="retrySync(slotProps.data.id)"></i>
+                                    <template v-if="slotProps.data.is_offline_pending">
+                                        <Tag value="Offline Pending" severity="warn" rounded />
+                                        <i class="pi pi-spinner animate-spin text-amber-500 text-lg" v-tooltip.top="'Pending Network Sync'"></i>
+                                    </template>
+                                    <template v-else>
+                                        <Tag :value="statusLabel(slotProps.data.status)" :severity="statusSeverity(slotProps.data.status)" rounded />
+                                        
+                                        <i v-if="slotProps.data.sync_status === 'success'" 
+                                           class="pi pi-check-circle text-emerald-500 text-lg cursor-help" 
+                                           v-tooltip.top="'Synced to Scheduler'"></i>
+                                           
+                                        <i v-else-if="slotProps.data.sync_status === 'failed'" 
+                                           class="pi pi-times-circle text-rose-500 text-lg cursor-pointer hover:text-rose-600 transition-colors" 
+                                           v-tooltip.top="'Sync Failed - Click to Retry'" 
+                                           @click.stop="retrySync(slotProps.data.id)"></i>
+                                           
+                                        <i v-else-if="slotProps.data.sync_status === 'pending'" 
+                                           class="pi pi-cloud-upload text-amber-500 text-lg cursor-pointer hover:text-amber-600 transition-colors" 
+                                           v-tooltip.top="'Pending - Click to Post'" 
+                                           @click.stop="retrySync(slotProps.data.id)"></i>
+                                    </template>
                                 </div>
                             </template>
                         </Column>
 
                         <Column header="Actions">
                             <template #body="slotProps">
-                                <div class="flex justify-end gap-2">
+                                <div v-if="!slotProps.data.is_offline_pending" class="flex justify-end gap-2">
                                     <BaseButton
                                         icon="pi pi-eye"
                                         severity="secondary"
@@ -429,6 +517,7 @@ const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form
                                         title="Delete"
                                     />
                                 </div>
+                                <span v-else class="text-[10px] text-slate-400 font-bold uppercase">Syncing...</span>
                             </template>
                         </Column>
 

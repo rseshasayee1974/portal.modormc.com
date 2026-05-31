@@ -77,6 +77,23 @@ const page = usePage();
 const activeTab = ref('payslips');
 const editingPeriodId = ref<number | null>(null);
 const editingCompId = ref<number | null>(null);
+const compliancePeriodId = ref<number | null>(null);
+
+const downloadEcr = () => {
+    if (!compliancePeriodId.value) {
+        Swal.fire('Error', 'Please select a payroll cycle first.', 'error');
+        return;
+    }
+    window.open(route('payslips.export-ecr', { payroll_period_id: compliancePeriodId.value }), '_blank');
+};
+
+const downloadEsic = () => {
+    if (!compliancePeriodId.value) {
+        Swal.fire('Error', 'Please select a payroll cycle first.', 'error');
+        return;
+    }
+    window.open(route('payslips.export-esic', { payroll_period_id: compliancePeriodId.value }), '_blank');
+};
 
 // Forms
 const genForm = useForm({
@@ -287,36 +304,75 @@ const getStatusSeverity = (status: string) => {
                         <!-- PAYSLIPS TAB -->
                         <TabPanel value="payslips">
                             <div class="space-y-6">
-                                <!-- Generate Form (3-column layout) -->
-                                <BaseCard class="text-sm">
-                                    <template #header>
-                                        <div class="flex items-center gap-2">
-                                            <SparklesIcon class="w-5 h-5 text-indigo-500" />
-                                            <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
-                                                Bulk Payslip Processing Engine
-                                            </span>
-                                        </div>
-                                    </template>
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <div class="lg:col-span-2">
+                                        <!-- Generate Form (3-column layout) -->
+                                        <BaseCard class="text-sm">
+                                            <template #header>
+                                                <div class="flex items-center gap-2">
+                                                    <SparklesIcon class="w-5 h-5 text-indigo-500" />
+                                                    <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
+                                                        Bulk Payslip Processing Engine
+                                                    </span>
+                                                </div>
+                                            </template>
 
-                                    <form @submit.prevent="submitGenerate" class="space-y-6">
-                                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                            <div class="flex flex-col gap-2">
-                                                <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select Processing Period <span class="text-red-500">*</span></label>
-                                                <BaseSelect v-model="genForm.payroll_period_id" :options="periodOptions" optionLabel="label" optionValue="value" placeholder="Select Period" class="w-full" />
-                                                <small v-if="genForm.errors.payroll_period_id" class="p-error text-[10px]">{{ genForm.errors.payroll_period_id }}</small>
+                                            <form @submit.prevent="submitGenerate" class="space-y-6">
+                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div class="flex flex-col gap-2">
+                                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select Processing Period <span class="text-red-500">*</span></label>
+                                                        <BaseSelect v-model="genForm.payroll_period_id" :options="periodOptions" optionLabel="label" optionValue="value" placeholder="Select Period" class="w-full" />
+                                                        <small v-if="genForm.errors.payroll_period_id" class="p-error text-[10px]">{{ genForm.errors.payroll_period_id }}</small>
+                                                    </div>
+                                                </div>
+
+                                                <BaseFormActions 
+                                                    :loading="genForm.processing"
+                                                    label="Run Payslip Generation"
+                                                    cancel-label="Reset"
+                                                    mode="add"
+                                                    class="pt-6 border-t border-gray-100 dark:border-gray-700"
+                                                    @cancel="() => genForm.reset()"
+                                                />
+                                            </form>
+                                        </BaseCard>
+                                    </div>
+                                    <div>
+                                        <!-- Statutory Compliance Downloads -->
+                                        <BaseCard class="text-sm">
+                                            <template #header>
+                                                <div class="flex items-center gap-2">
+                                                    <CogIcon class="w-5 h-5 text-indigo-500" />
+                                                    <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
+                                                        Statutory Compliance
+                                                    </span>
+                                                </div>
+                                            </template>
+                                            <div class="space-y-6">
+                                                <div class="flex flex-col gap-2">
+                                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Select Compliance Cycle <span class="text-red-500">*</span></label>
+                                                    <BaseSelect v-model="compliancePeriodId" :options="periodOptions" optionLabel="label" optionValue="value" placeholder="Select Period" class="w-full" />
+                                                </div>
+                                                <div class="flex flex-col gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                                                    <BaseButton 
+                                                        label="Download EPFO ECR Text File" 
+                                                        icon="pi pi-download"
+                                                        class="w-full justify-center text-xs font-bold"
+                                                        severity="info"
+                                                        @click="downloadEcr"
+                                                    />
+                                                    <BaseButton 
+                                                        label="Download ESIC Portal CSV File" 
+                                                        icon="pi pi-download"
+                                                        class="w-full justify-center text-xs font-bold"
+                                                        severity="success"
+                                                        @click="downloadEsic"
+                                                    />
+                                                </div>
                                             </div>
-                                        </div>
-
-                                        <BaseFormActions 
-                                            :loading="genForm.processing"
-                                            label="Run Payslip Generation"
-                                            cancel-label="Reset"
-                                            mode="add"
-                                            class="pt-6 border-t border-gray-100 dark:border-gray-700"
-                                            @cancel="() => genForm.reset()"
-                                        />
-                                    </form>
-                                </BaseCard>
+                                        </BaseCard>
+                                    </div>
+                                </div>
 
                                 <!-- Payslips List -->
                                 <div class="bg-white dark:bg-slate-900 rounded-xl">
@@ -371,7 +427,19 @@ const getStatusSeverity = (status: string) => {
                                         </Column>
                                         <Column header="Actions" alignFrozen="right" frozen>
                                             <template #body="slotProps">
-                                                <div class="flex justify-end gap-2">
+                                                <div class="flex justify-end items-center gap-2">
+                                                    <a 
+                                                        :href="route('payslips.show', slotProps.data.id)" 
+                                                        target="_blank"
+                                                        class="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded transition-all flex items-center gap-1"
+                                                        title="Download PDF"
+                                                    >
+                                                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                            <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3Z" fill="#E21A1A" />
+                                                            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 6.5C12.5 6.5 13 8.5 12 10.5C11 8.5 11.5 6.5 12 6.5ZM9.5 14C8 14.5 6 15 7.5 16C9 17 10.5 15 9.5 14ZM14.5 14C16 15 17.5 16 16.5 16.8C15.5 17.6 13.5 15.5 14.5 14Z" fill="white" />
+                                                            <path d="M12.2 11.2C12.8 11.8 14 12.8 13.8 13.5C13.6 14.2 11 15 10.2 13.8C9.4 12.6 11.6 10.6 12.2 11.2Z" fill="white" fill-opacity="0.8" />
+                                                        </svg>
+                                                    </a>
                                                     <BaseButton 
                                                         icon="pi pi-trash" 
                                                         severity="danger" 

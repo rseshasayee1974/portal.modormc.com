@@ -5,7 +5,7 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "websocket": "node websocket-server.js"
+        "reverb": "php artisan reverb:start"
     },
     "devDependencies": {
         "@inertiajs/vue3": "^2.0",
@@ -22,8 +22,7 @@
         "postcss": "^8.4.32",
         "tailwindcss": "^3.4.0",
         "vite": "^6.4.1",
-        "vue": "^3.3.13",
-        "ws": "^8.18.0"
+        "vue": "^3.3.13"
     },
     "dependencies": {
         "@heroicons/vue": "^2.2.0",
@@ -32,10 +31,12 @@
         "@types/geojson": "^7946.0.16",
         "@types/leaflet": "^1.9.21",
         "apexcharts": "^5.10.6",
+        "laravel-echo": "^2.1.3",
         "leaflet": "^1.9.4",
         "pinia": "^3.0.4",
         "primeicons": "^7.0.0",
         "primevue": "^4.5.4",
+        "pusher-js": "^8.4.0",
         "sweetalert2": "^11.26.21",
         "vue3-apexcharts": "^1.11.1"
     }

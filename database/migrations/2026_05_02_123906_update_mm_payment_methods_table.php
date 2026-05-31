@@ -12,6 +12,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('mm_payment_methods')) {
+            Schema::create('mm_payment_methods', function (Blueprint $table) {
+                $table->id();
+                $table->string('name', 255);
+                $table->timestamps();
+            });
+        }
+
         Schema::table('mm_payment_methods', function (Blueprint $table) {
             // Check if column exists before adding to prevent errors
             if (!Schema::hasColumn('mm_payment_methods', 'description')) {

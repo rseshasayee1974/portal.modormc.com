@@ -46,6 +46,8 @@ const props = withDefaults(defineProps<{
     unloading_sites: () => [],
 });
 
+const emit = defineEmits(['offline-batch-added']);
+
 const blankMaterial = (): BatchMaterial => ({
     product_id: null,
     material_name: '',
@@ -224,6 +226,60 @@ const submit = () => {
         const seconds = String(d.getSeconds()).padStart(2, '0');
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     };
+
+    // Check if browser is offline
+    if (!navigator.onLine) {
+        const formattedBatch = {
+            id: -Date.now(), // Temporary negative ID
+            batch_no: form.batch_no || props.nextBatchNo,
+            work_order_id: form.work_order_id,
+            work_order: selectedWorkOrder.value,
+            batch_size: form.batch_size,
+            truck_id: form.truck_id,
+            truck_registration: props.trucks.find(t => t.id === form.truck_id)?.registration || 'N/A',
+            transport_id: form.transport_id,
+            driver_id: form.driver_id,
+            sales_executive_id: form.sales_executive_id,
+            empty_weight_truck: form.empty_weight_truck,
+            uom_id: form.uom_id,
+            site_id: form.site_id,
+            status: 1,
+            start_time: formatDateTime(form.start_time) || formatDateTime(new Date()),
+            end_time: formatDateTime(form.end_time),
+            empty_time: formatDateTime(form.empty_time),
+            load_time: formatDateTime(form.load_time),
+            materials: form.materials.map((item: BatchMaterial) => ({
+                ...item,
+                material_name: item.material_name || props.products.find((p: any) => p.id === item.product_id)?.title || 'Material',
+            })),
+            empty_weight_photo: form.empty_weight_photo,
+            is_offline_pending: true,
+            created_at: new Date().toISOString(),
+        };
+
+        const queue = JSON.parse(localStorage.getItem('offline_batches') || '[]');
+        queue.push(formattedBatch);
+        localStorage.setItem('offline_batches', JSON.stringify(queue));
+
+        emit('offline-batch-added', formattedBatch);
+
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'warning',
+            title: 'No network. Queued locally for synchronization.',
+            showConfirmButton: false,
+            timer: 3000
+        });
+
+        form.reset();
+        form.start_time = new Date();
+        form.clearErrors();
+        form.status = 1;
+        form.batch_size = 1;
+        form.materials = [blankMaterial()];
+        return;
+    }
 
     form.transform((data) => ({
         ...data,
