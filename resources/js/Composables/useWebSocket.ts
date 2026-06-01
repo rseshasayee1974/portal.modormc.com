@@ -12,7 +12,7 @@ function getEcho(): Echo<'reverb'> | null {
     // Read Reverb connection details injected by the Vite plugin or env vars.
     const enabled = import.meta.env.VITE_REVERB_ENABLED !== 'false';
     const appKey  = import.meta.env.VITE_REVERB_APP_KEY;
-    const host    = import.meta.env.VITE_REVERB_HOST    || window.location.hostname;
+    let host      = import.meta.env.VITE_REVERB_HOST    || window.location.hostname;
     const port    = Number(import.meta.env.VITE_REVERB_PORT    || 8080);
     const scheme  = import.meta.env.VITE_REVERB_SCHEME  || (window.location.protocol === 'https:' ? 'https' : 'http');
     const forceTLS = import.meta.env.VITE_REVERB_FORCE_TLS !== 'false' && scheme === 'https';
@@ -20,6 +20,15 @@ function getEcho(): Echo<'reverb'> | null {
     if (!enabled || !appKey) {
         // Reverb not configured or disabled — stay in polling-only mode silently.
         return null;
+    }
+
+    // Clean up host in case it is a full URL (e.g. http://127.0.0.1:8000)
+    if (host.includes('://')) {
+        try {
+            host = new URL(host).hostname;
+        } catch {
+            host = host.replace(/https?:\/\//, '').split(':')[0];
+        }
     }
 
     if (!echoInstance) {
