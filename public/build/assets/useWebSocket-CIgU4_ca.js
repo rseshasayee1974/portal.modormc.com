@@ -1,0 +1,1 @@
+import{q as s,M as u,l as t}from"./app-BLKuvXVx.js";function f(e){const a=t(!1),n=t(!0);let l=null;const o=()=>{l||(n.value=!0,e.fallbackPoll(),l=setInterval(e.fallbackPoll,e.pollIntervalMs||15e3))},r=()=>{l&&(clearInterval(l),l=null),n.value=!1};return s(()=>{o()}),u(()=>{r()}),{isConnected:a,isPolling:n}}export{f as u};

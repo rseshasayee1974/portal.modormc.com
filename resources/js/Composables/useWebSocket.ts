@@ -1,64 +1,15 @@
 import { ref, onMounted, onUnmounted } from 'vue';
-import Echo from 'laravel-echo';
-import Pusher from 'pusher-js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Laravel Echo singleton (shared across all composable instances on the page)
-// Reverb uses the Pusher protocol, so pusher-js is the required transport.
+// Pure polling fallback (Echo and Pusher websocket client connection removed)
 // ─────────────────────────────────────────────────────────────────────────────
-let echoInstance: Echo<'reverb'> | null = null;
 
-function getEcho(): Echo<'reverb'> | null {
-    // Read Reverb connection details injected by the Vite plugin or env vars.
-    const enabled = import.meta.env.VITE_REVERB_ENABLED !== 'false';
-    const appKey  = import.meta.env.VITE_REVERB_APP_KEY;
-    let host      = import.meta.env.VITE_REVERB_HOST    || window.location.hostname;
-    const port    = Number(import.meta.env.VITE_REVERB_PORT    || 8080);
-    const scheme  = import.meta.env.VITE_REVERB_SCHEME  || (window.location.protocol === 'https:' ? 'https' : 'http');
-    const forceTLS = import.meta.env.VITE_REVERB_FORCE_TLS !== 'false' && scheme === 'https';
-
-    if (!enabled || !appKey) {
-        // Reverb not configured or disabled — stay in polling-only mode silently.
-        return null;
-    }
-
-    // Clean up host in case it is a full URL (e.g. http://127.0.0.1:8000)
-    if (host.includes('://')) {
-        try {
-            host = new URL(host).hostname;
-        } catch {
-            host = host.replace(/https?:\/\//, '').split(':')[0];
-        }
-    }
-
-    if (!echoInstance) {
-        // Attach Pusher to window so Laravel Echo can find it
-        (window as any).Pusher = Pusher;
-
-        echoInstance = new Echo({
-            broadcaster: 'reverb',
-            key:         appKey,
-            wsHost:      host,
-            wsPort:      port,
-            wssPort:     port,
-            forceTLS:    forceTLS,
-            enabledTransports: forceTLS ? ['wss'] : ['ws'],
-            // Disable Pusher's own logging in production
-            disableStats: true,
-        });
-    }
-    return echoInstance;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Composable interface
-// ─────────────────────────────────────────────────────────────────────────────
 interface UseWebSocketOptions {
     /** Public channel name, e.g. 'batches' or 'gps-tracking' */
     channel: string;
-    /** Called with the event payload when a message arrives via Echo */
+    /** Called with the event payload when a message arrives (Not used in pure polling) */
     onMessage: (data: any) => void;
-    /** Called on a regular interval when Echo is unavailable */
+    /** Called on a regular interval to fetch latest data */
     fallbackPoll: () => void;
     /** Polling interval in ms (default 15 000) */
     pollIntervalMs?: number;
@@ -66,13 +17,10 @@ interface UseWebSocketOptions {
 
 export function useWebSocket(options: UseWebSocketOptions) {
     const isConnected = ref(false);
-    const isPolling   = ref(false);
+    const isPolling   = ref(true);
 
-    let channelSubscription: any   = null;
-    let pollInterval:        any   = null;
-    let connectionCheckInterval: any = null;
+    let pollInterval: any = null;
 
-    // ── Polling fallback ──────────────────────────────────────────────────────
     const startPolling = () => {
         if (pollInterval) return;
         isPolling.value = true;
@@ -81,87 +29,20 @@ export function useWebSocket(options: UseWebSocketOptions) {
     };
 
     const stopPolling = () => {
-        if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
         isPolling.value = false;
     };
 
-    // ── Echo / Reverb connection ──────────────────────────────────────────────
-    const connect = () => {
-        const echo = getEcho();
+    onMounted(() => {
+        startPolling();
+    });
 
-        if (!echo) {
-            // Reverb not configured — fall back to polling only
-            startPolling();
-            return;
-        }
-
-        try {
-            channelSubscription = echo
-                .channel(options.channel)
-                .listen('.' + options.channel, (data: any) => {
-                    // Generic catch-all: forward the raw payload
-                    options.onMessage(data);
-                });
-
-            // Listen for every broadcasted event on this channel by intercepting
-            // the underlying Pusher subscription bind_global:
-            const pusherChannel = (echo.connector as any)?.pusher?.channel(options.channel);
-            if (pusherChannel) {
-                pusherChannel.bind_global((eventName: string, data: any) => {
-                    if (!eventName.startsWith('pusher:')) {
-                        options.onMessage({ event: eventName, ...data });
-                    }
-                });
-            }
-
-            // Monitor connection state via Pusher's socket events
-            const pusher = (echo.connector as any)?.pusher;
-            if (pusher) {
-                pusher.connection.bind('connected', () => {
-                    isConnected.value = true;
-                    stopPolling();
-                });
-                pusher.connection.bind('disconnected', () => {
-                    isConnected.value = false;
-                    startPolling();
-                });
-                pusher.connection.bind('failed', () => {
-                    isConnected.value = false;
-                    startPolling();
-                });
-
-                // Reflect current state immediately in case Echo connected before binds
-                if (pusher.connection.state === 'connected') {
-                    isConnected.value = true;
-                } else {
-                    startPolling(); // start polling until connected
-                }
-            } else {
-                startPolling();
-            }
-
-        } catch (e) {
-            console.warn(`[Echo] Failed to subscribe to channel "${options.channel}":`, e);
-            startPolling();
-        }
-    };
-
-    const disconnect = () => {
-        const echo = getEcho();
-        if (echo && channelSubscription) {
-            try { echo.leaveChannel(options.channel); } catch {}
-        }
-        channelSubscription = null;
+    onUnmounted(() => {
         stopPolling();
-        if (connectionCheckInterval) {
-            clearInterval(connectionCheckInterval);
-            connectionCheckInterval = null;
-        }
-        isConnected.value = false;
-    };
-
-    onMounted(() => connect());
-    onUnmounted(() => disconnect());
+    });
 
     return { isConnected, isPolling };
 }
