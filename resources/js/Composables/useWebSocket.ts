@@ -10,13 +10,15 @@ let echoInstance: Echo<'reverb'> | null = null;
 
 function getEcho(): Echo<'reverb'> | null {
     // Read Reverb connection details injected by the Vite plugin or env vars.
+    const enabled = import.meta.env.VITE_REVERB_ENABLED !== 'false';
     const appKey  = import.meta.env.VITE_REVERB_APP_KEY;
     const host    = import.meta.env.VITE_REVERB_HOST    || window.location.hostname;
     const port    = Number(import.meta.env.VITE_REVERB_PORT    || 8080);
     const scheme  = import.meta.env.VITE_REVERB_SCHEME  || (window.location.protocol === 'https:' ? 'https' : 'http');
+    const forceTLS = import.meta.env.VITE_REVERB_FORCE_TLS !== 'false' && scheme === 'https';
 
-    if (!appKey) {
-        // VITE_REVERB_APP_KEY not set — stay in polling-only mode silently.
+    if (!enabled || !appKey) {
+        // Reverb not configured or disabled — stay in polling-only mode silently.
         return null;
     }
 
@@ -30,8 +32,8 @@ function getEcho(): Echo<'reverb'> | null {
             wsHost:      host,
             wsPort:      port,
             wssPort:     port,
-            forceTLS:    scheme === 'https',
-            enabledTransports: ['ws', 'wss'],
+            forceTLS:    forceTLS,
+            enabledTransports: forceTLS ? ['wss'] : ['ws'],
             // Disable Pusher's own logging in production
             disableStats: true,
         });
