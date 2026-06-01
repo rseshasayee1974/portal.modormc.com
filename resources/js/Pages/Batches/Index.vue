@@ -201,12 +201,12 @@ const handleWebSocketMessage = (data: any) => {
 };
 
 // Hook up WebSocket connection with REST fallback
-useWebSocket({
-    channel: 'batches',
-    onMessage: handleWebSocketMessage,
-    fallbackPoll: fetchBatchesFallback,
-    pollIntervalMs: 15000
-});
+// useWebSocket({
+//     channel: 'batches',
+//     onMessage: handleWebSocketMessage,
+//     fallbackPoll: fetchBatchesFallback,
+//     pollIntervalMs: 15000
+// });
 
 const first = ref(0);
 const rows = ref(30);
