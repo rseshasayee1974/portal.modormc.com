@@ -330,6 +330,12 @@ const fetchDashboardData = async ({ silent = false } = {}) => {
 
         applyDashboardPayload(data);
     } catch (error) {
+        if (error?.response?.status === 401 || error?.response?.status === 419) {
+            // Session expired — stop polling and redirect to login
+            if (pollTimer) clearInterval(pollTimer);
+            window.location.href = '/login';
+            return;
+        }
         console.error('Failed to fetch dashboard data', error);
         errorMessage.value = 'Unable to refresh live dashboard data right now.';
     } finally {

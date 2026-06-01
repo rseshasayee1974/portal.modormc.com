@@ -590,24 +590,22 @@ if (!function_exists('BankAccountTypesDropdown')) {
 if (!function_exists('StateCodesDropdown')) {
     function StateCodesDropdown()
     {
-        return \Illuminate\Support\Facades\Cache::rememberForever('active_states_dropdown', function () {
-            return StateCode::whereNotNull('state_name')
-                ->where('state_name', '!=', '')
-                ->whereNull('deleted_at')
-                ->groupBy('state_name', 'state_code')
-                ->selectRaw('MIN(id) as id, state_name, state_code')
-                ->orderBy('state_name')
-                ->get()
-                ->map(function ($item) {
-                    return [
-                        'id' => $item->id,
-                        'state_name' => $item->state_name,
-                        'state_code' => $item->state_code,
-                        'label' => $item->state_name,
-                        'value' => $item->id,
-                    ];
-                });
-        });
+        return StateCode::whereNotNull('state_name')
+            ->where('state_name', '!=', '')
+            ->whereNull('deleted_at')
+            ->groupBy('state_name', 'state_code')
+            ->selectRaw('MIN(id) as id, state_name, state_code')
+            ->orderBy('state_name')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'state_name' => $item->state_name,
+                    'state_code' => $item->state_code,
+                    'label' => $item->state_name,
+                    'value' => $item->id,
+                ];
+            });
     }
 }
 
