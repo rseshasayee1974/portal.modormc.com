@@ -29,7 +29,7 @@ class PatronController extends Controller
     public function index()
     {
         $this->authorizeModule('menu');
-        
+         
         return Inertia::render('Patrons/Index', [
             'patrons'  => DetailedPatronsDropdown(),
             'plants'   => ActivePlantsDropdown(),
