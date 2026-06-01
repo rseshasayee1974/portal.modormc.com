@@ -72,9 +72,9 @@ Route::middleware([
         Route::resource('currencies', \App\Http\Controllers\CurrencyController::class)->except(['create', 'edit', 'show']);
         Route::resource('invoicestatuses', \App\Http\Controllers\InvoiceStatusController::class)->except(['create', 'edit', 'show']);
         Route::resource('plans', \App\Http\Controllers\PlanController::class)->except(['create', 'edit', 'show']);
-        Route::resource('statecodes', \App\Http\Controllers\StateCodeController::class)->except(['create', 'edit', 'show']);
         Route::get('statecodes/{state_id}/districts', [\App\Http\Controllers\StateCodeController::class, 'getDistricts'])->name('statecodes.districts');
         Route::get('statecodes/{state_id}/zipcodes', [\App\Http\Controllers\StateCodeController::class, 'getZipcodes'])->name('statecodes.zipcodes');
+        Route::resource('statecodes', \App\Http\Controllers\StateCodeController::class)->except(['create', 'edit', 'show']);
         Route::resource('subscriptionstatuses', \App\Http\Controllers\SubscriptionStatusController::class)->except(['create', 'edit', 'show']);
         Route::resource('productunits', \App\Http\Controllers\ProductUnitController::class);
     });

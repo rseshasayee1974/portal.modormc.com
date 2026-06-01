@@ -26,7 +26,7 @@ class Financialyear
      * Generate the next PO ref-no for a given plant.
      * Uses the model's generateNextRefId() which is already plant-scoped.
      */
-    public static function generatePurchaseOrderRefNo($plantId, string $date = null): array
+    public static function generatePurchaseOrderRefNo($plantId, ?string $date = null): array
     {
         $fy        = self::getFinancialYear();
         $formatted = PurchaseOrder::generateNextRefId($plantId, $date);
