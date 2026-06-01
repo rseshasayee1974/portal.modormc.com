@@ -31,7 +31,7 @@ class PatronController extends Controller
         $this->authorizeModule('menu');
         
         return Inertia::render('Patrons/Index', [
-            'patrons'  => DetailedPatronsDropdown(session('active_plant_id')),
+            'patrons'  => DetailedPatronsDropdown(),
             'plants'   => ActivePlantsDropdown(),
             'ledgers'  => LedgersDropdown(),
             'contactTypes' => ContactTypesDropdown(),

@@ -28,6 +28,14 @@ const props = defineProps<{
 
 const toast = useToast();
 
+// Find Tamil Nadu's ID from the states dropdown (value = id in StateCodesDropdown)
+const tamilNaduId = computed(() =>
+    props.states?.find((s: any) =>
+        s.state_name?.toLowerCase().includes('tamil') ||
+        s.state_code?.toUpperCase() === 'TN'
+    )?.value ?? null
+);
+
 const searchQuery = ref('');
 const editingId = ref<number | null>(null);
 const expandedRows = ref<Record<number, boolean>>({});
@@ -76,7 +84,7 @@ const initialPatronForm = () => ({
     address_line_2: '',
     address_city: '',
     address_zipcode: '',
-    address_state_id: null as number | null,
+    address_state_id: tamilNaduId.value as number | null,
     address_type_id: null as number | null,
     bank_accounts: [
         {
@@ -114,6 +122,7 @@ const resetCreateForm = () => {
             is_primary: true,
         }
     ];
+    createForm.address_state_id = tamilNaduId.value;
 };
 
 const resetEditForm = () => {
