@@ -471,13 +471,13 @@ const submit = () => {
                         </div>
                         
                          <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" :error="form.errors.transport_id" />
+                            <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear :error="form.errors.transport_id" />
                         </div>
                         <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver" :error="form.errors.driver_id" />
+                            <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver" showClear :error="form.errors.driver_id" />
                         </div>
                         <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Sales Executive" :error="form.errors.sales_executive_id" />
+                            <BaseSelect v-model="form.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear :error="form.errors.sales_executive_id" />
                         </div>
                         <div class="col-span-12 md:col-span-3">
                             <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :minFractionDigits="2" :disabled="true"  :error="form.errors.batch_size" />

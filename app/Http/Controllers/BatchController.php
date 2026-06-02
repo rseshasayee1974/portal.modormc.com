@@ -350,7 +350,7 @@ class BatchController extends Controller
         DB::transaction(function () use ($batch, $payload, $emptyPhoto, $loadedPhoto, $oldMaterials, $oldStatus) {
             $materials = $payload['materials'] ?? [];
             unset($payload['materials']);
-
+// dd($materials);
             // 1. Revert old consumption only if it was previously deducted
             if (in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
                 $this->adjustStock($batch, $oldMaterials, true);
@@ -374,7 +374,6 @@ class BatchController extends Controller
             if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
                 $this->adjustStock($batch, $materials);
             }
-            
             $batch->workOrder->refreshProduction();
 
             // Send notification if batch is newly dispatched or completed
@@ -387,16 +386,16 @@ class BatchController extends Controller
             $dispatch = $batch->dispatches()->first();
             if ($dispatch) {
                 $dispatch->update([
-                    'truck_id' => $payload['truck_id'] ?? $dispatch->truck_id,
-                    'transport_id' => $payload['transport_id'] ?? $dispatch->transport_id,
-                    'driver_id' => $payload['driver_id'] ?? $dispatch->driver_id,
-                    'sales_executive_id' => $payload['sales_executive_id'] ?? $dispatch->sales_executive_id,
-                    'empty_weight_truck' => $payload['empty_weight_truck'] ?? $dispatch->empty_weight_truck,
-                    'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? $dispatch->loaded_weight_truck,
-                    'net_weight' => $payload['net_weight'] ?? $dispatch->net_weight,
-                    'load_site_id' => $payload['site_id'] ?? $dispatch->load_site_id,
-                    'empty_time' => $payload['empty_time'] ?? $dispatch->empty_time,
-                    'load_time' => $payload['load_time'] ?? $dispatch->load_time,
+                    'truck_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->truck_id,
+                    'transport_id' => array_key_exists('transport_id', $payload) ? $payload['transport_id'] : $dispatch->transport_id,
+                    'driver_id' => array_key_exists('driver_id', $payload) ? $payload['driver_id'] : $dispatch->driver_id,
+                    'sales_executive_id' => array_key_exists('sales_executive_id', $payload) ? $payload['sales_executive_id'] : $dispatch->sales_executive_id,
+                    'empty_weight_truck' => array_key_exists('empty_weight_truck', $payload) ? $payload['empty_weight_truck'] : $dispatch->empty_weight_truck,
+                    'loaded_weight_truck' => array_key_exists('loaded_weight_truck', $payload) ? $payload['loaded_weight_truck'] : $dispatch->loaded_weight_truck,
+                    'net_weight' => array_key_exists('net_weight', $payload) ? $payload['net_weight'] : $dispatch->net_weight,
+                    'load_site_id' => array_key_exists('site_id', $payload) ? $payload['site_id'] : $dispatch->load_site_id,
+                    'empty_time' => array_key_exists('empty_time', $payload) ? $payload['empty_time'] : $dispatch->empty_time,
+                    'load_time' => array_key_exists('load_time', $payload) ? $payload['load_time'] : $dispatch->load_time,
                 ]);
             }
 
@@ -552,11 +551,8 @@ class BatchController extends Controller
             $quantityRecord = Quantity::firstOrNew([
                 'plant_id' => $plantId,
                 'product_id' => $item['product_id'],
-                'uom_id' => $item['uom_id'],
-                'date' => $date,
-                'is_warehouse' => true,
+                'uom_id' => $item['uom_id']
             ]);
-
             if (!$quantityRecord->exists) {
                 $quantityRecord->opening_quantity = 0;
                 $quantityRecord->created_by = $userId;

@@ -388,13 +388,13 @@ const submit = () => {
                                 <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Assign Truck" required :error="form.errors.truck_id" />
                             </div>
                             <div class="col-span-12 md:col-span-3">
-                                <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter"  />
+                                <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear />
                             </div>
                             <div class="col-span-12 md:col-span-3">
-                                <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver"  />
+                                <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver" showClear />
                             </div>
                             <div class="col-span-12 md:col-span-3">
-                                <BaseSelect v-model="form.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Sales Executive"  />
+                                <BaseSelect v-model="form.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear />
                             </div>
                             <div class="col-span-12 md:col-span-3">
                                 <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.2" :minFractionDigits="1" :maxFractionDigits="1" :max="9.9" required :error="form.errors.batch_size" />
