@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 
 import Swal from 'sweetalert2';
 import {
-    CpuChipIcon, MagnifyingGlassIcon, PencilSquareIcon,
+    CpuChipIcon, PencilSquareIcon,
     TrashIcon, PlusIcon, TagIcon, XMarkIcon, CheckIcon
 } from '@heroicons/vue/24/outline';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import BaseInput from '@/Components/Base/BaseInput.vue';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 
 const page = usePage();
 
@@ -22,15 +22,10 @@ const props = defineProps<{
     machineTypes: any[];
 }>();
 
-const searchQuery = ref('');
 const editingId = ref<number | null>(null);
 
-const filteredTypes = computed(() => {
-    if (!searchQuery.value) return props.machineTypes;
-    const q = searchQuery.value.toLowerCase();
-    return props.machineTypes.filter((t: any) =>
-        t.name && t.name.toLowerCase().includes(q)
-    );
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
 });
 
 const form = useForm({
@@ -168,45 +163,17 @@ watch(() => page.props.flash, (flash: any) => {
 
                 <!-- ── DataTable Section ── -->
                 <div class="bg-white dark:bg-slate-900 shadow-lg shadow-slate-200/40 dark:shadow-none rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden">
-                    <DataTable
-                        :value="filteredTypes"
-                        stripedRows
-                        paginator
+                    <BaseDataTable
+                        :value="machineTypes"
+                        v-model:filters="filters"
+                        :globalFilterFields="['name']"
+                        showSearch
+                        showSerial
+                        heading="Machine Classifications"
+                        headingIcon="CpuChipIcon"
                         :rows="30"
-                        paginatorTemplate="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                        currentPageReportTemplate="{first}–{last} of {totalRecords}"
-                        class="machinetypes-table"
-                        row-hover
+                        class="text-sm"
                     >
-                        <template #header>
-                            <div class="flex flex-col sm:flex-row justify-between items-center gap-4 px-4 py-2">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-1.5 h-8 bg-indigo-500 rounded-full"></div>
-                                    <h3 class="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest">Master List</h3>
-                                </div>
-                                
-                                <div class="relative group w-full sm:w-72">
-                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <MagnifyingGlassIcon class="h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                                    </div>
-                                    <BaseInput
-                                        v-model="searchQuery"
-                                        placeholder="Quick Search..."
-                                        class="!w-full !pl-11 !pr-4 !bg-slate-50 dark:!bg-slate-800 !border-none !rounded-xl !text-xs !font-bold !text-slate-600 dark:!text-slate-300 focus:!ring-4 focus:!ring-indigo-50 dark:focus:!ring-indigo-900/10 transition-all"
-                                    />
-                                </div>
-                            </div>
-                        </template>
-
-                        <!-- S.No -->
-                        <Column header="#" style="width: 72px" align="center">
-                            <template #body="slotProps">
-                                <span class="text-[11px] font-black text-slate-300 dark:text-slate-700">
-                                    {{ (slotProps.index + 1).toString().padStart(2, '0') }}
-                                </span>
-                            </template>
-                        </Column>
-
                         <!-- Classification Name -->
                         <Column header="Classification Name" sortable field="name">
                             <template #body="slotProps">
@@ -276,7 +243,7 @@ watch(() => page.props.flash, (flash: any) => {
                                 </div>
                             </div>
                         </template>
-                    </DataTable>
+                    </BaseDataTable>
                 </div>
 
             </div>
@@ -285,43 +252,4 @@ watch(() => page.props.flash, (flash: any) => {
 </template>
 
 <style scoped>
-:deep(.machinetypes-table .p-datatable-thead > tr > th) {
-    @apply !bg-slate-50/50 dark:!bg-slate-950/50 !text-slate-400 !font-black !text-[10px] !uppercase !tracking-[0.2em] !py-6 !border-b !border-slate-100 dark:!border-slate-800 !border-none;
-}
-
-:deep(.machinetypes-table .p-datatable-tbody > tr) {
-    @apply !transition-all !duration-300;
-}
-
-:deep(.machinetypes-table .p-datatable-tbody > tr:hover) {
-    @apply !bg-indigo-50/20 dark:!bg-indigo-900/10;
-}
-
-:deep(.machinetypes-table .p-datatable-tbody > tr > td) {
-    @apply !py-5 !border-b !border-slate-50 dark:!border-slate-800/50 !bg-transparent;
-}
-
-:deep(.machinetypes-table .p-paginator) {
-    @apply !bg-transparent !border-t !border-slate-100 dark:!border-slate-800 !py-6;
-}
-
-:deep(.machinetypes-table .p-paginator-current) {
-    @apply !text-[11px] !font-black !text-slate-300 !uppercase !tracking-widest;
-}
-
-:deep(.machinetypes-table .p-paginator-element) {
-    @apply !text-slate-400 !rounded-2xl !transition-all !w-11 !text-xs !font-black;
-}
-
-:deep(.machinetypes-table .p-paginator-element:hover) {
-    @apply !bg-indigo-50/50 !text-indigo-600;
-}
-
-:deep(.machinetypes-table .p-paginator-element.p-highlight) {
-    @apply !bg-indigo-600 !text-white !shadow-xl !shadow-indigo-200 dark:!shadow-none;
-}
-
-:deep(.p-datatable-striped .p-datatable-tbody > tr:nth-child(even)) {
-    @apply !bg-slate-50/40 dark:!bg-slate-800/20;
-}
 </style>

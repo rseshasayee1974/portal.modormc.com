@@ -6,12 +6,12 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useStateCodeStore } from '@/Pages/StateCodes/useStateCodeStore';
 import Toast from 'primevue/toast';
-import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import { useToast } from 'primevue/usetoast';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 
 const store = useStateCodeStore();
 const toast = useToast();
@@ -39,11 +39,13 @@ onMounted(() => {
 });
 
 const createOpen = ref(false);
-const searchQuery = ref('');
 const filterCountry = ref<number | null>(null);
-const perPage = ref(10);
 const expandedRows = ref<Record<number, boolean>>({});
 const editingId = ref<number | null>(null);
+
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
+});
 
 const countryFilterOptions = computed(() => [
     { label: 'All countries', value: null },
@@ -87,16 +89,12 @@ const getCountryName = (id: number) => {
 };
 
 const filteredStateCodes = computed(() => {
-    const q = searchQuery.value.trim().toLowerCase();
-    return store.stateCodes.filter((item) => {
-        const matchCountry = !filterCountry.value || item.country_id === filterCountry.value;
-        const matchSearch =
-            !q ||
-            item.state_name.toLowerCase().includes(q) ||
-            item.state_code.toLowerCase().includes(q) ||
-            getCountryName(item.country_id).toLowerCase().includes(q);
-        return matchCountry && matchSearch;
-    });
+    return store.stateCodes
+        .filter((item) => !filterCountry.value || item.country_id === filterCountry.value)
+        .map((item) => ({
+            ...item,
+            country_name: getCountryName(item.country_id),
+        }));
 });
 
 const submitCreate = async () => {
@@ -188,7 +186,7 @@ const deleteStateCode = (row: StateCode) => {
     });
 };
 
-watch([searchQuery, filterCountry], () => {
+watch(filterCountry, () => {
     resetEditForm();
 });
 </script>
@@ -277,55 +275,37 @@ watch([searchQuery, filterCountry], () => {
                 </Transition>
             </div>
 
-            <div class="unit-table-card">
-                <div class="unit-toolbar">
-                    <div class="flex items-center gap-2">
-                        <span class="toolbar-accent"></span>
-                        <span class="toolbar-title">State Codes Directory</span>
-                        <span class="toolbar-count">{{ filteredStateCodes.length }} records</span>
-                    </div>
+            <BaseDataTable
+                v-model:expandedRows="expandedRows"
+                :value="filteredStateCodes"
+                v-model:filters="filters"
+                :globalFilterFields="['state_name', 'state_code', 'country_name']"
+                showSearch
+                showSerial
+                heading="State Codes Directory"
+                headingIcon="BuildingOfficeIcon"
+                :rows="10"
+                dataKey="id"
+                class="unit-datatable text-xs"
+                @rowExpand="onRowExpand"
+                @rowCollapse="onRowCollapse"
+            >
+                <template #toolbar>
+                    <BaseSelect
+                        v-model="filterCountry"
+                        :options="countryFilterOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        class="!w-44 !h-10 !text-[11px] !font-bold !bg-slate-50 !border-slate-200 !rounded-lg shadow-sm"
+                    />
+                </template>
+                <Column expander style="width: 46px; padding: 0 12px;" />
 
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <div class="search-wrap">
-                            <i class="pi pi-search search-icon"></i>
-                            <BaseInput
-                                v-model="searchQuery"
-                                placeholder="Search state, code, country..."
-                                class="search-input"
-                            />
-                        </div>
-                        <BaseSelect
-                            v-model="filterCountry"
-                            :options="countryFilterOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            class="filter-select"
-                        />
-                    </div>
-                </div>
-
-                <DataTable
-                    v-model:expandedRows="expandedRows"
-                    :value="filteredStateCodes"
-                    dataKey="id"
-                    paginator
-                    :rows="perPage"
-                    :rowsPerPageOptions="[5, 10, 25, 50]"
-                    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
-                    currentPageReportTemplate="{first}–{last} of {totalRecords}"
-                    stripedRows
-                    class="unit-datatable"
-                    rowHover
-                    @rowExpand="onRowExpand"
-                    @rowCollapse="onRowCollapse"
-                >
-                    <Column expander style="width: 46px; padding: 0 12px;" />
-
-                    <Column field="country_id" header="Country" sortable>
-                        <template #body="{ data }">
-                            <span class="font-semibold text-gray-700 text-sm">{{ getCountryName(data.country_id) }}</span>
-                        </template>
-                    </Column>
+                <Column field="country_name" header="Country" sortable>
+                    <template #body="{ data }">
+                        <span class="font-semibold text-gray-700 text-sm">{{ data.country_name }}</span>
+                    </template>
+                </Column>
 
                     <Column field="state_name" header="State Name" sortable>
                         <template #body="{ data }">
@@ -407,8 +387,7 @@ watch([searchQuery, filterCountry], () => {
                             <p class="empty-sub">Try clearing your search or changing filters</p>
                         </div>
                     </template>
-                </DataTable>
-            </div>
+            </BaseDataTable>
         </div>
     </AppLayout>
 </template>

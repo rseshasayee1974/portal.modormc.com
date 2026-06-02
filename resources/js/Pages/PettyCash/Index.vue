@@ -6,12 +6,11 @@ import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 
 import Swal from 'sweetalert2';
 import {
-    CurrencyRupeeIcon, MagnifyingGlassIcon, PencilSquareIcon,
+    CurrencyRupeeIcon, PencilSquareIcon,
     TrashIcon, PlusIcon, LockClosedIcon, DocumentCheckIcon
 } from '@heroicons/vue/24/outline';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -21,6 +20,7 @@ import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import Tag from 'primevue/tag';
 import DatePicker from 'primevue/datepicker';
 import Divider from 'primevue/divider';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 
 const page = usePage();
 
@@ -43,13 +43,10 @@ const props = defineProps<{
     users: { id: number; name: string }[];
 }>();
 
-const searchQuery   = ref('');
 const expandedRows  = ref([]);
 
-const filtered = computed(() => {
-    if (!searchQuery.value) return props.pettyCashes;
-    const q = searchQuery.value.toLowerCase();
-    return props.pettyCashes.filter((pc: any) => pc.ref_no?.toLowerCase().includes(q));
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
 });
 
 const expenseOptions = computed(() => props.expenses.map(e => ({
@@ -315,156 +312,133 @@ watch(() => page.props.flash, (flash: any) => {
                 </div>
 
                 <!-- Petty Cash Table  -->
-                <div class="bg-white dark:bg-slate-900 shadow-xl rounded-3xl p-10 border border-slate-100 dark:border-slate-800">
-                    <div class="flex justify-between items-center mb-8 gap-6">
-                        <div class="flex items-center gap-4">
-                            <div class="p-3 bg-teal-50 dark:bg-slate-800 rounded-2xl">
-                                <CurrencyRupeeIcon class="w-8 h-8 text-teal-600" />
+                <BaseDataTable
+                    v-model:expandedRows="expandedRows"
+                    :value="pettyCashes"
+                    v-model:filters="filters"
+                    :globalFilterFields="['ref_no']"
+                    showSearch
+                    showSerial
+                    heading="Cash Registers"
+                    headingIcon="CurrencyRupeeIcon"
+                    :rows="30"
+                    @rowExpand="onRowExpand"
+                    class="modern-table text-sm"
+                >
+                    <Column expander style="width: 3rem" />
+                    <Column field="ref_no" header="Reference">
+                        <template #body="slotProps">
+                            <span class="font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-3 py-1 rounded-lg text-sm">
+                                {{ slotProps.data.ref_no }}
+                            </span>
+                        </template>
+                    </Column>
+                    <Column header="Date">
+                        <template #body="slotProps">
+                            <span class="text-sm font-medium text-gray-700 dark:text-slate-300">
+                                {{ new Date(slotProps.data.date).toLocaleDateString('en-IN') }}
+                            </span>
+                        </template>
+                    </Column>
+                    <Column header="Opening" align="right">
+                        <template #body="slotProps">
+                            <span class="font-mono font-black text-green-600 dark:text-green-400">
+                                ₹ {{ Number(slotProps.data.opening_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                            </span>
+                        </template>
+                    </Column>
+                    <Column header="Closing" align="right">
+                        <template #body="slotProps">
+                            <span class="font-mono font-black text-blue-600 dark:text-blue-400">
+                                ₹ {{ Number(slotProps.data.closing_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                            </span>
+                        </template>
+                    </Column>
+                    <Column header="Status" align="center">
+                        <template #body="slotProps">
+                            <Tag v-if="slotProps.data.closed_status" severity="warn" rounded class="text-[10px] font-black uppercase tracking-widest">🔒 Closed</Tag>
+                            <Tag v-else-if="slotProps.data.journal_status" severity="info" rounded class="text-[10px] font-black uppercase tracking-widest">📒 Journalized</Tag>
+                            <Tag v-else severity="success" rounded class="text-[10px] font-black uppercase tracking-widest">Open</Tag>
+                        </template>
+                    </Column>
+                    <Column header="Actions" align="right">
+                        <template #body="slotProps">
+                            <div class="flex justify-end gap-2">
+                                <Button v-if="!slotProps.data.closed_status" icon="pi pi-lock" severity="warn" text rounded @click="closePc(slotProps.data.id)"  />
+                                <Button v-if="!slotProps.data.journal_status" icon="pi pi-trash" severity="danger" text rounded @click="deletePc(slotProps.data.id)"  />
                             </div>
-                            <div>
-                                <h3 class="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tighter uppercase leading-none">Cash Registers</h3>
-                                <p class="text-[10px] text-gray-400 font-bold mt-1 uppercase tracking-widest">Click icon to expand and edit</p>
+                        </template>
+                    </Column>
+
+                    <template #expansion="slotProps">
+                        <div class="py-12 p-8 bg-slate-50 dark:bg-slate-950/50 rounded-2xl m-4 border border-slate-100 dark:border-slate-800">
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Opening Balance</label>
+                                    <BaseInputNumber v-model="editForm.opening_balance" :minFractionDigits="2" class="w-full"  :disabled="slotProps.data.closed_status" />
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Live Balance</label>
+                                    <div class="text-2xl font-black text-blue-600 dark:text-blue-400">₹ {{ computedBalance(editForm) }}</div>
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Paid By</label>
+                                    <BaseSelect v-model="editForm.paid_by" :options="userOptions" optionLabel="label" optionValue="value" filter placeholder="..." class="w-full"  :disabled="slotProps.data.closed_status" />
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Paid To</label>
+                                    <BaseSelect v-model="editForm.paid_to" :options="userOptions" optionLabel="label" optionValue="value" filter placeholder="..." class="w-full"  :disabled="slotProps.data.closed_status" />
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div v-for="(item, idx) in editForm.items" :key="idx"
+                                    class="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-end gap-3 flex-wrap shadow-sm">
+                                    <div class="flex flex-col gap-1 flex-1 min-w-48">
+                                        <label class="text-[9px] font-black tracking-widest text-gray-400 uppercase">Expense Ref</label>
+                                        <BaseSelect v-model="item.expense_id" :options="expenseOptions" optionLabel="label" optionValue="value" filter placeholder="Ref..." class="w-full"  :disabled="slotProps.data.closed_status" />
+                                    </div>
+                                    <div class="flex flex-col gap-1 w-28">
+                                        <label class="text-[9px] font-black tracking-widest text-gray-400 uppercase">Amount</label>
+                                        <BaseInputNumber v-model="item.amount" :minFractionDigits="2" class="w-full"  :disabled="slotProps.data.closed_status" />
+                                    </div>
+                                    <div class="flex flex-col gap-1 w-28">
+                                        <label class="text-[9px] font-black tracking-widest text-gray-400 uppercase">Debit</label>
+                                        <BaseInputNumber v-model="item.debit" :minFractionDigits="2" class="w-full"  :disabled="slotProps.data.closed_status" />
+                                    </div>
+                                    <div class="flex flex-col gap-1 w-28">
+                                        <label class="text-[9px] font-black tracking-widest text-gray-400 uppercase">Credit</label>
+                                        <BaseInputNumber v-model="item.credit" :minFractionDigits="2" class="w-full"  :disabled="slotProps.data.closed_status" />
+                                    </div>
+                                    <div class="flex flex-col gap-1 flex-1">
+                                        <label class="text-[9px] font-black tracking-widest text-gray-400 uppercase">Description</label>
+                                        <BaseInput v-model="item.description" placeholder="Details..." class="w-full"  :disabled="slotProps.data.closed_status" />
+                                    </div>
+                                    <Button v-if="!slotProps.data.closed_status" icon="pi pi-trash" severity="danger" text rounded @click="removeItem(editForm, idx)"  />
+                                </div>
+                                <Button v-if="!slotProps.data.closed_status" icon="pi pi-plus" label="Add Line" severity="info" text class="w-full h-12 border-2 border-dashed border-info-200 rounded-xl" @click="addItem(editForm)" />
+                            </div>
+
+                            <div v-if="!slotProps.data.closed_status" class="flex justify-end gap-3 mt-8 pt-6 border-t dark:border-slate-800">
+                                <Button label="Cancel" severity="secondary" text @click="cancelEdit" class="px-8 font-bold uppercase tracking-widest text-xs" />
+                                <Button label="Save Changes" severity="primary" class="px-10 font-black uppercase tracking-widest text-xs h-12 rounded-xl" :loading="editForm.processing" @click="submitEdit" />
                             </div>
                         </div>
-                        <span class="relative w-80">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <MagnifyingGlassIcon class="w-5 h-5 text-gray-400" />
-                            </span>
-                            <BaseInput v-model="searchQuery" placeholder="Search by reference..." class="w-full pl-10 rounded-full" />
-                        </span>
-                    </div>
+                    </template>
 
-                    <DataTable
-                        v-model:expandedRows="expandedRows"
-                        :value="filtered"
-                        stripedRows
-                        paginator :rows="30"
-                        dataKey="id"
-                        @rowExpand="onRowExpand"
-                        class="modern-table"
-                    >
-                        <Column expander style="width: 3rem" />
-                        <Column field="ref_no" header="Reference">
-                            <template #body="slotProps">
-                                <span class="font-black text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-3 py-1 rounded-lg text-sm">
-                                    {{ slotProps.data.ref_no }}
-                                </span>
-                            </template>
-                        </Column>
-                        <Column header="Date">
-                            <template #body="slotProps">
-                                <span class="text-sm font-medium text-gray-700 dark:text-slate-300">
-                                    {{ new Date(slotProps.data.date).toLocaleDateString('en-IN') }}
-                                </span>
-                            </template>
-                        </Column>
-                        <Column header="Opening" align="right">
-                            <template #body="slotProps">
-                                <span class="font-mono font-black text-green-600 dark:text-green-400">
-                                    ₹ {{ Number(slotProps.data.opening_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
-                                </span>
-                            </template>
-                        </Column>
-                        <Column header="Closing" align="right">
-                            <template #body="slotProps">
-                                <span class="font-mono font-black text-blue-600 dark:text-blue-400">
-                                    ₹ {{ Number(slotProps.data.closing_balance).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
-                                </span>
-                            </template>
-                        </Column>
-                        <Column header="Status" align="center">
-                            <template #body="slotProps">
-                                <Tag v-if="slotProps.data.closed_status" severity="warn" rounded class="text-[10px] font-black uppercase tracking-widest">🔒 Closed</Tag>
-                                <Tag v-else-if="slotProps.data.journal_status" severity="info" rounded class="text-[10px] font-black uppercase tracking-widest">📒 Journalized</Tag>
-                                <Tag v-else severity="success" rounded class="text-[10px] font-black uppercase tracking-widest">Open</Tag>
-                            </template>
-                        </Column>
-                        <Column header="Actions" align="right">
-                            <template #body="slotProps">
-                                <div class="flex justify-end gap-2">
-                                    <Button v-if="!slotProps.data.closed_status" icon="pi pi-lock" severity="warn" text rounded @click="closePc(slotProps.data.id)"  />
-                                    <Button v-if="!slotProps.data.journal_status" icon="pi pi-trash" severity="danger" text rounded @click="deletePc(slotProps.data.id)"  />
-                                </div>
-                            </template>
-                        </Column>
-
-                        <template #expansion="slotProps">
-                            <div class="py-12 p-8 bg-slate-50 dark:bg-slate-950/50 rounded-2xl m-4 border border-slate-100 dark:border-slate-800">
-                                <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
-                                    <div class="flex flex-col gap-1.5">
-                                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Opening Balance</label>
-                                        <BaseInputNumber v-model="editForm.opening_balance" :minFractionDigits="2" class="w-full"  :disabled="slotProps.data.closed_status" />
-                                    </div>
-                                    <div class="flex flex-col gap-1.5">
-                                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Live Balance</label>
-                                        <div class="text-2xl font-black text-blue-600 dark:text-blue-400">₹ {{ computedBalance(editForm) }}</div>
-                                    </div>
-                                    <div class="flex flex-col gap-1.5">
-                                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Paid By</label>
-                                        <BaseSelect v-model="editForm.paid_by" :options="userOptions" optionLabel="label" optionValue="value" filter placeholder="..." class="w-full"  :disabled="slotProps.data.closed_status" />
-                                    </div>
-                                    <div class="flex flex-col gap-1.5">
-                                        <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Paid To</label>
-                                        <BaseSelect v-model="editForm.paid_to" :options="userOptions" optionLabel="label" optionValue="value" filter placeholder="..." class="w-full"  :disabled="slotProps.data.closed_status" />
-                                    </div>
-                                </div>
-
-                                <div class="space-y-4">
-                                    <div v-for="(item, idx) in editForm.items" :key="idx"
-                                        class="p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-end gap-3 flex-wrap shadow-sm">
-                                        <div class="flex flex-col gap-1 flex-1 min-w-48">
-                                            <label class="text-[9px] font-black tracking-widest text-gray-400 uppercase">Expense Ref</label>
-                                            <BaseSelect v-model="item.expense_id" :options="expenseOptions" optionLabel="label" optionValue="value" filter placeholder="Ref..." class="w-full"  :disabled="slotProps.data.closed_status" />
-                                        </div>
-                                        <div class="flex flex-col gap-1 w-28">
-                                            <label class="text-[9px] font-black tracking-widest text-gray-400 uppercase">Amount</label>
-                                            <BaseInputNumber v-model="item.amount" :minFractionDigits="2" class="w-full"  :disabled="slotProps.data.closed_status" />
-                                        </div>
-                                        <div class="flex flex-col gap-1 w-28">
-                                            <label class="text-[9px] font-black tracking-widest text-gray-400 uppercase">Debit</label>
-                                            <BaseInputNumber v-model="item.debit" :minFractionDigits="2" class="w-full"  :disabled="slotProps.data.closed_status" />
-                                        </div>
-                                        <div class="flex flex-col gap-1 w-28">
-                                            <label class="text-[9px] font-black tracking-widest text-gray-400 uppercase">Credit</label>
-                                            <BaseInputNumber v-model="item.credit" :minFractionDigits="2" class="w-full"  :disabled="slotProps.data.closed_status" />
-                                        </div>
-                                        <div class="flex flex-col gap-1 flex-1">
-                                            <label class="text-[9px] font-black tracking-widest text-gray-400 uppercase">Description</label>
-                                            <BaseInput v-model="item.description" placeholder="Details..." class="w-full"  :disabled="slotProps.data.closed_status" />
-                                        </div>
-                                        <Button v-if="!slotProps.data.closed_status" icon="pi pi-trash" severity="danger" text rounded @click="removeItem(editForm, idx)"  />
-                                    </div>
-                                    <Button v-if="!slotProps.data.closed_status" icon="pi pi-plus" label="Add Line" severity="info" text class="w-full h-12 border-2 border-dashed border-info-200 rounded-xl" @click="addItem(editForm)" />
-                                </div>
-
-                                <div v-if="!slotProps.data.closed_status" class="flex justify-end gap-3 mt-8 pt-6 border-t dark:border-slate-800">
-                                    <Button label="Cancel" severity="secondary" text @click="cancelEdit" class="px-8 font-bold uppercase tracking-widest text-xs" />
-                                    <Button label="Save Changes" severity="primary" class="px-10 font-black uppercase tracking-widest text-xs h-12 rounded-xl" :loading="editForm.processing" @click="submitEdit" />
-                                </div>
-                            </div>
-                        </template>
-
-                        <template #empty>
-                            <div class="py-20 flex flex-col items-center opacity-40">
-                                <CurrencyRupeeIcon class="w-16 h-16 mb-4" />
-                                <span class="font-bold">No Petty Cash Registers Found</span>
-                            </div>
-                        </template>
-                    </DataTable>
-                </div>
-
+                    <template #empty>
+                        <div class="py-20 flex flex-col items-center opacity-40">
+                            <CurrencyRupeeIcon class="w-16 h-16 mb-4" />
+                            <span class="font-bold">No Petty Cash Registers Found</span>
+                        </div>
+                    </template>
+                </BaseDataTable>
             </div>
         </div>
     </AppLayout>
 </template>
 
 <style scoped>
-:deep(.p-datatable-thead > tr > th) {
-    @apply bg-teal-50/50 dark:bg-slate-950 text-teal-600 font-black uppercase text-[11px] tracking-widest py-5 dark:border-slate-800;
-}
-:deep(.p-datatable-tbody > tr > td) {
-    @apply dark:border-slate-800;
-}
 </style>
 
 

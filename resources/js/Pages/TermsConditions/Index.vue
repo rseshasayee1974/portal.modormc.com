@@ -2,13 +2,12 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useTermsConditionStore } from './useTermsConditionStore';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
@@ -17,6 +16,7 @@ import Textarea from 'primevue/textarea';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Tag from 'primevue/tag';
 import { useToast } from 'primevue/usetoast';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 
 const props = defineProps({
     termsConditions: Object,
@@ -39,6 +39,20 @@ const processing = ref(false);
 // ── Table / pagination / search ───────────────────────────────────────────
 const search = ref(props.filters?.search || '');
 const currentPage = ref(props.termsConditions?.current_page || 1);
+
+const filters = ref({
+    global: { value: props.filters?.search || null, matchMode: 'contains' },
+});
+
+let searchTimeout: any = null;
+watch(() => filters.value.global.value, (newVal) => {
+    search.value = newVal || '';
+    currentPage.value = 1;
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        fetchTerms();
+    }, 400);
+});
 
 const form = ref({
     entity_id: props.entities?.[0]?.id ?? null as number | null,
@@ -150,50 +164,49 @@ const onSearch = () => {
         </template>
 
         <div class="p-6">
-            <div class="card bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
-                <DataTable :value="store.termsConditions" stripedRows class="p-datatable-sm" 
-                    lazy :paginator="true" :rows="props.termsConditions.per_page" :totalRecords="props.termsConditions.total"
-                    @page="onPageChange" :first="(currentPage - 1) * props.termsConditions.per_page">
-                    
-                    <template #header>
-                        <div class="flex items-center justify-between gap-4">
-                            <span class="text-xl font-semibold uppercase tracking-tight whitespace-nowrap">Contractual Clauses</span>
-                            <div class="flex items-center gap-2 w-full max-w-md">
-                                <span class="p-input-icon-left w-full">
-                                    <i class="pi pi-search ml-2" />
-                                    <BaseInput v-model="search" placeholder="Filter terms..." class="w-full text-xs" @keyup.enter="onSearch" />
-                                </span>
-                                <Button label="New Terms" icon="pi pi-plus"  @click="openCreateModal" class="whitespace-nowrap" />
-                            </div>
+            <BaseDataTable 
+                :value="store.termsConditions" 
+                v-model:filters="filters"
+                lazy 
+                :paginator="true" 
+                :rows="props.termsConditions.per_page" 
+                :totalRecords="props.termsConditions.total"
+                @page="onPageChange" 
+                :first="(currentPage - 1) * props.termsConditions.per_page"
+                showSearch
+                showSerial
+                heading="Contractual Clauses"
+                headingIcon="DocumentTextIcon"
+            >
+                <template #toolbar>
+                    <Button label="New Terms" icon="pi pi-plus"  @click="openCreateModal" />
+                </template>
+
+                <Column field="entity.legal_name" header="Entity" sortable></Column>
+                <Column field="order_type" header="Type" sortable>
+                    <template #body="slotProps">
+                        <Tag :value="slotProps.data.order_type" severity="info"  />
+                    </template>
+                </Column>
+                <Column field="terms_condition" header="Terms Preview">
+                    <template #body="slotProps">
+                        <div class="line-clamp-1 opacity-70">{{ slotProps.data.terms_condition }}</div>
+                    </template>
+                </Column>
+                <Column field="status" header="Status" sortable style="width: 100px">
+                    <template #body="slotProps">
+                        <Tag :value="slotProps.data.status.toUpperCase()" :severity="slotProps.data.status === 'active' ? 'success' : 'secondary'" rounded />
+                    </template>
+                </Column>
+                <Column header="Actions" class="text-right" style="width: 120px">
+                    <template #body="slotProps">
+                        <div class="flex justify-end gap-2">
+                            <Button icon="pi pi-pencil" text rounded  @click="openEditModal(slotProps.data)" severity="info" />
+                            <Button icon="pi pi-trash" text rounded  @click="deleteTerms(slotProps.data.id)" severity="danger" />
                         </div>
                     </template>
-
-                    <Column field="entity.legal_name" header="Entity" sortable></Column>
-                    <Column field="order_type" header="Type" sortable>
-                        <template #body="slotProps">
-                            <Tag :value="slotProps.data.order_type" severity="info"  />
-                        </template>
-                    </Column>
-                    <Column field="terms_condition" header="Terms Preview">
-                        <template #body="slotProps">
-                            <div class="line-clamp-1 opacity-70">{{ slotProps.data.terms_condition }}</div>
-                        </template>
-                    </Column>
-                    <Column field="status" header="Status" sortable style="width: 100px">
-                        <template #body="slotProps">
-                            <Tag :value="slotProps.data.status.toUpperCase()" :severity="slotProps.data.status === 'active' ? 'success' : 'secondary'" rounded />
-                        </template>
-                    </Column>
-                    <Column header="Actions" class="text-right" style="width: 120px">
-                        <template #body="slotProps">
-                            <div class="flex justify-end gap-2">
-                                <Button icon="pi pi-pencil" text rounded  @click="openEditModal(slotProps.data)" severity="info" />
-                                <Button icon="pi pi-trash" text rounded  @click="deleteTerms(slotProps.data.id)" severity="danger" />
-                            </div>
-                        </template>
-                    </Column>
-                </DataTable>
-            </div>
+                </Column>
+            </BaseDataTable>
         </div>
 
         <Dialog v-model:visible="showModal" modal :header="modalMode.toUpperCase() + ' TERMS & CONDITIONS'" :style="{ width: '800px' }">

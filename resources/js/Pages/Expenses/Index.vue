@@ -3,7 +3,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, computed } from 'vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
-import DataTable from 'primevue/datatable';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -26,16 +26,9 @@ const props = defineProps<{
 }>();
 
 const toast = useToast();
-const searchQuery = ref('');
 
-const filteredExpenses = computed(() => {
-    if (!searchQuery.value) return props.expenses;
-    const q = searchQuery.value.toLowerCase();
-    return props.expenses.filter((e: any) => 
-        (e.ref_no && e.ref_no.toLowerCase().includes(q)) ||
-        (e.note && e.note.toLowerCase().includes(q)) ||
-        (e.expense_type?.name && e.expense_type.name.toLowerCase().includes(q))
-    );
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
 });
 
 const formatCurrency = (val: number) => {
@@ -64,25 +57,18 @@ const formatCurrency = (val: number) => {
                     />
                 </section>
 
-                <!-- List Section -->
                 <section class="space-y-4">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">Expense History</h2>
-                            <p class="text-xs text-slate-500 font-medium">Audit trail for all operational expenditures</p>
-                        </div>
-                        <div class="w-64">
-                            <BaseInput v-model="searchQuery" placeholder="Search entries..." icon="pi pi-search" />
-                        </div>
-                    </div>
-
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <DataTable :value="filteredExpenses" stripedRows class="p-datatable-sm" paginator :rows="15">
-                            <Column header="S.No" style="width: 70px">
-                                <template #body="slotProps">
-                                    <span class="text-slate-400 font-bold">{{ slotProps.index + 1 }}</span>
-                                </template>
-                            </Column>
+                        <BaseDataTable
+                            :value="expenses"
+                            v-model:filters="filters"
+                            :globalFilterFields="['ref_no', 'note', 'expense_type.name', 'vendor.legal_name']"
+                            showSearch
+                            showSerial
+                            heading="Expense History"
+                            headingIcon="CreditCardIcon"
+                            :rows="15"
+                        >
                             
                             <Column field="date" header="Date" sortable>
                                 <template #body="slotProps">
@@ -122,7 +108,7 @@ const formatCurrency = (val: number) => {
                                     <Tag value="Recorded" severity="success" pt:root:style="font-size: 8px" />
                                 </template>
                             </Column>
-                        </DataTable>
+                        </BaseDataTable>
                     </div>
                 </section>
             </div>

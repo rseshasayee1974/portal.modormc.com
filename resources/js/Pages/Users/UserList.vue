@@ -93,12 +93,13 @@ const onUpdated = (userId: number) => {
             
             lazy
             paginator
-            :rows="users.per_page"
+            :rows="30"
             :totalRecords="users.total"
             :loading="tableLoading"
             :expandedRows="expandedRows"
             @update:expandedRows="expandedRows = $event"
             @page="onPage"
+            
             showSearch showSerial
             heading="User Directory"
             headingIcon="UserGroupIcon"

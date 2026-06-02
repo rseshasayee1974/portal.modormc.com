@@ -7,16 +7,20 @@ import Swal from 'sweetalert2';
 import { useCountryStore } from '@/Pages/Countries/useCountryStore';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import ToggleSwitch from 'primevue/toggleswitch';
 import { useToast } from 'primevue/usetoast';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 
 const store = useCountryStore();
 const toast = useToast();
+
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
+});
 
 interface Country {
     id: number;
@@ -134,34 +138,39 @@ const submitModal = async () => {
         </template>
 
         <div class="p-6">
-            <div class="card bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-lg">
-                <DataTable :value="store.countries" stripedRows class="p-datatable-sm text-sm" :paginator="true" :rows="30">
-                    <template #header>
-                        <div class="flex items-center justify-between">
-                            <span class="text-xl font-semibold uppercase tracking-tight">Countries</span>
-                            <Button label="New Country" icon="pi pi-plus"  @click="openCreateModal" />
+            <BaseDataTable
+                :value="store.countries"
+                v-model:filters="filters"
+                :globalFilterFields="['country_name', 'country_code']"
+                showSearch
+                showSerial
+                heading="Countries"
+                headingIcon="TagIcon"
+                :rows="30"
+                class="text-sm"
+            >
+                <template #toolbar>
+                    <Button label="New Country" icon="pi pi-plus"  @click="openCreateModal" />
+                </template>
+                <Column field="country_code" header="Code" sortable style="width: 100px"></Column>
+                <Column field="country_name" header="Name" sortable></Column>
+                <Column header="Active" style="width: 100px">
+                    <template #body="slotProps">
+                        <span :class="slotProps.data.is_active ? 'text-green-600 font-bold' : 'text-red-500 font-bold'">
+                            {{ slotProps.data.is_active ? 'YES' : 'NO' }}
+                        </span>
+                    </template>
+                </Column>
+                <Column header="Actions" class="text-right" style="width: 120px">
+                    <template #body="slotProps">
+                        <div class="flex justify-end gap-2">
+                            <Button icon="pi pi-eye" text rounded  @click="openViewModal(slotProps.data)" severity="secondary" />
+                            <Button icon="pi pi-pencil" text rounded  @click="openEditModal(slotProps.data)" severity="info" />
+                            <Button icon="pi pi-trash" text rounded  @click="deleteCountry(slotProps.data.id)" severity="danger" />
                         </div>
                     </template>
-                    <Column field="country_code" header="Code" sortable style="width: 100px"></Column>
-                    <Column field="country_name" header="Name" sortable></Column>
-                    <Column header="Active" style="width: 100px">
-                        <template #body="slotProps">
-                            <span :class="slotProps.data.is_active ? 'text-green-600 font-bold' : 'text-red-500 font-bold'">
-                                {{ slotProps.data.is_active ? 'YES' : 'NO' }}
-                            </span>
-                        </template>
-                    </Column>
-                    <Column header="Actions" class="text-right" style="width: 120px">
-                        <template #body="slotProps">
-                            <div class="flex justify-end gap-2">
-                                <Button icon="pi pi-eye" text rounded  @click="openViewModal(slotProps.data)" severity="secondary" />
-                                <Button icon="pi pi-pencil" text rounded  @click="openEditModal(slotProps.data)" severity="info" />
-                                <Button icon="pi pi-trash" text rounded  @click="deleteCountry(slotProps.data.id)" severity="danger" />
-                            </div>
-                        </template>
-                    </Column>
-                </DataTable>
-            </div>
+                </Column>
+            </BaseDataTable>
         </div>
 
         <Dialog v-model:visible="showModal" modal :header="modalMode.toUpperCase() + ' COUNTRY'" :style="{ width: '400px' }">

@@ -6,12 +6,11 @@ import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 
 import Swal from 'sweetalert2';
 import { 
-    CurrencyRupeeIcon, MagnifyingGlassIcon, PlusIcon,
+    CurrencyRupeeIcon, PlusIcon,
     PencilSquareIcon, TrashIcon, CheckCircleIcon, XCircleIcon
 } from '@heroicons/vue/24/outline';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -20,6 +19,7 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Tag from 'primevue/tag';
 import Dialog from 'primevue/dialog';
 import Divider from 'primevue/divider';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 
 const page = usePage();
 
@@ -31,19 +31,11 @@ const props = defineProps<{
     products: { id: number; name: string }[];
 }>();
 
-const searchQuery = ref('');
 const isModalVisible = ref(false);
 const editingId = ref<number | null>(null);
 
-const filteredRates = computed(() => {
-    if (!searchQuery.value) return props.rates;
-    const q = searchQuery.value.toLowerCase();
-    return props.rates.filter((r: any) =>
-        (r.patron?.name && r.patron.name.toLowerCase().includes(q)) ||
-        (r.product?.name && r.product.name.toLowerCase().includes(q)) ||
-        (r.loading_site?.name && r.loading_site.name.toLowerCase().includes(q)) ||
-        (r.unloading_site?.name && r.unloading_site.name.toLowerCase().includes(q))
-    );
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
 });
 
 const form = useForm({
@@ -154,87 +146,75 @@ watch(() => page.props.flash, (flash: any) => {
         <div class="py-12 bg-slate-50/50 dark:bg-slate-950 min-h-screen font-sans">
             <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
 
-                <!-- Header / Search -->
-                <div class="bg-white dark:bg-slate-900 shadow-xl rounded-[2.5rem] p-8 border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-6">
-                    <div class="flex items-center gap-4">
-                        <div class="p-4 bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 rounded-[1.5rem] shadow-sm">
-                            <CurrencyRupeeIcon class="w-8 h-8 stroke-[2.5px]" />
-                        </div>
-                        <div>
-                            <h3 class="text-2xl font-black text-gray-800 dark:text-gray-100 tracking-tighter uppercase leading-none">Party Rate Matrix</h3>
-                            <p class="text-[10px] text-gray-400 font-black mt-1 uppercase tracking-widest">Global & Patron-specific rate configurations</p>
-                        </div>
-                    </div>
-                    
-                    <div class="flex items-center gap-4 w-full md:w-auto">
-                        <span class="relative w-full md:w-72">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <MagnifyingGlassIcon class="w-5 h-5 text-gray-400" />
-                            </span>
-                            <BaseInput v-model="searchQuery" placeholder="Search rates..." class="w-full pl-10 rounded-full" />
-                        </span>
+                <BaseDataTable
+                    :value="rates"
+                    v-model:filters="filters"
+                    :globalFilterFields="['patron.name', 'product.name', 'loading_site.name', 'unloading_site.name']"
+                    showSearch
+                    showSerial
+                    heading="Party Rate Matrix"
+                    headingIcon="CurrencyRupeeIcon"
+                    :rows="30"
+                    class="modern-table text-sm"
+                >
+                    <template #toolbar>
                         <Button severity="primary" @click="openModal()" class="rounded-full px-8 shadow-xl shadow-blue-500/20 uppercase tracking-widest font-black text-xs h-[48px]">
                             <template #icon><PlusIcon class="w-5 h-5 stroke-[3px] mr-1" /></template>
                             Configure Rate
                         </Button>
-                    </div>
-                </div>
+                    </template>
 
-                <!-- Rates Table -->
-                <div class="bg-white dark:bg-slate-900 shadow-2xl rounded-[2.5rem] p-6 border border-slate-100 dark:border-slate-800 overflow-hidden">
-                    <DataTable :value="filteredRates" stripedRows paginator :rows="30" class="modern-table">
-                        <Column field="patron.name" header="Patron">
-                            <template #body="slotProps">
-                                <span class="font-semibold text-gray-800 dark:text-gray-200">{{ slotProps.data.patron?.name || '—' }}</span>
-                            </template>
-                        </Column>
-                        <Column field="product.name" header="Product">
-                            <template #body="slotProps">
-                                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ slotProps.data.product?.name || '—' }}</span>
-                            </template>
-                        </Column>
-                        <Column header="Route">
-                            <template #body="slotProps">
-                                <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                                    <span class="font-bold text-gray-700 dark:text-gray-200">{{ slotProps.data.loading_site?.name || 'ANY' }}</span>
-                                    <span class="opacity-50">→</span>
-                                    <span class="font-bold text-gray-700 dark:text-gray-200">{{ slotProps.data.unloading_site?.name || 'ANY' }}</span>
-                                </div>
-                            </template>
-                        </Column>
-                        <Column field="payment_type" header="Terms">
-                            <template #body="slotProps">
-                                <Tag severity="info" rounded class="text-[10px] uppercase font-black tracking-widest">{{ slotProps.data.payment_type || 'N/A' }}</Tag>
-                            </template>
-                        </Column>
-                        <Column field="rate" header="Unit Rate" align="right">
-                            <template #body="slotProps">
-                                <span class="font-black text-blue-600 dark:text-blue-400 font-mono">₹{{ Number(slotProps.data.rate).toLocaleString('en-IN') }}</span>
-                            </template>
-                        </Column>
-                        <Column header="Status" align="center">
-                            <template #body="slotProps">
-                                <Tag :severity="slotProps.data.status ? 'success' : 'danger'" rounded class="text-[10px] uppercase font-black tracking-widest">
-                                    {{ slotProps.data.status ? 'Active' : 'Inactive' }}
-                                </Tag>
-                            </template>
-                        </Column>
-                        <Column header="Actions" align="right">
-                            <template #body="slotProps">
-                                <div class="flex justify-end gap-1">
-                                    <Button icon="pi pi-pencil" severity="secondary" text rounded @click="openModal(slotProps.data.id)" />
-                                    <Button icon="pi pi-trash" severity="danger" text rounded @click="deleteRate(slotProps.data.id)" />
-                                </div>
-                            </template>
-                        </Column>
-                        <template #empty>
-                            <div class="py-20 flex flex-col items-center opacity-30">
-                                <i class="pi pi-inbox text-5xl mb-4" />
-                                <span class="font-bold">No rates configured</span>
+                    <Column field="patron.name" header="Patron">
+                        <template #body="slotProps">
+                            <span class="font-semibold text-gray-800 dark:text-gray-200">{{ slotProps.data.patron?.name || '—' }}</span>
+                        </template>
+                    </Column>
+                    <Column field="product.name" header="Product">
+                        <template #body="slotProps">
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ slotProps.data.product?.name || '—' }}</span>
+                        </template>
+                    </Column>
+                    <Column header="Route">
+                        <template #body="slotProps">
+                            <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                                <span class="font-bold text-gray-700 dark:text-gray-200">{{ slotProps.data.loading_site?.name || 'ANY' }}</span>
+                                <span class="opacity-50">→</span>
+                                <span class="font-bold text-gray-700 dark:text-gray-200">{{ slotProps.data.unloading_site?.name || 'ANY' }}</span>
                             </div>
                         </template>
-                    </DataTable>
-                </div>
+                    </Column>
+                    <Column field="payment_type" header="Terms">
+                        <template #body="slotProps">
+                            <Tag severity="info" rounded class="text-[10px] uppercase font-black tracking-widest">{{ slotProps.data.payment_type || 'N/A' }}</Tag>
+                        </template>
+                    </Column>
+                    <Column field="rate" header="Unit Rate" align="right">
+                        <template #body="slotProps">
+                            <span class="font-black text-blue-600 dark:text-blue-400 font-mono">₹{{ Number(slotProps.data.rate).toLocaleString('en-IN') }}</span>
+                        </template>
+                    </Column>
+                    <Column header="Status" align="center">
+                        <template #body="slotProps">
+                            <Tag :severity="slotProps.data.status ? 'success' : 'danger'" rounded class="text-[10px] uppercase font-black tracking-widest">
+                                {{ slotProps.data.status ? 'Active' : 'Inactive' }}
+                            </Tag>
+                        </template>
+                    </Column>
+                    <Column header="Actions" align="right">
+                        <template #body="slotProps">
+                            <div class="flex justify-end gap-1">
+                                <Button icon="pi pi-pencil" severity="secondary" text rounded @click="openModal(slotProps.data.id)" />
+                                <Button icon="pi pi-trash" severity="danger" text rounded @click="deleteRate(slotProps.data.id)" />
+                            </div>
+                        </template>
+                    </Column>
+                    <template #empty>
+                        <div class="py-20 flex flex-col items-center opacity-30">
+                            <i class="pi pi-inbox text-5xl mb-4" />
+                            <span class="font-bold">No rates configured</span>
+                        </div>
+                    </template>
+                </BaseDataTable>
 
             </div>
         </div>
@@ -308,12 +288,6 @@ watch(() => page.props.flash, (flash: any) => {
 </template>
 
 <style scoped>
-:deep(.p-datatable-thead > tr > th) {
-    @apply bg-blue-50/50 dark:bg-slate-950 text-blue-500 font-black uppercase text-[10px] tracking-widest py-6 dark:border-slate-800;
-}
-:deep(.p-datatable-tbody > tr > td) {
-    @apply py-6 dark:border-slate-800;
-}
 </style>
 
 

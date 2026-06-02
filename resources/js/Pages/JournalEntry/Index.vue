@@ -19,7 +19,7 @@ import Swal from 'sweetalert2';
 import { useJournalStore, JournalEntry, JournalLine } from './useJournalStore';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -39,6 +39,10 @@ const props = defineProps<{
 const store = useJournalStore();
 onMounted(() => {
     store.setInitialData(props);
+});
+
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
 });
 
 // ── Form State ─────────────────────────────────────────────
@@ -227,22 +231,19 @@ const deleteEntry = (id: number) => {
                     </div>
                 </div>
 
-                <!-- LIST CARD -->
-                <div class="bg-white dark:bg-slate-900 shadow-xl rounded-2xl p-8 border border-slate-100 dark:border-slate-800">
-                    <div class="flex justify-between items-center mb-8">
-                        <div>
-                            <h3 class="text-xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight uppercase">Recent Transactions</h3>
-                            <p class="text-sm text-gray-500 italic mt-1 font-medium">History of posted journals for this entity.</p>
-                        </div>
-                        <Button icon="pi pi-refresh" severity="secondary" text rounded label="Refresh List" />
-                    </div>
-
-                    <DataTable
+                    <BaseDataTable
                         :value="store.entries"
-                        stripedRows
-                        paginator :rows="15"
-                        class="modern-table"
+                        v-model:filters="filters"
+                        :globalFilterFields="['posting_date', 'voucher_number', 'narration', 'is_status']"
+                        showSearch
+                        showSerial
+                        heading="Recent Transactions"
+                        headingIcon="DocumentChartBarIcon"
+                        :rows="15"
                     >
+                        <template #toolbar>
+                            <Button icon="pi pi-refresh" severity="secondary" text rounded label="Refresh List" />
+                        </template>
                         <Column field="posting_date" header="Date" style="width: 120px" sortable />
                         <Column field="voucher_number" header="Voucher #" sortable />
                         <Column header="Narration">
@@ -274,20 +275,12 @@ const deleteEntry = (id: number) => {
                                 </div>
                             </template>
                         </Column>
-                    </DataTable>
-                </div>
+                    </BaseDataTable>
             </div>
         </div>
     </AppLayout>
 </template>
 
-<style scoped>
-:deep(.p-datatable-thead > tr > th) {
-    @apply bg-slate-50/50 dark:bg-slate-950 text-slate-500 font-black uppercase text-[10px] tracking-widest py-5 dark:border-slate-800;
-}
-:deep(.p-datatable-tbody > tr > td) {
-    @apply dark:border-slate-800;
-}
-</style>
+
 
 

@@ -77,6 +77,10 @@ const props = withDefaults(
         // Advanced Filter Props
         dateFrom?: any;
         dateTo?: any;
+
+        // Selection Props
+        selection?: any;
+        selectionMode?: 'single' | 'multiple' | 'checkbox' | null;
     }>(),
     {
         loading: false,
@@ -113,6 +117,11 @@ const emit = defineEmits<{
     (e: 'update:expandedRows', val: any): void;
     (e: 'update:dateFrom', val: any): void;
     (e: 'update:dateTo', val: any): void;
+    (e: 'update:selection', val: any): void;
+    (e: 'update:selectionMode', val: any): void;
+    (e: 'selection-change', ev: any): void;
+    (e: 'row-select', ev: any): void;
+    (e: 'row-unselect', ev: any): void;
 }>();
 
 const slots = useSlots();
@@ -312,10 +321,13 @@ const toggleFilterPopover = (event: any) => {
             :responsiveLayout="responsiveLayout"
             :expandedRows="expandedRows"
             :exportFilename="exportFilename"
+            :selection="selection"
+            :selectionMode="selectionMode"
             @update:first="$emit('update:first', $event)"
             @update:rows="$emit('update:rows', $event)"
             @update:filters="$emit('update:filters', $event)"
             @update:expandedRows="$emit('update:expandedRows', $event)"
+            @update:selection="$emit('update:selection', $event)"
             class="p-datatable-sm"
             :class="[props.class, { 'cursor-pointer': slots.expansion }]"
             rowHover
@@ -323,6 +335,9 @@ const toggleFilterPopover = (event: any) => {
             @sort="$emit('sort', $event)"
             @filter="$emit('filter', $event)"
             @row-click="handleRowClick"
+            @row-select="$emit('row-select', $event)"
+            @row-unselect="$emit('row-unselect', $event)"
+            @selection-change="$emit('selection-change', $event)"
             @rowExpand="$emit('rowExpand', $event)"
             @rowCollapse="$emit('rowCollapse', $event)"
         >

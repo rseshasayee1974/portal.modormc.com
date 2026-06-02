@@ -8,7 +8,7 @@ import Swal from 'sweetalert2';
 import { TagIcon, MagnifyingGlassIcon, PencilSquareIcon, TrashIcon, PlusIcon } from '@heroicons/vue/24/outline';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -22,13 +22,10 @@ const props = defineProps<{
     ledgers: { id: number; name: string; code: string }[];
 }>();
 
-const searchQuery   = ref('');
 const editingId     = ref<number | null>(null);
 
-const filtered = computed(() => {
-    if (!searchQuery.value) return props.expenseTypes;
-    const q = searchQuery.value.toLowerCase();
-    return props.expenseTypes.filter((t: any) => t.name.toLowerCase().includes(q));
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
 });
 
 const ledgerOptions = computed(() => props.ledgers.map(l => ({ label: `${l.name} (${l.code})`, value: l.id })));
@@ -116,17 +113,16 @@ watch(() => page.props.flash, (flash: any) => {
 
                 <!-- Types Table -->
                 <div class="bg-white dark:bg-slate-900 shadow-xl rounded-3xl p-8 border border-slate-100 dark:border-slate-800">
-                    <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-xl font-black text-gray-800 dark:text-gray-100 uppercase tracking-tight">Expense Categories</h3>
-                        <span class="relative w-64">
-                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <MagnifyingGlassIcon class="w-4 h-4 text-gray-400" />
-                            </span>
-                            <BaseInput v-model="searchQuery" placeholder="Search..." class="w-full pl-9 rounded-full" />
-                        </span>
-                    </div>
-
-                    <DataTable :value="filtered" stripedRows paginator :rows="15" class="modern-table">
+                    <BaseDataTable
+                        :value="expenseTypes"
+                        v-model:filters="filters"
+                        :globalFilterFields="['name', 'ledger.name']"
+                        showSearch
+                        showSerial
+                        heading="Expense Categories"
+                        headingIcon="TagIcon"
+                        :rows="15"
+                    >
                         <Column header="Type Name">
                             <template #body="slotProps">
                                 <div v-if="editingId === slotProps.data.id">
@@ -173,7 +169,7 @@ watch(() => page.props.flash, (flash: any) => {
                                 <span>No categories yet</span>
                             </div>
                         </template>
-                    </DataTable>
+                    </BaseDataTable>
                 </div>
 
             </div>
@@ -181,13 +177,6 @@ watch(() => page.props.flash, (flash: any) => {
     </AppLayout>
 </template>
 
-<style scoped>
-:deep(.p-datatable-thead > tr > th) {
-    @apply bg-purple-50/50 dark:bg-slate-950 text-purple-500 font-black uppercase text-[11px] tracking-widest py-5 dark:border-slate-800;
-}
-:deep(.p-datatable-tbody > tr > td) {
-    @apply dark:border-slate-800;
-}
-</style>
+
 
 

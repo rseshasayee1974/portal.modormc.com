@@ -16,7 +16,7 @@ import {
 } from '@heroicons/vue/24/outline';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
@@ -168,7 +168,6 @@ const getSourceTypeColor = (type: string): string => {
         </template>
 
         <div class="py-6 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-            <!-- Header Block -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div class="flex items-center gap-4">
                     <div class="p-3 bg-indigo-50 dark:bg-indigo-950/50 rounded-2xl border border-indigo-100 dark:border-indigo-900">
@@ -179,7 +178,6 @@ const getSourceTypeColor = (type: string): string => {
                         <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Knowledge Base</h1>
                     </div>
                 </div>
-                <Button label="Add Knowledge Document" icon="pi pi-plus" class="p-button-raised" @click="openCreateModal" />
             </div>
 
             <!-- Stats Block -->
@@ -217,32 +215,24 @@ const getSourceTypeColor = (type: string): string => {
                 </div>
             </div>
 
-            <!-- Filters Area (Client-Side) -->
-            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-gray-700 shadow-sm p-5 mb-6">
-                <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3">Search & Filter Index</p>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="md:col-span-2">
-                        <span class="p-input-icon-left w-full">
-                            <i class="pi pi-search ml-2 text-slate-400" />
-                            <BaseInput v-model="filters.global.value" placeholder="Type query to filter titles or contents instantly..." class="w-full text-xs" />
-                        </span>
-                    </div>
-                    <div>
-                        <BaseSelect v-model="filters.source_type.value" :options="typeFilterOptions" optionLabel="label" optionValue="value" placeholder="All Categories" fluid />
-                    </div>
-                </div>
-            </div>
-
             <!-- DataTable Block -->
             <div class="bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                <DataTable :value="rows" :filters="filters" :globalFilterFields="['title', 'source_type', 'content']" stripedRows class="p-datatable-sm text-xs font-sans"
-                    :paginator="true" :rows="15" :rows-per-page-options="[15, 30, 50]">
-                    
-                    <Column header="#" style="width: 50px">
-                        <template #body="slotProps">
-                            <span class="text-slate-400 font-mono">{{ slotProps.index + 1 }}</span>
-                        </template>
-                    </Column>
+                <BaseDataTable
+                    :value="rows"
+                    v-model:filters="filters"
+                    :globalFilterFields="['title', 'source_type', 'content']"
+                    showSearch
+                    showSerial
+                    heading="Document Index"
+                    headingIcon="BookOpenIcon"
+                    :rows="15"
+                >
+                    <template #toolbar>
+                        <div class="flex items-center gap-3">
+                            <BaseSelect v-model="filters.source_type.value" :options="typeFilterOptions" optionLabel="label" optionValue="value" placeholder="All Categories" class="w-48 shadow-sm" />
+                            <Button label="Add Document" icon="pi pi-plus" size="small" class="p-button-raised" @click="openCreateModal" />
+                        </div>
+                    </template>
 
                     <Column field="title" header="Document Title" sortable>
                         <template #body="slotProps">
@@ -302,7 +292,7 @@ const getSourceTypeColor = (type: string): string => {
                             <p class="text-xs">Add standard operating procedures, FAQ lists, or product specs to bootstrap the AI agent's RAG context.</p>
                         </div>
                     </template>
-                </DataTable>
+                </BaseDataTable>
             </div>
         </div>
 

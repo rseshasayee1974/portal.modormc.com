@@ -25,7 +25,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2'; 
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
@@ -602,13 +602,12 @@ const downloadSampleCSV = () => {
 
                             <!-- DataTable -->
                             <div class="flex-1 overflow-y-auto min-h-[480px]">
-                                <DataTable 
+                                <BaseDataTable 
                                     :value="filteredStatementLines" 
-                                    class="modern-table brs-table border-0"
+                                    class="brs-table border-0"
                                     selectionMode="single" 
-                                    :selection="selectedLine" 
+                                    v-model:selection="selectedLine" 
                                     @row-click="(e) => selectLineRow(e.data)" 
-                                    stripedRows
                                     :loading="isLoadingLines"
                                     dataKey="id"
                                 >
@@ -672,7 +671,7 @@ const downloadSampleCSV = () => {
                                             </div>
                                         </template>
                                     </Column>
-                                </DataTable>
+                                </BaseDataTable>
                             </div>
                         </div>
                     </div>
@@ -909,15 +908,6 @@ const downloadSampleCSV = () => {
 </template>
 
 <style scoped>
-:deep(.p-datatable-thead > tr > th) {
-    @apply bg-slate-50/80 dark:bg-slate-900/60 text-slate-500 dark:text-slate-400 font-bold uppercase text-[9px] tracking-widest py-4 border-b border-slate-200 dark:border-slate-800;
-}
-:deep(.p-datatable-tbody > tr > td) {
-    @apply py-4 px-4 border-b border-slate-100 dark:border-slate-800 text-xs transition duration-150;
-}
-:deep(.p-datatable-tbody > tr:hover > td) {
-    @apply bg-slate-50/50 dark:bg-slate-900/30 cursor-pointer;
-}
 :deep(.p-datatable-tbody > tr.p-highlight > td) {
     @apply bg-indigo-50/40 dark:bg-indigo-950/20 text-slate-900 dark:text-white !border-indigo-300 dark:!border-indigo-950;
 }

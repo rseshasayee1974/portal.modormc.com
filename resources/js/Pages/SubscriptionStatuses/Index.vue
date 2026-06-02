@@ -7,15 +7,19 @@ import Swal from 'sweetalert2';
 import { useSubscriptionStatusStore } from '@/Pages/SubscriptionStatuses/useSubscriptionStatusStore';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import { useToast } from 'primevue/usetoast';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 
 const store = useSubscriptionStatusStore();
 const toast = useToast();
+
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
+});
 
 interface SubscriptionStatus {
     id: number;
@@ -119,26 +123,31 @@ const submitModal = async () => {
         </template>
 
         <div class="p-6">
-            <div class="card bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-lg">
-                <DataTable :value="store.subscriptionStatuses" stripedRows class="p-datatable-sm text-sm" :paginator="true" :rows="30">
-                    <template #header>
-                        <div class="flex items-center justify-between">
-                            <span class="text-xl font-semibold uppercase tracking-tight">Recurring Service States</span>
-                            <Button label="New Status" icon="pi pi-plus"  @click="openCreateModal" />
+            <BaseDataTable
+                :value="store.subscriptionStatuses"
+                v-model:filters="filters"
+                :globalFilterFields="['status_name']"
+                showSearch
+                showSerial
+                heading="Recurring Service States"
+                headingIcon="DocumentTextIcon"
+                :rows="30"
+                class="text-sm"
+            >
+                <template #toolbar>
+                    <Button label="New Status" icon="pi pi-plus"  @click="openCreateModal" />
+                </template>
+                <Column field="status_name" header="Status Name" sortable></Column>
+                <Column header="Actions" class="text-right" style="width: 120px">
+                    <template #body="slotProps">
+                        <div class="flex justify-end gap-2">
+                            <Button icon="pi pi-eye" text rounded  @click="openViewModal(slotProps.data)" severity="secondary" />
+                            <Button icon="pi pi-pencil" text rounded  @click="openEditModal(slotProps.data)" severity="info" />
+                            <Button icon="pi pi-trash" text rounded  @click="deleteSubscriptionStatus(slotProps.data.id)" severity="danger" />
                         </div>
                     </template>
-                    <Column field="status_name" header="Status Name" sortable></Column>
-                    <Column header="Actions" class="text-right" style="width: 120px">
-                        <template #body="slotProps">
-                            <div class="flex justify-end gap-2">
-                                <Button icon="pi pi-eye" text rounded  @click="openViewModal(slotProps.data)" severity="secondary" />
-                                <Button icon="pi pi-pencil" text rounded  @click="openEditModal(slotProps.data)" severity="info" />
-                                <Button icon="pi pi-trash" text rounded  @click="deleteSubscriptionStatus(slotProps.data.id)" severity="danger" />
-                            </div>
-                        </template>
-                    </Column>
-                </DataTable>
-            </div>
+                </Column>
+            </BaseDataTable>
         </div>
 
         <Dialog v-model:visible="showModal" modal :header="modalMode.toUpperCase() + ' SUBSCRIPTION STATUS'" :style="{ width: '450px' }">

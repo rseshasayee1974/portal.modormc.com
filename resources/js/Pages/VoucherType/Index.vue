@@ -7,7 +7,6 @@ import Swal from 'sweetalert2';
 import { useVoucherTypeStore, VoucherType } from './useVoucherTypeStore';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
@@ -16,14 +15,20 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Tag from 'primevue/tag';
 import ToggleSwitch from 'primevue/toggleswitch';
 import { useToast } from 'primevue/usetoast';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
+
+const store = useVoucherTypeStore();
+const toast = useToast();
+
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
+});
 
 const props = defineProps<{
     voucherTypes: VoucherType[];
     isSuperAdmin: boolean;
 }>();
 
-const store = useVoucherTypeStore();
-const toast = useToast();
 
 onMounted(() => {
     store.setVoucherTypes(props.voucherTypes);
@@ -146,39 +151,44 @@ const deleteVT = (id: number) => {
         </template>
 
         <div class="p-6">
-            <div class="card bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-lg text-sm">
-                <DataTable :value="store.voucherTypes" stripedRows class="p-datatable-sm" :paginator="true" :rows="30">
-                    <template #header>
-                        <div class="flex items-center justify-between">
-                            <span class="text-xl font-semibold uppercase tracking-tight">Journal Configuration</span>
-                            <Button label="New Voucher Type" icon="pi pi-plus"  @click="openCreateModal" />
+            <BaseDataTable
+                :value="store.voucherTypes"
+                v-model:filters="filters"
+                :globalFilterFields="['journal_name', 'short_code', 'prefix', 'voucher_group']"
+                showSearch
+                showSerial
+                heading="Journal Configuration"
+                headingIcon="BookOpenIcon"
+                :rows="30"
+                class="text-sm"
+            >
+                <template #toolbar>
+                    <Button label="New Voucher Type" icon="pi pi-plus"  @click="openCreateModal" />
+                </template>
+                <Column field="voucher_group" header="Group" sortable>
+                    <template #body="slotProps">
+                        <Tag :value="slotProps.data.voucher_group" severity="info"  />
+                    </template>
+                </Column>
+                <Column field="journal_name" header="Journal Name" sortable></Column>
+                <Column field="short_code" header="Code" sortable></Column>
+                <Column field="prefix" header="Prefix" sortable></Column>
+                <Column field="is_system_generated" header="System" sortable class="text-center">
+                    <template #body="slotProps">
+                        <i v-if="slotProps.data.is_system_generated" class="pi pi-lock text-amber-500"></i>
+                        <i v-else class="pi pi-check-circle text-green-500"></i>
+                    </template>
+                </Column>
+                <Column header="Actions" class="text-right" style="width: 120px">
+                    <template #body="slotProps">
+                        <div class="flex justify-end gap-2">
+                            <Button icon="pi pi-eye" text rounded  @click="openViewModal(slotProps.data)" severity="secondary" />
+                            <Button icon="pi pi-pencil" text rounded  @click="openEditModal(slotProps.data)" severity="info" />
+                            <Button v-if="!slotProps.data.is_system_generated" icon="pi pi-trash" text rounded  @click="deleteVT(slotProps.data.id)" severity="danger" />
                         </div>
                     </template>
-                    <Column field="voucher_group" header="Group" sortable>
-                        <template #body="slotProps">
-                            <Tag :value="slotProps.data.voucher_group" severity="info"  />
-                        </template>
-                    </Column>
-                    <Column field="journal_name" header="Journal Name" sortable></Column>
-                    <Column field="short_code" header="Code" sortable></Column>
-                    <Column field="prefix" header="Prefix" sortable></Column>
-                    <Column field="is_system_generated" header="System" sortable class="text-center">
-                        <template #body="slotProps">
-                            <i v-if="slotProps.data.is_system_generated" class="pi pi-lock text-amber-500"></i>
-                            <i v-else class="pi pi-check-circle text-green-500"></i>
-                        </template>
-                    </Column>
-                    <Column header="Actions" class="text-right" style="width: 120px">
-                        <template #body="slotProps">
-                            <div class="flex justify-end gap-2">
-                                <Button icon="pi pi-eye" text rounded  @click="openViewModal(slotProps.data)" severity="secondary" />
-                                <Button icon="pi pi-pencil" text rounded  @click="openEditModal(slotProps.data)" severity="info" />
-                                <Button v-if="!slotProps.data.is_system_generated" icon="pi pi-trash" text rounded  @click="deleteVT(slotProps.data.id)" severity="danger" />
-                            </div>
-                        </template>
-                    </Column>
-                </DataTable>
-            </div>
+                </Column>
+            </BaseDataTable>
         </div>
 
         <Dialog v-model:visible="showModal" modal :header="modalMode.toUpperCase() + ' VOUCHER TYPE'" :style="{ width: '600px' }">

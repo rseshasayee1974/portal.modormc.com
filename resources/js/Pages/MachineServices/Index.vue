@@ -12,7 +12,7 @@ import {
 } from '@heroicons/vue/24/outline';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import DatePicker from 'primevue/datepicker';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -44,8 +44,11 @@ const props = defineProps<{
     machines: any[];
 }>();
 
-const searchQuery = ref('');
 const editingId = ref<number | null>(null);
+
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
+});
 
 const machineOptions = computed(() => props.machines.map(m => ({ label: m.registration, value: m.id })));
 
@@ -62,15 +65,6 @@ const serviceStatuses = [
     { label: 'Completed', value: 2 },
     { label: 'Pending Info', value: 3 }
 ];
-
-const filteredServices = computed(() => {
-    if (!searchQuery.value) return props.services;
-    const q = searchQuery.value.toLowerCase();
-    return props.services.filter((s: any) =>
-        (s.machine?.registration && s.machine.registration.toLowerCase().includes(q)) ||
-        (s.notes && s.notes.toLowerCase().includes(q))
-    );
-});
 
 const getInitialForm = () => ({
     truck_id: null as number | null,
@@ -242,35 +236,16 @@ watch(() => page.props.flash, (flash: any) => {
 
                 <!-- ── DataTable Section ── -->
                 <div class="bg-white dark:bg-slate-900 shadow-lg shadow-slate-200/40 dark:shadow-none rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden">
-                    <DataTable
-                        :value="filteredServices"
-                        stripedRows
-                        paginator
+                    <BaseDataTable
+                        :value="services"
+                        v-model:filters="filters"
+                        :globalFilterFields="['machine.registration', 'notes']"
+                        showSearch
+                        showSerial
+                        heading="Service History Log"
+                        headingIcon="WrenchIcon"
                         :rows="30"
-                        paginatorTemplate="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                        currentPageReportTemplate="{first}–{last} of {totalRecords}"
-                        class="services-table"
-                        row-hover
                     >
-                        <template #header>
-                            <div class="flex flex-col sm:flex-row justify-between items-center gap-4 px-4 py-2">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-1.5 h-8 bg-indigo-500 rounded-full"></div>
-                                    <h3 class="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest">Service History Log</h3>
-                                </div>
-                                
-                                <div class="relative group w-full sm:w-72">
-                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <MagnifyingGlassIcon class="h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                                    </div>
-                                    <BaseInput
-                                        v-model="searchQuery"
-                                        placeholder="Quick Search..."
-                                        class="!w-full !pl-11 !pr-4 !bg-slate-50 dark:!bg-slate-800 !border-none !rounded-xl !text-xs !font-bold !text-slate-600 dark:!text-slate-300 focus:!ring-4 focus:!ring-indigo-50 dark:focus:!ring-indigo-900/10 transition-all"
-                                    />
-                                </div>
-                            </div>
-                        </template>
 
                         <!-- Machine -->
                         <Column header="Vehicle" sortable field="machine.registration">
@@ -377,7 +352,7 @@ watch(() => page.props.flash, (flash: any) => {
                                 </div>
                             </div>
                         </template>
-                    </DataTable>
+                    </BaseDataTable>
                 </div>
 
             </div>
@@ -388,45 +363,5 @@ watch(() => page.props.flash, (flash: any) => {
 <style scoped>
 :deep(.p-datepicker-input) {
     @apply h-10 text-sm font-bold border-slate-200 rounded-md !bg-white;
-}
-
-:deep(.services-table .p-datatable-thead > tr > th) {
-    @apply !bg-slate-50/50 dark:!bg-slate-950/50 !text-slate-400 !font-black !text-[10px] !uppercase !tracking-[0.2em] !py-6 !border-b !border-slate-100 dark:!border-slate-800 !border-none;
-}
-
-:deep(.services-table .p-datatable-tbody > tr) {
-    @apply !transition-all !duration-300;
-}
-
-:deep(.services-table .p-datatable-tbody > tr:hover) {
-    @apply !bg-indigo-50/20 dark:!bg-indigo-900/10;
-}
-
-:deep(.services-table .p-datatable-tbody > tr > td) {
-    @apply !py-5 !border-b !border-slate-50 dark:!border-slate-800/50 !bg-transparent;
-}
-
-:deep(.services-table .p-paginator) {
-    @apply !bg-transparent !border-t !border-slate-100 dark:!border-slate-800 !py-6;
-}
-
-:deep(.services-table .p-paginator-current) {
-    @apply !text-[11px] !font-black !text-slate-300 !uppercase !tracking-widest;
-}
-
-:deep(.services-table .p-paginator-element) {
-    @apply !text-slate-400 !rounded-2xl !transition-all !w-11 !text-xs !font-black;
-}
-
-:deep(.services-table .p-paginator-element:hover) {
-    @apply !bg-indigo-50/50 !text-indigo-600;
-}
-
-:deep(.services-table .p-paginator-element.p-highlight) {
-    @apply !bg-indigo-600 !text-white !shadow-xl !shadow-indigo-200 dark:!shadow-none;
-}
-
-:deep(.p-datatable-striped .p-datatable-tbody > tr:nth-child(even)) {
-    @apply !bg-slate-50/40 dark:!bg-slate-800/20;
 }
 </style>

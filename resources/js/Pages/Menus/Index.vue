@@ -21,7 +21,6 @@ import {
 } from '@heroicons/vue/24/outline';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -30,6 +29,7 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Tag from 'primevue/tag';
 import ToggleSwitch from 'primevue/toggleswitch';
 import Card from 'primevue/card';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 
 interface Menu {
     id: number;
@@ -55,7 +55,10 @@ const props = defineProps<{
 
 const page = usePage();
 const editingId = ref<number | null>(null);
-const searchQuery = ref('');
+
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
+});
 
 const form = useForm({
     title: '',
@@ -141,16 +144,6 @@ const flatMenus = computed(() => {
         });
     };
     traverse(props.menus);
-
-    if (searchQuery.value) {
-        const query = searchQuery.value.toLowerCase();
-        return list.filter(item => 
-            item.title.toLowerCase().includes(query) || 
-            item.link.toLowerCase().includes(query) ||
-            (item.permission_name && item.permission_name.toLowerCase().includes(query))
-        );
-    }
-
     return list;
 });
 
@@ -262,83 +255,61 @@ watch(
 
                     <!-- Table Column -->
                     <div class="col-span-24 lg:col-span-16">
-                        <div class="bg-white dark:bg-slate-900 shadow-xl rounded-[2rem] p-8 border border-slate-100 dark:border-slate-800">
-                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                                <div class="flex items-center gap-3">
-                                    <div class="p-3 bg-indigo-50 dark:bg-indigo-900/10 text-indigo-600 rounded-2xl">
-                                        <Bars3Icon class="w-6 h-6 stroke-[2.5px]" />
+                        <BaseDataTable
+                            :value="flatMenus"
+                            v-model:filters="filters"
+                            :globalFilterFields="['title', 'link', 'permission_name']"
+                            showSearch
+                            showSerial
+                            heading="Navigation Architecture"
+                            headingIcon="Bars3Icon"
+                            class="text-sm"
+                        >
+                            <Column field="id" header="ID" style="width: 70px" />
+                            <Column header="Menu Title">
+                                <template #body="slotProps">
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-gray-300 dark:text-gray-600 font-mono tracking-tighter">
+                                            {{ '--'.repeat(slotProps.data.level || 0) }}
+                                        </span>
+                                        <span class="font-bold text-gray-800 dark:text-gray-200">
+                                            {{ slotProps.data.title }}
+                                        </span>
                                     </div>
-                                    <div>
-                                        <h3 class="text-xl font-black text-gray-800 dark:text-gray-100 tracking-tighter uppercase">
-                                            Navigation Architecture
-                                        </h3>
-                                        <Tag severity="info" rounded class="text-[9px] font-black uppercase px-3 tracking-widest">Active Tree</Tag>
+                                </template>
+                            </Column>
+                            <Column header="Alias">
+                                <template #body="slotProps">
+                                    <span class="text-[10px] text-slate-400 font-mono">{{ slotProps.data.alias }}</span>
+                                </template>
+                            </Column>
+                            <Column header="Type">
+                                <template #body="slotProps">
+                                    <Tag :severity="slotProps.data.menutype === 1 ? 'info' : 'success'" rounded class="text-[9px] font-black uppercase tracking-widest">
+                                        {{ slotProps.data.menutype === 1 ? 'Top Nav' : 'Module' }}
+                                    </Tag>
+                                </template>
+                            </Column>
+                            <Column header="Link">
+                                <template #body="slotProps">
+                                    <span class="text-xs text-gray-400 dark:text-gray-500 font-mono">{{ slotProps.data.link }}</span>
+                                </template>
+                            </Column>
+                            <Column header="Status" align="center">
+                                <template #body="slotProps">
+                                    <CheckCircleIcon v-if="slotProps.data.published" class="w-5 h-5 text-green-500" />
+                                    <XCircleIcon v-else class="w-5 h-5 text-red-400" />
+                                </template>
+                            </Column>
+                            <Column header="Actions" align="right">
+                                <template #body="slotProps">
+                                    <div class="flex justify-end gap-1">
+                                        <Button icon="pi pi-pencil" severity="info" text rounded @click="editMenu(slotProps.data)" />
+                                        <Button icon="pi pi-trash" severity="danger" text rounded @click="deleteMenu(slotProps.data.id)" />
                                     </div>
-                                </div>
-                                <div class="flex items-center gap-4 w-full md:w-auto">
-                                    <div class="relative w-full md:w-64">
-                                        <BaseInput 
-                                            v-model="searchQuery" 
-                                            placeholder="Search menus..." 
-                                            class="pl-10 !rounded-2xl !bg-slate-50 dark:!bg-slate-800/50 !border-none focus:!ring-2 focus:!ring-indigo-500/20"
-                                            fluid
-                                        />
-                                        <MagnifyingGlassIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                    </div>
-                                    <div class="hidden md:flex gap-2 text-[10px] font-black text-gray-400 items-center uppercase tracking-widest">
-                                        <Squares2X2Icon class="w-4 h-4"/>
-                                        Hierarchy Visualizer
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <DataTable :value="flatMenus" stripedRows class="modern-table text-sm">
-                                <Column field="id" header="ID" style="width: 70px" />
-                                <Column header="Menu Title">
-                                    <template #body="slotProps">
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-gray-300 dark:text-gray-600 font-mono tracking-tighter">
-                                                {{ '--'.repeat(slotProps.data.level || 0) }}
-                                            </span>
-                                            <span class="font-bold text-gray-800 dark:text-gray-200">
-                                                {{ slotProps.data.title }}
-                                            </span>
-                                        </div>
-                                    </template>
-                                </Column>
-                                <Column header="Alias">
-                                    <template #body="slotProps">
-                                        <span class="text-[10px] text-slate-400 font-mono">{{ slotProps.data.alias }}</span>
-                                    </template>
-                                </Column>
-                                <Column header="Type">
-                                    <template #body="slotProps">
-                                        <Tag :severity="slotProps.data.menutype === 1 ? 'info' : 'success'" rounded class="text-[9px] font-black uppercase tracking-widest">
-                                            {{ slotProps.data.menutype === 1 ? 'Top Nav' : 'Module' }}
-                                        </Tag>
-                                    </template>
-                                </Column>
-                                <Column header="Link">
-                                    <template #body="slotProps">
-                                        <span class="text-xs text-gray-400 dark:text-gray-500 font-mono">{{ slotProps.data.link }}</span>
-                                    </template>
-                                </Column>
-                                <Column header="Status" align="center">
-                                    <template #body="slotProps">
-                                        <CheckCircleIcon v-if="slotProps.data.published" class="w-5 h-5 text-green-500" />
-                                        <XCircleIcon v-else class="w-5 h-5 text-red-400" />
-                                    </template>
-                                </Column>
-                                <Column header="Actions" align="right">
-                                    <template #body="slotProps">
-                                        <div class="flex justify-end gap-1">
-                                            <Button icon="pi pi-pencil" severity="info" text rounded @click="editMenu(slotProps.data)" />
-                                            <Button icon="pi pi-trash" severity="danger" text rounded @click="deleteMenu(slotProps.data.id)" />
-                                        </div>
-                                    </template>
-                                </Column>
-                            </DataTable>
-                        </div>
+                                </template>
+                            </Column>
+                        </BaseDataTable>
                     </div>
                 </div>
             </div>
@@ -347,12 +318,6 @@ watch(
 </template>
 
 <style scoped>
-:deep(.p-datatable-thead > tr > th) {
-    @apply bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 font-black uppercase text-[10px] tracking-widest py-5 dark:border-slate-800;
-}
-:deep(.p-datatable-tbody > tr > td) {
-    @apply py-4 dark:border-slate-800;
-}
 </style>
 
 

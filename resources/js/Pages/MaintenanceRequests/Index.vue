@@ -17,6 +17,7 @@ import DatePicker from 'primevue/datepicker';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 
 const page = usePage();
 
@@ -81,9 +82,12 @@ const props = defineProps<{
     units: any[];
 }>();
 
-const searchQuery = ref('');
 const editingId = ref<number | null>(null);
 const expandedRows = ref<any[]>([]);
+
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
+});
 
 const machineOptions = computed(() => props.machines.map(m => ({ label: m.registration, value: m.id })));
 const vendorOptions = computed(() => props.vendors.map(v => ({ label: v.legal_name, value: v.id })));
@@ -118,16 +122,6 @@ const billStatuses = [
     { label: 'Partially Billed', value: 1 },
     { label: 'Fully Billed', value: 2 }
 ];
-
-const filteredRequests = computed(() => {
-    if (!searchQuery.value) return props.requests;
-    const q = searchQuery.value.toLowerCase();
-    return props.requests.filter((r: any) =>
-        r.name?.toLowerCase().includes(q) ||
-        r.description?.toLowerCase().includes(q) ||
-        r.machine?.registration?.toLowerCase().includes(q)
-    );
-});
 
 const getInitialForm = () => ({
     name: '',
@@ -475,38 +469,18 @@ watch(() => page.props.flash, (flash: any) => {
 
                 <!-- ── DataTable Section ── -->
                 <div class="bg-white dark:bg-slate-900 shadow-lg shadow-slate-200/40 dark:shadow-none rounded-lg border border-slate-100 dark:border-slate-800 overflow-hidden">
-                    <DataTable
-                        :value="filteredRequests"
-                        stripedRows
-                        paginator
+                    <BaseDataTable
+                        :value="requests"
+                        v-model:filters="filters"
+                        :globalFilterFields="['name', 'description', 'machine.registration']"
+                        showSearch
+                        showSerial
+                        heading="Maintenance Ledger"
+                        headingIcon="WrenchScrewdriverIcon"
                         :rows="30"
                         v-model:expandedRows="expandedRows"
-                        paginatorTemplate="FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                        currentPageReportTemplate="{first}–{last} of {totalRecords}"
                         class="maintenance-table"
-                        row-hover
-                        dataKey="id"
                     >
-                        <template #header>
-                            <div class="flex flex-col sm:flex-row justify-between items-center gap-4 px-4 py-2">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-1.5 h-8 bg-indigo-500 rounded-full"></div>
-                                    <h3 class="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-widest">Maintenance Ledger</h3>
-                                </div>
-                                
-                                <div class="relative group w-full sm:w-72">
-                                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <MagnifyingGlassIcon class="h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
-                                    </div>
-                                    <BaseInput
-                                        v-model="searchQuery"
-                                        placeholder="Quick Search..."
-                                        class="!w-full !pl-11 !pr-4 !bg-slate-50 dark:!bg-slate-800 !border-none !rounded-xl !text-xs !font-bold !text-slate-600 dark:!text-slate-300 focus:!ring-4 focus:!ring-indigo-50 dark:focus:!ring-indigo-900/10 transition-all"
-                                    />
-                                </div>
-                            </div>
-                        </template>
-
                         <!-- Row Expansion Trigger -->
                         <Column expander style="width: 3rem" />
 
@@ -617,7 +591,7 @@ watch(() => page.props.flash, (flash: any) => {
                         </Column>
 
                         <!-- Row Expansion Template (Required Parts List) -->
-                        <template #rowexpansion="slotProps">
+                        <template #expansion="slotProps">
                             <div class="p-6 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 m-2">
                                 <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Required Parts & Tasks</h4>
                                 <DataTable :value="slotProps.data.lines" class="lines-subtable">
@@ -661,7 +635,7 @@ watch(() => page.props.flash, (flash: any) => {
                                 </div>
                             </div>
                         </template>
-                    </DataTable>
+                    </BaseDataTable>
                 </div>
 
             </div>
@@ -672,46 +646,6 @@ watch(() => page.props.flash, (flash: any) => {
 <style scoped>
 :deep(.p-datepicker-input) {
     @apply h-10 text-sm font-bold border-slate-200 rounded-md !bg-white;
-}
-
-:deep(.maintenance-table .p-datatable-thead > tr > th) {
-    @apply !bg-slate-50/50 dark:!bg-slate-950/50 !text-slate-400 !font-black !text-[10px] !uppercase !tracking-[0.2em] !py-6 !border-b !border-slate-100 dark:!border-slate-800 !border-none;
-}
-
-:deep(.maintenance-table .p-datatable-tbody > tr) {
-    @apply !transition-all !duration-300;
-}
-
-:deep(.maintenance-table .p-datatable-tbody > tr:hover) {
-    @apply !bg-indigo-50/20 dark:!bg-indigo-900/10;
-}
-
-:deep(.maintenance-table .p-datatable-tbody > tr > td) {
-    @apply !py-5 !border-b !border-slate-50 dark:!border-slate-800/50 !bg-transparent;
-}
-
-:deep(.maintenance-table .p-paginator) {
-    @apply !bg-transparent !border-t !border-slate-100 dark:!border-slate-800 !py-6;
-}
-
-:deep(.maintenance-table .p-paginator-current) {
-    @apply !text-[11px] !font-black !text-slate-300 !uppercase !tracking-widest;
-}
-
-:deep(.maintenance-table .p-paginator-element) {
-    @apply !text-slate-400 !rounded-2xl !transition-all !w-11 !text-xs !font-black;
-}
-
-:deep(.maintenance-table .p-paginator-element:hover) {
-    @apply !bg-indigo-50/50 !text-indigo-600;
-}
-
-:deep(.maintenance-table .p-paginator-element.p-highlight) {
-    @apply !bg-indigo-600 !text-white !shadow-xl !shadow-indigo-200 dark:!shadow-none;
-}
-
-:deep(.p-datatable-striped .p-datatable-tbody > tr:nth-child(even)) {
-    @apply !bg-slate-50/40 dark:!bg-slate-800/20;
 }
 
 :deep(.lines-subtable .p-datatable-thead > tr > th) {

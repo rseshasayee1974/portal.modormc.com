@@ -7,7 +7,6 @@ import Swal from 'sweetalert2';
 import { usePlanStore } from '@/Pages/Plans/usePlanStore';
 
 // PrimeVue
-import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
@@ -15,9 +14,14 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import ToggleSwitch from 'primevue/toggleswitch';
 import { useToast } from 'primevue/usetoast';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 
 const store = usePlanStore();
 const toast = useToast();
+
+const filters = ref({
+    global: { value: null, matchMode: 'contains' },
+});
 
 interface Plan {
     id: number;
@@ -156,41 +160,41 @@ const removeFeature = (index: number) => {
         </template>
 
         <div class="p-6">
-            <div class="card bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-lg">
-                <DataTable :value="store.plans" stripedRows class="p-datatable-sm text-sm" :paginator="true" :rows="30">
-                    <template #header>
-                        <div class="flex items-center justify-between">
-                            <span class="text-xl font-semibold uppercase tracking-tight">Subscription Plans</span>
-                            <Button label="New Plan" icon="pi pi-plus"  @click="openCreateModal" />
+            <BaseDataTable
+                :value="store.plans"
+                v-model:filters="filters"
+                :globalFilterFields="['plan_type']"
+                showSearch
+                showSerial
+                heading="Subscription Plans"
+                headingIcon="TagIcon"
+                :rows="30"
+                class="text-sm"
+            >
+                <template #toolbar>
+                    <Button label="New Plan" icon="pi pi-plus"  @click="openCreateModal" />
+                </template>
+                <Column field="plan_type" header="Plan" sortable></Column>
+                <Column field="price_monthly" header="Monthly ($)" sortable></Column>
+                <Column field="price_yearly" header="Yearly ($)" sortable></Column>
+                <Column field="max_users" header="Max Users" sortable></Column>
+                <Column header="Active" style="width: 100px">
+                    <template #body="slotProps">
+                        <span :class="slotProps.data.is_active ? 'text-green-600 font-bold' : 'text-red-500 font-bold'">
+                            {{ slotProps.data.is_active ? 'YES' : 'NO' }}
+                        </span>
+                    </template>
+                </Column>
+                <Column header="Actions" class="text-right" style="width: 120px">
+                    <template #body="slotProps">
+                        <div class="flex justify-end gap-2">
+                            <Button icon="pi pi-eye" text rounded  @click="openViewModal(slotProps.data)" severity="secondary" />
+                            <Button icon="pi pi-pencil" text rounded  @click="openEditModal(slotProps.data)" severity="info" />
+                            <Button icon="pi pi-trash" text rounded  @click="deletePlan(slotProps.data.id)" severity="danger" />
                         </div>
                     </template>
-                    <Column header="S.No" style="width: 70px">
-                        <template #body="slotProps">
-                            <span class="text-gray-400 font-bold">{{ slotProps.index + 1 }}</span>
-                        </template>
-                    </Column>
-                    <Column field="plan_type" header="Plan" sortable></Column>
-                    <Column field="price_monthly" header="Monthly ($)" sortable></Column>
-                    <Column field="price_yearly" header="Yearly ($)" sortable></Column>
-                    <Column field="max_users" header="Max Users" sortable></Column>
-                    <Column header="Active" style="width: 100px">
-                        <template #body="slotProps">
-                            <span :class="slotProps.data.is_active ? 'text-green-600 font-bold' : 'text-red-500 font-bold'">
-                                {{ slotProps.data.is_active ? 'YES' : 'NO' }}
-                            </span>
-                        </template>
-                    </Column>
-                    <Column header="Actions" class="text-right" style="width: 120px">
-                        <template #body="slotProps">
-                            <div class="flex justify-end gap-2">
-                                <Button icon="pi pi-eye" text rounded  @click="openViewModal(slotProps.data)" severity="secondary" />
-                                <Button icon="pi pi-pencil" text rounded  @click="openEditModal(slotProps.data)" severity="info" />
-                                <Button icon="pi pi-trash" text rounded  @click="deletePlan(slotProps.data.id)" severity="danger" />
-                            </div>
-                        </template>
-                    </Column>
-                </DataTable>
-            </div>
+                </Column>
+            </BaseDataTable>
         </div>
 
         <Dialog v-model:visible="showModal" modal :header="modalMode.toUpperCase() + ' PLAN'" :style="{ width: '600px' }">
