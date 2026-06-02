@@ -147,9 +147,7 @@ class PurchaseOrderInwardController extends Controller
                     $quantityRecord = Quantity::firstOrNew([
                         'plant_id' => $order->plant_id,
                         'product_id' => $item->product_id,
-                        'uom_id' => $item->product_uom,
-                        'date' => $entryDate,
-                        'is_warehouse' => true,
+                        'uom_id' => $item->product_uom
                     ]);
 
                     if (!$quantityRecord->exists) {
@@ -192,9 +190,7 @@ class PurchaseOrderInwardController extends Controller
             $stock = Quantity::query()->where([
                 'plant_id' => $inward->plant_id,
                 'product_id' => $inward->product_id,
-                'uom_id' => $inward->uom_id,
-                'date' => $inward->received_date,
-                'is_warehouse' => true,
+                'uom_id' => $inward->uom_id
             ])->first();
 
             if ($stock) {
@@ -248,9 +244,7 @@ class PurchaseOrderInwardController extends Controller
             $quantityRecord = Quantity::firstOrNew([
                 'plant_id' => $inward->plant_id,
                 'product_id' => $inward->product_id,
-                'uom_id' => $inward->uom_id,
-                'date' => $inward->received_date,
-                'is_warehouse' => true,
+                'uom_id' => $inward->uom_id
             ]);
 
             if (!$quantityRecord->exists) {

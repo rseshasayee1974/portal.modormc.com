@@ -157,13 +157,19 @@ const submitApi = async () => {
                     <div class="flex items-center gap-3">
                         <div class="relative group">
                             <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-teal-400 rounded-xl blur opacity-25 group-hover:opacity-75 transition duration-1000"></div>
-                            <div class="relative flex h-12 w-12 items-center justify-center rounded-xl bg-white text-xl font-black tracking-tighter text-slate-950 shadow-2xl">
+                            <!-- <div class="relative flex h-12 w-12 items-center justify-center rounded-xl bg-white text-xl font-black tracking-tighter text-slate-950 shadow-2xl">
                                 O
-                            </div>
+                            </div> -->
                         </div>
                         <div class="flex flex-col leading-tight">
-                            <span class="text-xl font-black tracking-tighter text-white uppercase italic">onemodo<span class="text-indigo-400">.com</span></span>
-                            <span class="text-[9px] font-bold tracking-[0.3em] text-slate-400 uppercase">Enterprise Ops</span>
+                            <span class="text-xl font-black tracking-tighter text-white uppercase italic">
+                                <img 
+                                    src="/assets/modormc_logo_v1.png" 
+                                    alt="Industrial Logistics" 
+                                    class="h-16 w-full object-cover opacity-100 transition-all duration-1000"
+                                />
+                            </span>
+                            <!-- <span class="text-[9px] font-bold tracking-[0.3em] text-slate-400 uppercase">Enterprise Ops</span> -->
                         </div>
                     </div>
 

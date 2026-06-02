@@ -203,9 +203,7 @@ class StockExhaustController extends Controller
             $record = Quantity::firstOrNew([
                 'plant_id'     => $plantId,
                 'product_id'   => $productId,
-                'uom_id'       => $uomId,
-                'date'         => $date,
-                'is_warehouse' => true,
+                'uom_id'       => $uomId
             ]);
 
             if (!$record->exists) {
