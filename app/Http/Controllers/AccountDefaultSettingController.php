@@ -30,10 +30,10 @@ class AccountDefaultSettingController extends Controller
     {
         $plantId = session('active_plant_id');
         $validated = $request->validate([
-            'settings' => 'required|array',
-            'settings.*.module_id' => 'required|exists:mm_module,id',
-            'settings.*.setting_key' => 'required|string',
-            'settings.*.ledger_id' => 'required|exists:mm_ledgers,id',
+            'settings' => 'nullable|array',
+            'settings.*.module_id' => 'nullable|exists:mm_module,id',
+            'settings.*.setting_key' => 'nullable|string',
+            'settings.*.ledger_id' => 'nullable',
         ]);
 
         DB::transaction(function () use ($plantId, $validated) {
