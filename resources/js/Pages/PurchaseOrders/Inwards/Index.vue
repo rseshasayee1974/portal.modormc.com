@@ -485,6 +485,7 @@ const deleteInward = (inward: any) => {
                                     <div class="flex items-center justify-end gap-1">
                                         <!-- <Button icon="pi pi-print" severity="secondary" variant="text" size="small" rounded class="!text-slate-300 hover:!text-indigo-600 h-8 w-8" /> -->
                                         <Button 
+                                        :disabled="slotProps.data.received_qty > 0"
                                             icon="pi pi-trash" 
                                             severity="danger" 
                                             variant="text" 

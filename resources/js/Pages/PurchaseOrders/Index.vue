@@ -263,8 +263,16 @@ const formatStateLabel = (state) => {
                                     <Button icon="pi pi-file" severity="info" text rounded @click.stop="downloadPdf(slotProps.data.id)" title="Premium PDF" />
                                     <Button icon="pi pi-print" severity="secondary" text rounded @click.stop="downloadPdf(slotProps.data.id, 'printable')" title="Printable Form" />
                                     <!-- <Button icon="pi pi-pencil" :severity="slotProps.data.receipt_status > 0 ? 'secondary' : 'warn'" text rounded @click.stop="toggleEdit(slotProps.data)" :title="slotProps.data.receipt_status > 0 ? 'View Locked PO' : 'Edit Inline'" /> -->
-                                    <Button icon="pi pi-trash" severity="danger" text rounded @click.stop="deleteOrder(slotProps.data)" title="Delete" :disabled="slotProps.data.receipt_status > 0" class="disabled:opacity-30" />
-                                </div>
+<Button 
+    icon="pi pi-trash" 
+    severity="danger" 
+    text 
+    rounded 
+    title="Delete"
+    class="disabled:opacity-30"
+    @click.stop="deleteOrder(slotProps.data)" 
+    :disabled="slotProps.data.receipt_status > 0 || !['draft', 'approved', 'cancel'].includes(slotProps.data.state)" 
+/>                                </div>
                             </template>
                         </Column>
 
