@@ -1,14 +1,8 @@
 <template>
     <Head title="Modo Portal | Select Workspace" />
 
-    <main class="workspace-shell font-outfit text-slate-900 selection:bg-amber-200/60">
-        <div class="workspace-bg">
-            <div class="workspace-orb workspace-orb-left"></div>
-            <div class="workspace-orb workspace-orb-right"></div>
-            <div class="workspace-grid"></div>
-        </div>
-
-        <header class="relative z-10 border-b border-white/60 bg-white/75 backdrop-blur-xl">
+    <main class="min-h-screen bg-[#f0f3f6] font-outfit text-slate-900 selection:bg-amber-200/60 flex flex-col">
+        <header class="relative z-10 border-b border-white/40 bg-[#f0f3f6]/80 backdrop-blur-xl">
             <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-6 lg:px-8">
                 <div class="flex min-w-0 items-center gap-3">
                     <div class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--workspace-ink)] text-white shadow-[0_18px_45px_-22px_rgba(15,23,42,0.75)]">
@@ -46,7 +40,7 @@
         </header>
 
         <section class="relative z-10 mx-auto flex w-full max-w-5xl flex-1 px-5 py-6 sm:px-6 lg:px-8 lg:py-10">
-            <div class="w-full rounded-[32px] border border-white/70 bg-[var(--workspace-card)] shadow-[0_30px_90px_-42px_rgba(15,23,42,0.5)] backdrop-blur-xl">
+            <div class="w-full rounded-[32px] bg-[#f0f3f6] shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6]">
                 <div class="border-b border-slate-200/80 px-6 py-5 sm:px-8">
                     <div class="space-y-3">
                         <div class="flex flex-wrap items-center gap-2">
@@ -88,11 +82,11 @@
                                     v-model="entitySearch"
                                     type="text"
                                     placeholder="Search organization"
-                                    class="w-full rounded-2xl border border-slate-200 bg-white/90 py-3 pl-11 pr-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[var(--workspace-accent)] focus:ring-4 focus:ring-[var(--workspace-accent)]/10"
+                                    class="w-full rounded-2xl border-none bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] py-3 pl-11 pr-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-2 focus:ring-amber-500/20"
                                 />
                             </label>
 
-                            <div class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-3 text-sm text-slate-500 lg:min-w-[220px]">
+                            <div class="flex items-center justify-between gap-3 rounded-2xl border-none bg-[#f0f3f6] shadow-[-4px_-4px_8px_#ffffff,4px_4px_8px_#d1d9e6] px-4 py-3 text-sm text-slate-500 lg:min-w-[220px]">
                                 <span class="font-semibold">Showing {{ filteredEntities.length }} of {{ entityCount }}</span>
                                 <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Organizations</span>
                             </div>
@@ -103,12 +97,12 @@
                                 v-for="eu in filteredEntities"
                                 :key="eu.entity_id"
                                 type="button"
-                                class="group relative block w-full overflow-hidden rounded-[26px] border p-5 text-left transition-all duration-200"
+                                class="group relative block w-full overflow-hidden rounded-[26px] border-none p-5 text-left transition-all duration-300"
                                 :class="[
                                     eu.is_suspended !== 0
-                                        ? 'border-rose-200 bg-rose-50/80'
-                                        : 'border-slate-200 bg-white/90 hover:border-[var(--workspace-accent)]/35 hover:shadow-[0_24px_60px_-40px_rgba(180,83,9,0.9)]',
-                                    selectedEntityId === eu.entity_id ? 'ring-2 ring-[var(--workspace-accent)]/20' : ''
+                                        ? 'bg-rose-50/80 shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6]'
+                                        : 'bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]',
+                                    selectedEntityId === eu.entity_id ? 'ring-2 ring-[var(--workspace-accent)]/20 shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6]' : ''
                                 ]"
                                 @click="selectEntity(eu)"
                             >
@@ -252,11 +246,11 @@
                                     v-model="plantSearch"
                                     type="text"
                                     placeholder="Search facility"
-                                    class="w-full rounded-2xl border border-slate-200 bg-white/90 py-3 pl-11 pr-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[var(--workspace-accent)] focus:ring-4 focus:ring-[var(--workspace-accent)]/10"
+                                    class="w-full rounded-2xl border-none bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] py-3 pl-11 pr-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-2 focus:ring-amber-500/20"
                                 />
                             </label>
 
-                            <div class="flex items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/70 px-4 py-3 text-sm text-slate-500 lg:min-w-[220px]">
+                            <div class="flex items-center justify-between gap-3 rounded-2xl border-none bg-[#f0f3f6] shadow-[-4px_-4px_8px_#ffffff,4px_4px_8px_#d1d9e6] px-4 py-3 text-sm text-slate-500 lg:min-w-[220px]">
                                 <span class="font-semibold">Showing {{ filteredPlants.length }} of {{ plantCount }}</span>
                                 <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Facilities</span>
                             </div>
@@ -267,11 +261,11 @@
                                 v-for="plant in filteredPlants"
                                 :key="plant.id"
                                 type="button"
-                                class="group relative block w-full overflow-hidden rounded-[26px] border p-5 text-left transition-all duration-200"
+                                class="group relative block w-full overflow-hidden rounded-[26px] border-none p-5 text-left transition-all duration-300"
                                 :class="[
                                     plant.is_active === -1
-                                        ? 'border-rose-200 bg-rose-50/80'
-                                        : 'border-slate-200 bg-white/90 hover:border-[var(--workspace-accent)]/35 hover:shadow-[0_24px_60px_-40px_rgba(180,83,9,0.9)]',
+                                        ? 'bg-rose-50/80 shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6]'
+                                        : 'bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]',
                                     defaults.plant_id === plant.id ? 'ring-2 ring-[var(--workspace-accent)]/20' : ''
                                 ]"
                                 @click="selectPlant(plant)"
@@ -723,9 +717,8 @@ const logout = () => {
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
-
 :global(:root) {
-    --workspace-bg: #f6f4ee;
+    --workspace-bg: #f0f3f6;
     --workspace-card: rgba(255, 255, 255, 0.82);
     --workspace-ink: #0f172a;
     --workspace-accent: #c2410c;
@@ -734,56 +727,6 @@ const logout = () => {
 
 .font-outfit {
     font-family: 'Outfit', sans-serif;
-}
-
-.workspace-shell {
-    position: relative;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background:
-        radial-gradient(circle at top left, rgba(194, 65, 12, 0.06), transparent 30%),
-        linear-gradient(180deg, #fbfaf6 0%, var(--workspace-bg) 100%);
-    overflow: hidden;
-}
-
-.workspace-bg {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-}
-
-.workspace-orb {
-    position: absolute;
-    border-radius: 9999px;
-    filter: blur(90px);
-    opacity: 0.55;
-}
-
-.workspace-orb-left {
-    top: -120px;
-    left: -80px;
-    width: 320px;
-    height: 320px;
-    background: rgba(251, 191, 36, 0.2);
-}
-
-.workspace-orb-right {
-    right: -120px;
-    top: 18%;
-    width: 360px;
-    height: 360px;
-    background: rgba(14, 165, 233, 0.12);
-}
-
-.workspace-grid {
-    position: absolute;
-    inset: 0;
-    background-image:
-        linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
-    background-size: 40px 40px;
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.45), transparent 80%);
 }
 
 :global(body) {

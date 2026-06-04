@@ -3,119 +3,136 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\EntityUser;
-use App\Models\UsageSummary;
-use App\Models\User;
-use App\Services\PricingService;
-use App\Services\UsageService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
+use App\Services\DashboardService;
 use OpenApi\Attributes as OA;
 
 class DashboardApiController extends Controller
 {
-    public function __construct(
-        private readonly PricingService $pricingService,
-        private readonly UsageService $usageService
-    )
+    protected $service;
+
+    public function __construct(DashboardService $service)
     {
+        $this->service = $service;
     }
 
-    private function canViewUsageAlert(User $user): bool
+    private function getFilters(Request $request)
     {
-        $roles = $user->getRoleNames()->map(fn ($r) => mb_strtolower((string) $r))->all();
-        return in_array('saas owner', $roles, true) || in_array('platform admin', $roles, true);
+        return $request->only(['from_date', 'to_date', 'plant_id', 'type']);
     }
 
-    #[OA\Post(path: "/dashboard", summary: "Get SaaS usage dashboard", tags: ["SaaS"], security: [["bearerAuth" => []]])]
-    #[OA\RequestBody(required: true, content: new OA\JsonContent(properties: [
-        new OA\Property(property: "entity_id", type: "integer"),
-        new OA\Property(property: "plant_id", type: "integer", nullable: true)
-    ]))]
-    #[OA\Response(response: 200, description: "Dashboard statistics")]
-    public function index(Request $request): JsonResponse
+    #[OA\Get(
+        path: "/dashboard/sales-summary",
+        summary: "Get sales summary (Donut Chart data)",
+        tags: ["Dashboard"],
+        security: [["bearerAuth" => []]]
+    )]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    public function salesSummary(Request $request)
     {
-        if (!Schema::hasColumns('usage_summaries', ['entity_id', 'plant_id'])) {
-            return response()->json([
-                'message' => 'Database migration pending for SaaS entity/plant scope. Please run php artisan migrate.',
-            ], 503);
-        }
+        $data = $this->service->getSalesSummary($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-        $data = $request->validate([
-            'entity_id' => ['required', 'integer', 'exists:mm_entities,id'],
-            'plant_id' => ['nullable', 'integer', 'exists:mm_plants,id'],
-        ]);
+    #[OA\Get(path: "/dashboard/sales-stats", summary: "Get sales statistics (MT, UNIT/CFT, TRIPS)", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    public function salesStats(Request $request)
+    {
+        $data = $this->service->getSalesStats($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-        /** @var User $user */
-        $user = $request->user();
-        $entityId = (int) $data['entity_id'];
-        $plantId = isset($data['plant_id']) ? (int) $data['plant_id'] : null;
-        $access = EntityUser::query()
-            ->where('user_id', $user->id)
-            ->where('entity_id', $entityId)
-            ->when($plantId !== null, fn ($q) => $q->where('plant_id', $plantId))
-            ->exists();
+    #[OA\Get(path: "/dashboard/top-products", summary: "Get top selling products", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    public function topProducts(Request $request)
+    {
+        $data = $this->service->getTopProducts($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-        if (!$access) {
-            return response()->json(['message' => 'Invalid entity/plant access'], 403);
-        }
+    #[OA\Get(path: "/dashboard/top-mix-designs", summary: "Get top 5 mix designs from batches", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    public function topMixDesigns(Request $request)
+    {
+        $data = $this->service->getTopMixDesignsFromBatches($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-        $month = now()->format('Y-m');
+    #[OA\Get(path: "/dashboard/sales-details", summary: "Get detailed sales breakdown (Cash vs Credit)", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
+    public function salesDetails(Request $request)
+    {
+        $data = $this->service->getSalesDetails($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-        $query = UsageSummary::query()
-            ->where('user_id', $user->id)
-            ->where('entity_id', $entityId)
-            ->where('month', $month);
+    #[OA\Get(path: "/dashboard/dispatch-sales-amount", summary: "Get dispatch cash and credit sales amounts", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
+    public function dispatchSalesAmount(Request $request)
+    {
+        $data = $this->service->getDispatchSalesAmounts($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-        if ($plantId === null) {
-            $query->whereNull('plant_id');
-        } else {
-            $query->where('plant_id', $plantId);
-        }
+    #[OA\Get(path: "/dashboard/dispatch-batching-summary", summary: "Get dispatch batching summary", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
+    public function dispatchBatchingSummary(Request $request)
+    {
+        $data = $this->service->getDispatchBatchingSummary($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-        $rows = $query->get();
+    #[OA\Get(path: "/dashboard/dispatch-details", summary: "Get truck wise dispatch details", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
+    public function dispatchDetails(Request $request)
+    {
+        $data = $this->service->getDispatchDetailsByTruck($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-        $totalTokens = (int) $rows->sum('tokens');
-        $totalRequests = (int) $rows->sum('requests');
+    #[OA\Get(path: "/dashboard/stock-details", summary: "Get current stock levels", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
+    public function stockDetails(Request $request)
+    {
+        $data = $this->service->getStockDetails($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-        $moduleBreakdown = $rows->groupBy('module')->map(function ($group, $module) {
-            $tokens = (int) $group->sum('tokens');
-            $requests = (int) $group->sum('requests');
-            $price = $this->pricingService->calculate((string) $module, $tokens);
-            $cost = round($price['token_cost'] + ($price['request_cost'] * $requests), 4);
+    #[OA\Get(path: "/dashboard/trips-details", summary: "Get trip counts by vehicle", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    #[OA\Response(response: 401, description: "Unauthorized")]
+    public function tripsDetails(Request $request)
+    {
+        $data = $this->service->getTripsDetails($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-            return [
-                'module' => $module,
-                'tokens' => $tokens,
-                'requests' => $requests,
-                'cost' => $cost,
-            ];
-        })->values();
+    #[OA\Get(path: "/dashboard/customer-details", summary: "Get recent customer activities", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    public function customerDetails(Request $request)
+    {
+        $data = $this->service->getCustomerDetails($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-        $totalCost = round((float) $moduleBreakdown->sum('cost'), 4);
-        $planState = $this->usageService->checkPlanThreshold($user, $entityId, $plantId, 0);
+    #[OA\Get(path: "/dashboard/alerts", summary: "Get dashboard alerts", tags: ["Dashboard"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    public function alerts(Request $request)
+    {
+        $data = $this->service->getAlerts($this->getFilters($request));
+        return response()->json(['status' => true, 'data' => $data]);
+    }
 
-        $dailyUsage = $rows->groupBy(fn ($item) => $item->date->toDateString())
-            ->map(fn ($dayRows, $date) => [
-                'date' => $date,
-                'tokens' => (int) $dayRows->sum('tokens'),
-                'requests' => (int) $dayRows->sum('requests'),
-            ])
-            ->values();
-
-        return response()->json([
-            'total_tokens' => $totalTokens,
-            'total_cost' => $totalCost,
-            'total_requests' => $totalRequests,
-            'entity_id' => $entityId,
-            'plant_id' => $plantId,
-            'module_breakdown' => $moduleBreakdown,
-            'daily_usage' => $dailyUsage,
-            'plan' => $planState['plan'],
-            'token_limit' => $planState['limit'],
-            'usage_percent' => $planState['usage_percent'],
-            'usage_alert' => $this->canViewUsageAlert($user) ? $planState['alert_80'] : null,
-        ]);
+    #[OA\Get(path: "/master/plants", summary: "Get plant list for filtering", tags: ["Master Data"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Successful operation")]
+    public function plants()
+    {
+        $data = $this->service->getPlants();
+        return response()->json(['status' => true, 'data' => $data]);
     }
 }

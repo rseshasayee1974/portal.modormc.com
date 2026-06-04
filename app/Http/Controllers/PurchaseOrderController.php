@@ -161,12 +161,20 @@ class PurchaseOrderController extends Controller
             'invoice_label' => 'purchase'
         ]);
 
-        $purchase_order->update([
-            'invoice_status' => 1, 
-            'state'          => 'billed',
-            'billed_date'    => $request->input('invoice_date', now()),
-            'journal_status' => 1
-        ]);
+        \Illuminate\Support\Facades\DB::transaction(function () use ($purchase_order, $request) {
+            $purchase_order->update([
+                'invoice_status' => 1, 
+                'state'          => 'billed',
+                'billed_date'    => $request->input('invoice_date', now()),
+                'journal_status' => 1
+            ]);
+
+            foreach ($purchase_order->items as $item) {
+                $item->update([
+                    'invoiced_quantity' => $item->received_quantity
+                ]);
+            }
+        });
 
         return redirect()->back()->with('success', 'Purchase Bill generated successfully and posted to accounting: ' . $invoice->invoice_number);
     }
@@ -176,8 +184,19 @@ class PurchaseOrderController extends Controller
         $this->authorizeModule('edit');
         $this->authorizePlantAccess($purchase_order);
 
+        $hasInward = \App\Models\PurchaseOrderHistory::where('order_id', $purchase_order->id)->exists();
+        if ($hasInward || (int)$purchase_order->receipt_status > 0) {
+            return redirect()->back()->with('error', 'Purchase Bill cannot be voided as items have already been received for this Purchase Order.');
+        }
+
         return \Illuminate\Support\Facades\DB::transaction(function () use ($purchase_order) {
             $bill = $purchase_order->bill;
+
+            foreach ($purchase_order->items as $item) {
+                $item->update([
+                    'invoiced_quantity' => 0
+                ]);
+            }
 
             if ($bill) {
                 // Deleting the bill will trigger the Invoice model's deleted hook

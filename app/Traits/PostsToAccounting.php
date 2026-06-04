@@ -91,6 +91,11 @@ trait PostsToAccounting
                 $baseLedgerId = $this->getAccountingLedgerId($isSales ? 'sales_account' : 'purchase_account', $isSales ? 'Sales' : 'Purchase');
             }
 
+            if (!$baseLedgerId && $subtotal != 0) {
+                $accountType = $isSales ? 'Sales' : 'Purchase';
+                throw new \Exception("Accounting Failure: Missing {$accountType} Ledger. Please map it in Account Default Settings.");
+            }
+
             if ($baseLedgerId && $subtotal != 0) {
                 $lines[] = [
                     'account_id'     => $baseLedgerId,
@@ -150,6 +155,8 @@ trait PostsToAccounting
                         'narration_name' => 'Tax Adjustment',
                         'line_narration' => 'Consolidated Tax for #{$invoiceNo}',
                     ];
+                } else {
+                    throw new \Exception("Accounting Failure: Missing Tax Ledger for adjustment. Please map 'tax_account' in Account Default Settings.");
                 }
             }
 
@@ -224,6 +231,8 @@ trait PostsToAccounting
                     'narration_name' => $config['fallback'],
                     'line_narration' => "{$config['fallback']} for #{$invoiceNo}",
                 ];
+            } else {
+                throw new \Exception("Accounting Failure: Missing posting account for '{$field}'. Please map '{$config['key']}' in Account Default Settings.");
             }
         }
     }

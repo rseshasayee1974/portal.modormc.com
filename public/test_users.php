@@ -1,0 +1,3 @@
+<?php
+// Temporary test file
+?>

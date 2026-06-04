@@ -1020,7 +1020,7 @@ const formatMarkdown = (text) => {
 
                             <!-- Settings Dropdown -->
                             <div class="ms-3 relative">
-                                <Dropdown align="right" width="72">
+                                <Dropdown align="right" width="72" :contentClasses="['bg-[#f0f3f6] rounded-[24px] shadow-[-2px_-2px_3px_#ffffff,2px_2px_3px_#d1d9e6] overflow-hidden p-2']">
                                     <template #trigger>
                                         <button v-if="$page.props.jetstream.managesProfilePhotos" class="flex items-center gap-2 p-1 pr-3 text-sm bg-white/10 hover:bg-white/20 border border-white/10 rounded-full transition-all duration-300 group focus:outline-none">
                                             <div class="relative">
@@ -1049,9 +1049,9 @@ const formatMarkdown = (text) => {
 
                                     <template #content>
                                         <!-- User Branding Header -->
-                                        <div class="px-5 py-5 border-b border-slate-100/60 mb-2">
+                                        <div class="px-5 py-5 border-b border-slate-200/50 mb-2">
                                             <div class="flex items-center gap-3">
-                                                <div class="size-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 font-black text-lg shadow-sm border border-indigo-100">
+                                                <div class="size-10 rounded-xl bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] flex items-center justify-center text-slate-700 font-black text-lg">
                                                     {{ $page.props.auth.user.username.charAt(0).toUpperCase() }}
                                                 </div>
                                                 <div class="flex flex-col min-w-0">
@@ -1062,87 +1062,85 @@ const formatMarkdown = (text) => {
                                         </div>
 
                                         <!-- Primary Actions -->
-                                        <div class="px-2 space-y-1">
-                                            <DropdownLink :href="route('profile.show')" class="group !rounded-xl !py-3 !px-4">
+                                        <div class="px-2 space-y-4 pb-3">
+                                            <Link :href="route('profile.show')" class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
                                                 <div class="flex items-center gap-4"> 
-                                                    <div class="text-slate-500 group-hover:text-indigo-600 transition-colors">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-6">
+                                                    <div class="text-slate-500 group-hover:text-amber-500 transition-colors">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
                                                             <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
                                                         </svg>
                                                     </div>
-                                                    <span class="text-[14px] font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Edit profile</span>
+                                                    <span class="text-[14px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Edit profile</span>
                                                 </div>
-                                            </DropdownLink>
+                                            </Link>
 
-                                            <DropdownLink :href="route('profile.show')" class="group !rounded-xl !py-3 !px-4">
+                                            <Link :href="route('profile.show')" class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
                                                 <div class="flex items-center gap-4"> 
-                                                    <div class="text-slate-500 group-hover:text-indigo-600 transition-colors">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-6">
+                                                    <div class="text-slate-500 group-hover:text-amber-500 transition-colors">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
                                                             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12a7.5 7.5 0 1 1 15 0 7.5 7.5 0 0 1-15 0Z" />
                                                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
                                                         </svg>
                                                     </div>
-                                                    <span class="text-[14px] font-medium text-slate-700 group-hover:text-slate-900 transition-colors">Account settings</span>
+                                                    <span class="text-[14px] font-bold text-slate-700 group-hover:text-slate-900 transition-colors">Account settings</span>
                                                 </div>
-                                            </DropdownLink>
+                                            </Link>
 
                                             <!-- Switch Context Options -->
-                                            <div class="border-t border-slate-50 my-2 mx-4" />
+                                            <div class="border-t border-slate-200/50 my-2 mx-2" />
 
-                                            <DropdownLink :href="route('entity-context.index')" v-if="$page.props.user_role === 'Platform Admin' || $page.props.user_role === 'Saas Owner'" class="group !rounded-xl !py-3 !px-4 bg-indigo-50/30 hover:bg-indigo-50">
+                                            <Link :href="route('entity-context.index')" v-if="$page.props.user_role === 'Platform Admin' || $page.props.user_role === 'Saas Owner'" class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
                                                 <div class="flex items-center justify-between w-full">
                                                     <div class="flex items-center gap-4"> 
-                                                        <div class="text-indigo-600">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-6">
+                                                        <div class="text-slate-500 group-hover:text-amber-500 transition-colors">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
                                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205 3 1m1.5.5-1.5-.5M6.75 7.364V3h-3v18m3-13.636 10.5-3.819" />
                                                             </svg>
                                                         </div>
                                                         <div class="flex flex-col">
-                                                            <span class="text-[14px] font-bold text-indigo-700 leading-tight">Switch Entity</span>
-                                                            <span class="text-[11px] text-indigo-400 font-medium truncate max-w-[120px]">{{ $page.props.active_entity?.entity_name || 'Select Entity' }}</span>
+                                                            <span class="text-[14px] font-bold text-slate-700 leading-tight">Switch Entity</span>
+                                                            <span class="text-[11px] text-slate-400 font-medium truncate max-w-[120px]">{{ $page.props.active_entity?.entity_name || 'Select Entity' }}</span>
                                                         </div>
                                                     </div>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3 text-indigo-300">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3 text-slate-400 group-hover:text-slate-600 transition-colors">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                                                     </svg>
                                                 </div>
-                                            </DropdownLink>
+                                            </Link>
 
-                                            <DropdownLink :href="route('entity-context.index')" v-if="$page.props.plants_count > 1" class="group !rounded-xl !py-3 !px-4 hover:bg-slate-50">
+                                            <Link :href="route('entity-context.index')" v-if="$page.props.plants_count > 1" class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]">
                                                 <div class="flex items-center justify-between w-full">
                                                     <div class="flex items-center gap-4"> 
-                                                        <div class="text-slate-500 group-hover:text-indigo-600 transition-colors">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-6">
+                                                        <div class="text-slate-500 group-hover:text-amber-500 transition-colors">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
                                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6h1.5m-1.5 3h1.5m-1.5 3h1.5M9 16.5h1.5m3 0h1.5" />
                                                             </svg>
                                                         </div>
                                                         <div class="flex flex-col">
-                                                            <span class="text-[14px] font-medium text-slate-700 group-hover:text-slate-900 transition-colors leading-tight">Switch Plant</span>
+                                                            <span class="text-[14px] font-bold text-slate-700 leading-tight">Switch Plant</span>
                                                             <span class="text-[11px] text-slate-400 font-medium truncate max-w-[120px]">{{ $page.props.active_plant?.plant_name || 'Select Plant' }}</span>
                                                         </div>
                                                     </div>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3 text-slate-300">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3 text-slate-400 group-hover:text-slate-600 transition-colors">
                                                         <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
                                                     </svg>
                                                 </div>
-                                            </DropdownLink>
-                                        </div>
+                                            </Link>
 
-                                        <div class="border-t border-slate-100 my-2 mx-4" />
+                                            <div class="border-t border-slate-200/50 my-2 mx-2" />
 
-                                        <!-- Authentication -->
-                                        <div class="">
+                                            <!-- Authentication -->
                                             <form @submit.prevent="logout">
-                                                <DropdownLink as="button" class="group !rounded-xl">
-                                                    <div class="flex items-center gap-4 w-full !p-4">
-                                                        <div class="text-slate-500 group-hover:text-rose-600 transition-colors">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-6">
+                                                <button type="submit" class="group block w-full rounded-2xl bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] p-4 transition-all duration-300 hover:shadow-[inset_-6px_-6px_12px_#ffffff,inset_6px_6px_12px_#cbd5e1] text-left">
+                                                    <div class="flex items-center gap-4 w-full">
+                                                        <div class="text-rose-500 group-hover:text-rose-500 transition-colors">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
                                                                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
                                                             </svg>
                                                         </div>
-                                                        <span class="text-[14px] font-bold text-slate-700 group-hover:text-rose-600 transition-colors">Sign out</span>
+                                                        <span class="text-[14px] font-bold text-rose-700 group-hover:text-rose-600 transition-colors">Sign out</span>
                                                     </div>
-                                                </DropdownLink>
+                                                </button>
                                             </form>
                                         </div>
                                     </template>
@@ -1418,12 +1416,12 @@ const formatMarkdown = (text) => {
 
                 <div class="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
                     <div class="pointer-events-auto w-screen max-w-md md:max-w-xl">
-                        <div class="flex h-full flex-col bg-slate-50/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.18)] border-l border-slate-200/50 dark:border-slate-800/80">
+                        <div class="flex h-full flex-col bg-[#f0f3f6] shadow-sm">
                             <!-- Drawer Header -->
-                            <div class="bg-white/80 dark:bg-slate-900/85 px-6 py-5 border-b border-slate-200/60 dark:border-slate-800/60 flex items-center justify-between shadow-sm backdrop-blur-md">
+                            <div class="bg-[#f0f3f6] px-6 py-5 border-none  flex items-center justify-between z-10">
                                 <div class="flex items-center gap-3">
-                                    <div class="p-2.5 bg-indigo-50 dark:bg-indigo-950/50 rounded-xl border border-indigo-100/50 dark:border-indigo-900/30">
-                                        <CpuChipIcon class="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                                    <div class="p-2.5 bg-[#f0f3f6] rounded-xl shadow-sm">
+                                        <CpuChipIcon class="w-5 h-5 text-slate-600" />
                                     </div>
                                     <div>
                                         <h2 class="text-base font-black text-slate-900 dark:text-white leading-none">{{ activeAgent?.name }} AI</h2>
@@ -1471,21 +1469,21 @@ const formatMarkdown = (text) => {
                             </div>
 
                             <!-- Drawer Body: Chat History -->
-                            <div class="flex-1 overflow-y-auto p-6 space-y-5 bg-gradient-to-b from-slate-50/50 to-slate-100/30 dark:from-slate-900/30 dark:to-slate-950/20">
+                            <div class="flex-1 overflow-y-auto p-6 space-y-5 bg-[#f0f3f6]">
                                 <div v-for="(msg, idx) in chatMessages" :key="idx" class="flex flex-col" :class="[msg.role === 'user' ? 'items-end' : 'items-start']">
-                                    <div class="max-w-[85%] rounded-2xl px-4 py-3.5 text-sm shadow-md leading-relaxed transition-all duration-300 hover:shadow-lg"
+                                    <div class="max-w-[85%] rounded-2xl px-4 py-3.5 text-sm leading-relaxed transition-all duration-300"
                                          :class="[
                                              msg.role === 'user' 
-                                                 ? 'bg-gradient-to-br from-indigo-600 via-indigo-650 to-purple-650 text-white rounded-br-none shadow-indigo-200/50 dark:shadow-none' 
+                                                 ? 'bg-indigo-200 text-white rounded-br-none shadow-md' 
                                                  : msg.role === 'error'
-                                                 ? 'bg-red-50 dark:bg-red-950/30 text-red-750 dark:text-red-300 border border-red-200/60 dark:border-red-900/40 rounded-bl-none'
-                                                 : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200/60 dark:border-slate-700/50 rounded-bl-none shadow-slate-100/50'
+                                                 ? 'bg-rose-50 text-rose-700 rounded-bl-none border border-rose-100 shadow-sm'
+                                                 : 'bg-white text-slate-800 border border-slate-100 rounded-bl-none shadow-md'
                                          ]"
                                     >
                                         <div v-if="msg.role === 'agent' && msg.text.startsWith('```json')" class="font-mono text-xs">
                                             <pre class="overflow-x-auto whitespace-pre bg-slate-900 dark:bg-slate-950 text-emerald-455 p-3.5 rounded-xl border border-slate-800 shadow-inner font-semibold leading-relaxed">{{ msg.text.replace(/```json\n|```/g, '') }}</pre>
                                         </div>
-                                        <div v-else class="whitespace-pre-wrap text-slate-800 dark:text-slate-150" v-html="formatMarkdown(msg.text)"></div>
+                                        <div v-else class="whitespace-pre-wrap text-slate-700 dark:text-slate-150" v-html="formatMarkdown(msg.text)"></div>
                                     </div>
                                     <div class="flex items-center gap-1.5 mt-1.5 px-1.5">
                                         <span class="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
@@ -1522,7 +1520,7 @@ const formatMarkdown = (text) => {
                             </div>
 
                             <!-- Drawer Footer: Chat Input -->
-                            <div class="bg-white dark:bg-slate-900 border-t border-slate-200/60 dark:border-slate-800/60 px-6 py-4 shadow-inner">
+                            <div class="bg-[#f0f3f6] px-6 py-4 shadow-[0_-4px_8px_-2px_#d1d9e6,0_4px_8px_-2px_#ffffff] z-10">
                                 <!-- Predefined Questions Categories -->
                                 <div class="flex gap-1.5 mb-3 overflow-x-auto pb-1.5 border-b border-slate-100 dark:border-slate-850 scrollbar-none">
                                     <button 
@@ -1530,11 +1528,11 @@ const formatMarkdown = (text) => {
                                         :key="cat.id"
                                         type="button"
                                         @click="selectedCategory = cat.id"
-                                        class="text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full transition-all cursor-pointer whitespace-nowrap border"
+                                        class="text-[9px] font-black uppercase tracking-wider px-3 py-1.5 rounded-full transition-all cursor-pointer whitespace-nowrap border-none"
                                         :class="[
                                             selectedCategory === cat.id 
-                                                ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-250 dark:border-indigo-900 shadow-sm font-black' 
-                                                : 'text-slate-450 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/60'
+                                                ? 'bg-[#f0f3f6] text-slate-800 shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] font-black' 
+                                                : 'text-slate-500 hover:text-slate-700 bg-[#f0f3f6] shadow-[-2px_-2px_4px_#ffffff,2px_2px_4px_#d1d9e6]'
                                         ]"
                                     >
                                         {{ cat.label }}
@@ -1549,7 +1547,7 @@ const formatMarkdown = (text) => {
                                         type="button"
                                         @click="runPredefinedQuestion(q)"
                                         :disabled="isSubmitting"
-                                        class="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 bg-indigo-50/40 dark:bg-indigo-950/15 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 border border-indigo-100/50 dark:border-indigo-900/20 rounded-full px-3 py-1 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+                                        class="text-[10px] font-bold text-slate-600 bg-[#f0f3f6] shadow-[-4px_-4px_8px_#ffffff,4px_4px_8px_#d1d9e6] hover:-translate-y-0.5 hover:shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] rounded-full px-3 py-1.5 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none active:shadow-[inset_-2px_-2px_4px_#ffffff,inset_2px_2px_4px_#d1d9e6] active:translate-y-0"
                                     >
                                         {{ q }}
                                     </button>
@@ -1572,7 +1570,7 @@ const formatMarkdown = (text) => {
                                             v-model="currentPrompt"
                                             :placeholder="preferredLanguage === 'ta' ? 'உங்கள் கேள்வியை தட்டச்சு செய்யுங்கள்...' : 'Type a message...'"
                                             fieldClass="flex-1"
-                                            inputClass="!py-3 !rounded-xl !pr-10  dark:bg-slate-800 dark:border-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500/25"
+                                            inputClass="!py-3 !rounded-xl !pr-10 !bg-[#f0f3f6] !border-none !shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] text-slate-700 focus:ring-2 focus:ring-amber-500/20"
                                             @keydown.enter="sendChatPrompt"
                                             :disabled="isSubmitting"
                                         />
@@ -1584,10 +1582,10 @@ const formatMarkdown = (text) => {
                                         @click="toggleSpeechRecognition"
                                         :disabled="isSubmitting"
                                         :title="isListening ? (preferredLanguage === 'ta' ? 'நிறுத்து' : 'Stop listening') : (preferredLanguage === 'ta' ? 'குரல் உள்ளீடு' : 'Voice input')"
-                                        class="relative flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl border transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 !bg-indigo-650"
+                                        class="relative flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl border-none transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                         :class="isListening
-                                            ? 'bg-red-500 border-red-400 shadow-lg shadow-red-200 text-white'
-                                            : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:border-indigo-200 dark:hover:border-indigo-900'"
+                                            ? 'bg-rose-500 shadow-[inset_-4px_-4px_8px_rgba(255,255,255,0.2),inset_4px_4px_8px_rgba(0,0,0,0.1)] text-white'
+                                            : 'bg-[#f0f3f6] text-slate-500 hover:text-slate-700 shadow-[-4px_-4px_8px_#ffffff,4px_4px_8px_#d1d9e6] hover:-translate-y-0.5 hover:shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] active:shadow-[inset_-2px_-2px_4px_#ffffff,inset_2px_2px_4px_#d1d9e6] active:translate-y-0'"
                                     >
                                         <!-- Pulsating ring when listening -->
                                         <span v-if="isListening" class="absolute inset-0 rounded-xl bg-red-400 animate-ping opacity-30"></span>
@@ -1603,7 +1601,7 @@ const formatMarkdown = (text) => {
                                         type="button"
                                         @click="sendChatPrompt"
                                         :disabled="isSubmitting"
-                                        class="relative flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-indigo-700 hover:bg-indigo-700 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 shadow-md shadow-indigo-250/30 dark:shadow-none border-0"
+                                        class="relative flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-indigo-500 text-white shadow-[-4px_-4px_8px_#ffffff,4px_4px_8px_#d1d9e6] hover:-translate-y-0.5 hover:shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] active:shadow-[inset_-2px_-2px_4px_rgba(255,255,255,0.3),inset_2px_2px_4px_rgba(0,0,0,0.2)] active:translate-y-0 transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none"
                                         title="Send message"
                                     >
                                         <ArrowPathIcon v-if="isSubmitting" class="w-5 h-5 animate-spin" />

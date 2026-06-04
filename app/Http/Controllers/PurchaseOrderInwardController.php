@@ -175,6 +175,21 @@ class PurchaseOrderInwardController extends Controller
     {
         $this->authorizeModule('delete');
 
+        $order = $inward->order;
+        if ($order && strtolower($order->state) === 'billed') {
+            return redirect()->back()->with('error', 'Inward record cannot be deleted because the Purchase Order has already been billed.');
+        }
+
+        $stock = Quantity::query()->where([
+            'plant_id' => $inward->plant_id,
+            'product_id' => $inward->product_id,
+            'uom_id' => $inward->uom_id
+        ])->first();
+
+        if (!$stock || (float)$stock->quantity < (float)$inward->received_qty) {
+            return redirect()->back()->with('error', 'Inward record cannot be deleted because the stock has already been consumed.');
+        }
+
         DB::transaction(function () use ($inward) {
             $userId = Auth::id();
             $item = $inward->item;

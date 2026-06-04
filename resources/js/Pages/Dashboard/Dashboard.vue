@@ -425,9 +425,9 @@ function toneClasses(tone) {
 
 <template>
     <AppLayout title="ERP Live Dashboard">
-        <div class="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(245,158,11,0.12),_transparent_30%),linear-gradient(180deg,#fffdf8_0%,#f8fafc_45%,#f8fafc_100%)] pb-12">
+        <div class="min-h-screen bg-[#f0f3f6] pb-12">
             <div class="mx-auto max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8">
-                <section class="rounded-[32px] border border-white/80 bg-white/80 p-6 shadow-[0_30px_80px_-40px_rgba(15,23,42,0.4)] backdrop-blur-xl sm:p-8">
+                <section class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] sm:p-8">
                     <div class="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                         <div class="space-y-4">
                             <div class="flex flex-wrap items-center gap-2">
@@ -464,7 +464,7 @@ function toneClasses(tone) {
                             </div>
                         </div>
 
-                        <div class="grid gap-3 rounded-[28px] border border-slate-200 bg-white/90 p-4 sm:grid-cols-2 xl:min-w-[520px]">
+                        <div class="grid gap-3 rounded-[28px] bg-[#f0f3f6] p-4 shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] sm:grid-cols-2 xl:min-w-[520px]">
                             <BaseDatePicker v-model="filterForm.start_date" label="From" />
                             <BaseDatePicker v-model="filterForm.end_date" label="To" />
                             <BaseSelect
@@ -480,7 +480,7 @@ function toneClasses(tone) {
                             />
                             <button
                                 type="button"
-                                class="sm:col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+                                class="sm:col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#f0f3f6] shadow-[-4px_-4px_8px_#ffffff,4px_4px_8px_#d1d9e6] active:shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] px-4 py-3 text-sm font-bold text-slate-700 transition"
                                 @click="fetchDashboardData()"
                             >
                                 <ArrowPathIcon class="size-4" :class="loading ? 'animate-spin' : ''" />
@@ -501,7 +501,7 @@ function toneClasses(tone) {
                     <article
                         v-for="card in summaryCards"
                         :key="card.key"
-                        class="rounded-[28px] border border-white/80 bg-white/85 p-5 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)] backdrop-blur-xl"
+                        class="rounded-[28px] bg-[#f0f3f6] p-5 shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]"
                     >
                         <div class="flex items-start justify-between gap-4">
                             <div>
@@ -522,7 +522,7 @@ function toneClasses(tone) {
                     <article
                         v-for="card in moduleCards"
                         :key="card.key"
-                        class="rounded-[26px] border border-white/80 bg-white/85 p-5 shadow-[0_22px_50px_-42px_rgba(15,23,42,0.4)]"
+                        class="rounded-[26px] bg-[#f0f3f6] p-5 shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]"
                     >
                         <div class="flex items-center justify-between gap-4">
                             <div>
@@ -536,7 +536,7 @@ function toneClasses(tone) {
                 </section>
 
                 <section class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.9fr),minmax(360px,1fr)]">
-                    <article class="rounded-[32px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+                    <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Finance Pulse</p>
@@ -558,7 +558,7 @@ function toneClasses(tone) {
                     </article>
 
                     <div class="space-y-6">
-                        <article class="rounded-[32px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+                        <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
                             <div class="flex items-center justify-between gap-3">
                                 <div>
                                     <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Dispatch Status</p>
@@ -577,7 +577,7 @@ function toneClasses(tone) {
                             </div>
                         </article>
 
-                        <article class="rounded-[32px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+                        <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
                             <div class="flex items-center justify-between gap-3">
                                 <div>
                                     <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Accounting Pulse</p>
@@ -605,19 +605,19 @@ function toneClasses(tone) {
                 </section>
 
                 <section class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.4fr),minmax(0,1fr)]">
-                    <article class="rounded-[32px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+                    <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
                         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Operations Feed</p>
                                 <h3 class="mt-2 text-2xl font-black tracking-tight text-slate-950">Live flow across dispatch, production, and purchase</h3>
                             </div>
-                            <div class="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                            <div class="inline-flex rounded-2xl bg-[#f0f3f6] p-1 shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6]">
                                 <button
                                     v-for="tab in feedTabs"
                                     :key="tab.key"
                                     type="button"
                                     class="rounded-2xl px-3 py-2 text-xs font-bold uppercase tracking-[0.18em] transition"
-                                    :class="activeFeed === tab.key ? 'bg-slate-950 text-white shadow-sm' : 'text-slate-500 hover:text-slate-900'"
+                                    :class="activeFeed === tab.key ? 'shadow-[-4px_-4px_8px_#ffffff,4px_4px_8px_#d1d9e6] text-slate-800' : 'text-slate-500 hover:text-slate-700'"
                                     @click="activeFeed = tab.key"
                                 >
                                     {{ tab.label }}
@@ -625,7 +625,7 @@ function toneClasses(tone) {
                             </div>
                         </div>
 
-                        <div class="mt-6 overflow-hidden rounded-[24px] border border-slate-200">
+                        <div class="mt-6 overflow-hidden rounded-[24px] bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6]">
                             <div class="grid grid-cols-[1.2fr,1fr,0.8fr,0.8fr] bg-slate-50 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
                                 <span>{{ activeFeed === 'dispatches' ? 'Ticket' : activeFeed === 'work_orders' ? 'Order' : 'PO' }}</span>
                                 <span>{{ activeFeed === 'purchase_orders' ? 'Vendor' : 'Customer' }}</span>
@@ -668,7 +668,7 @@ function toneClasses(tone) {
                     </article>
 
                     <div class="space-y-6">
-                        <article class="rounded-[32px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+                        <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
                             <div class="flex items-center justify-between gap-3">
                                 <div>
                                     <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Customer Leaderboard</p>
@@ -687,7 +687,7 @@ function toneClasses(tone) {
                             </div>
                         </article>
 
-                        <article class="rounded-[32px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+                        <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
                             <div class="flex items-center justify-between gap-3">
                                 <div>
                                     <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Stock Pressure</p>
@@ -732,7 +732,7 @@ function toneClasses(tone) {
                 </section>
 
                 <section class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.3fr),minmax(0,0.7fr)]">
-                    <article class="rounded-[32px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+                    <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
                         <div class="flex items-center justify-between gap-3">
                             <div>
                                 <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Accounting Stream</p>
@@ -769,7 +769,7 @@ function toneClasses(tone) {
                         </div>
                     </article>
 
-                    <article class="rounded-[32px] border border-white/80 bg-white/85 p-6 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.4)]">
+                    <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
                         <div class="flex items-center justify-between gap-3">
                             <div>
                                 <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Alerts</p>
