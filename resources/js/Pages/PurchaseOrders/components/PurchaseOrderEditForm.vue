@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed,watch } from 'vue';
+import { ref, computed } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { 
     TrashIcon,
@@ -123,21 +123,10 @@ const handleDeleteBill = () => {
 };
 
 
-// watch(
-//     () => props.form.items,
-//     (items) => {
-//         console.log('Items:', items);
-//         console.table(
-//             items
-//         );
-//     },
-//     { deep: true, immediate: true }
-// );
-// console.log('Form:', props.form.items);
 </script>
 
 <template>
-    <div class="mt-4" >
+    <div class="p-4 lg:p-4" >
         <!-- Header -->
         
 
@@ -199,7 +188,7 @@ const handleDeleteBill = () => {
                             </div>
                             <div>
                                 <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Created By</span>
-                                <span class="text-slate-700 font-bold mt-1 block text-sm">
+                                <span class="text-slate-700 font-bold mt-1 block text-sm capitalize">
                                     {{ props.purchaseOrder.bill.created_by?.username ?? props.purchaseOrder.bill.created_by_user ?? 'System' }}
                                 </span>
                             </div>
@@ -277,110 +266,54 @@ const handleDeleteBill = () => {
                     </div>
 
                     <!-- Items Table -->
-                    <div class="mt-6">
-    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full border-collapse">
-                <thead
-                    class="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-wider text-slate-500"
-                >
-                    <tr>
-                        <th class="px-3 py-3 text-left">
-                            Product Description
-                        </th>
-
-                        <th class="px-3 py-3 text-center">
-                            Qty
-                        </th>
-
-                        <th class="px-1 py-1 text-center">
-                            Received <br />Qty
-                        </th>
-
-                        <th class="px-3 py-3 text-center">
-                            UOM
-                        </th>
-
-                        <th class="px-3 py-3 text-center">
-                            Rate
-                        </th>
-
-                        <th class="px-3 py-3 text-center">
-                            Tax
-                        </th>
-
-                        <th class="px-3 py-3 text-center">
-                            Discount
-                        </th>
-
-                        <th class="px-3 py-3 text-right">
-                            Net Amount
-                        </th>
-
-                        <th class="w-14"></th>
-                    </tr>
-                </thead>
-
-                <tbody class="divide-y divide-slate-100">
-                    <template
-                        v-for="(item, index) in form.items"
-                        :key="index"
-                    >
-                        <tr
-                            class="transition-all duration-200 hover:bg-slate-50"
-                            :class="{
-                                'bg-amber-50 border-l-4 border-amber-400':
-                                    expandedIndex === index
-                            }"
-                        >
-                            <!-- Product -->
-                            <td class="px-3 py-2">
-                                <BaseSelect
-                                    v-model="item.product_id"
-                                    :options="products"
-                                    optionLabel="title"
-                                    optionValue="id"
-                                    placeholder="Select Product"
-                                    filter
-                                    class="w-full"
-                                    @update:modelValue="onProductChange(Number(index))"
-                                    :disabled="isReceived"
-                                />
-
-                                <div
-                                    v-if="item.history?.length > 0"
-                                    class="mt-2 flex items-center gap-2"
-                                >
-                                    <span
-                                        class="rounded-md bg-blue-50 px-2 py-1 text-[10px] font-medium text-blue-700"
-                                    >
-                                        Latest GRN:
-                                        {{
-                                            item.history[
-                                                item.history.length - 1
-                                            ].inward_no
-                                        }}
-                                    </span>
-                                </div>
-                            </td>
-
-                            <!-- Qty -->
-                            <td class="px-3 py-2">
-                                <BaseInputNumber
-                                    v-model="item.product_quantity"
-                                    :minFractionDigits="2"
-                                    class="w-full"
-                                    @update:modelValue="
-                                        calculateItemTotals(Number(index))
-                                    "
-                                    :disabled="isReceived"
-                                />
-                            </td>
-
-                            <!-- Received Qty -->
-                            <td class="px-1 py-1 text-center">
-                                <span
-                                    class="inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 font-mono text-sm font-semibold text-emerald-700"
+                    <div class="mt-8">
+                        <!-- <div class="flex items-center justify-between mb-3 px-1">
+                            <h3 class="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">Procurement Lines</h3>
+                            <BaseButton label="Add New Line" icon="pi pi-plus" variant="text" size="small" @click="addItem" class="!text-[10px] !font-semibold !text-amber-600" />
+                        </div> -->
+                        
+                        <div class="overflow-x-auto      overflow-hidden">
+                            <table class=" text-left border-collapse w-full">
+                                <thead class="bg-slate-50/80 border-y border-slate-100 uppercase tracking-[0.15em] text-[9.5px] font-semibold text-slate-400">
+                                    <tr>
+                                        <!-- <th class="px-2 py-3 text-center" style="width: 40px;">RCV</th> -->
+                                        <th class="px-2 py-3" style="width: 250px;">Product description</th>
+                                        <th class="px-2 py-3 text-center" style="width: 150px;">Qty</th>
+                                        <th class="px-1 py-2 text-center">Recieved <br/>Qty</th>
+                                        <th class="px-2 py-3 text-center" style="width: 100px;">UOM</th>
+                                        <th class="px-2 py-3 text-center" style="width: 170px;">Rate</th>
+                                        <th class="px-2 py-3 text-center" style="width: 130px;">Tax</th>
+                                        <th class="px-2 py-3 text-center" style="width: 150px;">Discount</th>
+                                        <th class="px-2 py-3 text-right">Net Amount</th>
+                                        <th class="px-2 py-3" style="width: 50px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-50">
+                                    <template v-for="(item, index) in form.items" :key="index">
+                                        <tr class="hover:bg-slate-50/50 transition-colors text-[13px]" :class="{'bg-amber-50/20 border-l-4 border-amber-400': expandedIndex === index}">
+                                            <!-- <td class=" text-center text-slate-300">
+                                                <ArchiveBoxIcon class="w-4 h-4 mx-auto" title="Inward History" />
+                                            </td> -->
+                                            <td class="">
+                                                <BaseSelect
+                                                    v-model="item.product_id"
+                                                    :options="products"
+                                                    optionLabel="title" optionValue="id"
+                                                    placeholder="Product" filter
+                                                    class="w-full"
+                                                    @update:modelValue="onProductChange(Number(index))"
+                                                    :disabled="isReceived"
+                                                />
+                                                <div v-if="item.history?.length > 0" class="mt-1 flex gap-1 px-1">
+                                                     <span class="text-[8px] font-semibold text-slate-400 uppercase">Latest GRN: {{ item.history[item.history.length-1].inward_no }}</span>
+                                                </div>
+                                            </td>
+                                            <td class="">
+                                                <BaseInputNumber v-model="item.product_quantity" :minFractionDigits="2" class="w-full p-inputtext-sm" @update:modelValue="calculateItemTotals(Number(index))" :disabled="isReceived" />
+                                            </td>
+                                            <td class="text-center">
+                                                 <span
+                                    class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 font-mono text-sm font-semibold text-emerald-700"
                                 >
                                     {{
                                         (
@@ -391,118 +324,51 @@ const handleDeleteBill = () => {
                                     }}
                                 </span>
                             </td>
-
-                            <!-- UOM -->
-                            <td class="px-3 py-2">
-                                <BaseSelect
-                                    v-model="item.product_uom"
-                                    :options="unitOptions"
-                                    optionLabel="label"
-                                    optionValue="value"
-                                    placeholder="UOM"
-                                    filter
-                                    class="w-full"
-                                    :disabled="isReceived"
-                                />
-                            </td>
-
-                            <!-- Rate -->
-                            <td class="px-3 py-2">
-                                <BaseInputNumber
-                                    v-model="item.unit_price"
-                                    :minFractionDigits="2"
-                                    class="w-full"
-                                    @update:modelValue="
-                                        calculateItemTotals(Number(index))
-                                    "
-                                    :disabled="isReceived"
-                                />
-                            </td>
-
-                            <!-- Tax -->
-                            <td class="px-3 py-2">
-                                <BaseSelect
-                                    v-model="item.tax_id"
-                                    :options="taxOptions"
-                                    optionLabel="label"
-                                    optionValue="value"
-                                    placeholder="Tax"
-                                    class="w-full"
-                                    @update:modelValue="
-                                        calculateItemTotals(Number(index))
-                                    "
-                                    :disabled="isReceived"
-                                />
-                            </td>
-
-                            <!-- Discount -->
-                            <td class="px-3 py-2">
-                                <div class="flex items-center gap-2">
-                                    <BaseSelect
-                                        v-model="item.discount_type"
-                                        :options="discountTypeOptions"
-                                        optionLabel="label"
-                                        optionValue="value"
-                                        class="w-20 shrink-0"
-                                        @update:modelValue="
-                                            calculateItemTotals(Number(index))
-                                        "
-                                        :disabled="isReceived"
-                                    />
-
-                                    <BaseInputNumber
-                                        v-model="item.discount_amount"
-                                        class="flex-1"
-                                        @update:modelValue="
-                                            calculateItemTotals(Number(index))
-                                        "
-                                        :disabled="isReceived"
-                                    />
-                                </div>
-                            </td>
-
-                            <!-- Net Amount -->
-                            <td class="px-3 py-2 text-right">
-                                <div
-                                    class="inline-flex min-w-[130px] items-center justify-end rounded-lg bg-slate-100 px-3 py-2 font-mono text-sm font-bold text-slate-800"
-                                >
-                                    {{
-                                        (
-                                            Number(item.price_total) || 0
-                                        ).toLocaleString("en-IN", {
-                                            minimumFractionDigits: 2
-                                        })
-                                    }}
-                                </div>
-                            </td>
-
-                            <!-- Delete -->
-                            <td class="px-3 py-2 text-center">
-                                <button
-                                    v-if="!isReceived"
-                                    type="button"
-                                    @click="removeItem(Number(index))"
-                                    class="rounded-lg p-2 text-red-500 transition hover:bg-red-50 hover:text-red-600"
-                                >
-                                    <TrashIcon class="h-4 w-4" />
-                                </button>
-                            </td>
-                        </tr>
-                    </template>
-
-                    <tr v-if="!form.items?.length">
-                        <td
-                            colspan="9"
-                            class="py-10 text-center text-sm text-slate-400"
-                        >
-                            No items added.
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
+                            <td>
+                                                <BaseSelect
+                                                    v-model="item.product_uom"
+                                                    :options="unitOptions"
+                                                    optionLabel="label" optionValue="value"
+                                                    placeholder="UOM" filter
+                                                    class="w-full"
+                                                    :disabled="isReceived"
+                                                />
+                                            </td>
+                                            <td class="">
+                                                <BaseInputNumber v-model="item.unit_price" :minFractionDigits="2" class="w-full font-semibold text-slate-700" @update:modelValue="calculateItemTotals(Number(index))" :disabled="isReceived" />
+                                            </td>
+                                            <td class="">
+                                                <BaseSelect
+                                                    v-model="item.tax_id"
+                                                    :options="taxOptions"
+                                                    optionLabel="label" optionValue="value"
+                                                    placeholder="Tax" 
+                                                    class="w-full"
+                                                    @update:modelValue="calculateItemTotals(Number(index))"
+                                                    :disabled="isReceived"
+                                                />
+                                            </td>
+                                            <td class="">
+                                                <div class="flex ">
+                                                    <BaseSelect v-model="item.discount_type" :options="discountTypeOptions" optionLabel="label" optionValue="value" class="w-16 " @update:modelValue="calculateItemTotals(Number(index))" :disabled="isReceived" />
+                                                    <BaseInputNumber v-model="item.discount_amount" class="flex-grow   shadow-none" @update:modelValue="calculateItemTotals(Number(index))" :disabled="isReceived" />
+                                                </div>
+                                            </td>
+                                             <td class=" text-right font-mono w-28 font-semibold text-slate-800">
+                                                {{ (Number(item.price_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                            </td>
+                                            <td class=" text-center" v-if="!isReceived">
+                                                <button type="button" @click="removeItem(Number(index))" class="text-red-500 text-lg hover:text-rose-500 transition-colors">
+                                                    <TrashIcon class="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                            <td v-else></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
                     <!-- Financials Footer -->
                     <div class="expansion-actions flex justify-between !items-start gap-y-6">
@@ -619,15 +485,4 @@ const handleDeleteBill = () => {
     </Dialog>
 </template>
 
-<style scoped>
-:deep(.p-inputtext),
-:deep(.p-dropdown),
-:deep(.p-inputnumber-input),
-:deep(.p-multiselect) {
-    min-height: 40px;
-}
 
-:deep(.p-dropdown) {
-    width: 100%;
-}
-</style>
