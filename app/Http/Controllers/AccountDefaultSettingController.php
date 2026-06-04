@@ -44,7 +44,7 @@ class AccountDefaultSettingController extends Controller
                         'plant_id' => $plantId,
                         'module_id' => $item['module_id'],
                         'setting_key' => $item['setting_key'],
-                    ],
+                    ], 
                     [
                         'module_name' => $module->module_name,
                         'ledger_id' => $item['ledger_id'],
