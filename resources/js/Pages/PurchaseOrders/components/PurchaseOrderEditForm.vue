@@ -29,6 +29,7 @@ import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 
 const props = defineProps<{
     form: any;
+    purchaseOrder?: any;
     vendors: any[];
     currencies: any[];
     taxes: any[];
@@ -151,6 +152,20 @@ const handleDeleteBill = () => {
                                 <i class="pi pi-check-circle"></i>
                                 <span>Bill Generated</span>
                             </div>
+                            <a 
+                                v-if="props.purchaseOrder?.bill?.encrypted_id"
+                                :href="route('print.document', { module: 'purchase_bills', id: props.purchaseOrder.bill.encrypted_id, action: 'view' })" 
+                                target="_blank"
+                                class="inline-block"
+                            >
+                                <BaseButton 
+                                    label="Print Bill" 
+                                    icon="pi pi-print" 
+                                    severity="success" 
+                                    size="small" 
+                                    class="!text-[10px] !font-bold uppercase tracking-widest mr-2"
+                                />
+                            </a>
                             <BaseButton 
                                 label="Void Bill" 
                                 icon="pi pi-trash" 
@@ -160,6 +175,30 @@ const handleDeleteBill = () => {
                                 class="!text-[10px] !font-bold uppercase tracking-widest"
                                 @click="handleDeleteBill" 
                             />
+                        </div>
+                    </div>
+
+                    <!-- Bill Information Panel -->
+                    <div v-if="props.purchaseOrder?.bill" class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs shadow-sm">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-grow">
+                            <div>
+                                <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bill Date & Time</span>
+                                <span class="text-slate-700 font-bold mt-1 block text-sm">
+                                    {{ new Date(props.purchaseOrder.bill.created_at).toLocaleString() }}
+                                </span>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Created By</span>
+                                <span class="text-slate-700 font-bold mt-1 block text-sm">
+                                    {{ props.purchaseOrder.bill.created_by?.username ?? props.purchaseOrder.bill.created_by_user ?? 'System' }}
+                                </span>
+                            </div>
+                            <div>
+                                <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Posting Account (Ledger)</span>
+                                <span class="text-emerald-600 font-black mt-1 block text-sm uppercase">
+                                    {{ props.purchaseOrder.bill.account?.title ?? 'Not Selected' }}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     <!-- General Info Grid -->

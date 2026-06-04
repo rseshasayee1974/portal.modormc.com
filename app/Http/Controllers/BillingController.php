@@ -174,10 +174,10 @@ class BillingController extends Controller
             // Explicitly reverse PO statuses before deletion
             if ($invoice->ref_id) {
                 \App\Models\PurchaseOrder::whereIn('id', explode(",", $invoice->ref_id))->update([
-                    'billing_id'     => null,
-                    'billing_status' => 'Pending',
+                    // 'billing_id'     => null,
+                    'state' => 'approved',
                     'invoice_status' => 0, 
-                    'journal_status' => '0',
+                    'journal_status' => 0,
                     'billed_date'    => null,
                 ]);
             }

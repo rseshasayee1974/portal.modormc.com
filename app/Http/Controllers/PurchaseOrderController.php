@@ -26,7 +26,7 @@ class PurchaseOrderController extends Controller
 
         $purchaseOrders = PurchaseOrder::query()
             ->where('plant_id', $allowedPlantIds)
-            ->with(['plant', 'vendor', 'currency', 'creator', 'items.product', 'items.uom', 'items.tax'])
+            ->with(['vendor', 'currency'])
             ->latest()
             ->get();
 
@@ -84,16 +84,33 @@ class PurchaseOrderController extends Controller
             ->with('success', 'Purchase Order created successfully.');
     }
 
-    public function edit(PurchaseOrder $purchaseOrder)
+    public function show(PurchaseOrder $purchaseorder)
+    {
+        $this->authorizeModule('view');
+        $this->authorizePlantAccess($purchaseorder);
+
+        $purchaseorder->load([
+            'items.product', 
+            'items.uom', 
+            'items.tax', 
+            'items.history', 
+            'bill.createdBy', 
+            'bill.account:id,title'
+        ]);
+
+        return response()->json($purchaseorder);
+    }
+ 
+    public function edit(PurchaseOrder $purchaseorder)
     {
         $this->authorizeModule('edit');
 
-        $this->authorizePlantAccess($purchaseOrder);
-        $purchaseOrder->load(['items.product', 'items.uom', 'items.tax', 'items.history']);
+        $this->authorizePlantAccess($purchaseorder);
+        $purchaseorder->load(['items.product', 'items.uom', 'items.tax', 'items.history', 'bill.createdBy', 'bill.account']);
  
 
         return Inertia::render('PurchaseOrders/Edit', [
-            'purchaseOrder' => $purchaseOrder,
+            'purchaseOrder' => $purchaseorder,
             'vendors'       => VendorsDropdown(['Vendor']),
             'vehicles'      => VehiclesDropdown(),
             'currencies'    => CurrenciesDropdown(),
@@ -101,7 +118,7 @@ class PurchaseOrderController extends Controller
             'products'      => ProductsDropdown('purchase'),
             'productUnits'  => Productunit('purchase'),
             'accounts'      => toSelectOptions(LedgersDropdown('EXPENSE'), 'title'),
-            'ref_no'        => Financialyear::generatePurchaseOrderRefNo($purchaseOrder->plant_id, $purchaseOrder->date_order?->toDateString()),
+            'ref_no'        => Financialyear::generatePurchaseOrderRefNo($purchaseorder->plant_id, $purchaseorder->date_order?->toDateString()),
             'instant_vendor' => CustomSetting::getForModule(session('active_plant_id'), 'purchase')['instant_vendor'] ?? 0,
         ]);
     }
@@ -161,9 +178,10 @@ class PurchaseOrderController extends Controller
             'invoice_label' => 'purchase'
         ]);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($purchase_order, $request) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($purchase_order, $request, $invoice) {
             $purchase_order->update([
                 'invoice_status' => 1, 
+                'billing_id' => $invoice->id,
                 'state'          => 'billed',
                 'billed_date'    => $request->input('invoice_date', now()),
                 'journal_status' => 1
@@ -184,10 +202,10 @@ class PurchaseOrderController extends Controller
         $this->authorizeModule('edit');
         $this->authorizePlantAccess($purchase_order);
 
-        $hasInward = \App\Models\PurchaseOrderHistory::where('order_id', $purchase_order->id)->exists();
-        if ($hasInward || (int)$purchase_order->receipt_status > 0) {
-            return redirect()->back()->with('error', 'Purchase Bill cannot be voided as items have already been received for this Purchase Order.');
-        }
+        // $hasInward = \App\Models\PurchaseOrderHistory::where('order_id', $purchase_order->id)->exists();
+        // if ($hasInward || (int)$purchase_order->receipt_status > 0) {
+        //     return redirect()->back()->with('error', 'Purchase Bill cannot be voided as items have already been received for this Purchase Order.');
+        // }
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($purchase_order) {
             $bill = $purchase_order->bill;
@@ -218,50 +236,36 @@ class PurchaseOrderController extends Controller
         });
     }
 
-    public function destroy($id)
+    public function destroy(PurchaseOrder $purchaseorder)
     {
-        \Illuminate\Support\Facades\Log::info('Destroy called for PO: ' . $id);
-        $purchaseOrder= PurchaseOrder::find($id);
-        try {
-            $this->authorizeModule('delete');
-            \Illuminate\Support\Facades\Log::info('authorizeModule passed');
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('authorizeModule failed: ' . $e->getMessage());
-            throw $e;
-        }
+        \Illuminate\Support\Facades\Log::info('Destroy called for PO: ' . $purchaseorder->id);
+        $this->authorizeModule('delete');
+        $this->authorizePlantAccess($purchaseorder);
 
-        try {
-            $this->authorizePlantAccess($purchaseOrder);
-            \Illuminate\Support\Facades\Log::info('authorizePlantAccess passed');
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('authorizePlantAccess failed: ' . $e->getMessage());
-            throw $e;
-        }
-
-        if ((int)$purchaseOrder->receipt_status > 0) {
+        if ((int)$purchaseorder->receipt_status > 0) {
             return redirect()->back()->with('error', 'Purchase Order cannot be deleted as items have already been received.');
         }
 
-        $purchaseOrder->delete();
+        $purchaseorder->delete();
         \Illuminate\Support\Facades\Log::info('PO deleted');
         
         return redirect()->back()->with('success', 'Purchase Order deleted successfully.');
     }
 
-    public function downloadPdf(PurchaseOrder $purchaseOrder)
+    public function downloadPdf(PurchaseOrder $purchase_order)
     {
         return redirect()->route('print.document', [
             'module' => 'purchase_orders',
-            'id'     => $purchaseOrder->id,
+            'id'     => $purchase_order->id,
             'action' => 'download'
         ]);
     }
 
-    public function report(PurchaseOrder $purchaseOrder)
+    public function report(PurchaseOrder $purchase_order)
     {
         return redirect()->route('print.document', [
             'module' => 'purchase_orders',
-            'id'     => $purchaseOrder->id,
+            'id'     => $purchase_order->id,
             'action' => 'view'
         ]);
     }
@@ -270,6 +274,6 @@ class PurchaseOrderController extends Controller
 
     protected function authorizePlantAccess(PurchaseOrder $purchaseOrder): void
     {
-        abort_unless(in_array((int) $purchaseOrder->plant_id, [session('active_plant_id')], true), 403);
+        abort_unless((int) $purchaseOrder->plant_id === (int) session('active_plant_id'), 403);
     }
 }

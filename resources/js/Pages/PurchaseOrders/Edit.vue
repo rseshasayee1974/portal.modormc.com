@@ -196,6 +196,7 @@ const submit = () => {
             <div class="max-w-7xl mx-auto">
                 <PurchaseOrderEditForm 
                     :form="form"
+                    :purchaseOrder="purchaseOrder"
                     :vendors="vendors"
                     :currencies="currencies"
                     :taxes="taxes"

@@ -40,6 +40,11 @@
         line-height: 1.5;
     }
 
+    .inv-root {
+        border: 1px solid #cbd5e1;
+        background: #fff;
+    }
+
     /* ═══ UTILITY CLASSES (all templates) ═══ */
     .text-left   { text-align: left !important; }
     .text-right  { text-align: right !important; }
@@ -69,4 +74,20 @@
     .powered-footer .pf-left  { display: table-cell; color: #999; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: middle; }
     .powered-footer .pf-right { display: table-cell; text-align: right; color: #888; font-size: 10px; vertical-align: middle; }
     .powered-footer .pf-brand { font-weight: 700; color: #555; font-size: 10px; }
+
+    /* Centered A4 preview styling for browser/screen view */
+    @media screen {
+        body {
+            background-color: #f8fafc !important;
+            padding: 40px 15px !important;
+        }
+        .inv-root {
+            max-width: 800px;
+            margin: 0 auto !important;
+            background: #fff !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+            border-radius: 8px !important;
+            border: 1px solid #cbd5e1 !important;
+        }
+    }
 </style>

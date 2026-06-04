@@ -243,7 +243,7 @@ class Invoice extends Model
 
     public function account()
     {
-        return $this->belongsTo(Accounts::class, 'account_id');
+        return $this->belongsTo(Ledger::class, 'account_id');
     }
 
     // public function journal()

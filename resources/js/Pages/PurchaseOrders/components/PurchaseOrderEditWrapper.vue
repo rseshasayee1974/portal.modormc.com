@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { useForm, usePage, router } from '@inertiajs/vue3';
-import { computed, watch } from 'vue';
+import { useForm, usePage } from '@inertiajs/vue3';
+import { computed, watch, ref, onMounted } from 'vue';
 import PurchaseOrderEditForm from './PurchaseOrderEditForm.vue';
 import Swal from 'sweetalert2';
+import axios from 'axios';
 
 const props = defineProps<{
     purchaseOrder: any;
@@ -17,10 +18,13 @@ const props = defineProps<{
 const page = usePage();
 const activePlantId = computed(() => page.props.active_plant_id ?? null);
 
-const itemDiscountsTotalInitial = props.purchaseOrder?.items?.reduce((sum, i) => sum + (Number(i.total_discount) || 0), 0) || 0;
+const isLoading = ref(true);
+const detailedPurchaseOrder = ref<any>(null);
+
 const isReceived = computed(() => {
-    const hasReceipts = Number(props.purchaseOrder?.receipt_status || 0) > 0;
-    const isFinalState = ['approved', 'done', 'cancel'].includes(props.purchaseOrder?.state);
+    const currentPO = detailedPurchaseOrder.value || props.purchaseOrder;
+    const hasReceipts = Number(currentPO?.receipt_status || 0) > 0;
+    const isFinalState = ['approved', 'done', 'cancel'].includes(currentPO?.state);
     return hasReceipts || isFinalState;
 });
 
@@ -49,16 +53,60 @@ const form = useForm({
     approve_status: props.purchaseOrder?.approve_status || 0,
     receipt_status: props.purchaseOrder?.receipt_status || 0,
     invoice_status: props.purchaseOrder?.invoice_status || 0,
-    items: props.purchaseOrder?.items ? props.purchaseOrder.items.map(i => ({ 
-        ...i, 
-        product_quantity: Number(i.product_quantity) || 0,
-        unit_price: Number(i.unit_price) || 0,
-        discount_amount: Number(i.discount_amount) || 0,
-        total_discount: Number(i.total_discount) || 0,
-        price_subtotal: Number(i.price_subtotal) || 0,
-        price_tax: Number(i.price_tax) || 0,
-        price_total: Number(i.price_total) || 0
-    })) : []
+    items: [] as any[]
+});
+
+onMounted(() => {
+    // Dynamic loading of detailed Purchase Order relationships
+    axios.get(route('purchaseorder.show', props.purchaseOrder.id))
+        .then(res => {
+            const data = res.data;
+            detailedPurchaseOrder.value = data;
+
+            form.id = data.id;
+            form.plant_id = data.plant_id;
+            form.vendor_id = data.vendor_id;
+            form.vehicle_id = data.vehicle_id;
+            form.po_number = data.po_number;
+            form.referencenumber = data.ref_no;
+            form.date_order = data.date_order ? data.date_order.substring(0, 10) : '';
+            form.billed_date = data.billed_date ? data.billed_date.substring(0, 10) : null;
+            form.due_date = data.due_date ? data.due_date.substring(0, 10) : null;
+            form.currency_id = data.currency_id;
+            form.exchange_rate = data.exchange_rate;
+            form.amount_untaxed = Number(data.amount_untaxed) || 0;
+            form.amount_tax = Number(data.amount_tax) || 0;
+            form.amount_total = Number(data.amount_total) || 0;
+            form.discount_amount = Number(data.discount_amount) || 0;
+            form.shipping_charges = Number(data.shipping_charges) || 0;
+            form.adjustment = Number(data.adjustment) || 0;
+            form.rounding_value = Number(data.rounding_value) || 0;
+            form.notes = data.notes || '';
+            form.terms_conditions = data.terms_conditions || '';
+            form.state = data.state || 'draft';
+            form.approve_status = data.approve_status || 0;
+            form.receipt_status = data.receipt_status || 0;
+            form.invoice_status = data.invoice_status || 0;
+
+            form.items = data.items ? data.items.map((i: any) => ({ 
+                ...i, 
+                product_quantity: Number(i.product_quantity) || 0,
+                unit_price: Number(i.unit_price) || 0,
+                discount_amount: Number(i.discount_amount) || 0,
+                total_discount: Number(i.total_discount) || 0,
+                price_subtotal: Number(i.price_subtotal) || 0,
+                price_tax: Number(i.price_tax) || 0,
+                price_total: Number(i.price_total) || 0
+            })) : [];
+
+            isLoading.value = false;
+            calculateFinalTotals();
+        })
+        .catch(err => {
+            console.error(err);
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to load detailed Purchase Order.' });
+            isLoading.value = false;
+        });
 });
 
 function createNewItem() {
@@ -136,7 +184,6 @@ const calculateFinalTotals = () => {
     const itemSubtotalsSum = form.items.reduce((sum, item) => sum + (Number(item.price_subtotal) || 0), 0);
     const itemTaxesTotal = form.items.reduce((sum, item) => sum + (Number(item.price_tax) || 0), 0);
     
-    // amount_untaxed is final net before tax
     form.amount_untaxed = itemSubtotalsSum - (Number(form.discount_amount) || 0);
     form.amount_tax = itemTaxesTotal;
     form.amount_total = form.amount_untaxed + form.amount_tax + (Number(form.shipping_charges) || 0) + (Number(form.adjustment) || 0) + (Number(form.rounding_value) || 0);
@@ -165,15 +212,19 @@ const submit = () => {
         preserveState: true
     });
 };
-
-// Initial calculation to sync any potential string/number mismatches or newly loaded items
-calculateFinalTotals();
 </script>
 
 <template>
-    <div class="">
+    <div class="relative min-h-[150px] flex items-center justify-center bg-slate-50/50 rounded-xl" v-if="isLoading">
+        <div class="flex flex-col items-center gap-3">
+            <i class="pi pi-spin pi-spinner text-3xl text-amber-500"></i>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loading Order Details...</span>
+        </div>
+    </div>
+    <div v-else>
         <PurchaseOrderEditForm 
             :form="form"
+            :purchaseOrder="detailedPurchaseOrder"
             :vendors="vendors"
             :currencies="currencies"
             :taxes="taxes"
@@ -189,4 +240,3 @@ calculateFinalTotals();
         />
     </div>
 </template>
-

@@ -27,6 +27,98 @@ class InvoiceController extends Controller
             $plantId = $params['plant_id'] ?? session('active_plant_id');
             $userId  = Auth::id();
 
+            $subtotalSum = 0;
+            $taxSum = 0;
+            $discountSum = 0;
+            
+            $itemsData = [];
+            
+            foreach ($source->items as $item) {
+                if ($type === 'bill') {
+                    // For a Purchase Bill, quantity is the received/invoiced quantity
+                    $qty = (float) ($item->invoiced_quantity > 0 ? $item->invoiced_quantity : ($item->received_quantity > 0 ? $item->received_quantity : $item->product_quantity));
+                    $priceUnit = (float) data_get($item, 'unit_price');
+                    
+                    // Recalculate discount
+                    $discountType = data_get($item, 'discount_type');
+                    $discountVal = (float) data_get($item, 'discount_amount');
+                    $lineSubtotalBeforeDiscount = $qty * $priceUnit;
+                    
+                    if ($discountType === 'percentage') {
+                        $lineDiscount = ($lineSubtotalBeforeDiscount * $discountVal) / 100;
+                    } else {
+                        // Scale the fixed discount proportionally if quantity changed from ordered quantity
+                        $orderedQty = (float) data_get($item, 'product_quantity');
+                        if ($qty == $orderedQty || $orderedQty == 0) {
+                            $lineDiscount = $discountVal;
+                        } else {
+                            $lineDiscount = ($discountVal / $orderedQty) * $qty;
+                        }
+                    }
+                    
+                    $lineSubtotal = $lineSubtotalBeforeDiscount - $lineDiscount;
+                    
+                    // Recalculate tax
+                    $taxRate = 0;
+                    $taxId = data_get($item, 'tax_id');
+                    if ($taxId) {
+                        $tax = Tax::find($taxId);
+                        if ($tax) {
+                            $taxRate = (float) $tax->tax_rate;
+                        }
+                    }
+                    
+                    $lineTax = ($lineSubtotal * $taxRate) / 100;
+                    $lineTotal = $lineSubtotal + $lineTax;
+                } else {
+                    // For sales/invoice, use original values
+                    $qty = (float) (data_get($item, 'product_quantity') ?? data_get($item, 'quantity') ?? 0);
+                    $priceUnit = (float) data_get($item, 'unit_price');
+                    $lineDiscount = (float) data_get($item, 'total_discount');
+                    $lineSubtotal = (float) data_get($item, 'price_subtotal');
+                    $lineTax = (float) data_get($item, 'price_tax');
+                    $lineTotal = (float) data_get($item, 'price_total');
+                    $taxId = data_get($item, 'tax_id');
+                }
+                
+                $subtotalSum += $lineSubtotal;
+                $taxSum += $lineTax;
+                $discountSum += $lineDiscount;
+                
+                $itemsData[] = [
+                    'mix_design_id'   => $type === 'bill' ? data_get($item, 'product_id') : data_get($item, 'mix_design_id'),
+                    'item_name'       => data_get($item, 'product.title') ?? data_get($item, 'description'),
+                    'hsn_code'        => data_get($item, 'product.hsn_code'),
+                    'quantity'        => $qty,
+                    'uom_id'          => data_get($item, 'product_uom') ?? data_get($item, 'uom_id'),
+                    'price_unit'      => $priceUnit,
+                    'discount_type'   => data_get($item, 'discount_type'),
+                    'discount'        => data_get($item, 'discount_amount'),
+                    'discount_amount' => $lineDiscount,
+                    'subtotal'        => $lineSubtotal,
+                    'line_tax_amount' => $lineTax,
+                    'line_total'      => $lineTotal,
+                    'tax_id'          => $taxId,
+                ];
+            }
+
+            $subtotal = $type === 'bill' ? $subtotalSum : $source->amount_untaxed;
+            $discountTotal = $type === 'bill' ? $discountSum : $source->discount_amount;
+            $taxAmount = $type === 'bill' ? $taxSum : $source->amount_tax;
+            
+            $adjustment = $source->adjustment;
+            $shippingCharges = $source->shipping_charges;
+            
+            if ($type === 'bill') {
+                $totalAmount = $subtotal + $taxAmount + $shippingCharges + $adjustment;
+                $roundedTotal = round($totalAmount);
+                $roundOff = $roundedTotal - $totalAmount;
+                $totalAmount = $roundedTotal;
+            } else {
+                $roundOff = $source->rounding_value;
+                $totalAmount = $source->amount_total;
+            }
+
             // 1. Create the Invoice Header
             $invoice = Invoice::create([
                 'plant_id'         => $plantId,
@@ -38,35 +130,21 @@ class InvoiceController extends Controller
                 'ref_title'        => $params['ref_title'] ?? $source->po_number ?? $source->so_number ?? $source->ref_no,
                 'invoice_date'     => $params['invoice_date'] ?? now(),
                 'due_date'         => $params['due_date'] ?? $source->due_date,
-                'subtotal'         => $source->amount_untaxed,
-                'discount_total'   => $source->discount_amount,
-                'tax_amount'       => $source->amount_tax,
-                'adjustment'       => $source->adjustment,
-                'shipping_charges' => $source->shipping_charges,
-                'round_off'        => $source->rounding_value,
-                'total_amount'     => $source->amount_total,
+                'subtotal'         => $subtotal,
+                'discount_total'   => $discountTotal,
+                'tax_amount'       => $taxAmount,
+                'adjustment'       => $adjustment,
+                'shipping_charges' => $shippingCharges,
+                'round_off'        => $roundOff,
+                'total_amount'     => $totalAmount,
                 'status'           => Invoice::STATUS_APPROVED,
                 'created_by'       => $userId,
                 'updated_by'       => $userId,
             ]);
 
             // 2. Create Invoice Items
-            foreach ($source->items as $item) {
-                $invoice->items()->create([
-                    'mix_design_id'   => $type === 'bill' ? data_get($item, 'product_id') : data_get($item, 'mix_design_id'),
-                    'item_name'       => data_get($item, 'product.title') ?? data_get($item, 'description'),
-                    'hsn_code'        => data_get($item, 'product.hsn_code'),
-                    'quantity'        => data_get($item, 'product_quantity') ?? data_get($item, 'quantity'),
-                    'uom_id'          => data_get($item, 'product_uom') ?? data_get($item, 'uom_id'),
-                    'price_unit'      => data_get($item, 'unit_price'),
-                    'discount_type'   => data_get($item, 'discount_type'),
-                    'discount'        => data_get($item, 'discount_amount'),
-                    'discount_amount' => data_get($item, 'total_discount'),
-                    'subtotal'        => data_get($item, 'price_subtotal'),
-                    'line_tax_amount' => data_get($item, 'price_tax'),
-                    'line_total'      => data_get($item, 'price_total'),
-                    'tax_id'          => data_get($item, 'tax_id'),
-                ]);
+            foreach ($itemsData as $itemData) {
+                $invoice->items()->create($itemData);
             }
 
             // 3. Sync Tax Splits (Generates mm_order_taxes records)
