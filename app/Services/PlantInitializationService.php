@@ -37,6 +37,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
 
 use Illuminate\Support\Facades\Mail;
 
@@ -48,31 +49,51 @@ class PlantInitializationService
             return false;
         }
 
-        return DB::transaction(function () use ($plant) {
-            $this->seedAccounting($plant);
-            $this->seedTaxes($plant);
-            $this->seedAccountDefaultSettings($plant);
-            $this->seedProductsAndCategories($plant);
-            $this->seedMachineTypes($plant);
-            $this->seedConcreteGradesAndMixDesign($plant);
-            $this->seedPatron($plant);
-            $this->seedSite($plant);
-            $this->seedTemplates($plant);
-            // $this->seedModules();
-            // $this->seedVoucherTypes($plant);
-            // $this->seedPaymentMethods($plant);
-            $this->seedCustomSettings($plant);
-            $this->seedDepartments($plant);
-            $this->seedDesignations($plant);
-            $this->seedLeaveTypes($plant);
-            $this->seedShifts($plant);
-            $this->seedSalaryComponents($plant);
-            $this->seedStatutoryConfigs($plant);
-            $this->createUserForPlant($plant);
+        $oldActivePlantId = Session::get('active_plant_id');
+        $oldActiveEntityId = Session::get('active_entity_id');
 
-            $plant->update(['is_initialized' => true]);
-            return true;
-        });
+        Session::put('active_plant_id', $plant->id);
+        Session::put('active_entity_id', $plant->entity_id);
+
+        try {
+            return DB::transaction(function () use ($plant) {
+                $this->seedAccounting($plant);
+                $this->seedTaxes($plant);
+                $this->seedAccountDefaultSettings($plant);
+                $this->seedProductsAndCategories($plant);
+                $this->seedMachineTypes($plant);
+                $this->seedConcreteGradesAndMixDesign($plant);
+                $this->seedPatron($plant);
+                $this->seedSite($plant);
+                $this->seedTemplates($plant);
+                // $this->seedModules();
+                // $this->seedVoucherTypes($plant);
+                // $this->seedPaymentMethods($plant);
+                $this->seedCustomSettings($plant);
+                $this->seedDepartments($plant);
+                $this->seedDesignations($plant);
+                $this->seedLeaveTypes($plant);
+                $this->seedShifts($plant);
+                $this->seedSalaryComponents($plant);
+                $this->seedStatutoryConfigs($plant);
+                $this->createUserForPlant($plant);
+
+                $plant->update(['is_initialized' => true]);
+                return true;
+            });
+        } finally {
+            if ($oldActivePlantId !== null) {
+                Session::put('active_plant_id', $oldActivePlantId);
+            } else {
+                Session::forget('active_plant_id');
+            }
+
+            if ($oldActiveEntityId !== null) {
+                Session::put('active_entity_id', $oldActiveEntityId);
+            } else {
+                Session::forget('active_entity_id');
+            }
+        }
     }
 
     private function createUserForPlant(Plant $plant)
