@@ -103,7 +103,7 @@ class DashboardRepository
         return [
             'cash_sales' => [
                 'sales_amount' => [
-                    'qty' => round((float) ($results->cash_sales ?: 0), 2),
+                    'amount' => round((float) ($results->cash_sales ?: 0), 2),
                     'unit' => 'amount',
                 ],
                 'quantity' => [
@@ -120,10 +120,14 @@ class DashboardRepository
                         'unit' => 'mtr',
                     ],
                 ],
+                'trips' => [
+                    'dispatch_count' => (int) ($results->cash_trips ?: 0),
+                    
+                ],
             ],
             'credit_sales' => [
                 'sales_amount' => [
-                    'qty' => round((float) ($results->credit_sales ?: 0), 2),
+                    'amount' => round((float) ($results->credit_sales ?: 0), 2),
                     'unit' => 'amount',
                 ],
                 'quantity' => [
@@ -139,6 +143,10 @@ class DashboardRepository
                         'qty' => round((float) ($results->credit_mt ?: 0), 3),
                         'unit' => 'mtr',
                     ],
+                ],
+                'trips' => [
+                    'dispatch_count' => (int) ($results->credit_trips ?: 0),
+                    
                 ],
             ],
         ];
