@@ -162,7 +162,7 @@ const handleDeleteBill = () => {
                                     icon="pi pi-print" 
                                     severity="success" 
                                     size="small" 
-                                    class="!text-[10px] !font-bold uppercase tracking-widest mr-2"
+                                    class="!text-[10px] !font-bold uppercase mr-2 tracking-widest "
                                 />
                             </a>
                             <BaseButton 
@@ -453,7 +453,7 @@ const handleDeleteBill = () => {
                 filter 
             />
 
-            
+
             <div class="grid grid-cols-2 gap-4">
                 <BaseDatePicker 
                     v-model="billForm.invoice_date" 
