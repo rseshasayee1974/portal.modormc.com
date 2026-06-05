@@ -16,7 +16,7 @@ return new class extends Migration
 
             $table->foreignId('plant_id')->constrained('mm_plants')->cascadeOnDelete();
             $table->foreignId('order_id')->constrained('mm_purchase_orders')->cascadeOnDelete();
-            $table->foreignId('product_id')->constrained('mm_products');
+            $table->foreignId('product_id')->constrained('mm_products')->restrictOnDelete();
             $table->foreignId('product_uom')->constrained('mm_product_units');
             $table->foreignId('tax_id')->nullable()->constrained('mm_taxes');
 

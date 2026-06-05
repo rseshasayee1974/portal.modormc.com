@@ -87,6 +87,8 @@ class Patron extends Model
 
     protected $appends = [
         'name',
+                'is_in_use',
+
     ];
 
     protected $fillable = [
@@ -166,6 +168,16 @@ class Patron extends Model
         return $this->hasMany(PatronBankAccount::class);
     }
 
+    public function purchaseOrders()
+    {
+        return $this->hasMany(PurchaseOrder::class);
+    }
+    public function purchaseOrdersHistory()
+    {
+        return $this->hasMany(PurchaseOrderHistory::class);
+    }
+   
+
     /**
      * Get the personnels for the patron.
      */
@@ -200,4 +212,8 @@ class Patron extends Model
 
         return $prefix . str_pad($nextId, 4, '0', STR_PAD_LEFT);
     }
+
+     public function getIsInUseAttribute(): bool
+    {
+        return \App\Models\PurchaseOrder::where('vendor_id', $this->id)->exists();    }
 }

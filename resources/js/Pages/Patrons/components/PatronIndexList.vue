@@ -73,6 +73,8 @@ const onRowClick = (event: any) => {
     emit('update:expandedRows', expanded);
 };
 
+// console.log("asdasd",props);
+
 </script>
 
 <template>
@@ -164,6 +166,7 @@ const onRowClick = (event: any) => {
             <template #body="slotProps">
                 <div class="flex justify-center">
                     <Button 
+                    :disabled="slotProps.data.is_in_use"
                         icon="pi pi-trash"  
                         text 
                         rounded 

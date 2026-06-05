@@ -81,6 +81,9 @@ const submit = () => {
             isOpen.value = false; // Reset the panel state
             setTimeout(() => { isOpen.value = true; }, 500);
         },
+        onError: (errors) => {
+            toast.add({ severity: 'error', summary: 'Error', detail: errors.title || 'Validation failed. Please check the form.', life: 3000 });
+        }
     });
 };
 </script>

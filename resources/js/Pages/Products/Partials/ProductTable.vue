@@ -28,6 +28,7 @@ interface Product {
     sale_tax_id?: number | null;
     is_service?: boolean;
     product_type?: string;
+    is_in_use?: boolean;
 }
 
 interface Option {
@@ -152,6 +153,8 @@ watch([filters, filterCategory], () => {
             <Column header="Action" style="width: 26px; text-align: right">
                 <template #body="{ data }">
                     <BaseDeleteButton
+                        
+                        :disabled="data.is_in_use"
                         :url="route('products.destroy', data.id)"
                         title="Delete product?"
                         :text="`${data.title} will be permanently removed.`"

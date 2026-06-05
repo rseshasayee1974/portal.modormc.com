@@ -130,8 +130,8 @@ const filteredStocks = computed(() => props.stocks);
             <Column field="status" header="Status" sortable style="width: 100px">
                 <template #body="{ data }">
                     <Tag 
-                        :value="data.status || 'Active'" 
-                        :severity="data.status === 'Inactive' ? 'secondary' : 'success'"
+                        :value="data.status ===  1 ? 'Active' : 'Inactive'" 
+                        :severity="data.status === 0 ? 'danger' : 'success'"
                         rounded
                         class="text-[9px] font-black uppercase tracking-wider px-2"
                     />

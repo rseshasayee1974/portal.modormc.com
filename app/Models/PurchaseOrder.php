@@ -26,6 +26,7 @@ class PurchaseOrder extends Model
         'po_number',
         'ref_no',
         'bill_number',
+        'billing_id',
         'billed_date',
         'date_order',
         'date_approve',

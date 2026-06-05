@@ -17,6 +17,8 @@ class Product extends Model
 
     protected $table = 'mm_products';
 
+    protected $appends = ['is_in_use'];
+
     // ──────────────────────────────────────────────────────────────
     // Auto Code Generation
     // ──────────────────────────────────────────────────────────────
@@ -200,5 +202,18 @@ class Product extends Model
     public function creator()
     {
         return $this->belongsTo(\App\Models\User::class, 'created_by');
+    }
+
+    public function getIsInUseAttribute(): bool
+    {
+        return \App\Models\PurchaseOrderItem::where('product_id', $this->id)->exists() ||
+            \App\Models\PurchaseOrderHistory::where('product_id', $this->id)->exists() ||
+            \App\Models\Quantity::where('product_id', $this->id)->exists() ||
+            \App\Models\BatchMaterial::where('product_id', $this->id)->exists() ||
+            \App\Models\MaintenanceLine::where('product_id', $this->id)->exists() ||
+            \App\Models\StockExhaustLine::where('product_id', $this->id)->exists() ||
+            \App\Models\PartyRate::where('product_id', $this->id)->exists() ||
+            \App\Models\ConcreteGradeItem::where('product_id', $this->id)->exists() ||
+            \App\Models\MixDesignItem::where('product_id', $this->id)->exists();
     }
 }

@@ -33,7 +33,18 @@ class ProductController extends Controller
     {
         $plantId = session('active_plant_id');
         $plant = \App\Models\Plant::findOrFail($plantId);
+       // 1. Safe Early Check (Fixed potential fatal crash & scoped to active plant)
+    if ($request->filled('title')) {
+        $existingProduct = Product::where('title', $request->title)
+            ->where('plant_id', $plantId)
+            ->first();
 
+        if ($existingProduct) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'title' => 'Product already exists in this plant.'
+            ]);
+        }
+    }
         $validated = $request->validate([
             'title' => 'required|string|max:255|unique:mm_products,title,NULL,id,plant_id,' . $plantId,
             'code' => 'nullable|string|max:255',
@@ -86,9 +97,17 @@ class ProductController extends Controller
         return redirect()->back()->with('success', 'Product updated successfully.');
     }
 
+   
     public function destroy(Product $product)
     {
+        // 1. Check if the product is linked to any active transactions or records
+        if ($product->is_in_use) {
+            return redirect()->back()->with('error', 'This product cannot be deleted because it is currently linked to active purchase orders, inventory, sales, or production records.');
+        }
+
+        // 2. If safe, proceed with the Soft Delete
         $product->delete();
+
         return redirect()->back()->with('success', 'Product deleted successfully.');
     }
 
