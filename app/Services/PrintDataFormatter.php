@@ -195,9 +195,10 @@ class PrintDataFormatter
         $order->loadMissing(['items.product', 'items.uom', 'items.tax', 'vendor', 'plant', 'plant.entity', 'currency']);
 
         $data = self::base();
+        $data['settings'] = self::getCustomSettings($order->plant_id, 'purchase_orders');
 
         // Document meta
-        $data['doc_title']     = 'PURCHASE ORDER';
+        $data['doc_title']     = $data['settings']['pdf']['labels']['invoice_title'] ?? 'PURCHASE ORDER';
         $data['doc_no']        = $order->ref_no;
         $data['doc_date']      = $order->date_order?->format('d/m/Y') ?? 'N/A';
         $data['due_date']      = $order->due_date?->format('d/m/Y') ?? 'N/A';
@@ -388,7 +389,8 @@ class PrintDataFormatter
         $quotation->loadMissing(['items.mixDesign', 'items.mixDesign.unit', 'patron', 'plant', 'plant.entity', 'tax']);
 
         $data = self::base();
-        $data['doc_title'] = 'QUOTATION';
+        $data['settings'] = self::getCustomSettings($quotation->plant_id, 'quotations');
+        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? 'QUOTATION';
         $data['doc_no']    = $quotation->reference ?? $quotation->id;
         $data['doc_date']  = $quotation->quote_date?->format('d/m/Y') ?? now()->format('d/m/Y');
         $data['due_date']  = $quotation->validity_date?->format('d/m/Y') ?? 'N/A';
@@ -566,59 +568,70 @@ class PrintDataFormatter
 
     public static function getDefaultSettings(string $module): array
     {
-        $settings = [
-            'invoices' => [
-                'pdf' => [
-                    'company_name'   => true,
-                    'logo'           => true,
-                    'address'        => true,
-                    'phone'          => true,
-                    'email'          => true,
-                    'gstin'          => true,
-                    'invoice_title'  => true,
-                    'invoice_number' => true,
-                    'date'           => true,
-                    'due_date'       => true,
-                    'status'         => false,
-                    'bill_to'        => true,
-                    'ship_to'        => true,
-                    'hsn_code'       => true,
-                    'description'    => true,
-                    'unit'           => true,
-                    'discount'       => true,
-                    'tax_percent'    => true,
-                    'cgst'           => true,
-                    'sgst'           => true,
-                    'igst'           => true,
-                    'shipping'       => true,
-                    'round_off'      => true,
-                    'total_words'    => true,
-                    'notes'          => true,
-                    'terms'          => true,
-                    'signature'      => true,
-                    'labels' => [
-                        'invoice_title' => 'TAX INVOICE',
-                        'bill_to'       => 'Bill To',
-                        'ship_to'       => 'Ship To',
-                        'rate'          => 'Rate',
-                        'amount'        => 'Amount',
-                    ]
-                ],
-                'excel' => [
-                    'hsn_code' => true,
-                    'discount' => true,
+        $invoiceTitle = 'DOCUMENT';
+        switch ($module) {
+            case 'invoices':
+            case 'gst_invoices':
+                $invoiceTitle = 'TAX INVOICE';
+                break;
+            case 'purchase_orders':
+                $invoiceTitle = 'PURCHASE ORDER';
+                break;
+            case 'quotations':
+                $invoiceTitle = 'QUOTATION';
+                break;
+            case 'delivery_notes':
+                $invoiceTitle = 'DELIVERY NOTE';
+                break;
+            case 'credit_notes':
+                $invoiceTitle = 'CREDIT NOTE';
+                break;
+            case 'statements':
+                $invoiceTitle = 'STATEMENT OF ACCOUNT';
+                break;
+        }
+
+        return [
+            'pdf' => [
+                'company_name'   => true,
+                'logo'           => true,
+                'address'        => true,
+                'phone'          => true,
+                'email'          => true,
+                'gstin'          => true,
+                'invoice_title'  => true,
+                'invoice_number' => true,
+                'date'           => true,
+                'due_date'       => true,
+                'status'         => false,
+                'bill_to'        => true,
+                'ship_to'        => true,
+                'hsn_code'       => true,
+                'description'    => true,
+                'unit'           => true,
+                'discount'       => true,
+                'tax_percent'    => true,
+                'cgst'           => true,
+                'sgst'           => true,
+                'igst'           => true,
+                'shipping'       => true,
+                'round_off'      => true,
+                'total_words'    => true,
+                'notes'          => true,
+                'terms'          => true,
+                'signature'      => true,
+                'labels' => [
+                    'invoice_title' => $invoiceTitle,
+                    'bill_to'       => 'Bill To',
+                    'ship_to'       => 'Ship To',
+                    'rate'          => 'Rate',
+                    'amount'        => 'Amount',
                 ]
             ],
-            'purchase_orders' => [
-                'pdf' => [
-                    'company_name' => true,
-                    'logo'         => true,
-                    'terms'        => true,
-                    'signature'    => true,
-                ]
+            'excel' => [
+                'hsn_code' => true,
+                'discount' => true,
             ]
         ];
-
-        return $settings[$module] ?? [];
     }
 }

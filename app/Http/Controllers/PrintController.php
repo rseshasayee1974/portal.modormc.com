@@ -91,6 +91,7 @@ class PrintController extends Controller
                 if ($model) {
                     $data = PrintDataFormatter::fromInvoice($model);
                     $data['doc_title'] = 'PURCHASE BILL';
+                   
                     return $data;
                 }
                 return null;
