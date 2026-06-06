@@ -72,7 +72,7 @@ class DashboardRepository
         return [
             'mt' => round($results->mt ?: 0, 2),
             'unit_cft' => round($results->unit_cft ?: 0, 2),
-            'trips' => (int)($results->trips ?: 0)
+            'trips' => (int) ($results->trips ?: 0)
         ];
     }
 
@@ -122,7 +122,7 @@ class DashboardRepository
                 ],
                 'trips' => [
                     'dispatch_count' => (int) ($results->cash_trips ?: 0),
-                    
+
                 ],
             ],
             'credit_sales' => [
@@ -146,7 +146,7 @@ class DashboardRepository
                 ],
                 'trips' => [
                     'dispatch_count' => (int) ($results->credit_trips ?: 0),
-                    
+
                 ],
             ],
         ];
@@ -222,7 +222,7 @@ class DashboardRepository
                 'truck_id' => $row->truck_id ? (int) $row->truck_id : null,
                 'truck_registration' => $row->truck_registration,
                 'total_dispatch_count' => [
-                    'qty' => (int) $row->total_dispatch_count,
+                    'total_count' => (int) $row->total_dispatch_count,
                     'unit' => 'count',
                 ],
                 'total_batch_size' => [
@@ -259,7 +259,7 @@ class DashboardRepository
         if (isset($filters['plant_id'])) {
             $query->where('d.plant_id', $filters['plant_id']);
         }
-        
+
         // Date filtering
         if (isset($filters['type'])) {
             // ... manual date filter implementation for raw query ...
@@ -390,7 +390,7 @@ class DashboardRepository
 
         $this->applyFilters($query, $filters, 'dispatch_time');
 
-        return $query->get()->map(function($d) {
+        return $query->get()->map(function ($d) {
             return [
                 'vehicle_no' => $d->truck->registration ?? 'N/A',
                 'count' => $d->count,
