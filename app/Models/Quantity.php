@@ -47,6 +47,51 @@ class Quantity extends Model
                 throw new \InvalidArgumentException('Opening quantity cannot be negative. Negative values are not allowed.');
             }
         });
+
+               static::updated(function ($model) {
+            try {
+                $oldQty = $model->getOriginal('quantity') ?? 0;
+                $newQty = $model->quantity;
+
+                if ($oldQty != $newQty) {
+                    $type = $newQty > $oldQty ? 'stockin' : 'stockout';
+                    $productName = $model->product ? $model->product->title : "Product #{$model->product_id}";
+                    
+                    \App\Models\InventoryAuditLog::create([
+                        'plant_id' => $model->plant_id,
+                        'transaction_type' => $type,
+                        'reference_type' => 'Update',
+                        'reference_id' => $model->product_id,
+                        'log_from' => $oldQty,
+                        'log_to' => $newQty,
+                        'user_id' => \Illuminate\Support\Facades\Auth::id(),
+                        'remarks' => "Stock level for '{$productName}' updated from {$oldQty} to {$newQty}",
+                        'ip_address' => request()->ip(),
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to log stock update: ' . $e->getMessage());
+            }
+        });
+
+        static::deleted(function ($model) {
+            try {
+                $productName = $model->product ? $model->product->title : "Product #{$model->product_id}";
+                \App\Models\InventoryAuditLog::create([
+                    'plant_id' => $model->plant_id,
+                    'transaction_type' => 'stockout',
+                    'reference_type' => 'Delete',
+                    'reference_id' => $model->product_id,
+                    'log_from' => $model->quantity,
+                    'log_to' => 0,
+                    'user_id' => \Illuminate\Support\Facades\Auth::id(),
+                    'remarks' => "Stock record deleted for '{$productName}'",
+                    'ip_address' => request()->ip(),
+                ]);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to log stock deletion: ' . $e->getMessage());
+            }
+        });
     }
 
     public function plant()

@@ -158,8 +158,8 @@ watch(() => page.props.flash, (flash: any) => {
                     class="modern-table text-sm"
                 >
                     <template #toolbar>
-                        <Button severity="primary" @click="openModal()" class="rounded-full px-8 shadow-xl shadow-blue-500/20 uppercase tracking-widest font-black text-xs h-[48px]">
-                            <template #icon><PlusIcon class="w-5 h-5 stroke-[3px] mr-1" /></template>
+                        <Button severity="primary" @click="openModal()" class="rounded-full shadow-xl shadow-blue-500/20 uppercase tracking-widest font-black text-xs h-[48px]">
+                            <i class="pi pi-plus"></i>
                             Configure Rate
                         </Button>
                     </template>

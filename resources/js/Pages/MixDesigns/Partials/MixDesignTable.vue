@@ -41,10 +41,11 @@ const onSaved = () => { expandedRows.value = {}; };
             headingIcon="BeakerIcon"
             showExport
             exportFilename="mix-designs-report"
-            :deleteUrl="(row) => route('mixdesigns.destroy', row.id)"
+            >
+            <!-- :deleteUrl="(row) => route('mixdesigns.destroy', row.id)"
             deleteTitle="Delete Mix Design?"
             deleteText="This mix design and all its ingredients will be removed."
-        >
+         -->
             <template #toolbar>
                 <div class="flex items-center gap-2 px-3 py-1 bg-indigo-50/50 rounded-lg border border-indigo-100">
                     <BeakerIcon class="w-3.5 h-3.5 text-indigo-500" />

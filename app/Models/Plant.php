@@ -73,15 +73,15 @@ class Plant extends Model
     {
         $time = $time ? \Carbon\Carbon::parse($time) : now();
         $startTime = $this->shift_start_time ?? '12:00:00';
-        
+
         $shiftStartToday = \Carbon\Carbon::parse($time->format('Y-m-d') . ' ' . $startTime);
-        
+
         if ($time->lessThan($shiftStartToday)) {
             $shiftDate = $time->copy()->subDay()->format('Y-m-d');
         } else {
             $shiftDate = $time->format('Y-m-d');
         }
-        
+
         return [
             'shift_date' => $shiftDate,
             'shift' => 'A', // Default shift name

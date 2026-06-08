@@ -34,6 +34,8 @@ class ConcreteGrade extends Model
         'aggregate_ratio' => 'decimal:2',
     ];
 
+    protected $appends = ['is_in_use'];
+
     public function plant()
     {
         return $this->belongsTo(Plant::class, 'plant_id');
@@ -43,4 +45,13 @@ class ConcreteGrade extends Model
     {
         return $this->hasMany(ConcreteGradeItem::class);
     }
+    public function mixDesigns()
+    {
+        return $this->hasMany(MixDesign::class);
+    }
+        public function getIsInUseAttribute(): bool
+    {
+        return $this->mixDesigns()->exists();
+    }
+    
 }

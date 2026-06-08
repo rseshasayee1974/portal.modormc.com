@@ -42,7 +42,7 @@ class StoreQuotationRequest extends FormRequest
             'quote_date' => 'required|date',
             'validity_date' => 'nullable|date',
             'amount_untaxed' => 'nullable|numeric',
-            'tax_amount' => 'nullable|numeric',
+            // 'tax_amount' => 'nullable|numeric',
             'amount_tax' => 'nullable|numeric',
             'amount_total' => 'nullable|numeric',
             'adjustment' => 'nullable|numeric',

@@ -208,6 +208,7 @@ Route::middleware([
        
         Route::resource('products', \App\Http\Controllers\ProductController::class);
         Route::post('products/batch', [\App\Http\Controllers\ProductController::class, 'batchStore'])->name('products.batchstore');
+        Route::resource('inventory-audit-logs', \App\Http\Controllers\InventoryAuditLogController::class);
         
         Route::get('mixdesigns/gradeingredients/{gradeId}', [\App\Http\Controllers\MixDesignController::class, 'getGradeIngredients'])->name('mixdesigns.gradeingredients');
         Route::resource('mixdesigns', \App\Http\Controllers\MixDesignController::class);

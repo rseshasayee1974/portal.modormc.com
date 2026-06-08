@@ -14,7 +14,10 @@ return new class extends Migration
         Schema::create('mm_mix_designs', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('plant_id')->constrained('mm_plants')->cascadeOnDelete();
+$table->foreignId('concrete_grade_id')
+    ->constrained()
+    ->restrictOnDelete();         
+       $table->foreignId('plant_id')->constrained('mm_plants')->cascadeOnDelete();
             $table->foreignId('partner_id')->constrained('mm_patrons')->cascadeOnDelete();
 
             $table->string('design_name');

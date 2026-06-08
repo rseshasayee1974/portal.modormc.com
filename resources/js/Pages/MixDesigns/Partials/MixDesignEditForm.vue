@@ -39,6 +39,8 @@ const form = useForm({
     unit_id: props.design.unit_id,
     rate_per_qty: parseFloat(props.design.rate_per_qty || '0'),
     items: props.design.items.map((item: any) => ({
+            id: item.id,
+            isLocked: true,
         product_id: item.product_id,
         uom_id: item.uom_id ?? props.defaultUomId ?? props.units[0]?.id ?? null,
         rate: parseFloat(item.rate || 0),
@@ -49,6 +51,8 @@ const form = useForm({
 });
 
 const blankItem = () => ({
+    id: null as number | null,
+    isLocked: false as boolean,
     product_id: null as number | null,
     uom_id: fallbackUomId.value,
     rate: 0,
@@ -167,7 +171,7 @@ const submit = () => {
                                     <small v-if="form.errors[`items.${index}.uom_id`]" class="err-msg">{{ form.errors[`items.${index}.uom_id`] }}</small>
                                 </td>
                                 <td>
-                                    <BaseInputNumber v-model="item.actual_quantity" readonly :minFractionDigits="3" placeholder="0.0000" fluid :inputClass="'text-right'" />
+                                    <BaseInputNumber v-model="item.actual_quantity" :readonly="item.isLocked" :minFractionDigits="3" placeholder="0.0000" fluid :inputClass="'text-right'" />
                                     <small v-if="form.errors[`items.${index}.actual_quantity`]" class="err-msg text-right block">{{ form.errors[`items.${index}.actual_quantity`] }}</small>
                                 </td>
                                 <td>
@@ -180,7 +184,9 @@ const submit = () => {
                                     ₹{{ ((item.actual_quantity || 0) * (item.rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </td> -->
                                 <td>
-                                    <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1" />
+
+                                    <!-- Temporarily removed  -->
+                                    <!-- <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1" /> -->
                                 </td>
                             </tr>
                         </tbody>
@@ -199,13 +205,15 @@ const submit = () => {
         </div>
 
         <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-indigo-100">
-            <BaseFormActions
+                                                <!-- Temporarily removed  -->
+
+            <!-- <BaseFormActions
                 label="Update Mix Design"
                 cancelLabel="Discard"
                 :loading="form.processing"
                 @submit="submit"
                 @reset="emit('cancel')"
-            />
+            /> -->
         </div>
     </div>
 </template>

@@ -9,6 +9,7 @@ import {
     TableCellsIcon,
 } from '@heroicons/vue/24/outline';
 import GradeEditForm from './GradeEditForm.vue';
+import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
 
 const props = defineProps<{
     grades: any[];
@@ -46,8 +47,6 @@ const onSaved = () => {
             headingIcon="ClipboardDocumentListIcon"
             showExport
             exportFilename="concrete-grades-report"
-            :deleteUrl="(row) => route('concretegrades.destroy', row.id)"
-            deleteTitle="Delete Mix Grade?"
         >
             <template #toolbar>
                 <div class="flex items-center gap-2 px-3 py-1 bg-indigo-50/50 rounded-lg border border-indigo-100">
@@ -97,6 +96,19 @@ const onSaved = () => {
                     >
                         {{ slotProps.data.status ? 'ACTIVE' : 'INACTIVE' }}
                     </Tag>
+                </template>
+            </Column>
+
+            <Column header="Actions" style="width: 70px; text-align: right">
+                <template #body="slotProps">
+                    <div class="flex justify-end">
+                        <BaseDeleteButton
+                            :disabled="slotProps.data.is_in_use"
+                            :url="route('concretegrades.destroy', slotProps.data.id)"
+                            title="Delete Mix Grade?"
+                            text="This concrete grade will be permanently removed."
+                        />
+                    </div>
                 </template>
             </Column>
 

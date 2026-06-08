@@ -35,40 +35,23 @@ const emit = defineEmits<{
 </script>
 
 <template>
-    <BaseField
-        :label="label"
-        :required="required"
-        :error="error"
-        :hint="hint"
-        :disabled="disabled"
-        :class="fieldClass"
-    >
+    <BaseField :label="label" :required="required" :error="error" :hint="hint" :disabled="disabled" :class="fieldClass">
         <template #default="{ invalid, inputId }">
-            <InputText
-                :id="inputId"
-                :modelValue="modelValue ?? ''"
-                :type="type"
-                :placeholder="placeholder"
-                :disabled="disabled"
-                :size="size"
-                :fluid="fluid"
-                class="!bg-white"
-                :class="[
+            <InputText :id="inputId" :modelValue="modelValue ?? ''" :type="type" :placeholder="placeholder"
+                :disabled="disabled" :size="size" :fluid="fluid" class="!bg-white" :class="[
                     inputClass,
                     invalid ? 'p-invalid' : null,
-                ]"
-                @update:modelValue="emit('update:modelValue', $event as any)"
-                @blur="emit('blur', $event)"
-            />
+                ]" @update:modelValue="emit('update:modelValue', $event as any)" @blur="emit('blur', $event)" />
         </template>
     </BaseField>
 </template>
 
 <style scoped>
 .p-component {
-   border-radius:4px !important;
-} 
-.fieldClass{
-    color : #1b1b1b !important;
+    border-radius: 4px !important;
+}
+
+.fieldClass {
+    color: #1b1b1b !important;
 }
 </style>

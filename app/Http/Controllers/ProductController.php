@@ -41,7 +41,7 @@ class ProductController extends Controller
 
         if ($existingProduct) {
             throw \Illuminate\Validation\ValidationException::withMessages([
-                'title' => 'Product already exists in this plant.'
+                'title' => 'Product already exists.'
             ]);
         }
     }

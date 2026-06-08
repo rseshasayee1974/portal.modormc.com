@@ -267,12 +267,12 @@ const handleDeleteBill = () => {
 
                     <!-- Items Table -->
                     <div class="mt-8">
-                        <!-- <div class="flex items-center justify-between mb-3 px-1">
-                            <h3 class="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em]">Procurement Lines</h3>
-                            <BaseButton label="Add New Line" icon="pi pi-plus" variant="text" size="small" @click="addItem" class="!text-[10px] !font-semibold !text-amber-600" />
-                        </div> -->
-                        
-                        <div class="overflow-x-auto      overflow-hidden">
+                        <div v-if="!isReceived" class="flex items-center justify-between mb-3 px-1">
+                            <h3 class="text-[10px] font-semibold text-indigo-600 uppercase tracking-[0.2em]">Procurement Lines</h3>
+                            <BaseButton icon="pi pi-plus" class="h-8 w-8" severity="primary" variant="filled" @click="addItem" />
+                        </div>
+                                           
+                        <div class="overflow-x-auto overflow-hidden">
                             <table class=" text-left border-collapse w-full">
                                 <thead class="bg-slate-50/80 border-y border-slate-100 uppercase tracking-[0.15em] text-[9.5px] font-semibold text-slate-400">
                                     <tr>

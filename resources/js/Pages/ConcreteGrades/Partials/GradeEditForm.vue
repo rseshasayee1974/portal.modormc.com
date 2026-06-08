@@ -30,8 +30,10 @@ const form = useForm({
     aggregate_ratio: props.grade.aggregate_ratio,
     status: Boolean(props.grade.status),
     items: props.grade.items.map((item: any) => ({
+        id: item.id,
         product_id: item.product_id,
-        quantity: item.quantity
+        quantity: item.quantity,
+        is_in_use: Boolean(item.is_in_use)
     }))
 });
 
@@ -53,11 +55,22 @@ watch(
 const addItem = () => {
     form.items.push({
         product_id: null,
-        quantity: 0
+        quantity: 0,
+        is_in_use: false
     });
 };
 
 const removeItem = (index: number) => {
+    // const item = form.items[index];
+    // if (item.is_in_use) {
+    //     Swal.fire({
+    //         icon: 'error',
+    //         title: 'Ingredient In Use',
+    //         text: 'This ingredient cannot be removed because it is currently linked to active mix designs or batches.',
+    //         confirmButtonColor: '#6366f1'
+    //     });
+    //     return;
+    // }
     if (form.items.length > 1) {
         form.items.splice(index, 1);
     }
