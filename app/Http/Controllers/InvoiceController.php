@@ -36,7 +36,7 @@ class InvoiceController extends Controller
             foreach ($source->items as $item) {
                 if ($type === 'bill') {
                     // For a Purchase Bill, quantity is the received/invoiced quantity
-                    $qty = (float) ($item->invoiced_quantity > 0 ? $item->invoiced_quantity : ($item->received_quantity > 0 ? $item->received_quantity : $item->product_quantity));
+                    $qty = (float) ($item->invoiced_quantity > 0 ? $item->invoiced_quantity : ($item->received_quantity > 0 ? $item->received_quantity : $item->received_quantity));
                     $priceUnit = (float) data_get($item, 'unit_price');
                     
                     // Recalculate discount
@@ -102,8 +102,8 @@ class InvoiceController extends Controller
                 ];
             }
 
-            $subtotal = $type === 'bill' ? $subtotalSum : $source->amount_untaxed;
-            $discountTotal = $type === 'bill' ? $discountSum : $source->discount_amount;
+            $subtotal = $type === 'bill' ? ($subtotalSum - $source->discount_amount) : $source->amount_untaxed;
+            $discountTotal = $type === 'bill' ? ($discountSum + $source->discount_amount) : $source->discount_amount;
             $taxAmount = $type === 'bill' ? $taxSum : $source->amount_tax;
             
             $adjustment = $source->adjustment;
@@ -131,12 +131,13 @@ class InvoiceController extends Controller
                 'invoice_date'     => $params['invoice_date'] ?? now(),
                 'due_date'         => $params['due_date'] ?? $source->due_date,
                 'subtotal'         => $subtotal,
-                'discount_total'   => $discountTotal,
+                'global_discount'   => $discountTotal,
                 'tax_amount'       => $taxAmount,
                 'adjustment'       => $adjustment,
                 'shipping_charges' => $shippingCharges,
                 'round_off'        => $roundOff,
                 'total_amount'     => $totalAmount,
+                'balance_amount'   => $totalAmount,
                 'status'           => Invoice::STATUS_APPROVED,
                 'created_by'       => $userId,
                 'updated_by'       => $userId,

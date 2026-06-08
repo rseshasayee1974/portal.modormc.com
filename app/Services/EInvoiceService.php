@@ -908,7 +908,7 @@ class EInvoiceService
                 'IgstVal' => (float)$salesIgst,
                 'CesVal' => 0.0,
                 'StCesVal' => 0.0,
-                'Discount' => (float)$invoice->discount_total,
+                'Discount' => (float)$invoice->global_discount,
                 'OthChrg' => (float)($invoice->adjustment + $invoice->shipping_charges),
                 'RndOffAmt' => (float)$invoice->round_off,
                 'TotInvVal' => (float)$invoice->total_amount,

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'modormc-pwa-v1';
+const CACHE_NAME = 'modormc-pwa-v2';
 const ASSETS_TO_CACHE = [
     '/orders/batches',
     '/assets/modormc_favicon.png',
@@ -85,10 +85,8 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Default request behavior
+    // Default request behavior (Network First)
     event.respondWith(
-        caches.match(request).then((response) => {
-            return response || fetch(request);
-        })
+        fetch(request).catch(() => caches.match(request))
     );
 });

@@ -174,7 +174,7 @@ createInertiaApp({
             ]) 
         })
             .use(plugin)
-            .use(ZiggyVue)
+            .use(ZiggyVue, window.Ziggy)
             .use(PrimeVue, {
                 theme: {
                     preset: MyPreset

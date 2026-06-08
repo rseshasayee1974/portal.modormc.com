@@ -34,7 +34,7 @@ class BillingController extends Controller
                 ->where('invoice_type', 'bill')
                 ->latest()
                 ->get();
-                // dd($invoice);
+                
         return Inertia::render('Billing/Index', [
             'invoices' => Invoice::with([
                     'partner:id,legal_name',
@@ -67,10 +67,11 @@ class BillingController extends Controller
     {
         $this->authorizeModule('create');
         $plantId = session('active_plant_id');
+//   $validated = $request->validated();
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $plantId) {
             $validated = $request->validated();
-// dd($validated );
+
             // Auto-generate numbering if not provided
             if (empty($validated['invoice_number'])) {
                 $details = Invoice::generateNumber($plantId, 'bill');
@@ -82,6 +83,7 @@ class BillingController extends Controller
                 'plant_id'        => $plantId,
                 'ref_id'          => implode(',',$validated['purchase_order_ids']) ?? null,
                 'invoice_type'    => 'bill',
+                'invoice_label'   => 'Manual',
                 'status'          => Invoice::STATUS_APPROVED,
                 'due_date'        => $validated['due_date'] ?? $validated['invoice_date'],
                 'einvoice_status' => 0,

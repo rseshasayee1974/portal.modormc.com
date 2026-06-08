@@ -25,7 +25,7 @@ const props = defineProps<{
     products: any[];
     units: any[];
 }>();
-
+console.log('check',props.invoice);
 const emit = defineEmits(['cancel', 'saved']);
 const toast = useToast();
 
@@ -44,6 +44,7 @@ const form = useForm({
     global_discount_type: props.invoice.global_discount_type || '₹',
     global_discount: Number(props.invoice.global_discount) || 0,
     adjustment: Number(props.invoice.adjustment) || 0,
+    round_off: Number(props.invoice.round_off) || 0,
     shipping_charges: Number(props.invoice.shipping_charges) || 0,
     shipping_tax_id: props.invoice.shipping_tax_id,
     amount_untaxed: 0,
@@ -51,7 +52,7 @@ const form = useForm({
     amount_total: 0,
     items: (props.invoice.items || []).map((it: any) => ({
         id: it.id,
-        mix_design_id: it.mix_design_id,
+        item_id: it.item_id,
         uom_id: it.uom_id,
         item_name: it.item_name,
         hsn_code: it.hsn_code,
@@ -67,7 +68,7 @@ const form = useForm({
 console.log('items',props.invoice);
 function createNewItem() {
     return {
-        mix_design_id: null,
+        item_id: null,
         uom_id: null,
         item_name: '',
         hsn_code: '',
@@ -129,17 +130,19 @@ const calculateTotals = () => {
         }
     }
 
-    form.amount_total = untaxed + form.amount_tax - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0);
+    const rawTotal = untaxed + form.amount_tax - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0);
+    form.amount_total = Math.round(rawTotal);
+    form.round_off = Number((form.amount_total - rawTotal).toFixed(2));
 };
 
 const onProductChange = (index: number) => {
     const item = form.items[index];
-    const design = props.products.find(p => p.value === item.mix_design_id);
+    const design = props.products.find(p => p.id === item.item_id);
     
     if (design) {
-        item.item_name = design.label;
-        item.price_unit = design.rate || 0;
-        item.uom_id = design.uom_id || null;
+        item.item_name = design.title;
+        item.price_unit = design.purchase_price || 0;
+        item.uom_id = design.unit_id || null;
     }
     calculateTotals();
 };
@@ -209,18 +212,18 @@ const invoiceTypeOptions = [
                                 <th class="px-4 py-3 text-center" style="width: 120px;">TAX</th>
                                 <th class="px-4 py-3 text-center" style="width: 180px;">Discount</th>
                                 <th class="px-4 py-3 text-right">Net Amount</th>
-                                <th class="px-1 py-1" style="width: 50px;">
-                                    <button type="button" @click="addItem" class="text-indigo-600 font-bold hover:text-indigo-700">
+                                <!-- <th class="px-1 py-1" style="width: 50px;"> -->
+                                    <!-- <button type="button" @click="addItem" class="text-indigo-600 font-bold hover:text-indigo-700">
                                         <PlusIcon class="w-5 h-5 m-2 shadow-sm border border-slate-200 bg-indigo-50 hover:bg-indigo-600 hover:text-white rounded transition-colors" />
-                                    </button>
-                                </th>
+                                    </button> -->
+                                <!-- </th> -->
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-50">
                             <tr v-for="(item, index) in form.items" :key="index" class="hover:bg-indigo-50/20 transition-colors text-[12px]">
                                 <td class="p-2">
                                     <BaseSelect 
-                                        v-model="item.mix_design_id" 
+                                        v-model="item.item_id" 
                                         :options="products" 
                                         optionLabel="title" 
                                         optionValue="id" 
@@ -272,11 +275,11 @@ const invoiceTypeOptions = [
                                 <td class="p-2 text-sm text-right font-black text-slate-700">
                                     {{ item.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                                 </td>
-                                <td class="p-2 text-center text-red-400">
+                                <!-- <td class="p-2 text-center text-red-400">
                                     <button v-if="form.items.length > 1" type="button" @click="removeItem(index)" class="hover:text-rose-500 transition-colors">
                                         <TrashIcon class="w-4 h-4" />
                                     </button>
-                                </td>
+                                </td> -->
                             </tr>
                         </tbody>
                     </table>
@@ -336,10 +339,14 @@ const invoiceTypeOptions = [
                             <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Shipping Charges (+)</span>
                             <BaseInputNumber v-model="form.shipping_charges" size="small" class="w-28" />
                         </div>
-                        <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-4">
-                            <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off / Adj (+/-)</span>
+                        <div class="flex justify-between items-center gap-4">
+                            <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Adjustment (+/-)</span>
                             <BaseInputNumber v-model="form.adjustment" size="small" class="w-28" />
                         </div>
+                        <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-4">
+                            <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off</span>
+                            <span class="text-slate-900 font-bold">{{ form.round_off > 0 ? '+' : '' }}{{ form.round_off.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                            </div>
 
                         <div class="flex justify-between items-center border-t border-slate-200 pt-6 mt-6">
                             <div class="flex flex-col">

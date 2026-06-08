@@ -13,6 +13,7 @@ class StoreInvoiceRequest extends FormRequest
 
     public function rules(): array
     {
+        
         return [
             'partner_id'       => 'required|exists:mm_patrons,id',
             'account_id'       => 'required|exists:mm_ledgers,id',
@@ -27,11 +28,13 @@ class StoreInvoiceRequest extends FormRequest
             'invoice_date'     => 'required|date',
             'due_date'         => 'nullable|date',
             'period'           => 'nullable|string|max:100',
+            'global_discount_type' => 'nullable|in:%,₹',
+            'global_discount'  => 'nullable|numeric|min:0',
             'adjustment'       => 'nullable|numeric',
             'shipping_charges' => 'nullable|numeric',
             'shipping_tax_id'  => 'nullable|exists:mm_taxes,id',
             'items'            => 'required|array|min:1',
-            'items.*.mix_design_id'=> 'nullable', // Validated differently for sales vs purchase
+            'items.*.item_id'      => 'nullable', // Validated differently for sales vs purchase
             'items.*.uom_id'       => 'nullable|exists:mm_product_units,id',
             'items.*.item_name'    => 'required|string|max:255',
             'items.*.hsn_code'     => 'nullable|string|max:10',

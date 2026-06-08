@@ -300,23 +300,11 @@ Route::middleware([
     });
 
     // Bridge Proxy (Bypass CORS for local hardware)
-    Route::get('/bridge/weight', function () {
+    Route::get('/bridge/weight', function (\Illuminate\Http\Request $request) {
         try {
             return \Illuminate\Support\Facades\Http::timeout(3)->get('http://localhost:8089/api/port')->body();
         } catch (\Exception $e) {
             return response('Bridge connection failed', 503);
         }
     })->name('bridge.weight');
-});
-
-Route::get('/test-history-list', function() {
-    try {
-        $histories = \App\Models\AgentChatHistory::all();
-        return response()->json($histories);
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 'ERROR',
-            'message' => $e->getMessage()
-        ]);
-    }
 });

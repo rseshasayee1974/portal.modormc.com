@@ -27,6 +27,8 @@ class UpdateInvoiceRequest extends FormRequest
             'invoice_date'     => 'required|date',
             'due_date'         => 'nullable|date',
             'period'           => 'nullable|string|max:50',
+            'global_discount_type' => 'nullable|in:%,₹',
+            'global_discount'  => 'nullable|numeric|min:0',
             'adjustment'       => 'nullable|numeric',
             'shipping_charges' => 'nullable|numeric',
             'shipping_tax_id'  => 'nullable|exists:mm_taxes,id',

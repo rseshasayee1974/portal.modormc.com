@@ -29,7 +29,7 @@ class PrintController extends Controller
 
         // 2. Resolve Model and Data with strict plant scoping
         $data = $this->resolveData($module, $id);
-        
+         
         if (!$data) {
             abort(404, "Module or Record not found, or you do not have permission to access it in this plant.");
         }
@@ -84,6 +84,16 @@ class PrintController extends Controller
                 return $model ? PrintDataFormatter::fromInvoice($model) : null;
 
             case 'billings':
+                $model = \App\Models\Invoice::where('id', $realId)
+                    ->where('plant_id', $activePlantId)
+                    ->first();
+                if ($model) {
+                    $data = PrintDataFormatter::fromInvoice($model);
+                    $data['doc_title'] = 'MANUAL BILL';
+                   
+                    return $data;
+                }
+                return null;
             case 'purchase_bills':
                 $model = \App\Models\Invoice::where('id', $realId)
                     ->where('plant_id', $activePlantId)

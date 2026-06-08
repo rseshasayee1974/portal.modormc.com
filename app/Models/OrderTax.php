@@ -65,7 +65,7 @@ class OrderTax extends Model
      * @param  int|null $accountId
      * @param  int|null $orderItemsId
      */
-    public static function createIntraStateSplit(Invoice $invoice, float $taxableAmount, float $fullRate, ?int $taxId = null, $orderItemsId = null): void
+    public static function createIntraStateSplit(Invoice $invoice, string $invoice_type, float $taxableAmount, float $fullRate, ?int $taxId = null, $orderItemsId = null): void
     {
         $tax = Tax::with('children')->find($taxId);
         $children = $tax ? $tax->children : collect();
@@ -73,7 +73,7 @@ class OrderTax extends Model
         if ($children->isNotEmpty()) {
             foreach ($children as $child) {
                 self::create([
-                    'order_type'     => 'Invoice',
+                    'order_type'     => $invoice_type,
                     'order_id'       => $invoice->id,
                     'plant_id'       => $invoice->plant_id,
                     'order_items_id' => $orderItemsId,
@@ -88,7 +88,7 @@ class OrderTax extends Model
         } elseif ($tax) {
             // Fallback: Create a single split for the parent tax if no children exist
             self::create([
-                'order_type'     => 'Invoice',
+                'order_type'     => $invoice_type,
                 'order_id'       => $invoice->id,
                 'plant_id'       => $invoice->plant_id,
                 'order_items_id' => $orderItemsId,
@@ -105,7 +105,7 @@ class OrderTax extends Model
     /**
      * Create IGST split (inter-state) for an invoice.
      */
-    public static function createInterStateSplit(Invoice $invoice, float $taxableAmount, float $fullRate, ?int $taxId = null, $orderItemsId = null): void
+    public static function createInterStateSplit(Invoice $invoice,string $invoice_type, float $taxableAmount, float $fullRate, ?int $taxId = null, $orderItemsId = null): void
     {
         $tax = Tax::with('children')->find($taxId);
         $children = $tax ? $tax->children : collect();
@@ -113,7 +113,7 @@ class OrderTax extends Model
         if ($children->isNotEmpty()) {
             foreach ($children as $child) {
                 self::create([
-                    'order_type'     => 'Invoice',
+                    'order_type'     => $invoice_type,
                     'order_id'       => $invoice->id,
                     'plant_id'       => $invoice->plant_id,
                     'order_items_id' => $orderItemsId,
@@ -128,7 +128,7 @@ class OrderTax extends Model
         } elseif ($tax) {
             // Fallback: Create a single split for the parent tax if no children exist
             self::create([
-                'order_type'     => 'Invoice',
+                'order_type'     => $invoice_type,
                 'order_id'       => $invoice->id,
                 'plant_id'       => $invoice->plant_id,
                 'order_items_id' => $orderItemsId,
