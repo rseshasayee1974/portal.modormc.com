@@ -76,6 +76,8 @@ class PrintDataFormatter
                 'discount'    => 0,
                 'tax_lines'   => [],
                 'shipping'    => 0,
+                'adjustment'  => 0,
+                'round_off'   => 0,
                 'grand_total' => 0,
             ],
 
@@ -176,6 +178,8 @@ class PrintDataFormatter
                 ['label' => 'SGST', 'amount' => 26100.00],
             ],
             'shipping'    => 1200.00,
+            'adjustment'  => 0,
+            'round_off'   => 0,
             'grand_total' => 405900.00,
         ];
 
@@ -274,6 +278,8 @@ class PrintDataFormatter
             'discount'    => (float)($order->discount_amount ?? 0),
             'tax_lines'   => collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray(),
             'shipping'    => (float)($order->shipping_charges ?? 0),
+            'adjustment'  => (float)($order->adjustment ?? 0),
+            'round_off'   => (float)($order->round_off ?? 0),
             'grand_total' => (float)$order->amount_total,
         ];
 
@@ -304,7 +310,18 @@ class PrintDataFormatter
         $data = self::base();
         $data['settings'] = self::getCustomSettings($invoice->plant_id, 'invoices');
 
-        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? 'TAX INVOICE';
+        $defaultTitle = $invoice->invoice_type === 'bill' ? 'PURCHASE BILL' : 'TAX INVOICE';
+        $docTitle = $data['settings']['pdf']['labels']['invoice_title'] ?? $defaultTitle;
+
+        if (!empty($invoice->invoice_label)) {
+            if (strtolower($invoice->invoice_label) === 'manual') {
+                $docTitle = 'MANUAL BILLING';
+            } else {
+                $docTitle = strtoupper($invoice->invoice_label);
+            }
+        }
+
+        $data['doc_title'] = $docTitle;
         $data['doc_no']    = $invoice->invoice_number ?? $invoice->id;
         $data['doc_date']  = $invoice->invoice_date?->format('d/m/Y') ?? now()->format('d/m/Y');
         $data['due_date']  = $invoice->due_date?->format('d/m/Y') ?? 'N/A';
@@ -361,10 +378,11 @@ class PrintDataFormatter
 
         $data['totals'] = [
             'sub_total'   => (float)$invoice->subtotal,
-            'discount'    => (float)$invoice->discount_total,
+            'discount'    => (float)$invoice->global_discount,
             'tax_lines'   => $taxLines,
             'shipping'    => (float)$invoice->shipping_charges,
             'adjustment'  => (float)$invoice->adjustment,
+            'round_off'   => (float)$invoice->round_off,
             'grand_total' => (float)$invoice->total_amount,
         ];
 
@@ -377,7 +395,7 @@ class PrintDataFormatter
             'po_number'       => $invoice->ref_id ?? '',
             'project_name'    => $invoice->ref_title ?? '',
         ];
-
+// dd($data);
         return $data;
     }
 
@@ -452,6 +470,8 @@ class PrintDataFormatter
             'discount'    => 0,
             'tax_lines'   => $quotation->tax ? [['label' => $quotation->tax->tax_name, 'amount' => (float)$quotation->tax_amount]] : [],
             'shipping'    => 0,
+            'adjustment'  => (float)($quotation->adjustment ?? 0),
+            'round_off'   => (float)($quotation->round_off ?? 0),
             'grand_total' => (float)$quotation->amount_total,
         ];
 
@@ -615,6 +635,7 @@ class PrintDataFormatter
                 'sgst'           => true,
                 'igst'           => true,
                 'shipping'       => true,
+                'adjustment'     => true,
                 'round_off'      => true,
                 'total_words'    => true,
                 'notes'          => true,

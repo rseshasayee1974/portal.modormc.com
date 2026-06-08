@@ -21,7 +21,7 @@ class Invoice extends Model
         'plant_id', 'partner_id', 'account_id', 
         'invoice_type', 'invoice_label', 'ref_id', 'ref_title',  
         'invoice_number', 'prefix', 'invoice_date', 'due_date', 'period',
-        'subtotal', 'discount_total', 'tax_amount', 'adjustment',
+        'subtotal', 'global_discount_type', 'global_discount', 'tax_amount', 'adjustment',
         'shipping_charges', 'shipping_tax_id',
         'total_amount', 'round_off', 'tds_amount', 'tds_tax_id',
         'paid_amount', 'balance_amount',
@@ -175,21 +175,31 @@ class Invoice extends Model
     {
         $items = $this->items()->withTrashed(false)->get();
 
-        $subtotal       = $items->sum('subtotal');
-        $discountTotal  = $items->sum('discount_amount');
+        $subtotal = $items->sum('subtotal');
+        $itemDiscountTotal = $items->sum('discount_amount');
+        
+        $globalDiscount = 0;
+        if ($this->global_discount_type === '%') {
+            $globalDiscount = $subtotal * (($this->global_discount ?? 0) / 100);
+        } else {
+            $globalDiscount = $this->global_discount ?? 0;
+        }
+
+        $discountTotal  = $itemDiscountTotal + $globalDiscount;
         $taxAmount      = $items->sum('line_tax_amount');
         
         // Add shipping charges to total
-        $rawTotal       = $subtotal + $taxAmount + $this->adjustment + ($this->shipping_charges ?? 0);
+        $rawTotal       = $subtotal + $taxAmount - $globalDiscount + $this->adjustment + ($this->shipping_charges ?? 0);
         $rounded        = round($rawTotal);
         $roundOff       = $rounded - $rawTotal;
 
         $this->updateQuietly([
             'subtotal'       => $subtotal,
-            'discount_total' => $discountTotal,
+            'global_discount' => $discountTotal,
             'tax_amount'     => $taxAmount,
             'total_amount'   => $rounded,
             'round_off'      => $roundOff,
+            'balance_amount' => max(0, $rounded - (float)($this->paid_amount ?? 0)),
         ]);
     }
 
@@ -300,7 +310,7 @@ class Invoice extends Model
             
             // For now, we still sync aggregated splits at invoice level using a weighted average or just the first item's rate for split naming
             // In a full implementation, we might want per-item splits, but let's stick to the invoice level for now as per syncTaxSplits signature.
-            $invoice->syncTaxSplits();
+            $invoice->syncTaxSplits($invoice['invoice_type']);
 
             return $invoice;
         });
@@ -341,7 +351,7 @@ class Invoice extends Model
 
             $this->refresh();
             $this->recalculate();
-            $this->syncTaxSplits();
+            $this->syncTaxSplits($this['invoice_type']);
 
             return $this;
         });
@@ -350,7 +360,7 @@ class Invoice extends Model
     /**
      * Sync CGST/SGST/IGST splits at invoice level.
      */
-    public function syncTaxSplits(): void
+    public function syncTaxSplits(string $invoice_type = 'invoices'): void
     {
         $this->orderTaxes()->delete();
 
@@ -369,9 +379,9 @@ class Invoice extends Model
             $partnerState = $partnerAddr?->state?->state_code ?? $partnerAddr?->state_code;
  
             if ($tax_group == 'GST') {
-                OrderTax::createIntraStateSplit($this, $item->subtotal, $fullRate, $item->tax_id,   $item->id);
+                OrderTax::createIntraStateSplit($this, $invoice_type, $item->subtotal, $fullRate, $item->tax_id,   $item->id);
             } else {
-                OrderTax::createInterStateSplit($this, $item->subtotal, $fullRate, $item->tax_id,    $item->id);
+                OrderTax::createInterStateSplit($this, $invoice_type, $item->subtotal, $fullRate, $item->tax_id,    $item->id);
             }
         }
 

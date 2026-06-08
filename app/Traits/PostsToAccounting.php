@@ -29,20 +29,25 @@ trait PostsToAccounting
             }
 
             // 2. Prepare basic document data
-            $isSales     = in_array($this->invoice_type, ['sales', 'invoice']);
+            $docType     = $this->invoice_type ?? 'purchase'; // Assume PO if no invoice_type
+            $isSales     = in_array($docType, ['sales', 'invoice']);
             $voucherType = $isSales ? 'SALES' : 'PURCHASE';
-            $invoiceNo   = $this->full_number ?? $this->invoice_number ?? '---';
-            $invoiceDate = $this->invoice_date ?? now();
+            $invoiceNo   = $this->full_number ?? $this->invoice_number ?? $this->po_number ?? '---';
+            $invoiceDate = $this->invoice_date ?? $this->date_order ?? now();
             $plantId     = $this->plant_id ?? session('active_plant_id');
             $entityId    = $this->plant->entity_id ?? session('active_entity_id');
             
             // Financial values rounded to 2 decimal places for consistency
-            $totalAmount = round((float)($this->total_amount ?? 0), 2);
-            $subtotal    = round((float)($this->subtotal ?? 0), 2);
-            $taxTotal    = round((float)($this->tax_amount ?? 0), 2);
+            $totalAmount = round((float)($this->total_amount ?? $this->amount_total ?? 0), 2);
+            $subtotal    = round((float)($this->subtotal ?? $this->amount_untaxed ?? 0), 2);
+            $taxTotal    = round((float)($this->tax_amount ?? $this->amount_tax ?? 0), 2);
 
             // 3. Create/Update Journal Entry Header
-            $refModule = ($this->invoice_type === 'bill') ? 'bill' : 'invoice';
+            if (isset($this->po_number)) {
+                $refModule = 'purchase_order';
+            } else {
+                $refModule = ($docType === 'bill') ? 'bill' : 'invoice';
+            }
             
             $journalEntry = JournalEntry::updateOrCreate(
                 ['ref_module' => $refModule, 'ref_id' => $this->id, 'plant_id' => $plantId],
@@ -52,7 +57,7 @@ trait PostsToAccounting
                     'voucher_number' => $invoiceNo,
                     'voucher_date'   => $invoiceDate,
                     'posting_date'   => $invoiceDate,
-                    'narration'      => ($isSales ? "Sales Invoice: " : "Purchase Bill: ") . $invoiceNo . " | " . ($this->partner?->legal_name ?? 'Unknown Partner'),
+                    'narration'      => ($isSales ? "Sales Invoice: " : (isset($this->po_number) ? "Purchase Order: " : "Purchase Bill: ")) . $invoiceNo . " | " . ($this->partner?->legal_name ?? $this->vendor?->legal_name ?? 'Unknown Partner'),
                     'total_debit'    => $totalAmount,
                     'total_credit'   => $totalAmount,
                     'is_status'      => 'DRAFT',
@@ -66,13 +71,14 @@ trait PostsToAccounting
             $lines = [];
 
             // --- DEBIT/CREDIT RULE 1: Partner Ledger (Customer/Vendor) ---
-            $partnerLedgerId = $this->partner?->ledger_id;
+            $partner = $this->partner ?? $this->vendor;
+            $partnerLedgerId = $partner?->ledger_id;
             if (!$partnerLedgerId) {
                 $partnerLedgerId = $this->getAccountingLedgerId($isSales ? 'debit_ledger' : 'credit_ledger', 'Sundry');
             }
 
             if (!$partnerLedgerId) {
-                throw new \Exception("Accounting Failure: Missing Partner Ledger for " . ($this->partner?->legal_name ?? 'Unknown'));
+                throw new \Exception("Accounting Failure: Missing Partner Ledger for " . ($partner?->legal_name ?? 'Unknown'));
             }
 
             $lines[] = [
@@ -80,7 +86,7 @@ trait PostsToAccounting
                 'debit_amount'   => $isSales ? $totalAmount : 0,
                 'credit_amount'  => $isSales ? 0 : $totalAmount,
                 'partner_type'   => 'Patron',
-                'partner_id'     => $this->partner_id,
+                'partner_id'     => $this->partner_id ?? $this->vendor_id,
                 'narration_name' => $isSales ? 'Receivable' : 'Payable',
                 'line_narration' => "Invoice #{$invoiceNo}",
             ];
@@ -108,8 +114,8 @@ trait PostsToAccounting
 
             // --- DEBIT/CREDIT RULE 3: Tax Splits ---
             // We use direct query to bypass any relationship caching issues
-            $orderTaxes = OrderTax::where('order_type', 'Invoice')
-                ->where('order_id', $this->id)
+            $orderTaxes = OrderTax::where('order_id', '=',$this->id)
+                ->whereIn('order_type', ['Invoice', 'App\Models\Invoice', $docType, 'PurchaseOrder'])
                 ->get();
 
             $sumTaxLines = 0;
@@ -207,14 +213,18 @@ trait PostsToAccounting
     private function addAdjustmentLines(&$lines, $isSales, $invoiceNo)
     {
         $map = [
-            'shipping_charges' => ['key' => 'shipping_account', 'fallback' => 'Shipping'],
-            'adjustment'       => ['key' => 'adjustment_account', 'fallback' => 'Adjustment'],
-            'round_off'        => ['key' => 'round_off_account', 'fallback' => 'Round Off'],
+            'shipping_charges' => ['key' => 'shipping_account', 'fallback' => 'Shipping', 'invert' => false],
+            'adjustment'       => ['key' => 'adjustment_account', 'fallback' => 'Adjustment', 'invert' => false],
+            'round_off'        => ['key' => 'round_off_account', 'fallback' => 'Round Off', 'invert' => false],
+            'global_discount'  => ['key' => 'discount_account', 'fallback' => 'Discount', 'invert' => true],
         ];
 
         foreach ($map as $field => $config) {
-            $value = round((float)($this->{$field} ?? 0), 2);
-            if ($value == 0) continue;
+            $raw_value = round((float)($this->{$field} ?? 0), 2);
+            if ($raw_value == 0) continue;
+
+            // Invert the effect if it's a discount (which reduces the total instead of adding to it)
+            $value = $config['invert'] ? -$raw_value : $raw_value;
 
             $ledgerId = $this->getAccountingLedgerId($config['key'], $config['fallback']);
             if ($ledgerId) {
@@ -242,7 +252,8 @@ trait PostsToAccounting
      */
     protected function getAccountingLedgerId(string $key, string $fallbackSearch): ?int
     {
-        $module = in_array($this->invoice_type, ['sales', 'invoice']) ? 'Invoice' : 'Purchase';
+        $docType = $this->invoice_type ?? 'purchase';
+        $module = in_array($docType, ['sales', 'invoice']) ? 'Invoice' : 'Purchase';
         $plantId = $this->plant_id ?? session('active_plant_id');
         
         $mapped = \App\Models\AccountDefaultSetting::where('plant_id', $plantId)

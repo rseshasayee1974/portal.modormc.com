@@ -279,9 +279,10 @@
                 @endif
             </div>
             <div class="header-right">
-                @if ($pdfSettings['invoice_title'] ?? true)
+                {{-- @if ($pdfSettings['invoice_title'] || $data['doc_title'] ?? true)
                     <div class="inv-title">{{ $data['doc_title'] }}</div>
-                @endif
+                @endif --}}
+                <div class="inv-title">{{ $data['doc_title'] }}</div>
                 <div class="inv-ref">
                     @if ($pdfSettings['invoice_number'] ?? true)
                         {{ str_contains($data['doc_title'], 'INVOICE') ? 'Invoice#' : ($data['doc_title'] === 'PURCHASE ORDER' ? 'PO#' : 'Ref#') }}
@@ -346,7 +347,7 @@
         </table>
 
         {{-- SUBJECT --}}
-        <div class="subject-row">&nbsp;&nbsp;Subject : {{ $data['meta']['project_name'] ?? 'Description' }}</div>
+        {{-- <div class="subject-row">&nbsp;&nbsp;Subject : {{ $data['meta']['project_name'] ?? 'Description' }}</div> --}}
 
         {{-- ITEMS --}}
         <table class="items-table">
@@ -448,6 +449,22 @@
                             <td class="bt-label">Shipping</td>
                             <td class="bt-val">
                                 {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['shipping'], 2) }}
+                            </td>
+                        </tr>
+                    @endif
+                    @if (($pdfSettings['adjustment'] ?? true) && ($data['totals']['adjustment'] ?? 0) != 0)
+                        <tr>
+                            <td class="bt-label">Adjustment</td>
+                            <td class="bt-val">
+                                {{ $data['totals']['adjustment'] > 0 ? '+' : '' }}{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['adjustment'], 2) }}
+                            </td>
+                        </tr>
+                    @endif
+                    @if (($pdfSettings['round_off'] ?? true) && ($data['totals']['round_off'] ?? 0) != 0)
+                        <tr>
+                            <td class="bt-label">Round Off</td>
+                            <td class="bt-val">
+                                {{ $data['totals']['round_off'] > 0 ? '+' : '' }}{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['round_off'], 2) }}
                             </td>
                         </tr>
                     @endif

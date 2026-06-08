@@ -57,6 +57,7 @@ const form = useForm({
     global_discount_type: '₹',
     global_discount: 0,
     adjustment: 0,
+    round_off: 0,
     shipping_charges: 0,
     shipping_tax_id: null,
     amount_untaxed: 0,
@@ -114,7 +115,7 @@ const mergeSelectedPOs = () => {
             const key = item.product_id;
             if (!grouped[key]) {
                 grouped[key] = {
-                    mix_design_id: item.product_id, 
+                    item_id: item.product_id, 
                     uom_id: item.product_uom,
                     item_name: item.product?.title || item.description || 'Product',
                     hsn_code: item.hsn_code || '',
@@ -160,7 +161,7 @@ form.items.push(createNewItem());
 
 function createNewItem() {
     return {
-        mix_design_id: null,
+        item_id: null,
         uom_id: null,
         item_name: '',
         hsn_code: '',
@@ -229,22 +230,31 @@ const calculateTotals = () => {
         }
     }
 
-    form.amount_total = untaxed + taxTotal - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0);
+    const rawTotal = untaxed + taxTotal - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0);
+    form.amount_total = Math.round(rawTotal);
+    form.round_off = Number((form.amount_total - rawTotal).toFixed(2));
 };
 
 const onProductChange = (index: number) => {
     const item = form.items[index];
-    const design = props.products.find(p => p.value === item.mix_design_id);
+    const product = props.products.find(p => p.id === item.item_id);
     
-    if (design) {
-        item.item_name = design.label;
-        item.price_unit = design.rate || 0;
-        item.uom_id = design.uom_id || null;
+    if (product) {
+        item.item_name = product.title;
+        item.price_unit = product.purchase_price || 0;
+        item.uom_id = product.unit_id || null;
     }
     calculateTotals();
 };
 
-watch(() => [form.items, form.adjustment, form.shipping_charges], calculateTotals, { deep: true });
+watch(() => [
+    form.items, 
+    form.adjustment, 
+    form.shipping_charges,
+    form.global_discount,
+    form.global_discount_type,
+    form.shipping_tax_id
+], calculateTotals, { deep: true });
 
 const submit = () => {
     form.post(route('billings.store'), {
@@ -485,7 +495,7 @@ const taxOptions = computed(() => props.taxes);
                                     <tr v-for="(item, index) in form.items" :key="index" class="hover:bg-indigo-50/20 transition-colors text-[12px]">
                                         <td class="p-2">
                                             <BaseSelect 
-                                                v-model="item.mix_design_id" 
+                                                v-model="item.item_id" 
                                                 :options="products" 
                                                 optionLabel="title" 
                                                 optionValue="id" 
@@ -588,9 +598,13 @@ const taxOptions = computed(() => props.taxes);
                                     <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Shipping Charges (+)</span>
                                     <BaseInputNumber v-model="form.shipping_charges" size="small" class="w-28" />
                                 </div>
-                                <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-4">
-                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off / Adj (+/-)</span>
+                                <div class="flex justify-between items-center gap-4">
+                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Adjustment (+/-)</span>
                                     <BaseInputNumber v-model="form.adjustment" size="small" class="w-28" />
+                                </div>
+                                <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-4">
+                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off</span>
+                                    <span class="text-slate-900 font-bold">{{ form.round_off > 0 ? '+' : '' }}{{ form.round_off.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                                 </div>
 
                                 <div class="flex justify-between items-center border-t border-slate-200 pt-6 mt-6">

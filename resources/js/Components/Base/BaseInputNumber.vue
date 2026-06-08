@@ -31,7 +31,7 @@ const props = withDefaults(
         required: false,
         disabled: false,
         readonly: false,
-        minFractionDigits: 0,
+        minFractionDigits: 2,
         size: 'small',
         fluid: true,
     }
@@ -59,8 +59,8 @@ const emit = defineEmits<{
                 :placeholder="placeholder"
                 :disabled="disabled"
                 :readonly="readonly"
-                :minFractionDigits="minFractionDigits"
-                :maxFractionDigits="maxFractionDigits"
+                :minFractionDigits="2"
+                :maxFractionDigits="2"
                 :min="min"
                 :max="max"
                 :prefix="prefix"
