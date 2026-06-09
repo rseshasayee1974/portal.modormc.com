@@ -313,6 +313,7 @@ const submit = () => {
         }
     });
 };
+console.log(props.workOrders);
 </script>
 
 <template>
@@ -345,7 +346,7 @@ const submit = () => {
                             <BaseSelect 
                                 v-model="form.work_order_id" 
                                 :options="workOrders" 
-                                optionLabel="order_no" 
+                                optionLabel="full_number" 
                                 optionValue="id" 
                                 filter 
                                 label="Select Work Order" 

@@ -31,16 +31,11 @@ class BatchController extends Controller
         $activePlantId = session('active_plant_id');
 
         $batches = Batch::with([
-            'workOrder.customer',
-            'workOrder.mixDesign',
-            'workOrder.site',
-            'dispatches.truck',
-            'dispatches.salesExecutive',
-            'dispatches.creator:id,email',
-            'dispatches.modifier:id,email',
-            'dispatches.status.invoice.createdBy:id,email',
-            'materials.product',
-            'materials.uom'
+            'workOrder.customer:id,legal_name',
+            'workOrder.mixDesign:id,design_name,design_code',
+            'workOrder.site:id,name',
+            'dispatches:id,batch_id,truck_id',
+            'dispatches.truck:id,registration'
         ])
         ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
         ->latest()
@@ -511,8 +506,12 @@ class BatchController extends Controller
         $existingIds = collect($materials)->pluck('id')->filter()->values()->all();
         $batch->materials()->whereNotIn('id', $existingIds)->delete();
 
+        $productIds = collect($materials)->pluck('product_id')->filter()->unique()->toArray();
+        $productTitles = !empty($productIds) ? Product::query()->whereIn('id', $productIds)->pluck('title', 'id') : collect();
+        $existingMaterials = !empty($existingIds) ? BatchMaterial::query()->whereIn('id', $existingIds)->where('batch_id', $batch->id)->get()->keyBy('id') : collect();
+
         foreach ($materials as $item) {
-            $materialName = $item['material_name'] ?? Product::query()->whereKey($item['product_id'])->value('title') ?? 'Material';
+            $materialName = $item['material_name'] ?? ($productTitles[$item['product_id']] ?? 'Material');
 
             $row = [
                 'product_id' => $item['product_id'],
@@ -524,10 +523,7 @@ class BatchController extends Controller
             ];
 
             if (!empty($item['id'])) {
-                $batchMat = BatchMaterial::query()
-                    ->where('id', $item['id'])
-                    ->where('batch_id', $batch->id)
-                    ->first();
+                $batchMat = $existingMaterials->get($item['id']);
                     
                 if ($batchMat) {
                     $batchMat->update($row);
@@ -541,32 +537,55 @@ class BatchController extends Controller
     private function adjustStock(Batch $batch, array $materials, bool $isReverting = false): void
     {
         $userId = auth()->id();
-        // Use created_at for the consumption date, fallback to now
         $date = $batch->created_at ? $batch->created_at->toDateString() : now()->toDateString();
         $plantId = $batch->workOrder->plant_id ?? session('active_plant_id');
 
+        // Aggregate adjustments by product and uom to reduce time complexity and DB operations
+        $aggregated = [];
         foreach ($materials as $item) {
             if (empty($item['product_id']) || (float)($item['actual_qty'] ?? 0) <= 0) continue;
+            $key = $item['product_id'] . '_' . $item['uom_id'];
+            if (!isset($aggregated[$key])) {
+                $aggregated[$key] = [
+                    'product_id' => $item['product_id'],
+                    'uom_id' => $item['uom_id'],
+                    'actual_qty' => 0
+                ];
+            }
+            $aggregated[$key]['actual_qty'] += (float)$item['actual_qty'];
+        }
 
-            $quantityRecord = Quantity::firstOrNew([
-                'plant_id' => $plantId,
-                'product_id' => $item['product_id'],
-                'uom_id' => $item['uom_id']
-            ]);
-            if (!$quantityRecord->exists) {
+        $productIds = collect($aggregated)->pluck('product_id')->toArray();
+        
+        // Use query() to prevent IDE 'Not enough arguments' warning on where()
+        $quantityRecords = !empty($productIds) ? Quantity::query()->where('plant_id', $plantId)
+            ->whereIn('product_id', $productIds)
+            ->get()
+            ->keyBy(function ($q) {
+                return $q->product_id . '_' . $q->uom_id;
+            }) : collect();
+
+        foreach ($aggregated as $key => $item) {
+            $quantityRecord = $quantityRecords->get($key);
+            
+            if (!$quantityRecord) {
+                $quantityRecord = new Quantity([
+                    'plant_id' => $plantId,
+                    'product_id' => $item['product_id'],
+                    'uom_id' => $item['uom_id']
+                ]);
                 $quantityRecord->opening_quantity = 0;
                 $quantityRecord->created_by = $userId;
                 $quantityRecord->status = 1;
+                $quantityRecord->quantity = 0;
             }
 
             $adjustment = (float)$item['actual_qty'];
             
             if ($isReverting) {
-                // Add back to stock
-                $quantityRecord->quantity = (float)$quantityRecord->quantity + $adjustment;
+                $quantityRecord->quantity += $adjustment;
             } else {
-                // Subtract from stock
-                $quantityRecord->quantity = (float)$quantityRecord->quantity - $adjustment;
+                $quantityRecord->quantity -= $adjustment;
             }
 
             $quantityRecord->updated_by = $userId;
