@@ -37,7 +37,11 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, \Illuminate\Http\Request $request) {
-            if ($request->expectsJson() && !$request->inertia()) {
+            if ($request->inertia()) {
+                return \Inertia\Inertia::location(route('login'));
+            }
+
+            if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Your session has expired. Please log in again.',
                     'redirect' => route('login'),
@@ -45,6 +49,18 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return redirect()->route('login')->with('status', 'Your session has expired. Please log in again.');
+        });
+
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, \Illuminate\Http\Request $request) {
+            if ($request->inertia()) {
+                return \Inertia\Inertia::location(route('login'));
+            }
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+
+            return redirect()->guest(route('login'));
         });
 
         // Normalize JSON error shape for frontend mapping (especially 422 validation).

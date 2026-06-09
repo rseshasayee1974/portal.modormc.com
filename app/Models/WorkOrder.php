@@ -14,6 +14,40 @@ class WorkOrder extends Model
 {
     use HasFactory, SoftDeletes, AuditFields, PlantScoping;
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::updated(function (WorkOrder $workorder) {
+            try {
+                foreach ($workorder->getDirty() as $key => $newValue) {
+                    if (in_array($key, ['updated_at', 'created_at', 'deleted_at', 'produced_qty'])) {
+                        continue;
+                    }
+                    $oldValue = $workorder->getOriginal($key);
+
+                    // Safe fallback for the decimal columns in case a string/date is changed
+                    $logFrom = is_numeric($oldValue) ? $oldValue : 0;
+                    $logTo = is_numeric($newValue) ? $newValue : 0;
+
+                    \App\Models\InventoryAuditLog::create([
+                        'plant_id' => $workorder->plant_id,
+                        'transaction_type' => 'work_order',
+                        'reference_type' => 'Update ' . ucfirst(str_replace('_', ' ', $key)),
+                        'reference_id' => $workorder->id,
+                        'log_from' => $logFrom,
+                        'log_to' => $logTo,
+                        'user_id' => \Illuminate\Support\Facades\Auth::id(),
+                        'remarks' => "Updated {$key}: '{$oldValue}' => '{$newValue}'",
+                        'ip_address' => request()->ip(),
+                    ]);
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to log work order update: ' . $e->getMessage());
+            }
+        });
+    }
+
     protected $table = 'mm_work_orders';
 
     protected $fillable = [

@@ -98,6 +98,11 @@ class WorkOrderController extends Controller
     {
         $this->authorizeModule('delete');
         $this->ensurePlantScope($workorder);
+
+        if ($workorder->batches()->exists() || $workorder->dispatches()->exists()) {
+            return redirect()->back()->with('error', 'Cannot delete this work order because it has associated batches or dispatches.');
+        }
+
         $workorder->delete();
 
         return redirect()->back()->with('success', 'Work order deleted successfully.');

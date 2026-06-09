@@ -4,8 +4,6 @@ import { computed } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import DatePicker from 'primevue/datepicker';
-import Button from 'primevue/button';
 import Swal from 'sweetalert2';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
@@ -28,7 +26,7 @@ const selectedMixDesign = computed(() => {
     const selectedId = form.mix_design_id !== null ? Number(form.mix_design_id) : null;
     return props.mixDesigns.find((md) => Number(md?.id) === selectedId);
 });
-
+console.log(selectedMixDesign);
 const selectedMixIngredients = computed(() => {
     const mix = selectedMixDesign.value;
     if (!mix) return [];
@@ -98,12 +96,12 @@ const submit = () => {
         </div>
 
         <div class="grid grid-cols-12 gap-4">
-            <div class="col-span-12 md:col-span-3">
+            <!-- <div class="col-span-12 md:col-span-3" >
                 <BaseInput v-model="form.prefix" label="Prefix" :error="form.errors.prefix" />
             </div>
             <div class="col-span-12 md:col-span-3">
                 <BaseInput v-model="form.order_no" label="Order Number" :error="form.errors.order_no" />
-            </div>
+            </div> -->
             <div class="col-span-12 md:col-span-3">
                 <BaseSelect v-model="form.customer_id" :options="customers" optionLabel="legal_name" optionValue="id" filter label="Customer" :error="form.errors.customer_id" />
             </div>
@@ -117,7 +115,7 @@ const submit = () => {
                 <BaseInputNumber v-model="form.total_qty" label="Total Quantity (m³)" :error="form.errors.total_qty" :minFractionDigits="3" />
             </div>
             <div class="col-span-12 md:col-span-3">
-                <BaseInputNumber v-model="form.produced_qty" label="Produced Quantity (m³)" :error="form.errors.produced_qty" :minFractionDigits="3" />
+                <BaseInputNumber v-model="form.produced_qty" label="Produced Quantity (m³)" :error="form.errors.produced_qty" readonly :minFractionDigits="3" disabled/>
             </div>
             <div class="col-span-12 md:col-span-3">
                 <BaseSelect v-model="form.status" :options="statuses" optionLabel="label" optionValue="value" label="Status" :error="form.errors.status" />
@@ -134,17 +132,19 @@ const submit = () => {
                 <small class="text-red-500">{{ form.errors.scheduled_end }}</small>
             </div>
 
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect v-model="form.mix_design_id" :options="mixDesigns" optionLabel="design_name" optionValue="id" filter label="Mix Design" :error="form.errors.mix_design_id" />
+            <div class="col-span-12 md:col-span-6">
+                <div class="col-span-12 md:col-span-3">
+                    <BaseSelect v-model="form.mix_design_id" :options="mixDesigns"  optionLabel="design_name" optionValue="id" filter label="Mix Design" :error="form.errors.mix_design_id" />
+                </div>
                 
                 <!-- Mix Design Details Hint -->
                 <div v-if="selectedMixIngredients.length" class="mt-2.5 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
                     <div class="flex items-center justify-between">
                         <label class="text-[9px] font-bold uppercase tracking-[0.1em] text-indigo-400">Recipe Details</label>
-                        <span v-if="selectedMixDesign?.grade" class="rounded bg-indigo-100 px-1 py-0.5 text-[8px] font-bold text-indigo-700">GRADE: {{ selectedMixDesign.grade }}</span>
+                        <span v-if="selectedMixDesign?.grade" class="rounded bg-indigo-100 px-1 py-0.5 text-[8px] font-bold text-indigo-700">GRADE: {{ selectedMixDesign.design_name }}</span>
                     <!-- </div>
                     <div class="flex items-center justify-between"> -->
-                        <span v-if="selectedMixDesign?.ratio" class="rounded bg-indigo-100 px-1 py-0.5 text-[8px] font-bold text-indigo-700">RATIO: {{ selectedMixDesign.ratio }}</span>
+                        <!-- <span v-if="selectedMixDesign?.ratio" class="rounded bg-indigo-100 px-1 py-0.5 text-[8px] font-bold text-indigo-700">RATIO: {{ selectedMixDesign.ratio }}</span> -->
                     </div>
                     <div class="flex flex-wrap gap-1.5">
                         <div v-for="item in selectedMixIngredients" :key="item.id" 

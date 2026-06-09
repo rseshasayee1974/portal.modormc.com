@@ -402,7 +402,7 @@ const submit = () => {
                             <div class="col-span-12 md:col-span-3">
                                 <div class="flex items-end">
                                     <div class="flex-1">
-                                        <BaseInputNumber v-model="form.empty_weight_truck" :disabled="customSettings?.batching?.manual_weight" label="Empty Weight" :error="form.errors.empty_weight_truck" />
+                                        <BaseInputNumber v-model="form.empty_weight_truck" :disabled="!customSettings?.batching?.manual_weight" label="Empty Weight" :error="form.errors.empty_weight_truck" />
                                     </div>
                                     <button @click="handleWeightCapture" type="button" v-if="customSettings?.batching?.manual_weight" 
                                         :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 

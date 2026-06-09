@@ -137,7 +137,15 @@ const onSaved = () => {
             <Column header="Actions" style="width: 80px">
                 <template #body="{ data }">
                     <div class="flex justify-end">
-                        <Button icon="pi pi-trash" text rounded severity="danger" @click="destroy(data)" />
+                        <Button 
+                            icon="pi pi-trash" 
+                            text 
+                            rounded 
+                            severity="danger" 
+                            @click="destroy(data)"
+                            :disabled="data.batches_count > 0 || data.dispatches_count > 0"
+                            v-tooltip.top="(data.batches_count > 0 || data.dispatches_count > 0) ? 'Cannot delete: active batches or dispatches exist' : 'Delete Work Order'"
+                        />
                     </div>
                 </template>
             </Column>

@@ -25,8 +25,6 @@ class InventoryAuditLog extends Model
     ];
 
     protected $casts = [
-        'log_from' => 'decimal:4',
-        'log_to' => 'decimal:4',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
