@@ -6,13 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\OrderTax;
-
+use App\Traits\TracksModelChanges;
 
 class PurchaseOrderItem extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, TracksModelChanges;
 
     protected $table = 'mm_purchase_order_items';
+
+    public string $auditTransactionType = 'purchase_order_item';
 
     protected $fillable = [
         'plant_id',

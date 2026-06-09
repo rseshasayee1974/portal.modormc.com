@@ -29,7 +29,7 @@ interface QuotationItemPayload {
     rate: number;
       uom_id: null, // Added
     // Calculated fields strictly for the new schema
-    tax_amount: number;
+    // tax_amount: number;
     untaxed_amount: number;
     amount_total: number;
 }
@@ -57,7 +57,7 @@ const form = useForm({
     adjustment: 0,
     // Header totals
     amount_untaxed: 0,
-    tax_amount: 0,
+    // tax_amount: 0,
     amount_tax: 0,
     amount_total: 0,
     items: [createNewItem()] as QuotationItemPayload[],
@@ -71,7 +71,7 @@ function createNewItem(): QuotationItemPayload {
         tax_id: null,
         uom_id: null, 
         rate: 0,
-        tax_amount: 0,
+        // tax_amount: 0,
         untaxed_amount: 0,
         amount_total: 0
     };
@@ -116,7 +116,7 @@ const calculateTotals = () => {
 
         // Update Item Internal State (for SQL Insertion)
         item.untaxed_amount = Number(untaxed.toFixed(2));
-        item.tax_amount = Number(lineTax.toFixed(2));
+        // item.tax_amount = Number(lineTax.toFixed(2));
         item.amount_total = Number((untaxed + lineTax).toFixed(2));
 
         totalUntaxed += untaxed;
@@ -124,7 +124,7 @@ const calculateTotals = () => {
     });
 
     form.amount_untaxed = Number(totalUntaxed.toFixed(2));
-    form.tax_amount = Number(totalTax.toFixed(2)); // Both fields as per SQL
+    // form.tax_amount = Number(totalTax.toFixed(2)); // Both fields as per SQL
     form.amount_tax = Number(totalTax.toFixed(2));
     form.amount_total = Number((totalUntaxed + totalTax + Number(form.adjustment || 0)).toFixed(2));
 };

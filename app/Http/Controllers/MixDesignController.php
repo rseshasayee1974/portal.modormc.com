@@ -92,12 +92,13 @@ class MixDesignController extends Controller
 
         $validated = $request->validate([
             'partner_id' => 'required|exists:mm_patrons,id',
-            'design_name' => 'required|string|max:255|unique:mix_designs,design_name,' . $mixdesign->id . ',id,plant_id,' . $plantId . ',partner_id,' . $request->partner_id,
+            'design_name' => 'required|string|max:255|unique:mm_mix_designs,design_name,' . $mixdesign->id . ',id,plant_id,' . $plantId . ',partner_id,' . $request->partner_id,
             'design_code' => 'nullable|string|max:100',
             'design_type' => 'nullable|string',
             'unit_id' => 'nullable|exists:mm_product_units,id',
             'rate_per_qty' => 'nullable|numeric',
             'items' => 'required|array|min:1',
+            'items.*.id' => 'nullable|exists:mm_mix_design_items,id',
             'items.*.product_id' => 'required|exists:mm_products,id',
             'items.*.uom_id' => 'required|exists:mm_product_units,id',
             'items.*.rate' => 'nullable|numeric',
@@ -117,20 +118,54 @@ class MixDesignController extends Controller
                 'updated_by' => Auth::id(),
             ]);
 
-            $mixdesign->items()->forceDelete();
+            // Get the IDs of the items submitted in the payload
+            $submittedIds = collect($validated['items'])
+                ->pluck('id')
+                ->filter()
+                ->toArray();
 
+            // Find existing items in the database that are not in the submitted list
+            $itemsToSoftDelete = $mixdesign->items()
+                ->whereNotIn('id', $submittedIds)
+                ->get();
+
+            // Soft delete the removed items, updating deleted_by
+            foreach ($itemsToSoftDelete as $item) {
+                $item->deleted_by = Auth::id();
+                $item->save();
+                $item->delete();
+            }
+
+            // Create new items or update existing ones
             foreach ($validated['items'] as $item) {
-                MixDesignItem::create([
-                    'plant_id' => $plantId,
-                    'mix_design_id' => $mixdesign->id,
-                    'product_id' => $item['product_id'],
-                    'uom_id' => $item['uom_id'],
-                    'rate' => $item['rate'],
-                    'actual_quantity' => $item['actual_quantity'],
-                    'cross_quantity' => $item['cross_quantity'],
-                    'variation_quantity' => $item['variation_quantity'],
-                    'created_by' => Auth::id(),
-                ]);
+                if (!empty($item['id'])) {
+                    // Update existing item
+                    $mixDesignItem = MixDesignItem::find($item['id']);
+                    if ($mixDesignItem) {
+                        $mixDesignItem->update([
+                            'product_id' => $item['product_id'],
+                            'uom_id' => $item['uom_id'],
+                            'rate' => $item['rate'],
+                            'actual_quantity' => $item['actual_quantity'],
+                            'cross_quantity' => $item['cross_quantity'],
+                            'variation_quantity' => $item['variation_quantity'],
+                            'updated_by' => Auth::id(),
+                        ]);
+                    }
+                } else {
+                    // Create new item
+                    MixDesignItem::create([
+                        'plant_id' => $plantId,
+                        'mix_design_id' => $mixdesign->id,
+                        'product_id' => $item['product_id'],
+                        'uom_id' => $item['uom_id'],
+                        'rate' => $item['rate'],
+                        'actual_quantity' => $item['actual_quantity'],
+                        'cross_quantity' => $item['cross_quantity'],
+                        'variation_quantity' => $item['variation_quantity'],
+                        'created_by' => Auth::id(),
+                    ]);
+                }
             }
         });
 

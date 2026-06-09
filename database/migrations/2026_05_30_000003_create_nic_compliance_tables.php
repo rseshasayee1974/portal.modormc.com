@@ -53,9 +53,11 @@ return new class extends Migration
         });
 
         // Add fulltext index separately
-        Schema::table('mm_einvoice_invoice_rel', function (Blueprint $table) {
-            $table->fullText('einv_irn', 'einvirn');
-        });
+        if (config('database.default') !== 'sqlite') {
+            Schema::table('mm_einvoice_invoice_rel', function (Blueprint $table) {
+                $table->fullText('einv_irn', 'einvirn');
+            });
+        }
 
         Schema::create('mm_ewaybill_auth', function (Blueprint $table) {
             $table->integer('id')->autoIncrement();

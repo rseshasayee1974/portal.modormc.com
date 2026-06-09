@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\ProtectsSystemItems;
 use App\Traits\PlantScoping;
+use App\Traits\TracksModelChanges;
 
 class MixDesign extends Model
 {
-    use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping;
+    use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_mix_designs';
 
@@ -30,6 +31,9 @@ class MixDesign extends Model
         'deleted_by',
     ];
 
+    protected $appends = [
+        'is_in_use'
+    ];
     protected $casts = [
         'rate_per_qty' => 'decimal:4',
         'is_active' => 'boolean',
@@ -73,5 +77,15 @@ class MixDesign extends Model
     public function concrete_grade_items()
     {
         return $this->hasMany(MixDesignItem::class, 'mix_design_id');
+    }
+    public function quotationItems()
+    {
+        return $this->hasMany(QuotationItem::class, 'mix_design_id');
+    }
+    
+
+    public function getIsInUseAttribute()
+    {
+        return $this->quotationItems()->exists() ;
     }
 }

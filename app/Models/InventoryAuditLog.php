@@ -24,9 +24,10 @@ class InventoryAuditLog extends Model
         'ip_address',
     ];
 
+    const UPDATED_AT = null;
+
     protected $casts = [
         'created_at' => 'datetime',
-        'updated_at' => 'datetime',
     ];
 
     /**

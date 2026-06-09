@@ -8,11 +8,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
 use App\Traits\AuditFields;
 use App\Traits\PlantScoping;
+use App\Traits\TracksModelChanges;
 
 class Quotation extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
+    use HasFactory, SoftDeletes, AuditFields, PlantScoping , TracksModelChanges;
     protected $table = 'mm_quotations';
+
+    protected $appends = [
+        'is_in_use',
+    ];
+
     protected $fillable = [
         'plant_id',
         'prefix',
@@ -22,7 +28,6 @@ class Quotation extends Model
         'quote_date',
         'validity_date',
         'tax_id',
-        'tax_amount',
         'amount_untaxed',
         'amount_tax',
         'adjustment',
@@ -38,7 +43,6 @@ class Quotation extends Model
         'is_salesorder' => 'integer',
         'amount_untaxed' => 'decimal:2',
         'amount_tax' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
         'adjustment' => 'decimal:2',
         'amount_total' => 'decimal:2',
         'quote_date' => 'date:Y-m-d',
@@ -185,9 +189,13 @@ class Quotation extends Model
         
         $this->update([
             'amount_untaxed' => $untaxed,
-            'tax_amount' => $taxAmount,
             'amount_tax' => $taxAmount,
             'amount_total' => $untaxed + $taxAmount + ($this->adjustment ?? 0),
         ]);
+    }
+
+    public function getIsInUseAttribute(): bool
+    {
+        return $this->items()->exists();
     }
 }

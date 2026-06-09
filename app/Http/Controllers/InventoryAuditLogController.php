@@ -86,6 +86,7 @@ class InventoryAuditLogController extends Controller
                 'label' => "{$user->username} ({$user->email})",
             ]);
 
+        // return json_encode($logs);
         return Inertia::render('InventoryAuditLogs/Index', [
             'logs' => $logs,
             'transactionTypes' => $transactionTypes,
@@ -111,8 +112,8 @@ class InventoryAuditLogController extends Controller
             'transaction_type' => 'required|string|max:255',
             'reference_type' => 'nullable|string|max:255',
             'reference_id' => 'nullable|integer',
-            'log_from' => 'required|numeric',
-            'log_to' => 'required|numeric',
+            'log_from' => 'required',
+            'log_to' => 'required',
             'remarks' => 'nullable|string',
         ]);
 

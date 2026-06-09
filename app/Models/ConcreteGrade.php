@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\ProtectsSystemItems;
+use App\Traits\TracksModelChanges;
 
 class ConcreteGrade extends Model
 {
-    use HasFactory, SoftDeletes, ProtectsSystemItems;
+    use HasFactory, SoftDeletes, ProtectsSystemItems, TracksModelChanges;
     protected $table = 'mm_concrete_grades';
     protected $fillable = [
         'plant_id',
@@ -34,7 +35,7 @@ class ConcreteGrade extends Model
         'aggregate_ratio' => 'decimal:2',
     ];
 
-    protected $appends = ['is_in_use'];
+     protected $appends = ['is_in_use'];
 
     public function plant()
     {

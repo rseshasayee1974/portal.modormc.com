@@ -9,15 +9,18 @@ use Illuminate\Support\Facades\DB;
 use App\Traits\AuditFields;
 use App\Traits\ProtectsSystemItems;
 use App\Traits\PlantScoping;
+use App\Traits\TracksModelChanges;
 
 class Product extends Model
 {
     /** @use HasFactory<\Database\Factories\ProductFactory> */
-    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems, PlantScoping;
+    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_products';
 
-    protected $appends = ['is_in_use'];
+    protected $appends = ['can_delete' , 'can_update' , 'is_in_use'];
+
+    public string $auditTransactionType = 'product';
 
     // ──────────────────────────────────────────────────────────────
     // Auto Code Generation
@@ -30,67 +33,6 @@ class Product extends Model
         static::creating(function (Product $product) {
             if (empty($product->code)) {
                 $product->code = static::generateCode($product->plant_id, $product->category_id);
-            }
-        });
-
-        static::updated(function (Product $product) {
-            try {
-                // Get the current stock quantity for this product in its plant
-                $qty = \App\Models\Quantity::where('product_id', $product->id)
-                    ->where('plant_id', $product->plant_id)
-                    ->value('quantity') ?? 0;
-
-                // Determine what fields changed to add to remarks
-                $changes = [];
-                foreach ($product->getDirty() as $key => $newValue) {
-                    // Skip timestamps and system fields
-                    if (in_array($key, ['updated_at', 'created_at', 'deleted_at'])) {
-                        continue;
-                    }
-                    $oldValue = $product->getOriginal($key);
-                    $changes[] = "{$key}: '{$oldValue}' => '{$newValue}'";
-                }
-
-                if (!empty($changes)) {
-                    \App\Models\InventoryAuditLog::create([
-                        'plant_id' => $product->plant_id,
-                        'transaction_type' => 'product',
-                        'reference_type' => 'Update',
-                        'reference_id' => $product->id,
-                        'log_from' => $qty,
-                        'log_to' => $qty,
-                        'user_id' => \Illuminate\Support\Facades\Auth::id(),
-                        'remarks' => 'Updated: ' . implode(', ', $changes),
-                        'ip_address' => request()->ip(),
-                    ]);
-                }
-            } catch (\Exception $e) {
-                // Log exception to prevent breaking the product update transaction
-                \Illuminate\Support\Facades\Log::error('Failed to log product update: ' . $e->getMessage());
-            }
-        });
-
-        static::deleted(function (Product $product) {
-            try {
-                // Get the last known stock quantity before deletion
-                $qty = \App\Models\Quantity::where('product_id', $product->id)
-                    ->where('plant_id', $product->plant_id)
-                    ->value('quantity') ?? 0;
-
-                \App\Models\InventoryAuditLog::create([
-                    'plant_id' => $product->plant_id,
-                    'transaction_type' => 'product',
-                    'reference_type' => 'Delete',
-                    'reference_id' => $product->id,
-                    'log_from' => $qty,
-                    'log_to' => 0,
-                    'user_id' => \Illuminate\Support\Facades\Auth::id(),
-                    'remarks' => "Deleted product: {$product->title} (Code: {$product->code})",
-                    'ip_address' => request()->ip(),
-                ]);
-            } catch (\Exception $e) {
-                // Log exception to prevent breaking the product delete transaction
-                \Illuminate\Support\Facades\Log::error('Failed to log product deletion: ' . $e->getMessage());
             }
         });
     }
@@ -270,16 +212,34 @@ class Product extends Model
         return $this->morphMany(InventoryAuditLog::class, 'reference');
     }
 
-    public function getIsInUseAttribute(): bool
-    {
-        return \App\Models\PurchaseOrderItem::where('product_id', $this->id)->exists() ||
-            \App\Models\PurchaseOrderHistory::where('product_id', $this->id)->exists() ||
-            \App\Models\Quantity::where('product_id', $this->id)->exists() ||
-            \App\Models\BatchMaterial::where('product_id', $this->id)->exists() ||
-            \App\Models\MaintenanceLine::where('product_id', $this->id)->exists() ||
-            \App\Models\StockExhaustLine::where('product_id', $this->id)->exists() ||
-            \App\Models\PartyRate::where('product_id', $this->id)->exists() ||
-            \App\Models\ConcreteGradeItem::where('product_id', $this->id)->exists() ||
-            \App\Models\MixDesignItem::where('product_id', $this->id)->exists();
-    }
+
+public function getIsInUseAttribute(): bool
+{
+    return \App\Models\PurchaseOrderItem::where('product_id', $this->id)->exists() ||
+        \App\Models\PurchaseOrderHistory::where('product_id', $this->id)->exists() ||
+        \App\Models\Quantity::where('product_id', $this->id)->exists() ||
+        \App\Models\BatchMaterial::where('product_id', $this->id)->exists() ||
+        \App\Models\MaintenanceLine::where('product_id', $this->id)->exists() ||
+        \App\Models\StockExhaustLine::where('product_id', $this->id)->exists() ||
+        \App\Models\PartyRate::where('product_id', $this->id)->exists() ||
+        \App\Models\ConcreteGradeItem::where('product_id', $this->id)->exists() ||
+        \App\Models\MixDesignItem::where('product_id', $this->id)->exists();
+}
+
+public function getCanUpdateAttribute(): bool
+{
+    return true;
+}
+
+public function getCanDeleteAttribute(): bool
+{
+    // return !(
+    //     \App\Models\PurchaseOrderItem::where('product_id', $this->id)->exists() ||
+    //     \App\Models\PurchaseOrderHistory::where('product_id', $this->id)->exists() ||
+    //     \App\Models\Quantity::where('product_id', $this->id)->exists() ||
+    //     \App\Models\ConcreteGradeItem::where('product_id', $this->id)->exists()
+    // );
+        return true;
+
+}
 }

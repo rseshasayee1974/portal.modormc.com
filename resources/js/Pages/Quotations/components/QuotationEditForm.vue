@@ -206,53 +206,53 @@ const sendEmail = () => {
 <template>
     <div class="  ">
         <form class="space-y-6" @submit.prevent="submit">
-            <div class="grid grid-cols-12 gap-4">
-                <BaseSelect
-                    v-model="form.patron_id"
-                    :options="patronOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    label="Customer"
-                    placeholder="Select customer"
-                    filter
-                    class="col-span-12 md:col-span-3"
-                    :error="form.errors.patron_id"
-                />
-                <BaseSelect
-                    v-model="form.site_id"
-                    :options="siteOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    label="Project Site"
-                    placeholder="Select site"
-                    filter
-                    class="col-span-12 md:col-span-3"
-                    :error="form.errors.site_id"
-                />
-                <BaseDatePicker
-                    v-model="form.quote_date"
-                    label="Quotation Date"
-                    class="col-span-12 md:col-span-2"
-                    :error="form.errors.quote_date"
-                />
-                <BaseDatePicker
-                    v-model="form.validity_date"
-                    label="Validity Date"
-                    class="col-span-12 md:col-span-2"
-                    :error="form.errors.validity_date"
-                    :disabled="isLocked"
-                />
-                <BaseSelect
-                    v-model="form.status"
-                    :options="statusOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    label="Status"
-                    class="col-span-12 md:col-span-2"
-                    :error="form.errors.status"
-                    :disabled="isLocked"
-                />
-            </div>
+       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+    <BaseSelect
+        v-model="form.patron_id"
+        :options="patronOptions"
+        optionLabel="label"
+        optionValue="value"
+        label="Customer"
+        placeholder="Select customer"
+        filter
+        :error="form.errors.patron_id"
+    />
+
+    <BaseSelect
+        v-model="form.site_id"
+        :options="siteOptions"
+        optionLabel="label"
+        optionValue="value"
+        label="Project Site"
+        placeholder="Select site"
+        filter
+        :error="form.errors.site_id"
+    />
+
+    <BaseDatePicker
+        v-model="form.quote_date"
+        label="Quotation Date"
+        :error="form.errors.quote_date"
+    />
+
+    <BaseDatePicker
+        v-model="form.validity_date"
+        label="Validity Date"
+        :error="form.errors.validity_date"
+        :disabled="isLocked"
+    />
+
+    <BaseSelect
+        v-model="form.status"
+        :options="statusOptions"
+        optionLabel="label"
+        optionValue="value"
+        label="Status"
+        placeholder="Select status"
+        :error="form.errors.status"
+        :disabled="isLocked"
+    />
+</div>
 
             <div v-if="isLocked" class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-md flex items-center gap-3 text-sm">
                 <i class="pi pi-lock"></i>
@@ -369,7 +369,8 @@ const sendEmail = () => {
 
                     <div class="flex justify-between items-center gap-3">
                         <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Adjustment</span>
-                        <BaseInputNumber v-model="form.adjustment" :minFractionDigits="2" class="w-28" />
+                        <BaseInputNumber v-model="form.adjustment"                                     :disabled="isLocked"
+ :minFractionDigits="2" class="w-28" />
                     </div>
 
                     <div class="flex justify-between items-between">

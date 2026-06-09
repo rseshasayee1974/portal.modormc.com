@@ -18,6 +18,8 @@ return new class extends Migration
             $table->string('reference')->nullable();
             $table->unsignedBigInteger('patron_id');
             $table->unsignedBigInteger('site_id')->nullable();
+            
+            $table->decimal('adjustment', 15, 2)->default(0);
 
             $table->date('quote_date');
             $table->dateTime('validity_date')->nullable();

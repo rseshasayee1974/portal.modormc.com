@@ -71,6 +71,8 @@ const handleGradeChange = async () => {
     if (!grade) return;
     try {
         const response = await axios.get(route('mixdesigns.gradeingredients', grade.id));
+        // console.log("response.data.items",response.data.items);
+        
         if (response.data.items?.length > 0) {
             form.items = response.data.items.map((item: any) => ({
                 product_id: item.product_id,
@@ -171,7 +173,7 @@ const submit = () => {
                                     <small v-if="form.errors[`items.${index}.uom_id`]" class="err-msg">{{ form.errors[`items.${index}.uom_id`] }}</small>
                                 </td>
                                 <td>
-                                    <BaseInputNumber v-model="item.actual_quantity" :readonly="item.isLocked" :minFractionDigits="3" placeholder="0.0000" fluid :inputClass="'text-right'" />
+                                    <BaseInputNumber v-model="item.actual_quantity" :disabled="item.isLocked" :minFractionDigits="3" placeholder="0.0000" fluid :inputClass="'text-right'" />
                                     <small v-if="form.errors[`items.${index}.actual_quantity`]" class="err-msg text-right block">{{ form.errors[`items.${index}.actual_quantity`] }}</small>
                                 </td>
                                 <td>
@@ -184,9 +186,7 @@ const submit = () => {
                                     ₹{{ ((item.actual_quantity || 0) * (item.rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </td> -->
                                 <td>
-
-                                    <!-- Temporarily removed  -->
-                                    <!-- <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1" /> -->
+                                    <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1" />
                                 </td>
                             </tr>
                         </tbody>
@@ -205,15 +205,13 @@ const submit = () => {
         </div>
 
         <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-indigo-100">
-                                                <!-- Temporarily removed  -->
-
-            <!-- <BaseFormActions
+            <BaseFormActions
                 label="Update Mix Design"
                 cancelLabel="Discard"
                 :loading="form.processing"
                 @submit="submit"
                 @reset="emit('cancel')"
-            /> -->
+            />
         </div>
     </div>
 </template>

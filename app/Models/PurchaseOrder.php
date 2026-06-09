@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\AuditFields;
 use App\Traits\PlantScoping;
 use App\Traits\PostsToAccounting;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -16,9 +17,11 @@ use Illuminate\Validation\ValidationException;
 
 class PurchaseOrder extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping, PostsToAccounting;
+    use HasFactory, SoftDeletes, AuditFields, PlantScoping, PostsToAccounting, TracksModelChanges;
 
     protected $table = 'mm_purchase_orders';
+
+    public string $auditTransactionType = 'purchase_order';
 
     protected $fillable = [
         'plant_id',

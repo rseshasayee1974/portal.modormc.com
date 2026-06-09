@@ -112,46 +112,66 @@ class ConcreteGradeController extends Controller
                         'items' => ["Cannot remove ingredient '" . ($item->product->title ?? 'Unknown') . "' because it is currently in use by active mix designs or batches."]
                     ]);
                 }
+                $item->deleted_by = Auth::id();
+                $item->save();
                 $item->delete();
             }
 
             // Upsert the remaining and new items
             foreach ($validated['items'] as $item) {
-                ConcreteGradeItem::updateOrCreate(
-                    [
+                $existing = ConcreteGradeItem::withTrashed()->where([
+                    'plant_id' => $plantId,
+                    'concrete_grade_id' => $concretegrade->id,
+                    'product_id' => $item['product_id'],
+                ])->first();
+
+                if ($existing) {
+                    if ($existing->trashed()) {
+                        $existing->restore();
+                    }
+                    $existing->update([
+                        'quantity' => $item['quantity'],
+                        'updated_by' => Auth::id(),
+                    ]);
+                } else {
+                    ConcreteGradeItem::create([
                         'plant_id' => $plantId,
                         'concrete_grade_id' => $concretegrade->id,
                         'product_id' => $item['product_id'],
-                    ],
-                    [
                         'quantity' => $item['quantity'],
                         'created_by' => Auth::id(),
                         'updated_by' => Auth::id(),
-                    ]
-                );
+                    ]);
+                }
             }
         });
 
         return redirect()->back()->with('success', 'Concrete Grade master updated successfully.');
     }
 
-   public function destroy(ConcreteGrade $concretegrade)
-{
-    if ($concretegrade->mixDesigns()->exists()) {
+    public function destroy(ConcreteGrade $concretegrade)
+    {
+        if ($concretegrade->mixDesigns()->exists()) {
+            return back()->with(
+                'error',
+                'This concrete grade cannot be deleted because it is linked to one or more mix designs.'
+            );
+        }
+
+        DB::transaction(function () use ($concretegrade) {
+            foreach ($concretegrade->items as $item) {
+                $item->deleted_by = Auth::id();
+                $item->save();
+                $item->delete();
+            }
+            $concretegrade->deleted_by = Auth::id();
+            $concretegrade->save();
+            $concretegrade->delete();
+        });
+
         return back()->with(
-            'error',
-            'This concrete grade cannot be deleted because it is linked to one or more mix designs.'
+            'success',
+            'Concrete Grade master deleted successfully.'
         );
     }
-
-    DB::transaction(function () use ($concretegrade) {
-        $concretegrade->items()->delete();
-        $concretegrade->delete();
-    });
-
-    return back()->with(
-        'success',
-        'Concrete Grade master deleted successfully.'
-    );
-}
 }

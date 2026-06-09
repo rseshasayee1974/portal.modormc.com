@@ -16,9 +16,11 @@ return new class extends Migration
         DB::table('mm_quantity')->where('quantity', '<', 0)->update(['quantity' => 0]);
         DB::table('mm_quantity')->where('opening_quantity', '<', 0)->update(['opening_quantity' => 0]);
 
-        // 2. Add check constraints
-        DB::statement('ALTER TABLE mm_quantity ADD CONSTRAINT chk_quantity_positive CHECK (quantity >= 0)');
-        DB::statement('ALTER TABLE mm_quantity ADD CONSTRAINT chk_opening_quantity_positive CHECK (opening_quantity >= 0)');
+        // 2. Add check constraints (skipped in SQLite)
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE mm_quantity ADD CONSTRAINT chk_quantity_positive CHECK (quantity >= 0)');
+            DB::statement('ALTER TABLE mm_quantity ADD CONSTRAINT chk_opening_quantity_positive CHECK (opening_quantity >= 0)');
+        }
     }
 
     /**
@@ -26,8 +28,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Drop check constraints
-        DB::statement('ALTER TABLE mm_quantity DROP CONSTRAINT chk_quantity_positive');
-        DB::statement('ALTER TABLE mm_quantity DROP CONSTRAINT chk_opening_quantity_positive');
+        // Drop check constraints (skipped in SQLite)
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('ALTER TABLE mm_quantity DROP CONSTRAINT chk_quantity_positive');
+            DB::statement('ALTER TABLE mm_quantity DROP CONSTRAINT chk_opening_quantity_positive');
+        }
     }
 };

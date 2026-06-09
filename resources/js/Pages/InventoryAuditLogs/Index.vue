@@ -160,13 +160,19 @@ function parseRemarks(remarks: string | null): ParsedRemark {
     }
     
     const trimRemarks = remarks.trim();
+    let action: 'Created' | 'Updated' | 'Deleted' | 'Custom' = 'Custom';
+    let content = '';
+    
     const actionMatch = trimRemarks.match(/^(Updated|Created|Deleted):\s*(.*)$/s);
-    if (!actionMatch) {
+    if (actionMatch) {
+        action = actionMatch[1] as 'Created' | 'Updated' | 'Deleted';
+        content = actionMatch[2].trim();
+    } else if (trimRemarks.includes('=>')) {
+        action = 'Updated';
+        content = trimRemarks;
+    } else {
         return { action: 'Custom', raw: trimRemarks, changes: [] };
     }
-    
-    const action = actionMatch[1] as 'Created' | 'Updated' | 'Deleted';
-    const content = actionMatch[2].trim();
     
     const changes: ParsedRemark['changes'] = [];
     const changeTokens: string[] = [];
@@ -225,15 +231,88 @@ function parseRemarks(remarks: string | null): ParsedRemark {
 
 function getActionBadgeClass(action: string): string {
     const map: Record<string, string> = {
-        Created: 'bg-emerald-50 text-emerald-700 border-emerald-250 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900',
-        Updated: 'bg-amber-50 text-amber-750 border-amber-250 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900',
-        Deleted: 'bg-rose-50 text-rose-755 border-rose-250 dark:bg-rose-950/30 dark:text-rose-450 dark:border-rose-900',
+        Created: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900',
+        Updated: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900',
+        Deleted: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-450 dark:border-rose-900',
     };
-    return map[action] ?? 'bg-slate-50 text-slate-655 border-slate-200 dark:bg-slate-805 dark:text-slate-400 dark:border-slate-700';
+    return map[action] ?? 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
 }
 
 function formatFieldLabel(field: string): string {
     return field.replace(/_/g, ' ');
+}
+
+function isNumericValue(val: any): boolean {
+    if (val === null || val === undefined || val === '') return false;
+    if (typeof val === 'string' && (val.trim().startsWith('{') || val.trim().startsWith('['))) {
+        return false;
+    }
+    const num = Number(val);
+    return !isNaN(num) && isFinite(num);
+}
+
+function countJSONFields(val: any): number {
+    if (!val) return 0;
+    try {
+        const str = typeof val === 'string' ? val.trim() : JSON.stringify(val);
+        if (str.startsWith('{') || str.startsWith('[')) {
+            const parsed = JSON.parse(str);
+            return Object.keys(parsed).length;
+        }
+    } catch (e) {}
+    return 0;
+}
+
+interface JsonDiffItem {
+    field: string;
+    from: any;
+    to: any;
+}
+
+function getJsonDiff(fromVal: any, toVal: any): JsonDiffItem[] {
+    const diffs: JsonDiffItem[] = [];
+    
+    let fromObj: Record<string, any> = {};
+    let toObj: Record<string, any> = {};
+    
+    try {
+        if (fromVal && typeof fromVal === 'string' && (fromVal.trim().startsWith('{') || fromVal.trim().startsWith('['))) {
+            fromObj = JSON.parse(fromVal);
+        } else if (fromVal && typeof fromVal === 'object') {
+            fromObj = fromVal;
+        }
+    } catch (e) {}
+    
+    try {
+        if (toVal && typeof toVal === 'string' && (toVal.trim().startsWith('{') || toVal.trim().startsWith('['))) {
+            toObj = JSON.parse(toVal);
+        } else if (toVal && typeof toVal === 'object') {
+            toObj = toVal;
+        }
+    } catch (e) {}
+    
+    const allKeys = new Set([...Object.keys(fromObj), ...Object.keys(toObj)]);
+    const ignoreKeys = ['created_at', 'updated_at', 'deleted_at', 'id'];
+    
+    for (const key of allKeys) {
+        if (ignoreKeys.includes(key)) continue;
+        
+        const fVal = fromObj[key];
+        const tVal = toObj[key];
+        
+        const fStr = fVal !== undefined && fVal !== null ? String(fVal) : '';
+        const tStr = tVal !== undefined && tVal !== null ? String(tVal) : '';
+        
+        if (fStr !== tStr) {
+            diffs.push({
+                field: key,
+                from: fVal !== undefined ? fStr : null,
+                to: tVal !== undefined ? tStr : null
+            });
+        }
+    }
+    
+    return diffs;
 }
 
 // ── Dropdown options ─────────────────────────────────────────────────────────
@@ -403,17 +482,6 @@ const hasActiveFilters = computed(() => {
                     </template>
                 </Column>
 
-                <!-- Plant -->
-                <Column field="plant" header="Plant" style="min-width:100px">
-                    <template #body="{ data }">
-                        <div v-if="data.plant" class="flex flex-col leading-tight">
-                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-350 truncate max-w-[95px]" :title="data.plant.name">{{ data.plant.name }}</span>
-                            <span class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Plant</span>
-                        </div>
-                        <span v-else class="text-xs text-slate-400 italic">Global</span>
-                    </template>
-                </Column>
-
                 <!-- Transaction Type -->
                 <Column field="transaction_type" header="Transaction" style="min-width:90px">
                     <template #body="{ data }">
@@ -441,25 +509,62 @@ const hasActiveFilters = computed(() => {
                     </template>
                 </Column>
 
-                <!-- Log Change details -->
-                <Column header="Quantity Shift" style="min-width:105px">
+                <!-- From Column -->
+                <Column field="log_from" header="From" style="min-width:140px">
                     <template #body="{ data }">
                         <div class="flex flex-col leading-tight">
-                            <div class="flex items-center gap-1 text-xs">
-                                <span class="font-medium text-slate-500">{{ parseFloat(data.log_from).toFixed(2) }}</span>
-                                <span class="text-slate-400 text-[10px]">→</span>
-                                <span class="font-bold text-slate-800 dark:text-slate-200">{{ parseFloat(data.log_to).toFixed(2) }}</span>
-                            </div>
-                            <div class="mt-0.5">
-                                <span
-                                    v-if="!getChange(data.log_from, data.log_to).isNeutral"
-                                    class="inline-flex items-center px-1 py-0.2 rounded text-[9px] font-bold"
-                                    :class="getChange(data.log_from, data.log_to).isPositive ? 'bg-emerald-50/50 text-emerald-705 dark:bg-emerald-950/20 dark:text-emerald-400' : 'bg-rose-50/50 text-rose-705 dark:bg-rose-950/20 dark:text-rose-400'"
+                            <span v-if="isNumericValue(data.log_from)" class="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
+                                {{ parseFloat(data.log_from).toFixed(2) }}
+                            </span>
+                            <div v-else-if="getJsonDiff(data.log_from, data.log_to).length > 0" class="flex flex-col gap-0.5 text-[10px] font-mono leading-none py-1">
+                                <div 
+                                    v-for="diff in getJsonDiff(data.log_from, data.log_to).slice(0, 3)" 
+                                    :key="diff.field"
+                                    class="truncate max-w-[130px] text-slate-600 dark:text-slate-400"
                                 >
-                                    {{ getChange(data.log_from, data.log_to).formatted }}
+                                    <span class="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight text-[8px] mr-1">{{ formatFieldLabel(diff.field) }}:</span>
+                                    <span class="text-rose-600 dark:text-rose-400">{{ diff.from === '' || diff.from === null ? '[empty]' : diff.from }}</span>
+                                </div>
+                                <span 
+                                    v-if="getJsonDiff(data.log_from, data.log_to).length > 3" 
+                                    class="text-[9px] text-slate-400 italic font-semibold mt-0.5"
+                                >
+                                    +{{ getJsonDiff(data.log_from, data.log_to).length - 3 }} more
                                 </span>
-                                <span v-else class="text-[9px] text-slate-400 italic">No shift</span>
                             </div>
+                            <span v-else class="text-xs text-slate-400 italic">
+                                {{ data.log_from || '-' }}
+                            </span>
+                        </div>
+                    </template>
+                </Column>
+
+                <!-- To Column -->
+                <Column field="log_to" header="To" style="min-width:140px">
+                    <template #body="{ data }">
+                        <div class="flex flex-col leading-tight">
+                            <span v-if="isNumericValue(data.log_to)" class="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                                {{ parseFloat(data.log_to).toFixed(2) }}
+                            </span>
+                            <div v-else-if="getJsonDiff(data.log_from, data.log_to).length > 0" class="flex flex-col gap-0.5 text-[10px] font-mono leading-none py-1">
+                                <div 
+                                    v-for="diff in getJsonDiff(data.log_from, data.log_to).slice(0, 3)" 
+                                    :key="diff.field"
+                                    class="truncate max-w-[130px] text-slate-600 dark:text-slate-400"
+                                >
+                                    <span class="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tight text-[8px] mr-1">{{ formatFieldLabel(diff.field) }}:</span>
+                                    <span class="text-emerald-600 dark:text-emerald-400 font-bold">{{ diff.to === '' || diff.to === null ? '[empty]' : diff.to }}</span>
+                                </div>
+                                <span 
+                                    v-if="getJsonDiff(data.log_from, data.log_to).length > 3" 
+                                    class="text-[9px] text-slate-400 italic font-semibold mt-0.5"
+                                >
+                                    +{{ getJsonDiff(data.log_from, data.log_to).length - 3 }} more
+                                </span>
+                            </div>
+                            <span v-else class="text-xs text-slate-400 italic">
+                                {{ data.log_to || '-' }}
+                            </span>
                         </div>
                     </template>
                 </Column>
@@ -483,17 +588,17 @@ const hasActiveFilters = computed(() => {
                                             class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 text-[10px]"
                                         >
                                             <span class="font-bold text-slate-500 dark:text-slate-400">{{ formatFieldLabel(change.field) }}:</span>
-                                            <template v-if="change.oldVal !== undefined && change.newVal !== undefined">
-                                                <span class="text-rose-650 dark:text-rose-455 line-through decoration-rose-350/50 max-w-[65px] truncate" :title="change.oldVal">{{ change.oldVal }}</span>
+                                            <span v-if="change.oldVal !== undefined && change.newVal !== undefined" class="inline-flex items-center gap-1">
+                                                <span class="text-rose-600 dark:text-rose-400 line-through decoration-rose-300/40 max-w-[65px] truncate" :title="change.oldVal">{{ change.oldVal }}</span>
                                                 <span class="text-slate-400 text-[9px]">→</span>
-                                                <span class="text-emerald-650 dark:text-emerald-450 font-semibold max-w-[65px] truncate" :title="change.newVal">{{ change.newVal }}</span>
-                                            </template>
-                                            <template v-else-if="change.newVal !== undefined">
-                                                <span class="text-emerald-650 dark:text-emerald-450 font-semibold max-w-[90px] truncate" :title="change.newVal">{{ change.newVal }}</span>
-                                            </template>
-                                            <template v-else>
-                                                <span class="text-rose-655 dark:text-rose-455 line-through decoration-rose-350/50 max-w-[90px] truncate" :title="change.oldVal">{{ change.oldVal }}</span>
-                                            </template>
+                                                <span class="text-emerald-600 dark:text-emerald-400 font-semibold max-w-[65px] truncate" :title="change.newVal">{{ change.newVal }}</span>
+                                            </span>
+                                            <span v-else-if="change.newVal !== undefined" class="text-emerald-600 dark:text-emerald-400 font-semibold max-w-[90px] truncate" :title="change.newVal">
+                                                {{ change.newVal }}
+                                            </span>
+                                            <span v-else class="text-rose-600 dark:text-rose-400 line-through decoration-rose-300/40 max-w-[90px] truncate" :title="change.oldVal">
+                                                {{ change.oldVal }}
+                                            </span>
                                         </span>
                                     </template>
 
@@ -506,7 +611,7 @@ const hasActiveFilters = computed(() => {
                                     </button>
                                 </div>
                             </div>
-                            <p v-else class="text-[11px] text-slate-605 dark:text-slate-400 leading-normal max-w-sm truncate" :title="data.remarks">
+                            <p v-else class="text-[11px] text-slate-600 dark:text-slate-400 leading-normal max-w-sm truncate" :title="data.remarks">
                                 {{ data.remarks }}
                             </p>
                         </div>
@@ -535,9 +640,9 @@ const hasActiveFilters = computed(() => {
                     <div class="p-5 bg-slate-50/50 dark:bg-slate-900/50 border-t border-b border-indigo-100/50 dark:border-slate-800">
                         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
                             <!-- Left Card: Meta Information -->
-                            <div class="bg-white dark:bg-slate-955 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-855 shadow-sm">
+                            <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm">
                                 <p class="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-4">Metadata & Network</p>
-                                <div class="space-y-2.5 text-xs text-slate-650 dark:text-slate-455">
+                                <div class="space-y-2.5 text-xs text-slate-600 dark:text-slate-400">
                                     <div class="flex justify-between items-center py-1.5 border-b border-slate-100 dark:border-slate-900">
                                         <span class="font-bold">Audit ID</span>
                                         <span class="font-mono text-slate-800 dark:text-slate-200">#{{ data.id }}</span>
@@ -561,7 +666,7 @@ const hasActiveFilters = computed(() => {
                             </div>
 
                             <!-- Middle Card: Reference & Action -->
-                            <div class="bg-white dark:bg-slate-955 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-855 shadow-sm">
+                            <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm">
                                 <p class="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-4">Linked Entity</p>
                                 <div class="flex flex-col justify-between h-[110px]">
                                     <div v-if="data.reference_type" class="space-y-1">
@@ -576,7 +681,7 @@ const hasActiveFilters = computed(() => {
                                     <div class="pt-3 border-t border-slate-100 dark:border-slate-900">
                                         <button
                                             @click="router.visit(route('inventory-audit-logs.show', data.id))"
-                                            class="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-355 text-xs font-bold rounded-xl transition-all"
+                                            class="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/30 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 text-xs font-bold rounded-xl transition-all"
                                         >
                                             <EyeIcon class="w-4 h-4" />
                                             View Audit Details page
@@ -586,7 +691,7 @@ const hasActiveFilters = computed(() => {
                             </div>
 
                             <!-- Right Card: Remarks & Activity Details (The Main Highlight) -->
-                            <div class="bg-white dark:bg-slate-955 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-850 shadow-sm flex flex-col justify-between lg:col-span-2">
+                            <div class="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800 shadow-sm flex flex-col justify-between lg:col-span-2">
                                 <div>
                                     <div class="flex items-center justify-between mb-4">
                                         <p class="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Activity Log / Remarks</p>
@@ -601,7 +706,7 @@ const hasActiveFilters = computed(() => {
 
                                     <div v-if="data.remarks">
                                         <div v-if="parseRemarks(data.remarks).action !== 'Custom'" class="space-y-2">
-                                            <div class="overflow-hidden rounded-xl border border-slate-100 dark:border-slate-855 bg-slate-50/20 dark:bg-slate-900/10">
+                                            <div class="overflow-hidden rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10">
                                                 <table class="w-full text-left border-collapse">
                                                     <thead>
                                                         <tr class="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
@@ -617,24 +722,24 @@ const hasActiveFilters = computed(() => {
                                                             :key="idx"
                                                             class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors"
                                                         >
-                                                            <td class="px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-350 capitalize font-mono">{{ formatFieldLabel(change.field) }}</td>
+                                                            <td class="px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 capitalize font-mono">{{ formatFieldLabel(change.field) }}</td>
                                                             <td class="px-4 py-2.5 text-xs text-rose-600 dark:text-rose-400 font-medium">
                                                                 <span v-if="change.oldVal !== undefined" class="line-through decoration-rose-300/40 bg-rose-50/50 dark:bg-rose-950/10 px-2 py-0.5 rounded border border-rose-100/50 dark:border-rose-950/20 font-mono">{{ change.oldVal }}</span>
-                                                                <span class="text-slate-350 italic">-</span>
+                                                                <span class="text-slate-400 italic">-</span>
                                                             </td>
                                                             <td class="px-2 py-2.5 text-xs text-slate-400 text-center font-bold">
                                                                 <span v-if="change.oldVal !== undefined && change.newVal !== undefined">→</span>
                                                             </td>
-                                                            <td class="px-4 py-2.5 text-xs text-emerald-650 dark:text-emerald-450 font-bold">
+                                                            <td class="px-4 py-2.5 text-xs text-emerald-600 dark:text-emerald-400 font-bold">
                                                                 <span v-if="change.newVal !== undefined" class="bg-emerald-50/50 dark:bg-emerald-950/10 px-2 py-0.5 rounded border border-emerald-100/50 dark:border-emerald-950/20 font-mono">{{ change.newVal }}</span>
-                                                                <span class="text-slate-350 italic">-</span>
+                                                                <span class="text-slate-400 italic">-</span>
                                                             </td>
                                                         </tr>
                                                     </tbody>
                                                 </table>
                                             </div>
                                         </div>
-                                        <div v-else class="text-sm text-slate-755 dark:text-slate-300 leading-relaxed font-semibold italic bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-850">
+                                        <div v-else class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-semibold italic bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                                             "{{ data.remarks }}"
                                         </div>
                                     </div>

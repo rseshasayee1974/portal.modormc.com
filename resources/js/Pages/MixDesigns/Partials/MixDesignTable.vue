@@ -5,6 +5,7 @@ import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import { BeakerIcon, UserIcon, CubeIcon, TableCellsIcon } from '@heroicons/vue/24/outline';
 import MixDesignEditForm from './MixDesignEditForm.vue';
+import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
 
 const props = defineProps<{
     mixDesigns: any[];
@@ -22,6 +23,9 @@ const filters = ref({ global: { value: null, matchMode: 'contains' } });
 const filteredDesigns = computed(() => props.mixDesigns);
 
 const onSaved = () => { expandedRows.value = {}; };
+// console.log('log:',props.mixDesigns);
+// console.table(props.mixDesigns);
+
 </script>
 
 <template>
@@ -41,11 +45,8 @@ const onSaved = () => { expandedRows.value = {}; };
             headingIcon="BeakerIcon"
             showExport
             exportFilename="mix-designs-report"
-            >
-            <!-- :deleteUrl="(row) => route('mixdesigns.destroy', row.id)"
-            deleteTitle="Delete Mix Design?"
-            deleteText="This mix design and all its ingredients will be removed."
-         -->
+           
+        >
             <template #toolbar>
                 <div class="flex items-center gap-2 px-3 py-1 bg-indigo-50/50 rounded-lg border border-indigo-100">
                     <BeakerIcon class="w-3.5 h-3.5 text-indigo-500" />
@@ -106,6 +107,7 @@ const onSaved = () => { expandedRows.value = {}; };
                     </span>
                 </template>
             </Column>
+            
 
             <!-- Unit -->
             <!-- <Column header="Unit" style="width: 80px">
@@ -113,6 +115,19 @@ const onSaved = () => { expandedRows.value = {}; };
                     <span class="text-xs text-slate-500 font-bold">{{ slotProps.data.unit?.unit_code || '—' }}</span>
                 </template>
             </Column> -->
+
+            <Column header="Actions" style="width: 70px; text-align: right">
+                <template #body="slotProps">
+                    <div class="flex justify-end">
+                        <BaseDeleteButton
+                            :disabled="slotProps.data.is_in_use"
+                            :url="route('mixdesigns.destroy', slotProps.data.id)"
+                            title="Delete Mix Design?"
+                            text="This mix design will be permanently removed."
+                        />
+                    </div>
+                </template>
+            </Column>
 
             <!-- Row Expansion: Edit Form -->
             <template #expansion="{ data }">

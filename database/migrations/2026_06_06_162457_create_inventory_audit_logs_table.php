@@ -14,22 +14,24 @@ return new class extends Migration
         Schema::create('mm_inventory_audit_logs', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('plant_id')->constrained('mm_plants')->cascadeOnDelete(); 
 
             $table->string('transaction_type'); // product, stockin, stockout,  
             $table->string('reference_type')->nullable(); //Update, Delete 
             $table->unsignedBigInteger('reference_id')->nullable();
 
-            $table->decimal('log_from', 15, 4); 
-            $table->decimal('log_to', 15, 4); 
+            $table->longText('log_from')->nullable(); 
+            $table->longText('log_to')->nullable(); 
 
             $table->foreignId('user_id')->nullable()->constrained('mm_users')->nullOnDelete();
             $table->text('remarks')->nullable();
 
             $table->ipAddress('ip_address')->nullable();
 
-            $table->timestamps();
+            
+            $table->timestamp('created_at')->useCurrent();
+            
             $table->index(['reference_type', 'reference_id']);
+    
         });
     }
 
