@@ -85,4 +85,10 @@ class UpdateBatchRequest extends FormRequest
             }
         });
     }
+
+    protected function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)
+    {
+        \Illuminate\Support\Facades\Log::error('UpdateBatchRequest Validation Failed:', $validator->errors()->toArray());
+        parent::failedValidation($validator);
+    }
 }
