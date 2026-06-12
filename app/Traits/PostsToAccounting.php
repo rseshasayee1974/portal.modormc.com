@@ -128,8 +128,25 @@ trait PostsToAccounting
 
             // --- DEBIT/CREDIT RULE 3: Tax Splits ---
             // We use direct query to bypass any relationship caching issues
+            $moduleMap = [
+            'sales'               => 'Invoice',
+            'invoice'             => 'Invoice',
+            'purchase'            => 'Purchase',
+            'bill'                => 'Purchase',
+            'dispatch'            => 'Dispatch',
+            'expense'             => 'Expense',
+            'entries'             => 'Entries',
+            'stockin'             => 'StockIn',
+            'stockout'            => 'StockOut',
+            'machine maintenance' => 'Machine Maintenance',
+        ];
+        
+        $module = $moduleMap[$docType] ?? ucfirst($docType);
+
+            // --- DEBIT/CREDIT RULE 3: Tax Splits ---
+            // We use direct query to bypass any relationship caching issues
             $orderTaxes = OrderTax::where('order_id', '=',$this->id)
-                ->whereIn('order_type', ['Invoice', $docType])
+                ->where('order_type', $module)
                 ->get();
 
             $sumTaxLines = 0;
