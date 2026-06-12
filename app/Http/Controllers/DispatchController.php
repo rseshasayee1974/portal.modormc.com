@@ -8,6 +8,7 @@ use App\Models\Dispatch;
 use App\Models\DispatchPayment;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Log;
 
 class DispatchController extends Controller
 {
@@ -61,6 +62,15 @@ class DispatchController extends Controller
                 // 1. Prepare Dispatch Data (Flattened financials are now at top level)
                 $dispatchData = collect($validated)->except(['weights', 'financials', 'status', 'payment', 'batch_size'])->toArray();
                 
+                // Merge weights fields
+                if (!empty($validated['weights'])) {
+                    $dispatchData['empty_weight_truck'] = $validated['weights']['empty_weight_truck'] ?? null;
+                    $dispatchData['loaded_weight_truck'] = $validated['weights']['loaded_weight_truck'] ?? null;
+                    $dispatchData['empty_time'] = $validated['weights']['empty_weight_time_load'] ?? null;
+                    $dispatchData['load_time'] = $validated['weights']['loaded_weight_time_load'] ?? null;
+                    $dispatchData['net_weight'] = (float)($dispatchData['loaded_weight_truck'] ?? 0) - (float)($dispatchData['empty_weight_truck'] ?? 0);
+                }
+
                 // Merge valid financial fields
                 $dispatchData = array_merge($dispatchData, $this->mapNestedFields($validated['financials'] ?? null, [
                     'load_rate', 'load_tax_id', 'load_tax_amount', 'load_untax_amount', 'load_total_amount',
@@ -77,7 +87,7 @@ class DispatchController extends Controller
 
                 // 2. Create Main Dispatch Record
                 $dispatch = Dispatch::create($dispatchData);
-
+Log::info($dispatch);
                 // 4. Create/Update Status / Logistical Record (mm_dispatch_statuses)
                 $statusData = $validated['status'] ?? [];
                 $statusData['plant_id'] = $dispatch->plant_id;
@@ -114,10 +124,32 @@ class DispatchController extends Controller
     public function update(DispatchStoreRequest $request, Dispatch $dispatch)
     {
         $this->authorizeModule('edit');
+        
+        $user = auth()->user();
+        if ($user && $user->hasRole('Trip Operator')) {
+            $isDataPresented = (float)$dispatch->load_rate > 0 || 
+                               $dispatch->dispatch_status !== 'Draft' || 
+                               ($dispatch->status && $dispatch->status->invoice_status == 1) ||
+                               $dispatch->payments()->exists();
+                               
+            if ($isDataPresented) {
+                abort(403, 'Access Denied: You do not have permission to edit this trip as the data is already presented.');
+            }
+        }
+
         $validated = $request->validated();
         return DB::transaction(function () use ($validated, $dispatch) {
             // 1. Prepare Dispatch Data
             $dispatchData = collect($validated)->except(['weights', 'financials', 'status', 'payment', 'batch_size'])->toArray();
+
+            // Merge weights fields
+            if (!empty($validated['weights'])) {
+                $dispatchData['empty_weight_truck'] = $validated['weights']['empty_weight_truck'] ?? null;
+                $dispatchData['loaded_weight_truck'] = $validated['weights']['loaded_weight_truck'] ?? null;
+                $dispatchData['empty_time'] = $validated['weights']['empty_weight_time_load'] ?? null;
+                $dispatchData['load_time'] = $validated['weights']['loaded_weight_time_load'] ?? null;
+                $dispatchData['net_weight'] = (float)($dispatchData['loaded_weight_truck'] ?? 0) - (float)($dispatchData['empty_weight_truck'] ?? 0);
+            }
 
             $dispatchData = array_merge($dispatchData, $this->mapNestedFields($validated['financials'] ?? null, [
                 'load_rate', 'load_tax_id', 'load_tax_amount', 'load_untax_amount', 'load_total_amount',
@@ -126,6 +158,7 @@ class DispatchController extends Controller
 
             // 2. Update Main Dispatch Record
             $dispatch->update($dispatchData);
+            Log::info("Dispatch updated successfully: ".$dispatch);
 
             // 4. Update Status Record
             if (!empty($validated['status'])) {

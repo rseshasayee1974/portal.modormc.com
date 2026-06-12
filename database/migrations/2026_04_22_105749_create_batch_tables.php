@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('mm_batches', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('plant_id')->nullable();
             $table->unsignedBigInteger('work_order_id')->nullable();
             $table->integer('batch_no')->nullable();
             $table->decimal('batch_size', 10, 3)->default(1);

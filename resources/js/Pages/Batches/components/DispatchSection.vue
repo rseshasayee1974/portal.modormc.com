@@ -11,6 +11,7 @@ import { computed } from 'vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps<{
     batch: any;
@@ -30,7 +31,20 @@ const props = defineProps<{
     dispatch?: any;
 }>();
 
-console.log(props.dropdownData);
+const { userRole } = usePermissions();
+const isTripOperator = computed(() => userRole.value === 'Trip Operator');
+const isDataPresented = computed(() => {
+    if (!props.dispatch) return false;
+    return (Number(props.dispatch.load_rate) > 0) || 
+           (props.dispatch.status?.invoice_status == 1) || 
+           (props.dispatch.dispatch_status && props.dispatch.dispatch_status !== 'Draft') ||
+           (props.dispatch.payments && props.dispatch.payments.length > 0);
+});
+const isReadOnly = computed(() => {
+    return isTripOperator.value && isDataPresented.value;
+});
+
+// console.log(props.dropdownData);
 
 const emit = defineEmits(['cancel', 'saved']);
 
@@ -143,8 +157,8 @@ onMounted(async () => {
 // Watch for changes in props.dispatch (important for async loading in expansion)
 watch(() => props.dispatch, (newDispatch) => {
     if (newDispatch) {
-        console.log('Dispatch Updated:', newDispatch);
-        console.log('Invoice Status from Props:', newDispatch.status?.invoice_status);
+        // console.log('Dispatch Updated:', newDispatch);
+        // console.log('Invoice Status from Props:', newDispatch.status?.invoice_status);
         
         // Sync basic fields
         form.id = newDispatch.id || null;
@@ -187,16 +201,38 @@ watch(() => props.dispatch, (newDispatch) => {
             form.status.note = newDispatch.status.note;
         }
 
+        // Sync Weights
+        form.weights.empty_weight_truck = newDispatch.empty_weight_truck || props.batch?.empty_weight_truck || 0;
+        form.weights.loaded_weight_truck = newDispatch.loaded_weight_truck || props.batch?.loaded_weight_truck || 0;
+        form.weights.empty_weight_time_load = newDispatch.empty_weight_time_load ? new Date(newDispatch.empty_weight_time_load) : (props.batch?.empty_time ? new Date(props.batch.empty_time) : null);
+        form.weights.loaded_weight_time_load = newDispatch.loaded_weight_time_load ? new Date(newDispatch.loaded_weight_time_load) : (props.batch?.load_time ? new Date(props.batch.load_time) : null);
+        form.weights.empty_weight_unload = newDispatch.empty_weight_unload || 0;
+        form.weights.loaded_weight_unload = newDispatch.loaded_weight_unload || 0;
+        form.weights.empty_weight_time_unload = newDispatch.empty_weight_time_unload ? new Date(newDispatch.empty_weight_time_unload) : null;
+        form.weights.loaded_weight_time_unload = newDispatch.loaded_weight_time_unload ? new Date(newDispatch.loaded_weight_time_unload) : null;
+        form.weights.round_off = newDispatch.round_off || 0;
+
         // Sync Financials
-        if (newDispatch.load_rate) {
-            form.financials.load_rate = newDispatch.load_rate;
-            form.financials.load_tax_id = newDispatch.load_tax_id;
-            form.financials.pass_amount = newDispatch.pass_amount;
-            form.financials.discount_amount = newDispatch.discount_amount;
-            form.financials.transport_expenses = newDispatch.transport_expenses;
-            form.financials.adjustment_amount = newDispatch.adjustment_amount;
-            form.financials.round_off = newDispatch.round_off;
-        }
+        form.financials.load_units = newDispatch.load_units !== undefined ? newDispatch.load_units : (props.batch?.loaded_weight_truck ? Number((Number(props.batch.loaded_weight_truck) - Number(props.batch.empty_weight_truck || 0)).toFixed(3)) : (props.batch?.batch_size || 0));
+        form.financials.load_rate = newDispatch.load_rate !== undefined ? newDispatch.load_rate : 0;
+        form.financials.load_tax_id = newDispatch.load_tax_id || null;
+        form.financials.load_uom_id = newDispatch.load_uom_id || props.batch?.uom_id;
+        form.financials.unload_units = newDispatch.unload_units !== undefined ? newDispatch.unload_units : (props.batch?.batch_size || 0);
+        form.financials.unload_rate = newDispatch.unload_rate !== undefined ? newDispatch.unload_rate : 0;
+        form.financials.unload_tax_id = newDispatch.unload_tax_id || null;
+        form.financials.unload_uom_id = newDispatch.unload_uom_id || props.batch?.uom_id;
+        form.financials.transport_units = newDispatch.transport_units !== undefined ? newDispatch.transport_units : (props.batch?.batch_size || 0);
+        form.financials.transport_rate = newDispatch.transport_rate !== undefined ? newDispatch.transport_rate : 0;
+        form.financials.transport_tax_id = newDispatch.transport_tax_id || null;
+        form.financials.transport_uom_id = newDispatch.transport_uom_id || props.batch?.uom_id;
+        form.financials.load_tax_amount = newDispatch.load_tax_amount !== undefined ? newDispatch.load_tax_amount : 0;
+        form.financials.load_untax_amount = newDispatch.load_untax_amount !== undefined ? newDispatch.load_untax_amount : 0;
+        form.financials.load_total_amount = newDispatch.load_total_amount !== undefined ? newDispatch.load_total_amount : 0;
+        form.financials.pass_amount = newDispatch.pass_amount !== undefined ? newDispatch.pass_amount : 0;
+        form.financials.discount_amount = newDispatch.discount_amount !== undefined ? newDispatch.discount_amount : 0;
+        form.financials.transport_expenses = newDispatch.transport_expenses !== undefined ? newDispatch.transport_expenses : 0;
+        form.financials.adjustment_amount = newDispatch.adjustment_amount !== undefined ? newDispatch.adjustment_amount : 0;
+        form.financials.round_off = newDispatch.round_off !== undefined ? newDispatch.round_off : 0;
 
         // Sync Payment
         if (newDispatch.payments?.length) {
@@ -372,6 +408,7 @@ const handleDeleteInvoice = () => {
                 :payment_methods="dropdownData.payment_methods"
                 :sales_ledgers="dropdownData.sales_ledgers"
                 :errors="form.errors"
+                :isReadOnly="isReadOnly"
                 @submit="submit"
                 @generateInvoice="handleGenerateInvoice"
                 @deleteInvoice="handleDeleteInvoice"
@@ -480,6 +517,7 @@ const handleDeleteInvoice = () => {
                                     severity="primary" 
                                     class="!py-3 !text-[10px] !font-black uppercase tracking-widest shadow-lg shadow-indigo-200/50"
                                     :loading="form.processing"
+                                    :disabled="isReadOnly"
                                     @click="submit"
                                 />
                             </div>

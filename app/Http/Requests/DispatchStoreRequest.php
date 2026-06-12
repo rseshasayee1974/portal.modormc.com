@@ -29,7 +29,7 @@ class DispatchStoreRequest extends FormRequest
             'payment_mode' => 'required|in:cash,credit',
             'plant_sno' => 'nullable|string',
             'prefix' => 'nullable|string',
-            'dispatch_no' => 'nullable|string',
+            'dispatch_no' => 'nullable|numeric|min:1',
             'dispatch_reference' => 'nullable|string',
             'dispatch_time' => 'nullable|date',
             'delivered_qty' => 'nullable|numeric|min:0',
@@ -39,6 +39,8 @@ class DispatchStoreRequest extends FormRequest
             'weights' => 'nullable|array',
             'weights.empty_weight_truck' => 'nullable|numeric',
             'weights.loaded_weight_truck' => 'nullable|numeric',
+            'weights.empty_weight_time_load' => 'nullable|date',
+            'weights.loaded_weight_time_load' => 'nullable|date',
 
             // Financials (Flattened into mm_dispatches table)
             'financials' => 'nullable|array',

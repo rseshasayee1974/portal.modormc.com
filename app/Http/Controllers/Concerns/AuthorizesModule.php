@@ -52,6 +52,7 @@ trait AuthorizesModule
 
         if (\Illuminate\Support\Facades\Gate::denies($permission)) {
             abort(403, "Access Denied: You do not have the required permission ({$permission}) for the {$module} module.");
+            // abort(403, "Access Denied: You do not have the required permission for the {$module} module.");
         }
     }
 }

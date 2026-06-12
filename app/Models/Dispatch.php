@@ -10,10 +10,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 use App\Traits\AuditFields;
 use App\Traits\PlantScoping;
+use App\Traits\TracksModelChanges;
 
 class Dispatch extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
+    use HasFactory, SoftDeletes, AuditFields, PlantScoping , TracksModelChanges;
 
     protected $table = 'mm_dispatches';
 

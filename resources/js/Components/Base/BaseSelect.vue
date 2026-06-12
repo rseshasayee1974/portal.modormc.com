@@ -101,6 +101,34 @@ const handleShow = () => {
 </template>
 
 <style scoped>
+/* Disabled state styling */
+:deep(.p-select.p-disabled) {
+    background-color: #eff1f1 !important;
+    border-color: #d5d7d8 !important;
+    opacity: 0.75 !important;
+    cursor: not-allowed !important;
+}
+
+:deep(.p-select.p-disabled .p-select-placeholder) {
+    color: #cbd5e1 !important;
+    cursor: not-allowed !important;
+}
+
+/* Dark mode disabled state styling */
+.is-dark :deep(.p-select.p-disabled) {
+    background-color: #0f172a !important;
+    border-color: #1e293b !important;
+    opacity: 0.65 !important;
+}
+
+.is-dark :deep(.p-select.p-disabled .p-select-label) {
+    color: #475569 !important;
+}
+
+.is-dark :deep(.p-select.p-disabled .p-select-placeholder) {
+    color: #334155 !important;
+}
+
 /* Dark Theme Overrides */
 .is-dark :deep(.p-select) {
     background: #1e293b !important;

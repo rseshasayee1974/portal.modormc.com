@@ -188,7 +188,7 @@ Route::middleware([
         Route::get('dispatches/dropdowns', [\App\Http\Controllers\DispatchController::class, 'dropdowns'])->name('dispatches.dropdowns');
         Route::post('dispatches/{dispatch}/generate-invoice', [\App\Http\Controllers\DispatchController::class, 'generateInvoice'])->name('dispatches.generate-invoice');
         Route::delete('dispatches/{dispatch}/delete-invoice', [\App\Http\Controllers\DispatchController::class, 'deleteInvoice'])->name('dispatches.delete-invoice');
-        Route::resource('dispatches', \App\Http\Controllers\DispatchController::class)->except(['create', 'show', 'edit']);
+        Route::resource('dispatches', \App\Http\Controllers\DispatchController::class);
         
         Route::resource('partyrates', \App\Http\Controllers\PartyRateController::class)->except(['create', 'edit', 'show']);
     });

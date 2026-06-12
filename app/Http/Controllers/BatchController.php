@@ -39,9 +39,12 @@ class BatchController extends Controller
         $batches = Batch::with([
             'workOrder.customer:id,legal_name',
             'workOrder.mixDesign:id,design_name,design_code',
+            'workOrder.mixDesign.items.product',
+            'workOrder.mixDesign.items.uom',
             'workOrder.site:id,name',
-            'dispatches:id,batch_id,truck_id',
-            'dispatches.truck:id,registration'
+            'dispatches',
+            'materials.product:id,title',
+            'materials.uom:id,unit_name,unit_code'
         ])
         ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
         ->latest()
@@ -64,6 +67,10 @@ class BatchController extends Controller
             ->where('created_at', '>=', $fyStart)
             ->max('batch_no') + 1;
 
+            // return response()->json([
+            //     'batches' => $batches,
+            //     'workOrders' => $workOrders,
+            // ]);
         return Inertia::render('Batches/Index', [
             'batches'           => $batches,
             'workOrders'        => $workOrders,
@@ -123,6 +130,7 @@ class BatchController extends Controller
                 $this->syncMaterials($batch, $materials);
                 
                 if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                    $this->checkStock($batch, $materials);
                     $this->adjustStock($batch, $materials);
                 }
                 
@@ -320,6 +328,7 @@ class BatchController extends Controller
 
     public function show(Batch $batch, Request $request)
     {
+        // Log::info($request->all());
         $this->authorizeModule('menu');
         $this->ensurePlantScope($batch->workOrder);
 
@@ -329,9 +338,11 @@ class BatchController extends Controller
             'workOrder.mixDesign.items.uom',
             'workOrder.mixDesign.concrete_grade',
             'workOrder.site',
+            'materials',
             'materials.product:id,title', 
             'materials.uom:id,unit_name,unit_code',
             'dispatches.status.invoice.createdBy:id,username',
+            'dispatches.payments',
             'dispatches.truck',
             'dispatches.driver',
             'dispatches.salesExecutive',
@@ -357,97 +368,75 @@ class BatchController extends Controller
 
         $oldMaterials = $batch->materials()->get()->toArray();
         $oldStatus = $batch->status;
+     try {
+        DB::transaction(function () use ($batch, $payload, $emptyPhoto, $loadedPhoto, $oldMaterials, $oldStatus) {
+            $materials = $payload['materials'] ?? [];
+            unset($payload['materials']);
+// dd($materials);
+            // Check stock first before proceeding with saving and new consumption
+            $newStatus = $payload['status'] ?? $batch->status;
+            $hasActual = collect($materials)->contains(fn($m) => (float)($m['actual_qty'] ?? 0) > 0);
+            if ($hasActual && $newStatus == Batch::STATUS_PLANNED) {
+                $newStatus = Batch::STATUS_DISPATCHED;
+            }
 
-        try {
-          DB::transaction(function () use ($batch, $payload, $emptyPhoto, $loadedPhoto, $oldMaterials, $oldStatus) {
+            if (in_array($newStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                $wasDeducted = in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]);
+                $this->checkStock($batch, $materials, $oldMaterials, $wasDeducted);
+            }
 
-    $materials = $payload['materials'] ?? [];
-    unset($payload['materials']);
+            // 1. Revert old consumption only if it was previously deducted
+            if (in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                $this->adjustStock($batch, $oldMaterials, true);
+            }
 
-    // Restore stock if editing an already dispatched/completed batch
-    if (in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-        $this->adjustStock($batch, $oldMaterials, true);
-    }
+            $batch->fill($payload);
+            
+            // Auto-update status to dispatched if any material has actual quantity > 0
+            $hasActual = collect($materials)->contains(fn($m) => (float)($m['actual_qty'] ?? 0) > 0);
+            if ($hasActual && $batch->status == Batch::STATUS_PLANNED) {
+                $batch->status = Batch::STATUS_DISPATCHED;
+            }
 
-    $batch->fill($payload);
-
-    $batch->updated_by = auth()->id();
-    $batch->updated_at = now();
-    $batch->save();
-
-    // Sync materials first
-    $this->syncMaterials($batch, $materials);
-
-    // Determine status based on actual quantities stored in DB
-    $hasActual = $batch->materials()
-        ->where('actual_qty', '>', 0)
-        ->exists();
-
-    if ($hasActual) {
-        $newStatus = match ($oldStatus) {
-            Batch::STATUS_PLANNED => Batch::STATUS_LOADING,
-            Batch::STATUS_LOADING => Batch::STATUS_DISPATCHED,
-            default => $batch->status,
-        };
-
-        if ($newStatus !== $batch->status) {
-            $batch->status = $newStatus;
+            $batch->updated_by = auth()->id();
+            $batch->updated_at = now();
             $batch->save();
-        }
-    }
+            
+            $this->syncMaterials($batch, $materials);
+            
+            // 2. Apply new consumption only if now dispatched/completed
+            if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                $this->adjustStock($batch, $materials);
+            }
+            $batch->workOrder->refreshProduction();
 
-    // Deduct stock only when batch becomes dispatched/completed
-    if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+            // Send notification if batch is newly dispatched or completed
+            if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]) && 
+                $oldStatus != $batch->status) {
+                auth()->user()->notify(new \App\Notifications\BatchCompletedNotification($batch));
+            }
 
-        $materialsForStock = $batch->materials()
-            ->get()
-            ->map(fn ($material) => [
-                'product_id' => $material->product_id,
-                'uom_id'     => $material->uom_id,
-                'actual_qty' => $material->actual_qty,
-            ])
-            ->toArray();
+            // Update associated dispatch if it exists
+            $dispatch = $batch->dispatches()->first();
+            if ($dispatch) {
+                $dispatch->update([
+                    'truck_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->truck_id,
+                    'transport_id' => array_key_exists('transport_id', $payload) ? $payload['transport_id'] : $dispatch->transport_id,
+                    'driver_id' => array_key_exists('driver_id', $payload) ? $payload['driver_id'] : $dispatch->driver_id,
+                    'sales_executive_id' => array_key_exists('sales_executive_id', $payload) ? $payload['sales_executive_id'] : $dispatch->sales_executive_id,
+                    'empty_weight_truck' => array_key_exists('empty_weight_truck', $payload) ? $payload['empty_weight_truck'] : $dispatch->empty_weight_truck,
+                    'loaded_weight_truck' => array_key_exists('loaded_weight_truck', $payload) ? $payload['loaded_weight_truck'] : $dispatch->loaded_weight_truck,
+                    'net_weight' => array_key_exists('net_weight', $payload) ? $payload['net_weight'] : $dispatch->net_weight,
+                    'load_site_id' => array_key_exists('site_id', $payload) ? $payload['site_id'] : $dispatch->load_site_id,
+                    'empty_time' => array_key_exists('empty_time', $payload) ? $payload['empty_time'] : $dispatch->empty_time,
+                    'load_time' => array_key_exists('load_time', $payload) ? $payload['load_time'] : $dispatch->load_time,
+                ]);
+            }
 
-        $this->adjustStock($batch, $materialsForStock);
-    }
-
-    $batch->workOrder->refreshProduction();
-
-    if (
-        in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]) &&
-        $oldStatus !== $batch->status
-    ) {
-        auth()->user()->notify(
-            new \App\Notifications\BatchCompletedNotification($batch)
-        );
-    }
-
-    $dispatch = $batch->dispatches()->first();
-
-    if ($dispatch) {
-        $dispatch->update(array_filter([
-            'truck_id'            => $payload['truck_id'] ?? null,
-            'transport_id'        => $payload['transport_id'] ?? null,
-            'driver_id'           => $payload['driver_id'] ?? null,
-            'sales_executive_id'  => $payload['sales_executive_id'] ?? null,
-            'empty_weight_truck'  => $payload['empty_weight_truck'] ?? null,
-            'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? null,
-            'net_weight'          => $payload['net_weight'] ?? null,
-            'load_site_id'        => $payload['site_id'] ?? null,
-            'empty_time'          => $payload['empty_time'] ?? null,
-            'load_time'           => $payload['load_time'] ?? null,
-        ], fn ($value) => !is_null($value)));
-    }
-
-    if ($emptyPhoto) {
-        $this->storeBatchImage($batch, $emptyPhoto, 'empty');
-    }
-
-    if ($loadedPhoto) {
-        $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
-    }
-});
-        } catch (ValidationException $e) {
+            if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
+            if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
+        });
+           } catch (ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
             throw ValidationException::withMessages([
@@ -470,13 +459,16 @@ class BatchController extends Controller
         DB::transaction(function () use ($batch) {
             $materials = $batch->materials()->get()->toArray();
             
+            // Revert stock only if it was previously deducted
             if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
                 $this->adjustStock($batch, $materials, true);
             }
 
+            // Set audit fields before deletion
             $batch->deleted_by = auth()->id();
             $batch->save();
 
+            // Delete related materials and dispatches
             $batch->materials()->delete();
             
             foreach ($batch->dispatches as $dispatch) {
@@ -486,6 +478,8 @@ class BatchController extends Controller
             }
 
             $batch->delete();
+            
+            // Recalculate production quantity for the work order
             $batch->workOrder->refreshProduction();
         });
 
@@ -496,12 +490,14 @@ class BatchController extends Controller
 
     public function report(Batch $batch)
     {
+       
         $batch = $this->resolveBatchSheetBatch($batch);
+        
         $sheet = $this->prepareBatchSheetData($batch);
 
         return view('pdfs.batches.batch_sheet', [
-            'batch'     => $batch,
-            'sheet'     => $sheet,
+            'batch' => $batch,
+            'sheet' => $sheet,
             'isPreview' => true,
         ]);
     }
@@ -512,14 +508,18 @@ class BatchController extends Controller
         $sheet = $this->prepareBatchSheetData($batch);
 
         $pdf = Pdf::loadView('pdfs.batches.batch_sheet', [
-            'batch'     => $batch,
-            'sheet'     => $sheet,
+            'batch' => $batch,
+            'sheet' => $sheet,
             'isPreview' => false,
         ])->setPaper('a4', 'landscape');
 
         $orderNo = $batch->workOrder?->order_no ?? 'order';
         $safeOrderNo = str_replace(['/', '\\'], '-', $orderNo);
-        $filename = sprintf('batch-sheet-%s-%s.pdf', $safeOrderNo, $batch->batch_no ?? $batch->id);
+        $filename = sprintf(
+            'batch-sheet-%s-%s.pdf',
+            $safeOrderNo,
+            $batch->batch_no ?? $batch->id
+        );
 
         return $pdf->download($filename);
     }
@@ -560,92 +560,161 @@ class BatchController extends Controller
             $materialName = $item['material_name'] ?? ($productTitles[$item['product_id']] ?? 'Material');
 
             $row = [
-                'product_id'         => $item['product_id'],
-                'material_name'      => $materialName,
-                'target_qty'         => $item['target_qty'],
-                'actual_qty'         => $item['actual_qty'],
+                'product_id' => $item['product_id'],
+                'material_name' => $materialName,
+                'target_qty' => $item['target_qty'],
+                'actual_qty' => $item['actual_qty'],
                 'deviation_quantity' => $item['deviation_quantity'] ?? 0,
-                'uom_id'             => $item['uom_id'],
+                'uom_id' => $item['uom_id'],
             ];
 
-            if (!empty($item['id']) && $batchMat = $existingMaterials->get($item['id'])) {
-                $batchMat->update($row);
+            if (!empty($item['id'])) {
+                $batchMat = $existingMaterials->get($item['id']);
+                    
+                if ($batchMat) {
+                    $batchMat->update($row);
+                }
             } else {
                 $batch->materials()->create($row);
             }
         }
     }
 
+    private function checkStock(Batch $batch, array $newMaterials, array $oldMaterials = [], bool $wasDeducted = false): void
+    {
+        $plantId = $batch->workOrder->plant_id ?? session('active_plant_id');
+
+        // 1. Aggregate new quantities required (grouped by product_id and uom_id)
+        $newAggregated = [];
+        foreach ($newMaterials as $item) {
+            if (empty($item['product_id']) || (float)($item['actual_qty'] ?? 0) <= 0) continue;
+            $uomId = $item['uom_id'] ?? null;
+            $key = $item['product_id'] . '_' . $uomId;
+            if (!isset($newAggregated[$key])) {
+                $newAggregated[$key] = [
+                    'product_id' => $item['product_id'],
+                    'uom_id' => $uomId,
+                    'actual_qty' => 0
+                ];
+            }
+            $newAggregated[$key]['actual_qty'] += (float)$item['actual_qty'];
+        }
+
+        if (empty($newAggregated)) {
+            return;
+        }
+
+        // 2. Aggregate old quantities that were deducted (grouped by product_id and uom_id)
+        $oldAggregated = [];
+        if ($wasDeducted) {
+            foreach ($oldMaterials as $item) {
+                if (empty($item['product_id']) || (float)($item['actual_qty'] ?? 0) <= 0) continue;
+                $uomId = $item['uom_id'] ?? null;
+                $key = $item['product_id'] . '_' . $uomId;
+                if (!isset($oldAggregated[$key])) {
+                    $oldAggregated[$key] = 0;
+                }
+                $oldAggregated[$key] += (float)$item['actual_qty'];
+            }
+        }
+
+        // 3. Fetch current stock levels from the database for the required products
+        $productIds = collect($newAggregated)->pluck('product_id')->toArray();
+        $quantityRecords = !empty($productIds) ? Quantity::query()->where('plant_id', $plantId)
+            ->whereIn('product_id', $productIds)
+            ->get()
+            ->keyBy(function ($q) {
+                return $q->product_id . '_' . $q->uom_id;
+            }) : collect();
+
+        // 4. Validate for each product
+        $errors = [];
+        foreach ($newAggregated as $key => $item) {
+            $quantityRecord = $quantityRecords->get($key);
+            $currentStock = $quantityRecord ? (float)$quantityRecord->quantity : 0.0;
+            
+            // Add back the old quantity if it was previously deducted, because it will be reverted
+            $oldQty = $oldAggregated[$key] ?? 0.0;
+            $availableStock = $currentStock + $oldQty;
+            
+            $requiredQty = (float)$item['actual_qty'];
+
+            if ($availableStock < $requiredQty) {
+                $productName = '';
+                if ($quantityRecord && $quantityRecord->relationLoaded('product') && $quantityRecord->product) {
+                    $productName = $quantityRecord->product->title;
+                } else {
+                    $product = Product::find($item['product_id']);
+                    $productName = $product ? $product->title : "Product #{$item['product_id']}";
+                }
+                $errors[] = "Insufficient stock for '{$productName}'. Available: " . number_format($availableStock, 2) . ", Required: " . number_format($requiredQty, 2);
+            }
+        }
+
+        if (!empty($errors)) {
+            throw ValidationException::withMessages([
+                'materials' => $errors
+            ]);
+        }
+    }
+
     private function adjustStock(Batch $batch, array $materials, bool $isReverting = false): void
     {
         $userId = auth()->id();
+        $date = $batch->created_at ? $batch->created_at->toDateString() : now()->toDateString();
         $plantId = $batch->workOrder->plant_id ?? session('active_plant_id');
 
-     $aggregated = [];
+        // Aggregate adjustments by product and uom to reduce time complexity and DB operations
+        $aggregated = [];
+        foreach ($materials as $item) {
+            if (empty($item['product_id']) || (float)($item['actual_qty'] ?? 0) <= 0) continue;
+            $key = $item['product_id'] . '_' . $item['uom_id'];
+            if (!isset($aggregated[$key])) {
+                $aggregated[$key] = [
+                    'product_id' => $item['product_id'],
+                    'uom_id' => $item['uom_id'],
+                    'actual_qty' => 0
+                ];
+            }
+            $aggregated[$key]['actual_qty'] += (float)$item['actual_qty'];
+        }
 
-foreach ($materials as $item) {
-    if (
-        empty($item['product_id']) ||
-        (float)($item['actual_qty'] ?? 0) <= 0
-    ) {
-        continue;
-    }
+        $productIds = collect($aggregated)->pluck('product_id')->toArray();
+        
+        // Use query() to prevent IDE 'Not enough arguments' warning on where()
+        $quantityRecords = !empty($productIds) ? Quantity::query()->where('plant_id', $plantId)
+            ->whereIn('product_id', $productIds)
+            ->get()
+            ->keyBy(function ($q) {
+                return $q->product_id . '_' . $q->uom_id;
+            }) : collect();
 
-    $key = $item['product_id'] . '_' . $item['uom_id'];
+        foreach ($aggregated as $key => $item) {
+            $quantityRecord = $quantityRecords->get($key);
+            
+            if (!$quantityRecord) {
+                $quantityRecord = new Quantity([
+                    'plant_id' => $plantId,
+                    'product_id' => $item['product_id'],
+                    'uom_id' => $item['uom_id']
+                ]);
+                $quantityRecord->opening_quantity = 0;
+                $quantityRecord->created_by = $userId;
+                $quantityRecord->status = 1;
+                $quantityRecord->quantity = 0;
+            }
 
-    if (!isset($aggregated[$key])) {
-        $aggregated[$key] = [
-            'product_id'   => $item['product_id'],
-            'uom_id'       => $item['uom_id'],
-            'actual_qty'   => 0,
-            'product_name' => $item['product_name'] ?? 'Unknown Product',
-        ];
-    }
+            $adjustment = (float)$item['actual_qty'];
+            
+            if ($isReverting) {
+                $quantityRecord->quantity += $adjustment;
+            } else {
+                $quantityRecord->quantity -= $adjustment;
+            }
 
-    $aggregated[$key]['actual_qty'] += (float)$item['actual_qty'];
-}
-
-$productIds = collect($aggregated)
-    ->pluck('product_id')
-    ->unique()
-    ->values()
-    ->toArray();
-
-$quantityRecords = !empty($productIds)
-    ? Quantity::query()
-        ->where('plant_id', $plantId)
-        ->whereIn('product_id', $productIds)
-        ->get()
-        ->keyBy(fn ($q) => $q->product_id . '_' . $q->uom_id)
-    : collect();
-
-foreach ($aggregated as $key => $item) {
-
-    $quantityRecord = $quantityRecords->get($key);
-
-    if (!$quantityRecord && !$isReverting) {
-        throw new \Exception(
-            "Stock record not found for Product {$item['product_name']}"
-        );
-    }
-
-    $availableQty = (float)($quantityRecord?->quantity ?? 0);
-    $adjustment = (float)$item['actual_qty'];
-
-    if (!$isReverting && $adjustment > $availableQty) {
-        throw new \Exception(
-            "Insufficient stock  Available: {$availableQty}, Required: {$adjustment}"
-        );
-    }
-
-    $newQty = $isReverting
-        ? $availableQty + $adjustment
-        : $availableQty - $adjustment;
-
-    $quantityRecord->quantity = $newQty;
-    $quantityRecord->updated_by = $userId;
-    $quantityRecord->save();
-}
+            $quantityRecord->updated_by = $userId;
+            $quantityRecord->save();
+        }
     }
 
     private function storeBatchImage(Batch $batch, ?string $base64Data, string $type): void
@@ -653,19 +722,19 @@ foreach ($aggregated as $key => $item) {
         if (!$base64Data || !str_contains($base64Data, 'base64')) return;
 
         try {
+            // Extract base64 content
             if (preg_match('/^data:image\/(\w+);base64,/', $base64Data, $typeMatch)) {
                 $extension = strtolower($typeMatch[1]);
                 $allowedExtensions = ['jpeg', 'png', 'jpg', 'gif', 'svg'];
                 
                 if (!in_array($extension, $allowedExtensions)) {
-                    Log::warning("Blocked suspicious batch image upload with extension: {$extension}");
+                    \Illuminate\Support\Facades\Log::warning("Blocked suspicious batch image upload with extension: {$extension}");
                     return;
                 }
 
                 $data = substr($base64Data, strpos($base64Data, ',') + 1);
                 $data = base64_decode($data);
             } else {
-                Log::warning("Malformed Base64 payload supplied for Batch Image processing.");
                 return;
             }
 
@@ -677,13 +746,13 @@ foreach ($aggregated as $key => $item) {
             Image::updateOrCreate(
                 ['category' => 'Batching', 'ref_no' => (string)$batch->id, 'image_name' => "{$type}_weight_snap"],
                 [
-                    'alt_txt'    => ucfirst($type) . ' Weight Photo',
+                    'alt_txt' => ucfirst($type) . ' Weight Photo',
                     'image_path' => $path,
-                    'plant_id'   => session('active_plant_id'),
+                    'plant_id' => session('active_plant_id'),
                 ]
             );
         } catch (\Exception $e) {
-            Log::error("Failed to store batch image: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error("Failed to store batch image: " . $e->getMessage());
         }
     }
 
@@ -694,6 +763,9 @@ foreach ($aggregated as $key => $item) {
         }
     }
 
+    /**
+     * Broadcast batch updates to WebSocket clients.
+     */
     private function broadcastBatchChange(string $event, Batch $batch): void
     {
         try {
@@ -712,10 +784,13 @@ foreach ($aggregated as $key => $item) {
 
             broadcast(new \App\Events\BatchUpdated($event, ['batch' => $batch->toArray()]));
         } catch (\Exception $e) {
-            Log::warning("Batch broadcast failed: " . $e->getMessage());
+            \Illuminate\Support\Facades\Log::warning("Batch broadcast failed: " . $e->getMessage());
         }
     }
 
+    /**
+     * Broadcast batch deletion to WebSocket clients.
+     */
     private function broadcastBatchDeletion(int $batchId): void
     {
         try {

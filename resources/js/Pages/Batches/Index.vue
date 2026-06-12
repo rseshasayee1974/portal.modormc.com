@@ -582,7 +582,7 @@ const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form
                                 </div> -->
 
                                 <!-- 3. Dispatch Generation/Edit Form -->
-                                <div v-if="slotProps.data.status === 3"  class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div v-if="slotProps.data.status === 3 || slotProps.data.status === 4"  class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                     <DispatchSection 
                                         :batch="detailedBatches[slotProps.data.id] || slotProps.data" 
                                         :workOrder="(detailedBatches[slotProps.data.id] || slotProps.data).work_order"

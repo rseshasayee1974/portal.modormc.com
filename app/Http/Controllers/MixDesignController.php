@@ -90,6 +90,11 @@ class MixDesignController extends Controller
     {
         $plantId = session('active_plant_id');
 
+        // Prevent edit if Mix Design is used in batching
+        if ($mixdesign->is_used_in_batching) {
+            return redirect()->back()->with('error', 'Mix Design is used in batching and cannot be edited.');
+        }
+
         $validated = $request->validate([
             'partner_id' => 'required|exists:mm_patrons,id',
             'design_name' => 'required|string|max:255|unique:mm_mix_designs,design_name,' . $mixdesign->id . ',id,plant_id,' . $plantId . ',partner_id,' . $request->partner_id,
@@ -174,6 +179,9 @@ class MixDesignController extends Controller
 
     public function destroy(MixDesign $mixdesign)
     {
+        if ($mixdesign->is_used_in_batching) {
+            return redirect()->back()->with('error', 'Mix Design is used in batching and cannot be deleted.');
+        }
         $mixdesign->delete();
         return redirect()->back()->with('success', 'Mix Design deleted successfully.');
     }

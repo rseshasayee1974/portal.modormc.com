@@ -12,7 +12,7 @@ class MixDesignItem extends Model
     use HasFactory, SoftDeletes, TracksModelChanges;
 
     protected $table = 'mm_mix_design_items';
-
+    protected $appends = ['used_in_batching'];
     protected $fillable = [
         'plant_id',
         'mix_design_id',
@@ -47,5 +47,22 @@ class MixDesignItem extends Model
     public function mixDesign()
     {
         return $this->belongsTo(MixDesign::class, 'mix_design_id');
+    }
+    // The batch relationship is not stored on MixDesignItem; usage is determined via BatchMaterial.
+
+    public function getUsedInBatchingAttribute()
+    {
+        // An item is considered used in active batching if any BatchMaterial references its product
+        // and the associated Batch is not completed.
+        return \App\Models\BatchMaterial::where('product_id', $this->product_id)
+            ->whereHas('batch', function ($q) {
+                $q->whereIn('status', [
+                    \App\Models\Batch::STATUS_PLANNED,
+                    \App\Models\Batch::STATUS_LOADING,
+                    \App\Models\Batch::STATUS_DISPATCHED,
+                    \App\Models\Batch::STATUS_COMPLETED,
+                ]);
+            })
+            ->exists();
     }
 }

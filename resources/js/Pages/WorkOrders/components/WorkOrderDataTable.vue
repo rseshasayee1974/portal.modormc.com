@@ -25,6 +25,9 @@ const props = withDefaults(defineProps<{
     statuses: () => [],
 });
 
+// console.log('sadssd',props.statuses);
+
+
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
     status: { value: null, matchMode: 'equals' },
@@ -143,8 +146,8 @@ const onSaved = () => {
                             rounded 
                             severity="danger" 
                             @click="destroy(data)"
-                            :disabled="data.batches_count > 0 || data.dispatches_count > 0"
-                            v-tooltip.top="(data.batches_count > 0 || data.dispatches_count > 0) ? 'Cannot delete: active batches or dispatches exist' : 'Delete Work Order'"
+                            :disabled="data.batches_count > 0 || data.dispatches_count > 0 || data.status === 3"
+                            v-tooltip.top="(data.batches_count > 0 || data.dispatches_count > 0 || data.status === 3) ? 'Cannot delete: active batches or dispatches exist' : 'Delete Work Order'"
                         />
                     </div>
                 </template>

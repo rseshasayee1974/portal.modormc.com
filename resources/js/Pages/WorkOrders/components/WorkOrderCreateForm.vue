@@ -28,7 +28,6 @@ const props = withDefaults(defineProps<{
 });
 
 const showMixDesignModal = ref(false);
-console.log(props.mixDesigns);
 const safeCustomers = computed(() => props.customers ?? []);
 const safeSites = computed(() => props.sites ?? []);
 const safeMixDesigns = computed(() => props.mixDesigns ?? []);
@@ -39,6 +38,21 @@ const selectedMixDesign = computed(() => {
     return safeMixDesigns.value.find((md) => Number(md?.id) === selectedId);
 });
 
+// Intercept and strictly allow only Scheduled (1), In Progress (2), and Cancelled (4)
+const filteredStatuses = computed(() => {
+    const backupStatuses = [
+        { label: 'Scheduled', value: 1 },
+        { label: 'In Progress', value: 2 },
+        { label: 'Cancelled', value: 4 }
+    ];
+    
+    if (!props.statuses || props.statuses.length === 0) {
+        return backupStatuses;
+    }
+    
+    // Filter incoming array values matching the desired target status IDs
+    return props.statuses.filter(status => [1, 2, 4].includes(Number(status.value)));
+});
 const selectedMixIngredients = computed(() => {
     const mix = selectedMixDesign.value;
     if (!mix) return [];
@@ -169,7 +183,7 @@ const handleMixCreated = () => {
                 </div> -->
             </div>
             <div class="col-span-12 md:col-span-3">
-                <BaseSelect v-model="form.status" :options="safeStatuses" optionLabel="label" optionValue="value" label="Status" :error="form.errors.status" />
+                <BaseSelect v-model="form.status" :options="filteredStatuses" optionLabel="label" optionValue="value" label="Status" :error="form.errors.status" />
             </div>
 
             <div v-if="selectedMixDesign" class="col-span-12 rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">

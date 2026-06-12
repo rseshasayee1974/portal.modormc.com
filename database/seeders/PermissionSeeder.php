@@ -173,6 +173,16 @@ class PermissionSeeder extends Seeder
             $transportRole->syncPermissions($transportPermissions);
         }
 
+        // TRIP_OPERATOR - Trip and Logistics focus (create/update trips)
+        $tripOperatorRole = Role::where('code', 'TRIP_OPERATOR')->first();
+        if ($tripOperatorRole) {
+            $tripOperatorPermissions = array_filter($allPermissionNames, function($p) {
+                return Str::startsWith($p, ['TRIP', 'WORK_ORDER', 'MACHINE', 'PERSONNEL', 'SITE', 'PATRON'])
+                       || Str::contains($p, 'DASHBOARD.VIEW');
+            });
+            $tripOperatorRole->syncPermissions($tripOperatorPermissions);
+        }
+
         // FLEET_MANAGER - Full Logistics access
         $fleetManagerRole = Role::where('code', 'FLEET_MANAGER')->first();
         if ($fleetManagerRole) {

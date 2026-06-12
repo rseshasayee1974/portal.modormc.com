@@ -50,9 +50,6 @@ class Quantity extends Model
                 if ((float) $model->quantity < 0) {
                     throw new InvalidArgumentException('Quantity cannot be negative. Negative values are not allowed.');
                 }
-                if ( $model->quantity != 0) {
-                    throw new InvalidArgumentException('Quantity cannot be negative. Negative values are not allowed.');
-                }
                 if ((float) $model->opening_quantity < 0) {
                     throw new InvalidArgumentException('Opening quantity cannot be negative. Negative values are not allowed.');
                 }

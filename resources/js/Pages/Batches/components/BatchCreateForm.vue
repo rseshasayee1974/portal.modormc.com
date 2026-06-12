@@ -83,6 +83,10 @@ const removeMaterial = (index: number) => {
 
 const customSettings = page.props.custom_settings as any;
 
+const isMetricTon = computed(() => {
+    return customSettings?.batching?.InvoiceInMetricTon == 1;
+});
+
 const selectedWorkOrder = computed(() => {
     if (!form.work_order_id) return null;
     return props.workOrders.find(wo => Number(wo.id) === Number(form.work_order_id));
@@ -193,6 +197,14 @@ const submit = () => {
     const maxAllowed = selectedWorkOrder.value 
         ? Math.max(0, Number(selectedWorkOrder.value.total_qty) - Number(selectedWorkOrder.value.produced_qty))
         : 9.9;
+        const remainingQty = selectedWorkOrder.value
+    ? Number(
+        (
+            Number(selectedWorkOrder.value.total_qty) -
+            Number(selectedWorkOrder.value.produced_qty)
+        ).toFixed(3)
+      )
+    : 9.9;
 
     const validations = [
         { condition: !form.work_order_id, field: 'work_order_id', message: 'Work Order is required' },
@@ -200,8 +212,17 @@ const submit = () => {
         // { condition: !form.transport_id, field: 'transport_id', message: 'Transporter is required' },
         // { condition: !form.driver_id, field: 'driver_id', message: 'Driver is required' },
         // { condition: !form.sales_executive_id, field: 'sales_executive_id', message: 'Sales Executive is required' },
-        { condition: !form.batch_size || form.batch_size < 0.2 || form.batch_size > 9.9, field: 'batch_size', message: 'Batch Quantity must be between 0.2 and 9.9 m³' },
-        { condition: form.work_order_id && form.batch_size > maxAllowed, field: 'batch_size', message: `Batch Quantity cannot exceed remaining order quantity (${maxAllowed.toFixed(3)} m³)` }
+        { condition: !form.batch_size || form.batch_size < 0.1 || form.batch_size > 9.9, field: 'batch_size', message: 'Batch Quantity must be between 0.1 and 9.9 m³' },
+        {
+            condition:
+                form.work_order_id &&
+                Number(form.batch_size.toFixed(3)) > remainingQty,
+            field: 'batch_size',
+            message: `Batch Quantity cannot exceed remaining order quantity (${remainingQty.toFixed(3)} m³)`
+        },
+        { condition: isMetricTon.value && (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0), field: 'empty_weight_truck', message: 'Empty Weight is required when InvoiceInMetricTon is enabled' },
+        { condition: isMetricTon.value && !form.empty_time, field: 'empty_time', message: 'Empty Time is required when InvoiceInMetricTon is enabled' },
+        // { condition: form.work_order_id && form.batch_size > maxAllowed, field: 'batch_size', message: `Batch Quantity cannot exceed remaining order quantity (${maxAllowed.toFixed(3)} m³)` }
     ];
 
     let hasErrors = false;
@@ -309,11 +330,17 @@ const submit = () => {
             form.materials = [blankMaterial()];
         },
         onError: (errors) => {
-            console.error('Batch creation failed:', errors);
+            const errorMessages = Object.values(errors).flat().join('\n');
+            Swal.fire({
+                icon: 'error',
+                title: 'Creation Failed',
+                text: errorMessages || 'Please check the input fields.',
+                confirmButtonColor: '#4f46e5', // indigo color to match create form theme
+            });
         }
     });
 };
-console.log(props.workOrders);
+// console.log(props.workOrders);
 </script>
 
 <template>
@@ -398,12 +425,12 @@ console.log(props.workOrders);
                                 <BaseSelect v-model="form.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear />
                             </div>
                             <div class="col-span-12 md:col-span-3">
-                                <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.2" :minFractionDigits="1" :maxFractionDigits="1" :max="9.9" required :error="form.errors.batch_size" />
+                                <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :minFractionDigits="1" :maxFractionDigits="1" :max="9.9" required :error="form.errors.batch_size" />
                             </div>
                             <div class="col-span-12 md:col-span-3">
                                 <div class="flex items-end">
                                     <div class="flex-1">
-                                        <BaseInputNumber v-model="form.empty_weight_truck" :disabled="!customSettings?.batching?.manual_weight" label="Empty Weight" :error="form.errors.empty_weight_truck" />
+                                        <BaseInputNumber v-model="form.empty_weight_truck" :disabled="!customSettings?.batching?.manual_weight" label="Empty Weight" :required="isMetricTon" :error="form.errors.empty_weight_truck" />
                                     </div>
                                     <button @click="handleWeightCapture" type="button" v-if="customSettings?.batching?.manual_weight" 
                                         :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
@@ -435,7 +462,7 @@ console.log(props.workOrders);
                                 <BaseDatePicker v-model="form.start_time" label="Scheduled Start" showTime hourFormat="24" fluid :error="form.errors.start_time" />
                             </div> -->
                             <div class="col-span-12 md:col-span-3">
-                                <BaseDatePicker v-model="form.empty_time" label="Empty Time" showTime hourFormat="24" fluid :error="form.errors.empty_time" />
+                                <BaseDatePicker v-model="form.empty_time" label="Empty Time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.empty_time" />
                             </div>
                            
                             
@@ -526,6 +553,20 @@ console.log(props.workOrders);
                     </div> -->
                 </div>
             </div>
+        </div>
+
+        <div v-if="form.errors.materials" class="m-5 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-xs flex flex-col gap-1.5 shadow-sm">
+            <div class="font-bold flex items-center gap-2 text-rose-700">
+                <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Stock Validation Failed
+            </div>
+            <ul class="list-disc list-inside mt-1 space-y-1 font-semibold text-rose-600">
+                <li v-for="err in (Array.isArray(form.errors.materials) ? form.errors.materials : [form.errors.materials])" :key="err">
+                    {{ err }}
+                </li>
+            </ul>
         </div>
 
         <div class="border-t border-slate-100 bg-slate-50/30 p-4">
