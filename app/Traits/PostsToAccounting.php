@@ -110,10 +110,10 @@ trait PostsToAccounting
             if (!$baseLedgerId) {
                 $baseLedgerId = $this->getAccountingLedgerId($isSales ? 'sales_account' : 'purchase_account', $isSales ? 'Sales' : 'Purchase');
             }
-
+ 
             if (!$baseLedgerId && $subtotal != 0) {
                 $accountType = $isSales ? 'Sales' : 'Purchase';
-                throw new \Exception("Accounting Failure: Missing {$accountType} Ledger. Please map it in Account Default Settings.");
+                throw new \Exception("Accounting Failure : Missing {$accountType} Ledger. Please map it in Account Default Settings.");
             }
 
             if ($baseLedgerId && $subtotal != 0) {
