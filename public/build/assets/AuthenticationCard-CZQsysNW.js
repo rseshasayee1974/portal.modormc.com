@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/AuthenticationCard-BfdhUZWw.js
-import{_ as o,o as r,d as a,a as s,r as t}from"./app-BDOSSwRT.js";const n={},d={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},c={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"};function l(e,i){return r(),a("div",d,[s("div",null,[t(e.$slots,"logo")]),s("div",c,[t(e.$slots,"default")])])}const f=o(n,[["render",l]]);export{f as A};
-========
-import{_ as o,o as r,d as a,a as s,r as t}from"./app-D88lNP9O.js";const n={},d={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},c={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"};function l(e,i){return r(),a("div",d,[s("div",null,[t(e.$slots,"logo")]),s("div",c,[t(e.$slots,"default")])])}const f=o(n,[["render",l]]);export{f as A};
->>>>>>>> 8df93b5dc7b7c51a61c10e3025aa307813039248:public/build/assets/AuthenticationCard-CZQsysNW.js

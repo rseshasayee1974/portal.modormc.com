@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/useForm-Cf-HksXl.js
-import{h as f,g as n}from"./app-BDOSSwRT.js";function a(o){if(o)return Array.isArray(o)?o[0]:o}function p(o){const e=f(o),t=n(()=>e.errors??{});function i(s){const r=s.replace(/\[(\d+)\]/g,".$1");return a(t.value[r]??t.value[s])}function u(s){const r=s;r!=null&&r.errors&&typeof r.errors=="object"&&(e.clearErrors(),e.setError(r.errors))}const c=n(()=>!!e.processing);return{...e,errors:t,errorFor:i,setApiErrors:u,isSubmitting:c}}export{p as u};
-========
-import{h as f,g as n}from"./app-D88lNP9O.js";function a(o){if(o)return Array.isArray(o)?o[0]:o}function p(o){const e=f(o),t=n(()=>e.errors??{});function i(s){const r=s.replace(/\[(\d+)\]/g,".$1");return a(t.value[r]??t.value[s])}function u(s){const r=s;r!=null&&r.errors&&typeof r.errors=="object"&&(e.clearErrors(),e.setError(r.errors))}const c=n(()=>!!e.processing);return{...e,errors:t,errorFor:i,setApiErrors:u,isSubmitting:c}}export{p as u};
->>>>>>>> 8df93b5dc7b7c51a61c10e3025aa307813039248:public/build/assets/useForm-Cf_Ozh9p.js

@@ -340,10 +340,6 @@ const submit = () => {
         }
     });
 };
-<<<<<<< HEAD
-=======
-// console.log(props.workOrders);
->>>>>>> 8df93b5dc7b7c51a61c10e3025aa307813039248
 </script>
 
 <template>

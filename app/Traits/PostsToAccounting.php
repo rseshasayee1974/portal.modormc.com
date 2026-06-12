@@ -129,7 +129,7 @@ trait PostsToAccounting
             // --- DEBIT/CREDIT RULE 3: Tax Splits ---
             // We use direct query to bypass any relationship caching issues
             $orderTaxes = OrderTax::where('order_id', '=',$this->id)
-                ->whereIn('order_type', ['Invoice', 'App\Models\Invoice', $docType, 'PurchaseOrder'])
+                ->whereIn('order_type', ['Invoice', $docType])
                 ->get();
 
             $sumTaxLines = 0;
