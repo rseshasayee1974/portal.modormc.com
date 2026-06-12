@@ -76,23 +76,61 @@ const form = useForm({
     end_time: props.batch?.end_time ? new Date(props.batch.end_time) : new Date(),
     empty_time: props.batch?.dispatches?.[0]?.empty_time ? new Date(props.batch.dispatches[0].empty_time) : new Date(),
     load_time: props.batch?.dispatches?.[0]?.load_time ? new Date(props.batch.dispatches[0].load_time) : new Date(),
-    materials: ((props.batch?.materials?.length ?? 0) > 0 ? props.batch.materials : [blankMaterial()]).map((item: any) => ({
-        id: item.id,
-        product_id: item.product_id,
-        material_name: item.material_name || item.product?.title || '',
-        target_qty: Number(item.target_qty || 0),
-        actual_qty: Number(item.actual_qty || 0),
-        deviation_quantity: Number(item.deviation_quantity || (Number(item.actual_qty || 0) - Number(item.target_qty || 0))),
-        uom_id: item.uom_id,
-    })),
+    materials: (() => {
+        let initialMaterials = props.batch?.materials;
+        if ((!initialMaterials || initialMaterials.length === 0) && props.batch?.work_order?.mix_design?.items) {
+            initialMaterials = props.batch.work_order.mix_design.items.map((item: any) => ({
+                id: null,
+                product_id: item.product_id,
+                material_name: item.product?.title || 'Material',
+                target_qty: Number(item.cross_quantity || item.actual_quantity || item.quantity || 0) * Number(props.batch?.batch_size ?? 1),
+                actual_qty: 0,
+                deviation_quantity: 0,
+                uom_id: item.uom_id || item.product?.unit_id,
+            }));
+        } else if ((!initialMaterials || initialMaterials.length === 0) && props.workOrders) {
+            const wo = props.workOrders.find(w => w.id === props.batch?.work_order_id);
+            if (wo?.mix_design?.items) {
+                initialMaterials = wo.mix_design.items.map((item: any) => ({
+                    id: null,
+                    product_id: item.product_id,
+                    material_name: item.product?.title || 'Material',
+                    target_qty: Number(item.cross_quantity || item.actual_quantity || item.quantity || 0) * Number(props.batch?.batch_size ?? 1),
+                    actual_qty: 0,
+                    deviation_quantity: 0,
+                    uom_id: item.uom_id || item.product?.unit_id,
+                }));
+            }
+        }
+        return ((initialMaterials?.length ?? 0) > 0 ? initialMaterials : [blankMaterial()]).map((item: any) => ({
+            id: item.id,
+            product_id: item.product_id,
+            material_name: item.material_name || item.product?.title || '',
+            target_qty: Number(item.target_qty || 0),
+            actual_qty: Number(item.actual_qty || 0),
+            deviation_quantity: Number(item.deviation_quantity || (Number(item.actual_qty || 0) - Number(item.target_qty || 0))),
+            uom_id: item.uom_id,
+        }));
+    })(),
 });
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
 
-const selectedWorkOrder = computed(() => 
-    props.workOrders.find(wo => wo.id === form.work_order_id)
-);
+const isMetricTon = computed(() => {
+    return customSettings?.batching?.InvoiceInMetricTon == 1;
+});
+
+const isLocked = computed(() => {
+    return form.status === 3;
+});
+
+const selectedWorkOrder = computed(() => {
+    if (props.batch?.work_order && props.batch.work_order.id === form.work_order_id) {
+        return props.batch.work_order;
+    }
+    return props.workOrders.find(wo => wo.id === form.work_order_id);
+});
 
 const workOrderDetails = computed(() => {
     if (!selectedWorkOrder.value) return [];
@@ -101,17 +139,20 @@ const workOrderDetails = computed(() => {
         { label: 'Customer', value: wo.customer?.legal_name || 'N/A' },
         { label: 'Site', value: wo.site?.name || 'N/A' },
         { label: 'Design', value: wo.mix_design?.design_name || 'N/A' },
-        // { label: 'Grade/Ratio', value: `${wo.mix_design?.concrete_grade?.name || wo.mix_design?.grade || 'N/A'} (${wo.mix_design?.concrete_grade?.concrete_ratio || 'N/A'})` },
+        { label: 'Grade/Ratio', value: wo.mix_design?.concrete_grade?.name 
+            ? `${wo.mix_design.concrete_grade.name}${wo.mix_design.concrete_grade.concrete_ratio ? ` (${wo.mix_design.concrete_grade.concrete_ratio})` : ''}` 
+            : (wo.mix_design?.grade || 'N/A') 
+        },
         { label: 'Total Qty', value: `${wo.produced_qty} / ${wo.total_qty} m³` },
     ];
 });
 
 watch(() => form.batch_size, (newVal) => {
     if (form.work_order_id && selectedWorkOrder.value?.mix_design?.items) {
-        form.materials.forEach((mat, index) => {
-            const originalItem = selectedWorkOrder.value.mix_design.items[index];
+        form.materials.forEach((mat) => {
+            const originalItem = selectedWorkOrder.value.mix_design.items.find((item: any) => item.product_id === mat.product_id);
             if (originalItem) {
-                mat.target_qty = Number(originalItem.actual_quantity || originalItem.quantity || 0) * newVal;
+                mat.target_qty = Number(originalItem.cross_quantity || originalItem.actual_quantity || originalItem.quantity || 0) * newVal;
             }
         });
     }
@@ -140,6 +181,7 @@ watch(() => form.materials, (newMaterials) => {
 }, { deep: true });
 
 watch(() => props.batch, (newBatch) => {
+    console.log('BatchEditForm watcher triggered. Batch ID:', newBatch?.id, 'has materials:', !!newBatch?.materials, 'count:', newBatch?.materials?.length);
     if (newBatch) {
         form.work_order_id = newBatch.work_order_id ?? null;
         form.batch_no = newBatch.batch_no ?? null;
@@ -161,15 +203,45 @@ watch(() => props.batch, (newBatch) => {
         form.start_time = newBatch.start_time ? new Date(newBatch.start_time) : new Date();
         form.end_time = newBatch.end_time ? new Date(newBatch.end_time) : new Date();
         
-        form.materials = ((newBatch.materials?.length ?? 0) > 0 ? newBatch.materials : [blankMaterial()]).map((item: any) => ({
+        let initialMaterials = newBatch.materials;
+        console.log('BatchEditForm initialMaterials from newBatch:', initialMaterials);
+        if ((!initialMaterials || initialMaterials.length === 0) && newBatch.work_order?.mix_design?.items) {
+            console.log('Loading materials from mix_design items');
+            initialMaterials = newBatch.work_order.mix_design.items.map((item: any) => ({
+                id: null,
+                product_id: item.product_id,
+                material_name: item.product?.title || 'Material',
+                target_qty: Number(item.cross_quantity || item.actual_quantity || item.quantity || 0) * Number(newBatch.batch_size ?? 1),
+                actual_qty: 0,
+                deviation_quantity: 0,
+                uom_id: item.uom_id || item.product?.unit_id,
+            }));
+        } else if ((!initialMaterials || initialMaterials.length === 0) && props.workOrders) {
+            console.log('Loading materials from props.workOrders');
+            const wo = props.workOrders.find(w => w.id === newBatch.work_order_id);
+            if (wo?.mix_design?.items) {
+                initialMaterials = wo.mix_design.items.map((item: any) => ({
+                    id: null,
+                    product_id: item.product_id,
+                    material_name: item.product?.title || 'Material',
+                    target_qty: Number(item.cross_quantity || item.actual_quantity || item.quantity || 0) * Number(newBatch.batch_size ?? 1),
+                    actual_qty: 0,
+                    deviation_quantity: 0,
+                    uom_id: item.uom_id || item.product?.unit_id,
+                }));
+            }
+        }
+
+        form.materials = ((initialMaterials?.length ?? 0) > 0 ? initialMaterials : [blankMaterial()]).map((item: any) => ({
             id: item.id,
             product_id: item.product_id,
-            material_name: item.material_name || item.product?.title || '',
+            material_name: item.material_name || item.label || item.product?.title || '',
             target_qty: Number(item.target_qty || 0),
             actual_qty: Number(item.actual_qty || 0),
             deviation_quantity: Number(item.deviation_quantity || (Number(item.actual_qty || 0) - Number(item.target_qty || 0))),
             uom_id: item.uom_id,
         }));
+        console.log('BatchEditForm set form.materials to:', JSON.parse(JSON.stringify(form.materials)));
     }
 }, { deep: true, immediate: true });
 
@@ -356,6 +428,36 @@ const handleOcrUpload = async (event: Event) => {
 };
 
 const submit = () => {
+    form.clearErrors();
+    let hasErrors = false;
+    if (isMetricTon.value) {
+        if (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0) {
+            form.setError('empty_weight_truck', 'Empty Weight is required');
+            hasErrors = true;
+        }
+        if (form.loaded_weight_truck === null || form.loaded_weight_truck === undefined || form.loaded_weight_truck <= 0) {
+            form.setError('loaded_weight_truck', 'Full Weight is required');
+            hasErrors = true;
+        }
+        if (!form.empty_time) {
+            form.setError('empty_time', 'Empty Time is required');
+            hasErrors = true;
+        }
+        if (!form.load_time) {
+            form.setError('load_time', 'Load Time is required');
+            hasErrors = true;
+        }
+    }
+    if (hasErrors) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Validation Failed',
+            text: 'Please check the required fields.',
+            confirmButtonColor: '#0891b2',
+        });
+        return;
+    }
+
     const formatDateTime = (date: Date | null | string) => {
         if (!date) return null;
         const d = date instanceof Date ? date : new Date(date);
@@ -368,7 +470,7 @@ const submit = () => {
         const seconds = String(d.getSeconds()).padStart(2, '0');
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     };
-
+    console.log('Submitted data', form);
     form.transform((data) => ({
         ...data,
         start_time: formatDateTime(data.start_time),
@@ -393,8 +495,20 @@ const submit = () => {
             isSaved.value = true;
             emit('saved');
         },
+        onError: (errors) => {
+            const errorMessages = Object.values(errors).flat().join('\n');
+            Swal.fire({
+                icon: 'error',
+                title: 'Update Failed',
+                text: errorMessages || 'Please check the input fields.',
+                confirmButtonColor: '#0891b2',
+            });
+        }
     });
 };
+
+console.log('sdfcsdfsc', form);
+
 </script>
 
 <template>
@@ -450,11 +564,11 @@ const submit = () => {
                                     <BaseSelect v-model="form.status" :options="statuses" :disabled="form.status === 3" optionLabel="label" optionValue="value" label="Current Status" :error="form.errors.status" />
                                 </div>
                                  <div class="col-span-12 md:col-span-3">
-                            <BaseDatePicker label="Start Time" v-model="form.start_time" showTime hourFormat="24" fluid  />
+                            <BaseDatePicker label="Start Time" v-model="form.start_time" showTime hourFormat="24" fluid :disabled="isLocked" />
                             <small class="text-red-500">{{ form.errors.start_time }}</small>
                         </div>
                         <div class="col-span-12 md:col-span-3">
-                            <BaseDatePicker label="End Time" v-model="form.end_time" showTime hourFormat="24" fluid  />
+                            <BaseDatePicker label="End Time" v-model="form.end_time" showTime hourFormat="24" fluid :disabled="isLocked" />
                             <small class="text-red-500">{{ form.errors.end_time }}</small>
                         </div>
                             </div>
@@ -467,17 +581,17 @@ const submit = () => {
                     <!-- Config Grid -->
                     <div class="grid grid-cols-12 gap-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
                          <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Truck Assignment" :error="form.errors.truck_id" />
+                            <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Truck Assignment" :error="form.errors.truck_id" :disabled="isLocked" />
                         </div>
                         
                          <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear :error="form.errors.transport_id" />
+                            <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear :error="form.errors.transport_id" :disabled="isLocked" />
                         </div>
                         <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver" showClear :error="form.errors.driver_id" />
+                            <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver" showClear :error="form.errors.driver_id" :disabled="isLocked" />
                         </div>
                         <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear :error="form.errors.sales_executive_id" />
+                            <BaseSelect v-model="form.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear :error="form.errors.sales_executive_id" :disabled="isLocked" />
                         </div>
                         <div class="col-span-12 md:col-span-3">
                             <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :minFractionDigits="2" :disabled="true"  :error="form.errors.batch_size" />
@@ -492,12 +606,13 @@ const submit = () => {
                                 size="small"
                                 :fluid="true"
                                 :error="form.errors.uom_id"
+                                :disabled="isLocked"
                             />
                         </div>
                         <div class="col-span-12 md:col-span-3">
                             <div class="flex items-end gap-2">
                                 <div class="flex-1">
-                                    <BaseInputNumber v-model="form.empty_weight_truck" :disabled="!customSettings?.batching?.manual_weight" label="Empty Weight" :error="form.errors.empty_weight_truck" />
+                                    <BaseInputNumber v-model="form.empty_weight_truck" :disabled="isLocked || !customSettings?.batching?.manual_weight" label="Empty Weight" :required="isMetricTon" :error="form.errors.empty_weight_truck" />
                                 </div>
                                 <!-- <button v-if="customSettings?.batching?.manual_weight" @click="handleWeightCapture('empty')" type="button" 
                                     :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
@@ -518,9 +633,9 @@ const submit = () => {
                         <div class="col-span-12 md:col-span-3">
                             <div class="flex items-end gap-2">
                                 <div class="flex-1">
-                                    <BaseInputNumber v-model="form.loaded_weight_truck" :disabled="!customSettings?.batching?.manual_weight" label="Full Weight" :error="form.errors.loaded_weight_truck" />
+                                    <BaseInputNumber v-model="form.loaded_weight_truck" :disabled="isLocked || !customSettings?.batching?.manual_weight" label="Full Weight" :required="isMetricTon" :error="form.errors.loaded_weight_truck" />
                                 </div>
-                                <button v-if="customSettings?.batching?.manual_weight && form.net_weight<=0" @click="handleWeightCapture('loaded')" type="button" 
+                                <button v-if="!isLocked && customSettings?.batching?.manual_weight && form.net_weight<=0" @click="handleWeightCapture('loaded')" type="button" 
                                     :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
                                     :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
                                     <div class="flex flex-col items-center gap-0.5">
@@ -538,14 +653,14 @@ const submit = () => {
                         </div>
                         
                         <div class="col-span-12 md:col-span-3">
-                            <BaseInputNumber v-model="form.net_weight" :disabled="true" label="Net Weight (kg)" :error="form.errors.net_weight" />
+                            <BaseInputNumber v-model="form.net_weight" :disabled="isLocked || isMetricTon" label="Net Weight (kg)" :required="!isMetricTon" :error="form.errors.net_weight" />
                         </div>
                         
                         <div class="col-span-12 md:col-span-3">
-                            <BaseDatePicker label="Empty Time" v-model="form.empty_time" showTime hourFormat="24" fluid :error="form.errors.empty_time" />
+                            <BaseDatePicker label="Empty Time" v-model="form.empty_time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.empty_time" :disabled="isLocked" />
                         </div>
                         <div class="col-span-12 md:col-span-3">
-                            <BaseDatePicker label="Load Time" v-model="form.load_time" showTime hourFormat="24" fluid :error="form.errors.load_time" />
+                            <BaseDatePicker label="Load Time" v-model="form.load_time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.load_time" :disabled="isLocked" />
                         </div>
                     </div>
 
@@ -724,6 +839,20 @@ const submit = () => {
                             </div>
                         </div>
 
+                        <div v-if="form.errors.materials" class="m-5 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-xs flex flex-col gap-1.5 shadow-sm">
+                            <div class="font-bold flex items-center gap-2 text-rose-700">
+                                <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                                Stock Validation Failed
+                            </div>
+                            <ul class="list-disc list-inside mt-1 space-y-1 font-semibold text-rose-600">
+                                <li v-for="err in (Array.isArray(form.errors.materials) ? form.errors.materials : [form.errors.materials])" :key="err">
+                                    {{ err }}
+                                </li>
+                            </ul>
+                        </div>
+
                         <div class="overflow-x-auto">
                             <table class="w-full border-collapse">
                                 <thead>
@@ -748,18 +877,18 @@ const submit = () => {
                                                 filter
                                                 size="small"
                                                 :fluid="true"
-                                                :disabled="!!item.id"
+                                                :disabled="!!item.id || isLocked"
                                                 :error="form.errors[`materials.${index}.product_id`]"
                                             />
                                         </td>
                                         <td class="px-2 py-3">
-                                            <BaseInput v-model="item.material_name" :disabled="!!item.id" size="small" :fluid="true" />
+                                            <BaseInput v-model="item.material_name" :disabled="!!item.id || isLocked" size="small" :fluid="true" />
                                         </td>
                                         <td class="px-2 py-3">
-                                            <BaseInputNumber v-model="item.target_qty" :disabled="!!item.id" :minFractionDigits="3" size="small" :fluid="true" :error="form.errors[`materials.${index}.target_qty`]" />
+                                            <BaseInputNumber v-model="item.target_qty" :disabled="!!item.id || isLocked" :minFractionDigits="3" size="small" :fluid="true" :error="form.errors[`materials.${index}.target_qty`]" />
                                         </td>
                                         <td class="px-2 py-3">
-                                            <BaseInputNumber v-model="item.actual_qty" :minFractionDigits="3" size="small" :fluid="true" :error="form.errors[`materials.${index}.actual_qty`]" />
+                                            <BaseInputNumber v-model="item.actual_qty" :minFractionDigits="3" size="small" :fluid="true" :disabled="isLocked" :error="form.errors[`materials.${index}.actual_qty`]" />
                                         </td>
                                         <td class="px-2 py-3 text-center">
                                             <span class="text-[11px] font-bold" :class="item.deviation_quantity > 0 ? 'text-rose-500' : (item.deviation_quantity < 0 ? 'text-emerald-500' : 'text-slate-400')">
@@ -774,12 +903,12 @@ const submit = () => {
                                                 optionValue="id"
                                                 size="small"
                                                 :fluid="true"
-                                                :disabled="!!item.id"
+                                                :disabled="!!item.id || isLocked"
                                                 :error="form.errors[`materials.${index}.uom_id`]"
                                             />
                                         </td>
                                         <td class="px-2 py-3 text-right" >
-                                            <Button icon="pi pi-trash" text rounded severity="danger" class="!h-8 !w-8" :disabled="!!item.id" @click="removeMaterial(index)" />
+                                            <Button icon="pi pi-trash" text rounded severity="danger" class="!h-8 !w-8" :disabled="!!item.id || isLocked" @click="removeMaterial(index)" />
                                         </td>
                                     </tr>
                                 </tbody>

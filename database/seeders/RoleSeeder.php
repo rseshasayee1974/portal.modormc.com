@@ -25,6 +25,7 @@ class RoleSeeder extends Seeder
             'WAREHOUSE_OPERATOR'  => ['level' => 50,  'description' => 'Handles warehouse activities'],
             'FLEET_MANAGER'       => ['level' => 45,  'description' => 'Manages transport and fleet'],
             'TRANSPORT_OPERATOR'  => ['level' => 40,  'description' => 'Handles transport logs'],
+            'TRIP_OPERATOR'       => ['level' => 38,  'description' => 'Handles trip/dispatch operations'],
             'SALES_MANAGER'       => ['level' => 35,  'description' => 'Head of sales'],
             'SALES_EXECUTIVE'     => ['level' => 30,  'description' => 'Sales and business development'],
             'MARKETING_EXECUTIVE' => ['level' => 25,  'description' => 'Marketing and promotions'],

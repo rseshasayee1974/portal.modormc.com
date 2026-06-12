@@ -178,7 +178,7 @@ Route::middleware([
         Route::post('salesorders', [\App\Http\Controllers\SalesOrderController::class, 'store'])->name('salesorders.store');
         Route::post('salesorders/{salesOrder}/dispatches', [\App\Http\Controllers\DispatchController::class, 'storeForSalesOrder'])->name('salesorders.dispatches.store');
         Route::resource('workorders', \App\Http\Controllers\WorkOrderController::class);
-        Route::resource('batches', \App\Http\Controllers\BatchController::class)->except(['create', 'show', 'edit']);
+        Route::resource('batches', \App\Http\Controllers\BatchController::class);
         Route::get('batches/{batch}/report', [\App\Http\Controllers\BatchController::class, 'report'])->name('batches.report');
         Route::get('batches/{batch}/download', [\App\Http\Controllers\BatchController::class, 'downloadPdf'])->name('batches.download');
         Route::post('batches/{batch}/sync', [\App\Http\Controllers\BatchController::class, 'syncToScheduler'])->name('batches.sync');
@@ -188,7 +188,7 @@ Route::middleware([
         Route::get('dispatches/dropdowns', [\App\Http\Controllers\DispatchController::class, 'dropdowns'])->name('dispatches.dropdowns');
         Route::post('dispatches/{dispatch}/generate-invoice', [\App\Http\Controllers\DispatchController::class, 'generateInvoice'])->name('dispatches.generate-invoice');
         Route::delete('dispatches/{dispatch}/delete-invoice', [\App\Http\Controllers\DispatchController::class, 'deleteInvoice'])->name('dispatches.delete-invoice');
-        Route::resource('dispatches', \App\Http\Controllers\DispatchController::class)->except(['create', 'show', 'edit']);
+        Route::resource('dispatches', \App\Http\Controllers\DispatchController::class);
         
         Route::resource('partyrates', \App\Http\Controllers\PartyRateController::class)->except(['create', 'edit', 'show']);
     });

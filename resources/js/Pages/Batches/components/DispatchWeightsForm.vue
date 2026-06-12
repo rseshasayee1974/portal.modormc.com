@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<{
     payment_methods?: any[];
     sales_ledgers?: any[];
     errors: any;
+    isReadOnly?: boolean;
 }>(), {
     uoms: () => [],
     taxes: () => [],
@@ -27,9 +28,10 @@ const props = withDefaults(defineProps<{
     personnel: () => [],
     payment_methods: () => [],
     sales_ledgers: () => [],
-    errors: () => ({})
+    errors: () => ({}),
+    isReadOnly: false
 });
-console.log(props.sales_ledgers)
+// console.log(props.sales_ledgers)
 const emit = defineEmits(['update:modelValue']);
 
 const statusOptions = [
@@ -37,6 +39,7 @@ const statusOptions = [
     { label: 'Delivered', value: 'Delivered' },
     { label: 'Cancelled', value: 'Cancelled' }
 ];
+console.log('props',props)
 
 import { watch } from 'vue';
 
@@ -55,10 +58,25 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
         props.modelValue.payment.payment_method_id = null;
     }
 });
+
 </script>
 
 <template>
     <div class="space-y-4">
+        <!-- Validation Errors Alert -->
+        <div v-if="Object.keys(errors).length > 0" class="mx-5 my-2 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-xs flex flex-col gap-1.5 shadow-sm">
+            <div class="font-bold flex items-center gap-2 text-rose-700">
+                <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Validation Failed
+            </div>
+            <ul class="list-disc list-inside mt-1 space-y-1 font-semibold text-rose-600">
+                <li v-for="(error, field) in errors" :key="field">
+                    {{ error }}
+                </li>
+            </ul>
+        </div>
         <!-- 1. Dispatch & Quantity Section -->
         <div class="px-5 py-2 space-y-2">
             <div class="flex items-center gap-2 border-b border-slate-50 pb-1">
@@ -70,21 +88,12 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
             </div>
             
             <div class="grid grid-cols-4 gap-4">
-                <!-- <BaseDatePicker v-model="modelValue.dispatch_time" label="Dispatch Time" showTime fluid :error="errors.dispatch_time" /> -->
-                <!-- <BaseInputNumber v-model="modelValue.delivered_qty" label="Delivered Qty" :minFractionDigits="3" :error="errors.delivered_qty" /> -->
-                <!-- <BaseSelect v-model="modelValue.dispatch_status" :options="statusOptions" optionLabel="label" optionValue="value" label="Status" /> -->
-            <!-- </div>
-            <div class="grid grid-cols-4 gap-4"> -->
-                <BaseInputNumber v-model="modelValue.financials.load_rate" label="Load Rate" :minFractionDigits="2" :error="errors['financials.load_rate']" />
-                <BaseSelect v-model="modelValue.financials.load_tax_id" :options="taxes" optionLabel="tax_name" optionValue="id" label="Tax Group" filter showClear />
+                <BaseInputNumber v-model="modelValue.financials.load_rate" label="Load Rate" :minFractionDigits="2" :error="errors['financials.load_rate']" :disabled="isReadOnly" />
+                <BaseSelect v-model="modelValue.financials.load_tax_id" :options="taxes" optionLabel="tax_name" optionValue="id" label="Tax Group" filter showClear :error="errors['financials.load_tax_id']" :disabled="isReadOnly" />
                 
-                <BaseSelect v-model="modelValue.payment_mode" :options="[{label: 'Cash', value: 'cash'}, {label: 'Credit', value: 'credit'}]" optionLabel="label" optionValue="value" label="Payment Mode" />
+                <BaseSelect v-model="modelValue.payment_mode" :options="[{label: 'Cash', value: 'cash'}, {label: 'Credit', value: 'credit'}]" optionLabel="label" optionValue="value" label="Payment Mode" :error="errors.payment_mode" :disabled="isReadOnly" />
                 
-                <!-- <div class="flex gap-2">
-                    <BaseInput v-model="modelValue.prefix" label="Prefix" class="w-1/3" disabled />
-                    <BaseInput v-model="modelValue.dispatch_no" label="Number" class="w-2/3" :error="errors.dispatch_no" />
-                </div> -->
-                <BaseInput v-model="modelValue.dispatch_reference" label="Site Ref" />
+                <BaseInput v-model="modelValue.dispatch_reference" label="Site Ref" :error="errors.dispatch_reference" :disabled="isReadOnly" />
 
                 
             </div>
@@ -100,17 +109,17 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
                 </div>
             </div>
             <div class="grid grid-cols-4 gap-4">
-                <BaseSelect v-model="modelValue.truck_id" :options="trucks" optionLabel="registration" optionValue="id" label="Truck" filter showClear :error="errors.truck_id" />
-                <BaseSelect v-model="modelValue.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" label="Transporter" filter showClear :error="errors.transport_id" />
-                <BaseSelect v-model="modelValue.driver_id" :options="personnel" optionLabel="label" optionValue="id" label="Driver" filter showClear :error="errors.driver_id" />
-                <BaseSelect v-model="modelValue.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" label="Sales Executive" filter showClear :error="errors.sales_executive_id" />
-                <BaseSelect v-model="modelValue.unload_site_id" :options="unloading_sites" optionLabel="name" optionValue="id" label="Delivery Site" filter showClear :error="errors.unload_site_id" />
-                <BaseInput v-model="modelValue.status.receiver_name" label="Receiver Name" />
-                <BaseInput v-model="modelValue.status.receive_mobile" label="Receiver Mobile" />
+                <BaseSelect v-model="modelValue.truck_id" :options="trucks" optionLabel="registration" optionValue="id" label="Truck" filter showClear :disabled="true" :error="errors.truck_id" />
+                <BaseSelect v-model="modelValue.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" label="Transporter" filter showClear :error="errors.transport_id" :disabled="isReadOnly" />
+                <BaseSelect v-model="modelValue.driver_id" :options="personnel" optionLabel="label" optionValue="id" label="Driver" filter showClear :error="errors.driver_id" :disabled="isReadOnly" />
+                <BaseSelect v-model="modelValue.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" label="Sales Executive" filter showClear :error="errors.sales_executive_id" :disabled="isReadOnly" />
+                <BaseSelect v-model="modelValue.unload_site_id" :options="unloading_sites" optionLabel="name" optionValue="id" label="Delivery Site" filter showClear :error="errors.unload_site_id" :disabled="isReadOnly" />
+                <BaseInput v-model="modelValue.status.receiver_name" label="Receiver Name" :error="errors['status.receiver_name']" :disabled="isReadOnly" />
+                <BaseInput v-model="modelValue.status.receive_mobile" label="Receiver Mobile" :error="errors['status.receive_mobile']" :disabled="isReadOnly" />
             </div>
             <div class="grid grid-cols-4 gap-4">
                 <BaseInput v-model="modelValue.status.invoice_number" label="Invoice #" :disabled="true" v-if="modelValue.status.dispatch_status"/>
-                <BaseDatePicker v-model="modelValue.status.invoice_date" label="Invoice Date" fluid :disabled="true" v-if="modelValue.status.dispatch_status"/>
+                <BaseDatePicker v-model="modelValue.status.invoice_date" label="Invoice Date" fluid :disabled="true" v-if="modelValue.status.dispatch_status" :error="errors.invoice_date" />
                 
             </div>
             <div class="grid grid-cols-4 gap-4">
@@ -130,11 +139,11 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
                 </div>
             </div>
             <div class="grid grid-cols-5 gap-4">
-                <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" />
-                <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" />
-                <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" />
-                <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" />
-                <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" />
+                <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" :error="errors['financials.pass_amount']" :disabled="isReadOnly" />
+                <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" :error="errors['financials.discount_amount']" :disabled="isReadOnly" />
+                <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" :error="errors['financials.transport_expenses']" :disabled="isReadOnly" />
+                <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" :error="errors['financials.adjustment_amount']" :disabled="isReadOnly" />
+                <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" :error="errors['financials.round_off']" :disabled="isReadOnly" />
             </div>
         </div>
         <!-- 4. Payment Collection -->
@@ -157,8 +166,10 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
                     optionValue="id" 
                     placeholder="Select Method"
                     filter
+                    :error="errors['payment.payment_method_id']"
+                    :disabled="isReadOnly"
                 />
-                <BaseInputNumber v-model="modelValue.payment.amount" label="Amount" :minFractionDigits="2" />
+                <BaseInputNumber v-model="modelValue.payment.amount" label="Amount" :minFractionDigits="2" :error="errors['payment.amount']" :disabled="isReadOnly" />
                 <!-- <BaseInput v-model="modelValue.payment.collected_by" label="Collected By" placeholder="Name of collector" /> -->
                 <!-- <BaseInput v-model="modelValue.payment.reference" label="Reference / Trx ID" placeholder="Ref number" /> -->
             </div>
@@ -191,9 +202,9 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
                 </div>
             </div>
             <div class="grid grid-cols-3 gap-4">
-                <BaseSelect v-model="modelValue.ledger_id" :options="sales_ledgers" optionLabel="label" optionValue="value" label="Sales Ledger" filter placeholder="Select Sales Account" />
-                <BaseDatePicker v-model="modelValue.invoice_date" label="Invoice Date" />
-                <BaseSelect v-model="modelValue.dispatch_status" :options="statusOptions" optionLabel="label" optionValue="value" label="Dispatch Status" />
+                <BaseSelect v-model="modelValue.ledger_id" :options="sales_ledgers" optionLabel="label" optionValue="value" label="Sales Ledger" filter placeholder="Select Sales Account" :error="errors.ledger_id" />
+                <BaseDatePicker v-model="modelValue.invoice_date" label="Invoice Date" :error="errors.invoice_date" />
+                <BaseSelect v-model="modelValue.dispatch_status" :options="statusOptions" optionLabel="label" optionValue="value" label="Dispatch Status" :error="errors.dispatch_status" />
             </div>
 
             <div class="flex justify-end pt-2">
@@ -268,6 +279,8 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
                 <button 
                     type="button"
                     @click="$emit('deleteInvoice')"
+                    :disabled="isReadOnly"
+                    :class="[isReadOnly ? 'opacity-50 cursor-not-allowed' : '']"
                     class="inline-flex items-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-100 transition-colors shadow-sm"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">

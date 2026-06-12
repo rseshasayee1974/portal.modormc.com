@@ -21,6 +21,8 @@ const props = defineProps<{
     partners: any[];
     defaultUomId?: number | null;
     designTypes: any[];
+    isUsedInQuotations: boolean;
+    isUsedInBatching: boolean;
 }>();
 
 const emit = defineEmits(['saved', 'cancel']);
@@ -30,7 +32,21 @@ const productOptions = computed(() => props.products.map(p => ({ label: p.title,
 const unitOptions = computed(() => props.units.map(u => ({ label: u.unit_code, value: u.id })));
 const typeOptions = computed(() => props.designTypes.map(t => ({ label: t.name, value: t.name })));
 const fallbackUomId = computed(() => props.defaultUomId ?? props.units[0]?.id ?? null);
+const isLocked = computed(() =>
+    props.design.is_used_in_quotations ||
+    props.design.is_used_in_batching
+);
 
+const lockReason = computed(() => {
+    const reasons = [];
+
+    if (props.design.is_used_in_quotations) reasons.push('quotations');
+    if (props.design.is_used_in_batching) reasons.push('batching');
+
+    return reasons.length
+        ? `This mix design is used in ${reasons.join(' and ')} and cannot be modified.`
+        : '';
+});
 const form = useForm({
     partner_id: props.design.partner_id,
     design_name: props.design.design_name,
@@ -41,12 +57,13 @@ const form = useForm({
     items: props.design.items.map((item: any) => ({
             id: item.id,
             isLocked: true,
-        product_id: item.product_id,
-        uom_id: item.uom_id ?? props.defaultUomId ?? props.units[0]?.id ?? null,
-        rate: parseFloat(item.rate || 0),
-        actual_quantity: parseFloat(item.actual_quantity || 0),
-        cross_quantity: parseFloat(item.cross_quantity || 0),
-        variation_quantity: parseFloat(item.variation_quantity || 0),
+            product_id: item.product_id,
+            uom_id: item.uom_id ?? props.defaultUomId ?? props.units[0]?.id ?? null,
+            rate: parseFloat(item.rate || 0),
+            actual_quantity: parseFloat(item.actual_quantity || 0),
+            cross_quantity: parseFloat(item.cross_quantity || 0),
+            variation_quantity: parseFloat(item.variation_quantity || 0),
+            used_in_batching: item.used_in_batching ?? false,
     }))
 });
 
@@ -86,8 +103,10 @@ const handleGradeChange = async () => {
         }
     } catch (e) { console.error(e); }
 };
+console.log('oetms',props);
 
 const submit = () => {
+    if (isLocked.value) return; // Prevent submit if locked
     form.clearErrors();
     let hasErrors = false;
 
@@ -124,18 +143,18 @@ const submit = () => {
                 <div class="section-title"><VariableIcon class="w-3.5 h-3.5" /><span>Identification</span></div>
 
                 <div>
-                    <BaseSelect v-model="form.partner_id" :options="partnerOptions" optionLabel="label" optionValue="value" filter placeholder="Select Partner *" fluid />
+                    <BaseSelect v-model="form.partner_id" :options="partnerOptions" optionLabel="label" optionValue="value" filter placeholder="Select Partner *" fluid :disabled="isLocked" />
                     <small v-if="form.errors.partner_id" class="err-msg">{{ form.errors.partner_id }}</small>
                 </div>
-                <BaseInput v-model="form.design_name" label="Design Name *" placeholder="e.g. M25 Standard Pump" :error="form.errors.design_name" />
+                <BaseInput v-model="form.design_name" label="Design Name *" placeholder="e.g. M25 Standard Pump" :error="form.errors.design_name" :disabled="isLocked" />
                 <BaseInput v-model="form.design_code" label="Internal Code" placeholder="DM-001" :error="form.errors.design_code" />
                 <div>
                     <BaseSelect v-model="form.design_type" label="Design Type" :options="typeOptions" optionLabel="label" optionValue="value" placeholder="Concrete Grade" fluid disabled />
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     
-                    <BaseSelect v-model="form.unit_id" label="Unit" :options="unitOptions" class="!h-8" optionLabel="label" optionValue="value" placeholder="Selling Unit" fluid />
-                    <BaseInputNumber v-model="form.rate_per_qty" label="Rate per m³"  :minFractionDigits="2" placeholder="0.00" fluid />
+                    <BaseSelect v-model="form.unit_id" label="Unit" :options="unitOptions" class="!h-8" optionLabel="label" optionValue="value" placeholder="Selling Unit" fluid :disabled="isLocked" />
+                    <BaseInputNumber v-model="form.rate_per_qty" label="Rate per m³"  :minFractionDigits="2" placeholder="0.00" fluid :disabled="isLocked" />
                 </div>
             </div>
 
@@ -186,8 +205,7 @@ const submit = () => {
                                     ₹{{ ((item.actual_quantity || 0) * (item.rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                 </td> -->
                                 <td>
-                                    <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1" />
-                                </td>
+                                    <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1 || isLocked" v-tooltip.right="lockReason"/></td>
                             </tr>
                         </tbody>
                         <!-- <tfoot>

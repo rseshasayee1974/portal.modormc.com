@@ -4,13 +4,14 @@ namespace App\Models;
 
 use App\Traits\AuditFields;
 use App\Traits\PlantScoping;
+use App\Traits\TracksModelChanges;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BatchMaterial extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
+    use HasFactory, SoftDeletes, AuditFields, PlantScoping ,TracksModelChanges;
 
     protected $table = 'mm_batch_materials';
 

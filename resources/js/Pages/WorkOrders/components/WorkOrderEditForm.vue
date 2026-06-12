@@ -22,11 +22,29 @@ const props = withDefaults(defineProps<{
     statuses: () => [],
 });
 
+// Intercept and strictly allow only Scheduled (1), In Progress (2), and Cancelled (4)
+const filteredStatuses = computed(() => {
+    const backupStatuses = [
+        { label: 'Scheduled', value: 1 },
+        { label: 'In Progress', value: 2 },
+        { label: 'Cancelled', value: 4 }
+    ];
+
+    if (!props.statuses || props.statuses.length === 0) {
+        return backupStatuses;
+    }
+
+    // Filter incoming array values matching the desired target status IDs
+    return props.statuses.filter(status => [1, 2, 4].includes(Number(status.value)));
+});
+
 const selectedMixDesign = computed(() => {
     const selectedId = form.mix_design_id !== null ? Number(form.mix_design_id) : null;
     return props.mixDesigns.find((md) => Number(md?.id) === selectedId);
 });
-console.log(selectedMixDesign);
+
+// console.log(selectedMixDesign);
+
 const selectedMixIngredients = computed(() => {
     const mix = selectedMixDesign.value;
     if (!mix) return [];
@@ -96,12 +114,6 @@ const submit = () => {
         </div>
 
         <div class="grid grid-cols-12 gap-4">
-            <!-- <div class="col-span-12 md:col-span-3" >
-                <BaseInput v-model="form.prefix" label="Prefix" :error="form.errors.prefix" />
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <BaseInput v-model="form.order_no" label="Order Number" :error="form.errors.order_no" />
-            </div> -->
             <div class="col-span-12 md:col-span-3">
                 <BaseSelect v-model="form.customer_id" :options="customers" optionLabel="legal_name" optionValue="id" filter label="Customer" :error="form.errors.customer_id" />
             </div>
@@ -110,7 +122,6 @@ const submit = () => {
                 <BaseSelect v-model="form.site_id" :options="sites" optionLabel="name" optionValue="id" filter label="Site" :error="form.errors.site_id" />
             </div>
             
-
             <div class="col-span-12 md:col-span-3">
                 <BaseInputNumber v-model="form.total_qty" label="Total Quantity (m³)" :error="form.errors.total_qty" :minFractionDigits="3" />
             </div>
@@ -118,7 +129,7 @@ const submit = () => {
                 <BaseInputNumber v-model="form.produced_qty" label="Produced Quantity (m³)" :error="form.errors.produced_qty" readonly :minFractionDigits="3" disabled/>
             </div>
             <div class="col-span-12 md:col-span-3">
-                <BaseSelect v-model="form.status" :options="statuses" optionLabel="label" optionValue="value" label="Status" :error="form.errors.status" />
+                <BaseSelect v-model="form.status" :options="filteredStatuses" optionLabel="label" optionValue="value" label="Status" :error="form.errors.status" />
             </div>
 
             <div class="col-span-12 md:col-span-3">
@@ -137,14 +148,10 @@ const submit = () => {
                     <BaseSelect v-model="form.mix_design_id" :options="mixDesigns"  optionLabel="design_name" optionValue="id" filter label="Mix Design" :error="form.errors.mix_design_id" />
                 </div>
                 
-                <!-- Mix Design Details Hint -->
                 <div v-if="selectedMixIngredients.length" class="mt-2.5 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
                     <div class="flex items-center justify-between">
                         <label class="text-[9px] font-bold uppercase tracking-[0.1em] text-indigo-400">Recipe Details</label>
                         <span v-if="selectedMixDesign?.grade" class="rounded bg-indigo-100 px-1 py-0.5 text-[8px] font-bold text-indigo-700">GRADE: {{ selectedMixDesign.design_name }}</span>
-                    <!-- </div>
-                    <div class="flex items-center justify-between"> -->
-                        <!-- <span v-if="selectedMixDesign?.ratio" class="rounded bg-indigo-100 px-1 py-0.5 text-[8px] font-bold text-indigo-700">RATIO: {{ selectedMixDesign.ratio }}</span> -->
                     </div>
                     <div class="flex flex-wrap gap-1.5">
                         <div v-for="item in selectedMixIngredients" :key="item.id" 
@@ -158,7 +165,7 @@ const submit = () => {
             </div>
         </div>
 
-        <div class="mt-4 border-t border-indigo-100 pt-3">
+        <div v-if="workOrder?.status === 1 || workOrder?.status === 4" class="mt-4 border-t border-indigo-100 pt-3">
             <BaseFormActions 
                 mode="update" 
                 updateLabel="Update Work Order" 

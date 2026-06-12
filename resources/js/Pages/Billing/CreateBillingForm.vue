@@ -68,7 +68,6 @@ const form = useForm({
     startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
 });
-console.log(props.products);
 
 const billingMode = ref('manual'); // 'manual' or 'po'
 const unbilledPOs = ref<any[]>([]);

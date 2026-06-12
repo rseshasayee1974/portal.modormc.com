@@ -27,7 +27,6 @@ const props = defineProps<{
 }>();
 
 const productOptions = computed(() => props.products.map(p => ({ label: p.title, value: p.id })));
-console.log(props.products);
 watch(
     () => [props.form.cement_ratio, props.form.sand_ratio, props.form.aggregate_ratio],
     ([c, s, a]) => {

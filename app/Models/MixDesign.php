@@ -32,7 +32,8 @@ class MixDesign extends Model
     ];
 
     protected $appends = [
-        'is_in_use'
+        'is_used_in_quotations',
+        'is_used_in_batching',
     ];
     protected $casts = [
         'rate_per_qty' => 'decimal:4',
@@ -82,10 +83,37 @@ class MixDesign extends Model
     {
         return $this->hasMany(QuotationItem::class, 'mix_design_id');
     }
+    public function batching()
+    {
+        return $this->hasMany(Batch::class, 'mix_design_id');
+    }
     
 
-    public function getIsInUseAttribute()
+    public function getIsUsedInQuotationsAttribute()
     {
-        return $this->quotationItems()->exists() ;
+        return $this->quotationItems()->exists();
+    }
+    /**
+     * Determine if this MixDesign is used in any active batching.
+     */
+    public function getIsUsedInBatchingAttribute()
+    {
+        // Collect product IDs from associated MixDesign items
+        $productIds = $this->items()->pluck('product_id');
+        if ($productIds->isEmpty()) {
+            return false;
+        }
+
+        // Check if any BatchMaterial references these products in a batch that is not completed
+        return \App\Models\BatchMaterial::whereIn('product_id', $productIds)
+            ->whereHas('batch', function ($q) {
+                $q->whereIn('status', [
+                    \App\Models\Batch::STATUS_PLANNED,
+                    \App\Models\Batch::STATUS_LOADING,
+                    \App\Models\Batch::STATUS_DISPATCHED,
+                    \App\Models\Batch::STATUS_COMPLETED,
+                ]);
+            })
+            ->exists();
     }
 }

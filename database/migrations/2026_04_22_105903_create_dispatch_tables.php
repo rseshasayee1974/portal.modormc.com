@@ -75,6 +75,7 @@ return new class extends Migration
                     ->cascadeOnDelete();
 
                 $table->boolean('is_tax_inclusive')->default(false);
+        $table->unsignedBigInteger('plant_id');
 
                 // Invoice Tracking
                 $table->unsignedBigInteger('invoice_id')->nullable();
