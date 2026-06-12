@@ -153,8 +153,10 @@ class PurchaseOrderController extends Controller
         $this->authorizePlantAccess($purchase_order);
 
         // Check if already invoiced - look for any active (non-deleted) bill for this PO
-        $existingBill = \App\Models\Invoice::where('ref_id', $purchase_order->id)
-            ->where('invoice_type', 'bill')
+        $existingBill = \App\Models\Invoice::where('ref_id','=', $purchase_order->id)
+            ->where('invoice_type', 'bill')->where('invoice_label','=','purchase')
+            ->where('plant_id', session('active_plant_id', $purchase_order->plant_id))
+            ->whereNull('deleted_at')
             ->first();
 
         if ($existingBill || (int)$purchase_order->invoice_status === 1) {
@@ -169,32 +171,142 @@ class PurchaseOrderController extends Controller
             return redirect()->back()->with('error', 'This Purchase Order is already marked as billed.');
         }
 
-        // Use the common invoice generation function
-        // This function already calls postToAccounting() if status is APPROVED
-        $invoice = \App\Http\Controllers\InvoiceController::createFromSource($purchase_order, 'bill', [
-            'account_id'   => $request->input('account_id'),
-            'invoice_date' => $request->input('invoice_date', now()),
-            'due_date'     => $request->input('due_date', $purchase_order->due_date),
-            'invoice_label' => 'purchase'
-        ]);
-
-        \Illuminate\Support\Facades\DB::transaction(function () use ($purchase_order, $request, $invoice) {
-            $purchase_order->update([
-                'invoice_status' => 1, 
-                'billing_id' => $invoice->id,
-                'state'          => 'billed',
-                'billed_date'    => $request->input('invoice_date', now()),
-                'journal_status' => 1
-            ]);
-
-            foreach ($purchase_order->items as $item) {
-                $item->update([
-                    'invoiced_quantity' => $item->received_quantity
-                ]);
+        // Create separate array for loading invoice details from purchase_order
+        $itemsData = [];
+        $subtotalSum = 0;
+        $taxSum = 0;
+        $discountSum = 0;
+        
+        foreach ($purchase_order->items as $item) {
+            if ((float)$item->received_quantity <= 0) {
+                continue;
             }
-        });
 
-        return redirect()->back()->with('success', 'Purchase Bill generated successfully and posted to accounting: ' . $invoice->invoice_number);
+            $qty = (float) ($item->invoiced_quantity > 0 ? $item->invoiced_quantity : $item->received_quantity);
+            $priceUnit = (float) $item->unit_price;
+            
+            // Recalculate discount
+            $discountType = $item->discount_type;
+            $discountVal = (float) $item->discount_amount;
+            $lineSubtotalBeforeDiscount = $qty * $priceUnit;
+            
+            if ($discountType === 'percentage') {
+                $lineDiscount = ($lineSubtotalBeforeDiscount * $discountVal) / 100;
+            } else {
+                $orderedQty = (float) $item->product_quantity;
+                if ($qty == $orderedQty || $orderedQty == 0) {
+                    $lineDiscount = $discountVal;
+                } else {
+                    $lineDiscount = ($discountVal / $orderedQty) * $qty;
+                }
+            }
+            
+            $lineSubtotal = $lineSubtotalBeforeDiscount - $lineDiscount;
+            
+            // Recalculate tax
+            $taxRate = 0;
+            $taxId = $item->tax_id;
+            if ($taxId) {
+                $tax = \App\Models\Tax::where('id', $taxId)
+                    ->where('plant_id', session('active_plant_id', $purchase_order->plant_id))
+                    ->whereNull('deleted_at')
+                    ->first();
+                if ($tax) {
+                    $taxRate = (float) $tax->tax_rate;
+                }
+            }
+            
+            $lineTax = ($lineSubtotal * $taxRate) / 100;
+            $lineTotal = $lineSubtotal + $lineTax;
+            
+            $subtotalSum += $lineSubtotal;
+            $taxSum += $lineTax;
+            $discountSum += $lineDiscount;
+            
+            $itemsData[] = [
+                'item_id'   => $item->product_id,
+                'item_name'       => $item->product->title ?? $item->description,
+                'hsn_code'        => $item->product->hsn_code ?? null,
+                'quantity'        => $qty,
+                'uom_id'          => $item->product_uom ?? $item->uom_id,
+                'price_unit'      => $priceUnit,
+                'discount_type'   => $discountType,
+                'discount'        => $item->discount_amount,
+                'discount_amount' => $lineDiscount,
+                'subtotal'        => $lineSubtotal,
+                'line_tax_amount' => $lineTax,
+                'line_total'      => $lineTotal,
+                'tax_id'          => $taxId,
+            ];
+        }
+
+        if (empty($itemsData)) {
+            return redirect()->back()->with('error', 'Cannot generate bill: No items have a received quantity greater than 0.');
+        }
+
+        $subtotal = $subtotalSum - (float)$purchase_order->discount_amount;
+        $discountTotal = $discountSum + (float)$purchase_order->discount_amount;
+        $taxAmount = $taxSum;
+        
+        $adjustment = (float)$purchase_order->adjustment;
+        $shippingCharges = (float)$purchase_order->shipping_charges;
+        
+        $totalAmount = $subtotal + $taxAmount + $shippingCharges + $adjustment;
+        $roundedTotal = round($totalAmount);
+        $roundOff = $roundedTotal - $totalAmount;
+
+        $invoiceData = [
+            'plant_id'         => session('active_plant_id', $purchase_order->plant_id),
+            'partner_id'       => $purchase_order->vendor_id,
+            'account_id'       => $request->input('account_id'),
+            'invoice_type'     => 'bill',
+            'invoice_label'    => 'purchase',
+            'ref_id'           => $purchase_order->id,
+            'ref_title'        => $purchase_order->po_number ?? $purchase_order->ref_no,
+            'invoice_date'     => $request->input('invoice_date', now()),
+            'due_date'         => $request->input('due_date', $purchase_order->due_date),
+            'subtotal'         => $subtotal,
+            'global_discount'  => $discountTotal,
+            'tax_amount'       => $taxAmount,
+            'adjustment'       => $adjustment,
+            'shipping_charges' => $shippingCharges,
+            'round_off'        => $roundOff,
+            'total_amount'     => $roundedTotal,
+            'balance_amount'   => $roundedTotal,
+            'status'           => \App\Models\Invoice::STATUS_APPROVED,
+            'created_by'       => auth()->id(),
+            'updated_by'       => auth()->id(),
+            'items'            => $itemsData
+        ];
+
+        try {
+            $invoice = null;
+            \Illuminate\Support\Facades\DB::transaction(function () use ($purchase_order, $request, $invoiceData, &$invoice) {
+                $invoice = \App\Models\Invoice::createWithItems($invoiceData);
+
+                if ($invoice->status === \App\Models\Invoice::STATUS_APPROVED || $invoice->status === \App\Models\Invoice::STATUS_PAID) {
+                    $invoice->postToAccounting();
+                }
+
+                $purchase_order->update([
+                    'invoice_status' => 1, 
+                    'billing_id' => $invoice->id,
+                    'state'          => 'billed',
+                    'billed_date'    => $request->input('invoice_date', now()),
+                    'journal_status' => 1
+                ]);
+
+                foreach ($purchase_order->items as $item) {
+                    $item->update([
+                        'invoiced_quantity' => $item->received_quantity
+                    ]);
+                }
+            });
+
+            return redirect()->back()->with('success', 'Purchase Bill generated successfully and posted to accounting: ' . $invoice->invoice_number);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error generating bill: ' . $e->getMessage());
+        }
     }
 
     public function deleteBill(PurchaseOrder $purchase_order)
@@ -219,18 +331,20 @@ class PurchaseOrderController extends Controller
             if ($bill) {
                 // Deleting the bill will trigger the Invoice model's deleted hook
                 // which handles renaming journal entries (to avoid unique index errors),
-                // marking them as deleted, and resetting the PO status.
+                // marking them as deleted.
                 $bill->delete();
-            } else {
-                // Fallback: If the bill relationship was lost but the PO thinks it's billed, 
-                // we should still reset the status.
-                $purchase_order->update([
-                    'invoice_status' => 0,
-                    'state'          => 'approved',
-                    'journal_status' => 0,
-                    'billed_date'    => null
-                ]);
             }
+
+            // Always reset the PO status manually to guarantee data integrity
+            $newState = ($purchase_order->receipt_status > 0) ? 'received' : 'approved';
+            
+            $purchase_order->update([
+                'invoice_status' => 0,
+                'billing_id'     => null,
+                'state'          => $newState,
+                'journal_status' => 0,
+                'billed_date'    => null
+            ]);
 
             return redirect()->back()->with('success', 'Purchase Bill has been voided and the Purchase Order has been reset.');
         });

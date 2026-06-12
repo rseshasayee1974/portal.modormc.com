@@ -46,6 +46,7 @@ const props = defineProps<{
 const isOpen = ref(true);
 const expandedIndex = ref<number | null>(0);
 const showBillDialog = ref(false);
+const showBillingPanel = ref(true);
 
 const billForm = ref({
     account_id: null,
@@ -133,73 +134,9 @@ const handleDeleteBill = () => {
       
             <div   class="">
                 <form @submit.prevent="submit" class="space-y-6">
-                    <div v-if="isReceived" class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-xl flex items-center justify-between gap-3 text-sm shadow-sm transition-all">
-                        <div class="flex items-center gap-3">
-                            <i class="pi pi-lock"></i>
-                            <span>This Purchase Order is <strong>Locked</strong> (Received, Approved, or Cancelled). Changes are restricted.</span>
-                        </div>
-                        <BaseButton 
-                            v-if="form.state !== 'cancel' && Number(form.invoice_status) !== 1"
-                            label="Generate Purchase Bill" 
-                            icon="pi pi-file-export" 
-                            severity="success" 
-                            size="small" 
-                            @click="handleGenerateBill" 
-                        />
-                         <div v-else-if="Number(form.invoice_status) === 1" class="flex items-center gap-2">
-                            <div class="flex items-center gap-2 text-emerald-600 font-bold uppercase tracking-widest text-[10px] bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
-                                <i class="pi pi-check-circle"></i>
-                                <span>Bill Generated</span>
-                            </div>
-                            <a 
-                                v-if="props.purchaseOrder?.bill?.encrypted_id"
-                                :href="route('print.document', { module: 'purchase_bills', id: props.purchaseOrder.bill.encrypted_id, action: 'view' })" 
-                                target="_blank"
-                                class="inline-block"
-                            >
-                                <BaseButton 
-                                    label="Print Bill" 
-                                    icon="pi pi-print" 
-                                    severity="success" 
-                                    size="small" 
-                                    class="!text-[10px] !font-bold uppercase mr-2 tracking-widest "
-                                />
-                            </a>
-                            <BaseButton 
-                                label="Void Bill" 
-                                icon="pi pi-trash" 
-                                severity="danger" 
-                                variant="text"
-                                size="small" 
-                                class="!text-[10px] !font-bold uppercase tracking-widest"
-                                @click="handleDeleteBill" 
-                            />
-                        </div>
-                    </div>
+                    
 
-                    <!-- Bill Information Panel -->
-                    <div v-if="props.purchaseOrder?.bill" class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs shadow-sm">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-grow">
-                            <div>
-                                <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bill Date & Time</span>
-                                <span class="text-slate-700 font-bold mt-1 block text-sm">
-                                    {{ new Date(props.purchaseOrder.bill.created_at).toLocaleString() }}
-                                </span>
-                            </div>
-                            <div>
-                                <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Created By</span>
-                                <span class="text-slate-700 font-bold mt-1 block text-sm capitalize">
-                                    {{ props.purchaseOrder.bill.created_by?.username ?? props.purchaseOrder.bill.created_by_user ?? 'System' }}
-                                </span>
-                            </div>
-                            <div>
-                                <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Posting Account (Ledger)</span>
-                                <span class="text-emerald-600 font-black mt-1 block text-sm uppercase">
-                                    {{ props.purchaseOrder.bill.account?.title ?? 'Not Selected' }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                    
                     <!-- General Info Grid -->
                     <div class="grid grid-cols-12 gap-4">
                         <BaseSelect
@@ -375,7 +312,7 @@ const handleDeleteBill = () => {
                         <div class="flex-grow space-y-4 max-w-sm">
                             <div class="field-group">
                                 <label class="field-label">Internal Execution Notes</label>
-                                <Textarea v-model="form.notes" rows="3" placeholder="Notes..." class="w-full text-xs rounded-lg border-slate-200" :disabled="isReceived" />
+                                <Textarea v-model="form.notes" rows="3" placeholder="Notes..." class="w-full text-xs rounded-lg border-slate-200 !bg-white" :disabled="isReceived" />
                             </div>
                         </div>
 
@@ -395,6 +332,10 @@ const handleDeleteBill = () => {
                             <div class="flex justify-between items-center gap-4">
                                  <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Discount (-)</span>
                                 <BaseInputNumber v-model="form.discount_amount" class="w-24 p-inputtext-sm text-right" :disabled="isReceived" />
+                            </div>
+                            <div class="flex justify-between items-center gap-4">
+                                 <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Adjustment (+/-)</span>
+                                <BaseInputNumber v-model="form.adjustment" class="w-24 p-inputtext-sm text-right" :disabled="isReceived" />
                             </div>
                             <div class="flex justify-between items-center gap-4">
                                  <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Round Off (+/-)</span>
@@ -427,12 +368,112 @@ const handleDeleteBill = () => {
                 </form>
             </div>
     </div>
+    <div v-if="isReceived" class="mt-8">
+        <div class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <!-- Header / Locked Banner -->
+            <div class="bg-slate-50 border-b border-slate-200 px-5 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center">
+                        <i class="pi pi-lock text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800">Order Locked</h3>
+                        <p class="text-[11px] text-slate-500 font-medium">This Purchase Order is received and restricted.</p>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <BaseButton 
+                    v-if="form.state !== 'cancel' && Number(form.invoice_status) !== 1"
+                    label="Generate Purchase Bill" 
+                    icon="pi pi-file-export" 
+                    severity="info" 
+                    class="!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700 !text-xs !font-bold tracking-widest uppercase shadow-md shadow-indigo-200"
+                    size="small" 
+                    @click="handleGenerateBill" 
+                />
+                
+                <div v-else-if="Number(form.invoice_status) === 1" class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 text-indigo-600 font-bold uppercase tracking-widest text-[10px] bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
+                        <i class="pi pi-check-circle"></i>
+                        <span>Bill Generated</span>
+                    </div>
+                    
+                    <a 
+                        v-if="props.purchaseOrder?.bill?.encrypted_id"
+                        :href="route('print.document', { module: 'purchase_bills', id: props.purchaseOrder.bill.encrypted_id, action: 'view' })" 
+                        target="_blank"
+                        title="Print Bill"
+                        class="inline-block"
+                    >
+                        <BaseButton 
+                            icon="pi pi-print" 
+                            severity="info" 
+                            class="!w-9 !h-9 !p-0 !bg-indigo-50 !text-indigo-600 !border-indigo-100 hover:!bg-indigo-100 transition-colors"
+                        />
+                    </a>
+                    <BaseButton 
+                        icon="pi pi-trash" 
+                        severity="danger" 
+                        variant="text"
+                        title="Void Bill"
+                        class="!w-9 !h-9 !p-0 !text-red-500 hover:!bg-red-50"
+                        @click="handleDeleteBill" 
+                    />
+                    
+                    <div class="w-px h-6 bg-slate-200 mx-1"></div>
+                    
+                    <BaseButton 
+                        :icon="showBillingPanel ? 'pi pi-chevron-up' : 'pi pi-chevron-down'" 
+                        variant="text"
+                        severity="secondary"
+                        :title="showBillingPanel ? 'Hide Details' : 'Show Details'"
+                        class="!w-8 !h-8 !p-0 !text-slate-400 hover:!bg-slate-100 hover:!text-slate-600 rounded-full transition-colors"
+                        @click="showBillingPanel = !showBillingPanel"
+                    />
+                </div>
+            </div>
+
+            <!-- Bill Details (if generated) -->
+            <div v-if="props.purchaseOrder?.bill && showBillingPanel" class="p-5 bg-white border-t border-slate-100">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bill Date & Time</span>
+                        <div class="flex items-center gap-2">
+                            <i class="pi pi-calendar text-slate-400 text-xs"></i>
+                            <span class="text-slate-700 font-bold text-sm">
+                                {{ new Date(props.purchaseOrder.bill.created_at).toLocaleString() }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Created By</span>
+                        <div class="flex items-center gap-2">
+                            <i class="pi pi-user text-slate-400 text-xs"></i>
+                            <span class="text-slate-700 font-bold text-sm capitalize">
+                                {{ props.purchaseOrder.bill.created_by?.username ?? props.purchaseOrder.bill.created_by_user ?? 'System' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Posting Account (Ledger)</span>
+                        <div class="flex items-center gap-2">
+                            <i class="pi pi-book text-indigo-500 text-xs"></i>
+                            <span class="text-indigo-600 font-black text-sm uppercase tracking-wide">
+                                {{ props.purchaseOrder.bill.account?.title ?? 'Not Selected' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Bill Generation Dialog -->
     <Dialog v-model:visible="showBillDialog" modal header="Generate Purchase Bill" :style="{ width: '30vw' }" class="premium-dialog">
         <template #header>
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
                     <ArrowDownTrayIcon class="w-5 h-5" />
                 </div>
                 <div>
@@ -445,14 +486,13 @@ const handleDeleteBill = () => {
         <div class="space-y-6 py-4">
             <BaseSelect 
                 v-model="billForm.account_id" 
-                label="Posting Ledger (Expense Account)" 
+                label="Posting Ledger (Purchase Account)" 
                 :options="accounts"
                 optionLabel="label" 
                 optionValue="value" 
                 placeholder="Select Account" 
                 filter 
             />
-
 
             <div class="grid grid-cols-2 gap-4">
                 <BaseDatePicker 
@@ -480,7 +520,7 @@ const handleDeleteBill = () => {
         <template #footer>
             <div class="flex justify-end gap-3 pt-4 border-t border-slate-50">
                 <BaseButton label="Cancel" variant="text" severity="secondary" @click="showBillDialog = false" class="!text-xs font-bold uppercase tracking-widest" />
-                <BaseButton label="Generate Bill" variant="filled" severity="success" @click="executeBillGeneration" class="!px-6 !text-xs font-bold uppercase tracking-widest shadow-lg shadow-emerald-200" />
+                <BaseButton label="Generate Bill" severity="info" class="!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700 !px-6 !text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-200" @click="executeBillGeneration" />
             </div>
         </template>
     </Dialog>

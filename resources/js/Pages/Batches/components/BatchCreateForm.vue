@@ -313,7 +313,6 @@ const submit = () => {
         }
     });
 };
-console.log(props.workOrders);
 </script>
 
 <template>

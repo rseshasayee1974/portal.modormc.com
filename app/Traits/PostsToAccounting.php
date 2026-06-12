@@ -29,10 +29,24 @@ trait PostsToAccounting
             }
 
             // 2. Prepare basic document data
-            $docType     = $this->invoice_type ?? 'purchase'; // Assume PO if no invoice_type
-            $isSales     = in_array($docType, ['sales', 'invoice']);
-            $voucherType = $isSales ? 'SALES' : 'PURCHASE';
-            $invoiceNo   = $this->full_number ?? $this->invoice_number ?? $this->po_number ?? '---';
+            $docType     = strtolower($this->invoice_type ?? 'purchase');
+            $isSales     = in_array($docType, ['sales', 'invoice', 'dispatch', 'stockout']);
+            
+            $voucherTypeMap = [
+                'sales'               => 'SALES',
+                'invoice'             => 'SALES',
+                'purchase'            => 'PURCHASE',
+                'bill'                => 'PURCHASE',
+                'dispatch'            => 'SALES',
+                'expense'             => 'JOURNAL',
+                'entries'             => 'JOURNAL',
+                'stockin'             => 'JOURNAL',
+                'stockout'            => 'JOURNAL',
+                'machine maintenance' => 'JOURNAL',
+            ];
+            
+            $voucherType = $voucherTypeMap[$docType] ?? ($isSales ? 'SALES' : 'PURCHASE');
+            $invoiceNo   = $this->full_number ?? $this->invoice_number ?? $this->po_number ?? $this->ref_no ?? '---';
             $invoiceDate = $this->invoice_date ?? $this->date_order ?? now();
             $plantId     = $this->plant_id ?? session('active_plant_id');
             $entityId    = $this->plant->entity_id ?? session('active_entity_id');
@@ -46,7 +60,7 @@ trait PostsToAccounting
             if (isset($this->po_number)) {
                 $refModule = 'purchase_order';
             } else {
-                $refModule = ($docType === 'bill') ? 'bill' : 'invoice';
+                $refModule = ($docType === 'bill') ? 'bill' : (($docType === 'sales') ? 'invoice' : $docType);
             }
             
             $journalEntry = JournalEntry::updateOrCreate(
@@ -57,7 +71,7 @@ trait PostsToAccounting
                     'voucher_number' => $invoiceNo,
                     'voucher_date'   => $invoiceDate,
                     'posting_date'   => $invoiceDate,
-                    'narration'      => ($isSales ? "Sales Invoice: " : (isset($this->po_number) ? "Purchase Order: " : "Purchase Bill: ")) . $invoiceNo . " | " . ($this->partner?->legal_name ?? $this->vendor?->legal_name ?? 'Unknown Partner'),
+                    'narration'      => (isset($this->po_number) ? "Purchase Order: " : ucfirst($docType) . ": ") . $invoiceNo . " | " . ($this->partner?->legal_name ?? $this->vendor?->legal_name ?? $this->transport?->legal_name ?? $this->transporter?->legal_name ?? 'Unknown Partner'),
                     'total_debit'    => $totalAmount,
                     'total_credit'   => $totalAmount,
                     'is_status'      => 'DRAFT',
@@ -70,8 +84,8 @@ trait PostsToAccounting
 
             $lines = [];
 
-            // --- DEBIT/CREDIT RULE 1: Partner Ledger (Customer/Vendor) ---
-            $partner = $this->partner ?? $this->vendor;
+            // --- DEBIT/CREDIT RULE 1: Partner Ledger (Customer/Vendor/Transporter) ---
+            $partner = $this->partner ?? $this->vendor ?? $this->customer ?? $this->transport ?? $this->transporter;
             $partnerLedgerId = $partner?->ledger_id;
             if (!$partnerLedgerId) {
                 $partnerLedgerId = $this->getAccountingLedgerId($isSales ? 'debit_ledger' : 'credit_ledger', 'Sundry');
@@ -86,7 +100,7 @@ trait PostsToAccounting
                 'debit_amount'   => $isSales ? $totalAmount : 0,
                 'credit_amount'  => $isSales ? 0 : $totalAmount,
                 'partner_type'   => 'Patron',
-                'partner_id'     => $this->partner_id ?? $this->vendor_id,
+                'partner_id'     => $this->partner_id ?? $this->vendor_id ?? $this->customer_id ?? $this->transport_id ?? $this->transporter_id,
                 'narration_name' => $isSales ? 'Receivable' : 'Payable',
                 'line_narration' => "Invoice #{$invoiceNo}",
             ];
@@ -252,8 +266,22 @@ trait PostsToAccounting
      */
     protected function getAccountingLedgerId(string $key, string $fallbackSearch): ?int
     {
-        $docType = $this->invoice_type ?? 'purchase';
-        $module = in_array($docType, ['sales', 'invoice']) ? 'Invoice' : 'Purchase';
+        $docType = strtolower($this->invoice_type ?? 'purchase');
+        
+        $moduleMap = [
+            'sales'               => 'Invoice',
+            'invoice'             => 'Invoice',
+            'purchase'            => 'Purchase',
+            'bill'                => 'Purchase',
+            'dispatch'            => 'Dispatch',
+            'expense'             => 'Expense',
+            'entries'             => 'Entries',
+            'stockin'             => 'StockIn',
+            'stockout'            => 'StockOut',
+            'machine maintenance' => 'Machine Maintenance',
+        ];
+        
+        $module = $moduleMap[$docType] ?? ucfirst($docType);
         $plantId = $this->plant_id ?? session('active_plant_id');
         
         $mapped = \App\Models\AccountDefaultSetting::where('plant_id', $plantId)
