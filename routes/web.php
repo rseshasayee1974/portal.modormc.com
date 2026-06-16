@@ -95,6 +95,7 @@ Route::middleware([
 
     // 4. Settings & Permissions
     Route::prefix('settings')->group(function () {
+        Route::resource('notificationemails', \App\Http\Controllers\NotificationEmailController::class)->except(['create', 'edit', 'show']);
         Route::resource('termsconditions', \App\Http\Controllers\TermsConditionController::class);
         Route::resource('permissions', \App\Http\Controllers\PermissionController::class);
         Route::resource('roles', \App\Http\Controllers\RoleController::class);
