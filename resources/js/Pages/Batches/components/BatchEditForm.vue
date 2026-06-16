@@ -540,8 +540,8 @@ console.log('sdfcsdfsc', form);
                         <div class="col-span-12 md:col-span-3 py-3">
                             <BaseSelect 
                                 v-model="form.work_order_id" 
-                                :options="workOrders" 
-                                optionLabel="order_no" 
+                                optionLabel="full_number" 
+                                :options="workOrders"  
                                 optionValue="id" 
                                 filter 
                                 :disabled="true"
@@ -554,23 +554,23 @@ console.log('sdfcsdfsc', form);
                             <div class="absolute -top-2 -right-2 opacity-5">
                                 <InformationCircleIcon class="w-16 h-16 text-cyan-600" />
                             </div>
-                            <h4 class="mb-4 text-[10px] font-bold uppercase tracking-widest text-cyan-500 border-b border-cyan-50 pb-2 italic">Work Order Context</h4>
-                            <div class="space-y-4">
+                            <h4 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-cyan-500 border-b border-cyan-50 italic">Work Order Context</h4>
+                            <div class="space-y-2">
                                 <div v-for="detail in workOrderDetails" :key="detail.label" class="flex flex-col">
                                     <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ detail.label }}</span>
                                     <span class="text-xs font-semibold text-cyan-900 leading-tight">{{ detail.value }}</span>
                                 </div>
-                                <div class="">
+                                <!-- <div class="">
                                     <BaseSelect v-model="form.status" :options="statuses" :disabled="form.status === 3" optionLabel="label" optionValue="value" label="Current Status" :error="form.errors.status" />
+                                </div> -->
+                                <!-- <div class="col-span-12 md:col-span-3">
+                                    <BaseDatePicker label="Start Time" v-model="form.start_time" showTime hourFormat="24" fluid :disabled="isLocked" />
+                                    <small class="text-red-500">{{ form.errors.start_time }}</small>
                                 </div>
-                                 <div class="col-span-12 md:col-span-3">
-                            <BaseDatePicker label="Start Time" v-model="form.start_time" showTime hourFormat="24" fluid :disabled="isLocked" />
-                            <small class="text-red-500">{{ form.errors.start_time }}</small>
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseDatePicker label="End Time" v-model="form.end_time" showTime hourFormat="24" fluid :disabled="isLocked" />
-                            <small class="text-red-500">{{ form.errors.end_time }}</small>
-                        </div>
+                                <div class="col-span-12 md:col-span-3">
+                                    <BaseDatePicker label="End Time" v-model="form.end_time" showTime hourFormat="24" fluid :disabled="isLocked" />
+                                    <small class="text-red-500">{{ form.errors.end_time }}</small>
+                                </div> -->
                             </div>
                         </div>
                     </div>
@@ -853,66 +853,159 @@ console.log('sdfcsdfsc', form);
                             </ul>
                         </div>
 
-                        <div class="overflow-x-auto">
-                            <table class="w-full border-collapse">
-                                <thead>
-                                    <tr class="border-b border-slate-100 bg-slate-50/30">
-                                        <th class="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[20%]">Product</th>
-                                        <th class="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[15%]">Label</th>
-                                        <th class="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[15%]">Target</th>
-                                        <th class="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[15%]">Actual</th>
-                                        <th class="px-4 py-3 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[10%]">Dev.</th>
-                                        <th class="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[15%]">UOM</th>
-                                        <th class="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400 w-[10%]"></th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-50">
-                                    <tr v-for="(item, index) in form.materials" :key="index" class="hover:bg-cyan-50/20 transition-colors">
-                                        <td class="px-2 py-3">
-                                            <BaseSelect
-                                                v-model="item.product_id"
-                                                :options="products"
-                                                optionLabel="title"
-                                                optionValue="id"
-                                                filter
-                                                size="small"
-                                                :fluid="true"
-                                                :disabled="!!item.id || isLocked"
-                                                :error="form.errors[`materials.${index}.product_id`]"
-                                            />
-                                        </td>
-                                        <td class="px-2 py-3">
-                                            <BaseInput v-model="item.material_name" :disabled="!!item.id || isLocked" size="small" :fluid="true" />
-                                        </td>
-                                        <td class="px-2 py-3">
-                                            <BaseInputNumber v-model="item.target_qty" :disabled="!!item.id || isLocked" :minFractionDigits="3" size="small" :fluid="true" :error="form.errors[`materials.${index}.target_qty`]" />
-                                        </td>
-                                        <td class="px-2 py-3">
-                                            <BaseInputNumber v-model="item.actual_qty" :minFractionDigits="3" size="small" :fluid="true" :disabled="isLocked" :error="form.errors[`materials.${index}.actual_qty`]" />
-                                        </td>
-                                        <td class="px-2 py-3 text-center">
-                                            <span class="text-[11px] font-bold" :class="item.deviation_quantity > 0 ? 'text-rose-500' : (item.deviation_quantity < 0 ? 'text-emerald-500' : 'text-slate-400')">
-                                                {{ item.deviation_quantity > 0 ? '+' : '' }}{{ item.deviation_quantity?.toFixed(3) }}
-                                            </span>
-                                        </td>
-                                        <td class="px-2 py-3" >
-                                            <BaseSelect
-                                                v-model="item.uom_id"
-                                                :options="uoms"
-                                                optionLabel="unit_code"
-                                                optionValue="id"
-                                                size="small"
-                                                :fluid="true"
-                                                :disabled="!!item.id || isLocked"
-                                                :error="form.errors[`materials.${index}.uom_id`]"
-                                            />
-                                        </td>
-                                        <td class="px-2 py-3 text-right" >
-                                            <Button icon="pi pi-trash" text rounded severity="danger" class="!h-8 !w-8" :disabled="!!item.id || isLocked" @click="removeMaterial(index)" />
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <!-- Materials: Card-per-Material Layout (Batch Report Style) -->
+                        <div class="px-5 pb-5">
+                            <!-- Empty State -->
+                            <div v-if="form.materials.length === 0" class="rounded-xl border-2 border-dashed border-slate-200 py-10 text-center">
+                                <svg class="mx-auto mb-2 h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">No materials added</p>
+                                <p class="text-[10px] text-slate-300 mt-1">Click "Add" to add a material</p>
+                            </div>
+
+                            <!-- Cards Grid: one card per material, horizontal scroll -->
+                            <div v-else class="overflow-x-auto pb-2">
+                                <div class="flex gap-3 min-w-max">
+                                    <div
+                                        v-for="(item, index) in form.materials"
+                                        :key="index"
+                                        class="relative flex-shrink-0 w-[200px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+                                    >
+                                        <!-- Card Header: Product Name -->
+                                        <div class="bg-gradient-to-br from-cyan-50 to-indigo-50 px-3 pt-3 pb-2 border-b border-slate-100">
+                                            <!-- Material # badge + delete -->
+                                            <div class="flex items-center justify-between mb-1.5">
+                                                <span class="text-[9px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
+                                                    #{{ index + 1 }}
+                                                </span>
+                                                <Button
+                                                    v-if="!isLocked && form.status !== 3 && !item.id"
+                                                    icon="pi pi-trash"
+                                                    text rounded severity="danger"
+                                                    class="!h-5 !w-5 !text-[10px]"
+                                                    @click="removeMaterial(index)"
+                                                />
+                                            </div>
+                                            <!-- Product selector or product name -->
+                                            <div class="space-y-1">
+                                                <BaseSelect
+                                                    v-model="item.product_id"
+                                                    :options="products"
+                                                    optionLabel="title"
+                                                    optionValue="id"
+                                                    filter
+                                                    size="small"
+                                                    :fluid="true"
+                                                    :disabled="!!item.id || isLocked"
+                                                    :error="form.errors[`materials.${index}.product_id`]"
+                                                    placeholder="Select Product"
+                                                />
+                                                <BaseInput
+                                                    v-model="item.material_name"
+                                                    :disabled="!!item.id || isLocked"
+                                                    size="small"
+                                                    :fluid="true"
+                                                    placeholder="Label / Custom Name"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <!-- Card Body: Data Rows -->
+                                        <div class="divide-y divide-slate-50">
+                                            <!-- Target Qty -->
+                                            <div class="px-3 py-2 bg-slate-50/30">
+                                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Target Qty (kg)</p>
+                                                <BaseInputNumber
+                                                    v-model="item.target_qty"
+                                                    :disabled="!!item.id || isLocked"
+                                                    :minFractionDigits="3"
+                                                    size="small"
+                                                    :fluid="true"
+                                                    :error="form.errors[`materials.${index}.target_qty`]"
+                                                />
+                                            </div>
+
+                                            <!-- Actual Qty -->
+                                            <div class="px-3 py-2">
+                                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Actual Qty (kg)</p>
+                                                <BaseInputNumber
+                                                    v-model="item.actual_qty"
+                                                    :minFractionDigits="3"
+                                                    size="small"
+                                                    :fluid="true"
+                                                    :disabled="isLocked"
+                                                    :error="form.errors[`materials.${index}.actual_qty`]"
+                                                />
+                                            </div>
+
+                                            <!-- Deviation Badge -->
+                                            <div class="px-3 py-2 bg-slate-50/20 flex items-center justify-between">
+                                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Deviation</p>
+                                                <span
+                                                    class="text-xs font-black px-2 py-0.5 rounded-full"
+                                                    :class="item.deviation_quantity > 0
+                                                        ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                                                        : item.deviation_quantity < 0
+                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                                        : 'bg-slate-50 text-slate-400 border border-slate-100'"
+                                                >
+                                                    {{ item.deviation_quantity > 0 ? '+' : '' }}{{ item.deviation_quantity?.toFixed(3) }}
+                                                </span>
+                                            </div>
+
+                                            <!-- UOM -->
+                                            <div class="px-3 py-2">
+                                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Unit</p>
+                                                <BaseSelect
+                                                    v-model="item.uom_id"
+                                                    :options="uoms"
+                                                    optionLabel="unit_code"
+                                                    optionValue="id"
+                                                    size="small"
+                                                    :fluid="true"
+                                                    :disabled="!!item.id || isLocked"
+                                                    :error="form.errors[`materials.${index}.uom_id`]"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Summary Row: totals -->
+                            <div v-if="form.materials.length > 0" class="mt-4 grid grid-cols-3 gap-3">
+                                <div class="rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 text-center">
+                                    <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Target</p>
+                                    <p class="text-sm font-black text-slate-700 mt-0.5">
+                                        {{ form.materials.reduce((sum, m) => sum + Number(m.target_qty || 0), 0).toFixed(3) }} <span class="text-[10px] text-slate-400">kg</span>
+                                    </p>
+                                </div>
+                                <div class="rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3 text-center">
+                                    <p class="text-[9px] font-black uppercase tracking-widest text-indigo-400">Total Actual</p>
+                                    <p class="text-sm font-black text-indigo-700 mt-0.5">
+                                        {{ form.materials.reduce((sum, m) => sum + Number(m.actual_qty || 0), 0).toFixed(3) }} <span class="text-[10px] text-indigo-400">kg</span>
+                                    </p>
+                                </div>
+                                <div class="rounded-xl border px-4 py-3 text-center"
+                                    :class="form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) > 0
+                                        ? 'bg-rose-50 border-rose-100'
+                                        : form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) < 0
+                                        ? 'bg-emerald-50 border-emerald-100'
+                                        : 'bg-slate-50 border-slate-100'"
+                                >
+                                    <p class="text-[9px] font-black uppercase tracking-widest"
+                                        :class="form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) !== 0 ? 'text-rose-400' : 'text-slate-400'"
+                                    >Net Deviation</p>
+                                    <p class="text-sm font-black mt-0.5"
+                                        :class="form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) > 0
+                                            ? 'text-rose-600'
+                                            : form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) < 0
+                                            ? 'text-emerald-600'
+                                            : 'text-slate-400'"
+                                    >
+                                        {{ form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) > 0 ? '+' : '' }}{{ form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0).toFixed(3) }} <span class="text-[10px]">kg</span>
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

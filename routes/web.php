@@ -181,6 +181,12 @@ Route::middleware([
         Route::resource('batches', \App\Http\Controllers\BatchController::class);
         Route::get('batches/{batch}/report', [\App\Http\Controllers\BatchController::class, 'report'])->name('batches.report');
         Route::get('batches/{batch}/download', [\App\Http\Controllers\BatchController::class, 'downloadPdf'])->name('batches.download');
+        Route::get('batches/{batch}/token', [\App\Http\Controllers\BatchController::class, 'token'])->name('batches.token');
+        Route::get('batches/{batch}/token/download', [\App\Http\Controllers\BatchController::class, 'downloadTokenPdf'])->name('batches.token.download');
+        Route::get('batches/{batch}/dispatch-token', [\App\Http\Controllers\BatchController::class, 'dispatchToken'])->name('batches.dispatch-token');
+        Route::get('batches/{batch}/dispatch-token/download', [\App\Http\Controllers\BatchController::class, 'downloadDispatchTokenPdf'])->name('batches.dispatch-token.download');
+        Route::get('batches/{batch}/delivery-token', [\App\Http\Controllers\BatchController::class, 'deliveryToken'])->name('batches.delivery-token');
+        Route::get('batches/{batch}/delivery-token/download', [\App\Http\Controllers\BatchController::class, 'downloadDeliveryTokenPdf'])->name('batches.delivery-token.download');
         Route::post('batches/{batch}/sync', [\App\Http\Controllers\BatchController::class, 'syncToScheduler'])->name('batches.sync');
         Route::post('batches/ocr', [\App\Http\Controllers\Api\BatchOcrController::class, 'process'])->name('batches.ocr');
         Route::post('weighbridge/alert', [\App\Http\Controllers\Api\WeighbridgeApiController::class, 'sendAlert'])->name('weighbridge.alert');
@@ -188,6 +194,7 @@ Route::middleware([
         Route::get('dispatches/dropdowns', [\App\Http\Controllers\DispatchController::class, 'dropdowns'])->name('dispatches.dropdowns');
         Route::post('dispatches/{dispatch}/generate-invoice', [\App\Http\Controllers\DispatchController::class, 'generateInvoice'])->name('dispatches.generate-invoice');
         Route::delete('dispatches/{dispatch}/delete-invoice', [\App\Http\Controllers\DispatchController::class, 'deleteInvoice'])->name('dispatches.delete-invoice');
+        Route::get('dispatches/{dispatch}/whatsapp-url', [\App\Http\Controllers\DispatchController::class, 'whatsappUrl'])->name('dispatches.whatsapp-url');
         Route::resource('dispatches', \App\Http\Controllers\DispatchController::class);
         
         Route::resource('partyrates', \App\Http\Controllers\PartyRateController::class)->except(['create', 'edit', 'show']);

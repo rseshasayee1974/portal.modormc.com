@@ -37,26 +37,113 @@ class BatchController extends Controller
         $activePlantId = session('active_plant_id');
 
         $batches = Batch::with([
+            'workOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty',
             'workOrder.customer:id,legal_name',
             'workOrder.mixDesign:id,design_name,design_code',
-            'workOrder.mixDesign.items.product',
-            'workOrder.mixDesign.items.uom',
             'workOrder.site:id,name',
             'dispatches',
-            'materials.product:id,title',
-            'materials.uom:id,unit_name,unit_code'
+            'dispatches.truck:id,registration',
+            'dispatches.status:id,dispatch_id,invoice_id,invoice_number,invoice_status,invoice_date',
+            'dispatches.status.invoice:id,einvoice_status,eway_bill_no,status,created_at,created_by',
+            'dispatches.status.invoice.creator:id,username,email',
+            'dispatches.payments'
         ])
         ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
         ->latest()
         ->get(); 
 
+        $batches->each(function ($batch) {
+            $batch->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+            if ($batch->workOrder) {
+                $batch->workOrder->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+                if ($batch->workOrder->mixDesign) {
+                    $batch->workOrder->mixDesign->makeHidden([
+                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                        'is_used_in_quotations', 'is_used_in_batching'
+                    ]);
+                }
+                if ($batch->workOrder->customer) {
+                    $batch->workOrder->customer->makeHidden([
+                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                        'is_in_use'
+                    ]);
+                }
+                if ($batch->workOrder->site) {
+                    $batch->workOrder->site->makeHidden([
+                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                        'is_in_use'
+                    ]);
+                }
+            }
+            $batch->dispatches->each(function ($dispatch) {
+                $dispatch->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+                if ($dispatch->truck) {
+                    $dispatch->truck->makeHidden([
+                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                        'can_delete', 'can_update', 'is_in_use'
+                    ]);
+                }
+            });
+        });
+
         $workOrders = WorkOrder::query()
-            ->with(['mixDesign.items.product', 'mixDesign.items.uom', 'mixDesign.concrete_grade', 'customer', 'site'])
+            ->with([
+                'customer:id,plant_id,legal_name,code,patron_type,gstin,email,mobile',
+                'site:id,plant_id,name,site_address_1,type',
+                'mixDesign:id,plant_id,partner_id,concrete_grade_id,design_name,design_code,design_type,unit_id,rate_per_qty',
+                'mixDesign.items:id,plant_id,mix_design_id,product_id,uom_id,rate,actual_quantity,cross_quantity,variation_quantity',
+                'mixDesign.items.product:id,plant_id,category_id,unit_id,is_service,purchase_tax_id,sale_tax_id,purchase_price,sales_price,title,material_code,product_type,conversion_quantity,code,hsn_code',
+                'mixDesign.items.uom:id,unit_code',
+                'mixDesign.concrete_grade:id,name,concrete_ratio'
+            ])
             ->withCount('batches')
             ->where('plant_id', $activePlantId)
             ->whereIn('status', [WorkOrder::STATUS_IN_PROGRESS])
             ->orderBy('order_no')
             ->get();
+
+        $workOrders->each(function ($wo) {
+            $wo->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+            
+            if ($wo->mixDesign) {
+                $wo->mixDesign->makeHidden([
+                    'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                    'is_used_in_quotations', 'is_used_in_batching'
+                ]);
+                if ($wo->mixDesign->concreteGrade) {
+                    $wo->mixDesign->concreteGrade->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+                }
+                $wo->mixDesign->items->each(function ($item) {
+                    $item->makeHidden([
+                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                        'used_in_batching'
+                    ]);
+                    if ($item->product) {
+                        $item->product->makeHidden([
+                            'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                            'can_delete', 'can_update', 'is_in_use'
+                        ]);
+                    }
+                    if ($item->uom) {
+                        $item->uom->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+                    }
+                });
+            }
+
+            if ($wo->customer) {
+                $wo->customer->makeHidden([
+                    'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                    'is_in_use'
+                ]);
+            }
+
+            if ($wo->site) {
+                $wo->site->makeHidden([
+                    'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                    'is_in_use'
+                ]);
+            }
+        });
 
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
@@ -81,7 +168,7 @@ class BatchController extends Controller
             'unloading_sites'   => SitesDropdown('unloading'),
             'personnel'         => PersonnelDropdown(),
             'taxes'             => TaxesDropdown('sales'),
-            'products'          => ProductsDropdown(),
+            'products'          => fn () => ProductsDropdown(),
             'uoms'              => Productunit(),
             'statuses'          => Batch::statusOptions(),
             'payment_methods'   => PaymentMethodsDropdown(),
@@ -119,7 +206,7 @@ class BatchController extends Controller
                 unset($payload['materials']);
 
                 if (empty($payload['shift'])) {
-                    $plant = Plant::find(session('active_plant_id', $workOrder->plant_id));
+                    $plant = Plant::where('id','=',session('active_plant_id'))->first();
                     if ($plant) {
                         $shiftInfo = $plant->getCurrentShiftInfo($payload['start_time'] ?? null);
                         $payload['shift'] = $shiftInfo['shift'];
@@ -194,10 +281,10 @@ class BatchController extends Controller
         }
 
         // Executed outside the database transaction scope safely to avoid table deadlocks
-        $this->pushToSchedulerAPI($batch, $materialsData);
-        $this->broadcastBatchChange('BatchCreated', $batch);
+        // $this->pushToSchedulerAPI($batch, $materialsData);
+        // $this->broadcastBatchChange('BatchCreated', $batch);
 
-        return redirect()->back()->with('success', 'Batch created successfully.');
+        return redirect()->route('batches.token', $batch->id);
     }
 
     /**
@@ -330,7 +417,8 @@ class BatchController extends Controller
     {
         // Log::info($request->all());
         $this->authorizeModule('menu');
-        $this->ensurePlantScope($batch->workOrder);
+        $batch->unsetRelation('workOrder');
+        $batch->unsetRelation('dispatches');
 
         $batch->load([
             'workOrder.customer',
@@ -341,7 +429,7 @@ class BatchController extends Controller
             'materials',
             'materials.product:id,title', 
             'materials.uom:id,unit_name,unit_code',
-            'dispatches.status.invoice.createdBy:id,username',
+            'dispatches.status.invoice.creator:id,username,email',
             'dispatches.payments',
             'dispatches.truck',
             'dispatches.driver',
@@ -349,6 +437,20 @@ class BatchController extends Controller
             'dispatches.creator:id,email',
             'dispatches.modifier:id,email'
         ]);
+
+        if ($batch->workOrder?->mixDesign) {
+            $batch->workOrder->mixDesign->makeHidden(['is_used_in_quotations', 'is_used_in_batching']);
+        }
+
+        $batch->workOrder?->mixDesign?->items->each(function ($item) {
+            $item->makeHidden(['used_in_batching']);
+            $item->product?->makeHidden(['can_delete', 'can_update', 'is_in_use']);
+        });
+
+        $batch->materials->each(function ($material) {
+            $material->product?->makeHidden(['can_delete', 'can_update', 'is_in_use']);
+        });
+
         return response()->json($batch);
     }
 
@@ -414,6 +516,10 @@ class BatchController extends Controller
             if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]) && 
                 $oldStatus != $batch->status) {
                 auth()->user()->notify(new \App\Notifications\BatchCompletedNotification($batch));
+            }
+
+            if ($batch->status == Batch::STATUS_DISPATCHED && $oldStatus != Batch::STATUS_DISPATCHED) {
+                session()->flash('dispatched_batch_id', $batch->id);
             }
 
             // Update associated dispatch if it exists
@@ -521,6 +627,240 @@ class BatchController extends Controller
             $batch->batch_no ?? $batch->id
         );
 
+        return $pdf->download($filename);
+    }
+
+    public function token(Batch $batch)
+    {
+        $batch->load([
+            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'workOrder.customer:id,legal_name',
+            'workOrder.site:id,name',
+            'workOrder.plant:id,entity_id,name,logo_path',
+            'workOrder.plant.entity:id,legal_name',
+            'workOrder.plant.addresses',
+            'workOrder.mixDesign:id,design_name,design_code,design_type',
+            'workOrder.mixDesign.concrete_grade:id,name',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time',
+            'dispatches.truck:id,registration',
+            'dispatches.driver:id,first_name,last_name',
+            'dispatches.salesExecutive:id,first_name,last_name',
+            'dispatches.transport:id,legal_name',
+            'dispatches.loadSite:id,name',
+            'materials:id,batch_id,product_id,material_name,target_qty,uom_id',
+            'materials.product:id,title',
+            'materials.uom:id,unit_code',
+            'operator:id,first_name,last_name'
+        ]);
+
+        $this->ensurePlantScope($batch->workOrder);
+
+        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+
+        return view('pdfs.batches.batching_token', [
+            'batch' => $batch,
+            'isPreview' => true,
+            'settings' => $settings,
+        ]);
+    }
+
+    public function downloadTokenPdf(Batch $batch)
+    {
+        $batch->load([
+            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'workOrder.customer:id,legal_name',
+            'workOrder.site:id,name',
+            'workOrder.plant:id,entity_id,name,logo_path',
+            'workOrder.plant.entity:id,legal_name',
+            'workOrder.plant.addresses',
+            'workOrder.mixDesign:id,design_name,design_code,design_type',
+            'workOrder.mixDesign.concrete_grade:id,name',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time',
+            'dispatches.truck:id,registration',
+            'dispatches.driver:id,first_name,last_name',
+            'dispatches.salesExecutive:id,first_name,last_name',
+            'dispatches.transport:id,legal_name',
+            'dispatches.loadSite:id,name',
+            'materials:id,batch_id,product_id,material_name,target_qty,uom_id',
+            'materials.product:id,title',
+            'materials.uom:id,unit_code',
+            'operator:id,first_name,last_name'
+        ]);
+
+        $this->ensurePlantScope($batch->workOrder);
+
+        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+
+        // 80mm width = 226.77pt. DomPDF uses points (72pt = 1in). Custom portrait ticket size.
+        $materialsCount = $batch->materials->count();
+        $height = 320 + ($materialsCount * 15);
+
+        $pdf = Pdf::loadView('pdfs.batches.batching_token', [
+            'batch' => $batch,
+            'isPreview' => false,
+            'settings' => $settings,
+        ])->setPaper([0, 0, 226.77, $height], 'portrait');
+
+        $filename = sprintf('batch-token-%s.pdf', $batch->batch_no ?? $batch->id);
+        return $pdf->download($filename);
+    }
+
+    public function dispatchToken(Batch $batch)
+    {
+        $batch->load([
+            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'workOrder.customer:id,legal_name',
+            'workOrder.site:id,name',
+            'workOrder.plant:id,entity_id,name,logo_path',
+            'workOrder.plant.entity:id,legal_name',
+            'workOrder.plant.addresses',
+            'workOrder.mixDesign:id,design_name,design_code,design_type',
+            'workOrder.mixDesign.concrete_grade:id,name',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches.truck:id,registration',
+            'dispatches.driver:id,first_name,last_name',
+            'dispatches.salesExecutive:id,first_name,last_name',
+            'dispatches.transport:id,legal_name',
+            'dispatches.loadSite:id,name',
+            'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
+            'materials.product:id,title',
+            'materials.uom:id,unit_code',
+            'operator:id,first_name,last_name'
+        ]);
+
+        $this->ensurePlantScope($batch->workOrder);
+
+        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+
+        return view('pdfs.batches.dispatch_token', [
+            'batch' => $batch,
+            'isPreview' => true,
+            'settings' => $settings,
+        ]);
+    }
+
+    public function downloadDispatchTokenPdf(Batch $batch)
+    {
+        $batch->load([
+            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'workOrder.customer:id,legal_name',
+            'workOrder.site:id,name',
+            'workOrder.plant:id,entity_id,name,logo_path',
+            'workOrder.plant.entity:id,legal_name',
+            'workOrder.plant.addresses',
+            'workOrder.mixDesign:id,design_name,design_code,design_type',
+            'workOrder.mixDesign.concrete_grade:id,name',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches.truck:id,registration',
+            'dispatches.driver:id,first_name,last_name',
+            'dispatches.salesExecutive:id,first_name,last_name',
+            'dispatches.transport:id,legal_name',
+            'dispatches.loadSite:id,name',
+            'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
+            'materials.product:id,title',
+            'materials.uom:id,unit_code',
+            'operator:id,first_name,last_name'
+        ]);
+
+        $this->ensurePlantScope($batch->workOrder);
+
+        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+
+        $materialsCount = $batch->materials->count();
+        $height = 360 + ($materialsCount * 18);
+
+        $pdf = Pdf::loadView('pdfs.batches.dispatch_token', [
+            'batch' => $batch,
+            'isPreview' => false,
+            'settings' => $settings,
+        ])->setPaper([0, 0, 226.77, $height], 'portrait');
+
+        $filename = sprintf('dispatch-token-%s.pdf', $batch->batch_no ?? $batch->id);
+        return $pdf->download($filename);
+    }
+
+    public function deliveryToken(Batch $batch)
+    {
+        $batch->load([
+            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'workOrder.customer:id,legal_name',
+            'workOrder.site:id,name',
+            'workOrder.plant:id,entity_id,name,logo_path',
+            'workOrder.plant.entity:id,legal_name',
+            'workOrder.plant.addresses',
+            'workOrder.mixDesign:id,design_name,design_code,design_type',
+            'workOrder.mixDesign.concrete_grade:id,name',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches.truck:id,registration',
+            'dispatches.driver:id,first_name,last_name',
+            'dispatches.salesExecutive:id,first_name,last_name',
+            'dispatches.transport:id,legal_name',
+            'dispatches.loadSite:id,name',
+            'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
+            'materials.product:id,title',
+            'materials.uom:id,unit_code',
+            'operator:id,first_name,last_name'
+        ]);
+
+        $this->ensurePlantScope($batch->workOrder);
+
+        $templateKey = \App\Services\PrintDataFormatter::resolveTemplateKey('delivery_challans', $batch->workOrder->plant_id);
+        $view = \App\Services\PrintDataFormatter::resolveView($templateKey);
+
+        if ($templateKey === 'delivery_challan_a4') {
+            $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+            return view($view, [
+                'batch' => $batch,
+                'isPreview' => true,
+                'settings' => $settings,
+            ]);
+        }
+
+        $data = \App\Services\PrintDataFormatter::fromDeliveryChallan($batch);
+        return view($view, ['data' => $data]);
+    }
+
+    public function downloadDeliveryTokenPdf(Batch $batch)
+    {
+        $batch->load([
+            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'workOrder.customer:id,legal_name',
+            'workOrder.site:id,name',
+            'workOrder.plant:id,entity_id,name,logo_path',
+            'workOrder.plant.entity:id,legal_name',
+            'workOrder.plant.addresses',
+            'workOrder.mixDesign:id,design_name,design_code,design_type',
+            'workOrder.mixDesign.concrete_grade:id,name',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches.truck:id,registration',
+            'dispatches.driver:id,first_name,last_name',
+            'dispatches.salesExecutive:id,first_name,last_name',
+            'dispatches.transport:id,legal_name',
+            'dispatches.loadSite:id,name',
+            'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
+            'materials.product:id,title',
+            'materials.uom:id,unit_code',
+            'operator:id,first_name,last_name'
+        ]);
+
+        $this->ensurePlantScope($batch->workOrder);
+
+        $templateKey = \App\Services\PrintDataFormatter::resolveTemplateKey('delivery_challans', $batch->workOrder->plant_id);
+        $view = \App\Services\PrintDataFormatter::resolveView($templateKey);
+
+        if ($templateKey === 'delivery_challan_a4') {
+            $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+            $pdf = Pdf::loadView($view, [
+                'batch' => $batch,
+                'isPreview' => false,
+                'settings' => $settings,
+            ])->setPaper('a4', 'portrait');
+        } else {
+            $data = \App\Services\PrintDataFormatter::fromDeliveryChallan($batch);
+            $pdf = Pdf::loadView($view, ['data' => $data])->setPaper('a4', 'portrait');
+        }
+
+        $filename = sprintf('delivery-token-%s.pdf', $batch->batch_no ?? $batch->id);
         return $pdf->download($filename);
     }
 

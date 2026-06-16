@@ -173,4 +173,9 @@ class Personnel extends Model
     {
         return $this->hasMany(Payslip::class, 'personnel_id');
     }
+
+    public function getLabelAttribute(): string
+    {
+        return trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
+    }
 }

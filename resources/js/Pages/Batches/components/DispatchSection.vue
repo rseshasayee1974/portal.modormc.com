@@ -3,7 +3,7 @@ import { ref, onMounted, watch } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 import DispatchWeightsForm from './DispatchWeightsForm.vue';
-import DispatchTransportForm from './DispatchTransportForm.vue';
+// import DispatchTransportForm from './DispatchTransportForm.vue';
 import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
 import { PaperAirplaneIcon, ReceiptPercentIcon, CalculatorIcon, XMarkIcon } from '@heroicons/vue/24/outline';
@@ -70,8 +70,8 @@ const form = useForm({
     payment_mode: props.dispatch?.payment_mode || 'credit',
     dispatch_status: props.dispatch?.dispatch_status || 'Draft',
     generate_invoice: false,
-    ledger_id: props.dispatch?.ledger_id || null,
-    invoice_date: props.dispatch?.invoice_date ? new Date(props.dispatch.invoice_date) : new Date(),
+    ledger_id: props.dispatch?.ledger_id || props.dispatch?.status?.invoice?.account_id || null,
+    invoice_date: props.dispatch?.invoice_date ? new Date(props.dispatch.invoice_date) : (props.dispatch?.status?.invoice_date ? new Date(props.dispatch.status.invoice_date) : new Date()),
     created_at: props.dispatch?.created_at || null,
     updated_at: props.dispatch?.updated_at || null,
     creator: props.dispatch?.creator || null,
@@ -172,8 +172,8 @@ watch(() => props.dispatch, (newDispatch) => {
         form.unload_site_id = newDispatch.unload_site_id || null;
         form.delivered_qty = newDispatch.delivered_qty || 0;
         form.payment_mode = newDispatch.payment_mode || 'credit';
-        form.ledger_id = newDispatch.ledger_id || null;
-        form.invoice_date = newDispatch.invoice_date || null;
+        form.ledger_id = newDispatch.ledger_id || newDispatch.status?.invoice?.account_id || null;
+        form.invoice_date = newDispatch.invoice_date ? new Date(newDispatch.invoice_date) : (newDispatch.status?.invoice_date ? new Date(newDispatch.status.invoice_date) : (form.invoice_date || new Date()));
         form.created_at = newDispatch.created_at || null;
         form.updated_at = newDispatch.updated_at || null;
         form.creator = newDispatch.creator || null;

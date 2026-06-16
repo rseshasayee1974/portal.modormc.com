@@ -148,7 +148,6 @@ trait PostsToAccounting
             $orderTaxes = OrderTax::where('order_id', '=',$this->id)
                 ->where('order_type', $module)
                 ->get();
-
             $sumTaxLines = 0;
             foreach ($orderTaxes as $taxSplit) {
                 $taxAmt = round((float)($taxSplit->amount ?? 0), 2);

@@ -124,7 +124,7 @@ Log::info($dispatch);
     public function update(DispatchStoreRequest $request, Dispatch $dispatch)
     {
         $this->authorizeModule('edit');
-        
+        // dd( $dispatch->all());
         $user = auth()->user();
         if ($user && $user->hasRole('Trip Operator')) {
             $isDataPresented = (float)$dispatch->load_rate > 0 || 
@@ -138,6 +138,7 @@ Log::info($dispatch);
         }
 
         $validated = $request->validated();
+        
         return DB::transaction(function () use ($validated, $dispatch) {
             // 1. Prepare Dispatch Data
             $dispatchData = collect($validated)->except(['weights', 'financials', 'status', 'payment', 'batch_size'])->toArray();
@@ -183,7 +184,6 @@ Log::info($dispatch);
                 // Remove any payments if switched to credit
                 $dispatch->payments()->delete();
             }
-
 
 
             return redirect()->back()->with('success', 'Dispatch updated successfully.');
@@ -283,5 +283,17 @@ Log::info($dispatch);
 
             return redirect()->back()->with('success', 'Invoice deleted and dispatch billing reset.');
         });
+    }
+
+    public function whatsappUrl(Dispatch $dispatch)
+    {
+        $this->authorizeModule('view');
+        
+        $url = $dispatch->getWhatsAppUrl();
+        if (!$url) {
+            return response()->json(['error' => 'Primary contact mobile number not found for customer.'], 422);
+        }
+        
+        return response()->json(['url' => $url]);
     }
 }

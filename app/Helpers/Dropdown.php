@@ -273,7 +273,7 @@ if (!function_exists('ProductsDropdown')) {
     function ProductsDropdown(?string $productType = null, $categoryId = null, $excludeId = null, $entityId = null)
     {
         $query = Product::where('plant_id', _activePlantId())
-            ->with('unit');
+            ->with('unit:id,unit_code,unit_type');
 
         if ($productType !== null) {
             $query->where('product_type', $productType);
@@ -287,7 +287,9 @@ if (!function_exists('ProductsDropdown')) {
             $query->excludeId($excludeId);
         }
 
-        return $query->whereNull('deleted_at')->get(['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price']);
+        return $query->whereNull('deleted_at')
+            ->get(['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price'])
+            ->makeHidden(['can_delete', 'can_update', 'is_in_use']);
     }
 }
 

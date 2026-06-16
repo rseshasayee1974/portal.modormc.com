@@ -827,13 +827,14 @@ class PlantInitializationService
         }
 
         $moduleTemplates = [
-            'invoices'        => 'standard_indigo',
-            'purchase_orders' => 'standard_indigo',
-            'quotations'      => 'standard',
-            'delivery_notes'  => 'standard',
-            'credit_notes'    => 'standard',
-            'statements'      => 'tallysheet',
-            'gst_invoices'    => 'indian_gst',
+            'invoices'          => 'standard_indigo',
+            'purchase_orders'   => 'standard_indigo',
+            'quotations'        => 'standard',
+            'delivery_challans' => 'delivery_challan_a4',
+            'delivery_notes'    => 'standard',
+            'credit_notes'      => 'standard',
+            'statements'        => 'tallysheet',
+            'gst_invoices'      => 'indian_gst',
         ];
 
         foreach ($moduleTemplates as $moduleKey => $templateKey) {

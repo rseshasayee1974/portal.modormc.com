@@ -84,6 +84,13 @@ class PrintTemplateSeeder extends Seeder
                 'is_system' => true,
                 'mm_config' => json_encode(['primary_color' => '#1e293b', 'font' => 'Outfit', 'description' => 'Formal, court-ready GST invoice with full regulatory fields.']),
             ],
+            [
+                'name'      => 'Delivery Challan A4',
+                'key'       => 'delivery_challan_a4',
+                'category'  => 'general',
+                'is_system' => true,
+                'mm_config' => json_encode(['primary_color' => '#4f46e5', 'font' => 'Inter', 'description' => 'A4 delivery challan layout with weight cards and signature lines.']),
+            ],
         ];
 
         foreach ($templates as $template) {

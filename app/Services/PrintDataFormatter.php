@@ -556,12 +556,16 @@ class PrintDataFormatter
     {
         return [
             'standard', 'elite', 'modern', 'spreadsheet', 'tallysheet', 'compact', 'indian_gst',
-            'formal_gst', 'standard_indigo', 'minimalist_lite'
+            'formal_gst', 'standard_indigo', 'minimalist_lite', 'delivery_challan_a4'
         ];
     }
 
     public static function resolveView(string $templateKey): string
     {
+        if ($templateKey === 'delivery_challan_a4') {
+            return "pdfs.batches.delivery_token";
+        }
+
         // Internal mapping for keys that share the same blade file
         $map = [
             'formal_gst'      => 'indian_gst',
@@ -599,6 +603,9 @@ class PrintDataFormatter
                 break;
             case 'quotations':
                 $invoiceTitle = 'QUOTATION';
+                break;
+            case 'delivery_challans':
+                $invoiceTitle = 'DELIVERY CHALLAN';
                 break;
             case 'delivery_notes':
                 $invoiceTitle = 'DELIVERY NOTE';
@@ -654,5 +661,160 @@ class PrintDataFormatter
                 'discount' => true,
             ]
         ];
+    }
+
+    public static function fromDeliveryChallan($batch): array
+    {
+        $batch->loadMissing([
+            'workOrder',
+            'workOrder.customer',
+            'workOrder.site',
+            'workOrder.plant',
+            'workOrder.plant.entity',
+            'workOrder.plant.addresses',
+            'workOrder.mixDesign',
+            'workOrder.mixDesign.concrete_grade',
+            'workOrder.mixDesign.unit',
+            'dispatches',
+            'dispatches.truck',
+            'dispatches.driver',
+            'dispatches.transport',
+            'materials.product',
+            'materials.uom',
+            'operator'
+        ]);
+
+        $data = self::base();
+        $data['settings'] = self::getCustomSettings($batch->workOrder->plant_id, 'delivery_challans');
+        
+        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? 'DELIVERY CHALLAN';
+        $data['doc_no']    = 'B' . ($batch->batch_no ?? $batch->id);
+        $data['doc_date']  = optional($batch->load_time ?? $batch->created_at)->format('d/m/Y H:i');
+        
+        $dispatch = $batch->dispatches->first();
+        $data['delivery_date'] = $dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('d/m/Y H:i') : ($batch->load_time ? $batch->load_time->format('d/m/Y H:i') : 'N/A');
+        
+        $data['state']     = $batch->status_text ?? 'DISPATCHED';
+
+        // Company (Issuer Plant)
+        $plant = $batch->workOrder->plant;
+        $plAddr = $plant->addresses->first();
+        $data['company'] = [
+            'name'    => $plant->name,
+            'address' => $plAddr->line_1 ?? '',
+            'city'    => $plAddr->city ?? '',
+            'state'   => $plAddr->state ?? '',
+            'pin'     => $plAddr->pincode ?? '',
+            'gstin'   => $plant->gstin ?? '',
+            'phone'   => $plant->phone ?? '',
+            'email'   => $plant->email ?? '',
+        ];
+
+        // Bill To (Customer)
+        $customer = $batch->workOrder->customer;
+        $data['bill_to'] = [
+            'name'    => $customer->legal_name ?? $customer->name ?? 'N/A',
+            'address' => $customer->address_line1 ?? '',
+            'city'    => $customer->city ?? '',
+            'state'   => $customer->state ?? '',
+            'pin'     => $customer->pincode ?? '',
+            'gstin'   => $customer->gstin ?? '',
+            'phone'   => $customer->phone ?? '',
+        ];
+
+        // Ship To (Site)
+        $site = $batch->workOrder->site;
+        $data['ship_to'] = [
+            'name'    => $site->name ?? $data['bill_to']['name'],
+            'address' => $site->site_address_1 ?? $data['bill_to']['address'],
+            'city'    => $site->city ?? $data['bill_to']['city'],
+            'state'   => $site->state ?? $data['bill_to']['state'],
+            'pin'     => $site->zipcode ?? $data['bill_to']['pin'],
+        ];
+
+        // Items (Batch Materials)
+        $data['items'] = $batch->materials->map(function ($item, $idx) {
+            $target = (float) $item->target_qty;
+            $actual = (float) $item->actual_qty;
+            $deviationVal = (float) $item->deviation_quantity;
+            $devPercent = 0;
+            if ($target > 0) {
+                $devPercent = ($deviationVal / $target) * 100;
+            }
+
+            $devSign = $devPercent > 0 ? '+' : '';
+            $desc = sprintf(
+                "Target: %s %s | Actual: %s %s | Dev: %s%s%%",
+                number_format($target, 2),
+                $item->uom?->unit_code ?? 'kg',
+                number_format($actual, 2),
+                $item->uom?->unit_code ?? 'kg',
+                $devSign,
+                number_format($devPercent, 2)
+            );
+
+            return [
+                'no'           => $idx + 1,
+                'name'         => $item->material_name ?: ($item->product->title ?? 'Material'),
+                'description'  => $desc,
+                'hsn'          => $item->product->hsn_code ?? '-',
+                'qty'          => $actual ?: $target,
+                'received_qty' => $actual,
+                'unit'         => $item->uom?->unit_code ?? 'kg',
+                'unit_price'   => 0.00,
+                'tax_name'     => '-',
+                'tax_rate'     => 0.00,
+                'tax_amount'   => 0.00,
+                'total'        => 0.00,
+            ];
+        })->toArray();
+
+        // Totals (set to 0 since Delivery Challan is non-financial)
+        $data['totals'] = [
+            'sub_total'   => 0.00,
+            'discount'    => 0.00,
+            'tax_lines'   => [],
+            'shipping'    => 0.00,
+            'adjustment'  => 0.00,
+            'round_off'   => 0.00,
+            'grand_total' => 0.00,
+        ];
+
+        // Metadata & Weights
+        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+        $isMetricTon = !empty($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
+        $emptyWeight = (float) ($dispatch?->empty_weight_truck ?? 0);
+        $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
+        $netWeight = (float) ($dispatch?->net_weight ?? ($loadedWeight - $emptyWeight));
+        
+        $unitLabel = $isMetricTon ? ' MT' : ' kg';
+        $decimals = $isMetricTon ? 3 : 0;
+        
+        $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel;
+        $loadedWeightStr = number_format($loadedWeight, $decimals) . $unitLabel;
+        $netWeightStr = number_format($netWeight, $decimals) . $unitLabel;
+
+        $weightNotes = "VEHICLE WEIGHT DETAILS:\n"
+            . "Truck No: " . ($dispatch?->truck?->registration ?? '-') . "\n"
+            . "Driver: " . (trim(($dispatch?->driver?->first_name ?? '') . ' ' . ($dispatch?->driver?->last_name ?? '')) ?: '-') . "\n"
+            . "Empty Weight: " . $emptyWeightStr . " (" . ($dispatch?->empty_time ? \Carbon\Carbon::parse($dispatch->empty_time)->format('d-m-Y H:i') : '-') . ")\n"
+            . "Loaded Weight: " . $loadedWeightStr . " (" . ($dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('d-m-Y H:i') : '-') . ")\n"
+            . "Net Weight: " . $netWeightStr . "\n\n"
+            . "Batch size: " . number_format((float) $batch->batch_size, 2) . " m³\n"
+            . "Concrete Grade: " . ($batch->workOrder?->mixDesign?->concrete_grade?->name ?? ($batch->workOrder?->mixDesign?->design_name ?? '-')) . " / Recipe Code: " . ($batch->workOrder?->mixDesign?->design_code ?? '-');
+
+        $data['meta'] = [
+            'currency_code'   => 'INR',
+            'currency_symbol' => '₹',
+            'notes'           => $weightNotes,
+            'terms_text'      => $batch->workOrder?->terms_conditions ?? "1. Goods received in good condition.\n2. Any variation in quantity to be reported immediately.",
+            'total_words'     => '',
+            'po_number'       => $batch->workOrder?->order_no ?? '-',
+            'project_name'    => 'Concrete Grade: ' . ($batch->workOrder?->mixDesign?->concrete_grade?->name ?? '-'),
+        ];
+
+        $data['batch'] = $batch;
+
+        return $data;
     }
 }

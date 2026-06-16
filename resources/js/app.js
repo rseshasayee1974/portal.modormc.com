@@ -3,7 +3,7 @@ import '../css/app.css';
 import 'primeicons/primeicons.css';
 
 import { createApp, h } from 'vue';
-import { createInertiaApp } from '@inertiajs/vue3';
+import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import PrimeVue from 'primevue/config';
@@ -191,4 +191,12 @@ createInertiaApp({
         showSpinner: true,
         includeCSS: true,
     },
+});
+
+router.on('invalid', (event) => {
+    const url = event.detail.response?.request?.responseURL || event.detail.response?.config?.url;
+    if (url && (url.includes('/token') || url.includes('/dispatch-token') || url.includes('/delivery-token')) && !url.includes('/download')) {
+        event.preventDefault();
+        window.dispatchEvent(new CustomEvent('show-batch-token', { detail: { url } }));
+    }
 });

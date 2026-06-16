@@ -360,10 +360,10 @@ class Invoice extends Model
     /**
      * Sync CGST/SGST/IGST splits at invoice level.
      */
-    public function syncTaxSplits(string $invoice_type = 'invoices'): void
+    public function syncTaxSplits(string $invoice_type = 'Invoice'): void
     {
         $this->orderTaxes()->delete();
-
+        
         // 1. Process line items individually to capture specific item IDs and accounts
         foreach ($this->items()->with('tax')->get() as $item) {
             if (!$item->tax_id || $item->line_tax_amount <= 0) continue;

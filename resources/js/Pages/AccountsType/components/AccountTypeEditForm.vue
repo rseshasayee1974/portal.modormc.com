@@ -70,7 +70,7 @@ const submit = async () => {
         const response = await axios.put(route('accounttypes.update', props.accountType.id), form.value);
         const updated = response.data.data ? response.data.data[0] : response.data.account_type;
         store.updateAccountType(updated);
-        toast.removeAll();
+        toast.removeAllGroups();
         toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 1500 });
         emit('saved');
         close();
@@ -78,7 +78,7 @@ const submit = async () => {
         if (error.response?.data?.errors) {
             form.value.errors = error.response.data.errors;
         } else {
-            toast.removeAll();
+            toast.removeAllGroups();
             toast.add({ severity: 'error', summary: 'Error', detail: 'An unexpected error occurred.', life: 1500 });
         }
     } finally {

@@ -313,7 +313,7 @@ const submit = () => {
             material_name: item.material_name || props.products.find((p: any) => p.id === item.product_id)?.title || 'Material',
         })),
     })).post(route('batches.store'), {
-        onSuccess: () => {
+        onSuccess: (page: any) => {
             Swal.fire({
                 toast: true,
                 position: 'top-end',

@@ -166,6 +166,24 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            'auth' => [
+                'user' => $user ? [
+                    'id' => $user->id,
+                    'default_plant_id' => $user->default_plant_id,
+                    'email' => $user->email,
+                    'email_verified_at' => $user->email_verified_at,
+                    'is_active' => $user->is_active,
+                    'last_visit_page' => $user->last_visit_page,
+                    'mobile' => $user->mobile,
+                    'username' => $user->username,
+                    'profile_photo_url' => $user->profile_photo_url,
+                    'roles' => $user->roles->map(fn($role) => [
+                        'id' => $role->id,
+                        'code' => $role->code,
+                        'name' => $role->name,
+                    ])->toArray(),
+                ] : null,
+            ],
             'active_entity'    => $activeEntity,
             'active_plant'     => $activePlant,
             'active_plant_id'  => $activePlantId,
@@ -177,6 +195,12 @@ class HandleInertiaRequests extends Middleware
             'menus'            => $menus,
             'custom_settings'  => $customSettings,
             'plants_count'     => $plantsCount,
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error'   => fn () => $request->session()->get('error'),
+                'new_batch_id' => fn () => $request->session()->get('new_batch_id'),
+                'dispatched_batch_id' => fn () => $request->session()->get('dispatched_batch_id'),
+            ],
         ];
     }
 }

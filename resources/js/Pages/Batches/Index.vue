@@ -17,6 +17,7 @@ import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import Button from 'primevue/button';
 import BaseButton from '@/Components/Base/BaseButton.vue';
+import Dialog from 'primevue/dialog';
 import { CubeIcon, ListBulletIcon, PaperAirplaneIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps<{
@@ -285,8 +286,98 @@ const destroy = (row: any) => {
     });
 };
 const downloadPdf = (id: number) => {
-    window.open(route('batches.download', id), '_blank');
+    // Use anchor click technique to avoid popup-blocker issues
+    const url = route('batches.download', id);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', '');
+    link.setAttribute('target', '_blank');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
+
+const tokenPreviewVisible = ref(false);
+const tokenPreviewUrl = ref('');
+const iframeHeight = ref('300px');
+const previewTitle = ref('Batching Token Preview');
+const previewWidth = ref('380px');
+const previewIframeWidth = ref('340px');
+
+const viewToken = (id: number, type: string = 'batching') => {
+    if (type === 'dispatch') {
+        previewTitle.value = 'Dispatch Token Preview';
+        previewWidth.value = '380px';
+        previewIframeWidth.value = '340px';
+        tokenPreviewUrl.value = route('batches.dispatch-token', id);
+    } else if (type === 'delivery') {
+        previewTitle.value = 'Delivery Token Preview (A4)';
+        previewWidth.value = '850px';
+        previewIframeWidth.value = '810px';
+        tokenPreviewUrl.value = route('batches.delivery-token', id);
+    } else {
+        previewTitle.value = 'Batching Token Preview';
+        previewWidth.value = '380px';
+        previewIframeWidth.value = '340px';
+        tokenPreviewUrl.value = route('batches.token', id);
+    }
+    iframeHeight.value = '300px'; // Reset height before load
+    tokenPreviewVisible.value = true;
+};
+
+const adjustIframeHeight = (event: any) => {
+    const iframe = event.target;
+    if (iframe && iframe.contentDocument) {
+        setTimeout(() => {
+            try {
+                const doc = iframe.contentDocument;
+                const height = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+                iframeHeight.value = `${height + 15}px`; // Add 15px buffer to avoid vertical scrollbar inside iframe
+            } catch (e) {
+                console.error(e);
+            }
+        }, 150);
+    }
+};
+
+const printTokenIframe = () => {
+    const iframe = document.querySelector('.token-preview-dialog iframe') as HTMLIFrameElement;
+    if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+    }
+};
+
+const handleShowTokenEvent = (e: any) => {
+    if (e.detail?.url) {
+        tokenPreviewUrl.value = e.detail.url;
+        if (e.detail.url.includes('delivery-token')) {
+            previewTitle.value = 'Delivery Token Preview (A4)';
+            previewWidth.value = '850px';
+            previewIframeWidth.value = '810px';
+        } else if (e.detail.url.includes('dispatch-token')) {
+            previewTitle.value = 'Dispatch Token Preview';
+            previewWidth.value = '380px';
+            previewIframeWidth.value = '340px';
+        } else {
+            previewTitle.value = 'Batching Token Preview';
+            previewWidth.value = '380px';
+            previewIframeWidth.value = '340px';
+        }
+        iframeHeight.value = '300px';
+        tokenPreviewVisible.value = true;
+    }
+};
+
+onMounted(() => {
+    window.addEventListener('show-batch-token', handleShowTokenEvent);
+    window.addEventListener('click', closeAllMenus);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('show-batch-token', handleShowTokenEvent);
+    window.removeEventListener('click', closeAllMenus);
+});
 
 const retrySync = (id: number) => {
     router.post(route('batches.sync', id), {}, {
@@ -308,6 +399,163 @@ const retrySync = (id: number) => {
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
 const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form);
+
+const lastShownBatchId = ref<number | null>(null);
+watch(() => page.props.flash?.new_batch_id, (newVal) => {
+    if (newVal && Number(newVal) !== lastShownBatchId.value) {
+        lastShownBatchId.value = Number(newVal);
+        viewToken(Number(newVal));
+    }
+}, { immediate: true });
+
+const lastDispatchedBatchId = ref<number | null>(null);
+watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
+    if (newVal && Number(newVal) !== lastDispatchedBatchId.value) {
+        lastDispatchedBatchId.value = Number(newVal);
+        viewToken(Number(newVal), 'dispatch');
+    }
+}, { immediate: true });
+
+const activeMenuId = ref<number | null>(null);
+
+const toggleMenu = (event: Event, id: number) => {
+    event.stopPropagation();
+    activeMenuId.value = activeMenuId.value === id ? null : id;
+};
+
+const closeAllMenus = () => {
+    activeMenuId.value = null;
+};
+
+const generateInvoiceDirect = (dispatch: any) => {
+    if (!dispatch || !dispatch.id) return;
+    
+    const ledgersOptionsHtml = props.sales_ledgers.map(l => `<option value="${l.value}">${l.label}</option>`).join('');
+    const defaultDate = new Date().toISOString().substring(0, 10);
+    
+    Swal.fire({
+        title: 'Generate Invoice',
+        html: `
+            <div class="text-left space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sales Ledger</label>
+                    <select id="swal-ledger-id" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+                        <option value="">Select Sales Account</option>
+                        ${ledgersOptionsHtml}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Invoice Date</label>
+                    <input id="swal-invoice-date" type="date" value="${defaultDate}" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                </div>
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Generate',
+        confirmButtonColor: '#4f46e5',
+        preConfirm: () => {
+            const ledgerId = (document.getElementById('swal-ledger-id') as HTMLSelectElement).value;
+            const invoiceDate = (document.getElementById('swal-invoice-date') as HTMLInputElement).value;
+            if (!ledgerId) {
+                Swal.showValidationMessage('Please select a Sales Ledger');
+                return false;
+            }
+            if (!invoiceDate) {
+                Swal.showValidationMessage('Please select an Invoice Date');
+                return false;
+            }
+            return { ledgerId, invoiceDate };
+        }
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            router.post(route('dispatches.generate-invoice', dispatch.id), {
+                ledger_id: result.value.ledgerId,
+                invoice_date: result.value.invoiceDate,
+            }, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Invoice generated successfully.',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                }
+            });
+        }
+    });
+};
+
+const printInvoiceDirect = (invoice: any) => {
+    if (!invoice || !invoice.encrypted_id) return;
+    window.open(route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'view' }), '_blank');
+};
+
+const downloadInvoiceDirect = (invoice: any) => {
+    if (!invoice || !invoice.encrypted_id) return;
+    window.open(route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'download' }), '_blank');
+};
+
+const printEInvoiceDirect = (invoice: any) => {
+    if (!invoice || !invoice.encrypted_id) return;
+    window.open(route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'view' }), '_blank');
+};
+
+const deleteInvoiceDirect = (dispatch: any) => {
+    if (!dispatch || !dispatch.id) return;
+    Swal.fire({
+        title: 'Delete Invoice?',
+        text: 'This will delete the generated invoice and reset the dispatch billing status. This action cannot be undone!',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.delete(route('dispatches.delete-invoice', dispatch.id), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'Invoice deleted successfully.',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                }
+            });
+        }
+    });
+};
+
+const sendWhatsAppDirect = async (dispatch: any) => {
+    if (!dispatch || !dispatch.id) return;
+    try {
+        Swal.fire({
+            title: 'Preparing WhatsApp message...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        const response = await axios.get(route('dispatches.whatsapp-url', dispatch.id));
+        Swal.close();
+        if (response.data.url) {
+            window.open(response.data.url, '_blank');
+        } else {
+            Swal.fire('Error', 'Could not generate WhatsApp URL.', 'error');
+        }
+    } catch (error: any) {
+        Swal.close();
+        const msg = error.response?.data?.error || 'Failed to generate WhatsApp URL. Please check if customer mobile number exists.';
+        Swal.fire('Error', msg, 'error');
+    }
+};
 </script>
 
 <template>
@@ -417,7 +665,7 @@ const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form
                                     >
                                         B{{ slotProps.data.batch_no }}
                                     </button>
-                                    <div class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{{ slotProps.data.work_order?.order_no || '-' }}</div>
+                                    <div class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{{ slotProps.data.work_order?.full_number || (slotProps.data.work_order ? (slotProps.data.work_order.prefix || '') + String(slotProps.data.work_order.order_no || '').padStart(4,'0') : '-') }}</div>
                                 </div>
                             </template>
                         </Column>
@@ -488,34 +736,146 @@ const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form
                             </template>
                         </Column>
 
-                        <Column header="Actions">
+                        <Column header="Actions" headerStyle="width: 5rem; text-align: center" bodyStyle="overflow: visible; text-align: center">
                             <template #body="slotProps">
-                                <div v-if="!slotProps.data.is_offline_pending" class="flex justify-end gap-2">
-                                    <BaseButton
-                                        icon="pi pi-eye"
-                                        severity="secondary"
-                                        variant="text"
-                                        rounded
-                                        @click.stop="router.get(route('batches.report', slotProps.data.id))"
-                                        title="Preview Batch Sheet"
-                                    />
-                                    <BaseButton
-                                        icon="pi pi-download"
-                                        severity="info"
-                                        variant="text"
-                                        rounded
-                                        @click.stop="downloadPdf(slotProps.data.id)"
-                                        title="Download PDF"
-                                    />
-                                    <BaseButton
-                                        v-if="slotProps.data.status < 3"
-                                        icon="pi pi-trash"
-                                        severity="danger"
-                                        variant="text"
-                                        rounded
-                                        @click.stop="destroy(slotProps.data)"
-                                        title="Delete"
-                                    />
+                                <div v-if="!slotProps.data.is_offline_pending" class="relative inline-block text-left">
+                                    <button
+                                        type="button"
+                                        class="inline-flex justify-center items-center w-8 h-8 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 focus:outline-none transition-all duration-200"
+                                        @click.stop="toggleMenu($event, slotProps.data.id)"
+                                        v-tooltip.top="'Actions'"
+                                    >
+                                        <i class="pi pi-ellipsis-v text-sm font-bold"></i>
+                                    </button>
+
+                                    <!-- Dropdown Menu -->
+                                    <transition
+                                        enter-active-class="transition ease-out duration-100"
+                                        enter-from-class="transform opacity-0 scale-95"
+                                        enter-to-class="transform opacity-100 scale-100"
+                                        leave-active-class="transition ease-in duration-75"
+                                        leave-from-class="transform opacity-100 scale-100"
+                                        leave-to-class="transform opacity-0 scale-95"
+                                    >
+                                        <div
+                                            v-if="activeMenuId === slotProps.data.id"
+                                            class="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200/80 dark:border-slate-700/80 z-[1000] focus:outline-none divide-y divide-slate-100 dark:divide-slate-700/50 py-1"
+                                            @click.stop
+                                        >
+                                            <!-- Group 1: General Batch Actions -->
+                                            <div class="py-1 text-left">
+                                                <button
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="router.get(route('batches.report', slotProps.data.id)); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-eye mr-2 text-indigo-500 font-bold"></i>
+                                                    Preview Batch Sheet
+                                                </button>
+                                                <button
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="downloadPdf(slotProps.data.id); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
+                                                    Download PDF Report
+                                                </button>
+                                            </div>
+
+                                            <!-- Group 2: Token Printing Actions -->
+                                            <div class="py-1 text-left">
+                                                <button
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="viewToken(slotProps.data.id, 'batching'); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-print mr-2 text-amber-500 font-bold"></i>
+                                                    Print Batching Token
+                                                </button>
+                                                <button
+                                                    v-if="slotProps.data.status >= 3"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="viewToken(slotProps.data.id, 'dispatch'); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-ticket mr-2 text-emerald-500 font-bold"></i>
+                                                    Print Dispatch Token
+                                                </button>
+                                                <button
+                                                    v-if="slotProps.data.status >= 3"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="viewToken(slotProps.data.id, 'delivery'); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-file mr-2 text-sky-500 font-bold"></i>
+                                                    Print Delivery Challan (A4)
+                                                </button>
+                                            </div>
+
+                                            <!-- Group 3: Invoice & Invoicing Actions -->
+                                            <div v-if="slotProps.data.dispatches?.[0]" class="py-1 text-left">
+                                                <!-- If Invoice not yet generated -->
+                                                <button
+                                                    v-if="slotProps.data.status >= 3 && (!slotProps.data.dispatches[0].status || slotProps.data.dispatches[0].status.invoice_status !== 1)"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 transition-colors"
+                                                    @click="generateInvoiceDirect(slotProps.data.dispatches[0]); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-plus-circle mr-2 text-emerald-500 font-bold"></i>
+                                                    Generate Invoice
+                                                </button>
+
+                                                <!-- If Invoice is generated -->
+                                                <template v-if="slotProps.data.dispatches[0].status?.invoice_status === 1 && slotProps.data.dispatches[0].status?.invoice">
+                                                    <button
+                                                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                        @click="printInvoiceDirect(slotProps.data.dispatches[0].status.invoice); activeMenuId = null;"
+                                                    >
+                                                        <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
+                                                        Print Invoice
+                                                    </button>
+                                                    <button
+                                                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                        @click="downloadInvoiceDirect(slotProps.data.dispatches[0].status.invoice); activeMenuId = null;"
+                                                    >
+                                                        <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
+                                                        Download Invoice PDF
+                                                    </button>
+                                                    <!-- If IRN E-invoice is generated -->
+                                                    <button
+                                                        v-if="slotProps.data.dispatches[0].status.invoice.einvoice_status === 'generated'"
+                                                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
+                                                        @click="printEInvoiceDirect(slotProps.data.dispatches[0].status.invoice); activeMenuId = null;"
+                                                    >
+                                                        <i class="pi pi-check-circle mr-2 text-purple-500 font-bold"></i>
+                                                        E-Invoice Print
+                                                    </button>
+                                                    <button
+                                                        class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                                                        @click="deleteInvoiceDirect(slotProps.data.dispatches[0]); activeMenuId = null;"
+                                                    >
+                                                        <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
+                                                        Delete Invoice
+                                                    </button>
+                                                </template>
+
+                                                <!-- WhatsApp (if dispatched) -->
+                                                <button
+                                                    v-if="slotProps.data.status >= 3"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-emerald-700 transition-colors"
+                                                    @click="sendWhatsAppDirect(slotProps.data.dispatches[0]); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-whatsapp mr-2 text-emerald-500 font-bold"></i>
+                                                    WhatsApp Send
+                                                </button>
+                                            </div>
+
+                                            <!-- Group 4: Delete Batch -->
+                                            <div v-if="slotProps.data.status < 3" class="py-1 text-left">
+                                                <button
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                                                    @click="destroy(slotProps.data); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
+                                                    Delete Batch
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </transition>
                                 </div>
                                 <span v-else class="text-[10px] text-slate-400 font-bold uppercase">Syncing...</span>
                             </template>
@@ -599,5 +959,39 @@ const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form
                 </div>
             </div>
         </div>
+        <Dialog
+            v-model:visible="tokenPreviewVisible"
+            modal
+            :style="{ width: previewWidth, maxWidth: '95vw' }"
+            class="token-preview-dialog"
+            :pt="{
+                root: { class: 'border-0 shadow-2xl rounded-2xl overflow-hidden' },
+                header: { class: 'bg-slate-50 border-b border-slate-100 py-2.5 px-4 flex items-center justify-between' },
+                content: { class: 'p-0 bg-slate-50' },
+                footer: { class: 'bg-white border-t border-slate-100 py-2 px-4 flex justify-end gap-2' }
+            }"
+        >
+            <template #header>
+                <div class="flex items-center gap-2">
+                    <i class="pi pi-print text-indigo-600 text-sm"></i>
+                    <span class="text-xs font-black text-slate-700 uppercase tracking-widest">{{ previewTitle }}</span>
+                </div>
+            </template>
+
+            <div class="w-full flex justify-center bg-slate-100 py-2.5 px-1 overflow-y-auto max-h-[70vh] border-b border-slate-100">
+                <iframe
+                    v-if="tokenPreviewUrl"
+                    :src="tokenPreviewUrl"
+                    :style="{ height: iframeHeight, width: previewIframeWidth }"
+                    style="border: none; background: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); border-radius: 6px; display: block;"
+                    @load="adjustIframeHeight"
+                ></iframe>
+            </div>
+
+            <template #footer>
+                <Button label="Close" icon="pi pi-times" @click="tokenPreviewVisible = false" text severity="secondary" class="!text-[10px] !font-bold !uppercase !tracking-wider" />
+                <Button label="Print Token" icon="pi pi-print" @click="printTokenIframe" severity="primary" class="!text-[10px] !font-bold !uppercase !tracking-wider !px-4" />
+            </template>
+        </Dialog>
     </AppLayout>
 </template>

@@ -24,7 +24,7 @@ class PrintController extends Controller
     public function handle(Request $request, string $module, string $id, string $action = 'view')
     {
         // 1. Set module for authorization check
-        $this->module = $module;
+        $this->module = $module === 'delivery_challans' ? 'work_orders' : $module;
         $this->authorizeModule('show');
 
         // 2. Resolve Model and Data with strict plant scoping
@@ -111,6 +111,12 @@ class PrintController extends Controller
                     ->where('plant_id', $activePlantId)
                     ->first();
                 return $model ? PrintDataFormatter::fromQuotation($model) : null;
+
+            case 'delivery_challans':
+                $model = \App\Models\Batch::where('id', $realId)
+                    ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
+                    ->first();
+                return $model ? PrintDataFormatter::fromDeliveryChallan($model) : null;
 
             default:
                 return null;
