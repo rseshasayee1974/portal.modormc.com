@@ -685,7 +685,8 @@ console.log('sdfcsdfsc', form);
                             </div>
                         </div>
                     </div> -->
-
+</div>
+<div class="col-span-12 md:col-span-12 space-y-6">
                     <!-- Detailed Materials Table -->
                     <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                         <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-3">
@@ -853,108 +854,123 @@ console.log('sdfcsdfsc', form);
                             </ul>
                         </div>
 
-                        <!-- Materials: Card-per-Material Layout (Batch Report Style) -->
+                        <!-- Materials: Horizontal Table Layout -->
                         <div class="px-5 pb-5">
                             <!-- Empty State -->
                             <div v-if="form.materials.length === 0" class="rounded-xl border-2 border-dashed border-slate-200 py-10 text-center">
                                 <svg class="mx-auto mb-2 h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">No materials added</p>
-                                <p class="text-[10px] text-slate-300 mt-1">Click "Add" to add a material</p>
+                                <p class="text-[10px] text-slate-300 mt-1">Click "Add" in the header to add a material</p>
                             </div>
 
-                            <!-- Cards Grid: one card per material, horizontal scroll -->
-                            <div v-else class="overflow-x-auto pb-2">
-                                <div class="flex gap-3 min-w-max">
-                                    <div
-                                        v-for="(item, index) in form.materials"
-                                        :key="index"
-                                        class="relative flex-shrink-0 w-[200px] rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition-shadow"
-                                    >
-                                        <!-- Card Header: Product Name -->
-                                        <div class="bg-gradient-to-br from-cyan-50 to-indigo-50 px-3 pt-3 pb-2 border-b border-slate-100">
-                                            <!-- Material # badge + delete -->
-                                            <div class="flex items-center justify-between mb-1.5">
-                                                <span class="text-[9px] font-black uppercase tracking-widest text-indigo-400 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
-                                                    #{{ index + 1 }}
-                                                </span>
-                                                <Button
-                                                    v-if="!isLocked && form.status !== 3 && !item.id"
-                                                    icon="pi pi-trash"
-                                                    text rounded severity="danger"
-                                                    class="!h-5 !w-5 !text-[10px]"
-                                                    @click="removeMaterial(index)"
-                                                />
-                                            </div>
-                                            <!-- Product selector or product name -->
-                                            <div class="space-y-1">
-                                                <BaseSelect
-                                                    v-model="item.product_id"
-                                                    :options="products"
-                                                    optionLabel="title"
-                                                    optionValue="id"
-                                                    filter
-                                                    size="small"
-                                                    :fluid="true"
-                                                    :disabled="!!item.id || isLocked"
-                                                    :error="form.errors[`materials.${index}.product_id`]"
-                                                    placeholder="Select Product"
-                                                />
+                            <!-- Table Layout -->
+                            <div v-else class="overflow-x-auto border border-slate-300 rounded-lg shadow-sm">
+                                <table class="w-full text-left border-collapse whitespace-nowrap">
+                                    <thead>
+                                        <tr class="bg-black text-white">
+                                            <th class="border-b border-slate-700 px-3 py-2 font-bold uppercase text-[10px]" :colspan="form.materials.length + 1">
+                                                <div class="flex justify-between items-center">
+                                                    <span>Materials Breakdown</span>
+                                                </div>
+                                            </th>
+                                        </tr>
+                                        <tr class="bg-slate-100 text-slate-800">
+                                            <th class="border-r border-b border-slate-300 px-3 py-2 font-bold uppercase w-40 bg-slate-200 text-[10px]">Product</th>
+                                            <th v-for="(item, index) in form.materials" :key="index" class="border-r border-b border-slate-300 px-2 py-1 min-w-[160px]">
+                                                <div class="flex items-center gap-1">
+                                                    <BaseSelect
+                                                        v-model="form.materials[index].product_id"
+                                                        :options="products"
+                                                        optionLabel="title"
+                                                        optionValue="id"
+                                                        filter
+                                                        size="small"
+                                                        :fluid="true"
+                                                        :disabled="!!item.id || isLocked"
+                                                        :error="form.errors[`materials.${index}.product_id`]"
+                                                        placeholder="Select Product"
+                                                        class="!text-[10px] w-full"
+                                                    />
+                                                    <Button
+                                                        v-if="!isLocked && form.status !== 3 && !item.id"
+                                                        icon="pi pi-trash" 
+                                                        text rounded severity="danger"
+                                                        class="!h-6 !w-6 !p-0 flex-shrink-0"
+                                                        @click="removeMaterial(index)"
+                                                    />
+                                                </div>
                                                 <BaseInput
-                                                    v-model="item.material_name"
-                                                    :disabled="!!item.id || isLocked"
-                                                    size="small"
+                                                    v-model="form.materials[index].material_name"
+                                                    disabled
+                                                    size="small" 
                                                     :fluid="true"
-                                                    placeholder="Label / Custom Name"
+                                                    placeholder="Label"
+                                                    class="mt-1"
                                                 />
-                                            </div>
-                                        </div>
-
-                                        <!-- Card Body: Data Rows -->
-                                        <div class="divide-y divide-slate-50">
-                                            <!-- Target Qty -->
-                                            <div class="px-3 py-2 bg-slate-50/30">
-                                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Target Qty (kg)</p>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Target Qty -->
+                                        <tr>
+                                            <td class="border-r border-b border-slate-300 px-3 py-2 font-bold bg-slate-50 text-slate-600 uppercase text-[10px]">Target Qty</td>
+                                            <td v-for="(item, index) in form.materials" :key="index" class="border-r border-b border-slate-300 px-2 py-1">
                                                 <BaseInputNumber
-                                                    v-model="item.target_qty"
+                                                    v-model="form.materials[index].target_qty"
                                                     :disabled="!!item.id || isLocked"
                                                     :minFractionDigits="3"
                                                     size="small"
                                                     :fluid="true"
                                                     :error="form.errors[`materials.${index}.target_qty`]"
+                                                    class="!text-[11px] !font-bold text-center"
                                                 />
-                                            </div>
-
-                                            <!-- Actual Qty -->
-                                            <div class="px-3 py-2">
-                                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Actual Qty (kg)</p>
+                                            </td>
+                                        </tr>
+                                        <!-- Target Summary -->
+                                        <tr class="bg-slate-100">
+                                            <td :colspan="form.materials.length" class="border-r border-b border-slate-300 px-3 py-2 font-bold text-right text-slate-600 uppercase text-[10px]">
+                                                Mass of Recipe Targets in kg :
+                                            </td>
+                                            <td class="border-b border-slate-300 px-3 py-2 font-black text-slate-800 text-sm text-center">
+                                                {{ form.materials.reduce((sum, m) => sum + Number(m.target_qty || 0), 0).toFixed(3) }}
+                                            </td>
+                                        </tr>
+                                        <!-- Actual Qty -->
+                                        <tr>
+                                            <td class="border-r border-b border-slate-300 px-3 py-2 font-bold bg-slate-50 text-slate-600 uppercase text-[10px]">Actual Qty</td>
+                                            <td v-for="(item, index) in form.materials" :key="index" class="border-r border-b border-slate-300 px-2 py-1">
                                                 <BaseInputNumber
-                                                    v-model="item.actual_qty"
+                                                    v-model="form.materials[index].actual_qty"
+                                                    :disabled="isLocked"
                                                     :minFractionDigits="3"
                                                     size="small"
                                                     :fluid="true"
-                                                    :disabled="isLocked"
                                                     :error="form.errors[`materials.${index}.actual_qty`]"
+                                                    class="!text-[11px] !font-bold text-center"
                                                 />
-                                            </div>
-
-                                            <!-- Deviation Badge -->
-                                            <div class="px-3 py-2 bg-slate-50/20 flex items-center justify-between">
-                                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Deviation</p>
-                                                <span
-                                                    class="text-xs font-black px-2 py-0.5 rounded-full"
-                                                    :class="item.deviation_quantity > 0
-                                                        ? 'bg-rose-50 text-rose-600 border border-rose-100'
-                                                        : item.deviation_quantity < 0
-                                                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                                                        : 'bg-slate-50 text-slate-400 border border-slate-100'"
-                                                >
-                                                    {{ item.deviation_quantity > 0 ? '+' : '' }}{{ item.deviation_quantity?.toFixed(3) }}
-                                                </span>
-                                            </div>
-
-                                            <!-- UOM -->
-                                            <div class="px-3 py-2">
-                                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Unit</p>
+                                            </td>
+                                        </tr>
+                                        <!-- Deviation -->
+                                        <tr>
+                                            <td class="border-r border-b border-slate-300 px-3 py-2 font-bold bg-slate-50 text-slate-600 uppercase text-[10px]">Deviation</td>
+                                            <td v-for="(item, index) in form.materials" :key="index" class="border-r border-b border-slate-300 px-3 py-2 font-bold text-center text-xs"
+                                                :class="item.deviation_quantity > 0 ? 'text-rose-600 bg-rose-50/50' : item.deviation_quantity < 0 ? 'text-emerald-600 bg-emerald-50/50' : 'text-slate-600'">
+                                                {{ item.deviation_quantity > 0 ? '+' : '' }}{{ item.deviation_quantity?.toFixed(3) }}
+                                            </td>
+                                        </tr>
+                                        <!-- Actual Summary -->
+                                        <tr class="bg-slate-100 border-t-2 border-slate-300">
+                                            <td :colspan="form.materials.length" class="border-r border-b border-slate-300 px-3 py-2 font-bold text-right text-slate-600 uppercase text-[10px]">
+                                                Mass of Total Set Weight in kg :
+                                            </td>
+                                            <td class="border-b border-slate-300 px-3 py-2 font-black text-slate-800 text-sm text-center">
+                                                {{ form.materials.reduce((sum, m) => sum + Number(m.actual_qty || 0), 0).toFixed(3) }}
+                                            </td>
+                                        </tr>
+                                        <!-- Unit -->
+                                        <!-- <tr>
+                                            <td class="border-r border-slate-300 px-3 py-2 font-bold bg-slate-50 text-slate-600 uppercase text-[10px]">Unit</td>
+                                            <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-300 px-2 py-1">
                                                 <BaseSelect
                                                     v-model="item.uom_id"
                                                     :options="uoms"
@@ -965,46 +981,10 @@ console.log('sdfcsdfsc', form);
                                                     :disabled="!!item.id || isLocked"
                                                     :error="form.errors[`materials.${index}.uom_id`]"
                                                 />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Summary Row: totals -->
-                            <div v-if="form.materials.length > 0" class="mt-4 grid grid-cols-3 gap-3">
-                                <div class="rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 text-center">
-                                    <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Total Target</p>
-                                    <p class="text-sm font-black text-slate-700 mt-0.5">
-                                        {{ form.materials.reduce((sum, m) => sum + Number(m.target_qty || 0), 0).toFixed(3) }} <span class="text-[10px] text-slate-400">kg</span>
-                                    </p>
-                                </div>
-                                <div class="rounded-xl bg-indigo-50 border border-indigo-100 px-4 py-3 text-center">
-                                    <p class="text-[9px] font-black uppercase tracking-widest text-indigo-400">Total Actual</p>
-                                    <p class="text-sm font-black text-indigo-700 mt-0.5">
-                                        {{ form.materials.reduce((sum, m) => sum + Number(m.actual_qty || 0), 0).toFixed(3) }} <span class="text-[10px] text-indigo-400">kg</span>
-                                    </p>
-                                </div>
-                                <div class="rounded-xl border px-4 py-3 text-center"
-                                    :class="form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) > 0
-                                        ? 'bg-rose-50 border-rose-100'
-                                        : form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) < 0
-                                        ? 'bg-emerald-50 border-emerald-100'
-                                        : 'bg-slate-50 border-slate-100'"
-                                >
-                                    <p class="text-[9px] font-black uppercase tracking-widest"
-                                        :class="form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) !== 0 ? 'text-rose-400' : 'text-slate-400'"
-                                    >Net Deviation</p>
-                                    <p class="text-sm font-black mt-0.5"
-                                        :class="form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) > 0
-                                            ? 'text-rose-600'
-                                            : form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) < 0
-                                            ? 'text-emerald-600'
-                                            : 'text-slate-400'"
-                                    >
-                                        {{ form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0) > 0 ? '+' : '' }}{{ form.materials.reduce((sum, m) => sum + Number(m.deviation_quantity || 0), 0).toFixed(3) }} <span class="text-[10px]">kg</span>
-                                    </p>
-                                </div>
+                                            </td>
+                                        </tr> -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
