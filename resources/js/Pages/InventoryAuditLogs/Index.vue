@@ -7,6 +7,7 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import Column from 'primevue/column';
+import Dialog from 'primevue/dialog';
 import {
     ClipboardDocumentListIcon,
     ClockIcon,
@@ -39,6 +40,97 @@ const props = defineProps<{
         date_to?: string;
     };
 }>();
+
+// ── Modal State & Details ─────────────────────────────────────────────────────
+const expandedRows = ref({});
+const selectedLog = ref<any>(null);
+const showDetailModal = ref(false);
+const activeTab = ref('visual');
+const showOnlyModified = ref(true);
+const searchFieldQuery = ref('');
+
+const openDetailModal = (log: any) => {
+    selectedLog.value = log;
+    showDetailModal.value = true;
+};
+
+const parsedLogFrom = computed(() => {
+    if (!selectedLog.value) return null;
+    try {
+        const val = selectedLog.value.log_from;
+        if (typeof val === 'string' && val.trim().startsWith('{')) {
+            return JSON.parse(val);
+        }
+        if (val && typeof val === 'object') {
+            return val;
+        }
+    } catch (e) {}
+    return null;
+});
+
+const parsedLogTo = computed(() => {
+    if (!selectedLog.value) return null;
+    try {
+        const val = selectedLog.value.log_to;
+        if (typeof val === 'string' && val.trim().startsWith('{')) {
+            return JSON.parse(val);
+        }
+        if (val && typeof val === 'object') {
+            return val;
+        }
+    } catch (e) {}
+    return null;
+});
+
+const allFieldsDiff = computed(() => {
+    const fromObj = parsedLogFrom.value || {};
+    const toObj = parsedLogTo.value || {};
+    const keys = Array.from(new Set([...Object.keys(fromObj), ...Object.keys(toObj)]));
+    
+    return keys.map(key => {
+        const fromVal = fromObj[key];
+        const toVal = toObj[key];
+        
+        const hasFrom = key in fromObj;
+        const hasTo = key in toObj;
+        
+        let changeType = 'unchanged';
+        if (hasFrom && !hasTo) {
+            changeType = 'removed';
+        } else if (!hasFrom && hasTo) {
+            changeType = 'added';
+        } else if (JSON.stringify(fromVal) !== JSON.stringify(toVal)) {
+            changeType = 'modified';
+        }
+        
+        return {
+            field: key,
+            from: fromVal,
+            to: toVal,
+            changeType,
+            isModified: changeType !== 'unchanged'
+        };
+    }).sort((a, b) => {
+        if (a.changeType !== 'unchanged' && b.changeType === 'unchanged') return -1;
+        if (a.changeType === 'unchanged' && b.changeType !== 'unchanged') return 1;
+        return a.field.localeCompare(b.field);
+    });
+});
+
+const filteredDiffFields = computed(() => {
+    return allFieldsDiff.value.filter(item => {
+        if (showOnlyModified.value && item.changeType === 'unchanged') {
+            return false;
+        }
+        if (searchFieldQuery.value.trim()) {
+            const q = searchFieldQuery.value.toLowerCase();
+            return item.field.toLowerCase().includes(q) || 
+                   String(item.from).toLowerCase().includes(q) || 
+                   String(item.to).toLowerCase().includes(q);
+        }
+        return true;
+    });
+});
 
 // ── Local Filter State ────────────────────────────────────────────────────────
 const filterForm = ref({
@@ -291,7 +383,7 @@ function getJsonDiff(fromVal: any, toVal: any): JsonDiffItem[] {
         }
     } catch (e) {}
     
-    const allKeys = new Set([...Object.keys(fromObj), ...Object.keys(toObj)]);
+    const allKeys = new Set([...Object.keys(fromObj || {}), ...Object.keys(toObj || {})]);
     const ignoreKeys = ['created_at', 'updated_at', 'deleted_at', 'id'];
     
     for (const key of allKeys) {
@@ -457,6 +549,7 @@ const hasActiveFilters = computed(() => {
 
             <!-- Table -->
             <BaseDataTable
+                v-model:expandedRows="expandedRows"
                 :value="logs.data"
                 :paginator="true"
                 :rows="logs.per_page"
@@ -469,7 +562,7 @@ const hasActiveFilters = computed(() => {
                 :striped-rows="true"
                 @page="handlePageChange"
             >
-                <!-- <Column  expander style="width: 3rem" /> -->
+                <!-- <Column expander style="width: 3rem" /> -->
 
                 <!-- When -->
                 <Column field="created_at" header="When" style="min-width:115px">
@@ -569,14 +662,29 @@ const hasActiveFilters = computed(() => {
                     </template>
                 </Column>
 
+                <!-- User -->
+                <Column field="user" header="Operator" style="min-width:110px">
+                    <template #body="{ data }">
+                        <div v-if="data.user" class="flex items-center gap-1.5">
+                            <div class="w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-[9px] font-black shrink-0">
+                                {{ data.user.name ? data.user.name[0].toUpperCase() : 'U' }}
+                            </div>
+                            <div class="flex flex-col leading-tight min-w-0">
+                                <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[80px]" :title="data.user.name">{{ data.user.name }}</span>
+                                <span class="text-[9px] text-slate-400 truncate max-w-[80px]" :title="data.user.email">{{ data.user.email }}</span>
+                            </div>
+                        </div>
+                        <span v-else class="text-xs text-slate-400 italic">System</span>
+                    </template>
+                </Column>
                 <!-- Remarks / Changes (The Main Highlight) -->
                 <Column field="remarks" header="Remarks / Activity Details" style="min-width:280px">
                     <template #body="{ data }">
                         <div v-if="data.remarks" class="flex flex-col gap-1 py-0.5">
                             <div v-if="parseRemarks(data.remarks).action !== 'Custom'" class="flex flex-wrap items-center gap-1">
                                 <span
-                                    class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border shrink-0"
-                                    :class="getActionBadgeClass(parseRemarks(data.remarks).action)"
+                                class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border shrink-0"
+                                :class="getActionBadgeClass(parseRemarks(data.remarks).action)"
                                 >
                                     {{ parseRemarks(data.remarks).action }}
                                 </span>
@@ -619,21 +727,21 @@ const hasActiveFilters = computed(() => {
                     </template>
                 </Column>
 
-                <!-- User -->
-                <Column field="user" header="Operator" style="min-width:110px">
+
+                <!-- Actions
+                <Column header="Actions" style="width: 80px; text-align: center">
                     <template #body="{ data }">
-                        <div v-if="data.user" class="flex items-center gap-1.5">
-                            <div class="w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-[9px] font-black shrink-0">
-                                {{ data.user.name ? data.user.name[0].toUpperCase() : 'U' }}
-                            </div>
-                            <div class="flex flex-col leading-tight min-w-0">
-                                <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[80px]" :title="data.user.name">{{ data.user.name }}</span>
-                                <span class="text-[9px] text-slate-400 truncate max-w-[80px]" :title="data.user.email">{{ data.user.email }}</span>
-                            </div>
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button
+                                @click.stop="openDetailModal(data)"
+                                class="p-1.5 rounded-lg bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-500 hover:text-indigo-600 dark:bg-slate-800 dark:hover:bg-indigo-950/40 dark:border-slate-700 dark:hover:border-indigo-900 dark:text-slate-400 dark:hover:text-indigo-400 transition-all shadow-sm"
+                                title="Inspect Details"
+                            >
+                                <EyeIcon class="w-4 h-4" />
+                            </button>
                         </div>
-                        <span v-else class="text-xs text-slate-400 italic">System</span>
                     </template>
-                </Column>
+                </Column> -->
 
                 <!-- Expansion panel -->
                 <template #expansion="{ data }">
@@ -756,5 +864,317 @@ const hasActiveFilters = computed(() => {
                 </template>
             </BaseDataTable>
         </div>
+
+        <!-- Detailed View Modal -->
+        <Dialog 
+            v-model:visible="showDetailModal" 
+            modal 
+            :header="'Audit Log Details #' + (selectedLog?.id || '')" 
+            :style="{ width: '80vw', maxWidth: '1000px' }"
+            class="premium-dialog"
+            :pt="{
+                root: { class: 'border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 shadow-2xl' },
+                header: { class: 'p-6 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between' },
+                title: { class: 'text-base font-black text-slate-900 dark:text-slate-100 tracking-tight' },
+                content: { class: 'p-6 overflow-y-auto max-h-[75vh]' },
+                closeButton: { class: 'p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all' }
+            }"
+        >
+            <div v-if="selectedLog" class="space-y-6">
+                <!-- Top strip: Badge + Time + User -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Transaction details -->
+                    <div class="bg-slate-50 dark:bg-slate-950/20 p-4 rounded-xl border border-slate-150 dark:border-slate-800">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Transaction type</p>
+                        <span 
+                            class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-black uppercase tracking-wider"
+                            :class="badgeClass(selectedLog.transaction_type)"
+                        >
+                            {{ selectedLog.transaction_type }}
+                        </span>
+                    </div>
+
+                    <!-- Timestamp -->
+                    <div class="bg-slate-50 dark:bg-slate-950/20 p-4 rounded-xl border border-slate-150 dark:border-slate-800">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Logged timestamp</p>
+                        <span class="text-sm font-bold text-slate-800 dark:text-slate-200">{{ formatDate(selectedLog.created_at) }}</span>
+                    </div>
+
+                    <!-- Operator -->
+                    <div class="bg-slate-50 dark:bg-slate-950/20 p-4 rounded-xl border border-slate-150 dark:border-slate-800">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Responsible actor</p>
+                        <div v-if="selectedLog.user" class="flex items-center gap-2">
+                            <div class="w-5 h-5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-650 dark:text-indigo-400 text-[9px] font-black">
+                                {{ selectedLog.user.name[0].toUpperCase() }}
+                            </div>
+                            <span class="text-xs font-bold text-slate-850 dark:text-slate-200">{{ selectedLog.user.name }}</span>
+                        </div>
+                        <span v-else class="text-xs text-slate-400 font-bold italic">System</span>
+                    </div>
+                </div>
+
+                <!-- Shift summary / deltas -->
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 mb-4">
+                        {{ isNumericValue(selectedLog.log_from) && isNumericValue(selectedLog.log_to) ? 'Quantity Delta' : 'Payload Transitions' }}
+                    </p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                        <template v-if="isNumericValue(selectedLog.log_from) && isNumericValue(selectedLog.log_to)">
+                            <div class="bg-slate-50/50 dark:bg-slate-950/10 p-4 rounded-xl text-center border border-slate-100 dark:border-slate-800">
+                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Starting Level</p>
+                                <p class="text-xl font-black text-slate-600 dark:text-slate-450">{{ parseFloat(selectedLog.log_from).toFixed(4) }}</p>
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Delta</span>
+                                <div 
+                                    class="px-3 py-1 rounded-lg text-xs font-bold border"
+                                    :class="[
+                                        getChange(selectedLog.log_from, selectedLog.log_to).isNeutral 
+                                            ? 'bg-slate-150 text-slate-650 border-slate-250 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' 
+                                            : (getChange(selectedLog.log_from, selectedLog.log_to).isPositive 
+                                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900' 
+                                                : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-955/20 dark:text-rose-450 dark:border-rose-900')
+                                    ]"
+                                >
+                                    {{ getChange(selectedLog.log_from, selectedLog.log_to).formatted }}
+                                </div>
+                            </div>
+                            <div class="bg-indigo-50/20 dark:bg-indigo-950/10 p-4 rounded-xl text-center border border-indigo-100/20 dark:border-slate-800">
+                                <p class="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-0.5">Ending Level</p>
+                                <p class="text-2xl font-black text-indigo-600 dark:text-indigo-300">{{ parseFloat(selectedLog.log_to).toFixed(4) }}</p>
+                            </div>
+                        </template>
+                        <template v-else>
+                            <div class="bg-slate-50/50 dark:bg-slate-950/10 p-4 rounded-xl text-center border border-slate-100 dark:border-slate-800">
+                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Pre-Save Payload</p>
+                                <p class="text-xs font-mono text-slate-500">Fields logged: {{ countJSONFields(selectedLog.log_from) }}</p>
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Changes</span>
+                                <div class="px-3 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-955/20 dark:text-indigo-400 dark:border-indigo-900">
+                                    {{ allFieldsDiff.filter(item => item.isModified).length }} fields changed
+                                </div>
+                            </div>
+                            <div class="bg-indigo-50/20 dark:bg-indigo-950/10 p-4 rounded-xl text-center border border-indigo-100/20 dark:border-slate-800">
+                                <p class="text-[9px] font-black uppercase tracking-widest text-indigo-400 mb-0.5">Post-Save Payload</p>
+                                <p class="text-xs font-mono text-indigo-600 dark:text-indigo-400">Fields logged: {{ countJSONFields(selectedLog.log_to) }}</p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Structured Changes & Tabs -->
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
+                    <div class="flex items-center justify-between border-b border-slate-150 dark:border-slate-800 pb-3 mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Activity Log & Payload Changes</span>
+                        </div>
+                        <div v-if="parsedLogFrom || parsedLogTo" class="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg">
+                            <button
+                                @click="activeTab = 'visual'"
+                                class="px-3 py-1 text-xs font-bold rounded-md transition-all"
+                                :class="activeTab === 'visual' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-350'"
+                            >
+                                Visual Diff
+                            </button>
+                            <button
+                                @click="activeTab = 'raw'"
+                                class="px-3 py-1 text-xs font-bold rounded-md transition-all"
+                                :class="activeTab === 'raw' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-355'"
+                            >
+                                Raw JSON
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Remarks section inside modal -->
+                    <div v-if="selectedLog.remarks" class="mb-4">
+                        <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">Remarks / Explanation</p>
+                        <div class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-semibold italic bg-slate-50 dark:bg-slate-950/30 border-l-4 border-indigo-500 p-3 rounded-r-xl">
+                            "{{ selectedLog.remarks }}"
+                        </div>
+                    </div>
+
+                    <div v-if="parsedLogFrom || parsedLogTo">
+                        <!-- Visual Diff Tab -->
+                        <div v-if="activeTab === 'visual'" class="space-y-3">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+                                <input
+                                    v-model="searchFieldQuery"
+                                    type="text"
+                                    placeholder="Filter fields..."
+                                    class="px-2.5 py-1 text-xs bg-slate-50 dark:bg-slate-955/40 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-700 dark:text-slate-300 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-full sm:max-w-xs"
+                                />
+                                <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                    <input
+                                        v-model="showOnlyModified"
+                                        type="checkbox"
+                                        class="rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500 h-3 w-3"
+                                    />
+                                    <span class="text-xs font-bold text-slate-500 dark:text-slate-400">Modified only</span>
+                                </label>
+                            </div>
+
+                            <div class="overflow-hidden rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/10 dark:bg-slate-950/10">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-50 dark:bg-slate-900 border-b border-slate-150 dark:border-slate-800">
+                                            <th class="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-wider">Field</th>
+                                            <th class="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-wider">Original</th>
+                                            <th class="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-wider"></th>
+                                            <th class="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-wider">Updated</th>
+                                            <th class="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-wider text-right">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                        <tr 
+                                            v-for="(item, idx) in filteredDiffFields" 
+                                            :key="idx"
+                                            class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors"
+                                        >
+                                            <td class="px-3 py-2 text-xs font-bold text-slate-750 dark:text-slate-300 capitalize font-mono">{{ formatFieldLabel(item.field) }}</td>
+                                            <td class="px-3 py-2 text-xs text-rose-650 dark:text-rose-455 font-medium">
+                                                <span 
+                                                    v-if="item.changeType !== 'added' && item.from !== null && item.from !== undefined"
+                                                    :class="item.isModified ? 'line-through decoration-rose-300/40 bg-rose-50/30 dark:bg-rose-950/15 px-2 py-0.5 rounded border border-rose-100/50 dark:border-rose-950/20 font-mono' : 'font-mono text-slate-400'"
+                                                >
+                                                    {{ item.from === '' ? '[empty]' : item.from }}
+                                                </span>
+                                                <span v-else class="text-slate-400 italic font-mono">-</span>
+                                            </td>
+                                            <td class="px-1 py-2 text-xs text-slate-400 text-center font-bold">
+                                                <span v-if="item.isModified">→</span>
+                                            </td>
+                                            <td class="px-3 py-2 text-xs text-emerald-650 dark:text-emerald-400 font-bold">
+                                                <span 
+                                                    v-if="item.changeType !== 'removed' && item.to !== null && item.to !== undefined"
+                                                    :class="item.isModified ? 'bg-emerald-50/30 dark:bg-emerald-950/15 px-2 py-0.5 rounded border border-emerald-100/50 dark:border-emerald-950/20 font-mono' : 'font-mono text-slate-700 dark:text-slate-300 font-medium'"
+                                                >
+                                                    {{ item.to === '' ? '[empty]' : item.to }}
+                                                </span>
+                                                <span v-else class="text-slate-400 italic font-mono">-</span>
+                                            </td>
+                                            <td class="px-3 py-2 text-right">
+                                                <span 
+                                                    class="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border"
+                                                    :class="[
+                                                        item.changeType === 'modified' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-955/20 dark:text-amber-400 dark:border-amber-900' :
+                                                        item.changeType === 'added' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-955/20 dark:text-emerald-400 dark:border-emerald-900' :
+                                                        item.changeType === 'removed' ? 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-955/20 dark:text-rose-400 dark:border-rose-900' :
+                                                        'bg-slate-50 text-slate-450 border-slate-200 dark:bg-slate-800 dark:text-slate-450 dark:border-slate-700'
+                                                    ]"
+                                                >
+                                                    {{ item.changeType }}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        <tr v-if="filteredDiffFields.length === 0">
+                                            <td colspan="5" class="px-3 py-6 text-center text-xs text-slate-400 italic">No matching changes found.</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Raw JSON Tab -->
+                        <div v-else-if="activeTab === 'raw'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5">Pre-Save State (Raw JSON)</p>
+                                <pre class="bg-slate-950 text-slate-100 text-xs p-3 rounded-xl max-h-80 overflow-auto font-mono border border-slate-850 shadow-inner">{{ JSON.stringify(parsedLogFrom || {}, null, 2) }}</pre>
+                            </div>
+                            <div>
+                                <p class="text-[9px] font-black uppercase tracking-widest text-indigo-405 mb-1.5">Post-Save State (Raw JSON)</p>
+                                <pre class="bg-slate-950 text-slate-100 text-xs p-3 rounded-xl max-h-80 overflow-auto font-mono border border-slate-850 shadow-inner">{{ JSON.stringify(parsedLogTo || {}, null, 2) }}</pre>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Fallback to parsed remarks table if JSON payload is empty but we have structured remarks changes -->
+                    <div v-else-if="parseRemarks(selectedLog.remarks).changes.length > 0">
+                        <div class="overflow-hidden rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/10 dark:bg-slate-955/10">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 dark:bg-slate-900 border-b border-slate-150 dark:border-slate-800">
+                                        <th class="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-wider">Field</th>
+                                        <th class="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-wider">Original Value</th>
+                                        <th class="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-wider"></th>
+                                        <th class="px-3 py-2 text-[9px] font-black text-slate-400 uppercase tracking-wider">Updated Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                    <tr 
+                                        v-for="(change, idx) in parseRemarks(selectedLog.remarks).changes" 
+                                        :key="idx"
+                                        class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors"
+                                    >
+                                        <td class="px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-350 capitalize font-mono">{{ formatFieldLabel(change.field) }}</td>
+                                        <td class="px-3 py-2 text-xs text-rose-650 dark:text-rose-455 font-medium">
+                                            <span v-if="change.oldVal !== undefined" class="line-through decoration-rose-300/40 bg-rose-50/30 dark:bg-rose-955/15 px-2 py-0.5 rounded border border-rose-100/50 dark:border-rose-950/20 font-mono">{{ change.oldVal }}</span>
+                                            <span v-else class="text-slate-400 italic font-mono">-</span>
+                                        </td>
+                                        <td class="px-1 py-2 text-xs text-slate-400 text-center font-bold">
+                                            <span v-if="change.oldVal !== undefined && change.newVal !== undefined">→</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-xs text-emerald-655 dark:text-emerald-450 font-bold">
+                                            <span v-if="change.newVal !== undefined" class="bg-emerald-50/30 dark:bg-emerald-955/15 px-2 py-0.5 rounded border border-emerald-100/50 dark:border-emerald-950/20 font-mono">{{ change.newVal }}</span>
+                                            <span v-else class="text-slate-400 italic font-mono">-</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div v-else class="text-xs text-slate-400 italic py-4 text-center">
+                        No payload changes or structured activity details available.
+                    </div>
+                </div>
+
+                <!-- Linked entity information -->
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
+                    <p class="text-[10px] font-black uppercase tracking-widest text-indigo-650 dark:text-indigo-405 mb-2">Polymorphic Database Target</p>
+                    <div v-if="selectedLog.reference_type" class="flex flex-wrap items-center justify-between gap-4 bg-slate-50 dark:bg-slate-950/20 p-3.5 rounded-xl border border-slate-150 dark:border-slate-800">
+                        <div>
+                            <span class="text-xs font-black uppercase tracking-widest text-slate-400 mr-2">Target Entity:</span>
+                            <span class="font-mono text-sm font-black text-slate-800 dark:text-slate-205 mr-4">{{ selectedLog.reference_type }}</span>
+                            <span class="text-xs font-black uppercase tracking-widest text-slate-400 mr-2">Record ID:</span>
+                            <span class="font-mono text-sm font-black text-indigo-600 dark:text-indigo-405">#{{ selectedLog.reference_id }}</span>
+                        </div>
+                    </div>
+                    <div v-else class="text-xs text-slate-400 italic py-2">
+                        No morphable database target is linked to this inventory audit entry.
+                    </div>
+                </div>
+            </div>
+            
+            <template #footer>
+                <div class="flex items-center justify-between w-full border-t border-slate-100 dark:border-slate-800 pt-4 mt-6">
+                    <!-- Network Meta info (IP) -->
+                    <div v-if="selectedLog" class="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 dark:text-slate-550">
+                        <GlobeAltIcon class="w-3.5 h-3.5" />
+                        IP Origin: {{ selectedLog.ip_address || '127.0.0.1' }}
+                        <span class="mx-2">•</span>
+                        Plant Scope: {{ selectedLog.plant ? selectedLog.plant.name : 'Global' }}
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button 
+                            @click="showDetailModal = false"
+                            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl transition-all shadow-sm"
+                        >
+                            Close
+                        </button>
+                        <button 
+                            v-if="selectedLog"
+                            @click="router.visit(route('inventory-audit-logs.show', selectedLog.id))"
+                            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-1.5"
+                        >
+                            <EyeIcon class="w-4 h-4" />
+                            Open Dedicated Analysis Page
+                        </button>
+                    </div>
+                </div>
+            </template>
+        </Dialog>
     </AppLayout>
 </template>
+

@@ -176,7 +176,11 @@ Route::middleware([
         Route::get('quotations/{quotation}/report', [\App\Http\Controllers\QuotationController::class, 'report'])->name('quotations.report');
         Route::patch('quotations/{quotation}/convert', [\App\Http\Controllers\QuotationController::class, 'updateConversionStatus'])->name('quotations.convert');
         Route::post('quotations/{quotation}/send-email', [\App\Http\Controllers\QuotationController::class, 'sendEmail'])->name('quotations.send-email');
+        Route::get('salesorders', [\App\Http\Controllers\SalesOrderController::class, 'index'])->name('salesorders.index');
         Route::post('salesorders', [\App\Http\Controllers\SalesOrderController::class, 'store'])->name('salesorders.store');
+        Route::delete('salesorders/{salesOrder}', [\App\Http\Controllers\SalesOrderController::class, 'destroy'])->name('salesorders.destroy');
+        Route::put('salesorders/{salesOrder}', [\App\Http\Controllers\SalesOrderController::class, 'update'])->name('salesorders.update');
+        Route::post('salesorders/{salesOrder}/convert-workorder', [\App\Http\Controllers\SalesOrderController::class, 'convertToWorkOrder'])->name('salesorders.convert-workorder');
         Route::post('salesorders/{salesOrder}/dispatches', [\App\Http\Controllers\DispatchController::class, 'storeForSalesOrder'])->name('salesorders.dispatches.store');
         Route::resource('workorders', \App\Http\Controllers\WorkOrderController::class);
         Route::resource('batches', \App\Http\Controllers\BatchController::class);

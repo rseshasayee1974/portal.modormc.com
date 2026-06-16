@@ -39,6 +39,7 @@ class StoreWorkOrderRequest extends FormRequest
             'status' => ['nullable', 'integer', 'in:1,2,3,4'],
             'scheduled_start' => ['nullable', 'date'],
             'scheduled_end' => ['nullable', 'date', 'after_or_equal:scheduled_start'],
+            'sales_order_id' => ['nullable', 'integer', 'exists:mm_sales_orders,id'],
         ];
     }
 }

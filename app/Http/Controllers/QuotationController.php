@@ -98,6 +98,29 @@ class QuotationController extends Controller
 
         $quotation->update($validated);
 
+        $isSalesOrder = (int) $validated['is_salesorder'];
+        if ($isSalesOrder === 1) {
+            $user = auth()->user();
+            $roleName = $user->roles->pluck('name')->first() ?? 'N/A';
+            $departmentName = $user->personnel?->department?->name ?? 'N/A';
+
+            \App\Models\SalesOrder::updateOrCreate(
+                ['quotation_id' => $quotation->id],
+                [
+                    'plant_id' => $quotation->plant_id,
+                    'patron_id' => $quotation->patron_id,
+                    'site_id' => $quotation->site_id,
+                    'order_date' => now()->toDateString(),
+                    'status' => \App\Models\SalesOrder::STATUS_CONFIRMED,
+                    'converted_by_user_id' => $user->id,
+                    'converted_by_role' => $roleName,
+                    'converted_by_department' => $departmentName,
+                ]
+            );
+        } else {
+            \App\Models\SalesOrder::where('quotation_id', $quotation->id)->delete();
+        }
+
         return redirect()->back()->with('success', 'Sales Order conversion status updated.');
     }
 

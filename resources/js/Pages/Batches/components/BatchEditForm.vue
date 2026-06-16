@@ -854,7 +854,7 @@ console.log('sdfcsdfsc', form);
                         </div>
 
                         <!-- Materials: Card-per-Material Layout (Batch Report Style) -->
-                        <div class="px-5 pb-5">
+                        <div class="px-2 pb-2">
                             <!-- Empty State -->
                             <div v-if="form.materials.length === 0" class="rounded-xl border-2 border-dashed border-slate-200 py-10 text-center">
                                 <svg class="mx-auto mb-2 h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
@@ -863,7 +863,7 @@ console.log('sdfcsdfsc', form);
                             </div>
 
                             <!-- Cards Grid: one card per material, horizontal scroll -->
-                            <div v-else class="overflow-x-auto pb-2">
+                            <div v-else class="overflow-x-auto p-2">
                                 <div class="flex gap-3 min-w-max">
                                     <div
                                         v-for="(item, index) in form.materials"

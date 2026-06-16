@@ -99,6 +99,10 @@ class BatchController extends Controller
             ->withCount('batches')
             ->where('plant_id', $activePlantId)
             ->whereIn('status', [WorkOrder::STATUS_IN_PROGRESS])
+             ->where(function ($query) {
+        $query->whereNull('scheduled_end')
+              ->orWhere('scheduled_end', '>', now());              // to display the workorders which are active as per scheduled end date
+    })
             ->orderBy('order_no')
             ->get();
 

@@ -23,6 +23,11 @@ class WorkOrderIndexDataFactory
             'customers' => $activePlantId ? PatronsDropdown(['Customer'])->toArray() : [],
             'sites' => $activePlantId ? SitesDropdown('Unloading')->toArray() : [],
             'mixDesigns' => $activePlantId ? $this->loadMixDesigns($activePlantId, $schema)->toArray() : [],
+            'salesOrders' => $activePlantId ? \App\Models\SalesOrder::with(['patron:id,legal_name', 'site:id,name', 'quotation.items.mixDesign'])
+                ->where('plant_id', $activePlantId)
+                ->latest()
+                ->get()
+                ->toArray() : [],
             'statuses' => WorkOrder::statusOptions(),
             'activePlantId' => $activePlantId,
             'nextReference' => $activePlantId ? WorkOrder::generateOrderNo($activePlantId, 'WO')['full_number'] : null,

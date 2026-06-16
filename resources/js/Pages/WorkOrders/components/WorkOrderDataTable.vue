@@ -16,12 +16,14 @@ const props = withDefaults(defineProps<{
     customers?: any[];
     sites?: any[];
     mixDesigns?: any[];
+    salesOrders?: any[];
     statuses?: { label: string; value: number }[];
 }>(), {
     workOrders: () => [],
     customers: () => [],
     sites: () => [],
     mixDesigns: () => [],
+    salesOrders: () => [],
     statuses: () => [],
 });
 
@@ -160,6 +162,7 @@ const onSaved = () => {
                         :customers="customers"
                         :sites="sites"
                         :mixDesigns="mixDesigns"
+                        :salesOrders="salesOrders"
                         :statuses="statuses"
                         @saved="onSaved"
                         @cancel="expandedRows = {}"

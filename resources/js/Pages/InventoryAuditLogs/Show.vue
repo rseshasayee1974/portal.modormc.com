@@ -587,8 +587,43 @@ function formatFieldLabel(field: string): string {
                                 </div>
                             </div>
                         </div>
-                        <div v-else-if="!log.remarks" class="text-xs text-slate-400 italic py-2">
-                            No structured JSON transitions available for this log entry.
+                        <!-- Fallback to parsed remarks table if JSON payload is empty but we have structured remarks changes -->
+                        <div v-else-if="parseRemarks(log.remarks).changes.length > 0">
+                            <div class="overflow-hidden rounded-xl border border-slate-150 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-900/10">
+                                <table class="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr class="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
+                                            <th class="px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-wider">Field</th>
+                                            <th class="px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-wider">Original Value</th>
+                                            <th class="px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-wider"></th>
+                                            <th class="px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-wider">Updated Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                        <tr 
+                                            v-for="(change, idx) in parseRemarks(log.remarks).changes" 
+                                            :key="idx"
+                                            class="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors"
+                                        >
+                                            <td class="px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-350 capitalize font-mono">{{ formatFieldLabel(change.field) }}</td>
+                                            <td class="px-4 py-3 text-xs text-rose-650 dark:text-rose-455 font-medium">
+                                                <span v-if="change.oldVal !== undefined" class="line-through decoration-rose-300/40 bg-rose-50/50 dark:bg-rose-955/10 px-2.5 py-1 rounded border border-rose-100/50 dark:border-rose-950/20 font-mono">{{ change.oldVal }}</span>
+                                                <span v-else class="text-slate-400 italic font-mono">-</span>
+                                            </td>
+                                            <td class="px-2 py-3 text-xs text-slate-400 text-center font-bold">
+                                                <span v-if="change.oldVal !== undefined && change.newVal !== undefined">→</span>
+                                            </td>
+                                            <td class="px-4 py-3 text-xs text-emerald-650 dark:text-emerald-455 font-bold">
+                                                <span v-if="change.newVal !== undefined" class="bg-emerald-50/50 dark:bg-emerald-955/10 px-2.5 py-1 rounded border border-emerald-100/50 dark:border-emerald-950/20 font-mono">{{ change.newVal }}</span>
+                                                <span v-else class="text-slate-400 italic font-mono">-</span>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div v-else class="text-xs text-slate-400 italic py-2">
+                            No structured JSON transitions or detailed remark adjustments available for this log entry.
                         </div>
                     </div>
 
