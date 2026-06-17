@@ -68,9 +68,11 @@ const dateTo = ref<any>(null);
 
 
 
-const expandedRows = ref({});
-const detailedBatches = ref<Record<number, any>>({});
-const isLoadingBatch = ref<Record<number, boolean>>({});
+const expandedRows     = ref<Record<number, boolean>>({});
+// Our own tracking ref — independent of PrimeVue's internal expandedRows mutations
+const expandedBatchId  = ref<number | null>(null);
+const detailedBatches  = ref<Record<number, any>>({});
+const isLoadingBatch   = ref<Record<number, boolean>>({});
 
 // Fallback REST polling via Inertia reload
 const fetchBatchesFallback = () => {
@@ -144,40 +146,54 @@ const entriesOptions = [
     { label: '100', value: 100 },
 ];
 
+/**
+ * Always fetches fresh data from batches.show so the edit form always
+ * has up-to-date materials, dispatch info, and workOrder relationships.
+ */
 const fetchBatchDetails = async (id: number) => {
-    console.log(detailedBatches.value[id],'dasd');
-    if (!detailedBatches.value[id]) {
-        isLoadingBatch.value[id] = true;
-        try {
-            const response = await axios.get(route('batches.show', id));
-            detailedBatches.value[id] = response.data;
-        } catch (e) {
-            console.error('Failed to fetch batch details:', e);
-        } finally {
-            isLoadingBatch.value[id] = false;
-        }
+    isLoadingBatch.value[id] = true;
+    try {
+        const response = await axios.get(route('batches.show', id));
+        detailedBatches.value[id] = response.data;
+    } catch (e) {
+        console.error('Failed to fetch batch details:', e);
+    } finally {
+        isLoadingBatch.value[id] = false;
     }
 };
 
+/**
+ * Toggle expand: uses our own expandedBatchId ref so we are never
+ * affected by PrimeVue mutating the expandedRows object internally.
+ */
 const toggleExpand = async (data: any) => {
-    console.log(expandedRows.value[data.id],'dasd');
-    if (expandedRows.value[data.id]) {
-        expandedRows.value = {};
+    const id = Number(data.id);
+
+    if (expandedBatchId.value === id) {
+        // Collapse
+        expandedBatchId.value = null;
+        expandedRows.value     = {};
     } else {
-        expandedRows.value = { [data.id]: true };
-        await fetchBatchDetails(data.id);
+        // Expand (close any previously open row first)
+        expandedBatchId.value = id;
+        expandedRows.value    = { [id]: true };
+        await fetchBatchDetails(id);
     }
 };
 
+// Fired by PrimeVue's own row expander (not our custom button) — keep in sync
 const onRowExpand = async (event: any) => {
-    await fetchBatchDetails(event.data.id);
+    const id = Number(event.data.id);
+    expandedBatchId.value = id;
+    await fetchBatchDetails(id);
 };
 
 const collapseExpandedRows = (batchId?: number) => {
     if (batchId) {
         delete detailedBatches.value[batchId];
     }
-    expandedRows.value = {};
+    expandedBatchId.value = null;
+    expandedRows.value    = {};
 };
 
 // ── Batch Actions ───────────────────────────────────────────────────────

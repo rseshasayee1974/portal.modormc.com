@@ -457,7 +457,6 @@ class BatchController extends Controller
         $batch->materials->each(function ($material) {
             $material->product?->makeHidden(['can_delete', 'can_update', 'is_in_use']);
         });
-        dd($batch);
         return response()->json($batch);
     }
 
