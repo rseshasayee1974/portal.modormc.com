@@ -122,7 +122,7 @@ const handleShow = () => {
 }
 
 .is-dark :deep(.p-select.p-disabled .p-select-label) {
-    color: #475569 !important;
+    color: #000000 !important;
 }
 
 .is-dark :deep(.p-select.p-disabled .p-select-placeholder) {

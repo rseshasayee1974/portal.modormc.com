@@ -24,7 +24,8 @@ const props = withDefaults(defineProps<{
     workOrders?: any[];
     trucks?: any[];
     transporters?: any[];
-    personnel?: any[];
+    sales_executives?: any[];
+    drivers?: any[];
     loading_sites?: any[];
     unloading_sites?: any[];
     products?: any[];
@@ -36,7 +37,8 @@ const props = withDefaults(defineProps<{
     workOrders: () => [],
     trucks: () => [],
     transporters: () => [],
-    personnel: () => [],
+    sales_executives: () => [],
+    drivers: () => [],
     products: () => [],
     uoms: () => [],
     taxes: () => [],
@@ -82,6 +84,40 @@ const removeMaterial = (index: number) => {
 };
 
 const customSettings = page.props.custom_settings as any;
+
+const isTimeManuallySet = ref(false);
+const updatingProgrammatically = ref(false);
+let liveTimerInterval: any = null;
+
+const startLiveTimer = () => {
+    liveTimerInterval = setInterval(() => {
+        if (!isTimeManuallySet.value) {
+            updatingProgrammatically.value = true;
+            form.empty_time = new Date();
+            updatingProgrammatically.value = false;
+        }
+    }, 1000);
+};
+
+onMounted(() => {
+    startLiveTimer();
+});
+
+onUnmounted(() => {
+    if (liveTimerInterval) {
+        clearInterval(liveTimerInterval);
+    }
+});
+
+watch(() => form.empty_time, (newVal) => {
+    if (!updatingProgrammatically.value) {
+        isTimeManuallySet.value = true;
+        if (liveTimerInterval) {
+            clearInterval(liveTimerInterval);
+            liveTimerInterval = null;
+        }
+    }
+});
 
 const isMetricTon = computed(() => {
     return customSettings?.batching?.InvoiceInMetricTon == 1;
@@ -294,6 +330,10 @@ const submit = () => {
         });
 
         form.reset();
+        isTimeManuallySet.value = false;
+        if (!liveTimerInterval) {
+            startLiveTimer();
+        }
         form.start_time = new Date();
         form.clearErrors();
         form.status = 1;
@@ -323,6 +363,10 @@ const submit = () => {
                 showConfirmButton: false,
             });
             form.reset();
+            isTimeManuallySet.value = false;
+            if (!liveTimerInterval) {
+                startLiveTimer();
+            }
             form.start_time = new Date();
             form.clearErrors();
             form.status = 1;
@@ -418,10 +462,10 @@ const submit = () => {
                                 <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear />
                             </div>
                             <div class="col-span-12 md:col-span-3">
-                                <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver" showClear />
+                                <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label" optionValue="id" filter label="Driver" showClear />
                             </div>
                             <div class="col-span-12 md:col-span-3">
-                                <BaseSelect v-model="form.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear />
+                                <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear />
                             </div>
                             <div class="col-span-12 md:col-span-3">
                                 <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :minFractionDigits="1" :maxFractionDigits="1" :max="9.9" required :error="form.errors.batch_size" />

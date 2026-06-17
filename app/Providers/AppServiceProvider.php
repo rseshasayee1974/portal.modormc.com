@@ -113,10 +113,6 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-        Event::subscribe(ModelAuditSubscriber::class);
-
-        \Illuminate\Database\Eloquent\Relations\Relation::morphMap([
-            'Invoice' => \App\Models\Invoice::class,
-        ]);
+        Event::subscribe(ModelAuditSubscriber::class);      
     }
 }

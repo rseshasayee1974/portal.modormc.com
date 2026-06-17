@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Http\Requests\DispatchStoreRequest;
 use App\Models\Dispatch;
+use App\Models\Batch;
 use App\Models\DispatchPayment;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -203,14 +204,13 @@ Log::info($dispatch);
             'ledger_id' => 'required|exists:mm_ledgers,id',
             'invoice_date' => 'required|date',
         ]);
-
         return DB::transaction(function () use ($dispatch, $validated) {
-            $invoice = \App\Http\Controllers\InvoiceController::createFromSource($dispatch, 'sales', [
+            $invoice = \App\Models\Invoice::createFromSource($dispatch, 'sales', [
                 'account_id' => $validated['ledger_id'],
                 'invoice_date' => $validated['invoice_date'],
                 'partner_id' => $dispatch->customer_id,
                 'plant_id' => $dispatch->plant_id,
-                'invoice_label' => 'Batching'
+                'invoice_label' => 'Dispatch'
             ]);
             $dispatch->update([
                 'dispatch_status' => 'invoiced',

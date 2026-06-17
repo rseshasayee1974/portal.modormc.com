@@ -82,7 +82,6 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
-const editingId = ref<number | null>(null);
 const searchQuery = ref('');
 const activeTabCreate = ref('details');
 const activeTabEdit = ref('details');
@@ -127,71 +126,6 @@ const getInitialForm = () => ({
 });
 
 const createForm = useForm(getInitialForm());
-const editForm = useForm(getInitialForm());
-
-const resetEditForm = () => {
-    editingId.value = null;
-    expandedRows.value = {};
-    editForm.reset();
-    editForm.clearErrors();
-    activeTabEdit.value = 'details';
-};
-
-const parseDate = (val: any): Date | null => {
-    if (!val) return null;
-    const clean = typeof val === 'string' ? val.split('T')[0] : val;
-    const d = new Date(clean);
-    return isNaN(d.getTime()) ? null : d;
-};
-
-const formatDateStr = (val: any): string | null => {
-    if (!val) return null;
-    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
-    const d = val instanceof Date ? val : new Date(String(val).split('T')[0]);
-    if (isNaN(d.getTime())) return null;
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-};
-
-const editPersonnel = (p: Personnel) => {
-    editingId.value = p.id;
-    editForm.employee_code = p.employee_code;
-    editForm.first_name = p.first_name;
-    editForm.last_name = p.last_name || '';
-    editForm.email = p.email || '';
-    editForm.mobile = p.mobile || '';
-    editForm.department_id = p.department_id;
-    editForm.designation_id = p.designation_id;
-    editForm.reporting_manager_id = p.reporting_manager_id;
-    editForm.employment_type = p.employment_type;
-    editForm.gender = p.gender;
-    editForm.status = p.status;
-    editForm.date_of_birth = parseDate(p.date_of_birth);
-    editForm.joining_date = parseDate(p.joining_date);
-    editForm.exit_date = parseDate(p.exit_date);
-    editForm.pan = p.pan || '';
-    editForm.aadhaar = p.aadhaar || '';
-    editForm.uan = p.uan || '';
-    editForm.esi_number = p.esi_number || '';
-    editForm.bank_account_no = p.bank_account_no || '';
-    editForm.bank_ifsc = p.bank_ifsc || '';
-    editForm.bank_name = p.bank_name || '';
-    editForm.contacts = (p.contacts || []).map((c: any) => ({
-        ...c,
-        is_primary: c.is_primary === true || c.is_primary === 1 || c.is_primary === '1',
-    }));
-    editForm.patron_ids = p.patrons.map(patron => patron.id);
-    editForm.salary_structures = (p.salary_structures || []).map((s: any) => ({
-        id: s.id,
-        salary_component_id: s.salary_component_id,
-        amount: Number(s.amount),
-        effective_from: parseDate(s.effective_from),
-        effective_to: parseDate(s.effective_to),
-    }));
-};
-
 const submitCreate = () => {
     createForm.post(route('personnel.store'), {
         onSuccess: () => {
@@ -200,26 +134,6 @@ const submitCreate = () => {
             activeTabCreate.value = 'details';
         },
     });
-};
-
-const submitEdit = () => {
-    if (editingId.value) {
-        const payload = {
-            ...editForm.data(),
-            date_of_birth: formatDateStr(editForm.date_of_birth),
-            joining_date:  formatDateStr(editForm.joining_date),
-            exit_date:     formatDateStr(editForm.exit_date),
-            salary_structures: (editForm.salary_structures || []).map((s: any) => ({
-                ...s,
-                effective_from: formatDateStr(s.effective_from),
-                effective_to:   formatDateStr(s.effective_to),
-            })),
-        };
-        editForm.transform(() => payload).put(route('personnel.update', editingId.value), {
-            onSuccess: () => resetEditForm(),
-            onFinish: () => editForm.transform((d: any) => d),
-        });
-    }
 };
 
 const deletePersonnel = (id: number) => {
@@ -399,7 +313,7 @@ watch(
                                             severity="info" 
                                             text 
                                             rounded 
-                                            @click="editPersonnel(slotProps.data); expandedRows = { [slotProps.data.id]: true }"
+                                            @click="expandedRows = { [slotProps.data.id]: true }"
                                         />
                                         <BaseButton 
                                             icon="pi pi-trash" 
@@ -414,8 +328,7 @@ watch(
                             <template #expansion="slotProps">
                                 <div class="p-4 border rounded-xl bg-gray-50/50 dark:bg-slate-800/50">
                                     <PersonnelEditForm 
-                                        :form="editForm"
-                                        :personnelId="slotProps.data.id"
+                                        :personnel="slotProps.data"
                                         :activeTab="activeTabEdit"
                                         @update:activeTab="(val: string) => activeTabEdit = val"
                                         :employmentTypeOptions="empTypeOptions"
@@ -426,13 +339,9 @@ watch(
                                         :departmentOptions="deptOptions"
                                         :designationOptions="desgOptions"
                                         :managerOptions="managerOptions"
-                                        :resetForm="resetEditForm"
-                                        :addContact="() => addContact(editForm)"
-                                        :removeContact="(index: number) => removeContact(editForm, index)"
                                         :salaryComponentOptions="salaryCompOptions"
-                                        :addSalaryStructure="() => addSalaryStructure(editForm)"
-                                        :removeSalaryStructure="(index: number) => removeSalaryStructure(editForm, index)"
-                                        :submit="submitEdit"
+                                        @success="expandedRows = {}"
+                                        @cancel="expandedRows = {}"
                                     />
                                 </div>
                             </template>

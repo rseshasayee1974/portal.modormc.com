@@ -99,6 +99,10 @@ class BatchController extends Controller
             ->withCount('batches')
             ->where('plant_id', $activePlantId)
             ->whereIn('status', [WorkOrder::STATUS_IN_PROGRESS])
+             ->where(function ($query) {
+        $query->whereNull('scheduled_end')
+              ->orWhere('scheduled_end', '>', now());              // to display the workorders which are active as per scheduled end date
+    })
             ->orderBy('order_no')
             ->get();
 
@@ -158,6 +162,7 @@ class BatchController extends Controller
             //     'batches' => $batches,
             //     'workOrders' => $workOrders,
             // ]);
+      
         return Inertia::render('Batches/Index', [
             'batches'           => $batches,
             'workOrders'        => $workOrders,
@@ -166,7 +171,8 @@ class BatchController extends Controller
             'transporters'      => PatronsDropdown('Transporter'),
             'loading_sites'     => SitesDropdown('loading'),
             'unloading_sites'   => SitesDropdown('unloading'),
-            'personnel'         => PersonnelDropdown(),
+            'drivers'            => PersonnelDropdown('','Driver'),
+            'sales_executives'   => PersonnelDropdown('','Sales Executive'),
             'taxes'             => TaxesDropdown('sales'),
             'products'          => fn () => ProductsDropdown(),
             'uoms'              => Productunit(),
@@ -235,6 +241,7 @@ class BatchController extends Controller
                     'customer_id'         => $workOrder->customer_id,
                     'mixdesign_id'        => $workOrder->mix_design_id,
                     'unload_site_id'      => $workOrder->site_id,
+                    'uom_id'              => $batch->uom_id ?? null,
                     'truck_id'            => $payload['truck_id'] ?? null,
                     'transport_id'        => $payload['transport_id'] ?? null,
                     'driver_id'           => $payload['driver_id'] ?? null,
@@ -450,7 +457,7 @@ class BatchController extends Controller
         $batch->materials->each(function ($material) {
             $material->product?->makeHidden(['can_delete', 'can_update', 'is_in_use']);
         });
-
+        dd($batch);
         return response()->json($batch);
     }
 
@@ -889,34 +896,35 @@ class BatchController extends Controller
 
     private function syncMaterials(Batch $batch, array $materials): void
     {
-        $existingIds = collect($materials)->pluck('id')->filter()->values()->all();
-        $batch->materials()->whereNotIn('id', $existingIds)->delete();
+        $plantId = $batch->plant_id ?? session('active_plant_id');
+        $incomingProductIds = collect($materials)->pluck('product_id')->filter()->unique()->toArray();
+        
+        // Delete materials that are no longer in the payload
+        $batch->materials()->whereNotIn('product_id', $incomingProductIds)->delete();
 
-        $productIds = collect($materials)->pluck('product_id')->filter()->unique()->toArray();
-        $productTitles = !empty($productIds) ? Product::query()->whereIn('id', $productIds)->pluck('title', 'id') : collect();
-        $existingMaterials = !empty($existingIds) ? BatchMaterial::query()->whereIn('id', $existingIds)->where('batch_id', $batch->id)->get()->keyBy('id') : collect();
+        $productTitles = !empty($incomingProductIds) 
+            ? Product::query()->whereIn('id', $incomingProductIds)->pluck('title', 'id') 
+            : collect();
 
         foreach ($materials as $item) {
+            if (empty($item['product_id'])) continue;
+            
             $materialName = $item['material_name'] ?? ($productTitles[$item['product_id']] ?? 'Material');
 
-            $row = [
-                'product_id' => $item['product_id'],
-                'material_name' => $materialName,
-                'target_qty' => $item['target_qty'],
-                'actual_qty' => $item['actual_qty'],
-                'deviation_quantity' => $item['deviation_quantity'] ?? 0,
-                'uom_id' => $item['uom_id'],
-            ];
-
-            if (!empty($item['id'])) {
-                $batchMat = $existingMaterials->get($item['id']);
-                    
-                if ($batchMat) {
-                    $batchMat->update($row);
-                }
-            } else {
-                $batch->materials()->create($row);
-            }
+            $batch->materials()->updateOrCreate(
+                [
+                    'batch_id' => $batch->id,
+                    'product_id' => $item['product_id'],
+                ],
+                [
+                    'plant_id' => $plantId,
+                    'material_name' => $materialName,
+                    'target_qty' => $item['target_qty'],
+                    'actual_qty' => $item['actual_qty'],
+                    'deviation_quantity' => $item['deviation_quantity'] ?? 0,
+                    'uom_id' => $item['uom_id'],
+                ]
+            );
         }
     }
 

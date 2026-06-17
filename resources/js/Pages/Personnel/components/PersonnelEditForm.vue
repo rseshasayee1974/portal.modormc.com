@@ -29,9 +29,10 @@ import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseActionButton from '@/Components/Base/BaseActionButton.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 
+import { useForm } from '@inertiajs/vue3';
+
 const props = defineProps<{
-    form: any;
-    personnelId: number;
+    personnel: any;
     activeTab: string;
     employmentTypeOptions: any[];
     genderOptions: any[];
@@ -41,16 +42,10 @@ const props = defineProps<{
     departmentOptions: any[];
     designationOptions: any[];
     managerOptions: any[];
-    resetForm: () => void;
-    addContact: () => void;
-    removeContact: (index: number) => void;
     salaryComponentOptions: any[];
-    addSalaryStructure: () => void;
-    removeSalaryStructure: (index: number) => void;
-    submit: () => void;
 }>();
 
-const emit = defineEmits(['update:activeTab']);
+const emit = defineEmits(['update:activeTab', 'success', 'cancel']);
 
 const handleTabUpdate = (val: string) => {
     emit('update:activeTab', val);
@@ -58,12 +53,111 @@ const handleTabUpdate = (val: string) => {
 
 const handlePrimaryToggle = (index: number, val: any) => {
     if (val) {
-        props.form.contacts.forEach((c: any, i: number) => {
+        form.contacts.forEach((c: any, i: number) => {
             if (i !== index) {
                 c.is_primary = false;
             }
         });
     }
+};
+
+const parseDate = (val: any): Date | null => {
+    if (!val) return null;
+    const clean = typeof val === 'string' ? val.split('T')[0] : val;
+    const d = new Date(clean);
+    return isNaN(d.getTime()) ? null : d;
+};
+
+const formatDateStr = (val: any): string | null => {
+    if (!val) return null;
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    const d = val instanceof Date ? val : new Date(String(val).split('T')[0]);
+    if (isNaN(d.getTime())) return null;
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
+const form = useForm({
+    employee_code: props.personnel.employee_code || '',
+    first_name: props.personnel.first_name || '',
+    last_name: props.personnel.last_name || '',
+    email: props.personnel.email || '',
+    mobile: props.personnel.mobile || '',
+    department_id: props.personnel.department_id,
+    designation_id: props.personnel.designation_id,
+    reporting_manager_id: props.personnel.reporting_manager_id,
+    employment_type: props.personnel.employment_type || 'permanent',
+    gender: props.personnel.gender,
+    status: props.personnel.status || 'active',
+    date_of_birth: parseDate(props.personnel.date_of_birth),
+    joining_date: parseDate(props.personnel.joining_date),
+    exit_date: parseDate(props.personnel.exit_date),
+    pan: props.personnel.pan || '',
+    aadhaar: props.personnel.aadhaar || '',
+    uan: props.personnel.uan || '',
+    esi_number: props.personnel.esi_number || '',
+    bank_account_no: props.personnel.bank_account_no || '',
+    bank_ifsc: props.personnel.bank_ifsc || '',
+    bank_name: props.personnel.bank_name || '',
+    contacts: (props.personnel.contacts || []).map((c: any) => ({
+        ...c,
+        is_primary: c.is_primary === true || c.is_primary === 1 || c.is_primary === '1',
+    })),
+    patron_ids: (props.personnel.patrons || []).map((patron: any) => patron.id),
+    salary_structures: (props.personnel.salary_structures || []).map((s: any) => ({
+        id: s.id,
+        salary_component_id: s.salary_component_id,
+        amount: Number(s.amount),
+        effective_from: parseDate(s.effective_from),
+        effective_to: parseDate(s.effective_to),
+    })),
+});
+
+const addContact = () => {
+    form.contacts.push({
+        contact_type: '',
+        contact_value: '',
+        is_primary: form.contacts.length === 0
+    });
+};
+
+const removeContact = (index: number) => {
+    form.contacts.splice(index, 1);
+};
+
+const addSalaryStructure = () => {
+    form.salary_structures.push({
+        salary_component_id: null,
+        amount: 0,
+        effective_from: new Date(),
+        effective_to: null
+    });
+};
+
+const removeSalaryStructure = (index: number) => {
+    form.salary_structures.splice(index, 1);
+};
+
+const submit = () => {
+    const payload = {
+        ...form.data(),
+        date_of_birth: formatDateStr(form.date_of_birth),
+        joining_date:  formatDateStr(form.joining_date),
+        exit_date:     formatDateStr(form.exit_date),
+        salary_structures: (form.salary_structures || []).map((s: any) => ({
+            ...s,
+            effective_from: formatDateStr(s.effective_from),
+            effective_to:   formatDateStr(s.effective_to),
+        })),
+    };
+    form.transform(() => payload).put(route('personnel.update', props.personnel.id), {
+        onSuccess: () => {
+            emit('success');
+        },
+        onFinish: () => form.transform((d: any) => d),
+    });
 };
 </script>
 
@@ -341,7 +435,7 @@ const handlePrimaryToggle = (index: number, val: any) => {
                 cancel-label="Cancel"
                 mode="edit"
                 class="mt-8 pt-6 border-t border-gray-100 dark:border-gray-700"
-                @cancel="resetForm"
+                @cancel="emit('cancel')"
                 @submit="submit"
             />
         </Tabs>

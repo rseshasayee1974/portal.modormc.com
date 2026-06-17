@@ -67,7 +67,7 @@ class Invoice extends Model
 
         static::creating(function ($m) {
             if (empty($m->invoice_number)) {
-                $details = self::generateNumber($m->plant_id, $m->invoice_label ?? $m->invoice_type);
+                $details = self::generateNumber($m->plant_id, $m->invoice_label ?? $m->invoice_type, $m->account_id);
                 $m->prefix = $details['prefix'];
                 $m->invoice_number = $details['next_number'];
             }
@@ -131,7 +131,7 @@ class Invoice extends Model
     /**
      * Auto-generate invoice number: INV-YYYYMM-0001
      */
-    public static function generateNumber(int $plantId, ?string $label = 'sales'): array
+    public static function generateNumber(int $plantId, ?string $label = 'sales', ?int $accountId = null): array
     {
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
@@ -146,15 +146,20 @@ class Invoice extends Model
                  $q->where('invoice_type', 'bill')->orWhere('invoice_label', 'purchase');
              });
              $prefix = "Bill/{$fy}/";
-        } elseif ($normalizedLabel === 'batching') {
+        } elseif ($normalizedLabel === 'batching' || $normalizedLabel === 'dispatch') {
              $query->where('invoice_label', 'Dispatch');
              $prefix = "Inv/{$fy}/";
         } else {
              $query->where('invoice_type', 'sales')->whereNull('invoice_label');
              $prefix = "INV/{$fy}/";
         }
+
+        // if ($accountId) {
+        //      $prefix .= "{$accountId}/";
+        //      $query->where('account_id', $accountId);
+        // }
             
-        $lastInvoice = (clone $query)->where('prefix', $prefix)
+        $lastInvoice = $query->where('prefix', $prefix)
             ->orderByRaw('CAST(invoice_number AS UNSIGNED) DESC')
             ->first();
 
@@ -231,11 +236,12 @@ class Invoice extends Model
     }
 
     /**
-     * Polymorphic tax splits at invoice level.
+     * Direct relationship to tax splits at invoice level.
      */
     public function orderTaxes()
     {
-        return $this->morphMany(OrderTax::class, 'order', 'order_type', 'order_id');
+        return $this->hasMany(OrderTax::class, 'order_id')
+            ->whereIn('order_type', ['Invoice', 'Purchase']);
     }
 
     public function partner()
@@ -362,6 +368,7 @@ class Invoice extends Model
      */
     public function syncTaxSplits(string $invoice_type = 'Invoice'): void
     {
+        $normalizedType = in_array(strtolower($invoice_type), ['bill', 'purchase']) ? 'Purchase' : 'Invoice';
         $this->orderTaxes()->delete();
         
         // 1. Process line items individually to capture specific item IDs and accounts
@@ -377,11 +384,11 @@ class Invoice extends Model
            
             $plantState   = $plantAddr?->state?->state_code ?? $plantAddr?->state_code;
             $partnerState = $partnerAddr?->state?->state_code ?? $partnerAddr?->state_code;
- 
+
             if ($tax_group == 'GST') {
-                OrderTax::createIntraStateSplit($this, $invoice_type, $item->subtotal, $fullRate, $item->tax_id,   $item->id);
+                OrderTax::createIntraStateSplit($this, $normalizedType, $item->subtotal, $fullRate, $item->tax_id,   $item->id);
             } else {
-                OrderTax::createInterStateSplit($this, $invoice_type, $item->subtotal, $fullRate, $item->tax_id,    $item->id);
+                OrderTax::createInterStateSplit($this, $normalizedType, $item->subtotal, $fullRate, $item->tax_id,    $item->id);
             }
         }
 
@@ -399,6 +406,162 @@ class Invoice extends Model
         //         }
         //     }
         // }
+    }
+
+    /**
+     * Globally common function to generate an Invoice from a source document (PO, SO, etc.)
+     */
+    public static function createFromSource($source, string $type, array $params = []): self
+    {
+        return DB::transaction(function () use ($source, $type, $params) {
+            $plantId = $params['plant_id'] ?? session('active_plant_id');
+            $userId  = auth()->id();
+
+            $subtotalSum = 0;
+            $taxSum = 0;
+            $discountSum = 0;
+            
+            $itemsData = [];
+            foreach ($source->items as $item) {
+                if ($type === 'bill') {
+                    // For a Purchase Bill, quantity is the received/invoiced quantity
+                    $qty = (float) ($item->invoiced_quantity > 0 ? $item->invoiced_quantity : ($item->received_quantity > 0 ? $item->received_quantity : $item->received_quantity));
+                    $priceUnit = (float) data_get($item, 'unit_price');
+                     $item_id = data_get($item, 'product_id');
+                    // Recalculate discount
+                    $discountType = data_get($item, 'discount_type');
+                    $discountVal = (float) data_get($item, 'discount_amount');
+                    $lineSubtotalBeforeDiscount = $qty * $priceUnit;
+                    
+                    if ($discountType === 'percentage') {
+                        $lineDiscount = ($lineSubtotalBeforeDiscount * $discountVal) / 100;
+                    } else {
+                        // Scale the fixed discount proportionally if quantity changed from ordered quantity
+                        $orderedQty = (float) data_get($item, 'product_quantity');
+                        if ($qty == $orderedQty || $orderedQty == 0) {
+                            $lineDiscount = $discountVal;
+                        } else {
+                            $lineDiscount = ($discountVal / $orderedQty) * $qty;
+                        }
+                    }
+                    
+                    $lineSubtotal = $lineSubtotalBeforeDiscount - $lineDiscount;
+                    
+                    // Recalculate tax
+                    $taxRate = 0;
+                    $taxId = data_get($item, 'tax_id');
+                    if ($taxId) {
+                        $tax = \App\Models\Tax::find($taxId);
+                        if ($tax) {
+                            $taxRate = (float) $tax->tax_rate;
+                        }
+                    }
+                    
+                    $lineTax = ($lineSubtotal * $taxRate) / 100;
+                    $lineTotal = $lineSubtotal + $lineTax;
+                } else {
+                    // For sales/invoice, use original values
+                    $item_id = data_get($item, 'mix_design_id');
+                    $qty = (float) (data_get($item, 'product_quantity') ?? data_get($item, 'quantity') ?? 0);
+                    $priceUnit = (float) data_get($item, 'unit_price');
+                    $lineDiscount = (float) data_get($item, 'total_discount');
+                    $lineSubtotal = (float) data_get($item, 'price_subtotal');
+                    $lineTax = (float) data_get($item, 'price_tax');
+                    $lineTotal = (float) data_get($item, 'price_total');
+                    $taxId = data_get($item, 'tax_id');
+                }
+                
+                $subtotalSum += $lineSubtotal;
+                $taxSum += $lineTax;
+                $discountSum += $lineDiscount;
+                
+                $itemsData[] = [
+                    'item_id'         => $item_id,
+                    'item_name'       => data_get($item, 'product.title') ?? data_get($item, 'description'),
+                    'hsn_code'        => data_get($item, 'product.hsn_code'),
+                    'quantity'        => $qty,
+                    'uom_id'          => data_get($item, 'product_uom') ?? data_get($item, 'uom_id'),
+                    'price_unit'      => $priceUnit,
+                    'discount_type'   => data_get($item, 'discount_type'),
+                    'discount'        => data_get($item, 'discount_amount'),
+                    'discount_amount' => $lineDiscount,
+                    'subtotal'        => $lineSubtotal,
+                    'line_tax_amount' => $lineTax,
+                    'line_total'      => $lineTotal,
+                    'tax_id'          => $taxId,
+                ];
+            }
+
+            $subtotal = $type === 'bill' ? ($subtotalSum - $source->discount_amount) : $source->amount_untaxed;
+            $discountTotal = $type === 'bill' ? ($discountSum + $source->discount_amount) : $source->discount_amount;
+            $taxAmount = $type === 'bill' ? $taxSum : $source->amount_tax;
+            
+            $adjustment = $source->adjustment;
+            $shippingCharges = $source->shipping_charges;
+            
+            if ($type === 'bill') {
+                $totalAmount = $subtotal + $taxAmount + $shippingCharges + $adjustment;
+                $roundedTotal = round($totalAmount);
+                $roundOff = $roundedTotal - $totalAmount;
+                $totalAmount = $roundedTotal;
+            } else {
+                $roundOff = $source->rounding_value;
+                $totalAmount = $source->amount_total;
+            }
+
+            // 1. Create the Invoice Header
+            $invoice = self::create([
+                'plant_id'         => $plantId,
+                'partner_id'       => $params['partner_id'] ?? ($type === 'bill' ? $source->vendor_id : $source->customer_id),
+                'account_id'       => $params['account_id'] ?? null,
+                'invoice_type'     => $type,
+                'invoice_label'    => $params['invoice_label'] ?? null,
+                'ref_id'           => $source->id,
+                'ref_title'        => $params['ref_title'] ?? $source->po_number ?? $source->so_number ?? $source->ref_no,
+                'invoice_date'     => $params['invoice_date'] ?? now(),
+                'due_date'         => $params['due_date'] ?? $source->due_date,
+                'subtotal'         => $subtotal,
+                'global_discount'   => $discountTotal,
+                'tax_amount'       => $taxAmount,
+                'adjustment'       => $adjustment,
+                'shipping_charges' => $shippingCharges,
+                'round_off'        => $roundOff,
+                'total_amount'     => $totalAmount,
+                'balance_amount'   => $totalAmount,
+                'status'           => self::STATUS_APPROVED,
+                'created_by'       => $userId,
+                'updated_by'       => $userId,
+            ]);
+
+            // 2. Create Invoice Items
+            foreach ($itemsData as $itemData) {
+                $invoice->items()->create($itemData);
+            }
+
+            // 3. Sync Tax Splits (Generates mm_order_taxes records)
+            $invoice->syncTaxSplits();
+
+            // 4. Automated Accounting Posting
+            if ($invoice->status === self::STATUS_APPROVED || $invoice->status === self::STATUS_PAID) {
+                $invoice->postToAccounting();
+            }
+
+            // 5. Update Source Status if applicable (e.g. Dispatch)
+            if ($source instanceof \App\Models\Dispatch) {
+                $source->status()->updateOrCreate(
+                    ['dispatch_id' => $source->id],
+                    [
+                        'plant_id'       => $source->plant_id,
+                        'invoice_id'     => $invoice->id,
+                        'invoice_number' => $invoice->invoice_number,
+                        'invoice_date'   => $invoice->invoice_date,
+                        'invoice_status' => 1,
+                    ]
+                );
+            }
+
+            return $invoice;
+        });
     }
 
     public function resolveRouteBinding($value, $field = null)

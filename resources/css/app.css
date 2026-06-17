@@ -99,6 +99,11 @@ select {
     --tw-shadow: 0 0 #0000 !important;
 }
 
+.p-select-label, .p-inputtext, .p-select-label:disabled, .p-inputtext:disabled {
+    font-weight: 600 !important;
+    color : #000 !important
+}
+
 .text-md {
     font-size: 0.975rem !important;
 }
@@ -115,7 +120,9 @@ select {
     padding-top: 0.25rem !important;
     padding-bottom: 0.25rem !important;
 }
-
+.p-select-label.p-placeholder {
+    color: var(--p-select-placeholder-color) !important;
+}
 
 .create-panel {
     background: white;

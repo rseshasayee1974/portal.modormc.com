@@ -83,14 +83,14 @@ const submit = () => {
     if (editingId.value) {
         form.put(route('notificationemails.update', editingId.value), {
             onSuccess: () => {
-                toast.add({ severity: 'success', summary: 'Success', detail: 'Notification email updated' });
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Notification email updated', life: 2000 });
                 closeModal();
             },
         });
     } else {
         form.post(route('notificationemails.store'), {
             onSuccess: () => {
-                toast.add({ severity: 'success', summary: 'Success', detail: 'Notification email created' });
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Notification email created', life: 2000 });
                 closeModal();
             },
         });
@@ -109,7 +109,7 @@ const deleteItem = (id: number) => {
         if (result.isConfirmed) {
             form.delete(route('notificationemails.destroy', id), {
                 onSuccess: () => {
-                    toast.add({ severity: 'success', summary: 'Deleted', detail: 'Notification email removed' });
+                    toast.add({ severity: 'success', summary: 'Deleted', detail: 'Notification email removed', life: 2000 });
                 }
             });
         }
@@ -127,7 +127,10 @@ const deleteItem = (id: number) => {
             <BaseDataTable 
                 :value="props.notificationEmails" 
                 showSerial
+                :rows="30"
                 showSearch
+                :showAdvancedFilter="false"
+                :rowsPerPageOptions="[30, 50, 100, 200]"
                 v-model:filters="filters"
                 :globalFilterFields="['type', 'role_name', 'email']"
                 class="text-xs"

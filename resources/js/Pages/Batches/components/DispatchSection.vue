@@ -53,7 +53,6 @@ const form = useForm({
     work_order_id: props.dispatch?.work_order_id || props.workOrder?.id,
     batch_id: props.dispatch?.batch_id || props.batch?.id,
     batch_size: props.dispatch?.batch_size || props.batch?.batch_size || 0,
-    plant_sno: props.dispatch?.plant_sno || '',
     prefix: props.dispatch?.prefix || '',
     dispatch_no: props.dispatch?.dispatch_no || '',
     dispatch_reference: props.dispatch?.dispatch_reference || '',
@@ -63,6 +62,7 @@ const form = useForm({
     transport_id: props.dispatch?.transport_id || props.batch?.transport_id,
     customer_id: props.dispatch?.customer_id || props.batch?.customer_id,
     mixdesign_id: props.dispatch?.mixdesign_id || props.batch?.mix_design_id,
+    uom_id: props.dispatch?.uom_id || props.batch?.uom_id || null,
     load_site_id: props.dispatch?.load_site_id || props.batch?.load_site_id,
     unload_site_id: props.dispatch?.unload_site_id || props.batch?.unload_site_id,
     driver_id: props.dispatch?.driver_id || props.batch?.driver_id,
@@ -170,6 +170,7 @@ watch(() => props.dispatch, (newDispatch) => {
         form.driver_id = newDispatch.driver_id || null;
         form.sales_executive_id = newDispatch.sales_executive_id || null;
         form.unload_site_id = newDispatch.unload_site_id || null;
+        form.uom_id = newDispatch.uom_id || props.batch?.uom_id || null;
         form.delivered_qty = newDispatch.delivered_qty || 0;
         form.payment_mode = newDispatch.payment_mode || 'credit';
         form.ledger_id = newDispatch.ledger_id || newDispatch.status?.invoice?.account_id || null;
@@ -294,7 +295,7 @@ watch(() => form.payment.payment_method_id, (newVal) => {
 });
 
 const selectedUom = computed(() => {
-    const uom = props.dropdownData.uoms.find(u => u.id === form.financials.load_uom_id);
+    const uom = props.dropdownData.uoms.find(u => u.id === form.uom_id);
     return uom ? uom.unit_code : 'UNIT';
 });
 

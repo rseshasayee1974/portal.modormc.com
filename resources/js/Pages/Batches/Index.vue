@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
-import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { useWebSocket } from '@/Composables/useWebSocket';
+import { useOfflineBatchSync } from '@/Composables/useOfflineBatchSync';
+import { useBatchActions } from './useBatchActions';
+import { useBatchTokenPreview } from './useBatchTokenPreview';
+import { useInvoiceActions } from './useInvoiceActions';
 import BatchCreateForm from './components/BatchCreateForm.vue';
 import BatchEditForm from './components/BatchEditForm.vue';
 import DispatchSection from './components/DispatchSection.vue';
@@ -26,7 +29,8 @@ const props = defineProps<{
     trucks: any[];
     customers: any[];
     transporters: any[];
-    personnel: any[];
+    sales_executives: any[];
+    drivers: any[];
     taxes: any[];
     products: any[];
     loading_sites: any[];
@@ -42,7 +46,8 @@ const props = defineProps<{
 const dropdownData = computed(() => ({
     trucks: props.trucks,
     transporters: props.transporters,
-    personnel: props.personnel,
+    drivers: props.drivers,
+    sales_executives : props.sales_executives,
     taxes: props.taxes,
     uoms: props.uoms,
     unloading_sites : props.unloading_sites,
@@ -61,90 +66,24 @@ const filters = ref({
 const dateFrom = ref<any>(null);
 const dateTo = ref<any>(null);
 
-// Local mutable copy of batches, including offline queued ones
-const localBatches = ref<any[]>([]);
 
-// Set initial batches list and prepend any locally saved offline batches
-const loadInitialBatches = () => {
-    const offline = JSON.parse(localStorage.getItem('offline_batches') || '[]');
-    localBatches.value = [...offline, ...props.batches];
+
+const expandedRows = ref({});
+const detailedBatches = ref<Record<number, any>>({});
+const isLoadingBatch = ref<Record<number, boolean>>({});
+
+// Fallback REST polling via Inertia reload
+const fetchBatchesFallback = () => {
+    router.reload({
+        only: ['batches', 'nextBatchNo'],
+        preserveScroll: true
+    });
 };
 
-watch(() => props.batches, (newBatches) => {
-    const offline = JSON.parse(localStorage.getItem('offline_batches') || '[]');
-    localBatches.value = [...offline, ...newBatches];
-}, { deep: true });
-
-const handleOfflineBatchAdded = (batch: any) => {
-    localBatches.value.unshift(batch);
-};
-
-const isSyncing = ref(false);
-
-const syncOfflineBatches = async () => {
-    if (!navigator.onLine || isSyncing.value) return;
-
-    const offline = JSON.parse(localStorage.getItem('offline_batches') || '[]');
-    if (offline.length === 0) return;
-
-    isSyncing.value = true;
-    let syncedCount = 0;
-    
-    // We make a copy of the queue to iterate
-    const queue = [...offline];
-    
-    for (const batch of queue) {
-        try {
-            // Remove the temporary fields used only on frontend
-            const payload = { ...batch };
-            delete payload.id;
-            delete payload.is_offline_pending;
-            delete payload.truck_registration;
-            delete payload.created_at;
-            
-            await axios.post(route('batches.store'), payload);
-            syncedCount++;
-            
-            // Remove from local storage queue
-            const currentQueue = JSON.parse(localStorage.getItem('offline_batches') || '[]');
-            const updatedQueue = currentQueue.filter((b: any) => b.id !== batch.id);
-            localStorage.setItem('offline_batches', JSON.stringify(updatedQueue));
-            
-            // Remove the temporary record from local list
-            localBatches.value = localBatches.value.filter((b: any) => b.id !== batch.id);
-        } catch (err) {
-            console.error('Failed to sync offline batch:', err);
-            // Stop syncing remaining items if we hit an error (e.g. server down)
-            break;
-        }
-    }
-
-    isSyncing.value = false;
-
-    if (syncedCount > 0) {
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'success',
-            title: `Synchronized ${syncedCount} offline batches successfully.`,
-            showConfirmButton: false,
-            timer: 2500
-        });
-        
-        // Reload list to get fresh server-side synced records with IDs
-        fetchBatchesFallback();
-    }
-};
-
-onMounted(() => {
-    loadInitialBatches();
-    syncOfflineBatches();
-    window.addEventListener('online', syncOfflineBatches);
-});
-
-onUnmounted(() => {
-    window.removeEventListener('online', syncOfflineBatches);
-});
+// ── Offline Sync ──────────────────────────────────────────────────────────
+// Delegate all offline-batch logic to the dedicated composable.
+const { localBatches, isSyncing, handleOfflineBatchAdded, syncOfflineBatches } =
+    useOfflineBatchSync(props, fetchBatchesFallback);
 
 const filteredBatches = computed(() => {
     let result = localBatches.value;
@@ -162,18 +101,6 @@ const filteredBatches = computed(() => {
     
     return result;
 });
-
-const expandedRows = ref({});
-const detailedBatches = ref<Record<number, any>>({});
-const isLoadingBatch = ref<Record<number, boolean>>({});
-
-// Fallback REST polling via Inertia reload
-const fetchBatchesFallback = () => {
-    router.reload({
-        only: ['batches', 'nextBatchNo'],
-        preserveScroll: true
-    });
-};
 
 // WebSocket event message handler
 const handleWebSocketMessage = (data: any) => {
@@ -218,6 +145,7 @@ const entriesOptions = [
 ];
 
 const fetchBatchDetails = async (id: number) => {
+    console.log(detailedBatches.value[id],'dasd');
     if (!detailedBatches.value[id]) {
         isLoadingBatch.value[id] = true;
         try {
@@ -232,6 +160,7 @@ const fetchBatchDetails = async (id: number) => {
 };
 
 const toggleExpand = async (data: any) => {
+    console.log(expandedRows.value[data.id],'dasd');
     if (expandedRows.value[data.id]) {
         expandedRows.value = {};
     } else {
@@ -251,155 +180,51 @@ const collapseExpandedRows = (batchId?: number) => {
     expandedRows.value = {};
 };
 
-const statusSeverity = (status: number) => {
-    if (status === 4) return 'success';
-    if (status === 2 || status === 3) return 'info';
-    if (status === 5) return 'danger';
-    return 'warn';
+// ── Batch Actions ───────────────────────────────────────────────────────
+// activeMenuId + toggleMenu + closeAllMenus defined first (needed by useBatchTokenPreview)
+const activeMenuId = ref<number | null>(null);
+
+const toggleMenu = (event: Event, id: number) => {
+    event.stopPropagation();
+    activeMenuId.value = activeMenuId.value === id ? null : id;
 };
 
-const statusLabel = (status: number) => props.statuses.find((entry) => entry.value === status)?.label ?? 'Unknown';
-
-const destroy = (row: any) => {
-    Swal.fire({
-        title: 'Delete batch?',
-        text: `Batch #${row.batch_no} will be deleted.`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc2626',
-        confirmButtonText: 'Yes, delete',
-    }).then((result) => {
-        if (!result.isConfirmed) return;
-        router.delete(route('batches.destroy', row.id), {
-            preserveScroll: true,
-            onSuccess: () => {
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'success',
-                    title: 'Batch deleted successfully.',
-                    showConfirmButton: false,
-                    timer: 1500,
-                });
-            }
-        });
-    });
-};
-const downloadPdf = (id: number) => {
-    // Use anchor click technique to avoid popup-blocker issues
-    const url = route('batches.download', id);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', '');
-    link.setAttribute('target', '_blank');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+const closeAllMenus = () => {
+    activeMenuId.value = null;
 };
 
-const tokenPreviewVisible = ref(false);
-const tokenPreviewUrl = ref('');
-const iframeHeight = ref('300px');
-const previewTitle = ref('Batching Token Preview');
-const previewWidth = ref('380px');
-const previewIframeWidth = ref('340px');
+const { destroy, downloadPdf, retrySync, statusSeverity, statusLabel } =
+    useBatchActions(props);
 
-const viewToken = (id: number, type: string = 'batching') => {
-    if (type === 'dispatch') {
-        previewTitle.value = 'Dispatch Token Preview';
-        previewWidth.value = '380px';
-        previewIframeWidth.value = '340px';
-        tokenPreviewUrl.value = route('batches.dispatch-token', id);
-    } else if (type === 'delivery') {
-        previewTitle.value = 'Delivery Token Preview (A4)';
-        previewWidth.value = '850px';
-        previewIframeWidth.value = '810px';
-        tokenPreviewUrl.value = route('batches.delivery-token', id);
-    } else {
-        previewTitle.value = 'Batching Token Preview';
-        previewWidth.value = '380px';
-        previewIframeWidth.value = '340px';
-        tokenPreviewUrl.value = route('batches.token', id);
-    }
-    iframeHeight.value = '300px'; // Reset height before load
-    tokenPreviewVisible.value = true;
-};
+// ── Token Preview ─────────────────────────────────────────────────────
+const {
+    tokenPreviewVisible,
+    tokenPreviewUrl,
+    iframeHeight,
+    previewTitle,
+    previewWidth,
+    previewIframeWidth,
+    viewToken,
+    adjustIframeHeight,
+    printTokenIframe,
+} = useBatchTokenPreview(closeAllMenus);
 
-const adjustIframeHeight = (event: any) => {
-    const iframe = event.target;
-    if (iframe && iframe.contentDocument) {
-        setTimeout(() => {
-            try {
-                const doc = iframe.contentDocument;
-                const height = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
-                iframeHeight.value = `${height + 15}px`; // Add 15px buffer to avoid vertical scrollbar inside iframe
-            } catch (e) {
-                console.error(e);
-            }
-        }, 150);
-    }
-};
+// ── Invoice Actions ──────────────────────────────────────────────────
+const {
+    generateInvoiceDirect,
+    printInvoiceDirect,
+    downloadInvoiceDirect,
+    printEInvoiceDirect,
+    deleteInvoiceDirect,
+    sendWhatsAppDirect,
+} = useInvoiceActions(props);
 
-const printTokenIframe = () => {
-    const iframe = document.querySelector('.token-preview-dialog iframe') as HTMLIFrameElement;
-    if (iframe && iframe.contentWindow) {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-    }
-};
-
-const handleShowTokenEvent = (e: any) => {
-    if (e.detail?.url) {
-        tokenPreviewUrl.value = e.detail.url;
-        if (e.detail.url.includes('delivery-token')) {
-            previewTitle.value = 'Delivery Token Preview (A4)';
-            previewWidth.value = '850px';
-            previewIframeWidth.value = '810px';
-        } else if (e.detail.url.includes('dispatch-token')) {
-            previewTitle.value = 'Dispatch Token Preview';
-            previewWidth.value = '380px';
-            previewIframeWidth.value = '340px';
-        } else {
-            previewTitle.value = 'Batching Token Preview';
-            previewWidth.value = '380px';
-            previewIframeWidth.value = '340px';
-        }
-        iframeHeight.value = '300px';
-        tokenPreviewVisible.value = true;
-    }
-};
-
-onMounted(() => {
-    window.addEventListener('show-batch-token', handleShowTokenEvent);
-    window.addEventListener('click', closeAllMenus);
-});
-
-onUnmounted(() => {
-    window.removeEventListener('show-batch-token', handleShowTokenEvent);
-    window.removeEventListener('click', closeAllMenus);
-});
-
-const retrySync = (id: number) => {
-    router.post(route('batches.sync', id), {}, {
-        preserveScroll: true,
-        onSuccess: (page) => {
-            const hasError = page.props?.flash?.error;
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: hasError ? 'error' : 'success',
-                title: hasError ? 'Sync failed again.' : 'Sync successful.',
-                showConfirmButton: false,
-                timer: 2000,
-            });
-        }
-    });
-};
-
-const page = usePage();
+// ── Page Settings ────────────────────────────────────────────────────────────
+const page           = usePage();
 const customSettings = page.props.custom_settings as any;
-const hideBatchForm = computed(() => !!customSettings?.batching?.hide_batch_form);
+const hideBatchForm  = computed(() => !!customSettings?.batching?.hide_batch_form);
 
+// ── Flash Watchers (auto-show token on create/dispatch) ───────────────────────
 const lastShownBatchId = ref<number | null>(null);
 watch(() => page.props.flash?.new_batch_id, (newVal) => {
     if (newVal && Number(newVal) !== lastShownBatchId.value) {
@@ -415,147 +240,6 @@ watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
         viewToken(Number(newVal), 'dispatch');
     }
 }, { immediate: true });
-
-const activeMenuId = ref<number | null>(null);
-
-const toggleMenu = (event: Event, id: number) => {
-    event.stopPropagation();
-    activeMenuId.value = activeMenuId.value === id ? null : id;
-};
-
-const closeAllMenus = () => {
-    activeMenuId.value = null;
-};
-
-const generateInvoiceDirect = (dispatch: any) => {
-    if (!dispatch || !dispatch.id) return;
-    
-    const ledgersOptionsHtml = props.sales_ledgers.map(l => `<option value="${l.value}">${l.label}</option>`).join('');
-    const defaultDate = new Date().toISOString().substring(0, 10);
-    
-    Swal.fire({
-        title: 'Generate Invoice',
-        html: `
-            <div class="text-left space-y-3">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sales Ledger</label>
-                    <select id="swal-ledger-id" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                        <option value="">Select Sales Account</option>
-                        ${ledgersOptionsHtml}
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Invoice Date</label>
-                    <input id="swal-invoice-date" type="date" value="${defaultDate}" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
-                </div>
-            </div>
-        `,
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'Generate',
-        confirmButtonColor: '#4f46e5',
-        preConfirm: () => {
-            const ledgerId = (document.getElementById('swal-ledger-id') as HTMLSelectElement).value;
-            const invoiceDate = (document.getElementById('swal-invoice-date') as HTMLInputElement).value;
-            if (!ledgerId) {
-                Swal.showValidationMessage('Please select a Sales Ledger');
-                return false;
-            }
-            if (!invoiceDate) {
-                Swal.showValidationMessage('Please select an Invoice Date');
-                return false;
-            }
-            return { ledgerId, invoiceDate };
-        }
-    }).then((result) => {
-        if (result.isConfirmed && result.value) {
-            router.post(route('dispatches.generate-invoice', dispatch.id), {
-                ledger_id: result.value.ledgerId,
-                invoice_date: result.value.invoiceDate,
-            }, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: 'Invoice generated successfully.',
-                        showConfirmButton: false,
-                        timer: 2000
-                    });
-                }
-            });
-        }
-    });
-};
-
-const printInvoiceDirect = (invoice: any) => {
-    if (!invoice || !invoice.encrypted_id) return;
-    window.open(route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'view' }), '_blank');
-};
-
-const downloadInvoiceDirect = (invoice: any) => {
-    if (!invoice || !invoice.encrypted_id) return;
-    window.open(route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'download' }), '_blank');
-};
-
-const printEInvoiceDirect = (invoice: any) => {
-    if (!invoice || !invoice.encrypted_id) return;
-    window.open(route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'view' }), '_blank');
-};
-
-const deleteInvoiceDirect = (dispatch: any) => {
-    if (!dispatch || !dispatch.id) return;
-    Swal.fire({
-        title: 'Delete Invoice?',
-        text: 'This will delete the generated invoice and reset the dispatch billing status. This action cannot be undone!',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            router.delete(route('dispatches.delete-invoice', dispatch.id), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: 'Invoice deleted successfully.',
-                        showConfirmButton: false,
-                        timer: 2000
-                    });
-                }
-            });
-        }
-    });
-};
-
-const sendWhatsAppDirect = async (dispatch: any) => {
-    if (!dispatch || !dispatch.id) return;
-    try {
-        Swal.fire({
-            title: 'Preparing WhatsApp message...',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-        const response = await axios.get(route('dispatches.whatsapp-url', dispatch.id));
-        Swal.close();
-        if (response.data.url) {
-            window.open(response.data.url, '_blank');
-        } else {
-            Swal.fire('Error', 'Could not generate WhatsApp URL.', 'error');
-        }
-    } catch (error: any) {
-        Swal.close();
-        const msg = error.response?.data?.error || 'Failed to generate WhatsApp URL. Please check if customer mobile number exists.';
-        Swal.fire('Error', msg, 'error');
-    }
-};
 </script>
 
 <template>
@@ -573,7 +257,8 @@ const sendWhatsAppDirect = async (dispatch: any) => {
                     :workOrders="workOrders"
                     :trucks="trucks"
                     :transporters="transporters"
-                    :personnel="personnel"
+                    :drivers="drivers"
+                    :sales_executives="sales_executives"
                     :products="products"
                     :uoms="uoms"
                     :unloading_sites="unloading_sites"
@@ -892,12 +577,14 @@ const sendWhatsAppDirect = async (dispatch: any) => {
                                 
                                 <!-- 1. Batch Production Form -->
                                 <div v-if="!hideBatchForm" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                    
                                     <BatchEditForm
                                         :batch="detailedBatches[slotProps.data.id] || slotProps.data"
                                         :workOrders="workOrders"
                                         :trucks="trucks"
                                         :transporters="transporters"
-                                        :personnel="personnel"
+                                        :drivers="drivers"
+                                        :sales_executives="sales_executives"
                                         :products="products"
                                         :uoms="uoms"
                                         :statuses="statuses"

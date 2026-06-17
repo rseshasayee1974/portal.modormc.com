@@ -52,6 +52,7 @@ class Dispatch extends Model
             'product_id' => null, 
             'description' => "RMC Dispatch: " . ($this->mixDesign?->design_name ?? 'Concrete'),
             'quantity' => $this->delivered_qty,
+            'uom_id' => $this->uom_id ?? $this->mixDesign?->unit_id,
             'unit_price' => $this->load_rate,
             'discount_type' => 'fixed',
             'discount_amount' => 0,
@@ -100,6 +101,11 @@ class Dispatch extends Model
     public function mixDesign(): BelongsTo
     {
         return $this->belongsTo(MixDesign::class, 'mixdesign_id');
+    }
+
+    public function uom(): BelongsTo
+    {
+        return $this->belongsTo(ProductUnit::class, 'uom_id');
     }
 
     public function loadSite(): BelongsTo

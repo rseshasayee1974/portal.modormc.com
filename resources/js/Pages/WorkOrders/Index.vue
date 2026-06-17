@@ -11,6 +11,7 @@ defineProps<{
     customers: any[];
     sites: any[];
     mixDesigns: any[];
+    salesOrders?: any[];
     statuses: { label: string; value: number }[];
     activePlantId: number;
     nextReference: string;
@@ -40,6 +41,7 @@ defineProps<{
                 :customers="customers"
                 :sites="sites"
                 :mixDesigns="mixDesigns"
+                :salesOrders="salesOrders"
                 :statuses="statuses"
                 :activePlantId="activePlantId"
                 :nextReference="nextReference"
@@ -50,6 +52,7 @@ defineProps<{
                 :customers="customers"
                 :sites="sites"
                 :mixDesigns="mixDesigns"
+                :salesOrders="salesOrders"
                 :statuses="statuses"
             />
         </div>

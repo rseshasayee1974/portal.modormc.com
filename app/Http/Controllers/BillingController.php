@@ -74,7 +74,7 @@ class BillingController extends Controller
 
             // Auto-generate numbering if not provided
             if (empty($validated['invoice_number'])) {
-                $details = Invoice::generateNumber($plantId, 'bill');
+                $details = Invoice::generateNumber($plantId, 'bill', $validated['account_id'] ?? null);
                 $validated['prefix'] = $details['prefix'];
                 $validated['invoice_number'] = $details['next_number'];
             }

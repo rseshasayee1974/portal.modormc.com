@@ -95,11 +95,12 @@ class InvoiceItem extends Model
     }
 
     /**
-     * Polymorphic tax splits at line-item level.
+     * Direct relationship to tax splits at line-item level.
      */
     public function orderTaxes()
     {
-        return $this->morphMany(OrderTax::class, 'order', 'order_type', 'order_id');
+        return $this->hasMany(OrderTax::class, 'order_items_id', 'id')
+            ->whereIn('order_type', ['Invoice', 'Purchase']);
     }
 
     /**

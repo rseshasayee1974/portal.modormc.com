@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -8,13 +8,13 @@ import DatePicker from 'primevue/datepicker';
 import Button from 'primevue/button';
 import Swal from 'sweetalert2';
 import { PlusCircleIcon, InformationCircleIcon, BeakerIcon } from '@heroicons/vue/24/outline';
-import { ref } from 'vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 
 const props = withDefaults(defineProps<{
     customers?: any[];
     sites?: any[];
     mixDesigns?: any[];
+    salesOrders?: any[];
     statuses?: { label: string; value: number }[];
     activePlantId?: number;
     nextReference?: string;
@@ -22,6 +22,7 @@ const props = withDefaults(defineProps<{
     customers: () => [],
     sites: () => [],
     mixDesigns: () => [],
+    salesOrders: () => [],
     statuses: () => [],
     activePlantId: 0,
     nextReference: '',
@@ -73,6 +74,22 @@ const mixDetailBadges = computed(() => {
         { label: 'Ingredients', value: String(selectedMixIngredients.value.length) },
     ];
 });
+
+const salesOrderOptions = computed(() => {
+    return [
+        { label: 'None (Direct Work Order)', value: null },
+        ...props.salesOrders.map((so) => {
+            const patronName = so.patron?.legal_name || 'Unknown';
+            const mixName = so.quotation?.items?.[0]?.mix_design?.design_name || 'N/A';
+            const qty = so.quotation?.items?.[0]?.quantity || 0;
+            return {
+                label: `SO #${so.id} - ${patronName} (${mixName}, ${qty} m³)`,
+                value: so.id,
+            };
+        }),
+    ];
+});
+
 const form = useForm({
     prefix: 'WO',
     order_no: '',
@@ -80,11 +97,34 @@ const form = useForm({
     customer_id: null as number | null,
     site_id: null as number | null,
     mix_design_id: null as number | null,
+    sales_order_id: null as number | null,
     total_qty: 0,
     produced_qty: 0,
     status: 1,
     scheduled_start: null as Date | null,
     scheduled_end: null as Date | null,
+});
+
+// Watch sales order selection to auto-fill patron, site, mix design, and total quantity
+watch(() => form.sales_order_id, (newVal) => {
+    if (newVal) {
+        const salesOrder = props.salesOrders.find((so) => Number(so.id) === Number(newVal));
+        if (salesOrder) {
+            form.customer_id = salesOrder.patron_id;
+            form.site_id = salesOrder.site_id;
+            
+            const firstItem = salesOrder.quotation?.items?.[0];
+            if (firstItem) {
+                form.mix_design_id = firstItem.mix_design_id;
+                form.total_qty = Number(firstItem.quantity || 0);
+            }
+        }
+    } else {
+        form.customer_id = null;
+        form.site_id = null;
+        form.mix_design_id = null;
+        form.total_qty = 0;
+    }
 });
 
 const submit = () => {
@@ -142,48 +182,79 @@ const handleMixCreated = () => {
 
         <div class="grid grid-cols-12 gap-5 p-5">
             <!-- Row 1: Identification & Primary -->
-            <!-- <div class="col-span-12 md:col-span-3">
-                <BaseInput v-model="form.prefix" label="Prefix" :error="form.errors.prefix" />
+            <div class="col-span-12 md:col-span-3">
+                <BaseSelect
+                    v-model="form.sales_order_id"
+                    :options="salesOrderOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    filter
+                    label="Sales Order (Optional)"
+                    placeholder="Select Sales Order"
+                    :error="form.errors.sales_order_id"
+                />
             </div>
             <div class="col-span-12 md:col-span-3">
-                <BaseInput v-model="form.order_no" label="Order Number (Optional)" :error="form.errors.order_no" />
-            </div> -->
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect v-model="form.customer_id" :options="safeCustomers" optionLabel="legal_name" optionValue="id" filter label="Customer" placeholder="Select Customer" :error="form.errors.customer_id" />
+                <BaseSelect
+                    v-model="form.customer_id"
+                    :options="safeCustomers"
+                    optionLabel="legal_name"
+                    optionValue="id"
+                    filter
+                    label="Customer"
+                    placeholder="Select Customer"
+                    :error="form.errors.customer_id"
+                    :disabled="!!form.sales_order_id"
+                />
             </div>
             <div class="col-span-12 md:col-span-3">
-                <BaseSelect v-model="form.site_id" :options="safeSites" optionLabel="name" optionValue="id" filter label="Site" placeholder="Select Site" :error="form.errors.site_id" />
+                <BaseSelect
+                    v-model="form.site_id"
+                    :options="safeSites"
+                    optionLabel="name"
+                    optionValue="id"
+                    filter
+                    label="Site"
+                    placeholder="Select Site"
+                    :error="form.errors.site_id"
+                    :disabled="!!form.sales_order_id"
+                />
             </div>
 
             <!-- Row 2: Technical & Status -->
             <div class="col-span-12 md:col-span-3">
                 <div class="flex items-center justify-between mb-1">
                     <label class="block text-[10px] font-bold uppercase tracking-widest text-gray-400">Mix Design</label>
-                    <button type="button" @click="showMixDesignModal = true" class="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors">
+                    <button
+                        v-if="!form.sales_order_id"
+                        type="button"
+                        @click="showMixDesignModal = true"
+                        class="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                    >
                         <BeakerIcon class="h-3 w-3" />
                         <span>CREATE NEW</span>
                     </button>
                 </div>
-                <BaseSelect v-model="form.mix_design_id" :options="safeMixDesigns" optionLabel="design_name" optionValue="id" filter placeholder="Select Design" :error="form.errors.mix_design_id" />
-                
-                <!-- Mix Design Ingredients Hint -->
-                <!-- <div v-if="selectedMixIngredients.length" class="mt-2.5 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                    <div class="flex items-center justify-between">
-                        <label class="text-[9px] font-bold uppercase tracking-[0.1em] text-slate-400">Recipe Ingredients</label>
-                        <span v-if="selectedMixDesign?.grade" class="rounded bg-indigo-50 px-1 py-0.5 text-[8px] font-bold text-indigo-700 ring-1 ring-inset ring-indigo-100">GRADE: {{ selectedMixDesign.grade }}</span>
-                    </div>
-                    <div class="flex flex-wrap gap-1.5">
-                        <div v-for="item in selectedMixIngredients" :key="item.id" 
-                             class="group flex items-center gap-2 rounded-md bg-slate-50 px-2 py-1 ring-1 ring-inset ring-slate-200 transition-all hover:bg-white hover:shadow-sm hover:ring-indigo-200">
-                            <span class="text-[10px] font-medium text-slate-600">{{ item.name || 'Unknown' }}</span>
-                            <div class="h-3 w-px bg-slate-200"></div>
-                            <span class="text-[10px] font-bold text-indigo-600">{{ item.qty }} <span class="text-[9px] font-medium text-slate-400">{{ item.uom }}</span></span>
-                        </div>
-                    </div>
-                </div> -->
+                <BaseSelect
+                    v-model="form.mix_design_id"
+                    :options="safeMixDesigns"
+                    optionLabel="design_name"
+                    optionValue="id"
+                    filter
+                    placeholder="Select Design"
+                    :error="form.errors.mix_design_id"
+                    :disabled="!!form.sales_order_id"
+                />
             </div>
             <div class="col-span-12 md:col-span-3">
-                <BaseSelect v-model="form.status" :options="filteredStatuses" optionLabel="label" optionValue="value" label="Status" :error="form.errors.status" />
+                <BaseSelect
+                    v-model="form.status"
+                    :options="filteredStatuses"
+                    optionLabel="label"
+                    optionValue="value"
+                    label="Status"
+                    :error="form.errors.status"
+                />
             </div>
 
             <div v-if="selectedMixDesign" class="col-span-12 rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">
@@ -215,7 +286,13 @@ const handleMixCreated = () => {
                 </div>
             </div>
             <div class="col-span-12 md:col-span-3">
-                <BaseInputNumber v-model="form.total_qty" label="Total Quantity (m³)" :error="form.errors.total_qty" :minFractionDigits="3" />
+                <BaseInputNumber
+                    v-model="form.total_qty"
+                    label="Total Quantity (m³)"
+                    :error="form.errors.total_qty"
+                    :minFractionDigits="3"
+                    :disabled="!!form.sales_order_id"
+                />
             </div>
             <!-- <div class="col-span-12 md:col-span-3">
                 <BaseInputNumber v-model="form.produced_qty" label="Produced Quantity (m³)" :error="form.errors.produced_qty" :minFractionDigits="3" />

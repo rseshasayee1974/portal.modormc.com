@@ -16,16 +16,28 @@ const defaultColorMap: Record<string, string> = {
     // Status
     'Active':   'bg-green-50 text-green-700 ring-green-200',
     'Inactive': 'bg-red-50 text-red-600 ring-red-200',
+
+    'Due':      'bg-green-50 text-green-700 ring-green-200',
+    'Overdue':  'bg-red-50 text-red-700 ring-red-200',
 };
 
 const classes = computed(() => {
-    const map = { ...defaultColorMap, ...(props.colorMap ?? {}) };
+    const map = {
+        ...defaultColorMap,
+        ...(props.colorMap ?? {}),
+    };
+
     return map[props.value] ?? 'bg-gray-100 text-gray-600 ring-gray-200';
 });
 </script>
 
 <template>
-    <span :class="['inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-widest uppercase ring-1', classes]">
+    <span
+        :class="[
+            'inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-widest uppercase ring-1',
+            classes
+        ]"
+    >
         {{ value }}
     </span>
 </template>

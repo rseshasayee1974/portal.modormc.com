@@ -62,6 +62,7 @@ const props = withDefaults(
 
         // Toolbar Props
         showSearch?: boolean;
+        showAdvancedFilter?: boolean;
         heading?: string;
         headingIcon?: string;
 
@@ -97,6 +98,7 @@ const props = withDefaults(
         removableSort: false,
         showSerial: false,
         showSearch: false,
+        showAdvancedFilter: true,
         heading : "",
         headingIcon:'',
         showExport: false,
@@ -287,6 +289,7 @@ const toggleFilterPopover = (event: any) => {
                     </InputGroup>
                     
                     <Button 
+                        v-if="showAdvancedFilter"
                         icon="pi pi-filter" 
                         severity="secondary" 
                         text 
@@ -459,7 +462,7 @@ const toggleFilterPopover = (event: any) => {
     padding: 0.2rem 0.3rem !important;
     font-weight: 700 !important;
     text-transform: uppercase !important;
-    color: #64748b !important;
+    color: #000000 !important;
 }
 
 /* ── Table Header ────────────────────────────────────────── */

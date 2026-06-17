@@ -28,7 +28,8 @@ const props = withDefaults(defineProps<{
     workOrders?: any[];
     trucks?: any[];
     transporters?: any[];
-    personnel?: any[];
+    sales_executives?: any[];
+    drivers?: any[];
     products?: any[];
     uoms?: any[];
     statuses?: { label: string; value: number }[];
@@ -37,7 +38,8 @@ const props = withDefaults(defineProps<{
     workOrders: () => [],
     trucks: () => [],
     transporters: () => [],
-    personnel: () => [],
+    sales_executives: () => [],
+    drivers: () => [],
     products: () => [],
     uoms: () => [],
     statuses: () => [],
@@ -78,38 +80,15 @@ const form = useForm({
     load_time: props.batch?.dispatches?.[0]?.load_time ? new Date(props.batch.dispatches[0].load_time) : new Date(),
     materials: (() => {
         let initialMaterials = props.batch?.materials;
-        if ((!initialMaterials || initialMaterials.length === 0) && props.batch?.work_order?.mix_design?.items) {
-            initialMaterials = props.batch.work_order.mix_design.items.map((item: any) => ({
-                id: null,
-                product_id: item.product_id,
-                material_name: item.product?.title || 'Material',
-                target_qty: Number(item.cross_quantity || item.actual_quantity || item.quantity || 0) * Number(props.batch?.batch_size ?? 1),
-                actual_qty: 0,
-                deviation_quantity: 0,
-                uom_id: item.uom_id || item.product?.unit_id,
-            }));
-        } else if ((!initialMaterials || initialMaterials.length === 0) && props.workOrders) {
-            const wo = props.workOrders.find(w => w.id === props.batch?.work_order_id);
-            if (wo?.mix_design?.items) {
-                initialMaterials = wo.mix_design.items.map((item: any) => ({
-                    id: null,
-                    product_id: item.product_id,
-                    material_name: item.product?.title || 'Material',
-                    target_qty: Number(item.cross_quantity || item.actual_quantity || item.quantity || 0) * Number(props.batch?.batch_size ?? 1),
-                    actual_qty: 0,
-                    deviation_quantity: 0,
-                    uom_id: item.uom_id || item.product?.unit_id,
-                }));
-            }
-        }
+        console.log('test1', initialMaterials);
         return ((initialMaterials?.length ?? 0) > 0 ? initialMaterials : [blankMaterial()]).map((item: any) => ({
-            id: item.id,
+            id: item.id ?? null,
             product_id: item.product_id,
             material_name: item.material_name || item.product?.title || '',
             target_qty: Number(item.target_qty || 0),
             actual_qty: Number(item.actual_qty || 0),
-            deviation_quantity: Number(item.deviation_quantity || (Number(item.actual_qty || 0) - Number(item.target_qty || 0))),
-            uom_id: item.uom_id,
+            deviation_quantity: Number(item.deviation_quantity ?? (Number(item.actual_qty || 0) - Number(item.target_qty || 0))),
+            uom_id: item.uom_id ?? null,
         }));
     })(),
 });
@@ -180,70 +159,76 @@ watch(() => form.materials, (newMaterials) => {
     });
 }, { deep: true });
 
-watch(() => props.batch, (newBatch) => {
-    console.log('BatchEditForm watcher triggered. Batch ID:', newBatch?.id, 'has materials:', !!newBatch?.materials, 'count:', newBatch?.materials?.length);
-    if (newBatch) {
-        form.work_order_id = newBatch.work_order_id ?? null;
-        form.batch_no = newBatch.batch_no ?? null;
-        form.batch_size = Number(newBatch.batch_size ?? 1);
-        
-        const dispatch = newBatch.dispatches?.[0];
-        form.truck_id = dispatch?.truck_id ?? null;
-        form.transport_id = dispatch?.transport_id ?? null;
-        form.driver_id = dispatch?.driver_id ?? null;
-        form.sales_executive_id = dispatch?.sales_executive_id ?? null;
-        form.empty_weight_truck = Number(dispatch?.empty_weight_truck ?? 0);
-        form.loaded_weight_truck = Number(dispatch?.loaded_weight_truck ?? 0);
-        form.net_weight = Number(dispatch?.net_weight ?? 0);
-        form.empty_time = dispatch?.empty_time ? new Date(dispatch.empty_time) : new Date();
-        form.load_time = dispatch?.load_time ? new Date(dispatch.load_time) : new Date();
-        
-        form.uom_id = newBatch.uom_id ?? props.uoms?.find((u: any) => String(u.unit_code).toUpperCase() === 'CBM')?.id ?? null;
-        form.status = Number(newBatch.status ?? 1);
-        form.start_time = newBatch.start_time ? new Date(newBatch.start_time) : new Date();
-        form.end_time = newBatch.end_time ? new Date(newBatch.end_time) : new Date();
-        
-        let initialMaterials = newBatch.materials;
-        console.log('BatchEditForm initialMaterials from newBatch:', initialMaterials);
-        if ((!initialMaterials || initialMaterials.length === 0) && newBatch.work_order?.mix_design?.items) {
-            console.log('Loading materials from mix_design items');
-            initialMaterials = newBatch.work_order.mix_design.items.map((item: any) => ({
-                id: null,
-                product_id: item.product_id,
-                material_name: item.product?.title || 'Material',
-                target_qty: Number(item.cross_quantity || item.actual_quantity || item.quantity || 0) * Number(newBatch.batch_size ?? 1),
-                actual_qty: 0,
-                deviation_quantity: 0,
-                uom_id: item.uom_id || item.product?.unit_id,
-            }));
-        } else if ((!initialMaterials || initialMaterials.length === 0) && props.workOrders) {
-            console.log('Loading materials from props.workOrders');
-            const wo = props.workOrders.find(w => w.id === newBatch.work_order_id);
-            if (wo?.mix_design?.items) {
-                initialMaterials = wo.mix_design.items.map((item: any) => ({
-                    id: null,
-                    product_id: item.product_id,
-                    material_name: item.product?.title || 'Material',
-                    target_qty: Number(item.cross_quantity || item.actual_quantity || item.quantity || 0) * Number(newBatch.batch_size ?? 1),
-                    actual_qty: 0,
-                    deviation_quantity: 0,
-                    uom_id: item.uom_id || item.product?.unit_id,
-                }));
+// Auto-fill material_name when product_id is selected
+watch(
+    () => form.materials.map(m => m.product_id),
+    (newIds) => {
+        newIds.forEach((productId, index) => {
+            if (productId && !form.materials[index].material_name) {
+                const product = props.products.find((p: any) => p.id === productId);
+                if (product) form.materials[index].material_name = product.title;
             }
-        }
-
-        form.materials = ((initialMaterials?.length ?? 0) > 0 ? initialMaterials : [blankMaterial()]).map((item: any) => ({
-            id: item.id,
-            product_id: item.product_id,
-            material_name: item.material_name || item.label || item.product?.title || '',
-            target_qty: Number(item.target_qty || 0),
-            actual_qty: Number(item.actual_qty || 0),
-            deviation_quantity: Number(item.deviation_quantity || (Number(item.actual_qty || 0) - Number(item.target_qty || 0))),
-            uom_id: item.uom_id,
-        }));
-        console.log('BatchEditForm set form.materials to:', JSON.parse(JSON.stringify(form.materials)));
+        });
     }
-}, { deep: true, immediate: true });
+);
+
+const applyBatchToForm = (newBatch: any) => {
+    if (!newBatch) return;
+
+    form.work_order_id = newBatch.work_order_id ?? null;
+    form.batch_no = newBatch.batch_no ?? null;
+    form.batch_size = Number(newBatch.batch_size ?? 1);
+    
+    const dispatch = newBatch.dispatches?.[0];
+    form.truck_id = dispatch?.truck_id ?? null;
+    form.transport_id = dispatch?.transport_id ?? null;
+    form.driver_id = dispatch?.driver_id ?? null;
+    form.sales_executive_id = dispatch?.sales_executive_id ?? null;
+    form.empty_weight_truck = Number(dispatch?.empty_weight_truck ?? 0);
+    form.loaded_weight_truck = Number(dispatch?.loaded_weight_truck ?? 0);
+    form.net_weight = Number(dispatch?.net_weight ?? 0);
+    form.empty_time = dispatch?.empty_time ? new Date(dispatch.empty_time) : new Date();
+    form.load_time = dispatch?.load_time ? new Date(dispatch.load_time) : new Date();
+    
+    form.uom_id = newBatch.uom_id ?? props.uoms?.find((u: any) => String(u.unit_code).toUpperCase() === 'CBM')?.id ?? null;
+    form.status = Number(newBatch.status ?? 1);
+    form.start_time = newBatch.start_time ? new Date(newBatch.start_time) : new Date();
+    form.end_time = newBatch.end_time ? new Date(newBatch.end_time) : new Date();
+    
+    let initialMaterials = newBatch?.materials;
+    console.log('[BatchEditForm] applyBatchToForm — batch.id:', newBatch?.id, '| materials count:', initialMaterials?.length, '| raw materials:', JSON.stringify(initialMaterials));
+
+    form.materials = ((initialMaterials?.length ?? 0) > 0 ? initialMaterials : [blankMaterial()]).map((item: any) => ({
+        id: item.id ?? null,
+        product_id: item.product_id,
+        material_name: item.material_name || item.label || item.product?.title || '',
+        target_qty: Number(item.target_qty ?? 0),
+        actual_qty: Number(item.actual_qty ?? 0),
+        deviation_quantity: Number(item.deviation_quantity ?? (Number(item.actual_qty ?? 0) - Number(item.target_qty ?? 0))),
+        uom_id: item.uom_id ?? null,
+    }));
+    console.log('[BatchEditForm] form.materials set to:', JSON.parse(JSON.stringify(form.materials)));
+};
+
+// Run on mount (initial load with whatever batch data is available)
+applyBatchToForm(props.batch);
+
+// Watch for when the batch ID changes (switching rows) OR when materials arrive async
+watch(
+    () => props.batch?.id,
+    () => applyBatchToForm(props.batch),
+);
+
+// Watch specifically for materials arriving (async fetch from detailedBatches)
+watch(
+    () => props.batch?.materials,
+    (newMaterials) => {
+        if (newMaterials && newMaterials.length > 0) {
+            applyBatchToForm(props.batch);
+        }
+    },
+    { deep: false }
+);
 
 const { isScaleConnected, captureWeight, captureCameraSnap } = useWeighbridge();
 
@@ -507,7 +492,7 @@ const submit = () => {
     });
 };
 
-console.log('sdfcsdfsc', form);
+console.log(form.materials);
 
 </script>
 
@@ -580,35 +565,7 @@ console.log('sdfcsdfsc', form);
                 <div class="col-span-12 md:col-span-9 space-y-6">
                     <!-- Config Grid -->
                     <div class="grid grid-cols-12 gap-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
-                         <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Truck Assignment" :error="form.errors.truck_id" :disabled="isLocked" />
-                        </div>
-                        
-                         <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear :error="form.errors.transport_id" :disabled="isLocked" />
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.driver_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Driver" showClear :error="form.errors.driver_id" :disabled="isLocked" />
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear :error="form.errors.sales_executive_id" :disabled="isLocked" />
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :minFractionDigits="2" :disabled="true"  :error="form.errors.batch_size" />
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                        <BaseSelect
-                                v-model="form.uom_id"
-                                :options="uoms"
-                                label="UOM"
-                                optionLabel="unit_code"
-                                optionValue="id"
-                                size="small"
-                                :fluid="true"
-                                :error="form.errors.uom_id"
-                                :disabled="isLocked"
-                            />
-                        </div>
+                         
                         <div class="col-span-12 md:col-span-3">
                             <div class="flex items-end gap-2">
                                 <div class="flex-1">
@@ -655,6 +612,37 @@ console.log('sdfcsdfsc', form);
                         <div class="col-span-12 md:col-span-3">
                             <BaseInputNumber v-model="form.net_weight" :disabled="isLocked || isMetricTon" label="Net Weight (kg)" :required="!isMetricTon" :error="form.errors.net_weight" />
                         </div>
+                        <div class="col-span-12 md:col-span-3">
+                        <BaseSelect
+                                v-model="form.uom_id"
+                                :options="uoms"
+                                label="UOM"
+                                optionLabel="unit_code"
+                                optionValue="id"
+                                size="small"
+                                :fluid="true"
+                                :error="form.errors.uom_id"
+                                :disabled="isLocked"
+                            />
+                        </div>
+                        <div class="col-span-12 md:col-span-3">
+                            <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Truck Assignment" :error="form.errors.truck_id" :disabled="isLocked" />
+                        </div>
+                        
+                         <div class="col-span-12 md:col-span-3">
+                            <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear :error="form.errors.transport_id" :disabled="isLocked" />
+                        </div>
+                        <div class="col-span-12 md:col-span-3">
+                            <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label" optionValue="id" filter label="Driver" showClear :error="form.errors.driver_id" :disabled="isLocked" />
+                        </div>
+                        <div class="col-span-12 md:col-span-3">
+                            <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear :error="form.errors.sales_executive_id" :disabled="isLocked" />
+                        </div>
+                        <div class="col-span-12 md:col-span-3">
+                            <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :minFractionDigits="2" :disabled="true"  :error="form.errors.batch_size" />
+                        </div>
+                        
+                        
                         
                         <div class="col-span-12 md:col-span-3">
                             <BaseDatePicker label="Empty Time" v-model="form.empty_time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.empty_time" :disabled="isLocked" />
@@ -854,7 +842,7 @@ console.log('sdfcsdfsc', form);
                             </ul>
                         </div>
 
-                        <!-- Materials: Horizontal Table Layout -->
+                        <!-- Materials: Card-per-Material Layout (Batch Report Style) -->
                         <div class="px-5 pb-5">
                             <!-- Empty State -->
                             <div v-if="form.materials.length === 0" class="rounded-xl border-2 border-dashed border-slate-200 py-10 text-center">
@@ -916,7 +904,8 @@ console.log('sdfcsdfsc', form);
                                             <td class="border-r border-b border-slate-300 px-3 py-2 font-bold bg-slate-50 text-slate-600 uppercase text-[10px]">Target Qty</td>
                                             <td v-for="(item, index) in form.materials" :key="index" class="border-r border-b border-slate-300 px-2 py-1">
                                                 <BaseInputNumber
-                                                    v-model="form.materials[index].target_qty"
+                                                    :modelValue="form.materials[index].target_qty"
+                                                    @update:modelValue="form.materials[index].target_qty = Number($event ?? 0)"
                                                     :disabled="!!item.id || isLocked"
                                                     :minFractionDigits="3"
                                                     size="small"
@@ -928,11 +917,9 @@ console.log('sdfcsdfsc', form);
                                         </tr>
                                         <!-- Target Summary -->
                                         <tr class="bg-slate-100">
-                                            <td :colspan="form.materials.length" class="border-r border-b border-slate-300 px-3 py-2 font-bold text-right text-slate-600 uppercase text-[10px]">
+                                            <td :colspan="form.materials.length + 1" class="border-r border-b border-slate-300 px-3 py-2 font-bold text-right text-slate-600 uppercase text-[10px]">
                                                 Mass of Recipe Targets in kg :
-                                            </td>
-                                            <td class="border-b border-slate-300 px-3 py-2 font-black text-slate-800 text-sm text-center">
-                                                {{ form.materials.reduce((sum, m) => sum + Number(m.target_qty || 0), 0).toFixed(3) }}
+                                                <span class="ml-2 text-slate-800 font-black text-sm">{{ form.materials.reduce((sum, m) => sum + Number(m.target_qty || 0), 0).toFixed(3) }}</span>
                                             </td>
                                         </tr>
                                         <!-- Actual Qty -->
@@ -940,7 +927,8 @@ console.log('sdfcsdfsc', form);
                                             <td class="border-r border-b border-slate-300 px-3 py-2 font-bold bg-slate-50 text-slate-600 uppercase text-[10px]">Actual Qty</td>
                                             <td v-for="(item, index) in form.materials" :key="index" class="border-r border-b border-slate-300 px-2 py-1">
                                                 <BaseInputNumber
-                                                    v-model="form.materials[index].actual_qty"
+                                                    :modelValue="form.materials[index].actual_qty"
+                                                    @update:modelValue="form.materials[index].actual_qty = Number($event ?? 0)"
                                                     :disabled="isLocked"
                                                     :minFractionDigits="3"
                                                     size="small"
@@ -960,11 +948,9 @@ console.log('sdfcsdfsc', form);
                                         </tr>
                                         <!-- Actual Summary -->
                                         <tr class="bg-slate-100 border-t-2 border-slate-300">
-                                            <td :colspan="form.materials.length" class="border-r border-b border-slate-300 px-3 py-2 font-bold text-right text-slate-600 uppercase text-[10px]">
+                                            <td :colspan="form.materials.length + 1" class="border-r border-b border-slate-300 px-3 py-2 font-bold text-right text-slate-600 uppercase text-[10px]">
                                                 Mass of Total Set Weight in kg :
-                                            </td>
-                                            <td class="border-b border-slate-300 px-3 py-2 font-black text-slate-800 text-sm text-center">
-                                                {{ form.materials.reduce((sum, m) => sum + Number(m.actual_qty || 0), 0).toFixed(3) }}
+                                                <span class="ml-2 text-slate-800 font-black text-sm">{{ form.materials.reduce((sum, m) => sum + Number(m.actual_qty || 0), 0).toFixed(3) }}</span>
                                             </td>
                                         </tr>
                                         <!-- Unit -->

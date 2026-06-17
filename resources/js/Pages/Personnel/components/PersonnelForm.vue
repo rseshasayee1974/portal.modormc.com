@@ -50,6 +50,20 @@ const props = defineProps<{
     submit: () => void;
 }>();
 
+import { watch } from 'vue';
+
+watch(() => props.departmentOptions, (options) => {
+    if (options && options.length > 0 && !props.form.department_id) {
+        props.form.department_id = options[0].value;
+    }
+}, { immediate: true });
+
+watch(() => props.designationOptions, (options) => {
+    if (options && options.length > 0 && !props.form.designation_id) {
+        props.form.designation_id = options[0].value;
+    }
+}, { immediate: true });
+
 const emit = defineEmits(['update:activeTab']);
 
 const handleTabUpdate = (val: string) => {
@@ -162,12 +176,14 @@ const handlePrimaryToggle = (index: number, val: any) => {
                         <div class="space-y-6">
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Department</label>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Department <span class="text-red-500">*</span></label>
                                     <BaseSelect v-model="form.department_id" :options="departmentOptions" optionLabel="label" optionValue="value" placeholder="Select Department" filter class="w-full" />
+                                    <small v-if="form.errors.department_id" class="p-error text-[10px]">{{ form.errors.department_id }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Designation</label>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Designation <span class="text-red-500">*</span></label>
                                     <BaseSelect v-model="form.designation_id" :options="designationOptions" optionLabel="label" optionValue="value" placeholder="Select Designation" filter class="w-full" />
+                                    <small v-if="form.errors.designation_id" class="p-error text-[10px]">{{ form.errors.designation_id }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Reporting Manager</label>
@@ -178,9 +194,9 @@ const handlePrimaryToggle = (index: number, val: any) => {
                                     <BaseSelect v-model="form.employment_type" :options="employmentTypeOptions" optionLabel="label" optionValue="value" placeholder="Select Type" class="w-full" />
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Joining Date <span class="text-red-500">*</span></label>
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Joining Date </label>
                                     <DatePicker v-model="form.joining_date" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date" class="w-full" />
-                                    <small v-if="form.errors.joining_date" class="p-error text-[10px]">{{ form.errors.joining_date }}</small>
+                                    
                                 </div>
                                 <div class="flex flex-col gap-2">
                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Exit Date</label>

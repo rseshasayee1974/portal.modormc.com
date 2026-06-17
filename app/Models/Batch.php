@@ -31,6 +31,15 @@ class Batch extends Model
         'created_by',
         'updated_by',
         'deleted_by',
+        'truck_id',
+        'transport_id',
+        'driver_id',
+        'empty_weight_truck',
+        'loaded_weight_truck',
+        'net_weight',
+        'conversion_quantity',
+        'uom_id',
+        'site_id',
     ];
 
     protected $appends = ['sheet_url', 'original_sheet_url'];
@@ -76,6 +85,31 @@ class Batch extends Model
     public function operator()
     {
         return $this->belongsTo(Personnel::class, 'operator_id');
+    }
+
+    public function truck()
+    {
+        return $this->belongsTo(Machine::class, 'truck_id');
+    }
+
+    public function transport()
+    {
+        return $this->belongsTo(Patron::class, 'transport_id');
+    }
+
+    public function driver()
+    {
+        return $this->belongsTo(Personnel::class, 'driver_id');
+    }
+
+    public function uom()
+    {
+        return $this->belongsTo(ProductUnit::class, 'uom_id');
+    }
+
+    public function site()
+    {
+        return $this->belongsTo(Site::class, 'site_id');
     }
 
     public function workOrder()

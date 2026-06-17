@@ -46,3 +46,5 @@ testsprite_tests/tmp/code_summary.yaml
 testsprite_tests/tmp/config.json
 testsprite_tests/tmp/test_results.json
 testsprite_tests/tmp/prd_files/modormc_erp_review.md
+package-lock.json
+package.json

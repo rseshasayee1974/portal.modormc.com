@@ -76,6 +76,7 @@ class NotificationEmailController extends Controller
 
         $notificationemail->update(array_merge($validated, [
             'updated_by' => Auth::id(),
+            'updated_at' => date('Y-m-d H:i:s')
         ]));
 
         return redirect()->back()->with('success', 'Notification email updated successfully.');

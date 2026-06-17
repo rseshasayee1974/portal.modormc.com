@@ -31,17 +31,25 @@ class PersonnelController extends Controller
                 ->get(),
             'patrons' => Patron::where('plant_id', $activePlantId)
                 ->where('status', true)
+                ->orderBy('legal_name', 'asc')
                 ->get(['id', 'legal_name']),
-            'departments' => Department::where('plant_id', $activePlantId)->get(['id', 'name', 'code']),
-            'designations' => Designation::where('plant_id', $activePlantId)->get(['id', 'name', 'code']),
+            'departments' => Department::where('plant_id', $activePlantId)
+                ->orderBy('name', 'asc')
+                ->get(['id', 'name', 'code']),
+            'designations' => Designation::where('plant_id', $activePlantId)
+                ->orderBy('name', 'asc')
+                ->get(['id', 'name', 'code']),
             'managers' => Personnel::where('plant_id', $activePlantId)
                 ->where('status', 'active')
+                ->orderBy('first_name', 'asc')
                 ->get(['id', 'first_name', 'last_name', 'employee_code']),
             'employmentTypes' => ['permanent', 'contract', 'trainee', 'temporary', 'consultant'],
             'genders' => ['male', 'female', 'other'],
             'statuses' => ['active', 'inactive', 'terminated', 'resigned', 'retired'],
             'contactTypes' => ['Phone', 'Email', 'Emergency Phone', 'WhatsApp'],
-            'salaryComponents' => \App\Models\SalaryComponent::where('plant_id', $activePlantId)->get(['id', 'name', 'type']),
+            'salaryComponents' => \App\Models\SalaryComponent::query()->where('plant_id', $activePlantId)
+                ->orderBy('name', 'asc')
+                ->get(['id', 'name', 'type']),
         ]);
     }
 
@@ -58,7 +66,7 @@ class PersonnelController extends Controller
             'email' => 'nullable|email|unique:mm_personnels,email',
             'mobile' => 'nullable|string|max:20',
             'date_of_birth' => 'nullable|date',
-            'joining_date' => 'required|date',
+            'joining_date' => 'nullable|date',
             'exit_date' => 'nullable|date',
             'gender' => 'nullable|in:male,female,other',
             'employment_type' => 'required|in:permanent,contract,trainee,temporary,consultant',
@@ -165,7 +173,7 @@ class PersonnelController extends Controller
             'email' => ['nullable', 'email', Rule::unique('mm_personnels')->ignore($personnel->id)],
             'mobile' => 'nullable|string|max:20',
             'date_of_birth' => 'nullable|date',
-            'joining_date' => 'required|date',
+            'joining_date' => 'nullable|date',
             'exit_date' => 'nullable|date',
             'gender' => 'nullable|in:male,female,other',
             'employment_type' => 'required|in:permanent,contract,trainee,temporary,consultant',
@@ -203,6 +211,13 @@ class PersonnelController extends Controller
         DB::transaction(function () use ($validated, $personnel) {
             $personnelData = collect($validated)->except(['contacts', 'patron_ids', 'salary_structures', 'employee_code'])->toArray();
 
+            // Convert empty strings to null for unique or nullable columns to prevent duplicate key or type errors in the DB
+            foreach (['email', 'pan', 'aadhaar', 'mobile', 'uan', 'esi_number', 'bank_account_no', 'bank_ifsc', 'bank_name', 'last_name', 'gender'] as $field) {
+                if (array_key_exists($field, $personnelData) && ($personnelData[$field] === '' || $personnelData[$field] === null)) {
+                    $personnelData[$field] = null;
+                }
+            }
+
             // Format dates
             if (!empty($personnelData['date_of_birth'])) {
                 $personnelData['date_of_birth'] = date('Y-m-d', strtotime($personnelData['date_of_birth']));
@@ -211,6 +226,8 @@ class PersonnelController extends Controller
             }
             if (!empty($personnelData['joining_date'])) {
                 $personnelData['joining_date'] = date('Y-m-d', strtotime($personnelData['joining_date']));
+            } else {
+                $personnelData['joining_date'] = null;
             }
             if (!empty($personnelData['exit_date'])) {
                 $personnelData['exit_date'] = date('Y-m-d', strtotime($personnelData['exit_date']));

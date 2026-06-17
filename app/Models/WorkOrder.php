@@ -62,6 +62,7 @@ class WorkOrder extends Model
         'scheduled_start',
         'scheduled_end',
         'status',
+        'sales_order_id',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -107,6 +108,11 @@ class WorkOrder extends Model
     public function dispatches()
     {
         return $this->hasMany(Dispatch::class, 'work_order_id');
+    }
+
+    public function salesOrder()
+    {
+        return $this->belongsTo(SalesOrder::class, 'sales_order_id');
     }
 
     public static function statusOptions(): array

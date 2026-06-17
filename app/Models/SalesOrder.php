@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\AuditFields;
+use App\Traits\TracksModelChanges;
 
 class SalesOrder extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+    use HasFactory, SoftDeletes, AuditFields , TracksModelChanges;
     protected $table = 'mm_sales_orders';
     protected $fillable = [
         'plant_id',
@@ -18,6 +19,9 @@ class SalesOrder extends Model
         'site_id',
         'order_date',
         'status',
+        'converted_by_user_id',
+        'converted_by_role',
+        'converted_by_department',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -25,7 +29,14 @@ class SalesOrder extends Model
 
     protected $casts = [
         'order_date' => 'date',
+
     ];
+    protected $appends = ['has_workorders'];
+
+    public function getHasWorkordersAttribute()
+    {
+        return $this->workOrders()->exists();
+    }
 
     const STATUS_DRAFT = 0;
     const STATUS_CONFIRMED = 1;
@@ -55,5 +66,15 @@ class SalesOrder extends Model
     public function dispatches()
     {
         return $this->hasMany(Dispatch::class);
+    }
+
+    public function converter()
+    {
+        return $this->belongsTo(User::class, 'converted_by_user_id');
+    }
+
+    public function workOrders()
+    {
+        return $this->hasMany(WorkOrder::class, 'sales_order_id');
     }
 }

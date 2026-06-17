@@ -77,6 +77,7 @@ if (!function_exists('EntitiesDropdown')) {
         return Entity::whereIn('id', $allowedEntityIds)
             ->select('id', 'legal_name')
             ->whereNull('deleted_at')
+            ->orderBy('legal_name')
             ->get();
     }
 }
@@ -93,6 +94,7 @@ if (!function_exists('PlantsDropdown')) {
         return Plant::whereIn('entity_id', $allowedEntityIds)
             ->select('id', 'name', 'entity_id')
             ->whereNull('deleted_at')
+            ->orderBy('name')
             ->get();
     }
 }
@@ -235,11 +237,22 @@ if (!function_exists('PersonnelDropdown')) {
      * @param  int|null   $entityId
      * @return \Illuminate\Database\Eloquent\Collection
      */
-    function PersonnelDropdown($excludeId = null, $entityId = null)
+    function PersonnelDropdown($excludeId = null, $designationName = null)
     {
-        return Personnel::where('plant_id', _activePlantId())
-            ->when($excludeId, fn($q) => $q->excludeId($excludeId))
-            ->whereNull('deleted_at')
+        $query = Personnel::where('plant_id', _activePlantId());
+
+        if ($excludeId) {
+            $query->excludeId($excludeId);
+        }
+
+        if ($designationName) {
+            $query->whereHas('designation', function ($q) use ($designationName) {
+                $q->where('name', $designationName);
+            });
+        }
+
+        return $query->whereNull('deleted_at')
+            ->orderBy('first_name')
             ->get()
             ->map(fn($p) => [
                 'id' => $p->id,
@@ -288,6 +301,7 @@ if (!function_exists('ProductsDropdown')) {
         }
 
         return $query->whereNull('deleted_at')
+            ->orderBy('title')
             ->get(['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price'])
             ->makeHidden(['can_delete', 'can_update', 'is_in_use']);
     }
@@ -363,6 +377,7 @@ if (!function_exists('ProductCategoriesDropdown')) {
         return ProductCategory::where('plant_id', _activePlantId())
             ->whereNull('deleted_at')
             ->where('status', 1)
+            ->orderBy('name')
             ->get(['id', 'name']);
     }
 }
@@ -448,6 +463,7 @@ if (!function_exists('SaleTaxesDropdown')) {
             ->where('tax_type', 'sales')
             ->where('status', 1)
             ->whereNull('deleted_at')
+            ->orderBy('tax_name')
             ->get(['id', 'tax_name', 'tax_rate', 'tax_group', 'tax_type']);
     }
 }
@@ -485,7 +501,7 @@ if (!function_exists('Productunit')) {
 if (!function_exists('CurrenciesDropdown')) {
     function CurrenciesDropdown()
     {
-        return Currency::all(['id', 'currency_name', 'currency_code']);
+        return Currency::orderBy('currency_name')->get(['id', 'currency_name', 'currency_code']);
     }
 }
 
@@ -501,7 +517,7 @@ if (!function_exists('ActivePlantsDropdown')) {
      */
     function ActivePlantsDropdown()
     {
-        return Plant::where('is_active', true)->select('id', 'name')->whereNull('deleted_at')->get();
+        return Plant::where('is_active', true)->select('id', 'name')->whereNull('deleted_at')->orderBy('name')->get();
     }
 }
 
@@ -525,6 +541,7 @@ if (!function_exists('LedgersDropdown')) {
 
         return $query->select('id', 'code as name', 'title')
             ->whereNull('deleted_at')
+            ->orderBy('title')
             ->get();
     }
 }
@@ -547,6 +564,7 @@ if (!function_exists('SalesLedgersDropdown')) {
 
         return $query->select('id', 'code as name', 'title') 
             ->whereNull('deleted_at')
+            ->orderBy('title')
             ->get();
     }
 }
@@ -562,8 +580,8 @@ if (!function_exists('DetailedPatronsDropdown')) {
     {
         return Patron::where('plant_id', _activePlantId())
             ->with(['plant', 'ledger', 'contacts.addresses', 'bankAccounts'])
-            ->latest()
             ->whereNull('deleted_at')
+            ->orderBy('legal_name')
             ->get();
     }
 }
@@ -571,21 +589,21 @@ if (!function_exists('DetailedPatronsDropdown')) {
 if (!function_exists('ContactTypesDropdown')) {
     function ContactTypesDropdown()
     {
-        return ContactType::select('id', 'type as label')->whereNull('deleted_at')->get();
+        return ContactType::select('id', 'type as label')->whereNull('deleted_at')->orderBy('type')->get();
     }
 }
 
 if (!function_exists('AddressTypesDropdown')) {
     function AddressTypesDropdown()
     {
-        return AddressType::select('id', 'type as label')->get();
+        return AddressType::select('id', 'type as label')->orderBy('type')->get();
     }
 }
 
 if (!function_exists('BankAccountTypesDropdown')) {
     function BankAccountTypesDropdown()
     {
-        return BankAccountType::select('id', 'type as label')->get();
+        return BankAccountType::select('id', 'type as label')->orderBy('type')->get();
     }
 }
 
