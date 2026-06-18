@@ -23,12 +23,16 @@ class PersonnelFactory extends Factory
     public function definition(): array
     {
         return [
-            'plant_id' => 1,
-            'plant_id' => Plant::factory(),
+            'plant_id' => 2,
+            // 'plant_id' => Plant::factory(),
             'first_name' => $this->faker->firstName(),
             'last_name' => $this->faker->lastName(),
-            'employee_type' => $this->faker->randomElement(['Permanent', 'Contract', 'Daily Wage']),
-            'gender' => $this->faker->randomElement(['Male', 'Female']),
+'employment_type' => $this->faker->randomElement([
+    'permanent',
+    'contract',
+    'trainee',
+    'temporary',
+]),            'gender' => $this->faker->randomElement(['Male', 'Female']),
             'date_of_birth' => $this->faker->date(),
             'joining_date' => $this->faker->date(),
             'status' => 'active',

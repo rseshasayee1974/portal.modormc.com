@@ -102,6 +102,7 @@ class Patron extends Model
         'gstin',
         'status',
         'displayed',
+        
         'is_system',
         'created_by',
         'updated_by',

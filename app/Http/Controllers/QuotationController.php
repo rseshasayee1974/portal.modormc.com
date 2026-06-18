@@ -23,7 +23,7 @@ class QuotationController extends Controller
         $plantId = session('active_plant_id');
 
         return Inertia::render('Quotations/Index', [
-            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'salesOrders', 'creator', 'modifier'])
+            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'salesOrders', 'creator', 'modifier', 'salesExecutive'])
                 ->where('plant_id', $plantId)
                 ->latest()
                 ->get(),
@@ -33,6 +33,7 @@ class QuotationController extends Controller
             'taxes'    => TaxesDropdown('Sales', ['GST', 'IGST']),
             'vehicles' => MachinesDropdown(),
             'drivers'  => PersonnelDropdown(),
+            'salesExecutives' => SalesExecutivesDropdown(),
             'unitOptions' => Productunit(),
             'instant_customer' => CustomSetting::getForModule(session('active_entity_id'), 'quotation')['instant_customer'] ?? 0,
         ]);
@@ -101,8 +102,6 @@ class QuotationController extends Controller
         $isSalesOrder = (int) $validated['is_salesorder'];
         if ($isSalesOrder === 1) {
             $user = auth()->user();
-            $roleName = $user->roles->pluck('name')->first() ?? 'N/A';
-            $departmentName = $user->personnel?->department?->name ?? 'N/A';
 
             \App\Models\SalesOrder::updateOrCreate(
                 ['quotation_id' => $quotation->id],
@@ -110,11 +109,10 @@ class QuotationController extends Controller
                     'plant_id' => $quotation->plant_id,
                     'patron_id' => $quotation->patron_id,
                     'site_id' => $quotation->site_id,
+                    'sales_executive_id' => $quotation->sales_executive_id,
                     'order_date' => now()->toDateString(),
                     'status' => \App\Models\SalesOrder::STATUS_CONFIRMED,
                     'converted_by_user_id' => $user->id,
-                    'converted_by_role' => $roleName,
-                    'converted_by_department' => $departmentName,
                 ]
             );
         } else {

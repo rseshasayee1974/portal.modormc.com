@@ -140,19 +140,20 @@ const handleRowClick = (event: any) => {
     emit('row-click', event);
     
     // Auto-toggle expansion if the expansion slot is provided
-    // and the click wasn't on an action button or the expander icon itself
+    // and the click wasn't on an action button, the expander icon itself, or inside the expanded row
     if (slots.expansion) {
         const target = event.originalEvent.target;
         if (!target) return;
         
         const isExpander = target.closest('.p-row-toggler');
         const isAction = target.closest('button') || target.closest('a');
+        const isExpansion = target.closest('.p-datatable-row-expansion');
         
-        if (!isExpander && !isAction) {
+        if (!isExpander && !isAction && !isExpansion) {
             let newExpandedRows;
             const id = event.data?.[props.dataKey || 'id'];
             if (id === undefined) return;
-
+ 
             if (Array.isArray(props.expandedRows)) {
                 newExpandedRows = [...props.expandedRows];
                 const index = newExpandedRows.findIndex(row => (row[props.dataKey || 'id'] || row) === id);

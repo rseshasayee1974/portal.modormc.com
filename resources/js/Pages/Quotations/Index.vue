@@ -25,6 +25,7 @@ const props = defineProps<{
     vehicles: { id: number; registration: string }[];
     unitOptions : {id: number, unit_code: string}[];
     drivers: { id: number; first_name: string; last_name: string }[];
+    salesExecutives?: any[];
 }>();
 
 const stateOptions = [
@@ -129,6 +130,15 @@ const collapseExpandedRows = () => {
     expandedRows.value = {};
 };
 
+const toggleExpand = (row: any) => {
+    const id = row.id;
+    if (expandedRows.value[id]) {
+        expandedRows.value = {};
+    } else {
+        expandedRows.value = { [id]: true };
+    }
+};
+
 const conversionOptions = [
     { label: 'None', value: 0 },
     { label: 'Sales Order', value: 1 },
@@ -166,6 +176,7 @@ const updateConversion = (quotation: any) => {
                     :unitOptions="unitOptions"
                     :mixDesigns="mixDesigns"
                     :taxes="taxes"
+                    :salesExecutives="salesExecutives"
                 />
 
                 <hr class="border-slate-200 border-dashed" />
@@ -322,6 +333,7 @@ const updateConversion = (quotation: any) => {
                                     :mixDesigns="mixDesigns"
                                     :unitOptions="unitOptions"
                                     :taxes="taxes"
+                                    :salesExecutives="salesExecutives"
                                     @updated="collapseExpandedRows"
                                 />
                             </BaseExpansionPanel>

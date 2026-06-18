@@ -13,34 +13,39 @@ const props = withDefaults(defineProps<{
     sites?: any[];
     quotations?: any[];
     mixDesigns?: any[];
+    salesExecutives?: any[];
 }>(), {
     patrons: () => [],
     sites: () => [],
     quotations: () => [],
     mixDesigns: () => [],
+    salesExecutives: () => [],
 });
 
 const form = useForm({
     quotation_id: null as number | null,
     patron_id: null as number | null,
     site_id: null as number | null,
+    sales_executive_id: null as number | null,
     order_date: new Date().toISOString().split('T')[0],
     mix_design_id: null as number | null,
     quantity: null as number | null,
     rate: null as number | null,
 });
 
-// Watch quotation selection to auto-fill patron and site
+// Watch quotation selection to auto-fill patron, site, and sales executive
 watch(() => form.quotation_id, (newVal) => {
     if (newVal) {
         const quote = props.quotations.find((q) => Number(q.id) === Number(newVal));
         if (quote) {
             form.patron_id = quote.patron_id;
             form.site_id = quote.site_id;
+            form.sales_executive_id = quote.sales_executive_id || null;
         }
     } else {
         form.patron_id = null;
         form.site_id = null;
+        form.sales_executive_id = null;
         form.mix_design_id = null;
         form.quantity = null;
         form.rate = null;
@@ -51,6 +56,8 @@ watch(() => form.quotation_id, (newVal) => {
 const filteredSites = computed(() => {
     return props.sites;
 });
+
+const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 
 // Quotation dropdown options with labels
 const quotationOptions = computed(() => {
@@ -100,7 +107,7 @@ const submit = () => {
         <!-- Form Body -->
         <div class="grid grid-cols-12 gap-5 p-5">
             <!-- Source Quotation -->
-            <div class="col-span-12 md:col-span-4">
+            <!-- <div class="col-span-12 md:col-span-4">
                 <BaseSelect
                     v-model="form.quotation_id"
                     :options="quotationOptions"
@@ -111,7 +118,7 @@ const submit = () => {
                     placeholder="Select Quotation"
                     :error="form.errors.quotation_id"
                 />
-            </div>
+            </div> -->
 
             <!-- Customer (Patron) -->
             <div class="col-span-12 md:col-span-4">
@@ -143,6 +150,22 @@ const submit = () => {
                     :error="form.errors.site_id"
                 />
                 <span v-if="form.quotation_id" class="text-[10px] text-indigo-600 mt-1 block font-medium">Locked to Quotation Site</span>
+            </div>
+
+            <!-- Sales Executive -->
+            <div class="col-span-12 md:col-span-4">
+                <BaseSelect
+                    v-model="form.sales_executive_id"
+                    :options="salesExecutiveOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    filter
+                    label="Sales Executive"
+                    placeholder="Select Executive"
+                    :disabled="!!form.quotation_id"
+                    :error="form.errors.sales_executive_id"
+                />
+                <span v-if="form.quotation_id" class="text-[10px] text-indigo-600 mt-1 block font-medium">Locked to Quotation Sales Executive</span>
             </div>
 
             <!-- Order Date -->

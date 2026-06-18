@@ -19,9 +19,8 @@ class SalesOrder extends Model
         'site_id',
         'order_date',
         'status',
+        'sales_executive_id',
         'converted_by_user_id',
-        'converted_by_role',
-        'converted_by_department',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -29,7 +28,7 @@ class SalesOrder extends Model
 
     protected $casts = [
         'order_date' => 'date',
-
+        'sales_executive_id' => 'integer',
     ];
     protected $appends = ['has_workorders'];
 
@@ -56,6 +55,11 @@ class SalesOrder extends Model
     public function site()
     {
         return $this->belongsTo(Site::class);
+    }
+
+    public function salesExecutive()
+    {
+        return $this->belongsTo(Personnel::class, 'sales_executive_id');
     }
 
     public function quotation()

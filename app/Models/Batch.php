@@ -34,12 +34,12 @@ class Batch extends Model
         // 'truck_id',
         // 'transport_id',
         // 'driver_id',
-        'empty_weight_truck',
-        'loaded_weight_truck',
-        'net_weight',
-        'conversion_quantity',
-        'uom_id',
-        'site_id',
+        // 'empty_weight_truck',
+        // 'loaded_weight_truck',
+        // 'net_weight',
+        // 'conversion_quantity',
+        // 'uom_id',
+        // 'site_id',
     ];
 
     protected $appends = ['sheet_url', 'original_sheet_url'];

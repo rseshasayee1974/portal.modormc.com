@@ -236,8 +236,8 @@ class BatchController extends Controller
                     'customer_id'         => $workOrder->customer_id,
                     'mixdesign_id'        => $workOrder->mix_design_id,
                     'unload_site_id'      => $workOrder->site_id,
-                    'uom_id'              => $batch->uom_id ?? null,
-                    'truck_id'            => $payload['truck_id'] ?? null,
+                    'uom_id'              => $payload['uom_id'] ?? null,
+                    'vehicle_id'          => $payload['truck_id'] ?? null,
                     'transport_id'        => $payload['transport_id'] ?? null,
                     'driver_id'           => $payload['driver_id'] ?? null,
                     'sales_executive_id'  => $payload['sales_executive_id'] ?? null,
@@ -527,7 +527,7 @@ class BatchController extends Controller
             $dispatch = $batch->dispatches()->first();
             if ($dispatch) {
                 $dispatch->update([
-                    'truck_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->truck_id,
+                    'vehicle_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->vehicle_id,
                     'transport_id' => array_key_exists('transport_id', $payload) ? $payload['transport_id'] : $dispatch->transport_id,
                     'driver_id' => array_key_exists('driver_id', $payload) ? $payload['driver_id'] : $dispatch->driver_id,
                     'sales_executive_id' => array_key_exists('sales_executive_id', $payload) ? $payload['sales_executive_id'] : $dispatch->sales_executive_id,
@@ -535,6 +535,7 @@ class BatchController extends Controller
                     'loaded_weight_truck' => array_key_exists('loaded_weight_truck', $payload) ? $payload['loaded_weight_truck'] : $dispatch->loaded_weight_truck,
                     'net_weight' => array_key_exists('net_weight', $payload) ? $payload['net_weight'] : $dispatch->net_weight,
                     'load_site_id' => array_key_exists('site_id', $payload) ? $payload['site_id'] : $dispatch->load_site_id,
+                    'uom_id' => array_key_exists('uom_id', $payload) ? $payload['uom_id'] : $dispatch->uom_id,
                     'empty_time' => array_key_exists('empty_time', $payload) ? $payload['empty_time'] : $dispatch->empty_time,
                     'load_time' => array_key_exists('load_time', $payload) ? $payload['load_time'] : $dispatch->load_time,
                 ]);

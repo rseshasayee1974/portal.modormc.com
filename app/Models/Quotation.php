@@ -34,6 +34,7 @@ class Quotation extends Model
         'amount_total',
         'status',
         'is_salesorder',
+        'sales_executive_id',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -41,6 +42,7 @@ class Quotation extends Model
 
     protected $casts = [
         'is_salesorder' => 'integer',
+        'sales_executive_id' => 'integer',
         'amount_untaxed' => 'decimal:2',
         'amount_tax' => 'decimal:2',
         'adjustment' => 'decimal:2',
@@ -137,6 +139,11 @@ class Quotation extends Model
         });
     }
 
+    public function salesExecutive()
+    {
+        return $this->belongsTo(Personnel::class, 'sales_executive_id');
+    }
+
     public function tax()
     {
         return $this->belongsTo(Tax::class, 'tax_id');
@@ -169,8 +176,16 @@ class Quotation extends Model
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
         $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
         
+        $customPrefix = 'QT';
+        $settings = CustomSetting::getForModule($plantId, 'batching');
+        if (!empty($settings['quote_prefix'])) {
+            $customPrefix = $settings['quote_prefix'];
+        }
+        
+        $prefixSearch = "{$customPrefix}-{$fyString}-";
+        
         $latest = self::where('plant_id', $plantId)
-                      ->where('reference', 'LIKE', "QT-{$fyString}-%")
+                      ->where('reference', 'LIKE', "{$prefixSearch}%")
                       ->orderBy('id', 'desc')
                       ->value('reference');
                       
@@ -179,7 +194,7 @@ class Quotation extends Model
             $sequence = ((int) $matches[1]) + 1;
         }
 
-        return sprintf('QT-%s-%04d', $fyString, $sequence);
+        return sprintf('%s-%s-%04d', $customPrefix, $fyString, $sequence);
     }
 
     public function updateTotals()

@@ -245,11 +245,11 @@ if (!function_exists('PersonnelDropdown')) {
             $query->excludeId($excludeId);
         }
 
-        if ($designationName) {
-            $query->whereHas('designation', function ($q) use ($designationName) {
-                $q->where('name', $designationName);
-            });
-        }
+        // if ($designationName) {
+        //     $query->whereHas('designation', function ($q) use ($designationName) {
+        //         $q->where('name', $designationName);
+        //     });
+        // }
 
         return $query->whereNull('deleted_at')
             ->orderBy('first_name')
@@ -261,6 +261,51 @@ if (!function_exists('PersonnelDropdown')) {
                 'last_name' => $p->last_name,
                 'value' => $p->id
             ]);
+    }
+}
+
+if (!function_exists('SalesExecutivesDropdown')) {
+    /**
+     * Active Sales Executives / Sales Personnel for a plant.
+     */
+    function SalesExecutivesDropdown($excludeId = null)
+    {
+        $query = Personnel::with('designation', 'department')
+            ->where('plant_id', _activePlantId())
+            ->when($excludeId, fn($q) => $q->excludeId($excludeId));
+
+        // 1. Try finding by code 'SE'
+        $seQuery = clone $query;
+        $seQuery->whereHas('designation', function ($q) {
+            $q->where('code', 'SE');
+        });
+
+        if ($seQuery->exists()) {
+            $results = $seQuery->orderBy('first_name')->get();
+        } else {
+            // 2. Try finding by name 'Sales'
+            $salesQuery = clone $query;
+            $salesQuery->where(function ($q) {
+                $q->whereHas('designation', function ($dq) {
+                    $dq->where('code', 'like', '%SE%');
+                // })->orWhereHas('department', function ($dpq) {
+                //     $dpq->where('name', 'like', '%Sales%');
+                });
+            });
+
+            if ($salesQuery->exists()) {
+                $results = $salesQuery->orderBy('first_name')->get();
+            } else {
+                // 3. Fallback to all active personnel in the plant
+                $results = $query->orderBy('first_name')->get();
+            }
+        }
+
+        return $results->map(fn($personnel) => [
+            'id' => $personnel->id,
+            'label' => $personnel->label ?? trim($personnel->first_name . ' ' . $personnel->last_name),
+            'value' => $personnel->id,
+        ]);
     }
 }
 

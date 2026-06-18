@@ -79,7 +79,12 @@ return new class extends Migration
 
         if (!Schema::hasColumn('mm_personnels', 'full_name')) {
             Schema::table('mm_personnels', function (Blueprint $table) {
-                $table->string('full_name')->virtualAs("concat_ws(' ', first_name, last_name)")->after('last_name');
+                $isSqlite = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'sqlite';
+                if ($isSqlite) {
+                    $table->string('full_name')->virtualAs("first_name || ' ' || last_name")->after('last_name');
+                } else {
+                    $table->string('full_name')->virtualAs("concat_ws(' ', first_name, last_name)")->after('last_name');
+                }
             });
         }
 

@@ -1,0 +1,4286 @@
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+DROP TABLE IF EXISTS `activity_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `activity_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `module_name` varchar(125) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `entity_type` varchar(125) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `entity_id` varchar(125) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `action_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `old_values` json DEFAULT NULL,
+  `new_values` json DEFAULT NULL,
+  `changed_fields` json DEFAULT NULL,
+  `log_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ip_address` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_agent` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `device_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `browser` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `operating_system` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `request_method` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `request_url` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `route_name` varchar(125) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `response_status` int DEFAULT NULL,
+  `trace_id` varchar(125) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `subject_id` bigint unsigned DEFAULT NULL,
+  `subject_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `event` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `causer_id` bigint unsigned DEFAULT NULL,
+  `causer_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mm_properties` json DEFAULT NULL,
+  `batch_uuid` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `causer` (`causer_type`,`causer_id`),
+  KEY `subject` (`subject_type`,`subject_id`),
+  KEY `mm_activity_log_log_name_index` (`log_name`),
+  KEY `activity_logs_plant_id_foreign` (`plant_id`),
+  KEY `activity_logs_module_action_idx` (`module_name`,`action_type`),
+  KEY `activity_logs_entity_idx` (`entity_type`,`entity_id`),
+  KEY `activity_logs_user_created_idx` (`user_id`,`created_at`),
+  KEY `activity_logs_route_name_idx` (`route_name`),
+  KEY `activity_logs_trace_id_idx` (`trace_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `agent_chat_histories`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `agent_chat_histories` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `agent_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `agent_class` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `session_language` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'en',
+  `messages` json NOT NULL,
+  `message_count` smallint unsigned NOT NULL DEFAULT '0',
+  `summary` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `agent_chat_histories_agent_name_created_at_index` (`agent_name`,`created_at`),
+  KEY `agent_chat_histories_user_id_agent_name_created_at_index` (`user_id`,`agent_name`,`created_at`),
+  KEY `agent_chat_histories_user_id_index` (`user_id`),
+  KEY `agent_chat_histories_plant_id_index` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `agent_conversation_messages`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `agent_conversation_messages` (
+  `id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `conversation_id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `agent` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `role` varchar(25) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `attachments` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `tool_calls` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `tool_results` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `usage` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `meta` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `conversation_index` (`conversation_id`,`user_id`,`updated_at`),
+  KEY `agent_conversation_messages_user_id_index` (`user_id`),
+  KEY `agent_conversation_messages_conversation_id_index` (`conversation_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `agent_conversations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `agent_conversations` (
+  `id` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `title` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `agent_conversations_user_id_updated_at_index` (`user_id`,`updated_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `batch_deposits_tables`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `batch_deposits_tables` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `migrations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `migrations` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `migration` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `batch` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_account_default_settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_account_default_settings` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `module_id` bigint unsigned DEFAULT NULL,
+  `module_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `setting_key` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ledger_id` bigint unsigned NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_setting` (`module_id`,`setting_key`,`plant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_account_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_account_types` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `entity_id` bigint unsigned NOT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `account_id` bigint unsigned NOT NULL,
+  `parent_id` bigint unsigned DEFAULT NULL,
+  `title` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created_at` datetime DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` datetime DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_account_types_entity_id_foreign` (`entity_id`),
+  KEY `mm_account_types_account_id_foreign` (`account_id`),
+  KEY `mm_account_types_parent_id_foreign` (`parent_id`),
+  KEY `mm_account_types_plant_id_foreign` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_accounts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_accounts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `title` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` tinyint NOT NULL DEFAULT '1' COMMENT '1=active, 0=inactive',
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `created` timestamp NULL DEFAULT NULL,
+  `modified` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_accounts_entity_id_index` (`entity_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_address_relation`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_address_relation` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `address_id` bigint unsigned NOT NULL,
+  `addressable_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `addressable_id` bigint unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_address_relation_address_id_foreign` (`address_id`),
+  KEY `mm_address_relation_addressable_type_addressable_id_index` (`addressable_type`,`addressable_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_address_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_address_types` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_address_types_type_unique` (`type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_addresses`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_addresses` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `contact_id` bigint unsigned DEFAULT NULL,
+  `address_type_id` bigint unsigned NOT NULL,
+  `line_1` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `line_2` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `city` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `state_id` bigint unsigned DEFAULT NULL,
+  `state_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `zipcode` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `landmark` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `latitude` decimal(10,7) DEFAULT NULL,
+  `longitude` decimal(10,7) DEFAULT NULL,
+  `is_primary` tinyint(1) NOT NULL DEFAULT '0',
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `displayed` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_addresses_contact_id_foreign` (`contact_id`),
+  KEY `mm_addresses_address_type_id_foreign` (`address_type_id`),
+  KEY `mm_addresses_state_id_foreign` (`state_id`),
+  KEY `mm_addresses_created_by_foreign` (`created_by`),
+  KEY `mm_addresses_updated_by_foreign` (`updated_by`),
+  KEY `mm_addresses_plant_id_contact_id_index` (`plant_id`,`contact_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_api_usage_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_api_usage_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned NOT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `mm_module` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `tokens_used` bigint unsigned NOT NULL DEFAULT '0',
+  `endpoint` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_api_usage_logs_user_id_mm_module_created_at_index` (`user_id`,`mm_module`,`created_at`),
+  KEY `api_usage_logs_scope_idx` (`user_id`,`entity_id`,`plant_id`,`mm_module`,`created_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_attendances`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_attendances` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `personnel_id` bigint unsigned NOT NULL,
+  `shift_id` bigint unsigned DEFAULT NULL,
+  `attendance_date` date NOT NULL,
+  `check_in` datetime DEFAULT NULL,
+  `check_out` datetime DEFAULT NULL,
+  `worked_hours` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `overtime_hours` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `late_hours` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `status` enum('present','absent','half_day','leave','holiday','weekoff','on_duty') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_late` tinyint(1) NOT NULL DEFAULT '0',
+  `is_early_departure` tinyint(1) NOT NULL DEFAULT '0',
+  `source` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'manual',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_attendances_personnel_id_attendance_date_unique` (`personnel_id`,`attendance_date`),
+  KEY `mm_attendances_plant_id_foreign` (`plant_id`),
+  KEY `mm_attendances_shift_id_foreign` (`shift_id`),
+  KEY `mm_attendances_created_by_foreign` (`created_by`),
+  KEY `mm_attendances_updated_by_foreign` (`updated_by`),
+  KEY `mm_attendances_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_attendances_attendance_date_status_index` (`attendance_date`,`status`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_bank_account_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_bank_account_types` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_bank_account_types_type_unique` (`type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_bank_statement_lines`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_bank_statement_lines` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `bank_ledger_id` bigint unsigned NOT NULL,
+  `transaction_date` date NOT NULL,
+  `value_date` date DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reference_no` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `debit_amount` decimal(17,4) NOT NULL DEFAULT '0.0000',
+  `credit_amount` decimal(17,4) NOT NULL DEFAULT '0.0000',
+  `balance` decimal(17,4) DEFAULT NULL,
+  `reconciled_line_id` bigint unsigned DEFAULT NULL,
+  `reconciled_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_bank_statement_lines_plant_id_foreign` (`plant_id`),
+  KEY `mm_bank_statement_lines_bank_ledger_id_foreign` (`bank_ledger_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_batch_materials`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_batch_materials` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `batch_id` bigint unsigned DEFAULT NULL,
+  `product_id` bigint unsigned DEFAULT NULL,
+  `material_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `target_qty` decimal(10,3) NOT NULL DEFAULT '0.000',
+  `actual_qty` decimal(10,3) NOT NULL DEFAULT '0.000',
+  `uom_id` bigint unsigned DEFAULT NULL,
+  `deviation_quantity` decimal(10,3) NOT NULL DEFAULT '0.000',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_batches`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_batches` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `work_order_id` bigint unsigned DEFAULT NULL,
+  `batch_no` int DEFAULT NULL,
+  `operator_id` bigint unsigned DEFAULT NULL,
+  `shift` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `batch_size` decimal(10,3) NOT NULL DEFAULT '1.000',
+  `start_time` timestamp NULL DEFAULT NULL,
+  `end_time` timestamp NULL DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `sync_status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending' COMMENT 'pending, success, failed',
+  `batch_sheet_path` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `batch_original_sheet_path` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_batches_operator_id_foreign` (`operator_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_billings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_billings` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned NOT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `month` varchar(7) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `total_amount` decimal(12,4) NOT NULL DEFAULT '0.0000',
+  `mm_breakdown_json` json NOT NULL,
+  `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `billings_scope_unique` (`user_id`,`entity_id`,`plant_id`,`month`),
+  KEY `mm_billings_user_id_status_index` (`user_id`,`status`),
+  KEY `billings_scope_status_idx` (`user_id`,`entity_id`,`plant_id`,`status`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_cache`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_cache` (
+  `key` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `value` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `expiration` int NOT NULL,
+  PRIMARY KEY (`key`),
+  KEY `mm_cache_expiration_index` (`expiration`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_cache_locks`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_cache_locks` (
+  `key` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `owner` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `expiration` int NOT NULL,
+  PRIMARY KEY (`key`),
+  KEY `mm_cache_locks_expiration_index` (`expiration`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_concrete_grade_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_concrete_grade_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `concrete_grade_id` bigint unsigned NOT NULL,
+  `product_id` bigint unsigned NOT NULL,
+  `quantity` decimal(12,4) DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `cg_items_unique` (`plant_id`,`concrete_grade_id`,`product_id`),
+  KEY `mm_concrete_grade_items_concrete_grade_id_foreign` (`concrete_grade_id`),
+  KEY `mm_concrete_grade_items_product_id_foreign` (`product_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_concrete_grades`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_concrete_grades` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `plant_id` bigint unsigned NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `concrete_code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `concrete_ratio` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `cement_ratio` decimal(8,2) DEFAULT NULL,
+  `sand_ratio` decimal(8,2) DEFAULT NULL,
+  `aggregate_ratio` decimal(8,2) DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_concrete_grades_plant_id_name_unique` (`plant_id`,`name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_concrete_quality_tests`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_concrete_quality_tests` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `batch_id` bigint unsigned DEFAULT NULL,
+  `test_code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `test_date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `tested_by` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `slump_value` decimal(8,2) NOT NULL COMMENT 'in mm (e.g. 120)',
+  `fresh_temperature` decimal(5,2) NOT NULL COMMENT 'in °C (e.g. 27.5)',
+  `air_content` decimal(4,2) NOT NULL COMMENT 'in % (e.g. 1.8)',
+  `fresh_density` decimal(8,2) NOT NULL COMMENT 'in kg/m³ (e.g. 2400)',
+  `cube_strength_7_days` decimal(8,2) NOT NULL COMMENT 'in MPa (compressive strength at 7 days)',
+  `cube_strength_28_days` decimal(8,2) NOT NULL COMMENT 'in MPa (compressive strength at 28 days)',
+  `core_test_strength` decimal(8,2) DEFAULT NULL COMMENT 'in MPa (if core extracted)',
+  `water_permeability` decimal(8,2) DEFAULT NULL COMMENT 'in mm',
+  `rapid_chloride_permeability` decimal(8,2) DEFAULT NULL COMMENT 'in Coulombs',
+  `status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `photo_path` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_concrete_quality_tests_test_code_unique` (`test_code`),
+  KEY `mm_concrete_quality_tests_plant_id_foreign` (`plant_id`),
+  KEY `mm_concrete_quality_tests_batch_id_foreign` (`batch_id`),
+  KEY `mm_concrete_quality_tests_created_by_foreign` (`created_by`),
+  KEY `mm_concrete_quality_tests_updated_by_foreign` (`updated_by`),
+  KEY `mm_concrete_quality_tests_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_contact_relation`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_contact_relation` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `contact_id` bigint unsigned NOT NULL,
+  `contactable_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `contactable_id` bigint unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_contact_relation_contact_id_foreign` (`contact_id`),
+  KEY `mm_contact_relation_contactable_type_contactable_id_index` (`contactable_type`,`contactable_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_contact_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_contact_types` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_contact_types_type_unique` (`type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_contacts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_contacts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `patron_id` bigint unsigned DEFAULT NULL,
+  `contact_type_id` bigint unsigned NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mobile` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `alt_mobile` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `landline` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_primary` tinyint(1) NOT NULL DEFAULT '0',
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `displayed` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_contacts_patron_id_foreign` (`patron_id`),
+  KEY `mm_contacts_contact_type_id_foreign` (`contact_type_id`),
+  KEY `mm_contacts_created_by_foreign` (`created_by`),
+  KEY `mm_contacts_updated_by_foreign` (`updated_by`),
+  KEY `mm_contacts_plant_id_patron_id_index` (`plant_id`,`patron_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_countries`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_countries` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `country_name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `country_code` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_countries_country_name_unique` (`country_name`),
+  UNIQUE KEY `mm_countries_country_code_unique` (`country_code`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_currencies`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_currencies` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `currency_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `currency_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_currencies_currency_name_unique` (`currency_name`),
+  UNIQUE KEY `mm_currencies_currency_code_unique` (`currency_code`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_custom_settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_custom_settings` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` int NOT NULL,
+  `module_id` int DEFAULT NULL,
+  `module_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `settings` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_module_plant` (`plant_id`,`module_name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_dashboard_alerts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_dashboard_alerts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `date_time_off` datetime DEFAULT NULL,
+  `date_time_on` datetime DEFAULT NULL,
+  `type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'normal',
+  `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_dashboard_alerts_plant_id_index` (`plant_id`),
+  KEY `mm_dashboard_alerts_created_at_index` (`created_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_departments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_departments` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_departments_plant_id_foreign` (`plant_id`),
+  KEY `mm_departments_created_by_foreign` (`created_by`),
+  KEY `mm_departments_updated_by_foreign` (`updated_by`),
+  KEY `mm_departments_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_designations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_designations` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `min_salary` decimal(12,2) DEFAULT NULL,
+  `max_salary` decimal(12,2) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_designations_plant_id_foreign` (`plant_id`),
+  KEY `mm_designations_created_by_foreign` (`created_by`),
+  KEY `mm_designations_updated_by_foreign` (`updated_by`),
+  KEY `mm_designations_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_dispatch_payments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_dispatch_payments` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `dispatch_id` bigint unsigned NOT NULL,
+  `payment_method_id` bigint unsigned DEFAULT NULL,
+  `amount` decimal(12,2) NOT NULL,
+  `payment_type` enum('full','partial') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'full',
+  `party_id` bigint unsigned DEFAULT NULL,
+  `reference` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint NOT NULL DEFAULT '1',
+  `collected_by` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_dispatch_payments_payment_method_id_foreign` (`payment_method_id`),
+  KEY `mm_dispatch_payments_party_id_foreign` (`party_id`),
+  KEY `mm_dispatch_payments_created_by_foreign` (`created_by`),
+  KEY `mm_dispatch_payments_updated_by_foreign` (`updated_by`),
+  KEY `mm_dispatch_payments_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_dispatch_payments_dispatch_id_index` (`dispatch_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_dispatch_statuses`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_dispatch_statuses` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `dispatch_id` bigint unsigned NOT NULL,
+  `is_tax_inclusive` tinyint(1) NOT NULL DEFAULT '0',
+  `plant_id` bigint unsigned NOT NULL,
+  `invoice_id` bigint unsigned DEFAULT NULL,
+  `invoice_date` date DEFAULT NULL,
+  `invoice_number` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `invoice_status` tinyint NOT NULL DEFAULT '0',
+  `transport_units` int DEFAULT NULL,
+  `transport_rate` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `transport_tax_id` bigint unsigned DEFAULT NULL,
+  `transport_tax_rate` decimal(8,2) NOT NULL DEFAULT '0.00',
+  `transport_tax_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `transport_total_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `total_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `transport_reference` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `transport_km` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `receiver_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `receive_mobile` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `note` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_dispatch_statuses_dispatch_id_unique` (`dispatch_id`),
+  KEY `mm_dispatch_statuses_transport_tax_id_foreign` (`transport_tax_id`),
+  KEY `mm_dispatch_statuses_created_by_foreign` (`created_by`),
+  KEY `mm_dispatch_statuses_updated_by_foreign` (`updated_by`),
+  KEY `mm_dispatch_statuses_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_dispatches`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_dispatches` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `sales_order_id` bigint unsigned NOT NULL,
+  `vehicle_id` bigint unsigned NOT NULL,
+  `driver_id` bigint unsigned DEFAULT NULL,
+  `sales_executive_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `dispatch_time` datetime NOT NULL,
+  `delivery_time` datetime DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `work_order_id` bigint unsigned DEFAULT NULL,
+  `transport_id` bigint unsigned DEFAULT NULL,
+  `mixdesign_id` bigint unsigned DEFAULT NULL,
+  `payment_mode` enum('cash','credit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'credit',
+  `plant_sno` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `prefix` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `dispatch_reference` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `empty_time` timestamp NULL DEFAULT NULL,
+  `load_time` timestamp NULL DEFAULT NULL,
+  `empty_weight_truck` decimal(15,3) DEFAULT NULL,
+  `loaded_weight_truck` decimal(15,3) DEFAULT NULL,
+  `net_weight` decimal(15,3) DEFAULT NULL,
+  `load_rate` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `load_tax_id` bigint unsigned DEFAULT NULL,
+  `load_tax_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `load_untax_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `pass_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `discount_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `transport_expenses` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `adjustment_amount` decimal(17,2) DEFAULT NULL,
+  `round_off` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `load_total_amount` double DEFAULT NULL,
+  `delivered_qty` int DEFAULT NULL,
+  `dispatch_status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_id` bigint unsigned DEFAULT NULL,
+  `load_site_id` bigint unsigned DEFAULT NULL,
+  `unload_site_id` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_dispatches_created_by_foreign` (`created_by`),
+  KEY `mm_dispatches_updated_by_foreign` (`updated_by`),
+  KEY `mm_dispatches_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_dispatches_sales_order_id_foreign` (`sales_order_id`),
+  KEY `mm_dispatches_vehicle_id_foreign` (`vehicle_id`),
+  KEY `mm_dispatches_plant_id_foreign` (`plant_id`),
+  KEY `mm_dispatches_transport_id_foreign` (`transport_id`),
+  KEY `mm_dispatches_mixdesign_id_foreign` (`mixdesign_id`),
+  KEY `mm_dispatches_load_tax_id_foreign` (`load_tax_id`),
+  KEY `mm_dispatches_work_order_id_index` (`work_order_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_drivers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_drivers` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned NOT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `personnel_id` bigint unsigned NOT NULL,
+  `license_number` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `license_expiry_date` date DEFAULT NULL,
+  `license_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_drivers_entity_id_foreign` (`entity_id`),
+  KEY `mm_drivers_plant_id_foreign` (`plant_id`),
+  KEY `mm_drivers_personnel_id_foreign` (`personnel_id`),
+  KEY `mm_drivers_created_by_foreign` (`created_by`),
+  KEY `mm_drivers_updated_by_foreign` (`updated_by`),
+  KEY `mm_drivers_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_einvoice_auth`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_einvoice_auth` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL,
+  `plant_id` int NOT NULL,
+  `auth_token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `app_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sek_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `token_generated_at` datetime NOT NULL,
+  `token_expiry_at` datetime NOT NULL,
+  `created_by` int DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `modified_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_einvoice_auth_plant_id_index` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_einvoice_invoice_rel`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_einvoice_invoice_rel` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `invoice_id` int NOT NULL,
+  `cr_dr_id` int NOT NULL DEFAULT '0',
+  `einv_ackno` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `einv_ack_date` datetime NOT NULL,
+  `einv_irn` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `einv_signed_invoice` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `einv_signed_qrcode` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `einv_status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `einv_cancel_at` datetime DEFAULT NULL,
+  `plant_id` int NOT NULL,
+  `status` tinyint NOT NULL DEFAULT '0',
+  `created` datetime NOT NULL,
+  `created_by` int DEFAULT NULL,
+  `modified` datetime DEFAULT NULL,
+  `modified_by` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_einvoice_invoice_rel_invoice_id_index` (`invoice_id`),
+  KEY `einvacc` (`einv_ackno`),
+  KEY `einvdate` (`einv_ack_date`),
+  KEY `plant` (`plant_id`),
+  KEY `created` (`created`),
+  FULLTEXT KEY `einvirn` (`einv_irn`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_employee_leave_balances`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_employee_leave_balances` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `personnel_id` bigint unsigned NOT NULL,
+  `leave_type_id` bigint unsigned NOT NULL,
+  `year` int NOT NULL,
+  `opening_balance` decimal(6,2) NOT NULL DEFAULT '0.00',
+  `accrued` decimal(6,2) NOT NULL DEFAULT '0.00',
+  `used` decimal(6,2) NOT NULL DEFAULT '0.00',
+  `balance` decimal(6,2) NOT NULL DEFAULT '0.00',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `emp_leave_yr_unique` (`personnel_id`,`leave_type_id`,`year`),
+  KEY `mm_employee_leave_balances_leave_type_id_foreign` (`leave_type_id`),
+  KEY `mm_employee_leave_balances_created_by_foreign` (`created_by`),
+  KEY `mm_employee_leave_balances_updated_by_foreign` (`updated_by`),
+  KEY `mm_employee_leave_balances_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_employee_salary_structures`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_employee_salary_structures` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `personnel_id` bigint unsigned NOT NULL,
+  `salary_component_id` bigint unsigned NOT NULL,
+  `amount` decimal(12,2) NOT NULL,
+  `effective_from` date NOT NULL,
+  `effective_to` date DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_employee_salary_structures_salary_component_id_foreign` (`salary_component_id`),
+  KEY `mm_employee_salary_structures_created_by_foreign` (`created_by`),
+  KEY `mm_employee_salary_structures_updated_by_foreign` (`updated_by`),
+  KEY `mm_employee_salary_structures_deleted_by_foreign` (`deleted_by`),
+  KEY `emp_sal_struct_eff_index` (`personnel_id`,`effective_from`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_employee_shifts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_employee_shifts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `personnel_id` bigint unsigned NOT NULL,
+  `shift_id` bigint unsigned NOT NULL,
+  `effective_from` date NOT NULL,
+  `effective_to` date DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_employee_shifts_shift_id_foreign` (`shift_id`),
+  KEY `mm_employee_shifts_created_by_foreign` (`created_by`),
+  KEY `mm_employee_shifts_updated_by_foreign` (`updated_by`),
+  KEY `mm_employee_shifts_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_employee_shifts_personnel_id_effective_from_index` (`personnel_id`,`effective_from`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_entities`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_entities` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_type` bigint unsigned NOT NULL,
+  `parent_id` bigint unsigned DEFAULT NULL,
+  `legal_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `alias` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `url` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `api_key` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `einv_username` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `einv_password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `logo_file` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `time_zone` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint NOT NULL DEFAULT '0',
+  `is_suspended` tinyint NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_entities_entity_type_parent_id_is_active_index` (`entity_type`,`parent_id`,`is_active`),
+  KEY `mm_entities_created_by_foreign` (`created_by`),
+  KEY `mm_entities_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_entities_updated_by_foreign` (`updated_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_entity_addresses`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_entity_addresses` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned NOT NULL,
+  `address_type` bigint unsigned NOT NULL,
+  `line_1` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `line_2` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `city` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `zipcode` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `landmark` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `country_id` bigint unsigned DEFAULT NULL,
+  `state_id` bigint unsigned DEFAULT NULL,
+  `is_primary` tinyint NOT NULL DEFAULT '0',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_entity_addresses_country_id_state_id_index` (`country_id`,`state_id`),
+  KEY `mm_entity_addresses_address_type_foreign` (`address_type`),
+  KEY `mm_entity_addresses_state_id_foreign` (`state_id`),
+  KEY `mm_entity_addresses_created_by_foreign` (`created_by`),
+  KEY `mm_entity_addresses_updated_by_foreign` (`updated_by`),
+  KEY `mm_entity_addresses_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_entity_bank_accounts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_entity_bank_accounts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned NOT NULL,
+  `account_type` bigint unsigned NOT NULL,
+  `account_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `bank_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `bank_branch` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ifsc_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bank_address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `is_primary` tinyint NOT NULL DEFAULT '0',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_entity_bank_accounts_account_type_foreign` (`account_type`),
+  KEY `mm_entity_bank_accounts_created_by_foreign` (`created_by`),
+  KEY `mm_entity_bank_accounts_updated_by_foreign` (`updated_by`),
+  KEY `mm_entity_bank_accounts_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_entity_contacts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_entity_contacts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned NOT NULL,
+  `contact_type` bigint unsigned NOT NULL,
+  `contact_person` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mobile` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `alt_email` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `alt_mobile` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `landline` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_primary` tinyint NOT NULL DEFAULT '0',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_entity_contacts_contact_type_foreign` (`contact_type`),
+  KEY `mm_entity_contacts_created_by_foreign` (`created_by`),
+  KEY `mm_entity_contacts_updated_by_foreign` (`updated_by`),
+  KEY `mm_entity_contacts_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_entity_invoices`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_entity_invoices` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned NOT NULL,
+  `subscription_id` bigint unsigned NOT NULL,
+  `invoice_no` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `amount` decimal(17,2) NOT NULL,
+  `tax_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `currency_id` bigint unsigned NOT NULL,
+  `invoice_status` bigint unsigned NOT NULL,
+  `issued_at` timestamp NOT NULL,
+  `due_date` timestamp NOT NULL,
+  `paid_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_entity_invoices_entity_id_invoice_no_unique` (`entity_id`,`invoice_no`),
+  KEY `mm_entity_invoices_entity_id_issued_at_index` (`entity_id`,`issued_at`),
+  KEY `mm_entity_invoices_invoice_status_due_date_index` (`invoice_status`,`due_date`),
+  KEY `mm_entity_invoices_subscription_id_foreign` (`subscription_id`),
+  KEY `mm_entity_invoices_currency_id_foreign` (`currency_id`),
+  KEY `mm_entity_invoices_created_by_foreign` (`created_by`),
+  KEY `mm_entity_invoices_updated_by_foreign` (`updated_by`),
+  KEY `mm_entity_invoices_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_entity_subscriptions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_entity_subscriptions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned NOT NULL,
+  `plan_id` bigint unsigned NOT NULL,
+  `scheduled_plan_id` bigint unsigned DEFAULT NULL,
+  `subscription_status_id` bigint unsigned NOT NULL,
+  `billing_cycle` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'monthly',
+  `started_at` timestamp NOT NULL,
+  `expires_at` timestamp NULL DEFAULT NULL,
+  `scheduled_change_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_entity_subscriptions_entity_id_unique` (`entity_id`),
+  KEY `mm_entity_subscriptions_plan_id_subscription_status_id_index` (`plan_id`,`subscription_status_id`),
+  KEY `mm_entity_subscriptions_subscription_status_id_foreign` (`subscription_status_id`),
+  KEY `mm_entity_subscriptions_created_by_foreign` (`created_by`),
+  KEY `mm_entity_subscriptions_updated_by_foreign` (`updated_by`),
+  KEY `mm_entity_subscriptions_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_entity_subscriptions_scheduled_plan_id_foreign` (`scheduled_plan_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_entity_taxes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_entity_taxes` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned NOT NULL,
+  `tax_type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `tax_number` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `country_id` bigint unsigned DEFAULT NULL,
+  `state_id` bigint unsigned DEFAULT NULL,
+  `is_primary` tinyint NOT NULL DEFAULT '0',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_entity_taxes_entity_id_tax_type_unique` (`entity_id`,`tax_type`),
+  KEY `mm_entity_taxes_country_id_foreign` (`country_id`),
+  KEY `mm_entity_taxes_state_id_foreign` (`state_id`),
+  KEY `mm_entity_taxes_created_by_foreign` (`created_by`),
+  KEY `mm_entity_taxes_updated_by_foreign` (`updated_by`),
+  KEY `mm_entity_taxes_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_entity_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_entity_types` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_entity_types_type_unique` (`type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_entity_users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_entity_users` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned NOT NULL,
+  `entity_id` bigint unsigned NOT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `role_id` bigint unsigned NOT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_entity_users_user_id_entity_id_plant_id_unique` (`user_id`,`entity_id`,`plant_id`),
+  KEY `mm_entity_users_entity_id_foreign` (`entity_id`),
+  KEY `mm_entity_users_plant_id_foreign` (`plant_id`),
+  KEY `mm_entity_users_role_id_foreign` (`role_id`),
+  KEY `mm_entity_users_created_by_foreign` (`created_by`),
+  KEY `mm_entity_users_updated_by_foreign` (`updated_by`),
+  KEY `mm_entity_users_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_ewaybill_auth`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_ewaybill_auth` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint NOT NULL,
+  `user_id` bigint NOT NULL,
+  `username` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `password` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `gstin` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `authtoken` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `transaction_no` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `token_generated_at` datetime NOT NULL,
+  `token_expiry_at` datetime DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `created_by` bigint DEFAULT NULL,
+  `modified_at` datetime DEFAULT NULL,
+  `modified_by` bigint DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_ewaybill_auth_plant_id_index` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_ewaybill_details`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_ewaybill_details` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint NOT NULL,
+  `generation_type` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `origin_id` bigint DEFAULT NULL,
+  `ewaybill_no` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ewaybill_date` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `valid_upto` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ewaybill_status` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ewaybill_cancel_at` datetime DEFAULT NULL,
+  `ewaybill_cancel_by` bigint DEFAULT NULL,
+  `ewaybill_reject_at` datetime DEFAULT NULL,
+  `ewaybill_reject_by` bigint DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `created_by` bigint DEFAULT NULL,
+  `modified_at` datetime DEFAULT NULL,
+  `modified_by` bigint DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT '-1',
+  PRIMARY KEY (`id`),
+  KEY `mm_ewaybill_details_plant_id_index` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_expense_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_expense_types` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `name` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ledger_id` bigint unsigned DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_expense_types_plant_id_foreign` (`plant_id`),
+  KEY `mm_expense_types_ledger_id_foreign` (`ledger_id`),
+  KEY `mm_expense_types_created_by_foreign` (`created_by`),
+  KEY `mm_expense_types_updated_by_foreign` (`updated_by`),
+  KEY `mm_expense_types_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_expenses`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_expenses` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `ref_no` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `expense_type_id` bigint unsigned NOT NULL,
+  `made_by` bigint unsigned DEFAULT NULL,
+  `paid_through` bigint unsigned NOT NULL,
+  `amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `date` date DEFAULT NULL,
+  `vendor_id` bigint unsigned DEFAULT NULL,
+  `customer_id` bigint unsigned DEFAULT NULL,
+  `machine_id` bigint unsigned DEFAULT NULL,
+  `note` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_expenses_plant_id_foreign` (`plant_id`),
+  KEY `mm_expenses_expense_type_id_foreign` (`expense_type_id`),
+  KEY `mm_expenses_made_by_foreign` (`made_by`),
+  KEY `mm_expenses_paid_through_foreign` (`paid_through`),
+  KEY `mm_expenses_vendor_id_foreign` (`vendor_id`),
+  KEY `mm_expenses_customer_id_foreign` (`customer_id`),
+  KEY `mm_expenses_machine_id_foreign` (`machine_id`),
+  KEY `mm_expenses_created_by_foreign` (`created_by`),
+  KEY `mm_expenses_updated_by_foreign` (`updated_by`),
+  KEY `mm_expenses_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_failed_jobs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_failed_jobs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `uuid` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `connection` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `queue` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `exception` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `failed_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_failed_jobs_uuid_unique` (`uuid`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_features`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_features` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` enum('boolean','limit','tiered','metered') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'boolean',
+  `is_active` tinyint NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_features_code_unique` (`code`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_fuel_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_fuel_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned NOT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `machine_id` bigint unsigned NOT NULL,
+  `driver_id` bigint unsigned DEFAULT NULL,
+  `log_date` datetime NOT NULL,
+  `quantity` decimal(10,2) NOT NULL,
+  `rate_per_liter` decimal(10,2) NOT NULL,
+  `total_amount` decimal(15,2) NOT NULL,
+  `odometer_reading` decimal(17,2) NOT NULL,
+  `hourmeter_reading` decimal(17,2) DEFAULT NULL,
+  `pump_name` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bill_no` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `payment_method` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `attachment_path` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_fuel_logs_entity_id_foreign` (`entity_id`),
+  KEY `mm_fuel_logs_plant_id_foreign` (`plant_id`),
+  KEY `mm_fuel_logs_machine_id_foreign` (`machine_id`),
+  KEY `mm_fuel_logs_driver_id_foreign` (`driver_id`),
+  KEY `mm_fuel_logs_created_by_foreign` (`created_by`),
+  KEY `mm_fuel_logs_updated_by_foreign` (`updated_by`),
+  KEY `mm_fuel_logs_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_geofence_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_geofence_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `machine_id` bigint unsigned NOT NULL,
+  `geofence_id` bigint unsigned NOT NULL,
+  `event_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `latitude` decimal(10,8) NOT NULL,
+  `longitude` decimal(11,8) NOT NULL,
+  `recorded_at` timestamp NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_geofence_logs_machine_id_foreign` (`machine_id`),
+  KEY `mm_geofence_logs_geofence_id_foreign` (`geofence_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_geofences`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_geofences` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `name` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `shape` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'circle',
+  `coordinates` json NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_geofences_plant_id_foreign` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_gps_devices`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_gps_devices` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `machine_id` bigint unsigned DEFAULT NULL,
+  `imei` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `device_model` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sim_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `phone_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `last_activity` timestamp NULL DEFAULT NULL,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_gps_devices_imei_unique` (`imei`),
+  UNIQUE KEY `mm_gps_devices_machine_id_unique` (`machine_id`),
+  KEY `mm_gps_devices_plant_id_foreign` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_gps_latest_positions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_gps_latest_positions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `device_id` bigint unsigned NOT NULL,
+  `machine_id` bigint unsigned NOT NULL,
+  `latitude` decimal(10,8) NOT NULL,
+  `longitude` decimal(11,8) NOT NULL,
+  `speed` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `heading` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `altitude` decimal(6,2) DEFAULT NULL,
+  `ignition` tinyint(1) NOT NULL DEFAULT '0',
+  `odometer` decimal(12,2) DEFAULT NULL,
+  `recorded_at` timestamp NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_gps_latest_positions_device_id_unique` (`device_id`),
+  UNIQUE KEY `mm_gps_latest_positions_machine_id_unique` (`machine_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_gps_positions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_gps_positions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `device_id` bigint unsigned NOT NULL,
+  `machine_id` bigint unsigned NOT NULL,
+  `latitude` decimal(10,8) NOT NULL,
+  `longitude` decimal(11,8) NOT NULL,
+  `speed` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `heading` decimal(5,2) NOT NULL DEFAULT '0.00',
+  `altitude` decimal(6,2) DEFAULT NULL,
+  `ignition` tinyint(1) NOT NULL DEFAULT '0',
+  `odometer` decimal(12,2) DEFAULT NULL,
+  `recorded_at` timestamp NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `mm_gps_positions_machine_id_recorded_at_index` (`machine_id`,`recorded_at`),
+  KEY `mm_gps_positions_device_id_recorded_at_index` (`device_id`,`recorded_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_health_check_result_history_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_health_check_result_history_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `check_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `check_label` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `notification_message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `short_summary` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mm_meta` json NOT NULL,
+  `ended_at` timestamp NOT NULL,
+  `batch` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_health_check_result_history_items_batch_index` (`batch`),
+  KEY `mm_health_check_result_history_items_created_at_index` (`created_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_hrms_audit_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_hrms_audit_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `personnel_id` bigint unsigned DEFAULT NULL,
+  `module` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `action` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `record_id` bigint unsigned NOT NULL,
+  `old_values` json DEFAULT NULL,
+  `new_values` json DEFAULT NULL,
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_agent` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_hrms_audit_logs_user_id_foreign` (`user_id`),
+  KEY `mm_hrms_audit_logs_personnel_id_foreign` (`personnel_id`),
+  KEY `mm_hrms_audit_logs_created_by_foreign` (`created_by`),
+  KEY `mm_hrms_audit_logs_updated_by_foreign` (`updated_by`),
+  KEY `mm_hrms_audit_logs_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_images`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_images` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `category` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ref_no` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `alt_txt` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `image_path` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `image_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_images_plant_id_foreign` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_inventory_audit_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_inventory_audit_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `transaction_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `reference_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reference_id` bigint unsigned DEFAULT NULL,
+  `log_from` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `log_to` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `mm_inventory_audit_logs_user_id_foreign` (`user_id`),
+  KEY `mm_inventory_audit_logs_reference_type_reference_id_index` (`reference_type`,`reference_id`),
+  KEY `mm_inventory_audit_logs_plant_id_foreign` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_invoice_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_invoice_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `invoice_id` bigint unsigned NOT NULL,
+  `item_id` bigint unsigned DEFAULT NULL,
+  `uom_id` bigint unsigned DEFAULT NULL,
+  `item_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `hsn_code` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `tax_id` bigint unsigned DEFAULT NULL,
+  `quantity` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `price_unit` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `discount_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '%',
+  `discount` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `discount_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `subtotal` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `line_tax_amount` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `line_total` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_invoice_items_mix_design_id_foreign` (`item_id`),
+  KEY `mm_invoice_items_uom_id_foreign` (`uom_id`),
+  KEY `mm_invoice_items_created_by_foreign` (`created_by`),
+  KEY `mm_invoice_items_updated_by_foreign` (`updated_by`),
+  KEY `mm_invoice_items_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_invoice_items_invoice_id_foreign` (`invoice_id`),
+  KEY `mm_invoice_items_tax_id_foreign` (`tax_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_invoice_payments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_invoice_payments` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `invoice_id` bigint unsigned NOT NULL,
+  `gateway_id` bigint unsigned NOT NULL,
+  `transaction_ref` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `amount` decimal(17,2) NOT NULL,
+  `payment_status_id` bigint unsigned NOT NULL,
+  `paid_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mip_invoice_gateway_status_idx` (`invoice_id`,`gateway_id`,`payment_status_id`),
+  KEY `mm_invoice_payments_gateway_id_foreign` (`gateway_id`),
+  KEY `mm_invoice_payments_payment_status_id_foreign` (`payment_status_id`),
+  KEY `mm_invoice_payments_created_by_foreign` (`created_by`),
+  KEY `mm_invoice_payments_updated_by_foreign` (`updated_by`),
+  KEY `mm_invoice_payments_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_invoice_statuses`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_invoice_statuses` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `status_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_invoice_statuses_status_name_unique` (`status_name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_invoices`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_invoices` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `partner_id` bigint unsigned DEFAULT NULL,
+  `account_id` bigint unsigned DEFAULT NULL,
+  `journal_id` bigint unsigned DEFAULT NULL,
+  `invoice_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `invoice_label` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ref_id` bigint unsigned DEFAULT NULL,
+  `truck_id` bigint unsigned DEFAULT NULL,
+  `ref_title` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `invoice_number` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `prefix` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `invoice_date` date NOT NULL,
+  `period` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `due_date` date DEFAULT NULL,
+  `subtotal` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `global_discount_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '₹',
+  `global_discount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `discount_total` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `tax_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `adjustment` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `shipping_charges` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `shipping_tax_id` bigint unsigned DEFAULT NULL,
+  `total_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `paid_amount` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `balance_amount` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `round_off` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `tds_amount` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `tds_tax_id` bigint unsigned DEFAULT NULL,
+  `status` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `einvoice_status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `einvoice_irn` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `einvoice_ack_no` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `einvoice_ack_date` datetime DEFAULT NULL,
+  `einvoice_qr_code` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `eway_bill_no` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `eway_bill_date` datetime DEFAULT NULL,
+  `eway_bill_valid_until` datetime DEFAULT NULL,
+  `is_duplicate` tinyint(1) NOT NULL DEFAULT '0',
+  `is_sent` tinyint(1) NOT NULL DEFAULT '0',
+  `is_reconciled` tinyint(1) NOT NULL DEFAULT '0',
+  `is_active` tinyint NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_invoices_created_by_foreign` (`created_by`),
+  KEY `mm_invoices_updated_by_foreign` (`updated_by`),
+  KEY `mm_invoices_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_invoices_account_id_foreign` (`account_id`),
+  KEY `mm_invoices_journal_id_foreign` (`journal_id`),
+  KEY `mm_invoices_shipping_tax_id_foreign` (`shipping_tax_id`),
+  KEY `mm_invoices_truck_id_foreign` (`truck_id`),
+  KEY `idx_invoices_plant_type_date` (`plant_id`,`invoice_type`,`invoice_date`),
+  KEY `idx_invoices_partner_id` (`partner_id`),
+  KEY `idx_invoices_date` (`invoice_date`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_job_batches`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_job_batches` (
+  `id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `total_jobs` int NOT NULL,
+  `pending_jobs` int NOT NULL,
+  `mm_failed_jobs` int NOT NULL,
+  `failed_job_ids` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `options` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `cancelled_at` int DEFAULT NULL,
+  `created_at` int NOT NULL,
+  `finished_at` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_jobs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_jobs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `queue` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `attempts` tinyint unsigned NOT NULL,
+  `reserved_at` int unsigned DEFAULT NULL,
+  `available_at` int unsigned NOT NULL,
+  `created_at` int unsigned NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_jobs_queue_index` (`queue`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_journal_entries`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_journal_entries` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned NOT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `voucher_type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `voucher_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ref_module` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ref_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ref_id` bigint unsigned DEFAULT NULL,
+  `voucher_date` date NOT NULL,
+  `posting_date` date NOT NULL,
+  `narration` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `total_debit` decimal(19,4) NOT NULL DEFAULT '0.0000',
+  `total_credit` decimal(19,4) NOT NULL DEFAULT '0.0000',
+  `is_status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'DRAFT',
+  `reversal_of_id` bigint unsigned DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `is_deleted` tinyint NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_voucher` (`plant_id`,`voucher_type`,`voucher_number`),
+  KEY `mm_journal_entries_reversal_of_id_foreign` (`reversal_of_id`),
+  KEY `idx_entity_date` (`plant_id`,`posting_date`),
+  KEY `idx_is_status` (`is_status`),
+  KEY `idx_ref` (`ref_module`,`ref_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_journal_entry_lines`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_journal_entry_lines` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `journal_entry_id` bigint unsigned NOT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `account_id` bigint unsigned NOT NULL,
+  `debit_amount` decimal(19,4) NOT NULL DEFAULT '0.0000',
+  `credit_amount` decimal(19,4) NOT NULL DEFAULT '0.0000',
+  `cost_center_id` bigint unsigned DEFAULT NULL,
+  `partner_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `partner_id` bigint unsigned DEFAULT NULL,
+  `tax_id` bigint unsigned DEFAULT NULL,
+  `narration_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `narration_label` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `line_narration` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `is_deleted` tinyint NOT NULL DEFAULT '0',
+  `bank_statement_line_id` bigint unsigned DEFAULT NULL,
+  `reconciled_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_journal_entry_lines_plant_id_foreign` (`plant_id`),
+  KEY `idx_entry` (`journal_entry_id`),
+  KEY `idx_account` (`account_id`),
+  KEY `idx_cost_center` (`cost_center_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_leave_applications`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_leave_applications` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `personnel_id` bigint unsigned NOT NULL,
+  `leave_type_id` bigint unsigned NOT NULL,
+  `from_date` date NOT NULL,
+  `to_date` date NOT NULL,
+  `days` decimal(5,2) NOT NULL,
+  `reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` enum('pending','approved','rejected','cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `approved_by` bigint unsigned DEFAULT NULL,
+  `approved_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_leave_applications_personnel_id_foreign` (`personnel_id`),
+  KEY `mm_leave_applications_leave_type_id_foreign` (`leave_type_id`),
+  KEY `mm_leave_applications_approved_by_foreign` (`approved_by`),
+  KEY `mm_leave_applications_created_by_foreign` (`created_by`),
+  KEY `mm_leave_applications_updated_by_foreign` (`updated_by`),
+  KEY `mm_leave_applications_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_leave_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_leave_types` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_paid` tinyint(1) NOT NULL DEFAULT '1',
+  `max_days_per_year` int DEFAULT NULL,
+  `carry_forward` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_leave_types_plant_id_foreign` (`plant_id`),
+  KEY `mm_leave_types_created_by_foreign` (`created_by`),
+  KEY `mm_leave_types_updated_by_foreign` (`updated_by`),
+  KEY `mm_leave_types_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_ledgers`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_ledgers` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `entity_id` bigint unsigned NOT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `account_type_id` bigint unsigned NOT NULL,
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_pnl` tinyint(1) NOT NULL DEFAULT '0',
+  `title` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_ledgers_created_by_foreign` (`created_by`),
+  KEY `mm_ledgers_updated_by_foreign` (`updated_by`),
+  KEY `mm_ledgers_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_ledgers_entity_id_foreign` (`entity_id`),
+  KEY `mm_ledgers_account_type_id_foreign` (`account_type_id`),
+  KEY `mm_ledgers_plant_id_foreign` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_machine_documents`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_machine_documents` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `machine_id` bigint unsigned NOT NULL,
+  `type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `issue_date` date DEFAULT NULL,
+  `expiry_date` date DEFAULT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_machine_documents_machine_id_type_unique` (`machine_id`,`type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_machine_emi_payments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_machine_emi_payments` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `machine_loan_id` bigint unsigned NOT NULL,
+  `due_date` date NOT NULL,
+  `paid_date` date DEFAULT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_machine_emi_payments_machine_loan_id_foreign` (`machine_loan_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_machine_loans`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_machine_loans` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `machine_id` bigint unsigned NOT NULL,
+  `loan_amount` decimal(12,2) NOT NULL,
+  `emi_amount` decimal(10,2) NOT NULL,
+  `tenure_months` int NOT NULL,
+  `start_date` date NOT NULL,
+  `end_date` date DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_machine_loans_machine_id_foreign` (`machine_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_machine_maintanence_lines`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_machine_maintanence_lines` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `product_quantity` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `date_planned` datetime NOT NULL,
+  `product_uom` bigint unsigned NOT NULL,
+  `product_id` bigint unsigned NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `price_unit` decimal(17,2) NOT NULL,
+  `price_subtotal` decimal(17,2) NOT NULL,
+  `price_total` decimal(17,2) NOT NULL,
+  `tax_id` bigint unsigned DEFAULT NULL,
+  `price_tax` decimal(17,2) NOT NULL,
+  `order_id` bigint unsigned NOT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `status` tinyint NOT NULL,
+  `priority` tinyint NOT NULL DEFAULT '0',
+  `invoiced_quantity` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `received_quantity` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `received_price` decimal(17,2) DEFAULT NULL,
+  `partner_id` bigint unsigned NOT NULL,
+  `created` datetime DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `modified` datetime DEFAULT NULL,
+  `modified_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_machine_maintanence_lines_product_uom_foreign` (`product_uom`),
+  KEY `mm_machine_maintanence_lines_product_id_foreign` (`product_id`),
+  KEY `mm_machine_maintanence_lines_tax_id_foreign` (`tax_id`),
+  KEY `mm_machine_maintanence_lines_order_id_foreign` (`order_id`),
+  KEY `mm_machine_maintanence_lines_plant_id_foreign` (`plant_id`),
+  KEY `mm_machine_maintanence_lines_partner_id_foreign` (`partner_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_machine_maintanence_request`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_machine_maintanence_request` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `machine_id` bigint unsigned NOT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `max_idle_days` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `inventory_req_lines` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `maintanence_type` tinyint NOT NULL,
+  `service_km` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `priority` tinyint NOT NULL,
+  `responsible_id` bigint unsigned NOT NULL,
+  `repair_location` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `repair_vendor_id` bigint unsigned NOT NULL,
+  `bill_no` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `order_no` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `discount_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `shipping_charges` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `shipping_tax_id` bigint unsigned DEFAULT NULL,
+  `adjustment` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `rounding_value` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `filename` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` tinyint NOT NULL,
+  `bill_status` tinyint NOT NULL DEFAULT '0',
+  `dead_line` datetime NOT NULL,
+  `start_date` datetime NOT NULL,
+  `end_date` datetime NOT NULL,
+  `created` datetime DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `modified` datetime DEFAULT NULL,
+  `modified_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_machine_maintanence_request_machine_id_foreign` (`machine_id`),
+  KEY `mm_machine_maintanence_request_plant_id_foreign` (`plant_id`),
+  KEY `mm_machine_maintanence_request_repair_vendor_id_foreign` (`repair_vendor_id`),
+  KEY `mm_machine_maintanence_request_shipping_tax_id_foreign` (`shipping_tax_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_machine_service`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_machine_service` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `truck_id` bigint unsigned NOT NULL,
+  `service_type` int NOT NULL,
+  `last_service_km` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `next_service_km` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `current_running_km` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `service_hr_km` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `service_date` date DEFAULT NULL,
+  `notes` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created` datetime DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `modified` datetime DEFAULT NULL,
+  `modified_by` bigint unsigned DEFAULT NULL,
+  `deleted` datetime DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_machine_service_plant_id_foreign` (`plant_id`),
+  KEY `mm_machine_service_truck_id_foreign` (`truck_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_machine_tracker`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_machine_tracker` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `machine_id` bigint unsigned NOT NULL,
+  `operation_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `category` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `operator_id` bigint unsigned DEFAULT NULL,
+  `opening` datetime DEFAULT NULL,
+  `closing` datetime DEFAULT NULL,
+  `odometer_start` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `odometer_end` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `hourmeter_start` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `hourmeter_end` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `eb_start` decimal(17,2) NOT NULL,
+  `eb_close` decimal(17,2) NOT NULL,
+  `opening_hsd` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `closing_hsd` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `fuel` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `fuel_filled_on` datetime DEFAULT NULL,
+  `last_fuel_filled_km` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `fuel_filled_km` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `pump_name` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `pump_reading` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `amount` decimal(17,3) NOT NULL DEFAULT '0.000',
+  `shift` tinyint NOT NULL DEFAULT '-1',
+  `created` datetime DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `modified` datetime DEFAULT NULL,
+  `modified_by` bigint unsigned DEFAULT NULL,
+  `company_id` bigint unsigned NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_machine_tracker_plant_id_foreign` (`plant_id`),
+  KEY `mm_machine_tracker_machine_id_foreign` (`machine_id`),
+  KEY `mm_machine_tracker_company_id_foreign` (`company_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_machine_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_machine_types` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `plant_id` bigint unsigned NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_machine_types_plant_id_foreign` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_machines`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_machines` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `registration` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `vehicle_model` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `make_year` year DEFAULT NULL,
+  `engine_no` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `chassis_no` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `vehicle_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `capacity` int DEFAULT NULL,
+  `owner_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`id`),
+  KEY `mm_machines_plant_id_foreign` (`plant_id`),
+  KEY `mm_machines_created_by_foreign` (`created_by`),
+  KEY `mm_machines_updated_by_foreign` (`updated_by`),
+  KEY `mm_machines_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_machines_owner_id_foreign` (`owner_id`),
+  KEY `mm_machines_entity_id_foreign` (`entity_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_main_group_master`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_main_group_master` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `group_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `group_code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_main_group_master_group_code_unique` (`group_code`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_menus`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_menus` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `menutype` int NOT NULL COMMENT '1: TopNav, 2: SideNav',
+  `title` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `alias` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `link` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '#',
+  `icon` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `published` tinyint(1) NOT NULL DEFAULT '1',
+  `parent_id` bigint unsigned NOT NULL DEFAULT '0',
+  `level` int NOT NULL DEFAULT '0',
+  `ordering` int NOT NULL DEFAULT '0',
+  `permission_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_menus_entity_id_foreign` (`entity_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_mix_design_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_mix_design_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `mix_design_id` bigint unsigned NOT NULL,
+  `product_id` bigint unsigned NOT NULL,
+  `uom_id` bigint unsigned NOT NULL,
+  `rate` decimal(12,4) DEFAULT NULL,
+  `actual_quantity` decimal(12,4) DEFAULT NULL,
+  `cross_quantity` decimal(12,4) DEFAULT NULL,
+  `variation_quantity` decimal(12,4) DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_mix_design_items_mix_design_id_foreign` (`mix_design_id`),
+  KEY `mm_mix_design_items_product_id_foreign` (`product_id`),
+  KEY `mm_mix_design_items_uom_id_foreign` (`uom_id`),
+  KEY `mm_mix_design_items_plant_id_mix_design_id_index` (`plant_id`,`mix_design_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_mix_designs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_mix_designs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `concrete_grade_id` bigint unsigned NOT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `partner_id` bigint unsigned NOT NULL,
+  `design_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `design_code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `design_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `unit_id` bigint unsigned DEFAULT NULL,
+  `rate_per_qty` decimal(12,4) DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_mix_designs_plant_id_partner_id_design_name_unique` (`plant_id`,`partner_id`,`design_name`),
+  KEY `mm_mix_designs_concrete_grade_id_foreign` (`concrete_grade_id`),
+  KEY `mm_mix_designs_partner_id_foreign` (`partner_id`),
+  KEY `mm_mix_designs_plant_id_index` (`plant_id`),
+  KEY `mm_mix_designs_unit_id_foreign` (`unit_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_model_has_permissions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_model_has_permissions` (
+  `permission_id` bigint unsigned NOT NULL,
+  `model_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `model_id` bigint unsigned NOT NULL,
+  PRIMARY KEY (`permission_id`,`model_id`,`model_type`),
+  KEY `mm_model_has_permissions_model_id_model_type_index` (`model_id`,`model_type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_model_has_roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_model_has_roles` (
+  `role_id` bigint unsigned NOT NULL,
+  `model_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `model_id` bigint unsigned NOT NULL,
+  PRIMARY KEY (`role_id`,`model_id`,`model_type`),
+  KEY `mm_model_has_roles_model_id_model_type_index` (`model_id`,`model_type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_module`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_module` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `module_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `display_value` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_module_mm_module_name_unique` (`module_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_modules`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_modules` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `price_per_1000_tokens` decimal(10,4) NOT NULL DEFAULT '0.0000',
+  `price_per_request` decimal(10,4) NOT NULL DEFAULT '0.0000',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_modules_name_unique` (`name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_order_taxes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_order_taxes` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `tax_id` bigint unsigned DEFAULT NULL,
+  `order_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `order_id` bigint unsigned NOT NULL,
+  `order_items_id` bigint unsigned DEFAULT NULL,
+  `account_id` bigint unsigned DEFAULT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rate` decimal(8,4) NOT NULL DEFAULT '0.0000',
+  `amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_order_taxes_tax_id_foreign` (`tax_id`),
+  KEY `mm_order_taxes_entity_id_foreign` (`entity_id`),
+  KEY `mm_order_taxes_plant_id_foreign` (`plant_id`),
+  KEY `idx_order_taxes_item_name` (`order_items_id`,`name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_party_rates`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_party_rates` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `patron_id` bigint unsigned DEFAULT NULL,
+  `loading_site` bigint unsigned DEFAULT NULL,
+  `unloading_site` bigint unsigned DEFAULT NULL,
+  `uom_id` bigint unsigned DEFAULT NULL,
+  `payment_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `product_id` bigint unsigned DEFAULT NULL,
+  `product_rate` decimal(10,2) DEFAULT NULL,
+  `transport_rate` decimal(10,2) DEFAULT NULL,
+  `rate` decimal(10,2) NOT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_party_rates_patron_id_foreign` (`patron_id`),
+  KEY `mm_party_rates_loading_site_foreign` (`loading_site`),
+  KEY `mm_party_rates_unloading_site_foreign` (`unloading_site`),
+  KEY `mm_party_rates_uom_id_foreign` (`uom_id`),
+  KEY `mm_party_rates_product_id_foreign` (`product_id`),
+  KEY `mm_party_rates_created_by_foreign` (`created_by`),
+  KEY `mm_party_rates_updated_by_foreign` (`updated_by`),
+  KEY `mm_party_rates_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_party_rates_plant_id_patron_id_index` (`plant_id`,`patron_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_password_reset_tokens`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_password_reset_tokens` (
+  `email` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `token` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`email`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_patron_bank_accounts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_patron_bank_accounts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `bank_account_type` bigint unsigned NOT NULL,
+  `patron_id` bigint unsigned NOT NULL,
+  `account_holder_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `account_number` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `bank_name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `branch_name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ifsc_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_primary` tinyint(1) NOT NULL DEFAULT '0',
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `displayed` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_patron_bank_accounts_bank_account_type_foreign` (`bank_account_type`),
+  KEY `mm_patron_bank_accounts_patron_id_foreign` (`patron_id`),
+  KEY `mm_patron_bank_accounts_created_by_foreign` (`created_by`),
+  KEY `mm_patron_bank_accounts_updated_by_foreign` (`updated_by`),
+  KEY `mm_patron_bank_accounts_plant_id_patron_id_index` (`plant_id`,`patron_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_patrons`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_patrons` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `patron_type` json DEFAULT NULL,
+  `legal_name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mobile` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ledger_id` bigint unsigned DEFAULT NULL,
+  `operational_status` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `pan_no` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `gstin` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `displayed` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_patrons_plant_legal_name_unique` (`plant_id`,`legal_name`),
+  KEY `mm_patrons_ledger_id_foreign` (`ledger_id`),
+  KEY `mm_patrons_created_by_foreign` (`created_by`),
+  KEY `mm_patrons_updated_by_foreign` (`updated_by`),
+  KEY `mm_patrons_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_patrons_entity_id_foreign` (`entity_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_payment_allocations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_payment_allocations` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `payment_id` bigint unsigned NOT NULL,
+  `invoice_id` bigint unsigned NOT NULL,
+  `amount` decimal(15,2) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_payment_allocations_invoice_id_foreign` (`invoice_id`),
+  KEY `mm_payment_allocations_created_by_foreign` (`created_by`),
+  KEY `mm_payment_allocations_updated_by_foreign` (`updated_by`),
+  KEY `mm_payment_allocations_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_payment_allocations_payment_id_invoice_id_index` (`payment_id`,`invoice_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_payment_audit`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_payment_audit` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `payment_id` bigint unsigned NOT NULL,
+  `data` json NOT NULL,
+  `action` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'deleted',
+  `action_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_payment_audit_action_by_foreign` (`action_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_payment_gateways`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_payment_gateways` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `is_active` tinyint NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_payment_gateways_name_unique` (`name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_payment_methods`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_payment_methods` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_payment_methods_created_by_foreign` (`created_by`),
+  KEY `mm_payment_methods_updated_by_foreign` (`updated_by`),
+  KEY `mm_payment_methods_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_payment_statuses`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_payment_statuses` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `status_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_payment_statuses_status_name_unique` (`status_name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_payment_transaction_audit`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_payment_transaction_audit` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `payment_transaction_id` bigint unsigned NOT NULL,
+  `payment_id` bigint unsigned NOT NULL,
+  `data` json NOT NULL,
+  `action` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'deleted',
+  `action_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_payment_transaction_audit_action_by_foreign` (`action_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_payment_transactions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_payment_transactions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `payment_id` bigint unsigned NOT NULL,
+  `origin` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'e.g. payment, dispatch, invoice',
+  `origin_id` bigint unsigned DEFAULT NULL,
+  `ledger_id` bigint unsigned NOT NULL,
+  `patron_id` bigint unsigned DEFAULT NULL,
+  `debit_amount` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `credit_amount` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `transaction_date` date NOT NULL,
+  `reference` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'completed',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_payment_transactions_plant_id_foreign` (`plant_id`),
+  KEY `mm_payment_transactions_patron_id_foreign` (`patron_id`),
+  KEY `mm_payment_transactions_created_by_foreign` (`created_by`),
+  KEY `mm_payment_transactions_updated_by_foreign` (`updated_by`),
+  KEY `mm_payment_transactions_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_payment_transactions_payment_id_plant_id_index` (`payment_id`,`plant_id`),
+  KEY `mm_payment_transactions_ledger_id_transaction_date_index` (`ledger_id`,`transaction_date`),
+  KEY `mm_payment_transactions_origin_origin_id_index` (`origin`,`origin_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_payments`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_payments` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `origin` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'e.g. payment, dispatch, invoice, expense',
+  `origin_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `transaction_date` date DEFAULT NULL,
+  `ledger_id` bigint unsigned NOT NULL,
+  `patron_id` bigint unsigned DEFAULT NULL,
+  `partner_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `amount` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `excess_amount` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `use_excess_amount` tinyint(1) NOT NULL DEFAULT '0',
+  `transaction_type` enum('payment','receipt') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `transaction_mode` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reconcile_opening_balance` tinyint(1) NOT NULL DEFAULT '0',
+  `batch_deposit` tinyint(1) NOT NULL DEFAULT '0',
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `reference` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('pending','paid','completed','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'pending',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_payments_patron_id_foreign` (`patron_id`),
+  KEY `mm_payments_created_by_foreign` (`created_by`),
+  KEY `mm_payments_updated_by_foreign` (`updated_by`),
+  KEY `mm_payments_plant_id_status_index` (`plant_id`,`status`),
+  KEY `mm_payments_ledger_id_transaction_type_index` (`ledger_id`,`transaction_type`),
+  KEY `mm_payments_origin_origin_id_index` (`origin`,`origin_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_payroll_periods`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_payroll_periods` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `from_date` date NOT NULL,
+  `to_date` date NOT NULL,
+  `status` enum('draft','processing','completed','locked','failed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_payroll_periods_plant_id_foreign` (`plant_id`),
+  KEY `mm_payroll_periods_created_by_foreign` (`created_by`),
+  KEY `mm_payroll_periods_updated_by_foreign` (`updated_by`),
+  KEY `mm_payroll_periods_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_payslip_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_payslip_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `payslip_id` bigint unsigned NOT NULL,
+  `salary_component_id` bigint unsigned DEFAULT NULL,
+  `component_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` enum('earning','deduction') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `amount` decimal(12,2) NOT NULL,
+  `calculation_source` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_payslip_items_payslip_id_foreign` (`payslip_id`),
+  KEY `mm_payslip_items_salary_component_id_foreign` (`salary_component_id`),
+  KEY `mm_payslip_items_created_by_foreign` (`created_by`),
+  KEY `mm_payslip_items_updated_by_foreign` (`updated_by`),
+  KEY `mm_payslip_items_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_payslips`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_payslips` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `payroll_period_id` bigint unsigned NOT NULL,
+  `personnel_id` bigint unsigned NOT NULL,
+  `payslip_no` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `working_days` int NOT NULL,
+  `present_days` int NOT NULL,
+  `absent_days` int NOT NULL,
+  `paid_leave_days` int NOT NULL DEFAULT '0',
+  `gross_salary` decimal(12,2) NOT NULL,
+  `total_earnings` decimal(12,2) NOT NULL,
+  `total_deductions` decimal(12,2) NOT NULL,
+  `net_salary` decimal(12,2) NOT NULL,
+  `status` enum('draft','approved','paid','rejected') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `payment_reference` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_payslips_payslip_no_unique` (`payslip_no`),
+  KEY `mm_payslips_plant_id_foreign` (`plant_id`),
+  KEY `mm_payslips_payroll_period_id_foreign` (`payroll_period_id`),
+  KEY `mm_payslips_personnel_id_foreign` (`personnel_id`),
+  KEY `mm_payslips_created_by_foreign` (`created_by`),
+  KEY `mm_payslips_updated_by_foreign` (`updated_by`),
+  KEY `mm_payslips_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_permissions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_permissions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `module` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `guard_name` varchar(70) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_permissions_name_guard_name_unique` (`name`,`guard_name`),
+  KEY `mm_permissions_code_index` (`code`),
+  KEY `mm_permissions_module_index` (`module`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_personnel_contacts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_personnel_contacts` (
+  `contact_id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `employee_id` bigint unsigned NOT NULL,
+  `contact_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `contact_value` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_primary` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`contact_id`),
+  KEY `mm_personnel_contacts_employee_id_foreign` (`employee_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_personnel_patron_rels`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_personnel_patron_rels` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `employee_id` bigint unsigned NOT NULL,
+  `patron_id` bigint unsigned NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_personnel_patron_rels_employee_id_foreign` (`employee_id`),
+  KEY `mm_personnel_patron_rels_patron_id_foreign` (`patron_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_personnels`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_personnels` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `contact_id` bigint unsigned DEFAULT NULL,
+  `department_id` bigint unsigned DEFAULT NULL,
+  `designation_id` bigint unsigned DEFAULT NULL,
+  `reporting_manager_id` bigint unsigned DEFAULT NULL,
+  `employee_code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `first_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `full_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (concat_ws(_utf8mb4' ',`first_name`,`last_name`)) VIRTUAL,
+  `email` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mobile` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `employment_type` enum('permanent','contract','trainee','temporary','consultant') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'permanent',
+  `gender` enum('male','female','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('active','inactive','terminated','resigned','retired') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `date_of_birth` date DEFAULT NULL,
+  `joining_date` date DEFAULT NULL,
+  `exit_date` date DEFAULT NULL,
+  `pan` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `aadhaar` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `uan` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `esi_number` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bank_account_no` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bank_ifsc` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bank_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `photo` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `meta` json DEFAULT NULL,
+  `shift_start_time` time DEFAULT NULL,
+  `shift_end_time` time DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_personnels_employee_code_unique` (`employee_code`),
+  UNIQUE KEY `mm_personnels_email_unique` (`email`),
+  UNIQUE KEY `mm_personnels_pan_unique` (`pan`),
+  UNIQUE KEY `mm_personnels_aadhaar_unique` (`aadhaar`),
+  KEY `mm_personnels_plant_id_foreign` (`plant_id`),
+  KEY `mm_personnels_created_by_foreign` (`created_by`),
+  KEY `mm_personnels_updated_by_foreign` (`updated_by`),
+  KEY `mm_personnels_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_personnels_entity_id_foreign` (`entity_id`),
+  KEY `mm_personnels_user_id_foreign` (`user_id`),
+  KEY `mm_personnels_contact_id_foreign` (`contact_id`),
+  KEY `mm_personnels_department_id_foreign` (`department_id`),
+  KEY `mm_personnels_designation_id_foreign` (`designation_id`),
+  KEY `mm_personnels_reporting_manager_id_foreign` (`reporting_manager_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_petty_cash`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_petty_cash` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `ref_no` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `prefix` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `date` datetime NOT NULL,
+  `opening_balance` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `closing_balance` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `paid_by` bigint unsigned DEFAULT NULL,
+  `paid_to` bigint unsigned DEFAULT NULL,
+  `journal_status` tinyint(1) NOT NULL DEFAULT '0',
+  `closed_status` tinyint(1) NOT NULL DEFAULT '0',
+  `request_amount` decimal(17,2) DEFAULT NULL,
+  `file` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_petty_cash_plant_id_foreign` (`plant_id`),
+  KEY `mm_petty_cash_paid_by_foreign` (`paid_by`),
+  KEY `mm_petty_cash_paid_to_foreign` (`paid_to`),
+  KEY `mm_petty_cash_created_by_foreign` (`created_by`),
+  KEY `mm_petty_cash_updated_by_foreign` (`updated_by`),
+  KEY `mm_petty_cash_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_petty_cash_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_petty_cash_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `petty_cash_id` bigint unsigned NOT NULL,
+  `expense_id` bigint unsigned NOT NULL,
+  `patron_id` bigint unsigned DEFAULT NULL,
+  `amount` decimal(17,2) NOT NULL,
+  `debit` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `credit` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `date` datetime NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `remarks` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_petty_cash_items_plant_id_foreign` (`plant_id`),
+  KEY `mm_petty_cash_items_petty_cash_id_foreign` (`petty_cash_id`),
+  KEY `mm_petty_cash_items_expense_id_foreign` (`expense_id`),
+  KEY `mm_petty_cash_items_patron_id_foreign` (`patron_id`),
+  KEY `mm_petty_cash_items_created_by_foreign` (`created_by`),
+  KEY `mm_petty_cash_items_updated_by_foreign` (`updated_by`),
+  KEY `mm_petty_cash_items_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_plan_features`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_plan_features` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plan_id` bigint unsigned NOT NULL,
+  `feature_id` bigint unsigned NOT NULL,
+  `value` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_plan_features_plan_id_feature_id_unique` (`plan_id`,`feature_id`),
+  KEY `mm_plan_features_feature_id_plan_id_index` (`feature_id`,`plan_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_plans`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_plans` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plan_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `price_monthly` decimal(17,2) NOT NULL,
+  `monthly_plan_description` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `price_yearly` decimal(17,2) NOT NULL,
+  `yearly_plan_description` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `max_users` int NOT NULL DEFAULT '0',
+  `mm_features_json` json DEFAULT NULL,
+  `is_active` tinyint NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_plans_plan_type_unique` (`plan_type`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_plants`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_plants` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned NOT NULL,
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `logo_path` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email_address` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `mobile_number` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `plant_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `gstin` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ewaybill_client_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ewaybill_secret` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `einvoice_client_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `einvoice_secret` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `latitude` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `longitude` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `shift_start_time` time NOT NULL DEFAULT '12:00:00',
+  `shift_end_time` time NOT NULL DEFAULT '12:00:00',
+  `is_main` tinyint(1) NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `is_initialized` tinyint(1) NOT NULL DEFAULT '0',
+  `scheduler_api_url` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `plc_ip` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `last_heartbeat_at` timestamp NULL DEFAULT NULL,
+  `scheduler_api_token` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `scheduler_oauth_url` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `scheduler_client_id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `scheduler_client_secret` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_plants_code_unique` (`code`),
+  KEY `mm_plants_entity_id_foreign` (`entity_id`),
+  KEY `mm_plants_created_by_foreign` (`created_by`),
+  KEY `mm_plants_updated_by_foreign` (`updated_by`),
+  KEY `mm_plants_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_print_template_settings`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_print_template_settings` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `module_key` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `print_template_id` bigint unsigned NOT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_module_plant_template` (`module_key`,`plant_id`),
+  KEY `mm_print_template_settings_print_template_id_foreign` (`print_template_id`),
+  KEY `mm_print_template_settings_module_key_index` (`module_key`),
+  KEY `mm_print_template_settings_plant_id_index` (`plant_id`),
+  KEY `mm_print_template_settings_entity_id_index` (`entity_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_print_templates`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_print_templates` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `key` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `category` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'general',
+  `thumbnail` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `mm_config` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_print_templates_key_unique` (`key`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_product_categories`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_product_categories` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `parent_id` bigint unsigned DEFAULT NULL,
+  `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `description` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_product_categories_plant_id_name_unique` (`plant_id`,`name`),
+  KEY `mm_product_categories_parent_id_foreign` (`parent_id`),
+  KEY `mm_product_categories_entity_id_foreign` (`entity_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_product_units`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_product_units` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `unit_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `unit_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `unit_code` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_product_units_unit_name_unit_type_unique` (`unit_name`,`unit_type`),
+  KEY `mm_product_units_entity_id_foreign` (`entity_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_products`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_products` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `category_id` bigint unsigned DEFAULT NULL,
+  `unit_id` bigint unsigned DEFAULT NULL,
+  `is_service` tinyint(1) NOT NULL DEFAULT '0',
+  `purchase_tax_id` bigint unsigned DEFAULT NULL,
+  `sale_tax_id` bigint unsigned DEFAULT NULL,
+  `purchase_price` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `sales_price` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `conversion_quantity` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `title` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `alias` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `material_code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `product_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `hsn_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `tax_mode` tinyint(1) NOT NULL DEFAULT '0' COMMENT '0: Exclusive, 1: Inclusive',
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `is_returnable` tinyint(1) NOT NULL DEFAULT '0',
+  `stock_alert` decimal(15,2) DEFAULT '0.00',
+  `status` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_products_plant_id_title_unique` (`plant_id`,`title`),
+  KEY `mm_products_category_id_foreign` (`category_id`),
+  KEY `mm_products_unit_id_foreign` (`unit_id`),
+  KEY `mm_products_created_by_foreign` (`created_by`),
+  KEY `mm_products_updated_by_foreign` (`updated_by`),
+  KEY `mm_products_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_products_title_index` (`title`),
+  KEY `mm_products_entity_id_foreign` (`entity_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_purchase_order_history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_purchase_order_history` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `order_id` bigint unsigned NOT NULL,
+  `order_item_id` bigint unsigned NOT NULL,
+  `received_date` datetime NOT NULL,
+  `product_id` bigint unsigned DEFAULT NULL,
+  `uom_id` int unsigned DEFAULT NULL,
+  `used_quantity` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `received_qty` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `unit_price` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `count_quantity` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `inward_no` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `truck_id` bigint unsigned DEFAULT NULL,
+  `truck_loaded` decimal(15,2) DEFAULT NULL,
+  `truck_empty` decimal(15,2) DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_purchase_order_history_order_id_index` (`order_id`),
+  KEY `mm_purchase_order_history_plant_id_product_id_index` (`plant_id`,`product_id`),
+  KEY `mm_purchase_order_history_truck_id_foreign` (`truck_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_purchase_order_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_purchase_order_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `order_id` bigint unsigned NOT NULL,
+  `product_id` bigint unsigned NOT NULL,
+  `product_uom` bigint unsigned NOT NULL,
+  `tax_id` bigint unsigned DEFAULT NULL,
+  `product_quantity` decimal(17,2) NOT NULL,
+  `unit_price` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `price_subtotal` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `price_total` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `price_tax` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `hsn_code` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `discount_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `discount_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `total_discount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `invoiced_quantity` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `received_quantity` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_purchase_order_items_plant_id_foreign` (`plant_id`),
+  KEY `mm_purchase_order_items_order_id_foreign` (`order_id`),
+  KEY `mm_purchase_order_items_product_id_foreign` (`product_id`),
+  KEY `mm_purchase_order_items_product_uom_foreign` (`product_uom`),
+  KEY `mm_purchase_order_items_tax_id_foreign` (`tax_id`),
+  KEY `mm_purchase_order_items_created_by_foreign` (`created_by`),
+  KEY `mm_purchase_order_items_updated_by_foreign` (`updated_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_purchase_orders`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_purchase_orders` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `billing_id` bigint unsigned DEFAULT NULL,
+  `billing_status` enum('Pending','Billed') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Pending',
+  `plant_id` bigint unsigned NOT NULL,
+  `vendor_id` bigint unsigned NOT NULL,
+  `vehicle_id` bigint unsigned DEFAULT NULL,
+  `po_number` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ref_no` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `bill_number` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `billed_date` date DEFAULT NULL,
+  `date_order` date DEFAULT NULL,
+  `date_approve` date DEFAULT NULL,
+  `date_planned` date DEFAULT NULL,
+  `delivery_date` date DEFAULT NULL,
+  `due_date` date DEFAULT NULL,
+  `partner_reference` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `state` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'draft',
+  `approve_status` tinyint NOT NULL DEFAULT '0',
+  `invoice_status` tinyint NOT NULL DEFAULT '0',
+  `receipt_status` tinyint NOT NULL DEFAULT '0',
+  `journal_status` tinyint NOT NULL DEFAULT '0',
+  `closed_status` tinyint NOT NULL DEFAULT '0',
+  `currency_id` bigint unsigned DEFAULT NULL,
+  `exchange_rate` decimal(17,6) NOT NULL DEFAULT '1.000000',
+  `amount_untaxed` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `amount_tax` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `amount_total` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `discount_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `shipping_charges` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `adjustment` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `rounding_value` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `tds_amount` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `tds_tax_id` bigint unsigned DEFAULT NULL,
+  `common_tax_id` bigint unsigned DEFAULT NULL,
+  `shipping_tax_id` bigint unsigned DEFAULT NULL,
+  `origin` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `terms_conditions` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_purchase_orders_currency_id_foreign` (`currency_id`),
+  KEY `mm_purchase_orders_common_tax_id_foreign` (`common_tax_id`),
+  KEY `mm_purchase_orders_shipping_tax_id_foreign` (`shipping_tax_id`),
+  KEY `mm_purchase_orders_created_by_foreign` (`created_by`),
+  KEY `mm_purchase_orders_updated_by_foreign` (`updated_by`),
+  KEY `mm_purchase_orders_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_purchase_orders_vendor_id_index` (`vendor_id`),
+  KEY `mm_purchase_orders_vehicle_id_index` (`vehicle_id`),
+  KEY `mm_purchase_orders_state_index` (`state`),
+  KEY `mm_purchase_orders_billing_id_index` (`billing_id`),
+  KEY `mm_purchase_orders_billing_status_index` (`billing_status`),
+  KEY `idx_po_plant_date` (`plant_id`,`date_order`),
+  KEY `idx_po_vendor_id` (`vendor_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_quantity`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_quantity` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `product_id` bigint unsigned NOT NULL,
+  `uom_id` bigint unsigned DEFAULT NULL,
+  `opening_quantity` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `quantity` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `date` date DEFAULT NULL,
+  `is_warehouse` tinyint(1) NOT NULL DEFAULT '0',
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_quantity_plant_id_product_id_index` (`plant_id`,`product_id`),
+  KEY `mm_quantity_date_index` (`date`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_quotation_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_quotation_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `quotation_id` bigint unsigned NOT NULL,
+  `mix_design_id` bigint unsigned NOT NULL,
+  `quantity` decimal(17,2) NOT NULL,
+  `uom_id` bigint unsigned DEFAULT NULL,
+  `rate` decimal(17,2) NOT NULL,
+  `tax_id` bigint unsigned DEFAULT NULL,
+  `tax_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `untaxed_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `amount_total` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_quotation_items_created_by_foreign` (`created_by`),
+  KEY `mm_quotation_items_updated_by_foreign` (`updated_by`),
+  KEY `mm_quotation_items_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_quotation_items_quotation_id_foreign` (`quotation_id`),
+  KEY `mm_quotation_items_product_id_foreign` (`mix_design_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_quotations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_quotations` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `prefix` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `reference` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `patron_id` bigint unsigned NOT NULL,
+  `site_id` bigint unsigned DEFAULT NULL,
+  `adjustment` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `quote_date` date NOT NULL,
+  `validity_date` datetime DEFAULT NULL,
+  `amount_untaxed` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `amount_tax` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `amount_total` decimal(15,2) NOT NULL DEFAULT '0.00',
+  `status` tinyint NOT NULL DEFAULT '0',
+  `is_salesorder` tinyint NOT NULL DEFAULT '0' COMMENT '0=None, 1=Converted, -1=Rejected',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_quotations_created_by_foreign` (`created_by`),
+  KEY `mm_quotations_updated_by_foreign` (`updated_by`),
+  KEY `mm_quotations_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_quotations_patron_id_foreign` (`patron_id`),
+  KEY `mm_quotations_plant_id_foreign` (`plant_id`),
+  KEY `mm_quotations_site_id_foreign` (`site_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_report_schedules`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_report_schedules` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `report_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `report_params` json DEFAULT NULL,
+  `email_recipients` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `frequency` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `schedule_time` time NOT NULL,
+  `last_run_at` timestamp NULL DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_report_schedules_plant_id_foreign` (`plant_id`),
+  KEY `mm_report_schedules_created_by_foreign` (`created_by`),
+  KEY `mm_report_schedules_updated_by_foreign` (`updated_by`),
+  KEY `mm_report_schedules_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_role_has_permissions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_role_has_permissions` (
+  `permission_id` bigint unsigned NOT NULL,
+  `role_id` bigint unsigned NOT NULL,
+  PRIMARY KEY (`permission_id`,`role_id`),
+  KEY `mm_role_has_permissions_role_id_foreign` (`role_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_roles`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_roles` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `level` int NOT NULL DEFAULT '99',
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `status` enum('active','inactive') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `guard_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'web',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_roles_code_unique` (`code`),
+  KEY `mm_roles_code_status_index` (`code`,`status`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_salary_components`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_salary_components` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` enum('earning','deduction') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `calculation_type` enum('fixed','percentage','formula','attendance_based') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `default_value` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `is_taxable` tinyint(1) NOT NULL DEFAULT '1',
+  `is_statutory` tinyint(1) NOT NULL DEFAULT '0',
+  `config` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_salary_components_plant_id_foreign` (`plant_id`),
+  KEY `mm_salary_components_created_by_foreign` (`created_by`),
+  KEY `mm_salary_components_updated_by_foreign` (`updated_by`),
+  KEY `mm_salary_components_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_salary_revisions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_salary_revisions` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `personnel_id` bigint unsigned NOT NULL,
+  `approved_by` bigint unsigned DEFAULT NULL,
+  `old_structure` json NOT NULL,
+  `new_structure` json NOT NULL,
+  `reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `revision_date` date NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_salary_revisions_personnel_id_foreign` (`personnel_id`),
+  KEY `mm_salary_revisions_approved_by_foreign` (`approved_by`),
+  KEY `mm_salary_revisions_created_by_foreign` (`created_by`),
+  KEY `mm_salary_revisions_updated_by_foreign` (`updated_by`),
+  KEY `mm_salary_revisions_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_sales_order_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_sales_order_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `sales_order_id` bigint unsigned NOT NULL,
+  `mix_design_id` bigint unsigned NOT NULL,
+  `quantity` decimal(17,2) NOT NULL,
+  `rate` decimal(17,2) NOT NULL,
+  `tax_id` bigint unsigned DEFAULT NULL,
+  `tax_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `untaxed_amount` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `amount_total` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_sales_order_items_sales_order_id_foreign` (`sales_order_id`),
+  KEY `mm_sales_order_items_mix_design_id_foreign` (`mix_design_id`),
+  KEY `mm_sales_order_items_tax_id_foreign` (`tax_id`),
+  KEY `mm_sales_order_items_created_by_foreign` (`created_by`),
+  KEY `mm_sales_order_items_updated_by_foreign` (`updated_by`),
+  KEY `mm_sales_order_items_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_sales_orders`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_sales_orders` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `quotation_id` bigint unsigned DEFAULT NULL,
+  `patron_id` bigint unsigned NOT NULL,
+  `site_id` bigint unsigned NOT NULL,
+  `order_date` date NOT NULL,
+  `status` tinyint NOT NULL DEFAULT '0',
+  `converted_by_user_id` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_sales_orders_created_by_foreign` (`created_by`),
+  KEY `mm_sales_orders_updated_by_foreign` (`updated_by`),
+  KEY `mm_sales_orders_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_sales_orders_plant_id_foreign` (`plant_id`),
+  KEY `mm_sales_orders_quotation_id_foreign` (`quotation_id`),
+  KEY `mm_sales_orders_patron_id_foreign` (`patron_id`),
+  KEY `mm_sales_orders_site_id_foreign` (`site_id`),
+  KEY `mm_sales_orders_converted_by_user_id_foreign` (`converted_by_user_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_sessions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_sessions` (
+  `id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_agent` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_activity` int NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_sessions_user_id_index` (`user_id`),
+  KEY `mm_sessions_last_activity_index` (`last_activity`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_shifts`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_shifts` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `shift_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `start_time` time NOT NULL,
+  `end_time` time NOT NULL,
+  `grace_time` time DEFAULT NULL,
+  `working_hours` decimal(5,2) NOT NULL,
+  `is_night_shift` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_shifts_plant_id_foreign` (`plant_id`),
+  KEY `mm_shifts_created_by_foreign` (`created_by`),
+  KEY `mm_shifts_updated_by_foreign` (`updated_by`),
+  KEY `mm_shifts_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_sites`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_sites` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `site_address_1` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `zipcode` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `code` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_restricted` tinyint(1) NOT NULL DEFAULT '0',
+  `is_reset` tinyint(1) NOT NULL DEFAULT '0',
+  `status` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `latitude` decimal(10,7) DEFAULT NULL,
+  `longitude` decimal(10,7) DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_sites_unique_combo` (`plant_id`,`name`,`type`),
+  KEY `mm_sites_entity_id_foreign` (`entity_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_state_codes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_state_codes` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `country_id` bigint unsigned NOT NULL,
+  `state_code` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `state_name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `zipcode` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `area` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `district` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_state_codes_zipcode_index` (`zipcode`),
+  KEY `mm_state_codes_district_index` (`district`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_statutory_configs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_statutory_configs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `statute_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `rules` json NOT NULL,
+  `effective_from` date NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_statutory_configs_plant_id_foreign` (`plant_id`),
+  KEY `mm_statutory_configs_created_by_foreign` (`created_by`),
+  KEY `mm_statutory_configs_updated_by_foreign` (`updated_by`),
+  KEY `mm_statutory_configs_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_stock_exhaust`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_stock_exhaust` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `partner_id` bigint unsigned NOT NULL,
+  `name` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `bill_number` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `billed_date` date NOT NULL,
+  `invoice_status` tinyint NOT NULL DEFAULT '0',
+  `status` int NOT NULL,
+  `issued_date` date NOT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `created` datetime DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `modified` datetime DEFAULT NULL,
+  `modified_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_stock_exhaust_partner_id_foreign` (`partner_id`),
+  KEY `mm_stock_exhaust_plant_id_foreign` (`plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_stock_exhaust_lines`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_stock_exhaust_lines` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `stock_id` bigint unsigned NOT NULL,
+  `product_id` bigint unsigned DEFAULT NULL,
+  `issue_date` datetime NOT NULL,
+  `quantity_issued` decimal(17,2) DEFAULT NULL,
+  `no_items_issued` decimal(17,2) NOT NULL,
+  `units` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `issued_to` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `vehicle_no` bigint unsigned DEFAULT NULL,
+  `changed_km` decimal(17,2) NOT NULL DEFAULT '0.00',
+  `notes` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created` datetime DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `modified` datetime DEFAULT NULL,
+  `modified_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_stock_exhaust_lines_stock_id_foreign` (`stock_id`),
+  KEY `mm_stock_exhaust_lines_vehicle_no_foreign` (`vehicle_no`),
+  KEY `mm_stock_exhaust_lines_product_id_foreign` (`product_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_subscription_statuses`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_subscription_statuses` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `status_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_subscription_statuses_status_name_unique` (`status_name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_taxes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_taxes` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `is_system` tinyint(1) NOT NULL DEFAULT '0',
+  `plant_id` bigint unsigned NOT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `tax_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `tax_type` enum('sales','purchase','other sales','other purchase','others') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'sales',
+  `tax_group` enum('GST','CGST','SGST','IGST','TDS','TCS','CESS','OTHER') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `tax_rate` decimal(10,2) NOT NULL,
+  `parent_id` bigint unsigned DEFAULT NULL,
+  `account_id` bigint unsigned DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_taxes_plant_id_tax_name_unique` (`plant_id`,`tax_name`),
+  KEY `mm_taxes_created_by_foreign` (`created_by`),
+  KEY `mm_taxes_updated_by_foreign` (`updated_by`),
+  KEY `mm_taxes_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_taxes_parent_id_foreign` (`parent_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_telescope_entries`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_telescope_entries` (
+  `sequence` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `uuid` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `batch_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `family_hash` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `should_display_on_index` tinyint(1) NOT NULL DEFAULT '1',
+  `type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`sequence`),
+  UNIQUE KEY `mm_telescope_entries_uuid_unique` (`uuid`),
+  KEY `mm_telescope_entries_type_should_display_on_index_index` (`type`,`should_display_on_index`),
+  KEY `mm_telescope_entries_batch_id_index` (`batch_id`),
+  KEY `mm_telescope_entries_family_hash_index` (`family_hash`),
+  KEY `mm_telescope_entries_created_at_index` (`created_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_telescope_entries_tags`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_telescope_entries_tags` (
+  `entry_uuid` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `tag` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`entry_uuid`,`tag`),
+  KEY `mm_telescope_entries_tags_tag_index` (`tag`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_telescope_monitoring`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_telescope_monitoring` (
+  `tag` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`tag`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_terms_condition`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_terms_condition` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `order_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `terms_condition` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `entity_id` bigint unsigned NOT NULL,
+  `status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_terms_condition_entity_id_foreign` (`entity_id`),
+  KEY `mm_terms_condition_created_by_foreign` (`created_by`),
+  KEY `mm_terms_condition_updated_by_foreign` (`updated_by`),
+  KEY `mm_terms_condition_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_usage_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_usage_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned NOT NULL,
+  `feature_code` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `used_count` int unsigned NOT NULL DEFAULT '0',
+  `period` varchar(7) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `usage_logs_entity_feature_period_unique` (`entity_id`,`feature_code`,`period`),
+  KEY `mm_usage_logs_feature_code_period_index` (`feature_code`,`period`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_usage_summaries`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_usage_summaries` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` bigint unsigned NOT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `mm_module` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `date` date NOT NULL,
+  `month` varchar(7) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `tokens` bigint unsigned NOT NULL DEFAULT '0',
+  `requests` int unsigned NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `usage_summaries_scope_unique` (`user_id`,`entity_id`,`plant_id`,`mm_module`,`date`),
+  KEY `mm_usage_summaries_user_id_month_mm_module_index` (`user_id`,`month`,`mm_module`),
+  KEY `usage_summaries_scope_idx` (`user_id`,`entity_id`,`plant_id`,`month`,`mm_module`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_users`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_users` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `email` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `mobile` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `username` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `password` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `api_key` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `plan` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'free',
+  `two_factor_secret` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `two_factor_recovery_codes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `two_factor_confirmed_at` timestamp NULL DEFAULT NULL,
+  `remember_token` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `email_verified_at` timestamp NULL DEFAULT NULL,
+  `is_active` tinyint NOT NULL DEFAULT '0',
+  `is_otp_enabled` tinyint NOT NULL DEFAULT '0',
+  `failed_attempts` int NOT NULL DEFAULT '0',
+  `last_login` timestamp NULL DEFAULT NULL,
+  `last_visit_page` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `login_status` tinyint(1) NOT NULL DEFAULT '0' COMMENT 'True = currently logged in, False = logged out',
+  `login_location` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Geographic location at time of last login (City, Region, Country)',
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `lockout_until` timestamp NULL DEFAULT NULL,
+  `otp_secret` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `profile_photo_path` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `default_entity_id` bigint unsigned DEFAULT NULL,
+  `default_plant_id` bigint unsigned DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_users_api_key_unique` (`api_key`),
+  KEY `mm_users_is_active_email_verified_at_lockout_until_index` (`is_active`,`email_verified_at`,`lockout_until`),
+  KEY `mm_users_created_by_foreign` (`created_by`),
+  KEY `mm_users_updated_by_foreign` (`updated_by`),
+  KEY `mm_users_deleted_by_foreign` (`deleted_by`),
+  KEY `mm_users_default_entity_id_foreign` (`default_entity_id`),
+  KEY `mm_users_default_plant_id_foreign` (`default_plant_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_voucher_types`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_voucher_types` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `journal_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `short_code` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_system_generated` tinyint(1) NOT NULL DEFAULT '0',
+  `prefix` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `voucher_group` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_voucher_types_short_code_unique` (`short_code`),
+  KEY `mm_voucher_types_entity_id_foreign` (`entity_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_work_order_items`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_work_order_items` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `work_order_id` bigint unsigned NOT NULL,
+  `material_id` bigint unsigned DEFAULT NULL,
+  `required_qty` decimal(15,4) NOT NULL DEFAULT '0.0000',
+  `issued_qty` decimal(15,4) NOT NULL DEFAULT '0.0000',
+  `uom_id` bigint unsigned DEFAULT NULL,
+  `location_id` bigint unsigned DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created` datetime DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `modified` datetime DEFAULT NULL,
+  `updated_by` tinyint DEFAULT NULL,
+  `deleted_by` int DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_work_order_items_work_order_id_foreign` (`work_order_id`),
+  KEY `mm_work_order_items_material_id_foreign` (`material_id`),
+  KEY `mm_work_order_items_uom_id_foreign` (`uom_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_work_order_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_work_order_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `work_order_id` bigint unsigned NOT NULL,
+  `status` tinyint DEFAULT NULL,
+  `remarks` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `changed_by` bigint unsigned DEFAULT NULL,
+  `changed_at` datetime DEFAULT NULL,
+  `created` datetime DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `modified` datetime DEFAULT NULL,
+  `updated_by` tinyint DEFAULT NULL,
+  `deleted_by` int DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_work_order_logs_work_order_id_foreign` (`work_order_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_work_order_operations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_work_order_operations` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `work_order_id` bigint unsigned NOT NULL,
+  `operation_name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sequence` int NOT NULL DEFAULT '0',
+  `duration` int DEFAULT NULL,
+  `started_at` datetime DEFAULT NULL,
+  `completed_at` datetime DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created` datetime DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `modified` datetime DEFAULT NULL,
+  `updated_by` tinyint DEFAULT NULL,
+  `deleted_by` int DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_work_order_operations_work_order_id_foreign` (`work_order_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_work_orders`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_work_orders` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `sales_order_id` bigint unsigned DEFAULT NULL,
+  `prefix` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `order_no` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_id` bigint unsigned DEFAULT NULL,
+  `site_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `mix_design_id` bigint unsigned DEFAULT NULL,
+  `produced_qty` decimal(15,4) NOT NULL DEFAULT '0.0000',
+  `total_qty` decimal(15,4) NOT NULL DEFAULT '0.0000',
+  `uom_id` bigint unsigned DEFAULT NULL,
+  `scheduled_start` datetime DEFAULT NULL,
+  `scheduled_end` datetime DEFAULT NULL,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created_at` datetime DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `updated_by` tinyint DEFAULT NULL,
+  `deleted_by` int DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_work_orders_mix_design_id_foreign` (`mix_design_id`),
+  KEY `mm_work_orders_plant_id_foreign` (`plant_id`),
+  KEY `mm_work_orders_uom_id_foreign` (`uom_id`),
+  KEY `mm_work_orders_sales_order_id_foreign` (`sales_order_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `notification_emails`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `notification_emails` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `type` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `role_name` varchar(40) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` tinyint NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `deleted` tinyint NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`),
+  KEY `notification_emails_plant_id_foreign` (`plant_id`),
+  KEY `notification_emails_created_by_foreign` (`created_by`),
+  KEY `notification_emails_updated_by_foreign` (`updated_by`),
+  KEY `notification_emails_deleted_by_foreign` (`deleted_by`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `personal_access_tokens`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `personal_access_tokens` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `tokenable_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `tokenable_id` bigint unsigned NOT NULL,
+  `name` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `token` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `abilities` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `last_used_at` timestamp NULL DEFAULT NULL,
+  `expires_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `personal_access_tokens_token_unique` (`token`),
+  KEY `personal_access_tokens_tokenable_type_tokenable_id_index` (`tokenable_type`,`tokenable_id`),
+  KEY `personal_access_tokens_expires_at_index` (`expires_at`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `rag_documents`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `rag_documents` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `source_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `title` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `embedding` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `content_hash` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `token_count` int unsigned NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `rag_documents_entity_id_source_type_index` (`entity_id`,`source_type`),
+  KEY `rag_documents_is_active_source_type_index` (`is_active`,`source_type`),
+  KEY `rag_documents_entity_id_index` (`entity_id`),
+  KEY `rag_documents_content_hash_index` (`content_hash`),
+  KEY `rag_documents_is_active_index` (`is_active`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `tr_projects`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tr_projects` (
+  `id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `workspace_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `tr_projects_workspace_id_index` (`workspace_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `tr_trace_steps`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tr_trace_steps` (
+  `id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `trace_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `label` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'step',
+  `step_order` int NOT NULL DEFAULT '0',
+  `request_payload` json DEFAULT NULL,
+  `response_payload` json DEFAULT NULL,
+  `state_snapshot` json DEFAULT NULL,
+  `duration_ms` decimal(12,2) DEFAULT NULL,
+  `memory_usage` bigint unsigned DEFAULT NULL,
+  `db_query_count` int unsigned DEFAULT NULL,
+  `db_query_time_ms` decimal(12,2) DEFAULT NULL,
+  `db_queries` json DEFAULT NULL,
+  `cache_calls` json DEFAULT NULL,
+  `cache_hit_count` int unsigned NOT NULL DEFAULT '0',
+  `cache_miss_count` int unsigned NOT NULL DEFAULT '0',
+  `http_calls` json DEFAULT NULL,
+  `mail_calls` json DEFAULT NULL,
+  `log_calls` json DEFAULT NULL,
+  `status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'success',
+  `error_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `tr_trace_steps_trace_id_index` (`trace_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `tr_traces`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tr_traces` (
+  `id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `workspace_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `project_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `type` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'http',
+  `tags` json DEFAULT NULL,
+  `trace_parent` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `duration_ms` decimal(12,2) DEFAULT NULL,
+  `peak_memory_usage` bigint unsigned DEFAULT NULL,
+  `status` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'processing',
+  `http_status` smallint unsigned DEFAULT NULL,
+  `error_reason` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `user_id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_type` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_agent` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `started_at` timestamp NULL DEFAULT NULL,
+  `completed_at` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `tr_traces_status_index` (`status`),
+  KEY `tr_traces_started_at_index` (`started_at`),
+  KEY `tr_traces_type_started_at_index` (`type`,`started_at`),
+  KEY `tr_traces_project_id_index` (`project_id`),
+  KEY `tr_traces_trace_parent_index` (`trace_parent`),
+  KEY `tr_traces_user_id_index` (`user_id`),
+  KEY `tr_traces_workspace_id_index` (`workspace_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `tr_workspaces`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `tr_workspaces` (
+  `id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (1,'2024_01_01_000000_create_trace_replay_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (2,'2026_03_03_153656_add_two_factor_columns_to_users_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (3,'2026_03_03_154502_create_activity_log_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (4,'2026_03_03_154502_create_address_types_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (5,'2026_03_03_154502_create_bank_account_types_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (6,'2026_03_03_154502_create_cache_locks_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (7,'2026_03_03_154502_create_cache_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (8,'2026_03_03_154502_create_contact_types_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (9,'2026_03_03_154502_create_countries_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (10,'2026_03_03_154502_create_currencies_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (11,'2026_03_03_154502_create_entities_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (12,'2026_03_03_154502_create_entity_addresses_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (13,'2026_03_03_154502_create_entity_bank_accounts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (14,'2026_03_03_154502_create_entity_contacts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (15,'2026_03_03_154502_create_entity_invoices_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (16,'2026_03_03_154502_create_entity_subscriptions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (17,'2026_03_03_154502_create_entity_taxes_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (18,'2026_03_03_154502_create_entity_types_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (19,'2026_03_03_154502_create_entity_users_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (20,'2026_03_03_154502_create_failed_jobs_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (21,'2026_03_03_154502_create_health_check_result_history_items_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (22,'2026_03_03_154502_create_invoice_payments_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (23,'2026_03_03_154502_create_invoice_statuses_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (24,'2026_03_03_154502_create_job_batches_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (25,'2026_03_03_154502_create_jobs_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (26,'2026_03_03_154502_create_model_has_permissions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (27,'2026_03_03_154502_create_model_has_roles_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (28,'2026_03_03_154502_create_password_reset_tokens_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (29,'2026_03_03_154502_create_payment_gateways_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (30,'2026_03_03_154502_create_payment_statuses_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (31,'2026_03_03_154502_create_permissions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (32,'2026_03_03_154502_create_plans_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (33,'2026_03_03_154502_create_role_has_permissions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (34,'2026_03_03_154502_create_roles_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (35,'2026_03_03_154502_create_sessions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (36,'2026_03_03_154502_create_state_codes_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (37,'2026_03_03_154502_create_subscription_statuses_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (38,'2026_03_03_154502_create_telescope_entries_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (39,'2026_03_03_154502_create_telescope_entries_tags_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (40,'2026_03_03_154502_create_telescope_monitoring_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (41,'2026_03_03_154502_create_users_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (42,'2026_03_03_154505_add_foreign_keys_to_entities_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (43,'2026_03_03_154505_add_foreign_keys_to_entity_addresses_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (44,'2026_03_03_154505_add_foreign_keys_to_entity_bank_accounts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (45,'2026_03_03_154505_add_foreign_keys_to_entity_contacts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (46,'2026_03_03_154505_add_foreign_keys_to_entity_invoices_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (47,'2026_03_03_154505_add_foreign_keys_to_entity_subscriptions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (48,'2026_03_03_154505_add_foreign_keys_to_entity_taxes_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (49,'2026_03_03_154505_add_foreign_keys_to_entity_users_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (50,'2026_03_03_154505_add_foreign_keys_to_invoice_payments_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (51,'2026_03_03_154505_add_foreign_keys_to_model_has_permissions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (52,'2026_03_03_154505_add_foreign_keys_to_model_has_roles_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (53,'2026_03_03_154505_add_foreign_keys_to_role_has_permissions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (54,'2026_03_03_154505_add_foreign_keys_to_state_codes_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (55,'2026_03_03_154505_add_foreign_keys_to_telescope_entries_tags_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (56,'2026_03_03_154505_add_foreign_keys_to_users_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (57,'2026_03_04_164656_drop_unique_constraints_from_entity_relations',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (58,'2026_03_05_015153_add_alt_email_to_entity_contacts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (59,'2026_03_05_115130_add_mobile_to_users_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (60,'2026_03_06_125115_create_menus_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (61,'2026_03_13_100000_create_voucher_types_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (62,'2026_03_13_154824_create_main_group_master_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (63,'2026_03_20_000001_create_accounts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (64,'2026_03_20_081954_create_account_types_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (65,'2026_03_20_084747_create_ledgers_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (66,'2026_03_20_095342_rename_voucher_category_to_voucher_group_in_voucher_types_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (67,'2026_03_20_100228_add_entity_id_to_voucher_types_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (68,'2026_03_20_111013_create_journal_entries_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (69,'2026_03_20_111020_create_journal_entry_lines_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (70,'2026_03_20_114351_create_patrons_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (71,'2026_03_20_115335_create_contacts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (72,'2026_03_20_115336_create_addresses_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (73,'2026_03_20_120320_create_patron_bank_accounts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (74,'2026_03_20_121143_alter_patron_type_in_patrons_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (75,'2026_03_20_124719_add_state_code_to_addresses_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (76,'2026_03_20_131622_add_unique_constraint_to_patrons_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (77,'2026_03_20_164438_create_product_units_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (78,'2026_03_20_170319_create_machines_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (79,'2026_03_20_170320_create_machine_documents_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (80,'2026_03_20_170321_create_machine_loans_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (81,'2026_03_20_170322_create_machine_emi_payments_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (82,'2026_03_20_171453_add_unique_constraint_to_machine_documents_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (83,'2026_03_20_175921_create_product_categories_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (84,'2026_03_20_175922_create_products_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (85,'2026_03_20_181836_add_hsn_and_tax_mode_to_products_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (86,'2026_03_20_183929_create_mix_design_items_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (87,'2026_03_20_183929_create_mix_designs_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (88,'2026_03_20_184747_change_unit_to_unit_id_in_mix_designs_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (89,'2026_03_20_185500_create_taxes_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (90,'2026_03_20_190126_create_concrete_grades_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (91,'2026_03_20_190128_create_concrete_grade_items_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (92,'2026_03_21_060658_create_plants_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (93,'2026_03_21_060939_create_contact_relations_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (94,'2026_03_21_060940_create_address_relations_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (95,'2026_03_21_092552_create_sites_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (96,'2026_03_21_114848_create_purchase_order_items_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (97,'2026_03_21_114848_create_purchase_orders_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (98,'2026_03_27_081754_add_plant_id_to_mix_and_grades',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (99,'2026_03_27_090231_add_plant_id_to_all_masters',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (100,'2026_03_27_091215_add_plant_id_to_subtables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (101,'2026_03_27_091712_make_entity_id_nullable_in_masters',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (102,'2026_03_27_092050_add_plant_id_to_bank_and_machine_subtables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (103,'2026_03_27_111855_add_total_discount_to_purchase_order_items',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (104,'2026_03_27_123739_create_terms_condition_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (105,'2026_03_28_072633_create_purchase_order_history_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (106,'2026_03_28_072642_create_quantity_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (107,'2026_03_30_115602_create_personnels_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (108,'2026_03_30_115603_create_personnel_contacts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (109,'2026_03_30_115604_create_personnel_patron_rels_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (110,'2026_03_30_131256_create_work_orders_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (111,'2026_03_30_132452_create_order_taxes_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (112,'2026_03_30_133545_create_sales_and_dispatch_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (113,'2026_03_30_135129_create_finance_and_expense_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (114,'2026_03_30_154241_create_invoices_and_invoice_items_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (115,'2026_03_30_160123_create_party_rates_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (116,'2026_03_30_162544_create_machine_types_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (117,'2026_03_30_163321_create_payments_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (118,'2026_03_31_090022_add_ui_fields_to_payments_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (119,'2026_03_31_105235_add_tax_and_adjustment_to_quotations_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (120,'2026_04_02_080820_add_entity_id_and_rename_audit_to_taxes_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (121,'2026_04_02_120000_create_features_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (122,'2026_04_02_120100_create_plan_features_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (123,'2026_04_02_120200_create_usage_logs_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (124,'2026_04_02_120300_add_lifecycle_fields_to_entity_subscriptions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (125,'2026_04_02_120400_add_foreign_keys_to_billing_feature_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (126,'2026_04_10_044720_add_meta_to_permissions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (127,'2026_04_10_044941_add_missing_columns_to_roles_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (128,'2026_04_13_141245_update_users_email_unique_index',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (129,'2026_04_14_100000_add_saas_fields_to_users_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (130,'2026_04_14_100100_create_modules_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (131,'2026_04_14_100200_create_usage_logs_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (132,'2026_04_14_100300_create_usage_summaries_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (133,'2026_04_14_100400_create_billings_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (134,'2026_04_14_110000_add_entity_plant_scope_to_saas_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (135,'2026_04_14_120300_add_feature_fields_to_sites_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (136,'2026_04_14_170323_add_api_key_to_entities_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (137,'2026_04_17_000001_add_workspace_id_to_tr_traces_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (138,'2026_04_18_125145_add_truck_weight_fields_to_purchase_order_history_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (139,'2026_04_18_132130_add_owner_id_to_machines_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (140,'2026_04_18_133932_add_entity_id_to_machines_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (141,'2026_04_18_180527_add_stock_alert_to_products_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (142,'2026_04_19_092547_create_print_templates_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (143,'2026_04_19_092554_create_print_template_settings_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (144,'2026_04_19_112552_add_is_salesorder_to_quotations_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (145,'2026_04_19_112951_rename_product_id_to_mix_design_id_in_quotation_items_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (146,'2026_04_19_152159_add_address_and_zip_to_sites_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (147,'2026_04_19_152404_add_code_to_patrons_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (148,'2026_04_19_155535_add_plant_type_to_plants_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (149,'2026_04_19_212700_refactor_invoice_fields_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (150,'2026_04_19_213935_update_invoice_fields_v2_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (151,'2026_04_20_085646_remove_deleted_column_globally_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (152,'2026_04_20_095901_add_plant_id_to_accounts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (153,'2026_04_20_120441_create_module_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (154,'2026_04_20_120627_create_account_default_settings_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (155,'2026_04_20_152600_create_custom_settings_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (156,'2026_04_21_144958_add_entity_id_to_missing_master_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (157,'2026_04_21_145800_add_plant_id_to_accounting_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (158,'2026_04_22_105749_create_batch_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (159,'2026_04_22_105903_create_dispatch_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (160,'2026_04_22_111345_remove_unique_constraint_from_machine_types_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (161,'2026_04_27_105850_update_tax_group_enum_in_mm_taxes_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (162,'2026_04_29_151324_create_mm_images_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (163,'2026_04_30_191019_add_login_status_to_mm_users_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (164,'2026_04_30_191436_add_login_location_to_mm_users_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (165,'2026_05_02_111044_create_mm_dispatch_payments_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (166,'2026_05_02_123906_update_mm_payment_methods_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (167,'2026_05_06_160118_add_tax_id_to_invoice_items_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (168,'2026_05_06_173058_add_plant_id_to_order_taxes_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (169,'2026_05_06_175246_add_soft_deletes_to_order_taxes_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (170,'2026_05_07_112533_add_tds_fields_to_invoices_and_purchases',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (171,'2026_05_08_110337_add_is_initialized_to_plants_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (172,'2026_05_08_112429_add_is_system_to_master_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (173,'2026_05_08_120932_add_contact_details_to_plants_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (174,'2026_05_08_145430_make_alias_nullable_in_menus_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (175,'2026_05_08_162420_add_default_context_to_users_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (176,'2026_05_08_182912_add_billing_fields_to_purchase_orders',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (177,'2026_05_12_164815_add_sales_executive_id_to_dispatches_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (178,'2026_05_14_153109_add_operator_and_shift_to_batches_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (179,'2026_05_14_160606_add_shift_timings_and_user_link_to_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (180,'2026_05_14_162527_add_sync_status_to_batches_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (181,'2026_05_14_164604_add_scheduler_api_fields_to_plants_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (182,'2026_05_14_181729_create_mm_dashboard_alerts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (183,'2026_05_15_095411_create_personal_access_tokens_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (184,'2026_05_15_141030_add_batch_sheet_path_to_batches_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (185,'2026_05_15_173309_add_logo_path_to_plants_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (186,'2026_05_15_182250_add_plant_id_to_batches_and_materials_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (187,'2026_05_16_093912_add_plc_fields_to_plants_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (188,'2026_05_16_130004_add_batch_original_sheet_path_to_batches_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (189,'2026_05_16_163000_create_payment_transactions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (190,'2026_05_16_164145_add_origin_fields_to_payment_transactions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (191,'2026_05_16_164438_add_origin_fields_to_payments_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (192,'2026_05_16_170407_create_payment_audit_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (193,'2026_05_16_171153_create_batch_deposits_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (194,'2026_05_16_173457_add_allocation_fields_to_invoices_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (195,'2026_05_16_173557_create_payment_allocations_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (196,'2026_05_18_131109_change_status_column_in_payment_transactions_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (197,'2026_05_18_164000_add_check_constraints_to_mm_quantity_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (198,'2026_05_19_161356_add_zipcode_and_area_to_state_codes_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (199,'2026_05_19_172200_create_concrete_quality_tests_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (200,'2026_05_19_174700_add_photo_path_to_concrete_quality_tests_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (201,'2026_05_19_180000_create_enterprise_activity_logs_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (202,'2026_05_23_000001_add_report_indexes_to_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (203,'2026_05_23_100000_create_fleet_maintenance_and_tracking_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (204,'2026_05_23_110000_create_stock_exhaust_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (205,'2026_05_25_110000_create_drivers_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (206,'2026_05_25_120000_create_fuel_logs_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (207,'2026_05_25_130000_create_gps_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (208,'2026_05_26_124924_create_agent_conversations_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (209,'2026_05_26_180000_create_agent_chat_histories_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (210,'2026_05_26_180100_add_plant_id_to_agent_chat_histories_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (211,'2026_05_27_130000_create_mm_departments_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (212,'2026_05_27_130100_create_mm_designations_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (213,'2026_05_27_130200_update_mm_personnels_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (214,'2026_05_27_130300_create_mm_shifts_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (215,'2026_05_27_130400_create_mm_attendances_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (216,'2026_05_27_130500_create_mm_leave_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (217,'2026_05_27_130600_create_mm_salary_and_payroll_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (218,'2026_05_27_140000_drop_contact_id_from_mm_departments',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (219,'2026_05_29_110000_create_bank_reconciliation_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (220,'2026_05_29_114000_add_product_id_to_stock_exhaust_lines_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (221,'2026_05_29_180000_add_compliance_fields_to_invoices',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (222,'2026_05_30_000000_create_einvoice_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (223,'2026_05_30_000001_add_client_credentials_to_plants_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (224,'2026_05_30_000003_create_nic_compliance_tables',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (225,'2026_05_30_000004_create_mm_report_schedules_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (226,'2026_06_01_000000_create_rag_documents_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (227,'2026_06_06_140000_rename_mix_design_id_to_item_id_in_invoice_items_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (228,'2026_06_06_150000_add_global_discount_fields_to_invoices',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (229,'2026_06_06_161400_modify_payment_status_enum',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (230,'2026_06_06_162457_create_inventory_audit_logs_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (231,'2026_06_08_165508_add_plant_id_to_inventory_audit_logs_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (232,'2026_06_09_152254_add_missing_columns_to_dispatches_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (233,'2026_06_16_000000_create_notification_emails_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (234,'2026_06_16_100000_add_conversion_fields_to_sales_orders_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (235,'2026_06_16_110000_create_sales_order_items_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (236,'2026_06_17_113000_remove_role_and_department_from_sales_orders_table',1);

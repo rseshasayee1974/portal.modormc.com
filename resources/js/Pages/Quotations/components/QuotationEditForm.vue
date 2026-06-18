@@ -37,6 +37,7 @@ const props = defineProps<{
     mixDesigns: { id: number; title: string; code?: string; rate?: number }[];
     taxes: { id: number; title?: string; tax_name?: string; rate?: number; tax_rate?: number }[];
     unitOptions?: { id: number; unit_code: string }[];
+    salesExecutives?: any[];
 }>();
 
 const emit = defineEmits<{
@@ -55,6 +56,7 @@ const statusOptions = [
 const form = useForm({
     patron_id: props.quotation.patron_id ?? null,
     site_id: props.quotation.site_id ?? null,
+    sales_executive_id: props.quotation.sales_executive_id ?? null,
     quote_date: props.quotation.quote_date ? String(props.quotation.quote_date).substring(0, 10) : new Date().toISOString().substring(0, 10),
     validity_date: props.quotation.validity_date ? String(props.quotation.validity_date).substring(0, 10) : null,
     status: Number(props.quotation.status ?? 0),
@@ -78,6 +80,7 @@ const form = useForm({
 
 const patronOptions = computed(() => props.patrons.map((p) => ({ label: p.legal_name, value: p.id })));
 const siteOptions = computed(() => props.sites.map((s) => ({ label: s.name, value: s.id })));
+const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 const unitOptions = computed(() => (props.unitOptions || []).map(u => ({ label: u.unit_code, value: u.id })));
 const mixDesignOptions = computed(() =>
     props.mixDesigns.map((p) => ({ label: `${p.title}${p.code ? ` (${p.code})` : ''}`, value: p.id }))
@@ -227,6 +230,18 @@ const sendEmail = () => {
         placeholder="Select site"
         filter
         :error="form.errors.site_id"
+    />
+
+    <BaseSelect
+        v-model="form.sales_executive_id"
+        :options="salesExecutiveOptions"
+        optionLabel="label"
+        optionValue="value"
+        label="Sales Executive"
+        placeholder="Select Executive"
+        filter
+        :error="form.errors.sales_executive_id"
+        :disabled="isLocked"
     />
 
     <BaseDatePicker

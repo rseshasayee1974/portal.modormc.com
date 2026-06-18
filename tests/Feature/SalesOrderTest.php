@@ -29,12 +29,15 @@ class SalesOrderTest extends TestCase
         $this->actingAs($this->user);
         
         $this->plant = Plant::factory()->create(['name' => 'Main Plant']);
+        session(['active_plant_id' => $this->plant->id]);
+
         $this->patron = Patron::factory()->create(['legal_name' => 'Test Patron']);
         $this->site = Site::factory()->create(['name' => 'Test Site']);
     }
 
     public function test_can_convert_quotation_to_sales_order()
     {
+        $this->withoutExceptionHandling();
         $quotation = Quotation::factory()->create([
             'plant_id' => $this->plant->id,
             'patron_id' => $this->patron->id,
@@ -46,6 +49,7 @@ class SalesOrderTest extends TestCase
             'is_salesorder' => 1,
         ]);
 
+        $response->assertSessionHasNoErrors();
         $response->assertStatus(302);
         
         $quotation->refresh();

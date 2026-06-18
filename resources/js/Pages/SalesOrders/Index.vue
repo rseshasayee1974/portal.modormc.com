@@ -20,6 +20,7 @@ const props = defineProps<{
     sites?: any[];
     quotations?: any[];
     mixDesigns?: any[];
+    salesExecutives?: any[];
 }>(); 
 
 const filters = ref({
@@ -183,6 +184,7 @@ onUnmounted(() => {
                 :sites="sites"
                 :quotations="quotations"
                 :mix-designs="mixDesigns"
+                :sales-executives="salesExecutives"
             />
 
             <!-- List Of Sales Orders -->
@@ -232,7 +234,7 @@ onUnmounted(() => {
                                     {{ slotProps.data.patron?.legal_name || '--' }}
                                 </div>
                                 <span class="text-indigo-600 dark:text-indigo-400 font-semibold font-mono text-xs">
-                                    {{ slotProps.data.quotation.reference || 'Draft' }}
+                                    {{ slotProps.data.quotation?.reference || 'Draft' }}
                                 </span>
                             </div>
                         </template>
@@ -355,11 +357,12 @@ onUnmounted(() => {
                     <template #expansion="{ data }">
                         <div class="p-3">
                             <SalesOrderEditForm
-                            :quotations="quotations"
+                                :quotations="quotations"
                                 :salesOrder="data"
                                 :patrons="patrons"
                                 :sites="sites"
                                 :mixDesigns="mixDesigns"
+                                :sales-executives="salesExecutives"
                                 @saved="expandedRows = {}"
                                 @cancel="expandedRows = {}"
                             />

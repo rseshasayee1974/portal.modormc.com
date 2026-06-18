@@ -12,12 +12,14 @@ const props = withDefaults(defineProps<{
     patrons?: any[];
     sites?: any[];
     mixDesigns?: any[];
+    salesExecutives?: any[];
 }>(), {
     salesOrder: () => ({}),
     quotations: () => [],   
     patrons: () => [],
     sites: () => [],
     mixDesigns: () => [],
+    salesExecutives: () => [],
 });
 
 const emit = defineEmits<{
@@ -30,6 +32,7 @@ const form = useForm({
     quotation_id: props.salesOrder?.quotation_id ?? null,
     patron_id: props.salesOrder?.patron_id ?? null,
     site_id: props.salesOrder?.site_id ?? null,
+    sales_executive_id: props.salesOrder?.sales_executive_id ?? null,
     order_date: props.salesOrder?.order_date ?? '',
     status: props.salesOrder?.status ?? 1,
     mix_design_id: null as number | null,
@@ -37,13 +40,14 @@ const form = useForm({
     rate: null as number | null,
 });
 
-// Watch quotation selection to auto-fill patron and site
+// Watch quotation selection to auto-fill patron, site, and sales executive
 watch(() => form.quotation_id, (newVal) => {
     if (newVal) {
         const quote = props.quotations.find((q) => Number(q.id) === Number(newVal));
         if (quote) {
             form.patron_id = quote.patron_id;
             form.site_id = quote.site_id;
+            form.sales_executive_id = quote.sales_executive_id || null;
         }
     } else {
         form.mix_design_id = null;
@@ -69,6 +73,8 @@ const isSingleItemOrDirect = computed(() => {
 const filteredSites = computed(() => {
     return props.sites;
 });
+
+const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 
 // Quotation dropdown options with labels
 const quotationOptions = computed(() => {
@@ -161,6 +167,20 @@ const submit = () => {
                     placeholder="Select Site"
                     :error="form.errors.site_id"
                     :disabled="!!form.quotation_id"
+                />
+            </div>
+
+            <div class="col-span-12 md:col-span-4">
+                <BaseSelect
+                    v-model="form.sales_executive_id"
+                    :options="salesExecutiveOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    filter
+                    label="Sales Executive"
+                    placeholder="Select Executive"
+                    :disabled="!!form.quotation_id"
+                    :error="form.errors.sales_executive_id"
                 />
             </div>
 

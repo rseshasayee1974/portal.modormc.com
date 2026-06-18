@@ -42,6 +42,7 @@ const props = defineProps<{
     taxes: { id: number; tax_name?: string; tax_rate?: number }[];
     units?: { id: number; name: string }[]; // Falling back if missing
     instant_customer: number | boolean;
+    salesExecutives?: any[];
 }>();
 // console.log(props.taxes);
 const isOpen = ref(true);
@@ -49,6 +50,7 @@ const isOpen = ref(true);
 const form = useForm({
     patron_id: null as number | null,
     site_id: null as number | null,
+    sales_executive_id: null as number | null,
     new_site_name: '' as string,
     is_new_site: false,
     quote_date: new Date().toISOString().substring(0, 10),
@@ -80,6 +82,7 @@ function createNewItem(): QuotationItemPayload {
 // Options Computeds
 const patronOptions = computed(() => props.patrons.map(p => ({ label: p.legal_name, value: p.id })));
 const siteOptions = computed(() => props.sites.map(s => ({ label: s.name, value: s.id })));
+const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 const mixDesignOptions = computed(() => props.mixDesigns.map(p => ({ 
     label: `${p.title}${p.code ? ` (${p.code})` : ''}`, 
     value: p.id,
@@ -328,6 +331,16 @@ const submit = () => {
                                 <button type="button" @click="form.is_new_site = false" class="absolute -top-1 -right-0 text-[10px] font-bold text-rose-500 hover:underline uppercase">Back</button>
                             </div>
                         </div>
+
+                        <BaseSelect 
+                            v-model="form.sales_executive_id" 
+                            :options="salesExecutiveOptions" 
+                            optionLabel="label" 
+                            optionValue="value" 
+                            label="Sales Executive" 
+                            placeholder="Select Executive" 
+                            filter
+                        />
 
                         <BaseDatePicker v-model="form.quote_date" label="Quote Date" required />
                         <BaseDatePicker v-model="form.validity_date" label="Valid Until" />

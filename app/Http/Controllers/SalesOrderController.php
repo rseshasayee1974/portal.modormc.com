@@ -20,14 +20,14 @@ class SalesOrderController extends Controller
         $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
 
-        $salesOrders = SalesOrder::with(['patron', 'site', 'quotation.items.mixDesign', 'converter:username,email,id,is_active,mobile', 'workOrders'])
+        $salesOrders = SalesOrder::with(['patron', 'site', 'quotation.items.mixDesign', 'converter:username,email,id,is_active,mobile', 'workOrders', 'salesExecutive'])
             ->where('plant_id', $plantId)
             ->latest()
             ->get();
 
         $patrons = \App\Models\Patron::select('id', 'legal_name')->orderBy('legal_name')->get();
         $sites = \App\Models\Site::select('id', 'name')->orderBy('name')->get();
-        $quotations = Quotation::select('id', 'reference', 'amount_total', 'patron_id', 'site_id')
+        $quotations = Quotation::select('id', 'reference', 'amount_total', 'patron_id', 'site_id', 'sales_executive_id')
             ->where('plant_id', $plantId)
             ->where('is_salesorder', 0)
             ->orderBy('reference')
@@ -40,6 +40,7 @@ class SalesOrderController extends Controller
             'sites' => $sites,
             'quotations' => $quotations,
             'mixDesigns' => $mixDesigns,
+            'salesExecutives' => SalesExecutivesDropdown(),
         ]);
     }
 
@@ -51,6 +52,7 @@ class SalesOrderController extends Controller
             'quotation_id' => 'nullable|exists:mm_quotations,id',
             'patron_id' => 'required|exists:mm_patrons,id',
             'site_id' => 'required|exists:mm_sites,id',
+            'sales_executive_id' => 'nullable|exists:mm_personnels,id',
             'order_date' => 'required|date',
             'mix_design_id' => 'required_without:quotation_id|nullable|exists:mm_mix_designs,id',
             'quantity' => 'required_without:quotation_id|nullable|numeric|min:0.001',
@@ -73,6 +75,7 @@ class SalesOrderController extends Controller
                     'reference' => Quotation::generateReference($plantId),
                     'patron_id' => $validated['patron_id'],
                     'site_id' => $validated['site_id'],
+                    'sales_executive_id' => $validated['sales_executive_id'] ?? null,
                     'quote_date' => $validated['order_date'],
                     'validity_date' => $validated['order_date'],
                     'status' => Quotation::STATUS_ACCEPTED,
@@ -104,12 +107,8 @@ class SalesOrderController extends Controller
         }
 
         $user = auth()->user();
-        $roleName = $user->roles->pluck('name')->first() ?? 'N/A';
-        $departmentName = $user->personnel?->department?->name ?? 'N/A';
 
         $validated['converted_by_user_id'] = $user->id;
-        $validated['converted_by_role'] = $roleName;
-        $validated['converted_by_department'] = $departmentName;
 
         SalesOrder::create($validated);
 
@@ -139,6 +138,7 @@ class SalesOrderController extends Controller
             'quotation_id' => 'nullable|exists:mm_quotations,id',
             'patron_id' => 'required|exists:mm_patrons,id',
             'site_id' => 'required|exists:mm_sites,id',
+            'sales_executive_id' => 'nullable|exists:mm_personnels,id',
             'order_date' => 'required|date',
             'status' => 'required|integer|in:0,1,2,3',
             'mix_design_id' => 'nullable|exists:mm_mix_designs,id',
@@ -160,6 +160,7 @@ class SalesOrderController extends Controller
                     'reference' => Quotation::generateReference($plantId),
                     'patron_id' => $validated['patron_id'],
                     'site_id' => $validated['site_id'],
+                    'sales_executive_id' => $validated['sales_executive_id'] ?? null,
                     'quote_date' => $validated['order_date'],
                     'validity_date' => $validated['order_date'],
                     'status' => Quotation::STATUS_ACCEPTED,
@@ -185,7 +186,8 @@ class SalesOrderController extends Controller
         } else {
             Quotation::where('id', $validated['quotation_id'])->update([
                 'status' => Quotation::STATUS_ACCEPTED,
-                'is_salesorder' => 1
+                'is_salesorder' => 1,
+                'sales_executive_id' => $validated['sales_executive_id'] ?? null,
             ]);
 
             $quotation = Quotation::find($validated['quotation_id']);
@@ -194,6 +196,7 @@ class SalesOrderController extends Controller
                 'site_id' => $validated['site_id'],
                 'quote_date' => $validated['order_date'],
                 'validity_date' => $validated['order_date'],
+                'sales_executive_id' => $validated['sales_executive_id'] ?? null,
             ]);
 
             if ($request->has('mix_design_id') && $validated['mix_design_id']) {
@@ -224,6 +227,7 @@ class SalesOrderController extends Controller
             'quotation_id' => $validated['quotation_id'],
             'patron_id' => $validated['patron_id'],
             'site_id' => $validated['site_id'],
+            'sales_executive_id' => $validated['sales_executive_id'] ?? null,
             'order_date' => $validated['order_date'],
             'status' => $validated['status'],
         ]);
