@@ -9,6 +9,8 @@ const props = withDefaults(defineProps<{
     modelValue: any; // The whole form object
     uoms: any[];
     taxes: any[];
+    drivers:any[];
+    sales_executives:any[];
     loading_sites: any[];
     unloading_sites: any[];
     trucks?: any[];
@@ -121,8 +123,8 @@ const formatTime = (dateVal: any) => {
             <div class="grid grid-cols-4 gap-4">
                 <BaseSelect v-model="modelValue.truck_id" :options="trucks" optionLabel="registration" optionValue="id" label="Truck" filter showClear :disabled="true" :error="errors.truck_id" />
                 <BaseSelect v-model="modelValue.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" label="Transporter" filter showClear :error="errors.transport_id" :disabled="isReadOnly" />
-                <BaseSelect v-model="modelValue.driver_id" :options="personnel" optionLabel="label" optionValue="id" label="Driver" filter showClear :error="errors.driver_id" :disabled="isReadOnly" />
-                <BaseSelect v-model="modelValue.sales_executive_id" :options="personnel" optionLabel="label" optionValue="id" label="Sales Executive" filter showClear :error="errors.sales_executive_id" :disabled="isReadOnly" />
+                <BaseSelect v-model="modelValue.driver_id" :options="drivers" optionLabel="label" optionValue="id" label="Driver" filter showClear :error="errors.driver_id" :disabled="isReadOnly" />
+                <BaseSelect v-model="modelValue.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" label="Sales Executive" filter showClear :error="errors.sales_executive_id" :disabled="isReadOnly" />
                 <BaseSelect v-model="modelValue.unload_site_id" :options="unloading_sites" optionLabel="name" optionValue="id" label="Delivery Site" filter showClear :error="errors.unload_site_id" :disabled="isReadOnly" />
                 <BaseInput v-model="modelValue.status.receiver_name" label="Receiver Name" :error="errors['status.receiver_name']" :disabled="isReadOnly" />
                 <BaseInput v-model="modelValue.status.receive_mobile" label="Receiver Mobile" :error="errors['status.receive_mobile']" :disabled="isReadOnly" />

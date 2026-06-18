@@ -83,8 +83,9 @@ const openPlayground = (agent: Agent) => {
 // Speech Synthesis State
 const currentlySpeakingMessageIndex = ref<number | null>(null);
 let currentUtterance: SpeechSynthesisUtterance | null = null;
-const preferredLanguage = ref<'auto' | 'en' | 'ta'>('auto');
+const preferredLanguage = ref<'auto' | 'en' | 'ta'>('ta');
 const voicesList = ref<SpeechSynthesisVoice[]>([]);
+const currentPlayingAudio = ref<HTMLAudioElement | null>(null);
 
 if (typeof window !== 'undefined' && window.speechSynthesis) {
     const loadVoices = () => {
@@ -96,21 +97,51 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
     }
 }
 
-const toggleSpeech = (text: string, index: number) => {
-    if (currentlySpeakingMessageIndex.value === index) {
-        window.speechSynthesis.cancel();
+const browserSpeak = (txt: string, lang: string, idx: number) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) {
         currentlySpeakingMessageIndex.value = null;
-        currentUtterance = null;
+        return;
+    }
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(txt);
+    utter.lang = lang;
+    const loadVoice = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const match = voices.find((v: SpeechSynthesisVoice) => v.lang === lang || v.lang.startsWith(lang.split('-')[0]));
+        if (match) utter.voice = match;
+    };
+    loadVoice();
+    if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.onvoiceschanged = loadVoice;
+    }
+    utter.rate = 0.95;
+    utter.onend  = () => { if (currentlySpeakingMessageIndex.value === idx) currentlySpeakingMessageIndex.value = null; };
+    utter.onerror = () => { currentlySpeakingMessageIndex.value = null; };
+    window.speechSynthesis.speak(utter);
+};
+
+const toggleSpeech = async (text: string, index: number) => {
+    if (currentlySpeakingMessageIndex.value === index) {
+        if (currentPlayingAudio.value) {
+            currentPlayingAudio.value.pause();
+            currentPlayingAudio.value = null;
+        }
+        window.speechSynthesis?.cancel();
+        currentlySpeakingMessageIndex.value = null;
         return;
     }
 
-    window.speechSynthesis.cancel();
+    // Stop any currently playing audio
+    if (currentPlayingAudio.value) {
+        currentPlayingAudio.value.pause();
+        currentPlayingAudio.value = null;
+    }
+    currentlySpeakingMessageIndex.value = null;
 
-    // Clean up Markdown links, tables, hashes, tabs, and newlines to prevent SpeechSynthesis engines from hanging/crashing
     let cleanText = text
         .replace(/```json[\s\S]*?```/g, '')
         .replace(/```[\s\S]*?```/g, '')
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Strip Markdown URLs, keep text
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
         .replace(/\|/g, ' ')
         .replace(/\*/g, '')
         .replace(/`/g, '')
@@ -122,52 +153,51 @@ const toggleSpeech = (text: string, index: number) => {
 
     if (!cleanText) return;
 
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    currentUtterance = utterance;
+    const containsTamil = /[\u0B80-\u0BFF]/.test(cleanText);
+    const targetLang = preferredLanguage.value === 'auto'
+        ? (containsTamil ? 'ta-IN' : 'en-IN')
+        : (preferredLanguage.value === 'ta' ? 'ta-IN' : 'en-IN');
+
     currentlySpeakingMessageIndex.value = index;
 
-    const containsTamil = /[\u0B80-\u0BFF]/.test(cleanText);
-    const voices = voicesList.value.length > 0 ? voicesList.value : window.speechSynthesis.getVoices();
-    let selectedVoice = null;
-
-    // Use Tamil voice only if the response actually contains Tamil characters
-    const targetLang = preferredLanguage.value === 'auto'
-        ? (containsTamil ? 'ta' : 'en')
-        : (preferredLanguage.value === 'ta' && !containsTamil ? 'en' : preferredLanguage.value);
-
-    if (targetLang === 'ta') {
-        utterance.lang = 'ta-IN';
-        selectedVoice = voices.find(v => {
-            const lang = v.lang.toLowerCase();
-            const name = v.name.toLowerCase();
-            return lang.startsWith('ta') || lang.includes('ta-in') || name.includes('tamil') || name.includes('valluvar');
+    try {
+        const { data } = await axios.post('/api/ai/text-to-speech', {
+            text:     cleanText,
+            language: targetLang,
         });
-    } else {
-        utterance.lang = 'en-IN';
-        selectedVoice = voices.find(v => {
-            const lang = v.lang.toLowerCase();
-            return lang.includes('en-in') || lang.startsWith('en');
-        });
-    }
 
-    if (selectedVoice) {
-        utterance.voice = selectedVoice;
-    }
-
-    utterance.onend = () => {
-        if (currentlySpeakingMessageIndex.value === index) {
+        if (data.success && data.audio_base64 && currentlySpeakingMessageIndex.value === index) {
+            const audio = new Audio(`data:${data.content_type};base64,${data.audio_base64}`);
+            currentPlayingAudio.value = audio;
+            audio.play();
+            audio.onended = () => {
+                if (currentlySpeakingMessageIndex.value === index) {
+                    currentlySpeakingMessageIndex.value = null;
+                    currentPlayingAudio.value = null;
+                }
+            };
+            audio.onerror = () => {
+                if (currentlySpeakingMessageIndex.value === index) {
+                    currentlySpeakingMessageIndex.value = null;
+                    currentPlayingAudio.value = null;
+                }
+            };
+        } else if (data.fallback_to_browser) {
+            browserSpeak(cleanText, targetLang, index);
+        } else {
             currentlySpeakingMessageIndex.value = null;
-            currentUtterance = null;
         }
-    };
-
-    utterance.onerror = (e) => {
-        console.error('SpeechSynthesis error:', e);
-        currentlySpeakingMessageIndex.value = null;
-        currentUtterance = null;
-    };
-
-    window.speechSynthesis.speak(utterance);
+    } catch (err) {
+        const shouldFallback = (err as any)?.response?.data?.fallback_to_browser === true
+            || (err as any)?.response?.status === 503
+            || (err as any)?.response?.status === 422;
+        if (shouldFallback) {
+            browserSpeak(cleanText, targetLang, index);
+        } else {
+            console.error('TTS failed', err);
+            currentlySpeakingMessageIndex.value = null;
+        }
+    }
 };
 
 // ── Chat History State ────────────────────────────────────────────────────────

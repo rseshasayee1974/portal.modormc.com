@@ -11,10 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasColumn('mm_invoices', 'tax_id')) {
+            try {
+                Schema::table('mm_invoices', function (Blueprint $table) {
+                    $table->dropForeign(['tax_id']);
+                });
+            } catch (\Exception $e) {}
+        }
+
         Schema::table('mm_invoices', function (Blueprint $table) {
-            // Drop tax_id if exists
+            // Drop tax_id column if exists
             if (Schema::hasColumn('mm_invoices', 'tax_id')) {
-                try { $table->dropForeign(['tax_id']); } catch (\Exception $e) {}
                 $table->dropColumn('tax_id');
             }
 

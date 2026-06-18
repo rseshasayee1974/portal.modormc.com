@@ -513,7 +513,7 @@
                         <tr>
                             <td>{{ $sno++ }}</td>
                             <td style="font-weight: 700;">{{ $mat->material_name ?: $mat->product->title ?? 'Material' }}</td>
-                            <td>{{ $mat->uom?->unit_code ?? 'kg' }}</td>
+                            <td>{{ $mat->uom?->unit_code ?? 'KGS' }}</td>
                             <td class="text-right font-mono">{{ number_format($target, 2) }}</td>
                             <td class="text-right font-mono" style="font-weight: bold; color: #0f172a;">{{ number_format($actual, 2) }}</td>
                             <td class="text-right font-mono" style="font-weight: bold; color: {{ $devPercent > 5 || $devPercent < -5 ? '#dc2626' : '#15803d' }};">

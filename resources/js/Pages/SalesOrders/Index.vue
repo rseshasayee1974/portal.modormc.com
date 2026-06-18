@@ -20,8 +20,7 @@ const props = defineProps<{
     sites?: any[];
     quotations?: any[];
     mixDesigns?: any[];
-}>();
-console.log('sdfsdfdsf',props.salesOrders);
+}>(); 
 
 const filters = ref({
     global: { value: null, matchMode: 'contains' },

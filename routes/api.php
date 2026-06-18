@@ -4,8 +4,42 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Api\BillingApiController;
-    use App\Http\Controllers\Api\DashboardApiController;
+use App\Http\Controllers\Api\DashboardApiController;
 use App\Http\Controllers\Api\ProductionOrderApiController;
+use App\Http\Controllers\AI\ChatbotController;
+use App\Http\Controllers\AI\VoiceController;
+use App\Http\Controllers\AI\AssistantController;
+
+Route::prefix('ai')->middleware('throttle:30,1')->group(function () {
+    // Public chatbot
+    Route::post('/chat',            [ChatbotController::class, 'chat']);
+    Route::get('/history',          [ChatbotController::class, 'history']);
+    Route::post('/chat/escalate',   [ChatbotController::class, 'escalate']);
+    Route::get('/chat/frequent-questions', [ChatbotController::class, 'frequentQuestions']);
+
+    // Voice AI (Publicly accessible for chatbot widget)
+    Route::post('/speech-to-text',  [VoiceController::class, 'speechToText']);
+    Route::post('/text-to-speech',  [VoiceController::class, 'textToSpeech']);
+    Route::post('/voice-chat',      [VoiceController::class, 'voiceChat']);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Routes — Authenticated (Staff/Admin Only)
+// ─────────────────────────────────────────────────────────────────────────────
+Route::prefix('ai')->middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
+    Route::get('/voice-history',    [VoiceController::class, 'voiceHistory']);
+
+    // Internal Staff Assistant
+    Route::post('/assistant',                [AssistantController::class, 'chat']);
+    Route::post('/assistant/save-history',   [AssistantController::class, 'saveHistory']);
+    Route::get('/assistant/history',         [AssistantController::class, 'history']);
+
+    // Knowledge Base file upload (PDF/DOCX → RAG chunks)
+    Route::post('/knowledge/upload', [App\Http\Controllers\KnowledgeController::class, 'uploadFile']);
+
+    // Admin Chatbot History listing
+    Route::get('/admin/conversations', [ChatbotController::class, 'adminConversations']);
+});
 
 Route::get('/user', function (Request $request) {
     return $request->user();

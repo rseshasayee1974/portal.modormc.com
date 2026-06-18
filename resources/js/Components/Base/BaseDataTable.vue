@@ -82,6 +82,9 @@ const props = withDefaults(
         // Selection Props
         selection?: any;
         selectionMode?: 'single' | 'multiple' | 'checkbox' | null;
+
+        // Row styling
+        rowClass?: (row: any) => string | string[] | object | undefined;
     }>(),
     {
         loading: false,
@@ -167,6 +170,8 @@ const handleRowClick = (event: any) => {
                     // Single expansion mode: clear others
                     Object.keys(newExpandedRows).forEach(key => delete newExpandedRows[key]);
                     newExpandedRows[id] = true;
+                    // Notify parent that this row is now expanding
+                    emit('rowExpand', { data: event.data });
                 }
             }
             
@@ -324,6 +329,7 @@ const toggleFilterPopover = (event: any) => {
             :responsiveLayout="responsiveLayout"
             :expandedRows="expandedRows"
             :exportFilename="exportFilename"
+            :rowClass="rowClass"
             :selection="selection"
             :selectionMode="selectionMode"
             @update:first="$emit('update:first', $event)"

@@ -5,6 +5,8 @@ import { ref, computed } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import { useToast } from 'primevue/usetoast';
+import KnowledgeBaseManager from '@/Components/AI/KnowledgeBaseManager.vue';
+import ChatHistory from '@/Components/AI/ChatHistory.vue';
 
 // Heroicons
 import {
@@ -46,6 +48,18 @@ const toast = useToast();
 // UI States
 const showModal = ref(false);
 const modalMode = ref<'create' | 'view'>('create');
+const activeTab = ref<'text' | 'file'>('text');
+const activePageTab = ref<'documents' | 'chat_logs'>('documents');
+
+const onFileUploaded = (response: any) => {
+    toast.add({ severity: 'success', summary: 'Uploaded', detail: response.message || 'File uploaded and chunked.' });
+    closeModal();
+    router.reload({ preserveState: false });
+};
+
+const onUploadError = (errorMsg: string) => {
+    toast.add({ severity: 'error', summary: 'Upload Failed', detail: errorMsg });
+};
 
 // Client-Side DataTable Filters
 const filters = ref({
@@ -81,6 +95,7 @@ const form = useForm({
 
 const openCreateModal = () => {
     modalMode.value = 'create';
+    activeTab.value = 'text';
     form.reset();
     form.clearErrors();
     showModal.value = true;
@@ -180,8 +195,25 @@ const getSourceTypeColor = (type: string): string => {
                 </div>
             </div>
 
-            <!-- Stats Block -->
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <!-- Page Tab Switcher -->
+            <div class="flex border-b border-slate-200 dark:border-gray-700 mb-6">
+                <button
+                    @click="activePageTab = 'documents'"
+                    :class="['px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-all', activePageTab === 'documents' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-650']"
+                >
+                    Knowledge Documents
+                </button>
+                <button
+                    @click="activePageTab = 'chat_logs'"
+                    :class="['px-5 py-3 text-xs font-black uppercase tracking-widest border-b-2 transition-all', activePageTab === 'chat_logs' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-650']"
+                >
+                    Customer Chat Logs
+                </button>
+            </div>
+
+            <div v-if="activePageTab === 'documents'">
+                <!-- Stats Block -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div class="bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-gray-700 p-5 flex items-center gap-4 shadow-sm">
                     <div class="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950 flex items-center justify-center border border-indigo-100 dark:border-indigo-900">
                         <ServerStackIcon class="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
@@ -294,37 +326,67 @@ const getSourceTypeColor = (type: string): string => {
                     </template>
                 </BaseDataTable>
             </div>
+            </div> <!-- End of activePageTab === 'documents' -->
+
+            <div v-else-if="activePageTab === 'chat_logs'">
+                <ChatHistory />
+            </div>
         </div>
 
         <!-- Add Knowledge Base Document Modal -->
         <Dialog v-model:visible="showModal" modal :header="modalMode === 'create' ? 'ADD KNOWLEDGE DOCUMENT' : 'VIEW DOCUMENT'" :style="{ width: '800px' }">
-            <div class="grid grid-cols-2 gap-4 py-4 text-sm font-sans">
-                <div class="flex flex-col gap-2 col-span-2">
-                    <label class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Document Title</label>
-                    <BaseInput v-model="form.title" fluid autofocus placeholder="e.g., Late Invoice Policy or M30 Concrete Recipe" />
-                    <small v-if="form.errors.title" class="text-red-500">{{ form.errors.title }}</small>
-                </div>
+            <!-- Tabs (only show when creating a new document) -->
+            <div v-if="modalMode === 'create'" class="flex border-b border-slate-100 dark:border-slate-800 mb-6">
+                <button
+                    @click="activeTab = 'text'"
+                    :class="['px-4 py-2.5 text-xs font-black uppercase tracking-widest border-b-2 transition-all', activeTab === 'text' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600']"
+                >
+                    Manual Text
+                </button>
+                <button
+                    @click="activeTab = 'file'"
+                    :class="['px-4 py-2.5 text-xs font-black uppercase tracking-widest border-b-2 transition-all', activeTab === 'file' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600']"
+                >
+                    File Upload (PDF / DOCX / TXT)
+                </button>
+            </div>
 
-                <div class="flex flex-col gap-2">
-                    <label class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Source Category</label>
-                    <BaseSelect v-model="form.source_type" :options="typeOptions" optionLabel="label" optionValue="value" placeholder="Select Type" fluid />
-                    <small v-if="form.errors.source_type" class="text-red-500">{{ form.errors.source_type }}</small>
-                </div>
+            <!-- Content Area -->
+            <div v-if="activeTab === 'text' || modalMode === 'view'">
+                <div class="grid grid-cols-2 gap-4 py-4 text-sm font-sans">
+                    <div class="flex flex-col gap-2 col-span-2">
+                        <label class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Document Title</label>
+                        <BaseInput v-model="form.title" fluid autofocus placeholder="e.g., Late Invoice Policy or M30 Concrete Recipe" />
+                        <small v-if="form.errors.title" class="text-red-500">{{ form.errors.title }}</small>
+                    </div>
 
-                <div class="flex flex-col gap-2">
-                    <label class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Reference Source ID (Optional)</label>
-                    <BaseInput v-model="form.source_id" placeholder="e.g. policy-102 or doc-05" fluid />
-                    <small v-if="form.errors.source_id" class="text-red-500">{{ form.errors.source_id }}</small>
-                </div>
+                    <div class="flex flex-col gap-2">
+                        <label class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Source Category</label>
+                        <BaseSelect v-model="form.source_type" :options="typeOptions" optionLabel="label" optionValue="value" placeholder="Select Type" fluid />
+                        <small v-if="form.errors.source_type" class="text-red-500">{{ form.errors.source_type }}</small>
+                    </div>
 
-                <div class="flex flex-col gap-2 col-span-2">
-                    <label class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Document Content (Text Chunk)</label>
-                    <Textarea v-model="form.content" rows="12" class="w-full text-xs font-sans rounded-lg border border-slate-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-900 focus:border-indigo-500" placeholder="Paste or type the full raw text content of the policy, procedure, catalog or FAQ here..." />
-                    <small v-if="form.errors.content" class="text-red-500">{{ form.errors.content }}</small>
+                    <div class="flex flex-col gap-2">
+                        <label class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Reference Source ID (Optional)</label>
+                        <BaseInput v-model="form.source_id" placeholder="e.g. policy-102 or doc-05" fluid />
+                        <small v-if="form.errors.source_id" class="text-red-500">{{ form.errors.source_id }}</small>
+                    </div>
+
+                    <div class="flex flex-col gap-2 col-span-2">
+                        <label class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400">Document Content (Text Chunk)</label>
+                        <Textarea v-model="form.content" rows="12" class="w-full text-xs font-sans rounded-lg border border-slate-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-900 focus:border-indigo-500" placeholder="Paste or type the full raw text content of the policy, procedure, catalog or FAQ here..." />
+                        <small v-if="form.errors.content" class="text-red-500">{{ form.errors.content }}</small>
+                    </div>
+                </div>
+            </div>
+
+            <div v-else-if="activeTab === 'file'">
+                <div class="py-4">
+                    <KnowledgeBaseManager @uploaded="onFileUploaded" @error="onUploadError" />
                 </div>
             </div>
             
-            <template #footer>
+            <template #footer v-if="activeTab === 'text' || modalMode === 'view'">
                 <div class="flex gap-2 justify-end mt-4">
                     <Button label="Cancel" text severity="secondary" @click="closeModal" />
                     <Button label="Index Document" icon="pi pi-check" :loading="form.processing" @click="submitForm" />

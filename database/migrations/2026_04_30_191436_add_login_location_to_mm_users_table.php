@@ -11,10 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('mm_users', function (Blueprint $table) {
-            $table->string('login_location', 255)->nullable()->after('login_status')
-                  ->comment('Geographic location at time of last login (City, Region, Country)');
-        });
+        if (!Schema::hasColumn('mm_users', 'login_location')) {
+            Schema::table('mm_users', function (Blueprint $table) {
+                $table->string('login_location', 255)->nullable()->after('login_status')
+                      ->comment('Geographic location at time of last login (City, Region, Country)');
+            });
+        }
     }
 
     /**

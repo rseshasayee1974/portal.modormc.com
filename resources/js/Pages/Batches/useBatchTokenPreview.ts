@@ -48,6 +48,19 @@ export function useBatchTokenPreview(closeAllMenus: () => void) {
         tokenPreviewVisible.value = true;
     };
 
+    // ── Close Token Dialog ───────────────────────────────────────────────────
+    // Hides the dialog first, then clears the iframe src after the close
+    // animation completes. This prevents the iframe unmount from triggering
+    // a parent-page navigation / Inertia reload.
+    const closeTokenPreview = () => {
+        tokenPreviewVisible.value = false;
+        setTimeout(() => {
+            tokenPreviewUrl.value = '';
+            iframeHeight.value    = '300px';
+            window.location.reload();
+        }, 350);
+    };
+
     // ── Iframe Auto-Height ───────────────────────────────────────────────────
     const adjustIframeHeight = (event: any) => {
         const iframe = event.target;
@@ -66,11 +79,47 @@ export function useBatchTokenPreview(closeAllMenus: () => void) {
 
     // ── Print Iframe ─────────────────────────────────────────────────────────
     const printTokenIframe = () => {
-        const iframe = document.querySelector('.token-preview-dialog iframe') as HTMLIFrameElement;
-        if (iframe && iframe.contentWindow) {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
+        if (!tokenPreviewUrl.value) return;
+
+        // Open in a small hidden popup window — printing from iframe.contentWindow
+        // causes the parent Inertia page to reload in many browsers.
+        const popup = window.open(
+            tokenPreviewUrl.value,
+            '_blank',
+            'width=800,height=600,menubar=no,toolbar=no,location=no,status=no'
+        );
+
+        if (!popup) {
+            // Fallback if popup was blocked — print directly from the iframe
+            const iframe = document.querySelector('.token-preview-dialog iframe') as HTMLIFrameElement;
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            }
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+            return;
         }
+
+        popup.onload = () => {
+            setTimeout(() => {
+                popup.focus();
+                popup.print();
+                // Close the popup after the user dismisses the print dialog
+                popup.onafterprint = () => {
+                    popup.close();
+                    window.location.reload();
+                };
+                // Fallback close after 60s if onafterprint doesn't fire
+                setTimeout(() => {
+                    try {
+                        popup.close();
+                        window.location.reload();
+                    } catch(_) {}
+                }, 60000);
+            }, 300);
+        };
     };
 
     // ── Custom DOM Event Handler ─────────────────────────────────────────────
@@ -117,6 +166,7 @@ export function useBatchTokenPreview(closeAllMenus: () => void) {
         previewWidth,
         previewIframeWidth,
         viewToken,
+        closeTokenPreview,
         adjustIframeHeight,
         printTokenIframe,
         handleShowTokenEvent,

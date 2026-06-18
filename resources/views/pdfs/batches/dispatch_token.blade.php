@@ -314,7 +314,7 @@
         $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
         $netWeight = (float) ($dispatch?->net_weight ?? ($loadedWeight - $emptyWeight));
         
-        $unitLabel = $isMetricTon ? ' MT' : ' kg';
+        $unitLabel = $isMetricTon ? ' MTR' : ' KGS';
         $decimals = $isMetricTon ? 3 : 0;
         
         $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel;

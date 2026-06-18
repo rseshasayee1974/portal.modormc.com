@@ -11,10 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('mm_users', function (Blueprint $table) {
-            $table->boolean('login_status')->default(false)->after('last_visit_page')
-                  ->comment('True = currently logged in, False = logged out');
-        });
+        if (!Schema::hasColumn('mm_users', 'login_status')) {
+            Schema::table('mm_users', function (Blueprint $table) {
+                $table->boolean('login_status')->default(false)->after('last_visit_page')
+                      ->comment('True = currently logged in, False = logged out');
+            });
+        }
     }
 
     /**

@@ -11,10 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        try {
+            Schema::table('mm_invoice_items', function (Blueprint $table) {
+                $table->dropForeign(['mix_design_id']);
+            });
+        } catch (\Exception $e) {}
+
         Schema::table('mm_invoice_items', function (Blueprint $table) {
-            // Drop the old foreign key constraint
-            $table->dropForeign(['mix_design_id']);
-            
             // Rename the column
             $table->renameColumn('mix_design_id', 'item_id');
             

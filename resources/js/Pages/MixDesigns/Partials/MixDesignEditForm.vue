@@ -102,8 +102,7 @@ const handleGradeChange = async () => {
             Swal.fire({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500, icon: 'info', title: `Loaded ingredients for ${grade.name}` });
         }
     } catch (e) { console.error(e); }
-};
-console.log('oetms',props);
+}; 
 
 const submit = () => {
     if (isLocked.value) return; // Prevent submit if locked

@@ -43,8 +43,7 @@ const props = withDefaults(defineProps<{
     products: () => [],
     uoms: () => [],
     statuses: () => [],
-});
-
+}); 
 const emit = defineEmits<{
     (e: 'saved'): void;
     (e: 'cancel'): void;
@@ -79,8 +78,7 @@ const form = useForm({
     empty_time: props.batch?.dispatches?.[0]?.empty_time ? new Date(props.batch.dispatches[0].empty_time) : new Date(),
     load_time: props.batch?.dispatches?.[0]?.load_time ? new Date(props.batch.dispatches[0].load_time) : new Date(),
     materials: (() => {
-        let initialMaterials = props.batch?.materials;
-        console.log('test1', initialMaterials);
+        let initialMaterials = props.batch?.materials; 
         return ((initialMaterials?.length ?? 0) > 0 ? initialMaterials : [blankMaterial()]).map((item: any) => ({
             id: item.id ?? null,
             product_id: item.product_id,
@@ -196,7 +194,7 @@ const applyBatchToForm = (newBatch: any) => {
     form.end_time = newBatch.end_time ? new Date(newBatch.end_time) : new Date();
     
     let initialMaterials = newBatch?.materials;
-    console.log('[BatchEditForm] applyBatchToForm — batch.id:', newBatch?.id, '| materials count:', initialMaterials?.length, '| raw materials:', JSON.stringify(initialMaterials));
+    // console.log('[BatchEditForm] applyBatchToForm — batch.id:', newBatch?.id, '| materials count:', initialMaterials?.length, '| raw materials:', JSON.stringify(initialMaterials));
 
     form.materials = ((initialMaterials?.length ?? 0) > 0 ? initialMaterials : [blankMaterial()]).map((item: any) => ({
         id: item.id ?? null,
@@ -207,23 +205,34 @@ const applyBatchToForm = (newBatch: any) => {
         deviation_quantity: Number(item.deviation_quantity ?? (Number(item.actual_qty ?? 0) - Number(item.target_qty ?? 0))),
         uom_id: item.uom_id ?? null,
     }));
-    console.log('[BatchEditForm] form.materials set to:', JSON.parse(JSON.stringify(form.materials)));
+    // console.log('[BatchEditForm] form.materials set to:', JSON.parse(JSON.stringify(form.materials)));
 };
 
-// Run on mount (initial load with whatever batch data is available)
+// Run on mount with whatever data is available at render time
 applyBatchToForm(props.batch);
 
-// Watch for when the batch ID changes (switching rows) OR when materials arrive async
+/**
+ * Fire whenever the batch OBJECT REFERENCE changes.
+ * This covers:
+ *   - Switching from one expanded row to another (id changes)
+ *   - The async upgrade: slotProps.data  →  detailedBatches[id]
+ *     (same id, different object reference — the materials key appears)
+ */ 
 watch(
-    () => props.batch?.id,
-    () => applyBatchToForm(props.batch),
+    () => props.batch,
+    (newBatch) => applyBatchToForm(newBatch),
+    { deep: false }  // shallow — only fires when the object reference itself changes
 );
 
-// Watch specifically for materials arriving (async fetch from detailedBatches)
+/**
+ * Extra safety: if Vue decides to reuse the same object reference but
+ * mutates the materials array in-place, catch that too.
+ */
 watch(
     () => props.batch?.materials,
-    (newMaterials) => {
-        if (newMaterials && newMaterials.length > 0) {
+    (newMaterials, oldMaterials) => {
+        // Only re-apply when materials transitions from undefined/null → defined
+        if (newMaterials !== undefined && oldMaterials === undefined) {
             applyBatchToForm(props.batch);
         }
     },
@@ -492,7 +501,6 @@ const submit = () => {
     });
 };
 
-console.log(form.materials);
 
 </script>
 

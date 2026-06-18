@@ -24,8 +24,7 @@ const emit = defineEmits<{
     (e: 'saved'): void;
     (e: 'cancel'): void;
 }>();
-
-console.log('gfsdfgdfg',props.salesOrder);
+ 
 
 const form = useForm({
     quotation_id: props.salesOrder?.quotation_id ?? null,

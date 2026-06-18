@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, onUnmounted, onUpdated } from 'vue';
 import { useForm, router } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 import DispatchWeightsForm from './DispatchWeightsForm.vue';
@@ -13,9 +13,20 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { usePermissions } from '@/Composables/usePermissions';
 
+onUnmounted(() => {
+    console.log('DispatchSection: onUnmounted called');
+});
+
+onUpdated(() => {
+    console.log('DispatchSection: onUpdated called');
+});
+
 const props = defineProps<{
     batch: any;
     workOrder: any;
+    sales_executives:any;
+    drivers:any;
+    
     dropdownData: {
         trucks: any[];
         transporters: any[];
@@ -300,10 +311,16 @@ const selectedUom = computed(() => {
 });
 
 const submit = () => {
+    // console.log('DispatchSection: submit called, form.id is:', form.id);
     if (form.id) {
         form.put(route('dispatches.update', form.id), {
             preserveScroll: true,
+            preserveState: true,
+            onBefore: () => {
+                console.log('DispatchSection: put request starting');
+            },
             onSuccess: () => {
+                console.log('DispatchSection: put onSuccess called');
                 Swal.fire({
                     toast: true,
                     position: 'top-end',
@@ -312,13 +329,26 @@ const submit = () => {
                     showConfirmButton: false,
                     timer: 1500
                 });
+                console.log('DispatchSection: emitting saved');
                 emit('saved');
+            },
+            onError: (errors) => {
+                console.error('DispatchSection: put errors:', errors);
+            },
+            onFinish: () => {
+                console.log('DispatchSection: put request finished');
             }
         });
     } else {
+        console.log('DispatchSection: posting to dispatches.store');
         form.post(route('dispatches.store'), {
             preserveScroll: true,
+            preserveState: true,
+            onBefore: () => {
+                console.log('DispatchSection: post request starting');
+            },
             onSuccess: () => {
+                console.log('DispatchSection: post onSuccess called');
                 Swal.fire({
                     toast: true,
                     position: 'top-end',
@@ -327,7 +357,14 @@ const submit = () => {
                     showConfirmButton: false,
                     timer: 1500
                 });
+                console.log('DispatchSection: emitting saved');
                 emit('saved');
+            },
+            onError: (errors) => {
+                console.error('DispatchSection: post errors:', errors);
+            },
+            onFinish: () => {
+                console.log('DispatchSection: post request finished');
             }
         });
     }
@@ -408,6 +445,8 @@ const handleDeleteInvoice = () => {
                 :personnel="dropdownData.personnel"
                 :payment_methods="dropdownData.payment_methods"
                 :sales_ledgers="dropdownData.sales_ledgers"
+                :drivers="drivers"
+                :sales_executives="sales_executives"
                 :errors="form.errors"
                 :isReadOnly="isReadOnly"
                 @submit="submit"

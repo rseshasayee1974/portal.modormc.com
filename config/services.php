@@ -38,4 +38,9 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    'sarvam' => [
+        'key' => env('SARVAM_API_KEY'),
+        'api_key' => env('SARVAM_API_KEY'),
+    ],
+
 ];

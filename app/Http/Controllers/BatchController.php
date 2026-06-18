@@ -41,12 +41,7 @@ class BatchController extends Controller
             'workOrder.customer:id,legal_name',
             'workOrder.mixDesign:id,design_name,design_code',
             'workOrder.site:id,name',
-            'dispatches',
-            'dispatches.truck:id,registration',
-            'dispatches.status:id,dispatch_id,invoice_id,invoice_number,invoice_status,invoice_date',
-            'dispatches.status.invoice:id,einvoice_status,eway_bill_no,status,created_at,created_by',
-            'dispatches.status.invoice.creator:id,username,email',
-            'dispatches.payments'
+            
         ])
         ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
         ->latest()
@@ -261,7 +256,7 @@ class BatchController extends Controller
                 $fyString = substr($startYear, -2) . substr($endYear, -2);
                 $prefix = "DP-{$fyString}-";
                 
-                $maxNumber = Dispatch::where('plant_id', $dispatchData['plant_id'])
+                $maxNumber = Dispatch::query()->where('plant_id', $dispatchData['plant_id'])
                     ->where('prefix', $prefix)
                     ->max(DB::raw('CAST(dispatch_no AS UNSIGNED)'));
                 

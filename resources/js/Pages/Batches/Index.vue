@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -55,7 +55,6 @@ const dropdownData = computed(() => ({
     payment_methods: props.payment_methods,
     sales_ledgers : props.sales_ledgers,
 }));
-
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
     status: { value: null, matchMode: 'equals' },
@@ -73,6 +72,7 @@ const expandedRows     = ref<Record<number, boolean>>({});
 const expandedBatchId  = ref<number | null>(null);
 const detailedBatches  = ref<Record<number, any>>({});
 const isLoadingBatch   = ref<Record<number, boolean>>({});
+const blinkingBatchId  = ref<number | null>(null);
 
 // Fallback REST polling via Inertia reload
 const fetchBatchesFallback = () => {
@@ -154,6 +154,7 @@ const fetchBatchDetails = async (id: number) => {
     isLoadingBatch.value[id] = true;
     try {
         const response = await axios.get(route('batches.show', id));
+        
         detailedBatches.value[id] = response.data;
     } catch (e) {
         console.error('Failed to fetch batch details:', e);
@@ -189,11 +190,57 @@ const onRowExpand = async (event: any) => {
 };
 
 const collapseExpandedRows = (batchId?: number) => {
+    // console.log('Index.vue: collapseExpandedRows called with batchId:', batchId);
+
+    // Step 1: Clear expanded state IMMEDIATELY (synchronously) — before any renders.
+    // This prevents PrimeVue from seeing an expandedRows entry while
+    // the data props are being rebuilt by useOfflineBatchSync.
     if (batchId) {
         delete detailedBatches.value[batchId];
     }
     expandedBatchId.value = null;
     expandedRows.value    = {};
+    // console.log('Index.vue: expandedRows cleared immediately');
+
+    // Step 2: Belt-and-suspenders — force a second clear after one tick
+    // in case PrimeVue's internal expansion state tries to restore the row.
+    nextTick(() => {
+        expandedRows.value = {};
+
+        // Step 3: Blink the saved row 3 times after collapsing.
+        if (batchId) {
+            blinkingBatchId.value = batchId;
+            console.log('Index.vue: blinkingBatchId set to', blinkingBatchId.value);
+            setTimeout(() => {
+                blinkingBatchId.value = null;
+                console.log('Index.vue: blinkingBatchId cleared');
+            }, 2100); // 3 blinks × 700ms each
+        }
+    });
+};
+
+// Global router success hook — belt-and-suspenders fallback.
+// Fires whenever an Inertia visit succeeds (including form.put / form.post).
+// This catches any case where the emit('saved') chain fails to reach us.
+const cleanupSuccessHook = router.on('success', (event) => {
+    const url = event.detail.visit.url.toString();
+    const method = event.detail.visit.method.toLowerCase();
+    console.log('Index.vue: Inertia success hook fired. URL:', url, '| method:', method, '| expandedBatchId:', expandedBatchId.value);
+    if (expandedBatchId.value !== null && (method === 'put' || method === 'post') && (url.includes('/dispatches') || url.includes('/batches'))) {
+        console.log('Index.vue: Inertia hook — closing row for ID:', expandedBatchId.value);
+        collapseExpandedRows(expandedBatchId.value);
+    }
+});
+
+onUnmounted(() => {
+    cleanupSuccessHook();
+});
+
+const getRowClass = (data: any) => {
+    if (blinkingBatchId.value === Number(data.id)) {
+        return 'batch-row-blink';
+    }
+    return '';
 };
 
 // ── Batch Actions ───────────────────────────────────────────────────────
@@ -221,6 +268,7 @@ const {
     previewWidth,
     previewIframeWidth,
     viewToken,
+    closeTokenPreview,
     adjustIframeHeight,
     printTokenIframe,
 } = useBatchTokenPreview(closeAllMenus);
@@ -311,6 +359,7 @@ watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
                         showSearch
                         showExport
                         exportFilename="batch-report"
+                        :rowClass="getRowClass"
                         @rowExpand="onRowExpand"
                     >
                         <template #filters>
@@ -595,7 +644,7 @@ watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
                                 <div v-if="!hideBatchForm" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                     
                                     <BatchEditForm
-                                        :batch="detailedBatches[slotProps.data.id] || slotProps.data"
+                                        :batch="detailedBatches[slotProps.data.id]"
                                         :workOrders="workOrders"
                                         :trucks="trucks"
                                         :transporters="transporters"
@@ -651,6 +700,8 @@ watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
                                         :workOrder="(detailedBatches[slotProps.data.id] || slotProps.data).work_order"
                                         :dispatch="(detailedBatches[slotProps.data.id] || slotProps.data).dispatches?.[0]"
                                         :dropdownData="dropdownData"
+                                        :drivers="drivers"
+                                        :sales_executives="sales_executives"
                                         :settings="batchingSettings"
                                         @saved="collapseExpandedRows(slotProps.data.id)"
                                         @cancel="collapseExpandedRows()"
@@ -687,14 +738,32 @@ watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
                     :src="tokenPreviewUrl"
                     :style="{ height: iframeHeight, width: previewIframeWidth }"
                     style="border: none; background: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); border-radius: 6px; display: block;"
+                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                     @load="adjustIframeHeight"
                 ></iframe>
             </div>
 
             <template #footer>
-                <Button label="Close" icon="pi pi-times" @click="tokenPreviewVisible = false" text severity="secondary" class="!text-[10px] !font-bold !uppercase !tracking-wider" />
+                <Button label="Close" icon="pi pi-times" @click="closeTokenPreview" text severity="secondary" class="!text-[10px] !font-bold !uppercase !tracking-wider" />
                 <Button label="Print Token" icon="pi pi-print" @click="printTokenIframe" severity="primary" class="!text-[10px] !font-bold !uppercase !tracking-wider !px-4" />
             </template>
         </Dialog>
     </AppLayout>
 </template>
+
+<style scoped>
+@keyframes batch-blink {
+    0%          { background-color: transparent;  box-shadow: none; }
+    14%         { background-color: #bbf7d0 !important; box-shadow: inset 0 0 0 2px #16a34a; }
+    28%         { background-color: transparent;  box-shadow: none; }
+    42%         { background-color: #bbf7d0 !important; box-shadow: inset 0 0 0 2px #16a34a; }
+    56%         { background-color: transparent;  box-shadow: none; }
+    70%         { background-color: #bbf7d0 !important; box-shadow: inset 0 0 0 2px #16a34a; }
+    100%        { background-color: transparent;  box-shadow: none; }
+}
+
+:deep(tr.batch-row-blink > td) {
+    animation: batch-blink 2.1s ease-in-out forwards !important;
+    transition: none !important;
+}
+</style>
