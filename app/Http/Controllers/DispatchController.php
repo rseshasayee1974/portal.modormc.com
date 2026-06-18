@@ -212,21 +212,7 @@ Log::info($dispatch);
                 'plant_id' => $dispatch->plant_id,
                 'invoice_label' => 'Dispatch'
             ]);
-            $dispatch->update([
-                'dispatch_status' => 'invoiced',
-            ]);
-
-            // Update dispatch status with generated invoice info
-            $dispatch->status()->updateOrCreate(
-                ['dispatch_id' => $dispatch->id],
-                [
-                    'plant_id'       => $dispatch->plant_id,
-                    'invoice_id'     => $invoice->id,
-                    'invoice_number' => $invoice->invoice_number,
-                    'invoice_date'   => $invoice->invoice_date,
-                    'invoice_status' => 1,
-                ]
-            );
+            $dispatch->invoice($invoice);
 
             return redirect()->back()->with('success', 'Invoice generated successfully: ' . $invoice->invoice_number);
         });
@@ -234,10 +220,10 @@ Log::info($dispatch);
     public function deleteInvoice(Dispatch $dispatch)
     {
         $this->authorizeModule('edit');
-
+  
         return DB::transaction(function () use ($dispatch) {
             $status = $dispatch->status;
-          
+           
             if ($status && $status->invoice_id) {
                 $invoice = \App\Models\Invoice::query()->find($status->invoice_id);
                 // dd($invoice );
@@ -249,7 +235,7 @@ Log::info($dispatch);
                     // Cascading soft deletes for invoice items and taxes
                     $invoice->items()->delete();
                     $invoice->orderTaxes()->delete();
-
+ 
                     // Explicitly update and soft delete associated journal entries and their lines
                     \App\Models\JournalEntry::query()->where('ref_module', 'invoice')
                         ->where('ref_id', $invoice->id)
@@ -261,7 +247,7 @@ Log::info($dispatch);
                                 'deleted_by' => auth()->id(),
                                 'deleted_at' => now(),
                             ]);
-
+ 
                             // Update entry and soft delete
                             \App\Models\JournalEntry::query()->where('id', $entry->id)->update([
                                 'is_deleted' => 1,
@@ -272,13 +258,8 @@ Log::info($dispatch);
                     
                     $invoice->delete(); 
                 }
-
-                $status->update([
-                    'invoice_id'     => null,
-                    'invoice_number' => null,
-                    'invoice_date'   => null,
-                    'invoice_status' => 0,
-                ]);
+ 
+                $dispatch->resetInvoice();
             }
 
             return redirect()->back()->with('success', 'Invoice deleted and dispatch billing reset.');

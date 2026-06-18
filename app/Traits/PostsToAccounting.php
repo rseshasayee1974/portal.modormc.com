@@ -13,12 +13,22 @@ use Illuminate\Support\Facades\Log;
 /**
  * Trait to handle automated accounting postings for Invoices and Bills.
  * Refactored for production stability and better error handling.
+ *
+ * @property string|null $invoice_number
+ * @property string $invoice_type
+ * @property string|\Carbon\Carbon|null $invoice_date
+ * @property mixed $transporter
+ * @property mixed $transporter_id
+ * @property mixed $account_id
+ * @property mixed $id
+ * 
  */
 trait PostsToAccounting
 {
     /**
      * Post the current document to Journal Entries.
      */
+    
     public function postToAccounting(): JournalEntry
     {
         return DB::transaction(function () {
@@ -62,7 +72,7 @@ trait PostsToAccounting
             } else {
                 $refModule = ($docType === 'bill') ? 'bill' : (($docType === 'sales') ? 'invoice' : $docType);
             }
-            
+          
             $journalEntry = JournalEntry::updateOrCreate(
                 ['ref_module' => $refModule, 'ref_id' => $this->id, 'plant_id' => $plantId],
                 [
@@ -145,7 +155,7 @@ trait PostsToAccounting
 
             // --- DEBIT/CREDIT RULE 3: Tax Splits ---
             // We use direct query to bypass any relationship caching issues
-            $orderTaxes = OrderTax::where('order_id', '=',$this->id)
+            $orderTaxes = OrderTax::query()->where('order_id', '=',$this->id)
                 ->where('order_type', $module)
                 ->get();
             $sumTaxLines = 0;
@@ -240,7 +250,7 @@ trait PostsToAccounting
     /**
      * Helper for Adjustments, Shipping, and Rounding
      */
-    private function addAdjustmentLines(&$lines, $isSales, $invoiceNo)
+    private function addAdjustmentLines(array &$lines, bool $isSales, string $invoiceNo): void
     {
         $map = [
             'shipping_charges' => ['key' => 'shipping_account', 'fallback' => 'Shipping', 'invert' => false],
@@ -300,7 +310,7 @@ trait PostsToAccounting
         $module = $moduleMap[$docType] ?? ucfirst($docType);
         $plantId = $this->plant_id ?? session('active_plant_id');
         
-        $mapped = \App\Models\AccountDefaultSetting::where('plant_id', $plantId)
+        $mapped = \App\Models\AccountDefaultSetting::query()->where('plant_id', $plantId)
             ->where('module_name', $module)
             ->where('setting_key', $key)
             ->where('is_active', true)
@@ -308,7 +318,7 @@ trait PostsToAccounting
             
         if ($mapped) return $mapped;
 
-        return Ledger::where('title', 'like', "%{$fallbackSearch}%")
+        return Ledger::query()->where('title', 'like', "%{$fallbackSearch}%")
             ->where('plant_id', $plantId)
             ->value('id');
     }

@@ -22,13 +22,13 @@ class UpdateBatchRequest extends FormRequest
         $isMetricTon = isset($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
 
         return [
-            'work_order_id' => ['required', 'integer', 'exists:mm_work_orders,id'],
+            'work_order_id' => ['nullable', 'integer'],
             'batch_no' => [
                 'required',
                 'integer',
                 'min:1',
                 Rule::unique('mm_batches', 'batch_no')
-                    ->where(fn ($q) => $q->where('work_order_id', $workOrderId))
+                    ->where(fn ($q) => $q->where('work_order_id', $workOrderId))->where('deleted_at',null)
                     ->ignore($batchId),
             ],
             'batch_size' => ['required', 'numeric', 'gt:0'],
@@ -38,7 +38,7 @@ class UpdateBatchRequest extends FormRequest
             'shift' => ['nullable', 'string', 'max:50'],
             'empty_time' => $isMetricTon ? ['required', 'date'] : ['nullable', 'date'],
             'load_time' => $isMetricTon ? ['required', 'date'] : ['nullable', 'date'],
-            'truck_id' => ['required', 'integer', 'exists:mm_machines,id'],
+            'truck_id' => ['nullable', 'integer', 'exists:mm_machines,id'],
             'transport_id' => ['nullable', 'integer', 'exists:mm_patrons,id'],
             'driver_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
             'sales_executive_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],

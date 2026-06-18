@@ -46,7 +46,7 @@ export function useInvoiceActions(props: { sales_ledgers: { label: string; value
             confirmButtonText: 'Generate',
             confirmButtonColor: '#4f46e5',
             preConfirm: () => {
-                const ledgerId    = (document.getElementById('swal-ledger-id') as HTMLSelectElement).value;
+                const ledgerId = (document.getElementById('swal-ledger-id') as HTMLSelectElement).value;
                 const invoiceDate = (document.getElementById('swal-invoice-date') as HTMLInputElement).value;
                 if (!ledgerId) {
                     Swal.showValidationMessage('Please select a Sales Ledger');
@@ -63,7 +63,7 @@ export function useInvoiceActions(props: { sales_ledgers: { label: string; value
                 router.post(
                     route('dispatches.generate-invoice', dispatch.id),
                     {
-                        ledger_id:    result.value.ledgerId,
+                        ledger_id: result.value.ledgerId,
                         invoice_date: result.value.invoiceDate,
                     },
                     {
@@ -166,6 +166,29 @@ export function useInvoiceActions(props: { sales_ledgers: { label: string; value
         }
     };
 
+    // ── Send Email ───────────────────────────────────────────────────────────
+    const sendBatchEmailDirect = async (batch: any) => {
+        if (!batch || !batch.id) return;
+        try {
+            Swal.fire({
+                title: 'Sending email...',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); },
+            });
+
+            const response = await axios.post(route('batches.send-email', batch.id));
+            Swal.close();
+
+            Swal.fire('Success', response.data.message || 'Batch report email sent successfully.', 'success');
+        } catch (error: any) {
+            Swal.close();
+            const msg =
+                error.response?.data?.error ||
+                'Failed to send email. Please check if customer email address is configured.';
+            Swal.fire('Error', msg, 'error');
+        }
+    };
+
     // ── Public API ───────────────────────────────────────────────────────────
     return {
         generateInvoiceDirect,
@@ -174,5 +197,6 @@ export function useInvoiceActions(props: { sales_ledgers: { label: string; value
         printEInvoiceDirect,
         deleteInvoiceDirect,
         sendWhatsAppDirect,
+        sendBatchEmailDirect,
     };
 }

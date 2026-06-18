@@ -225,7 +225,7 @@ class BatchController extends Controller
                 $workOrder->refreshProduction();
 
                 if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-                    auth()->user()->notify(new \App\Notifications\BatchCompletedNotification($batch));
+                    $this->sendBatchCompletedMail($batch);
                 }
 
                 // Compile structured parameters safely
@@ -458,10 +458,12 @@ class BatchController extends Controller
     public function update(UpdateBatchRequest $request, Batch $batch)
     // public function update(Request $request, Batch $batch)
     {
+       
         // dd($request->all());
         $this->authorizeModule('edit');
-        $batch->load('workOrder');
-        $this->ensurePlantScope($batch->workOrder);
+        // $batch->load('workOrder');
+        //  dd($batch->load('workOrder'));
+        // $this->ensurePlantScope($batch->workOrder);
 
         $payload = $request->validated();
         
@@ -471,6 +473,7 @@ class BatchController extends Controller
 
         $oldMaterials = $batch->materials()->get()->toArray();
         $oldStatus = $batch->status;
+        // dd($oldMaterials,$oldStatus);
      try {
         DB::transaction(function () use ($batch, $payload, $emptyPhoto, $loadedPhoto, $oldMaterials, $oldStatus) {
             $materials = $payload['materials'] ?? [];
@@ -516,9 +519,8 @@ class BatchController extends Controller
             // Send notification if batch is newly dispatched or completed
             if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]) && 
                 $oldStatus != $batch->status) {
-                auth()->user()->notify(new \App\Notifications\BatchCompletedNotification($batch));
+                $this->sendBatchCompletedMail($batch);
             }
-
             if ($batch->status == Batch::STATUS_DISPATCHED && $oldStatus != Batch::STATUS_DISPATCHED) {
                 session()->flash('dispatched_batch_id', $batch->id);
             }
@@ -630,6 +632,38 @@ class BatchController extends Controller
         );
 
         return $pdf->download($filename);
+    }
+
+    public function sendEmail(Batch $batch)
+    {
+        $batch = $this->resolveBatchSheetBatch($batch);
+
+        try {
+            $customer = $batch->workOrder?->customer;
+        
+            $customerEmail = null;
+            if ($customer) {
+                $contact = $customer->contacts()->where('is_primary', true)->first() ?? $customer->contacts()->first();
+                $customerEmail = $contact?->email ?? null;
+            } 
+            if (!$customerEmail) {
+                return response()->json([
+                    'error' => 'No email address configured for this customer.'
+                ], 422);
+            } 
+            \Illuminate\Support\Facades\Notification::route('mail', $customerEmail)
+                ->notify(new \App\Notifications\BatchCompletedNotification($batch));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Batch report email sent successfully to ' . $customerEmail
+            ]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Manual batch email failed: " . $e->getMessage());
+            return response()->json([
+                'error' => 'Failed to send email: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function token(Batch $batch)
@@ -1140,6 +1174,30 @@ class BatchController extends Controller
             broadcast(new \App\Events\BatchUpdated('BatchDeleted', ['id' => $batchId]));
         } catch (\Exception $e) {
             Log::warning("Batch deletion broadcast failed: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Send Batch Completed email notification to the customer or fallback to authenticated user.
+     */
+    private function sendBatchCompletedMail(Batch $batch): void
+    {
+        try {
+            $customer = $batch->workOrder?->customer;
+            $customerEmail = null;
+            if ($customer) {
+                $contact = $customer->contacts()->where('is_primary', true)->first() ?? $customer->contacts()->first();
+                $customerEmail = $contact?->email ?? null;
+            }
+
+            if ($customerEmail) {
+                \Illuminate\Support\Facades\Notification::route('mail', $customerEmail)
+                    ->notify(new \App\Notifications\BatchCompletedNotification($batch));
+            } else {
+                auth()->user()?->notify(new \App\Notifications\BatchCompletedNotification($batch));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to send batch completed mail: " . $e->getMessage());
         }
     }
 }

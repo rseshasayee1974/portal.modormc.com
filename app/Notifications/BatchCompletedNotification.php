@@ -16,6 +16,7 @@ class BatchCompletedNotification extends Notification implements ShouldQueue
 
     public function __construct(Batch $batch)
     {
+       
         $this->batch = $batch;
     }
 
@@ -26,20 +27,22 @@ class BatchCompletedNotification extends Notification implements ShouldQueue
 
     public function toMail($notifiable): MailMessage
     {
+      
         $batch = $this->batch;
-        
         // Load all relations needed for the PDF report
         $batch->load([
-            'workOrder.customer',
-            'workOrder.site',
             'workOrder.plant.entity',
             'workOrder.mixDesign.concrete_grade',
+            'workOrder.customer',
+            'workOrder.site',
+            'site',
+            'dispatches.truck',
+            'dispatches.driver',
             'materials.product.category',
             'materials.uom',
         ]);
         
         $sheet = $batch->getReportData();
-        
         // Generate PDF in memory
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.batches.batch_sheet', [
             'batch' => $batch,

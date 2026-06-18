@@ -45,10 +45,14 @@ const form = useForm({
         loader_gif:        props.batchingSettings?.loader_gif   || '',
         sheet_upload:      props.batchingSettings?.sheet_upload == 1,
         hide_batch_form:   props.batchingSettings?.hide_batch_form == 1,
+<<<<<<< Updated upstream
         po_prefix:         props.batchingSettings?.po_prefix    || 'PO',
         so_prefix:         props.batchingSettings?.so_prefix    || 'SO',
         wo_prefix:         props.batchingSettings?.wo_prefix    || 'WO',
         quote_prefix:      props.batchingSettings?.quote_prefix || 'QT',
+=======
+        target_to_actual:  props.batchingSettings?.target_to_actual == 1,
+>>>>>>> Stashed changes
         custom_params:     props.batchingSettings?.custom_params || [],
     }
 });
@@ -79,6 +83,7 @@ const settingRows = computed(() => [
     // Batch Sheet
     { section: 'Batch Sheet', key: 'sheet_upload',       label: 'Upload Batch Sheet',             value: form.settings.sheet_upload,        type: 'bool' },
     { section: 'Batch Sheet', key: 'hide_batch_form',    label: 'Hide Add & Edit Batch Forms',    value: form.settings.hide_batch_form,     type: 'bool' },
+    { section: 'Batch Sheet', key: 'target_to_actual',   label: 'One-Click Target to Actual',     value: form.settings.target_to_actual,    type: 'bool' },
     // Appearance
     { section: 'Appearance',  key: 'loader_gif',         label: 'Custom Global Loader (GIF URL)', value: form.settings.loader_gif,          type: 'text' },
     // Document Prefixes
@@ -106,6 +111,7 @@ const submit = () => {
         camera:             form.settings.camera             ? 1 : 0,
         sheet_upload:       form.settings.sheet_upload       ? 1 : 0,
         hide_batch_form:    form.settings.hide_batch_form    ? 1 : 0,
+        target_to_actual:   form.settings.target_to_actual   ? 1 : 0,
     };
 
     form.transform((data) => ({ ...data, settings: payload }))
@@ -444,6 +450,18 @@ const deleteModule = (id: number) => {
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.hide_batch_form" />
+                            </div>
+
+                            <!-- target_to_actual -->
+                            <div class="flex items-center justify-between p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                                <div>
+                                    <h4 class="font-bold text-indigo-700 text-sm">One-Click Target to Actual <code class="text-[9px] text-indigo-400 ml-1 font-normal">[target_to_actual]</code></h4>
+                                    <p class="text-xs text-indigo-500 mt-0.5">Show a quick-action button in the materials table to copy all recipe targets directly into actual quantities.</p>
+                                    <div v-if="form.settings.target_to_actual" class="mt-2">
+                                        <span class="text-[9px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Target to Actual button Enabled</span>
+                                    </div>
+                                </div>
+                                <InputSwitch v-model="form.settings.target_to_actual" />
                             </div>
 
                             <!-- Dynamic Sync Params -->

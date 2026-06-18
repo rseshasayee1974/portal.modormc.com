@@ -421,6 +421,21 @@ const handleOcrUpload = async (event: Event) => {
     onFileSelected(event);
 };
 
+const copyTargetsToActuals = () => {
+    form.materials.forEach((mat) => {
+        mat.actual_qty = Number(mat.target_qty ?? 0);
+        mat.deviation_quantity = 0;
+    });
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Recipe targets copied to actual quantities',
+        showConfirmButton: false,
+        timer: 1500
+    });
+};
+
 const submit = () => {
     form.clearErrors();
     let hasErrors = false;
@@ -463,8 +478,7 @@ const submit = () => {
         const minutes = String(d.getMinutes()).padStart(2, '0');
         const seconds = String(d.getSeconds()).padStart(2, '0');
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-    };
-    console.log('Submitted data', form);
+    }; 
     form.transform((data) => ({
         ...data,
         start_time: formatDateTime(data.start_time),
@@ -832,6 +846,19 @@ const submit = () => {
                                     :loading="isFetchingConsumption"
                                     @click="fetchConsumption"
                                 />
+                                
+                                <!-- One-Click Target to Actual button -->
+                                <Button
+                                    v-if="form.status !== 3 && customSettings?.batching?.target_to_actual == 1"
+                                    label="Set Actuals = Targets"
+                                    icon="pi pi-copy"
+                                    size="small"
+                                    severity="success"
+                                    outlined
+                                    class="!text-xs"
+                                    @click="copyTargetsToActuals"
+                                />
+
                                 <Button v-if="form.status !== 3" label="Add" icon="pi pi-plus" size="small" text rounded class="!text-xs !text-cyan-600" @click="addMaterial" />
                             </div>
                         </div>

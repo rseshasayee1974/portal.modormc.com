@@ -2,6 +2,7 @@
 import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { useWebSocket } from '@/Composables/useWebSocket';
@@ -224,8 +225,8 @@ const collapseExpandedRows = (batchId?: number) => {
 // Fires whenever an Inertia visit succeeds (including form.put / form.post).
 // This catches any case where the emit('saved') chain fails to reach us.
 const cleanupSuccessHook = router.on('success', (event) => {
-    const url = event.detail.visit.url.toString();
-    const method = event.detail.visit.method.toLowerCase();
+    const url = event.detail.visit?.url?.toString() || '';
+    const method = event.detail.visit?.method?.toLowerCase() || '';
     console.log('Index.vue: Inertia success hook fired. URL:', url, '| method:', method, '| expandedBatchId:', expandedBatchId.value);
     if (expandedBatchId.value !== null && (method === 'put' || method === 'post') && (url.includes('/dispatches') || url.includes('/batches'))) {
         console.log('Index.vue: Inertia hook — closing row for ID:', expandedBatchId.value);
@@ -295,6 +296,7 @@ const {
     printEInvoiceDirect,
     deleteInvoiceDirect,
     sendWhatsAppDirect,
+    sendBatchEmailDirect,
 } = useInvoiceActions(props);
 
 // ── Page Settings ────────────────────────────────────────────────────────────
@@ -318,6 +320,71 @@ watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
         viewToken(Number(newVal), 'dispatch');
     }
 }, { immediate: true });
+
+// Share Batch Report States
+const showShareBatchModal = ref(false);
+const shareBatchExpiry = ref('7');
+const shareBatchLink = ref('');
+const isGeneratingBatchLink = ref(false);
+const selectedShareBatch = ref<any>(null);
+
+const openShareBatch = (batch: any) => {
+    selectedShareBatch.value = batch;
+    shareBatchExpiry.value = '7';
+    shareBatchLink.value = '';
+    showShareBatchModal.value = true;
+};
+
+const generateShareBatchLink = async () => {
+    if (!selectedShareBatch.value) return;
+    isGeneratingBatchLink.value = true;
+    try {
+        const response = await axios.post(route('batches.share', selectedShareBatch.value.id), {
+            document_type: 'batch',
+            document_id: selectedShareBatch.value.id,
+            expiry: shareBatchExpiry.value,
+        });
+        
+        if (response.data && response.data.url) {
+            shareBatchLink.value = response.data.url;
+        } else {
+            Swal.fire('Error', 'Failed to generate share link.', 'error');
+        }
+    } catch (error: any) {
+        console.error('Error sharing batch:', error);
+        Swal.fire('Error', error.response?.data?.message || 'An error occurred while generating the link.', 'error');
+    } finally {
+        isGeneratingBatchLink.value = false;
+    }
+};
+
+const copyShareBatchLink = async () => {
+    try {
+        await navigator.clipboard.writeText(shareBatchLink.value);
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Share link copied to clipboard!',
+            showConfirmButton: false,
+            timer: 2000
+        });
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+    }
+};
+
+const shareBatchWhatsApp = () => {
+    const text = encodeURIComponent(`Here is the link to view the batch report: ${shareBatchLink.value}`);
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+};
+
+const shareBatchEmail = () => {
+    const batchNo = selectedShareBatch.value?.batch_no || selectedShareBatch.value?.id || '';
+    const subject = encodeURIComponent(`Batch Sheet Report #${batchNo} - Shared Link`);
+    const body = encodeURIComponent(`Dear Customer,\n\nPlease find the secure link to view the Batch Sheet Report online:\n\n${shareBatchLink.value}\n\nThank you.`);
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+};
 </script>
 
 <template>
@@ -498,6 +565,7 @@ watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
                                         <i class="pi pi-ellipsis-v text-sm font-bold"></i>
                                     </button>
 
+<<<<<<< Updated upstream
                                     <i v-if="slotProps.data.sync_status === 'success'" 
                                        class="pi pi-check-circle text-emerald-500 text-lg cursor-help" 
                                        v-tooltip.top="'Synced to Scheduler'"></i>
@@ -511,6 +579,151 @@ watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
                                        class="pi pi-cloud-upload text-amber-500 text-lg cursor-pointer hover:text-amber-600 transition-colors" 
                                        v-tooltip.top="'Pending - Click to Post'" 
                                        @click.stop="retrySync(slotProps.data.id)"></i>
+=======
+                                    <!-- Dropdown Menu -->
+                                    <transition
+                                        enter-active-class="transition ease-out duration-100"
+                                        enter-from-class="transform opacity-0 scale-95"
+                                        enter-to-class="transform opacity-100 scale-100"
+                                        leave-active-class="transition ease-in duration-75"
+                                        leave-from-class="transform opacity-100 scale-100"
+                                        leave-to-class="transform opacity-0 scale-95"
+                                    >
+                                        <div
+                                            v-if="activeMenuId === slotProps.data.id"
+                                            class="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200/80 dark:border-slate-700/80 z-[1000] focus:outline-none divide-y divide-slate-100 dark:divide-slate-700/50 py-1"
+                                            @click.stop
+                                        >
+                                            <!-- Group 1: General Batch Actions -->
+                                            <div class="py-1 text-left">
+                                                <button
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="router.get(route('batches.report', slotProps.data.id)); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-eye mr-2 text-indigo-500 font-bold"></i>
+                                                    Preview Batch Sheet
+                                                </button>
+                                                <button
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="downloadPdf(slotProps.data.id); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
+                                                    Download PDF Report
+                                                </button>
+                                                <button
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="sendBatchEmailDirect(slotProps.data); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-envelope mr-2 text-sky-500 font-bold"></i>
+                                                    Send Email Report
+                                                </button>
+                                                <button
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="openShareBatch(slotProps.data); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-share-alt mr-2 text-indigo-500 font-bold"></i>
+                                                    Share Batch Report
+                                                </button>
+                                               
+                                            </div>
+
+                                            <!-- Group 2: Token Printing Actions -->
+                                            <div class="py-1 text-left">
+                                                <button
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="viewToken(slotProps.data.id, 'batching'); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-print mr-2 text-amber-500 font-bold"></i>
+                                                    Print Batching Token
+                                                </button>
+                                                <button
+                                                    v-if="slotProps.data.status >= 3"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="viewToken(slotProps.data.id, 'dispatch'); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-ticket mr-2 text-emerald-500 font-bold"></i>
+                                                    Print Dispatch Token
+                                                </button>
+                                                <button
+                                                    v-if="slotProps.data.status >= 3"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                    @click="viewToken(slotProps.data.id, 'delivery'); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-file mr-2 text-sky-500 font-bold"></i>
+                                                    Print Delivery Challan (A4)
+                                                </button>
+                                            </div>
+
+                                            <!-- Group 3: Invoice & Invoicing Actions -->
+                                            <div v-if="slotProps.data.dispatches?.[0]" class="py-1 text-left">
+                                                <!-- If Invoice not yet generated -->
+                                                <button
+                                                    v-if="slotProps.data.status >= 3 && (!slotProps.data.dispatches[0].status || slotProps.data.dispatches[0].status.invoice_status !== 1)"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 transition-colors"
+                                                    @click="generateInvoiceDirect(slotProps.data.dispatches[0]); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-plus-circle mr-2 text-emerald-500 font-bold"></i>
+                                                    Generate Invoice
+                                                </button>
+
+                                                <!-- If Invoice is generated -->
+                                                <template v-if="slotProps.data.dispatches[0].status?.invoice_status === 1 && slotProps.data.dispatches[0].status?.invoice">
+                                                    <button
+                                                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                        @click="printInvoiceDirect(slotProps.data.dispatches[0].status.invoice); activeMenuId = null;"
+                                                    >
+                                                        <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
+                                                        Print Invoice
+                                                    </button>
+                                                    <button
+                                                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                                        @click="downloadInvoiceDirect(slotProps.data.dispatches[0].status.invoice); activeMenuId = null;"
+                                                    >
+                                                        <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
+                                                        Download Invoice PDF
+                                                    </button>
+                                                    <!-- If IRN E-invoice is generated -->
+                                                    <button
+                                                        v-if="slotProps.data.dispatches[0].status.invoice.einvoice_status === 'generated'"
+                                                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
+                                                        @click="printEInvoiceDirect(slotProps.data.dispatches[0].status.invoice); activeMenuId = null;"
+                                                    >
+                                                        <i class="pi pi-check-circle mr-2 text-purple-500 font-bold"></i>
+                                                        E-Invoice Print
+                                                    </button>
+                                                    <button
+                                                        class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                                                        @click="deleteInvoiceDirect(slotProps.data.dispatches[0]); activeMenuId = null;"
+                                                    >
+                                                        <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
+                                                        Delete Invoice
+                                                    </button>
+                                                </template>
+
+                                                <!-- WhatsApp (if dispatched) -->
+                                                <button
+                                                    v-if="slotProps.data.status >= 3"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-emerald-700 transition-colors"
+                                                    @click="sendWhatsAppDirect(slotProps.data.dispatches[0]); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-whatsapp mr-2 text-emerald-500 font-bold"></i>
+                                                    WhatsApp Send
+                                                </button>
+                                            </div>
+
+                                            <!-- Group 4: Delete Batch -->
+                                            <div v-if="slotProps.data.status < 3" class="py-1 text-left">
+                                                <button
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                                                    @click="destroy(slotProps.data); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
+                                                    Delete Batch
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </transition>
+>>>>>>> Stashed changes
                                 </div>
                                 <span v-else class="text-[10px] text-slate-400 font-bold uppercase">Syncing...</span>
                             </template>
@@ -634,6 +847,7 @@ watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
             </template>
         </Dialog>
 
+<<<<<<< Updated upstream
         <Popover
             ref="actionMenu"
             class="!shadow-2xl !border !border-slate-200/80 dark:!border-slate-700/80 !rounded-xl overflow-hidden"
@@ -754,6 +968,95 @@ watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
                 </div>
             </div>
         </Popover>
+=======
+        <!-- Premium Share Batch Dialog -->
+        <Dialog v-model:visible="showShareBatchModal" modal header="Share Batch Report" :style="{ width: '450px' }" class="premium-dialog">
+            <div class="p-2">
+                <p class="text-xs text-slate-500 mb-4">
+                    Generate a secure, read-only link to share this batch sheet report with your customer.
+                </p>
+
+                <!-- Expiry Options -->
+                <div class="mb-5">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Link Expiry</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button 
+                            v-for="opt in [
+                                { label: '1 Day', value: '1' },
+                                { label: '7 Days', value: '7' },
+                                { label: '30 Days', value: '30' },
+                                { label: 'Never', value: '0' }
+                            ]" 
+                            :key="opt.value"
+                            type="button"
+                            @click="shareBatchExpiry = opt.value"
+                            class="px-2 py-2 text-xs font-semibold rounded-lg border text-center transition-all"
+                            :class="[
+                                shareBatchExpiry === opt.value
+                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                            ]"
+                        >
+                            {{ opt.label }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Action Button or Generated Link Display -->
+                <div v-if="!shareBatchLink" class="mt-6 flex justify-end gap-2">
+                    <Button label="Cancel" icon="pi pi-times" text severity="secondary" @click="showShareBatchModal = false" class="!text-xs font-bold uppercase" />
+                    <Button 
+                        label="Generate Link" 
+                        icon="pi pi-link" 
+                        severity="primary" 
+                        @click="generateShareBatchLink" 
+                        :loading="isGeneratingBatchLink"
+                        class="!text-xs font-bold uppercase bg-indigo-600 hover:bg-indigo-700 text-white border-0" 
+                    />
+                </div>
+
+                <div v-else class="mt-6 space-y-4 animate-in fade-in duration-200">
+                    <!-- Link Textbox -->
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Secure Share Link</label>
+                        <div class="flex gap-2">
+                            <input 
+                                type="text" 
+                                readonly 
+                                :value="shareBatchLink" 
+                                class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-slate-300 font-mono focus:outline-none"
+                            />
+                            <button 
+                                @click="copyShareBatchLink"
+                                class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                            >
+                                <i class="pi pi-copy"></i>
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Social Share Action Buttons -->
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
+                        <button 
+                            @click="shareBatchWhatsApp"
+                            class="flex-1 py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                            <i class="pi pi-whatsapp text-sm"></i>
+                            WhatsApp
+                        </button>
+                        <button 
+                            @click="shareBatchEmail"
+                            class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                            <i class="pi pi-envelope text-sm"></i>
+                            Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Dialog>
+>>>>>>> Stashed changes
     </AppLayout>
 </template>
 

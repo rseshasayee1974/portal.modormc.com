@@ -246,13 +246,11 @@ class EntityContextController extends Controller
 
         session(['active_plant_id' => $plantId]);
 
-        // Save as default if requested
-        if ($request->boolean('set_as_default')) {
-            $user->update([
-                'default_entity_id' => $entityId,
-                'default_plant_id'  => $plantId,
-            ]);
-        }
+        // Always save selected entity and plant as the user's default / last login context
+        $user->update([
+            'default_entity_id' => $entityId,
+            'default_plant_id'  => $plantId,
+        ]);
 
         return response()->json([
             'status'   => 'plant_set',

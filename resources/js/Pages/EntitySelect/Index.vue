@@ -1,441 +1,358 @@
 <template>
     <Head title="Modo Portal | Select Workspace" />
 
-    <main class="min-h-screen bg-[#f0f3f6] font-outfit text-slate-900 selection:bg-amber-200/60 flex flex-col">
-        <header class="relative z-10 border-b border-white/40 bg-[#f0f3f6]/80 backdrop-blur-xl">
-            <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-6 lg:px-8">
-                <div class="flex min-w-0 items-center gap-3">
-                    <div class="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-[var(--workspace-ink)] text-white shadow-[0_18px_45px_-22px_rgba(15,23,42,0.75)]">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-6">
-                            <path d="M12.378 1.602a.75.75 0 0 0-.756 0L3 6.632l9 5.25 9-5.25-8.622-5.03ZM21.75 7.93l-9 5.25v9l8.628-5.032a.75.75 0 0 0 .372-.648V7.93ZM11.25 22.18v-9l-9-5.25v8.57a.75.75 0 0 0 .372.648l8.628 5.033Z" />
-                        </svg>
+    <main class="min-h-screen bg-[#f8fafc] font-outfit text-slate-800 selection:bg-indigo-100 selection:text-indigo-900 flex flex-col relative overflow-hidden">
+        <!-- Polygonal Background Pattern Overlay (Top-Left) -->
+        <div class="absolute top-0 left-0 w-[50%] h-[35%] opacity-[0.04] pointer-events-none z-0">
+            <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <polygon points="0,0 40,0 0,60" fill="currentColor"/>
+                <polygon points="40,0 80,0 50,50" fill="currentColor"/>
+                <polygon points="0,60 50,50 15,90" fill="currentColor"/>
+                <polygon points="50,50 80,0 100,30" fill="currentColor"/>
+            </svg>
+        </div>
+
+        <!-- Polygonal Background Pattern Overlay (Top-Right) -->
+        <div class="absolute top-0 right-0 w-[50%] h-[35%] opacity-[0.04] pointer-events-none z-0">
+            <svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <polygon points="100,0 60,0 100,60" fill="currentColor"/>
+                <polygon points="60,0 20,0 50,50" fill="currentColor"/>
+                <polygon points="100,60 50,50 85,90" fill="currentColor"/>
+                <polygon points="50,50 20,0 0,30" fill="currentColor"/>
+            </svg>
+        </div>
+
+        <!-- Header -->
+        <header class="relative z-10 border-b border-slate-100 bg-white/70 backdrop-blur-xl">
+            <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4">
+                <div class="flex items-center gap-3">
+                    <!-- 9-dot Zoho-like launcher icon -->
+                    <div class="grid grid-cols-3 gap-1 size-10 items-center justify-center p-1.5 rounded-2xl bg-indigo-50 text-indigo-600 shadow-sm">
+                        <span class="size-2 rounded-full bg-red-500"></span>
+                        <span class="size-2 rounded-full bg-blue-500"></span>
+                        <span class="size-2 rounded-full bg-green-500"></span>
+                        <span class="size-2 rounded-full bg-yellow-500"></span>
+                        <span class="size-2 rounded-full bg-purple-500"></span>
+                        <span class="size-2 rounded-full bg-pink-500"></span>
+                        <span class="size-2 rounded-full bg-teal-500"></span>
+                        <span class="size-2 rounded-full bg-indigo-500"></span>
+                        <span class="size-2 rounded-full bg-slate-500"></span>
                     </div>
-                    <div class="min-w-0">
-                        <p class="text-[11px] font-black uppercase tracking-[0.35em] text-[var(--workspace-accent)]">Modo Portal</p>
-                        <h1 class="truncate text-base font-black tracking-tight text-slate-950 sm:text-lg">Choose your workspace</h1>
+                    <div>
+                        <p class="text-[10px] font-bold uppercase tracking-[0.3em] text-indigo-600">Modo Portal</p>
+                        <h1 class="text-base font-extrabold tracking-tight text-slate-900">Choose your workspace</h1>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-2 sm:gap-3">
-                    <div class="hidden items-center gap-3 rounded-2xl border border-white/70 bg-white/80 px-2.5 py-2 shadow-[0_12px_35px_-24px_rgba(15,23,42,0.85)] sm:flex">
-                        <div class="flex size-10 items-center justify-center rounded-xl bg-[var(--workspace-soft)] text-sm font-black text-[var(--workspace-ink)]">
+                <div class="flex items-center gap-3">
+                    <div class="hidden items-center gap-2.5 rounded-2xl border border-slate-100 bg-white px-3 py-2 shadow-sm sm:flex">
+                        <div class="flex size-9 items-center justify-center rounded-xl bg-indigo-50 text-xs font-black text-indigo-600">
                             {{ initials(userName) }}
                         </div>
-                        <p class="max-w-[12rem] truncate text-sm font-bold text-slate-900">{{ userName }}</p>
+                        <p class="max-w-[10rem] truncate text-xs font-bold text-slate-700">{{ userName }}</p>
                     </div>
 
                     <button
                         type="button"
                         @click="logout"
-                        class="inline-flex items-center gap-2 rounded-2xl border border-white/70 bg-white/85 px-3 py-2 text-sm font-semibold text-slate-600 shadow-[0_12px_35px_-24px_rgba(15,23,42,0.85)] transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+                        class="inline-flex items-center gap-2 rounded-2xl border border-slate-100 bg-white px-4 py-2.5 text-xs font-bold text-slate-600 shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition duration-300"
                         title="Log out"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3.5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
                         </svg>
-                        <span class="hidden sm:inline">Log out</span>
+                        <span class="hidden sm:inline uppercase tracking-wider">Log out</span>
                     </button>
                 </div>
             </div>
         </header>
 
-        <section class="relative z-10 mx-auto flex w-full max-w-5xl flex-1 px-5 py-6 sm:px-6 lg:px-8 lg:py-10">
-            <div class="w-full rounded-[32px] bg-[#f0f3f6] shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6]">
-                <div class="border-b border-slate-200/80 px-6 py-5 sm:px-8">
-                    <div class="space-y-3">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span class="inline-flex rounded-full bg-[var(--workspace-soft)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--workspace-ink)]">
-                                {{ step === 'entity' ? 'Step 1 of 2' : 'Step 2 of 2' }}
-                            </span>
-                            <span class="inline-flex rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
-                                {{ step === 'entity' ? `${entityCount} organizations` : `${plantCount} facilities` }}
-                            </span>
-                        </div>
+        <!-- Main Body -->
+        <section class="relative z-10 mx-auto w-full max-w-6xl flex-1 px-6 py-10 flex flex-col justify-center">
+            <!-- Breadcrumbs / Steps Indicator -->
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-10">
+                <div class="flex items-center gap-3">
+                    <button
+                        v-if="step === 'plant'"
+                        type="button"
+                        @click="goToEntityStep"
+                        class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-indigo-600 bg-white border border-slate-100 rounded-full shadow-sm hover:shadow-md transition duration-300"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+                        </svg>
+                        Organizations
+                    </button>
 
-                        <div>
-                            <h2 class="text-2xl font-black tracking-tight text-slate-950 sm:text-[2rem]">
-                                {{ step === 'entity' ? 'Select an organization' : 'Select a facility' }}
-                            </h2>
-                            <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                                {{ stepDescription }}
-                            </p>
-                        </div>
-                    </div>
+                    <h2 class="text-2xl font-extrabold tracking-tight text-slate-900">
+                        {{ step === 'entity' ? 'Organizations' : `${selectedEntityName} / Facilities` }}
+                    </h2>
                 </div>
 
-                <div class="px-6 py-6 sm:px-8 sm:py-7">
-                    <div v-if="errorMessage" class="mb-5 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="mt-0.5 size-5 shrink-0">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                <div class="flex items-center gap-3">
+                    <!-- Remember selection toggle (only in Plant step) -->
+                    <label v-if="step === 'plant'" class="flex items-center gap-3 bg-white border border-slate-100 rounded-2xl px-4 py-2 shadow-sm cursor-pointer select-none">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Remember selection</span>
+                        <div class="relative shrink-0">
+                            <input id="default-toggle" v-model="setAsDefault" type="checkbox" class="peer sr-only" />
+                            <div class="h-6 w-11 rounded-full bg-slate-200 transition peer-checked:bg-indigo-600"></div>
+                            <div class="absolute left-0.5 top-0.5 size-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></div>
+                        </div>
+                    </label>
+
+                    <!-- Search Input -->
+                    <div class="relative w-full sm:w-64">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m0 0a7.5 7.5 0 1 0-10.607 0 7.5 7.5 0 0 0 10.607 0Z" />
                         </svg>
-                        <p>{{ errorMessage }}</p>
-                    </div>
-
-                    <div v-if="step === 'entity'" class="space-y-5">
-                        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                            <label class="relative block w-full lg:max-w-md">
-                                <span class="sr-only">Search organizations</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m0 0a7.5 7.5 0 1 0-10.607 0 7.5 7.5 0 0 0 10.607 0Z" />
-                                </svg>
-                                <input
-                                    v-model="entitySearch"
-                                    type="text"
-                                    placeholder="Search organization"
-                                    class="w-full rounded-2xl border-none bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] py-3 pl-11 pr-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-2 focus:ring-amber-500/20"
-                                />
-                            </label>
-
-                            <div class="flex items-center justify-between gap-3 rounded-2xl border-none bg-[#f0f3f6] shadow-[-4px_-4px_8px_#ffffff,4px_4px_8px_#d1d9e6] px-4 py-3 text-sm text-slate-500 lg:min-w-[220px]">
-                                <span class="font-semibold">Showing {{ filteredEntities.length }} of {{ entityCount }}</span>
-                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Organizations</span>
-                            </div>
-                        </div>
-
-                        <div class="space-y-3">
-                            <button
-                                v-for="eu in filteredEntities"
-                                :key="eu.entity_id"
-                                type="button"
-                                class="group relative block w-full overflow-hidden rounded-[26px] border-none p-5 text-left transition-all duration-300"
-                                :class="[
-                                    eu.is_suspended !== 0
-                                        ? 'bg-rose-50/80 shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6]'
-                                        : 'bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]',
-                                    selectedEntityId === eu.entity_id ? 'ring-2 ring-[var(--workspace-accent)]/20 shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6]' : ''
-                                ]"
-                                @click="selectEntity(eu)"
-                            >
-                                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                    <div class="flex min-w-0 items-start gap-4">
-                                        <div class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                                            <img v-if="eu.entity_logo" :src="`/storage/${eu.entity_logo}`" :alt="eu.entity_name" class="size-full object-contain p-2" />
-                                            <span v-else class="text-base font-black text-[var(--workspace-ink)]">{{ initials(eu.entity_name) }}</span>
-                                        </div>
-
-                                        <div class="min-w-0 space-y-2">
-                                            <div class="flex flex-wrap items-center gap-2">
-                                                <h4
-                                                    class="truncate text-base font-black tracking-tight"
-                                                    :class="eu.is_suspended !== 0 ? 'text-slate-500' : 'text-slate-950'"
-                                                >
-                                                    {{ eu.entity_name }}
-                                                </h4>
-                                                <span
-                                                    v-if="eu.is_active"
-                                                    class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700"
-                                                >
-                                                    Active now
-                                                </span>
-                                            </div>
-
-                                            <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                                                <span>{{ eu.role_name }}</span>
-                                                <span v-if="eu.entity_alias" class="text-slate-300">•</span>
-                                                <span v-if="eu.entity_alias">{{ eu.entity_alias }}</span>
-                                            </div>
-
-                                            <div class="flex flex-wrap items-center gap-2">
-                                                <span
-                                                    v-if="eu.is_suspended === -1"
-                                                    class="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-amber-700"
-                                                >
-                                                    Maintenance hold
-                                                </span>
-                                                <span
-                                                    v-else-if="eu.is_suspended === 1"
-                                                    class="inline-flex rounded-full border border-rose-200 bg-rose-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-rose-700"
-                                                >
-                                                    Inactive
-                                                </span>
-                                                <span
-                                                    v-else
-                                                    class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500"
-                                                >
-                                                    Ready to enter
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex items-center gap-2 sm:pl-3" @click.stop>
-                                        <button
-                                            type="button"
-                                            @click="toggleSuspension(eu)"
-                                            class="inline-flex size-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
-                                            :title="eu.is_suspended !== 0 ? 'Reactivate organization' : 'Suspend organization'"
-                                        >
-                                            <svg v-if="eu.is_suspended !== 0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                                            </svg>
-                                            <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                                            </svg>
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            @click="openEntityDetails(eu)"
-                                            class="inline-flex size-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
-                                            title="View organization details"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9h.008v.008H12V9Zm0 3v3.75" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div v-if="switchingEntityId === eu.entity_id" class="absolute inset-0 flex items-center justify-center bg-white/85 backdrop-blur-sm">
-                                    <div class="inline-flex items-center gap-3 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[var(--workspace-ink)] shadow-lg">
-                                        <div class="size-4 animate-spin rounded-full border-2 border-[var(--workspace-accent)] border-t-transparent"></div>
-                                        Loading facilities...
-                                    </div>
-                                </div>
-                            </button>
-                        </div>
-
-                        <div v-if="filteredEntities.length === 0" class="rounded-[26px] border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center">
-                            <div class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-6">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m0 0a7.5 7.5 0 1 0-10.607 0 7.5 7.5 0 0 0 10.607 0Z" />
-                                </svg>
-                            </div>
-                            <h4 class="mt-4 text-base font-black tracking-tight text-slate-900">No organizations found</h4>
-                            <p class="mt-2 text-sm leading-6 text-slate-500">Try a different name, alias, or ID to find the right workspace.</p>
-                        </div>
-                    </div>
-
-                    <div v-else class="space-y-5">
-                        <div class="flex flex-col gap-4 rounded-[28px] border border-slate-200/80 bg-white/75 p-5 md:flex-row md:items-center md:justify-between">
-                            <div class="min-w-0">
-                                <button
-                                    type="button"
-                                    @click="goToEntityStep"
-                                    class="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.22em] text-slate-500 transition hover:text-[var(--workspace-ink)]"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-                                    </svg>
-                                    Change organization
-                                </button>
-                                <h4 class="mt-3 truncate text-xl font-black tracking-tight text-slate-950">{{ selectedEntityName }}</h4>
-                            </div>
-
-                            <label class="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-[var(--workspace-soft)] px-4 py-3 md:min-w-[260px]">
-                                <div>
-                                    <p class="text-sm font-bold text-slate-900">Remember this facility</p>
-                                    <p class="text-xs leading-5 text-slate-500">Save it as your default workspace.</p>
-                                </div>
-                                <div class="relative shrink-0">
-                                    <input id="default-toggle" v-model="setAsDefault" type="checkbox" class="peer sr-only" />
-                                    <div class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-[var(--workspace-accent)]"></div>
-                                    <div class="absolute left-1 top-1 size-5 rounded-full bg-white shadow transition peer-checked:translate-x-5"></div>
-                                </div>
-                            </label>
-                        </div>
-
-                        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                            <label class="relative block w-full lg:max-w-md">
-                                <span class="sr-only">Search facilities</span>
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m0 0a7.5 7.5 0 1 0-10.607 0 7.5 7.5 0 0 0 10.607 0Z" />
-                                </svg>
-                                <input
-                                    v-model="plantSearch"
-                                    type="text"
-                                    placeholder="Search facility"
-                                    class="w-full rounded-2xl border-none bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] py-3 pl-11 pr-4 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-2 focus:ring-amber-500/20"
-                                />
-                            </label>
-
-                            <div class="flex items-center justify-between gap-3 rounded-2xl border-none bg-[#f0f3f6] shadow-[-4px_-4px_8px_#ffffff,4px_4px_8px_#d1d9e6] px-4 py-3 text-sm text-slate-500 lg:min-w-[220px]">
-                                <span class="font-semibold">Showing {{ filteredPlants.length }} of {{ plantCount }}</span>
-                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Facilities</span>
-                            </div>
-                        </div>
-
-                        <div class="space-y-3">
-                            <button
-                                v-for="plant in filteredPlants"
-                                :key="plant.id"
-                                type="button"
-                                class="group relative block w-full overflow-hidden rounded-[26px] border-none p-5 text-left transition-all duration-300"
-                                :class="[
-                                    plant.is_active === -1
-                                        ? 'bg-rose-50/80 shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6]'
-                                        : 'bg-[#f0f3f6] shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]',
-                                    defaults.plant_id === plant.id ? 'ring-2 ring-[var(--workspace-accent)]/20' : ''
-                                ]"
-                                @click="selectPlant(plant)"
-                            >
-                                <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                                    <div class="flex min-w-0 items-start gap-4">
-                                        <div class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                                            <img v-if="plant.logo_path" :src="`/storage/${plant.logo_path}`" :alt="plant.name" class="size-full object-contain p-2" />
-                                            <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-6 text-[var(--workspace-ink)]">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205 3 1m1.5.5-1.5-.5M6.75 7.364V3h-3v18m3-13.636 10.5-3.819" />
-                                            </svg>
-                                        </div>
-
-                                        <div class="min-w-0 space-y-2">
-                                            <div class="flex flex-wrap items-center gap-2">
-                                                <h4
-                                                    class="truncate text-base font-black tracking-tight"
-                                                    :class="plant.is_active === -1 ? 'text-slate-500' : 'text-slate-950'"
-                                                >
-                                                    {{ plant.name }}
-                                                </h4>
-                                                <span
-                                                    v-if="defaults.plant_id === plant.id"
-                                                    class="inline-flex rounded-full border border-[var(--workspace-accent)]/20 bg-[var(--workspace-soft)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--workspace-ink)]"
-                                                >
-                                                    Default
-                                                </span>
-                                            </div>
-
-                                            <div class="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                                                <span>{{ plant.code || 'Facility' }}</span>
-                                                <span v-if="plant.is_main" class="text-slate-300">•</span>
-                                                <span v-if="plant.is_main">Main unit</span>
-                                            </div>
-
-                                            <div class="flex flex-wrap items-center gap-2">
-                                                <span
-                                                    v-if="plant.is_active === -1"
-                                                    class="inline-flex rounded-full border border-rose-200 bg-rose-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-rose-700"
-                                                >
-                                                    Inactive
-                                                </span>
-                                                <span
-                                                    v-else-if="plant.is_main"
-                                                    class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700"
-                                                >
-                                                    Primary facility
-                                                </span>
-                                                <span
-                                                    v-else
-                                                    class="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500"
-                                                >
-                                                    Ready to enter
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="flex items-center gap-2 sm:pl-3" @click.stop>
-                                        <button
-                                            type="button"
-                                            @click="openPlantDetails(plant)"
-                                            class="inline-flex size-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700"
-                                            title="View facility details"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9h.008v.008H12V9Zm0 3v3.75" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div v-if="switchingPlantId === plant.id" class="absolute inset-0 flex items-center justify-center bg-white/88 backdrop-blur-sm">
-                                    <div class="inline-flex items-center gap-3 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[var(--workspace-ink)] shadow-lg">
-                                        <div class="size-4 animate-spin rounded-full border-2 border-[var(--workspace-accent)] border-t-transparent"></div>
-                                        Opening dashboard...
-                                    </div>
-                                </div>
-                            </button>
-                        </div>
-
-                        <div v-if="filteredPlants.length === 0" class="rounded-[26px] border border-dashed border-slate-300 bg-white/70 px-6 py-12 text-center">
-                            <div class="mx-auto flex size-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-6">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 21V7.5A2.25 2.25 0 0 1 6.75 5.25h10.5A2.25 2.25 0 0 1 19.5 7.5V21M9 10.5h6M9 14.25h6M9 18h6" />
-                                </svg>
-                            </div>
-                            <h4 class="mt-4 text-base font-black tracking-tight text-slate-900">No facilities found</h4>
-                            <p class="mt-2 text-sm leading-6 text-slate-500">
-                                {{ plantCount === 0 ? 'No active facilities are assigned to this organization yet.' : 'Try a different facility name or code.' }}
-                            </p>
-                        </div>
+                        <input
+                            v-if="step === 'entity'"
+                            v-model="entitySearch"
+                            type="text"
+                            placeholder="Search organization..."
+                            class="w-full rounded-2xl border border-slate-100 bg-white py-2 pl-10 pr-4 text-xs font-bold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                        />
+                        <input
+                            v-else
+                            v-model="plantSearch"
+                            type="text"
+                            placeholder="Search facility..."
+                            class="w-full rounded-2xl border border-slate-100 bg-white py-2 pl-10 pr-4 text-xs font-bold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                        />
                     </div>
                 </div>
             </div>
+
+            <!-- Error message banner -->
+            <div v-if="errorMessage" class="mb-8 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 max-w-4xl mx-auto w-full">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="mt-0.5 size-5 shrink-0">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                </svg>
+                <p class="font-semibold">{{ errorMessage }}</p>
+            </div>
+
+            <!-- Zoho-style Apps Grid -->
+            <!-- Step 1: Organizations -->
+            <div v-if="step === 'entity'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8 justify-center">
+                <div
+                    v-for="(eu, index) in filteredEntities"
+                    :key="eu.entity_id"
+                    class="group relative flex flex-col items-center justify-center p-6 bg-transparent border border-transparent rounded-[24px] transition-all duration-300 hover:bg-slate-100/60 hover:border-slate-200/50 hover:-translate-y-1 cursor-pointer select-none"
+                    :class="[
+                        eu.is_suspended !== 0 ? 'opacity-65' : '',
+                        selectedEntityId === eu.entity_id ? 'bg-indigo-50/40 border-indigo-100/60 shadow-[0_4px_20px_-10px_rgba(79,70,229,0.15)]' : ''
+                    ]"
+                    @click="selectEntity(eu)"
+                >
+                    <!-- Small hovering utility actions at top-right of the card -->
+                    <div class="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20" @click.stop>
+                        <button
+                            type="button"
+                            @click="toggleSuspension(eu)"
+                            class="inline-flex size-7 items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-100 shadow-sm transition"
+                            :title="eu.is_suspended !== 0 ? 'Reactivate' : 'Suspend'"
+                        >
+                            <svg v-if="eu.is_suspended !== 0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                            </svg>
+                            <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                            </svg>
+                        </button>
+                        <button
+                            type="button"
+                            @click="openEntityDetails(eu)"
+                            class="inline-flex size-7 items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 shadow-sm transition"
+                            title="Details"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Organization logo or outline vector icon -->
+                    <div class="size-16 flex items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110 mb-3 select-none pointer-events-none">
+                        <img v-if="eu.entity_logo" :src="`/storage/${eu.entity_logo}`" :alt="eu.entity_name" class="size-full object-contain p-1" />
+                        <div v-else class="size-full flex items-center justify-center text-slate-700" v-html="getWorkspaceIcon(index)"></div>
+                    </div>
+
+                    <!-- Label -->
+                    <h3 class="text-[13px] font-medium text-slate-700 tracking-wide text-center group-hover:text-slate-900 w-full truncate mb-0.5">
+                        {{ eu.entity_name }}
+                    </h3>
+                    <p class="text-[10px] text-slate-400 font-medium tracking-wide text-center w-full truncate mb-2">
+                        {{ eu.entity_alias || eu.role_name }}
+                    </p>
+
+                    <!-- Maintenance / Inactive markers -->
+                    <span v-if="eu.is_suspended !== 0" class="px-2 py-0.5 rounded-full bg-red-50 border border-red-100 text-[8px] font-black uppercase tracking-wider text-red-600 scale-90">
+                        Suspended
+                    </span>
+                    <span v-else-if="eu.is_active" class="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-[8px] font-black uppercase tracking-wider text-emerald-600 scale-90">
+                        Active
+                    </span>
+
+                    <!-- Loading overlay for specific card -->
+                    <div v-if="switchingEntityId === eu.entity_id" class="absolute inset-0 flex items-center justify-center bg-white/95 backdrop-blur-sm rounded-[24px] z-10">
+                        <div class="size-6 animate-spin rounded-full border-3 border-indigo-600 border-t-transparent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty state Organizations -->
+            <div v-if="step === 'entity' && filteredEntities.length === 0" class="max-w-md mx-auto rounded-[32px] border border-dashed border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+                <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m0 0a7.5 7.5 0 1 0-10.607 0 7.5 7.5 0 0 0 10.607 0Z" />
+                    </svg>
+                </div>
+                <h4 class="text-sm font-bold text-slate-900 tracking-tight">No organizations found</h4>
+                <p class="mt-2 text-xs leading-5 text-slate-500">We couldn't find any organization matching "{{ entitySearch }}".</p>
+            </div>
+
+            <!-- Step 2: Facilities -->
+            <div v-if="step === 'plant'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8 justify-center">
+                <div
+                    v-for="(plant, index) in filteredPlants"
+                    :key="plant.id"
+                    class="group relative flex flex-col items-center justify-center p-6 bg-transparent border border-transparent rounded-[24px] transition-all duration-300 hover:bg-slate-100/60 hover:border-slate-200/50 hover:-translate-y-1 cursor-pointer select-none"
+                    :class="[
+                        plant.is_active === -1 ? 'opacity-65' : '',
+                        defaults.plant_id === plant.id ? 'bg-indigo-50/40 border-indigo-100/60 shadow-[0_4px_20px_-10px_rgba(79,70,229,0.15)]' : ''
+                    ]"
+                    @click="selectPlant(plant)"
+                >
+                    <!-- Small hovering utility actions at top-right of the card -->
+                    <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20" @click.stop>
+                        <button
+                            type="button"
+                            @click="openPlantDetails(plant)"
+                            class="inline-flex size-7 items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 shadow-sm transition"
+                            title="Details"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Facility logo or outline building icon -->
+                    <div class="size-16 flex items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110 mb-3 select-none pointer-events-none">
+                        <img v-if="plant.logo_path" :src="`/storage/${plant.logo_path}`" :alt="plant.name" class="size-full object-contain p-1" />
+                        <div v-else class="size-full flex items-center justify-center text-slate-700" v-html="getWorkspaceIcon(index + 3)"></div>
+                    </div>
+
+                    <!-- Label -->
+                    <h3 class="text-[13px] font-medium text-slate-700 tracking-wide text-center group-hover:text-slate-900 w-full truncate mb-0.5">
+                        {{ plant.name }}
+                    </h3>
+                    <p class="text-[10px] text-slate-400 font-medium tracking-wide text-center w-full truncate mb-2">
+                        {{ plant.code || 'SYS-FACILITY' }}
+                    </p>
+
+                    <!-- Default / Inactive markers -->
+                    <span v-if="defaults.plant_id === plant.id" class="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-[8px] font-black uppercase tracking-wider text-indigo-600 scale-90">
+                        Default
+                    </span>
+                    <span v-else-if="plant.is_active === -1" class="px-2 py-0.5 rounded-full bg-red-50 border border-red-100 text-[8px] font-black uppercase tracking-wider text-red-600 scale-90">
+                        Inactive
+                    </span>
+
+                    <!-- Loading overlay for specific card -->
+                    <div v-if="switchingPlantId === plant.id" class="absolute inset-0 flex items-center justify-center bg-white/95 backdrop-blur-sm rounded-[24px] z-10">
+                        <div class="size-6 animate-spin rounded-full border-3 border-indigo-600 border-t-transparent"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty state Facilities -->
+            <div v-if="step === 'plant' && filteredPlants.length === 0" class="max-w-md mx-auto rounded-[32px] border border-dashed border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+                <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 21V7.5A2.25 2.25 0 0 1 6.75 5.25h10.5A2.25 2.25 0 0 1 19.5 7.5V21M9 10.5h6M9 14.25h6M9 18h6" />
+                    </svg>
+                </div>
+                <h4 class="text-sm font-bold text-slate-900 tracking-tight">No facilities found</h4>
+                <p class="mt-2 text-xs leading-5 text-slate-500">
+                    {{ plantCount === 0 ? 'No active facilities are assigned to this organization.' : 'Try a different facility name or code.' }}
+                </p>
+            </div>
         </section>
 
-        <div v-if="detailModal.show" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm">
-            <div class="w-full max-w-xl overflow-hidden rounded-[30px] border border-white/70 bg-white shadow-[0_32px_100px_-42px_rgba(15,23,42,0.8)]">
-                <div class="border-b border-slate-200 bg-slate-50/80 px-6 py-5">
-                    <div class="flex items-start justify-between gap-4">
+        <!-- Premium Workspace Details Modal -->
+        <div v-if="detailModal.show" class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/20 p-4 backdrop-blur-md">
+            <div class="w-full max-w-md overflow-hidden rounded-[36px] bg-white/90 border border-white/60 shadow-[0_30px_70px_-20px_rgba(15,23,42,0.3)]">
+                <div class="px-6 pt-8 pb-4">
+                    <div class="flex items-center justify-between gap-4">
                         <div>
-                            <p class="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">{{ detailModal.title }}</p>
-                            <h3 class="mt-1 text-xl font-black tracking-tight text-slate-950">{{ detailModal.name }}</h3>
+                            <p class="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">{{ detailModal.title }} details</p>
+                            <h3 class="text-xl font-extrabold tracking-tight text-slate-950 mt-1">{{ detailModal.name }}</h3>
                         </div>
                         <button
                             type="button"
                             @click="detailModal.show = false"
-                            class="inline-flex size-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+                            class="inline-flex size-9 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-4.5">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
                 </div>
 
-                <div class="space-y-6 px-6 py-6">
+                <div class="px-6 py-4 space-y-6">
                     <div class="flex items-center gap-4">
-                        <div class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                            <img v-if="detailModal.logo" :src="detailModal.logo" :alt="detailModal.name" class="size-full object-contain p-2" />
-                            <span v-else class="text-lg font-black text-[var(--workspace-ink)]">{{ initials(detailModal.name) }}</span>
+                        <div class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-100 bg-slate-50">
+                            <img v-if="detailModal.logo" :src="detailModal.logo" :alt="detailModal.name" class="size-full object-contain p-1.5" />
+                            <span v-else class="text-lg font-black text-indigo-600">{{ initials(detailModal.name) }}</span>
                         </div>
                         <div class="min-w-0">
-                            <p class="truncate text-lg font-black tracking-tight text-slate-950">{{ detailModal.name }}</p>
-                            <p class="mt-1 text-sm text-slate-500">
+                            <p class="text-sm font-extrabold tracking-tight text-slate-900 truncate">{{ detailModal.name }}</p>
+                            <p class="text-xs text-slate-500 mt-0.5 truncate">
                                 {{ detailModal.type === 'entity' ? detailModal.role : `Facility code: ${detailModal.code}` }}
                             </p>
                         </div>
                     </div>
 
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">System ID</p>
-                            <p class="mt-2 text-base font-black text-slate-950">{{ detailModal.id }}</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                            <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">System ID</p>
+                            <p class="text-sm font-extrabold text-slate-800 mt-1">#{{ detailModal.id }}</p>
                         </div>
-                        <div class="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                                {{ detailModal.type === 'entity' ? 'Alias' : 'Type' }}
+                        <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
+                            <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                {{ detailModal.type === 'entity' ? 'Alias' : 'Status' }}
                             </p>
-                            <p class="mt-2 text-sm font-bold text-slate-900">
+                            <p class="text-sm font-extrabold text-slate-800 mt-1 truncate">
                                 {{ detailModal.type === 'entity' ? detailModal.alias : detailModal.is_main ? 'Primary facility' : 'Standard facility' }}
                             </p>
                         </div>
                     </div>
 
                     <div class="space-y-3">
-                        <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                            <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Address</p>
-                            <p class="mt-2 text-sm leading-6 text-slate-700">{{ detailModal.address || 'No address available.' }}</p>
+                        <div class="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+                            <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Registered Address</p>
+                            <p class="text-xs leading-5 text-slate-600 mt-1.5">{{ detailModal.address || 'No registered address data.' }}</p>
                         </div>
-                        <div class="grid gap-3 sm:grid-cols-2">
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                                <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Phone</p>
-                                <p class="mt-2 text-sm font-semibold text-slate-700">{{ detailModal.phone || 'N/A' }}</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+                                <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Phone</p>
+                                <p class="text-xs font-semibold text-slate-600 mt-1.5">{{ detailModal.phone || 'Not available' }}</p>
                             </div>
-                            <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                                <p class="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">Email</p>
-                                <p class="mt-2 break-all text-sm font-semibold text-slate-700">{{ detailModal.email || 'N/A' }}</p>
+                            <div class="rounded-2xl border border-slate-100 bg-white px-4 py-3">
+                                <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Email</p>
+                                <p class="text-xs font-semibold text-slate-600 mt-1.5 break-all">{{ detailModal.email || 'Not available' }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex justify-end border-t border-slate-200 bg-slate-50/70 px-6 py-4">
+                <div class="flex justify-end border-t border-slate-100 bg-slate-50/50 px-6 py-4 mt-6">
                     <button
                         type="button"
                         @click="detailModal.show = false"
-                        class="rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                        class="rounded-2xl bg-slate-900 px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white hover:bg-slate-800 transition"
                     >
                         Close
                     </button>
@@ -514,6 +431,154 @@ const detailModal = ref({
     is_main: false,
 });
 
+// Outlined SVG paths (like Zoho-style brand outline icons)
+const iconList = [
+    // 1. Chart / Analytics
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 52H52" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+        <path d="M16 52V20" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+        <path d="M16 40L28 24L40 34L52 14" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M42 14H52V24" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+    // 2. Books
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18 10H38C46 10 46 26 38 26C48 26 48 48 38 48H18V10Z" stroke="#2d7bf4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="30" cy="18" r="4.5" fill="#ef4444"/>
+        <circle cx="30" cy="38" r="4.5" fill="#1fa851"/>
+        <line x1="18" y1="26" x2="34" y2="26" stroke="#2d7bf4" stroke-width="3"/>
+    </svg>`,
+    // 3. Calendar
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="12" y="16" width="40" height="36" rx="6" stroke="#2d7bf4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="22" y1="10" x2="22" y2="18" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round"/>
+        <line x1="42" y1="10" x2="42" y2="18" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round"/>
+        <line x1="12" y1="26" x2="52" y2="26" stroke="#2d7bf4" stroke-width="3"/>
+        <circle cx="32" cy="38" r="5" fill="#f4b301"/>
+    </svg>`,
+    // 4. Connect / Network
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="14" r="7" stroke="#2d7bf4" stroke-width="3"/>
+        <circle cx="16" cy="42" r="7" stroke="#ef4444" stroke-width="3"/>
+        <circle cx="48" cy="42" r="7" stroke="#f4b301" stroke-width="3"/>
+        <line x1="27.5" y1="19.5" x2="20.5" y2="36.5" stroke="#475569" stroke-width="3"/>
+        <line x1="36.5" y1="19.5" x2="43.5" y2="36.5" stroke="#475569" stroke-width="3"/>
+        <line x1="23" y1="42" x2="41" y2="42" stroke="#1fa851" stroke-width="3" stroke-dasharray="2 2"/>
+    </svg>`,
+    // 5. Creator
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="10" width="30" height="30" rx="6" stroke="#2d7bf4" stroke-width="3.5"/>
+        <rect x="24" y="24" width="30" height="30" rx="6" stroke="#ef4444" stroke-width="3.5"/>
+        <circle cx="40" cy="40" r="3.5" fill="#f4b301"/>
+    </svg>`,
+    // 6. CRM
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22 22C12 22 12 42 22 42C28 42 36 22 42 22C52 22 52 42 42 42C36 42 28 22 22 22Z" stroke="#2d7bf4" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M32 32L38 38" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+        <path d="M32 32L26 26" stroke="#1fa851" stroke-width="3" stroke-linecap="round"/>
+    </svg>`,
+    // 7. Desk / Phone
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M16 12H24L28 22L22 26C26 34 30 38 38 42L42 36L52 40V48C52 50.2 50.2 52 48 52C26 52 12 38 12 16C12 13.8 13.8 12 16 12Z" stroke="#1fa851" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M38 16C44 18 48 22 50 28" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>`,
+    // 8. Inventory
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="52" r="4.5" fill="#ef4444"/>
+        <circle cx="48" cy="52" r="4.5" fill="#ef4444"/>
+        <path d="M6 12H14L22 40H48L56 18H18" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <line x1="30" y1="24" x2="44" y2="24" stroke="#f4b301" stroke-width="3" stroke-linecap="round"/>
+    </svg>`,
+    // 9. Invoice
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="12" y="10" width="40" height="44" rx="6" stroke="#2d7bf4" stroke-width="3"/>
+        <line x1="20" y1="20" x2="44" y2="20" stroke="#2d7bf4" stroke-width="3" stroke-linecap="round"/>
+        <line x1="20" y1="30" x2="44" y2="30" stroke="#2d7bf4" stroke-width="3" stroke-linecap="round"/>
+        <line x1="20" y1="40" x2="34" y2="40" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round"/>
+    </svg>`,
+    // 10. Mail
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="14" width="44" height="36" rx="6" stroke="#2d7bf4" stroke-width="3"/>
+        <path d="M10 16L32 32L54 16" stroke="#ef4444" stroke-width="3" stroke-linejoin="round"/>
+        <line x1="10" y1="48" x2="24" y2="34" stroke="#2d7bf4" stroke-width="3"/>
+        <line x1="54" y1="48" x2="40" y2="34" stroke="#2d7bf4" stroke-width="3"/>
+    </svg>`,
+    // 11. Meeting
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="20" r="10" stroke="#2d7bf4" stroke-width="3"/>
+        <circle cx="20" cy="38" r="10" stroke="#ef4444" stroke-width="3"/>
+        <circle cx="44" cy="38" r="10" stroke="#1fa851" stroke-width="3"/>
+        <circle cx="32" cy="32" r="4" fill="#f4b301"/>
+    </svg>`,
+    // 12. Notebook
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="16" y="10" width="36" height="44" rx="6" stroke="#f37021" stroke-width="3"/>
+        <line x1="10" y1="18" x2="16" y2="18" stroke="#2d7bf4" stroke-width="3" stroke-linecap="round"/>
+        <line x1="10" y1="28" x2="16" y2="28" stroke="#2d7bf4" stroke-width="3" stroke-linecap="round"/>
+        <line x1="10" y1="38" x2="16" y2="38" stroke="#2d7bf4" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="34" cy="32" r="3.5" fill="#ef4444"/>
+    </svg>`,
+    // 13. PDF Editor
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 10H38L50 22V54H14V10Z" stroke="#ef4444" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M38 10V22H50" stroke="#ef4444" stroke-width="3"/>
+        <path d="M24 38L42 20" stroke="#2d7bf4" stroke-width="3.5" stroke-linecap="round"/>
+        <circle cx="24" cy="38" r="2.5" fill="#2d7bf4"/>
+    </svg>`,
+    // 14. People
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="32" r="6" stroke="#2d7bf4" stroke-width="3"/>
+        <path d="M32 8L48 18V38L32 48L16 38V18L32 8Z" stroke="#1fa851" stroke-width="3" stroke-linejoin="round"/>
+        <circle cx="32" cy="8" r="4.5" fill="#ef4444"/>
+        <circle cx="48" cy="38" r="4.5" fill="#f4b301"/>
+        <circle cx="16" cy="38" r="4.5" fill="#2d7bf4"/>
+    </svg>`,
+    // 15. Projects
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 32L24 44L48 16" stroke="#1fa851" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M20 38L28 46L52 18" stroke="#2d7bf4" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+    // 16. Sheet
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="12" y="12" width="40" height="40" rx="6" stroke="#1fa851" stroke-width="3"/>
+        <line x1="12" y1="25" x2="52" y2="25" stroke="#1fa851" stroke-width="3"/>
+        <line x1="12" y1="38" x2="52" y2="38" stroke="#1fa851" stroke-width="3"/>
+        <line x1="25" y1="12" x2="25" y2="52" stroke="#1fa851" stroke-width="3"/>
+        <line x1="38" y1="12" x2="38" y2="52" stroke="#1fa851" stroke-width="3"/>
+        <polygon points="42,32 46,30 46,34" fill="#ef4444"/>
+    </svg>`,
+    // 17. Show
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="14" width="44" height="32" rx="6" stroke="#ef4444" stroke-width="3"/>
+        <path d="M27 22L37 28L27 34V22Z" fill="#2d7bf4"/>
+        <line x1="16" y1="50" x2="48" y2="50" stroke="#475569" stroke-width="3.5" stroke-linecap="round"/>
+    </svg>`,
+    // 18. Sprints
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="36" cy="14" r="5" stroke="#1fa851" stroke-width="3"/>
+        <path d="M18 28H30L36 42L46 50" stroke="#1fa851" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M24 42L30 30L42 26" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+    // 19. Vault
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="12" y="12" width="40" height="40" rx="8" stroke="#2d7bf4" stroke-width="3"/>
+        <path d="M22 32H42M32 22V42M25 25L39 39M39 25L25 39" stroke="#ef4444" stroke-width="3.5" stroke-linecap="round"/>
+    </svg>`,
+    // 20. WorkDrive
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 14V50H54V20H28L22 14H10Z" stroke="#2d7bf4" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M20 40V32H26V40M30 40V26H36V40M40 40V30H46V40" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+    </svg>`,
+    // 21. Writer
+    `<svg class="size-16 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 10H38L52 24V54H12V10Z" stroke="#2d7bf4" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M38 10V24H52" stroke="#2d7bf4" stroke-width="3"/>
+        <line x1="20" y1="32" x2="44" y2="32" stroke="#1fa851" stroke-width="3" stroke-linecap="round"/>
+        <line x1="20" y1="40" x2="44" y2="40" stroke="#1fa851" stroke-width="3" stroke-linecap="round"/>
+    </svg>`
+];
+
+const getWorkspaceIcon = (index: number) => iconList[index % iconList.length];
+
 const isSystemAdmin = computed(() => {
     const role = page.props.user_role as string | undefined;
     return role === 'Super Administrator' || role === 'Saas Owner' || role === 'Platform Admin';
@@ -529,12 +594,6 @@ const plantCount = computed(() => availablePlants.value.length);
 
 const selectedEntity = computed(() => {
     return props.entityAccess.find((item) => item.entity_id === selectedEntityId.value) || null;
-});
-
-const stepDescription = computed(() => {
-    return step.value === 'entity'
-        ? 'Choose the organization you want to enter.'
-        : 'Choose the facility you want to open.';
 });
 
 const filteredEntities = computed(() => {
@@ -717,19 +776,8 @@ const logout = () => {
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
-:global(:root) {
-    --workspace-bg: #f0f3f6;
-    --workspace-card: rgba(255, 255, 255, 0.82);
-    --workspace-ink: #0f172a;
-    --workspace-accent: #c2410c;
-    --workspace-soft: #ffedd5;
-}
 
 .font-outfit {
     font-family: 'Outfit', sans-serif;
-}
-
-:global(body) {
-    background-color: var(--workspace-bg);
 }
 </style>

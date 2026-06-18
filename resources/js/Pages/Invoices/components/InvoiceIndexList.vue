@@ -6,10 +6,11 @@ import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
+import Dialog from 'primevue/dialog';
 import Swal from 'sweetalert2';
 import { 
     ListBulletIcon, 
-    TruckIcon,
+    TruckIcon, 
     ExclamationCircleIcon,
     CheckCircleIcon
 } from '@heroicons/vue/24/outline';
@@ -119,6 +120,70 @@ const onRowExpand = (event: any) => {
 
 const printInvoice = (data: any) => {
     window.open(route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'view' }), '_blank');
+};
+
+const showShareModal = ref(false);
+const selectedShareInvoice = ref<any>(null);
+const shareExpiry = ref('7');
+const shareLink = ref('');
+const isGeneratingLink = ref(false);
+
+const openShareInvoice = (invoice: any) => {
+    selectedShareInvoice.value = invoice;
+    shareExpiry.value = '7';
+    shareLink.value = '';
+    showShareModal.value = true;
+};
+
+const generateShareLink = async () => {
+    if (!selectedShareInvoice.value) return;
+    
+    isGeneratingLink.value = true;
+    try {
+        const response = await axios.post(route('invoices.share', { id: selectedShareInvoice.value.encrypted_id }), {
+            document_type: 'invoice',
+            document_id: selectedShareInvoice.value.id,
+            expiry: shareExpiry.value
+        });
+        
+        if (response.data && response.data.url) {
+            shareLink.value = response.data.url;
+        } else {
+            Swal.fire('Error', 'Failed to generate share link.', 'error');
+        }
+    } catch (error: any) {
+        console.error('Error sharing invoice:', error);
+        Swal.fire('Error', error.response?.data?.message || 'An error occurred while generating the link.', 'error');
+    } finally {
+        isGeneratingLink.value = false;
+    }
+};
+
+const copyShareLink = async () => {
+    try {
+        await navigator.clipboard.writeText(shareLink.value);
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Share link copied to clipboard!',
+            showConfirmButton: false,
+            timer: 2000
+        });
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+    }
+};
+
+const shareWhatsApp = () => {
+    const text = encodeURIComponent(`Here is the link to view the invoice: ${shareLink.value}`);
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+};
+
+const shareEmail = () => {
+    const subject = encodeURIComponent(`Invoice #${selectedShareInvoice.value?.full_number || ''}`);
+    const body = encodeURIComponent(`Dear Customer,\n\nPlease find the secure link to view your invoice online:\n\n${shareLink.value}\n\nThank you.`);
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
 };
 
 </script>
@@ -259,6 +324,12 @@ const printInvoice = (data: any) => {
                             title="Print Invoice"
                         />
                         <Button 
+                            icon="pi pi-share-alt" 
+                            text rounded severity="info" 
+                            @click.stop="openShareInvoice(slotProps.data)"
+                            title="Share Invoice"
+                        />
+                        <Button 
                             icon="pi pi-pencil" 
                             text rounded severity="info" 
                             @click.stop="toggleEdit(slotProps.data)" 
@@ -299,5 +370,93 @@ const printInvoice = (data: any) => {
                 </div>
             </template>
         </BaseDataTable>
+
+        <!-- Premium Share Invoice Dialog -->
+        <Dialog v-model:visible="showShareModal" modal header="Share Invoice" :style="{ width: '450px' }" class="premium-dialog">
+            <div class="p-2">
+                <p class="text-xs text-slate-500 mb-4">
+                    Generate a secure, read-only link to share this invoice with your customer.
+                </p>
+
+                <!-- Expiry Options -->
+                <div class="mb-5">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Link Expiry</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button 
+                            v-for="opt in [
+                                { label: '1 Day', value: '1' },
+                                { label: '7 Days', value: '7' },
+                                { label: '30 Days', value: '30' },
+                                { label: 'Never', value: '0' }
+                            ]" 
+                            :key="opt.value"
+                            type="button"
+                            @click="shareExpiry = opt.value"
+                            class="px-2 py-2 text-xs font-semibold rounded-lg border text-center transition-all"
+                            :class="[
+                                shareExpiry === opt.value
+                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                            ]"
+                        >
+                            {{ opt.label }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Action Button or Generated Link Display -->
+                <div v-if="!shareLink" class="mt-6 flex justify-end gap-2">
+                    <Button label="Cancel" icon="pi pi-times" text severity="secondary" @click="showShareModal = false" class="!text-xs font-bold uppercase" />
+                    <Button 
+                        label="Generate Link" 
+                        icon="pi pi-link" 
+                        severity="primary" 
+                        @click="generateShareLink" 
+                        :loading="isGeneratingLink"
+                        class="!text-xs font-bold uppercase bg-indigo-600 hover:bg-indigo-700 text-white border-0" 
+                    />
+                </div>
+
+                <div v-else class="mt-6 space-y-4 animate-in fade-in duration-200">
+                    <!-- Link Textbox -->
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Secure Share Link</label>
+                        <div class="flex gap-2">
+                            <input 
+                                type="text" 
+                                readonly 
+                                :value="shareLink" 
+                                class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-slate-300 font-mono focus:outline-none"
+                            />
+                            <button 
+                                @click="copyShareLink"
+                                class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                            >
+                                <i class="pi pi-copy"></i>
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Social Share Action Buttons -->
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
+                        <button 
+                            @click="shareWhatsApp"
+                            class="flex-1 py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                            <i class="pi pi-whatsapp text-sm"></i>
+                            WhatsApp
+                        </button>
+                        <button 
+                            @click="shareEmail"
+                            class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                            <i class="pi pi-envelope text-sm"></i>
+                            Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Dialog>
     </div>
 </template>

@@ -117,12 +117,12 @@ class Invoice extends Model
                 ]);
             }
             // Reverse Dispatch Status if applicable
-            \App\Models\DispatchStatus::where('invoice_id', $m->id)->update([
-                'invoice_id'     => null,
-                'invoice_number' => null,
-                'invoice_date'   => null,
-                'invoice_status' => 0,
-            ]);
+            $dispatches = \App\Models\Dispatch::whereHas('status', function ($q) use ($m) {
+                $q->where('invoice_id', $m->id);
+            })->get();
+            foreach ($dispatches as $dispatch) {
+                $dispatch->resetInvoice();
+            }
         });
     }
 
@@ -517,11 +517,11 @@ class Invoice extends Model
                 'invoice_type'     => $type,
                 'invoice_label'    => $params['invoice_label'] ?? null,
                 'ref_id'           => $source->id,
-                'ref_title'        => $params['ref_title'] ?? $source->po_number ?? $source->so_number ?? $source->ref_no,
+                'ref_title'        => null,
                 'invoice_date'     => $params['invoice_date'] ?? now(),
                 'due_date'         => $params['due_date'] ?? $source->due_date,
                 'subtotal'         => $subtotal,
-                'global_discount'   => $discountTotal,
+                'global_discount'  => $discountTotal,
                 'tax_amount'       => $taxAmount,
                 'adjustment'       => $adjustment,
                 'shipping_charges' => $shippingCharges,
@@ -532,7 +532,7 @@ class Invoice extends Model
                 'created_by'       => $userId,
                 'updated_by'       => $userId,
             ]);
-
+ 
             // 2. Create Invoice Items
             foreach ($itemsData as $itemData) {
                 $invoice->items()->create($itemData);
@@ -546,19 +546,7 @@ class Invoice extends Model
                 $invoice->postToAccounting();
             }
 
-            // 5. Update Source Status if applicable (e.g. Dispatch)
-            if ($source instanceof \App\Models\Dispatch) {
-                $source->status()->updateOrCreate(
-                    ['dispatch_id' => $source->id],
-                    [
-                        'plant_id'       => $source->plant_id,
-                        'invoice_id'     => $invoice->id,
-                        'invoice_number' => $invoice->invoice_number,
-                        'invoice_date'   => $invoice->invoice_date,
-                        'invoice_status' => 1,
-                    ]
-                );
-            }
+           
 
             return $invoice;
         });

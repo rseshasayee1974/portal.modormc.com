@@ -77,12 +77,10 @@ class InvoiceController extends Controller
 
             // If dispatch-wise invoicing, update the dispatches with the invoice info
             if ($request->has('dispatch_ids') && is_array($request->dispatch_ids)) {
-                \App\Models\DispatchStatus::whereIn('dispatch_id', $request->dispatch_ids)->update([
-                    'invoice_id'     => $invoice->id,
-                    'invoice_number' => $invoice->invoice_number,
-                    'invoice_date'   => $invoice->invoice_date,
-                    'invoice_status' => 1,
-                ]);
+                $dispatches = \App\Models\Dispatch::whereIn('id', $request->dispatch_ids)->get();
+                foreach ($dispatches as $dispatch) {
+                    $dispatch->invoice($invoice);
+                }
             }
 
             $invoice->postToAccounting();

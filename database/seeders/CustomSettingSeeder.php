@@ -21,7 +21,10 @@ class CustomSettingSeeder extends Seeder
                     'module_name' => 'batching',
                 ],
                 [
-                    'settings' => ['newweight' => 1]
+                    'settings' => [
+                        'newweight' => 1,
+                        'target_to_actual' => 0
+                    ]
                 ]
             );
             

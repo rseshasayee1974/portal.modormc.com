@@ -8,6 +8,7 @@ import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import ReportScheduleModal from './components/ReportScheduleModal.vue';
+import Dialog from 'primevue/dialog';
 
 // Import child report components
 import StandardLedgerReport from './components/StandardLedgerReport.vue';
@@ -476,6 +477,77 @@ const openScheduleModal = () => {
 onMounted(() => {
     fetchSchedules();
 });
+
+const showShareModal = ref(false);
+const shareExpiry = ref('7');
+const shareLink = ref('');
+const isGeneratingLink = ref(false);
+
+const openShareReport = () => {
+    shareExpiry.value = '7';
+    shareLink.value = '';
+    showShareModal.value = true;
+};
+
+const generateShareLink = async () => {
+    isGeneratingLink.value = true;
+    try {
+        const response = await axios.post(route('reports.share'), {
+            document_type: 'report',
+            expiry: shareExpiry.value,
+            report_params: {
+                type: reportType.value,
+                id: selectedId.value,
+                patron_id: patronId.value,
+                start_date: startDate.value,
+                end_date: endDate.value,
+                valuation_method: valuationMethod.value,
+                gst_type: gstType.value,
+                payment_status: paymentStatus.value,
+            }
+        });
+        
+        if (response.data && response.data.url) {
+            shareLink.value = response.data.url;
+        } else {
+            Swal.fire('Error', 'Failed to generate share link.', 'error');
+        }
+    } catch (error) {
+        console.error('Error sharing report:', error);
+        Swal.fire('Error', error.response?.data?.message || 'An error occurred while generating the link.', 'error');
+    } finally {
+        isGeneratingLink.value = false;
+    }
+};
+
+const copyShareLink = async () => {
+    try {
+        await navigator.clipboard.writeText(shareLink.value);
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Share link copied to clipboard!',
+            showConfirmButton: false,
+            timer: 2000
+        });
+    } catch (err) {
+        console.error('Failed to copy text: ', err);
+    }
+};
+
+const shareWhatsApp = () => {
+    const text = encodeURIComponent(`Here is the link to view the report: ${shareLink.value}`);
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+};
+
+const shareEmail = () => {
+    const reportName = activeReport.value?.name || 'Report';
+    const subject = encodeURIComponent(`${reportName} - Shared Link`);
+    const body = encodeURIComponent(`Dear Customer,\n\nPlease find the secure link to view the report online:\n\n${shareLink.value}\n\nThank you.`);
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+};
+
 </script>
 
 <template>
@@ -706,6 +778,16 @@ onMounted(() => {
                                         Export PDF
                                     </button>
                                     <button 
+                                        @click="openShareReport"
+                                        class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded transition-all flex items-center gap-1.5"
+                                    >
+                                        <!-- Share Icon -->
+                                        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 10.742l-1.996-1.002a2.003 2.003 0 110-3.048l1.996-1.002a2.003 2.003 0 113.417 1.41l-1.996 1.002a2.003 2.003 0 010 3.048l1.996 1.002a2.003 2.003 0 11-3.417-1.41z" />
+                                        </svg>
+                                        Share Report
+                                    </button>
+                                    <button 
                                         @click="generateReport"
                                         :disabled="loading"
                                         class="px-5 py-2 bg-[#0064d2] hover:bg-[#0057b8] text-white text-xs font-bold rounded transition-all flex items-center gap-1.5 shadow-sm"
@@ -828,6 +910,94 @@ onMounted(() => {
             @close="isScheduleModalOpen = false"
             @saved="fetchSchedules"
         />
+
+        <!-- Premium Share Report Dialog -->
+        <Dialog v-model:visible="showShareModal" modal header="Share Report" :style="{ width: '450px' }" class="premium-dialog">
+            <div class="p-2">
+                <p class="text-xs text-slate-500 mb-4">
+                    Generate a secure, read-only link to share this report with your customer.
+                </p>
+
+                <!-- Expiry Options -->
+                <div class="mb-5">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Link Expiry</label>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button 
+                            v-for="opt in [
+                                { label: '1 Day', value: '1' },
+                                { label: '7 Days', value: '7' },
+                                { label: '30 Days', value: '30' },
+                                { label: 'Never', value: '0' }
+                            ]" 
+                            :key="opt.value"
+                            type="button"
+                            @click="shareExpiry = opt.value"
+                            class="px-2 py-2 text-xs font-semibold rounded-lg border text-center transition-all"
+                            :class="[
+                                shareExpiry === opt.value
+                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                            ]"
+                        >
+                            {{ opt.label }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Action Button or Generated Link Display -->
+                <div v-if="!shareLink" class="mt-6 flex justify-end gap-2">
+                    <Button label="Cancel" icon="pi pi-times" text severity="secondary" @click="showShareModal = false" class="!text-xs font-bold uppercase" />
+                    <Button 
+                        label="Generate Link" 
+                        icon="pi pi-link" 
+                        severity="primary" 
+                        @click="generateShareLink" 
+                        :loading="isGeneratingLink"
+                        class="!text-xs font-bold uppercase bg-indigo-600 hover:bg-indigo-700 text-white border-0" 
+                    />
+                </div>
+
+                <div v-else class="mt-6 space-y-4 animate-in fade-in duration-200">
+                    <!-- Link Textbox -->
+                    <div>
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Secure Share Link</label>
+                        <div class="flex gap-2">
+                            <input 
+                                type="text" 
+                                readonly 
+                                :value="shareLink" 
+                                class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-slate-300 font-mono focus:outline-none"
+                            />
+                            <button 
+                                @click="copyShareLink"
+                                class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                            >
+                                <i class="pi pi-copy"></i>
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Social Share Action Buttons -->
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
+                        <button 
+                            @click="shareWhatsApp"
+                            class="flex-1 py-2 px-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                            <i class="pi pi-whatsapp text-sm"></i>
+                            WhatsApp
+                        </button>
+                        <button 
+                            @click="shareEmail"
+                            class="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm"
+                        >
+                            <i class="pi pi-envelope text-sm"></i>
+                            Email
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </Dialog>
     </AppLayout>
 </template>
 

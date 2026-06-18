@@ -162,4 +162,38 @@ class Dispatch extends Model
 
         return "https://wa.me/" . $mobile . "?text=" . urlencode($message);
     }
+
+    /**
+     * Link an invoice to this dispatch and mark it as Invoiced
+     */
+    public function invoice(\App\Models\Invoice $invoice)
+    {
+        $this->update(['dispatch_status' => 'Invoiced']);
+        $this->status()->updateOrCreate(
+            ['dispatch_id' => $this->id],
+            [
+                'plant_id'       => $this->plant_id,
+                'invoice_id'     => $invoice->id,
+                'invoice_number' => $invoice->invoice_number,
+                'invoice_date'   => $invoice->invoice_date,
+                'invoice_status' => 1,
+            ]
+        );
+    }
+
+    /**
+     * Unlink invoice from this dispatch and reset it to Draft
+     */
+    public function resetInvoice()
+    {
+        $this->update(['dispatch_status' => 'Draft']);
+        if ($this->status) {
+            $this->status->update([
+                'invoice_id'     => null,
+                'invoice_number' => null,
+                'invoice_date'   => null,
+                'invoice_status' => 0,
+            ]);
+        }
+    }
 }

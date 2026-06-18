@@ -186,6 +186,7 @@ Route::middleware([
         Route::post('salesorders/{salesOrder}/dispatches', [\App\Http\Controllers\DispatchController::class, 'storeForSalesOrder'])->name('salesorders.dispatches.store');
         Route::resource('workorders', \App\Http\Controllers\WorkOrderController::class);
         Route::resource('batches', \App\Http\Controllers\BatchController::class);
+        Route::post('batches/{batch}/send-email', [\App\Http\Controllers\BatchController::class, 'sendEmail'])->name('batches.send-email');
         Route::get('batches/{batch}/report', [\App\Http\Controllers\BatchController::class, 'report'])->name('batches.report');
         Route::get('batches/{batch}/download', [\App\Http\Controllers\BatchController::class, 'downloadPdf'])->name('batches.download');
         Route::get('batches/{batch}/token', [\App\Http\Controllers\BatchController::class, 'token'])->name('batches.token');
@@ -310,8 +311,10 @@ Route::middleware([
             Route::post('/create-voucher', [\App\Http\Controllers\BankReconciliationController::class, 'createVoucher'])->name('reconciliation.create-voucher');
         });
 
-        // ERP Live Dashboard
-       
+        // Public Document Share Token Generation (Authenticated)
+        Route::post('invoices/{id}/share', [\App\Http\Controllers\InvoiceShareController::class, 'generateLink'])->name('invoices.share');
+        Route::post('reports/share', [\App\Http\Controllers\InvoiceShareController::class, 'generateLink'])->name('reports.share');
+        Route::post('batches/{id}/share', [\App\Http\Controllers\InvoiceShareController::class, 'generateLink'])->name('batches.share');
     });
 
     // Bridge Proxy (Bypass CORS for local hardware)
@@ -323,3 +326,11 @@ Route::middleware([
         }
     })->name('bridge.weight');
 });
+
+// Public Document Share Access (Guest/No Authentication)
+Route::get('public/invoice/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewInvoice'])->name('public.invoice.view');
+Route::get('public/invoice/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadPDF'])->name('public.invoice.pdf');
+Route::get('public/report/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewReport'])->name('public.report.view');
+Route::get('public/report/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadReportPDF'])->name('public.report.pdf');
+Route::get('public/batch/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewBatch'])->name('public.batch.view');
+Route::get('public/batch/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadBatchPDF'])->name('public.batch.pdf');
