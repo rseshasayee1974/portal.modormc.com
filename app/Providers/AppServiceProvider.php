@@ -56,6 +56,30 @@ class AppServiceProvider extends ServiceProvider
             return $user->hasRole('Platform Admin') || $user->hasRole('Saas Owner') ? true : null;
         });
 
+        // Register policy guessing for automatic mapping
+        Gate::guessPolicyNamesUsing(function ($modelClass) {
+            $modelName = class_basename($modelClass);
+
+            // Option to exclude specific models from automatic policy resolution
+            $excludedModels = [
+                // 'User',
+            ];
+
+            if (in_array($modelName, $excludedModels)) {
+                return null;
+            }
+
+            $specificPolicy = 'App\\Policies\\' . $modelName . 'Policy';
+
+            if (class_exists($specificPolicy)) {
+                return $specificPolicy;
+            }
+
+            // Fallback to generic policy if specific policy does not exist
+            \App\Policies\GenericPolicy::$currentModelClass = $modelClass;
+            return \App\Policies\GenericPolicy::class;
+        });
+
         // Global Auditing Columns Standard macro
         Blueprint::macro('auditColumns', function () {
             $this->timestamp('created_at')->nullable();

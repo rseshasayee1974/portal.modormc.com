@@ -37,7 +37,7 @@ const props = defineProps<{
     mixDesigns: { id: number; title: string; code?: string; rate?: number }[];
     taxes: { id: number; title?: string; tax_name?: string; rate?: number; tax_rate?: number }[];
     unitOptions?: { id: number; unit_code: string }[];
-    salesExecutives?: any[];
+    salesExecutives?: { id: number; label: string; value: number }[];
 }>();
 
 const emit = defineEmits<{
@@ -209,7 +209,7 @@ const sendEmail = () => {
 <template>
     <div class="  ">
         <form class="space-y-6" @submit.prevent="submit">
-       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 items-end">
     <BaseSelect
         v-model="form.patron_id"
         :options="patronOptions"
@@ -234,11 +234,11 @@ const sendEmail = () => {
 
     <BaseSelect
         v-model="form.sales_executive_id"
-        :options="salesExecutiveOptions"
+        :options="salesExecutives || []"
         optionLabel="label"
         optionValue="value"
         label="Sales Executive"
-        placeholder="Select Executive"
+        placeholder="Select Sales Executive"
         filter
         :error="form.errors.sales_executive_id"
         :disabled="isLocked"

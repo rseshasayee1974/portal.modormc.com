@@ -25,7 +25,7 @@ const props = defineProps<{
     vehicles: { id: number; registration: string }[];
     unitOptions : {id: number, unit_code: string}[];
     drivers: { id: number; first_name: string; last_name: string }[];
-    salesExecutives?: any[];
+    salesExecutives: any[];
 }>();
 
 const stateOptions = [

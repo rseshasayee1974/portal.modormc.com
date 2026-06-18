@@ -25,6 +25,7 @@ class Quotation extends Model
         'reference',
         'patron_id',
         'site_id',
+        'sales_executive_id',
         'quote_date',
         'validity_date',
         'tax_id',
@@ -139,11 +140,7 @@ class Quotation extends Model
         });
     }
 
-    public function salesExecutive()
-    {
-        return $this->belongsTo(Personnel::class, 'sales_executive_id');
-    }
-
+   
     public function tax()
     {
         return $this->belongsTo(Tax::class, 'tax_id');
@@ -162,6 +159,11 @@ class Quotation extends Model
     public function site()
     {
         return $this->belongsTo(Site::class);
+    }
+    
+    public function salesExecutive()
+    {
+        return $this->belongsTo(Personnel::class, 'sales_executive_id', 'id');
     }
 
     public function salesOrders()
@@ -183,7 +185,7 @@ class Quotation extends Model
         }
         
         $prefixSearch = "{$customPrefix}-{$fyString}-";
-        
+
         $latest = self::where('plant_id', $plantId)
                       ->where('reference', 'LIKE', "{$prefixSearch}%")
                       ->orderBy('id', 'desc')

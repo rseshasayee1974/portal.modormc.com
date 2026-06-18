@@ -17,7 +17,10 @@ return new class extends Migration
             $table->string('order_no')->nullable();
             $table->unsignedBigInteger('customer_id')->nullable();
             $table->unsignedBigInteger('site_id')->nullable();
+            $table->unsignedBigInteger('plant_id')->nullable();
             $table->foreignId('mix_design_id')->nullable()->constrained('mm_mix_designs')->nullOnDelete();
+            
+            $table->foreign('plant_id')->references('id')->on('mm_plants')->nullOnDelete();
             $table->decimal('produced_qty', 15, 4)->default(0);
             $table->decimal('total_qty', 15, 4)->default(0);
             $table->foreignId('uom_id')->nullable()->constrained('mm_product_units')->nullOnDelete();

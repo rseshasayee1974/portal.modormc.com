@@ -46,11 +46,11 @@ class PurchaseOrderInwardController extends Controller
             ->with(['vendor', 'items.product', 'items.uom'])
             ->latest()
             ->get();
-
+        
         return Inertia::render('PurchaseOrders/Inwards/Index', [
             'inwards' => $inwards,
             'purchaseOrders' => $purchase_order_list,
-            'vehicles' => toSelectOptions(VehiclesDropdown($allowedPlantId), 'registration')
+            'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration')
         ]);
     }
 

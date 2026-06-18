@@ -14,11 +14,13 @@ import {
 } from '@heroicons/vue/24/outline';
 import Swal from 'sweetalert2';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
+import { usePermissions } from '@/Composables/usePermissions';
 const props = defineProps<{
     grade: any;
     products: any[];
 }>();
 
+const {can} = usePermissions();
 const emit = defineEmits(['saved', 'cancel']);
 
 const form = useForm({
@@ -218,7 +220,7 @@ const submit = () => {
                                     <small v-if="form.errors[`items.${index}.quantity`]" class="text-rose-500 text-[10px] mt-1 block text-right">{{ form.errors[`items.${index}.quantity`] }}</small>
                                 </td>
                                 <td>
-                                    <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1" />
+                                    <BaseDeleteButton v-if="can('CONCRETE_GRADE.update')" @click="removeItem(index)" :disabled="form.items.length <= 1" />
                                 </td>
                             </tr>
                         </tbody>
@@ -236,10 +238,12 @@ const submit = () => {
             </div>
         </div>
 
-        <div class="flex justify-end gap-3 mt-8 pt-6 border-t border-indigo-100">
+        <div  class="flex justify-end gap-3 mt-8 pt-6 border-t border-indigo-100">
+
             <BaseFormActions
                 label="Update Mix Specification"
                 cancelLabel="Discard"
+                :disabled="!can('CONCRETE_GRADE.UPDATE')""
                 :loading="form.processing"
                 @submit="submit"
                 @reset="emit('cancel')"

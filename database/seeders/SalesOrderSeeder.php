@@ -106,9 +106,6 @@ class SalesOrderSeeder extends Seeder
                 'amount_total' => 5900 * $i,
             ]);
 
-            $roles = ['Sales', 'Supervisor', 'Marketing'];
-            $departments = ['Commercial', 'Operations', 'Growth'];
-
             SalesOrder::create([
                 'plant_id' => $plant->id,
                 'quotation_id' => $quote->id,
@@ -117,8 +114,6 @@ class SalesOrderSeeder extends Seeder
                 'order_date' => now()->subDays(rand(1, 5))->toDateString(),
                 'status' => SalesOrder::STATUS_CONFIRMED,
                 'converted_by_user_id' => $user->id,
-                'converted_by_role' => $roles[$i - 4],
-                'converted_by_department' => $departments[$i - 4],
             ]);
         }
     }

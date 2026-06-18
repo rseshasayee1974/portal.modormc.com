@@ -17,6 +17,7 @@ class SalesOrder extends Model
         'quotation_id',
         'patron_id',
         'site_id',
+        'sales_executive_id',
         'order_date',
         'status',
         'sales_executive_id',
@@ -39,8 +40,7 @@ class SalesOrder extends Model
 
     const STATUS_DRAFT = 0;
     const STATUS_CONFIRMED = 1;
-    const STATUS_PARTIAL_DISPATCH = 2;
-    const STATUS_COMPLETED = 3;
+    const STATUS_COMPLETED = 2;
 
     public function plant()
     {
@@ -57,10 +57,6 @@ class SalesOrder extends Model
         return $this->belongsTo(Site::class);
     }
 
-    public function salesExecutive()
-    {
-        return $this->belongsTo(Personnel::class, 'sales_executive_id');
-    }
 
     public function quotation()
     {
@@ -77,8 +73,18 @@ class SalesOrder extends Model
         return $this->belongsTo(User::class, 'converted_by_user_id');
     }
 
+    public function salesExecutive()
+    {
+        return $this->belongsTo(Personnel::class, 'sales_executive_id', 'id');
+    }
+
     public function workOrders()
     {
         return $this->hasMany(WorkOrder::class, 'sales_order_id');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(SalesOrderItem::class, 'sales_order_id');
     }
 }

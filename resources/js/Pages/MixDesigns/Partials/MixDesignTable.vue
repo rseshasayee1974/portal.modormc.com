@@ -6,7 +6,7 @@ import Tag from 'primevue/tag';
 import { BeakerIcon, UserIcon, CubeIcon, TableCellsIcon } from '@heroicons/vue/24/outline';
 import MixDesignEditForm from './MixDesignEditForm.vue';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
-
+import { usePermissions } from '@/Composables/usePermissions.js';
 const props = defineProps<{
     mixDesigns: any[];
     products: any[];
@@ -16,6 +16,7 @@ const props = defineProps<{
     designTypes: any[];
 }>();
 
+const {can} = usePermissions();
 const expandedRows = ref<Record<number, boolean>>({});
 const perPage = ref(30);
 const filters = ref({ global: { value: null, matchMode: 'contains' } });
@@ -137,6 +138,7 @@ const getDeleteTooltip = (mixDesign) => {
                 <template #body="slotProps">
                     <div class="flex justify-end">
                         <BaseDeleteButton
+                        v-if="can('concrete-mix-designs.delete')"
                             :disabled="slotProps.data.is_used_in_quotations || slotProps.data.is_used_in_batching"
                             :url="route('mixdesigns.destroy', slotProps.data.id)"
                             title="Delete Mix Design?"

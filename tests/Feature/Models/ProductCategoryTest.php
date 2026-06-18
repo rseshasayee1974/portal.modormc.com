@@ -2,19 +2,27 @@
 
 namespace Tests\Feature\Models;
 
+use App\Models\ProductCategory;
+use App\Models\Plant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 
 class ProductCategoryTest extends TestCase
 {
-    /**
-     * A basic feature test example.
-     */
-    public function test_example(): void
-    {
-        $response = $this->get('/');
+    use RefreshDatabase;
 
-        $response->assertStatus(200);
+    public function test_category_creation(): void
+    {
+        $plant = Plant::factory()->create();
+        $category = ProductCategory::create([
+            'plant_id' => $plant->id,
+            'name' => 'Cement Materials',
+            'code' => 'CMT',
+        ]);
+
+        $this->assertDatabaseHas('mm_product_categories', [
+            'id' => $category->id,
+            'name' => 'Cement Materials',
+        ]);
     }
 }

@@ -18,8 +18,6 @@ class Product extends Model
 
     protected $table = 'mm_products';
 
-    protected $appends = ['can_delete' , 'can_update' , 'is_in_use'];
-
     public string $auditTransactionType = 'product';
 
     // ──────────────────────────────────────────────────────────────
@@ -212,47 +210,17 @@ class Product extends Model
         return $this->morphMany(InventoryAuditLog::class, 'reference');
     }
 
-
-public function getIsInUseAttribute(): bool
-{
-    return \App\Models\PurchaseOrderItem::where('product_id', $this->id)->exists() ||
-        \App\Models\PurchaseOrderHistory::where('product_id', $this->id)->exists() ||
-        \App\Models\Quantity::where('product_id', $this->id)->exists() ||
-        \App\Models\BatchMaterial::where('product_id', $this->id)->exists() ||
-        
-        \App\Models\MaintenanceLine::where('product_id', $this->id)->exists() ||
-        \App\Models\StockExhaustLine::where('product_id', $this->id)->exists() ||
-        \App\Models\PartyRate::where('product_id', $this->id)->exists() ||
-        \App\Models\ConcreteGradeItem::where('product_id', $this->id)->exists() ||
-        \App\Models\MixDesignItem::where('product_id', $this->id)->exists();
-}
-
-public function getCanUpdateAttribute(): bool
-{
-    return true;
-}
-
-    public function getCanDeleteAttribute(): bool
+    public function getIsInUseAttribute(): bool
     {
-        // Prevent deletion if the product is referenced anywhere, especially in active batching.
-        $inUse = \App\Models\PurchaseOrderItem::where('product_id', $this->id)->exists()
-            || \App\Models\PurchaseOrderHistory::where('product_id', $this->id)->exists()
-            || \App\Models\Quantity::where('product_id', $this->id)->exists()
-            || \App\Models\BatchMaterial::where('product_id', $this->id)
-                ->whereHas('batch', function ($q) {
-                    $q->whereIn('status', [
-                        \App\Models\Batch::STATUS_PLANNED,
-                        \App\Models\Batch::STATUS_LOADING,
-                        \App\Models\Batch::STATUS_DISPATCHED,
-                    ]);
-                })
-                ->exists()
-            || \App\Models\MaintenanceLine::where('product_id', $this->id)->exists()
-            || \App\Models\StockExhaustLine::where('product_id', $this->id)->exists()
-            || \App\Models\PartyRate::where('product_id', $this->id)->exists()
-            || \App\Models\ConcreteGradeItem::where('product_id', $this->id)->exists()
-            || \App\Models\MixDesignItem::where('product_id', $this->id)->exists();
-
-        return ! $inUse;
+        return \App\Models\PurchaseOrderItem::where('product_id', $this->id)->exists() ||
+            \App\Models\PurchaseOrderHistory::where('product_id', $this->id)->exists() ||
+            \App\Models\Quantity::where('product_id', $this->id)->exists() ||
+            \App\Models\BatchMaterial::where('product_id', $this->id)->exists() ||
+            
+            \App\Models\MaintenanceLine::where('product_id', $this->id)->exists() ||
+            \App\Models\StockExhaustLine::where('product_id', $this->id)->exists() ||
+            \App\Models\PartyRate::where('product_id', $this->id)->exists() ||
+            \App\Models\ConcreteGradeItem::where('product_id', $this->id)->exists() ||
+            \App\Models\MixDesignItem::where('product_id', $this->id)->exists();
     }
 }

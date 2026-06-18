@@ -163,7 +163,14 @@ class PurchaseOrder extends Model
     public static function generateNextRefId($plantId, $date = null)
     {
         $finYearString = self::getFinancialYearString($date);
-        $prefix = "PO-" . $finYearString . "-";
+        
+        $customPrefix = 'PO';
+        $settings = CustomSetting::getForModule($plantId, 'batching');
+        if (!empty($settings['po_prefix'])) {
+            $customPrefix = $settings['po_prefix'];
+        }
+
+        $prefix = $customPrefix . "-" . $finYearString . "-";
 
         $lastOrder = self::where('plant_id', $plantId)->whereNull('deleted_at')
             ->where('po_number', 'like', $prefix . '%')

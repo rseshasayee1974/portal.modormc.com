@@ -19,10 +19,10 @@ class AccountTypeSeeder extends Seeder
         }
 
         foreach ($plants as $plant) {
-            $plantId = $plant->id;
+            $plantId  = $plant->id;
             $entityId = $plant->entity_id;
 
-            // Define standard account groups (Accounts) first if they don't exist
+            // Main Account Groups
             $accountGroups = [
                 'ASSET'     => '1000',
                 'LIABILITY' => '2000',
@@ -32,39 +32,48 @@ class AccountTypeSeeder extends Seeder
             ];
 
             $accounts = [];
+
             foreach ($accountGroups as $title => $code) {
                 $accounts[$title] = Accounts::updateOrCreate(
-                    ['plant_id' => $plantId, 'title' => $title],
                     [
-                        'code'      => $code,
-                        'status'    => 1,
-                        'created'   => now(),
+                        'entity_id' => $entityId,
+                        'plant_id'  => $plantId,
+                        'title'     => $title,
+                    ],
+                    [
+                        'code'    => $code,
+                        'status'  => 1,
+                        'created' => now(),
                     ]
                 );
             }
 
-            // Define standard account types (subgroups)
+            // Account Types / Sub Groups
             $subgroups = [
                 'ASSET' => [
                     ['title' => 'Current Assets', 'code' => '1100'],
                     ['title' => 'Fixed Assets', 'code' => '1200'],
                     ['title' => 'Investments', 'code' => '1300'],
                 ],
+
                 'LIABILITY' => [
                     ['title' => 'Current Liabilities', 'code' => '2100'],
                     ['title' => 'Loans (Liability)', 'code' => '2200'],
                     ['title' => 'Suspense Account', 'code' => '2300'],
                     ['title' => 'Duties & Taxes', 'code' => '2400'],
                 ],
+
                 'EQUITY' => [
                     ['title' => 'Capital Account', 'code' => '3100'],
                     ['title' => 'Reserves & Surplus', 'code' => '3200'],
                 ],
+
                 'REVENUE' => [
                     ['title' => 'Sales Accounts', 'code' => '4100'],
                     ['title' => 'Direct Income', 'code' => '4200'],
                     ['title' => 'Indirect Income', 'code' => '4300'],
                 ],
+
                 'EXPENSE' => [
                     ['title' => 'Purchase Accounts', 'code' => '5100'],
                     ['title' => 'Direct Expenses', 'code' => '5200'],
@@ -74,18 +83,28 @@ class AccountTypeSeeder extends Seeder
 
             foreach ($subgroups as $groupTitle => $types) {
                 $account = $accounts[$groupTitle];
+
                 foreach ($types as $type) {
                     AccountsType::updateOrCreate(
-                        ['plant_id' => $plantId, 'title' => $type['title']],
+                        [
+                            'entity_id' => $entityId,
+                            'plant_id'  => $plantId,
+                            'title'     => $type['title'],
+                        ],
                         [
                             'account_id' => $account->id,
                             'code'       => $type['code'],
                             'status'     => 1,
                             'created_at' => now(),
+                            'updated_at' => now(),
                         ]
                     );
                 }
             }
+
+            $this->command->info("Account types seeded for Plant ID {$plantId}");
         }
+
+        $this->command->info('AccountTypeSeeder completed successfully.');
     }
 }

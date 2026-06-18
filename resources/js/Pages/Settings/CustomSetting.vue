@@ -17,7 +17,8 @@ import {
     XCircleIcon,
     ChevronDownIcon,
     ChevronUpIcon,
-    PlusIcon
+    PlusIcon,
+    DocumentTextIcon
 } from '@heroicons/vue/24/outline';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
@@ -25,6 +26,7 @@ import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 
 const props = defineProps<{
     batchingSettings: any;
+    customSettings: any[];
     plantId: number;
     plantName: string;
 }>();
@@ -43,6 +45,10 @@ const form = useForm({
         loader_gif:        props.batchingSettings?.loader_gif   || '',
         sheet_upload:      props.batchingSettings?.sheet_upload == 1,
         hide_batch_form:   props.batchingSettings?.hide_batch_form == 1,
+        po_prefix:         props.batchingSettings?.po_prefix    || 'PO',
+        so_prefix:         props.batchingSettings?.so_prefix    || 'SO',
+        wo_prefix:         props.batchingSettings?.wo_prefix    || 'WO',
+        quote_prefix:      props.batchingSettings?.quote_prefix || 'QT',
         custom_params:     props.batchingSettings?.custom_params || [],
     }
 });
@@ -52,6 +58,7 @@ const expanded = ref<Record<string, boolean>>({
     weighbridge: true,
     camera: false,
     batch_sync: false,
+    prefixes: false,
     appearance: false,
     custom: true,
 });
@@ -74,6 +81,11 @@ const settingRows = computed(() => [
     { section: 'Batch Sheet', key: 'hide_batch_form',    label: 'Hide Add & Edit Batch Forms',    value: form.settings.hide_batch_form,     type: 'bool' },
     // Appearance
     { section: 'Appearance',  key: 'loader_gif',         label: 'Custom Global Loader (GIF URL)', value: form.settings.loader_gif,          type: 'text' },
+    // Document Prefixes
+    { section: 'Document Prefixes', key: 'po_prefix',         label: 'Purchase Order Prefix',           value: form.settings.po_prefix,          type: 'text' },
+    { section: 'Document Prefixes', key: 'so_prefix',         label: 'Sales Order Prefix',              value: form.settings.so_prefix,          type: 'text' },
+    { section: 'Document Prefixes', key: 'wo_prefix',         label: 'Work Order Prefix',              value: form.settings.wo_prefix,          type: 'text' },
+    { section: 'Document Prefixes', key: 'quote_prefix',      label: 'Quotation Prefix',                value: form.settings.quote_prefix,       type: 'text' },
     // Custom / Module-specific dynamic parameters
     ...form.settings.custom_params.map((p: any) => ({
         section: modules.find(m => m.value === p.module)?.label || 'Custom',
@@ -142,6 +154,38 @@ const addParameter = () => {
 
 const removeParameter = (index: number) => {
     form.settings.custom_params.splice(index, 1);
+};
+
+const saveNewModule = () => {
+    if (!newModuleForm.module) return;
+    newModuleForm.post(route('settings.customsetting.store'), {
+        onSuccess: () => {
+            showNewDialog.value = false;
+            newModuleForm.reset();
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Module added successfully', showConfirmButton: false, timer: 1500 });
+        }
+    });
+};
+
+const deleteModule = (id: number) => {
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this! All settings for this module will be permanently deleted.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#EF4444',
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const deleteForm = useForm({});
+            deleteForm.delete(route('settings.customsetting.destroy', id), {
+                onSuccess: () => {
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Module settings deleted', showConfirmButton: false, timer: 1500 });
+                }
+            });
+        }
+    });
 };
 </script>
 
@@ -233,6 +277,31 @@ const removeParameter = (index: number) => {
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Active Modules List -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold uppercase tracking-widest text-slate-400">Active Module Configurations</h3>
+                        <span class="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold uppercase">{{ customSettings.length }} Modules</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        <div v-for="setting in customSettings" :key="setting.id" 
+                            class="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-100 rounded-xl hover:shadow-sm transition-all">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                <span class="text-xs font-bold capitalize text-slate-700">{{ setting.module_name }}</span>
+                            </div>
+                            <Button 
+                                icon="pi pi-trash" 
+                                severity="danger" 
+                                size="small"
+                                text 
+                                rounded
+                                @click="deleteModule(setting.id)"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -387,6 +456,47 @@ const removeParameter = (index: number) => {
                                 <div class="flex items-center gap-4">
                                     <InputSwitch v-if="p.type === 'bool'" v-model="p.value" />
                                     <Button icon="pi pi-trash" severity="danger" text rounded @click="removeParameter(form.settings.custom_params.indexOf(p))" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Document Prefixes -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <button type="button"
+                            class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-indigo-50/30 transition-colors"
+                            @click="toggle('prefixes')">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 bg-indigo-100 rounded-lg"><DocumentTextIcon class="w-4 h-4 text-indigo-600" /></div>
+                                <span class="text-sm font-bold text-slate-700">Document Prefix Configuration</span>
+                                <span v-if="form.settings.po_prefix || form.settings.so_prefix || form.settings.quote_prefix" 
+                                    class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
+                            </div>
+                            <ChevronDownIcon v-if="!expanded.prefixes" class="w-4 h-4 text-slate-400" />
+                            <ChevronUpIcon   v-else                        class="w-4 h-4 text-slate-400" />
+                        </button>
+
+                        <div v-if="expanded.prefixes" class="p-6 space-y-4 animate-fade-in">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-bold text-slate-500 uppercase">Purchase Order (PO) Prefix</label>
+                                    <InputText v-model="form.settings.po_prefix" placeholder="PO" class="w-full text-sm" />
+                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Purchase Orders.</p>
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-bold text-slate-500 uppercase">Sales Order Prefix</label>
+                                    <InputText v-model="form.settings.so_prefix" placeholder="SO" class="w-full text-sm" />
+                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Sales Orders.</p>
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-bold text-slate-500 uppercase">Work Order Prefix</label>
+                                    <InputText v-model="form.settings.wo_prefix" placeholder="WO" class="w-full text-sm" />
+                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Work Orders.</p>
+                                </div>
+                                <div class="flex flex-col gap-1.5">
+                                    <label class="text-xs font-bold text-slate-500 uppercase">Quotation Prefix</label>
+                                    <InputText v-model="form.settings.quote_prefix" placeholder="QT" class="w-full text-sm" />
+                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Quotations.</p>
                                 </div>
                             </div>
                         </div>

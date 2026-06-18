@@ -221,6 +221,33 @@ if (!function_exists('SitesDropdown')) {
     }
 }
 
+if (!function_exists('SalesExecutivesDropdown')) {
+    /**
+     * Active personnel for a plant.
+     *
+     * Edit scenarios: pass `$excludeId` to exclude the record being edited.
+     *
+     * @param  int|array  $plantId
+     * @param  int|null   $excludeId  Exclude personnel (edit mode)
+     * @param  int|null   $entityId
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function SalesExecutivesDropdown($excludeId = null, $entityId = null)
+    {
+        return Personnel::where('plant_id', _activePlantId())
+            ->when($excludeId, fn($q) => $q->excludeId($excludeId))
+            ->whereNull('deleted_at')
+            ->whereHas('department', fn($q) => $q->where('name', 'Sales')->orWhere('name', 'sales'))
+            ->get()
+            ->map(fn($p) => [
+                'id' => $p->id,
+                'label' => trim($p->first_name . ' ' . $p->last_name),
+                'first_name' => $p->first_name,
+                'last_name' => $p->last_name,
+                'value' => $p->id
+            ]);
+    }
+}
 // ─────────────────────────────────────────────────────────────────────────────
 // v1 – Personnel helpers
 // Conditions: entity_id (optional), plant_id, deleted_at IS NULL

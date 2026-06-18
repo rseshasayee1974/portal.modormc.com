@@ -23,11 +23,12 @@ class QuotationController extends Controller
         $plantId = session('active_plant_id');
 
         return Inertia::render('Quotations/Index', [
-            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'salesOrders', 'creator', 'modifier', 'salesExecutive'])
+            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'salesOrders', 'creator', 'modifier','salesExecutive'])
                 ->where('plant_id', $plantId)
                 ->latest()
                 ->get(),
             'patrons'  => PatronsDropdown(['Customer']),
+            'salesExecutives' => SalesExecutivesDropdown(),
             'sites'    => SitesDropdown(),
             'mixDesigns' => MixDesignsDropdown(),
             'taxes'    => TaxesDropdown('Sales', ['GST', 'IGST']),

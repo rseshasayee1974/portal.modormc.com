@@ -148,7 +148,15 @@ class WorkOrder extends Model
         $endYear = $startYear + 1;
         $fyString = substr($startYear, -2) . substr($endYear, -2);
         
-        $fullPrefix = "{$prefix}/{$fyString}/";
+        $customPrefix = $prefix;
+        if ($prefix === 'WO' || $prefix === 'SO') {
+            $settings = CustomSetting::getForModule($plantId, 'batching');
+            if (!empty($settings['so_prefix'])) {
+                $customPrefix = $settings['so_prefix'];
+            }
+        }
+        
+        $fullPrefix = "{$customPrefix}/{$fyString}/";
 
         // Get the latest order number for this plant and prefix
         $latest = self::where('plant_id', $plantId)

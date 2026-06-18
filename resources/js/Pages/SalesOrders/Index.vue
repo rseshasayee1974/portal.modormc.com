@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, watch, nextTick } from 'vue';
 import { router } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -10,6 +10,7 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
+import Popover from 'primevue/popover';
 import { ShoppingBagIcon, CpuChipIcon } from '@heroicons/vue/24/outline';
 import SalesOrderCreateForm from './components/SalesOrderCreateForm.vue';
 import SalesOrderEditForm from './components/SalesOrderEditForm.vue';
@@ -21,7 +22,8 @@ const props = defineProps<{
     quotations?: any[];
     mixDesigns?: any[];
     salesExecutives?: any[];
-}>(); 
+}>();
+console.log('sdfsdfdsf',props.salesOrders);
 
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
@@ -43,8 +45,7 @@ const stateOptions = [
     { label: 'All Statuses', value: null },
     { label: 'Draft', value: 0 },
     { label: 'Confirmed', value: 1 },
-    { label: 'Partial Dispatch', value: 2 },
-    { label: 'Completed', value: 3 },
+    { label: 'Completed', value: 2 },
 ];
 
 const formatDate = (date: string | null) => {
@@ -61,8 +62,6 @@ const getStatusLabel = (status: number) => {
         case 1:
             return 'Confirmed';
         case 2:
-            return 'Partial Dispatch';
-        case 3:
             return 'Completed';
         default:
             return 'Unknown';
@@ -111,18 +110,68 @@ const deleteSalesOrder = (salesOrder: any) => {
     });
 };
 
+const getSalesOrderTotalQty = (salesOrder: any) => {
+    return salesOrder.items?.reduce((sum: number, item: any) => sum + Number(item.quantity || 0), 0) || 0;
+};
+
+const getSalesOrderCompletedQty = (salesOrder: any) => {
+    return salesOrder.work_orders?.reduce((sum: number, wo: any) => sum + Number(wo.total_qty || 0), 0) || 0;
+};
+
+const isSalesOrderCompleted = (salesOrder: any) => {
+    const total = getSalesOrderTotalQty(salesOrder);
+    if (total === 0) return true;
+    const completed = getSalesOrderCompletedQty(salesOrder);
+    return completed >= total;
+};
+
+const getSalesOrderProgressPercent = (salesOrder: any) => {
+    const total = getSalesOrderTotalQty(salesOrder);
+    if (total === 0) return 0;
+    const completed = getSalesOrderCompletedQty(salesOrder);
+    return Math.min(100, Math.round((completed / total) * 100));
+};
+
+
 const convertToWorkOrder = (salesOrder: any) => {
+    const total = getSalesOrderTotalQty(salesOrder);
+    const completed = getSalesOrderCompletedQty(salesOrder);
+    const remainingQty = Math.max(0, total - completed);
+    const defaultQty = remainingQty > 0 ? remainingQty : 1;
+
     Swal.fire({
-        title: 'Generate Work Order?',
-        text: 'This will create scheduled Work Orders for each item in this Sales Order.',
-        icon: 'question',
+        title: 'Generate Work Order',
+        text: 'Enter the quantity for the Work Order:',
+        input: 'number',
+        inputValue: defaultQty,
+        inputLabel: 'Quantity (m³)',
+        inputPlaceholder: 'Enter quantity',
+        inputAttributes: {
+            min: '0.001',
+            max: String(remainingQty),
+            step: '0.1',
+            required: 'true'
+        },
         showCancelButton: true,
         confirmButtonColor: '#4f46e5',
         confirmButtonText: 'Yes, generate',
+        inputValidator: (value) => {
+            if (!value || parseFloat(value) <= 0) {
+                return 'Please enter a valid quantity greater than 0!';
+            }
+            if (parseFloat(value) > 9.99) {
+                return 'Please enter a valid quantity less than 10 or equal to 9.9 m³!';
+            }
+            if (remainingQty > 0 && parseFloat(value) > remainingQty) {
+                return 'Quantity cannot be greater than the remaining quantity (' + remainingQty + ' m³)!';
+            }
+        }
     }).then((result) => {
-        if (!result.isConfirmed) return;
+        if (!result.isConfirmed || !result.value) return;
 
-        router.post(route('salesorders.convert-workorder', salesOrder.id), {}, {
+        router.post(route('salesorders.convert-workorder', salesOrder.id), {
+            quantity: result.value
+        }, {
             preserveScroll: true,
             onSuccess: () => {
                 Swal.fire({
@@ -138,23 +187,36 @@ const convertToWorkOrder = (salesOrder: any) => {
     });
 };
 
-const activeMenuId = ref<number | null>(null);
+const activeSalesOrder = ref<any>(null);
+const actionMenu = ref();
 
-const toggleMenu = (event: Event, id: number) => {
+const toggleActionMenu = (event: Event, salesOrder: any) => {
     event.stopPropagation();
-    activeMenuId.value = activeMenuId.value === id ? null : id;
+    activeSalesOrder.value = salesOrder;
+    if (actionMenu.value) {
+        actionMenu.value.toggle(event);
+    }
 };
 
 const closeAllMenus = () => {
-    activeMenuId.value = null;
+    if (actionMenu.value) {
+        actionMenu.value.hide();
+    }
 };
 
-onMounted(() => {
-    window.addEventListener('click', closeAllMenus);
-});
+const onActionMenuShow = () => {
+    nextTick(() => {
+        const el = document.getElementById('so-action-menu');
+        if (el) {
+            const top = parseFloat(el.style.top) || 0;
+            const height = el.offsetHeight || 0;
+            el.style.top = `${top - height - 10}px`;
+        }
+    });
+};
 
-onUnmounted(() => {
-    window.removeEventListener('click', closeAllMenus);
+watch(() => props.salesOrders, () => {
+    console.log('salesOrders updated');
 });
 </script>
 
@@ -184,7 +246,7 @@ onUnmounted(() => {
                 :sites="sites"
                 :quotations="quotations"
                 :mix-designs="mixDesigns"
-                :sales-executives="salesExecutives"
+                :salesExecutives="salesExecutives"
             />
 
             <!-- List Of Sales Orders -->
@@ -205,7 +267,7 @@ onUnmounted(() => {
                     showExport
                     showSearch
                     exportFilename="sales-orders-directory"
-                    :globalFilterFields="['patron.legal_name', 'site.name', 'quotation.reference', 'converted_by_role', 'converted_by_department']"
+                    :globalFilterFields="['patron.legal_name', 'site.name', 'quotation.reference']"
                 >
                     <template #toolbar>
                         <div class="flex items-center gap-2">
@@ -234,7 +296,7 @@ onUnmounted(() => {
                                     {{ slotProps.data.patron?.legal_name || '--' }}
                                 </div>
                                 <span class="text-indigo-600 dark:text-indigo-400 font-semibold font-mono text-xs">
-                                    {{ slotProps.data.quotation?.reference || 'Draft' }}
+                                    {{ slotProps.data.quotation?.reference || 'Direct' }}
                                 </span>
                             </div>
                         </template>
@@ -243,12 +305,40 @@ onUnmounted(() => {
                     <Column field="quotation.reference" header="Loading Site" sortable>
                         <template #body="slotProps">
                             <div v-if="slotProps.data.quotation" class="flex flex-col gap-0.5">
-                                <div class="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded w-fit text-slate-600 dark:text-slate-300 mt-0.5">
+                                <div class="text-slate-400 text-xs font-bold">
                                     {{ slotProps.data.site?.name || 'Main Site' }}
                                 </div>
                                 
                             </div>
-                            <span v-else class="text-slate-400 text-xs font-bold">Direct Sales Order</span>
+                            <span v-else class="text-slate-400 text-xs font-bold">{{  slotProps.data.site?.name || '' }}</span>
+                        </template>
+                    </Column>
+                    <Column header="WO Status">
+                        <template #body="slotProps">
+                            <div class="space-y-1 min-w-[120px]">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                        {{ getSalesOrderCompletedQty(slotProps.data) }} / {{ getSalesOrderTotalQty(slotProps.data) }} m³
+                                    </span>
+                                    <span
+                                        class="text-[10px] font-black tabular-nums"
+                                        :class="isSalesOrderCompleted(slotProps.data) ? 'text-emerald-600' : 'text-indigo-600'"
+                                    >
+                                        {{ getSalesOrderProgressPercent(slotProps.data) }}%
+                                    </span>
+                                </div>
+                                <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div
+                                        class="h-full rounded-full transition-all duration-500"
+                                        :class="isSalesOrderCompleted(slotProps.data) ? 'bg-emerald-500' : 'bg-indigo-500'"
+                                        :style="{ width: getSalesOrderProgressPercent(slotProps.data) + '%' }"
+                                    ></div>
+                                </div>
+                                <div v-if="isSalesOrderCompleted(slotProps.data)" class="flex items-center gap-1">
+                                    <i class="pi pi-check-circle text-[10px] text-emerald-500"></i>
+                                    <span class="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">Fully Allocated</span>
+                                </div>
+                            </div>
                         </template>
                     </Column>
 
@@ -278,79 +368,14 @@ onUnmounted(() => {
 
                     <Column header="Actions" headerStyle="width: 5rem; text-align: center" bodyStyle="overflow: visible; text-align: center">
                         <template #body="slotProps">
-                            <div class="relative inline-block text-left">
-                                <button
-                                    type="button"
-                                    class="inline-flex justify-center items-center w-8 h-8 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 focus:outline-none transition-all duration-200"
-                                    @click.stop="toggleMenu($event, slotProps.data.id)"
-                                    v-tooltip.top="'Actions'"
-                                >
-                                    <i class="pi pi-ellipsis-v text-sm font-bold"></i>
-                                </button>
-
-                                <!-- Dropdown Menu -->
-                                <transition
-                                    enter-active-class="transition ease-out duration-100"
-                                    enter-from-class="transform opacity-0 scale-95"
-                                    enter-to-class="transform opacity-100 scale-100"
-                                    leave-active-class="transition ease-in duration-75"
-                                    leave-from-class="transform opacity-100 scale-100"
-                                    leave-to-class="transform opacity-0 scale-95"
-                                >
-                                    <div
-                                        v-if="activeMenuId === slotProps.data.id"
-                                        class="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200/80 dark:border-slate-700/80 z-[1000] focus:outline-none divide-y divide-slate-100 dark:divide-slate-700/50 py-1"
-                                        @click.stop
-                                    >
-                                        <!-- Group 1: WO Generation -->
-                                        <div class="py-1 text-left">
-                                            <button
-                                                v-if="!slotProps.data.work_orders || slotProps.data.work_orders.length === 0"
-                                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                                @click="convertToWorkOrder(slotProps.data); activeMenuId = null;"
-                                            >
-                                                <i class="pi pi-cog mr-2 text-indigo-500 font-bold"></i>
-                                                Create Work Order
-                                            </button>
-                                            <div v-else class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                                <i class="pi pi-check-circle mr-2 text-emerald-500 font-bold"></i>
-                                                WO Generated
-                                            </div>
-                                        </div>
-
-                                        <!-- Group 2: Edit Sales Order -->
-                                        <div class="py-1 text-left">
-                                            <button
-                                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                                @click="toggleEditRow(slotProps.data); activeMenuId = null;"
-                                            >
-                                                <i class="pi pi-pencil mr-2 text-amber-500 font-bold"></i>
-                                                Edit Sales Order
-                                            </button>
-                                        </div>
-
-                                        <!-- Group 3: Delete Sales Order -->
-                                        <div class="py-1 text-left">
-                                            <button
-                                                v-if="!slotProps.data.has_workorders"
-                                                class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
-                                                @click="deleteSalesOrder(slotProps.data); activeMenuId = null;"
-                                            >
-                                                <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
-                                                Delete Sales Order
-                                            </button>
-                                            <div
-                                                v-else
-                                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-400 cursor-not-allowed"
-                                                v-tooltip.right="'Sales Order cannot be deleted as it has Work Orders'"
-                                            >
-                                                <i class="pi pi-trash mr-2 text-slate-400 font-bold"></i>
-                                                Delete (Locked)
-                                            </div>
-                                        </div>
-                                    </div>
-                                </transition>
-                            </div>
+                            <button
+                                type="button"
+                                class="inline-flex justify-center items-center w-8 h-8 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 focus:outline-none transition-all duration-200"
+                                @click.stop="toggleActionMenu($event, slotProps.data)"
+                                v-tooltip.top="'Actions'"
+                            >
+                                <i class="pi pi-ellipsis-v text-sm font-bold"></i>
+                            </button>
                         </template>
                     </Column>
 
@@ -362,7 +387,7 @@ onUnmounted(() => {
                                 :patrons="patrons"
                                 :sites="sites"
                                 :mixDesigns="mixDesigns"
-                                :sales-executives="salesExecutives"
+                                :salesExecutives="salesExecutives"
                                 @saved="expandedRows = {}"
                                 @cancel="expandedRows = {}"
                             />
@@ -371,6 +396,77 @@ onUnmounted(() => {
                 </BaseDataTable>
             </div>
         </div>
+        <Popover
+            ref="actionMenu"
+            class="!shadow-2xl !border !border-slate-200/80 dark:!border-slate-700/80 !rounded-xl overflow-hidden"
+            style="padding: 0; width: 14rem;"
+            :pt="{ root: { id: 'so-action-menu' } }"
+            @show="onActionMenuShow"
+        >
+            <div v-if="activeSalesOrder" class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left">
+                <!-- Group 1: WO Generation -->
+                <div class="py-1">
+                    <!-- Progress info
+                    <div class="px-4 py-2 space-y-1.5">
+                        <div class="flex items-center justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                            <span>WO Allocation</span>
+                            <span>{{ getSalesOrderCompletedQty(activeSalesOrder) }} / {{ getSalesOrderTotalQty(activeSalesOrder) }} m³</span>
+                        </div>
+                        <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                                class="h-full rounded-full transition-all duration-500"
+                                :class="isSalesOrderCompleted(activeSalesOrder) ? 'bg-emerald-500' : 'bg-indigo-500'"
+                                :style="{ width: getSalesOrderProgressPercent(activeSalesOrder) + '%' }"
+                            ></div>
+                        </div>
+                    </div> -->
+                    <!-- Create WO button (visible when not fully allocated) -->
+                    <button
+                        v-if="!isSalesOrderCompleted(activeSalesOrder)"
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        @click="convertToWorkOrder(activeSalesOrder); closeAllMenus();"
+                    >
+                        <i class="pi pi-cog mr-2 text-indigo-500 font-bold"></i>
+                        Create Work Order
+                    </button>
+                    <div v-else class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        <i class="pi pi-check-circle mr-2 text-emerald-500 font-bold"></i>
+                        Fully Allocated
+                    </div>
+                </div>
+
+                <!-- Group 2: Edit Sales Order -->
+                <div class="py-1">
+                    <button
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        @click="toggleEditRow(activeSalesOrder); closeAllMenus();"
+                    >
+                        <i class="pi pi-pencil mr-2 text-amber-500 font-bold"></i>
+                        Edit Sales Order
+                    </button>
+                </div>
+
+                <!-- Group 3: Delete Sales Order -->
+                <div class="py-1">
+                    <button
+                        v-if="!activeSalesOrder.has_workorders"
+                        class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                        @click="deleteSalesOrder(activeSalesOrder); closeAllMenus();"
+                    >
+                        <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
+                        Delete Sales Order
+                    </button>
+                    <div
+                        v-else
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-400 cursor-not-allowed"
+                        v-tooltip.right="'Sales Order cannot be deleted as it has Work Orders'"
+                    >
+                        <i class="pi pi-trash mr-2 text-slate-400 font-bold"></i>
+                        Delete (Locked)
+                    </div>
+                </div>
+            </div>
+        </Popover>
     </AppLayout>
 </template>
 

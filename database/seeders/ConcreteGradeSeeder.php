@@ -14,7 +14,8 @@ class ConcreteGradeSeeder extends Seeder
 {
     public function run(): void
     {
-        $plantId = Plant::query()->value('id');
+        // $plantId = Plant::query()->value('id');
+        $plantId = 2;
 
         if (!$plantId) {
             $this->command->error('No plant found. Please seed plants first.');

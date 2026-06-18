@@ -10,11 +10,15 @@ import {
 } from '@heroicons/vue/24/outline';
 import GradeEditForm from './GradeEditForm.vue';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps<{
     grades: any[];
     products: any[];
 }>();
+console.log('sldfnsl',props);
+
+const { can } = usePermissions();
 
 const expandedRows = ref<Record<number, boolean>>({});
 const perPage = ref(30);
@@ -103,6 +107,7 @@ const onSaved = () => {
                 <template #body="slotProps">
                     <div class="flex justify-end">
                         <BaseDeleteButton
+                            v-if="can('CONCRETE_GRADE.delete') || can('concrete-grades.delete')"
                             :disabled="slotProps.data.is_in_use"
                             :url="route('concretegrades.destroy', slotProps.data.id)"
                             title="Delete Mix Grade?"

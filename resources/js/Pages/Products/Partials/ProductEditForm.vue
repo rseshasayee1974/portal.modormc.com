@@ -7,6 +7,9 @@ import ToggleSwitch from 'primevue/toggleswitch';
 import Button from 'primevue/button';
 import { useToast } from 'primevue/usetoast';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
+import { usePermissions } from '@/Composables/usePermissions';
+
+const { can } = usePermissions();
 
 interface Product {
     id: number;
@@ -108,6 +111,7 @@ const submit = () => {
                 label="Product Name"
                 required
                 :error="form.errorFor('title')"
+                :disabled="!can('PRODUCT.update')"
             />
         </div>
         <div class="field-group">
@@ -119,6 +123,7 @@ const submit = () => {
                 optionValue="value"
                 filter
                 :class="{ 'p-invalid': form.errorFor('category_id') }"
+                :disabled="!can('PRODUCT.update')"
             />
             <small v-if="form.errorFor('category_id')" class="field-error">{{ form.errorFor('category_id') }}</small>
         </div>
@@ -130,6 +135,7 @@ const submit = () => {
                 optionLabel="label"
                 optionValue="value"
                 :class="{ 'p-invalid': form.errorFor('unit_id') }"
+                :disabled="!can('PRODUCT.update')"
             />
             <small v-if="form.errorFor('unit_id')" class="field-error">{{ form.errorFor('unit_id') }}</small>
         </div>
@@ -140,6 +146,7 @@ const submit = () => {
                 required
                 type="number"
                 :error="form.errorFor('purchase_price')"
+                :disabled="!can('PRODUCT.update')"
             />
         </div>
         <div class="field-group">
@@ -149,6 +156,7 @@ const submit = () => {
                 required
                 type="number"
                 :error="form.errorFor('sales_price')"
+                :disabled="!can('PRODUCT.update')"
             />
         </div>
         <div class="field-group">
@@ -159,6 +167,7 @@ const submit = () => {
                 optionLabel="label"
                 optionValue="value"
                 :class="{ 'p-invalid': form.errorFor('product_type') }"
+                :disabled="!can('PRODUCT.update')"
             />
             <small v-if="form.errorFor('product_type')" class="field-error">{{ form.errorFor('product_type') }}</small>
         </div>
@@ -167,6 +176,7 @@ const submit = () => {
                 v-model="form.hsn_code" 
                 label="HSN Code"
                 :error="form.errorFor('hsn_code')"
+                :disabled="!can('PRODUCT.update')"
             />
         </div>
         <div class="field-group">
@@ -174,6 +184,7 @@ const submit = () => {
                 v-model="form.material_code" 
                 label="Material Code"
                 :error="form.errorFor('material_code')"
+                :disabled="!can('PRODUCT.update')"
             />
         </div>
         <div class="field-group">
@@ -185,6 +196,7 @@ const submit = () => {
                 optionValue="value"
                 filter
                 :class="{ 'p-invalid': form.errorFor('purchase_tax_id') }"
+                :disabled="!can('PRODUCT.update')"
             />
             <small v-if="form.errorFor('purchase_tax_id')" class="field-error">{{ form.errorFor('purchase_tax_id') }}</small>
         </div>
@@ -197,6 +209,7 @@ const submit = () => {
                 optionValue="value"
                 filter
                 :class="{ 'p-invalid': form.errorFor('sale_tax_id') }"
+                :disabled="!can('PRODUCT.update')"
             />
             <small v-if="form.errorFor('sale_tax_id')" class="field-error">{{ form.errorFor('sale_tax_id') }}</small>
         </div>
@@ -206,6 +219,7 @@ const submit = () => {
                 label="Stock Alert Qty"
                 type="number"
                 :error="form.errorFor('stock_alert')"
+                :disabled="!can('PRODUCT.update')"
             />
         </div>
         <div class="field-group">
@@ -214,20 +228,21 @@ const submit = () => {
                 label="Conversion Qty"
                 type="number"
                 :error="form.errorFor('conversion_quantity')"
+                :disabled="!can('PRODUCT.update')"
             />
         </div>
     </div>
     <div class="expansion-actions">
         <div class="flex items-center gap-2 mr-6">
-            <ToggleSwitch v-model="form.is_service" />
+            <ToggleSwitch v-model="form.is_service" :disabled="!can('PRODUCT.update')" />
             <span class="text-xs font-semibold text-slate-500 uppercase">Is Service</span>
         </div>
         <div class="flex items-center gap-2 mr-auto">
-            <ToggleSwitch v-model="form.status" />
+            <ToggleSwitch v-model="form.status" :disabled="!can('PRODUCT.update')" />
             <span class="text-xs font-semibold text-slate-500 uppercase">Active</span>
         </div>
         <div class="flex items-center gap-2 mr-auto">
-            <ToggleSwitch v-model="form.tax_mode" />
+            <ToggleSwitch v-model="form.tax_mode" :disabled="!can('PRODUCT.update')" />
             <span class="text-xs font-semibold uppercase" :class="form.tax_mode ? 'text-indigo-500' : 'text-slate-400'">
                 {{ form.tax_mode ? 'Tax Inclusive' : 'Tax Exclusive' }}
             </span>
@@ -236,6 +251,7 @@ const submit = () => {
             label="Update Product"
             cancelLabel="Cancel"
             :loading="form.processing"
+            :disabled="!can('PRODUCT.update')"
             @submit="submit"
             @reset="form.reset(); form.clearErrors()"
         />

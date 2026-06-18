@@ -5,6 +5,9 @@ import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import Toast from 'primevue/toast';
 import ProductCreateForm from './Partials/ProductCreateForm.vue';
 import ProductTable from './Partials/ProductTable.vue';
+import { usePermissions } from '@/Composables/usePermissions';
+
+const { can } = usePermissions();
 
 interface Product {
     id: number;
@@ -61,7 +64,7 @@ defineProps<{
                 </div>
             </div> -->
 
-            <ProductCreateForm :categories="categories" :units="units" :purchaseTaxes="purchaseTaxes" :saleTaxes="saleTaxes" :productTypes="productTypes" />
+            <ProductCreateForm v-if="can('PRODUCT.create')" :categories="categories" :units="units" :purchaseTaxes="purchaseTaxes" :saleTaxes="saleTaxes" :productTypes="productTypes" />
             <ProductTable :products="products" :categories="categories" :units="units" :purchaseTaxes="purchaseTaxes" :saleTaxes="saleTaxes" :productTypes="productTypes" />
         </div>
     </AppLayout>

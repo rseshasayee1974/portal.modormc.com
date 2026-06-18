@@ -15,18 +15,40 @@ class CustomSettingController extends Controller
             return redirect()->back()->with('error', 'Please select a plant first.');
         }
 
-        // Get settings for batching module
-        $batchingSettings = CustomSetting::where('plant_id','=',$plantId)
-            ->where('module_name', 'batching')
-            ->first();
+        // Get all custom settings for this plant
+        $customSettings = CustomSetting::where('plant_id', $plantId)->get();
+        $batchingSettings = $customSettings->firstWhere('module_name', 'batching');
 
         $plant = \App\Models\Plant::find($plantId);
 
         return Inertia::render('Settings/CustomSetting', [
             'batchingSettings' => $batchingSettings ? $batchingSettings->settings : [],
+            'customSettings' => $customSettings->toArray(),
             'plantId' => $plantId,
             'plantName' => $plant ? $plant->name : 'Unknown Plant'
         ]);
+    }
+
+    public function store(Request $request)
+    {
+        $plantId = session('active_plant_id');
+        if (!$plantId) {
+            return redirect()->back()->with('error', 'Plant session expired.');
+        }
+
+        $validated = $request->validate([
+            'module' => 'required|string|max:100',
+        ]);
+
+        $module = $validated['module'];
+
+        // Create with default settings if not exists
+        CustomSetting::firstOrCreate(
+            ['plant_id' => $plantId, 'module_name' => $module],
+            ['module_id' => 0, 'settings' => []]
+        );
+
+        return redirect()->back()->with('success', 'Module settings initialized successfully.');
     }
 
     public function update(Request $request)
@@ -55,5 +77,17 @@ class CustomSettingController extends Controller
         }
 
         return redirect()->back()->with('success', 'Custom settings updated successfully.');
+    }
+
+    public function destroy(CustomSetting $customsetting)
+    {
+        $plantId = session('active_plant_id');
+        if ((int)$customsetting->plant_id !== (int)$plantId) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $customsetting->delete();
+
+        return redirect()->back()->with('success', 'Module settings deleted successfully.');
     }
 }

@@ -7,6 +7,7 @@ import Button from 'primevue/button';
 import Swal from 'sweetalert2';
 import { PlusCircleIcon, DocumentTextIcon } from '@heroicons/vue/24/outline';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+import BaseButton from '@/Components/Base/BaseButton.vue';
 
 const props = withDefaults(defineProps<{
     patrons?: any[];
@@ -28,9 +29,9 @@ const form = useForm({
     site_id: null as number | null,
     sales_executive_id: null as number | null,
     order_date: new Date().toISOString().split('T')[0],
-    mix_design_id: null as number | null,
-    quantity: null as number | null,
-    rate: null as number | null,
+    items: [
+        { mix_design_id: null as number | null, quantity: null as number | null, rate: null as number | null }
+    ] as Array<{ mix_design_id: number | null, quantity: number | null, rate: number | null }>,
 });
 
 // Watch quotation selection to auto-fill patron, site, and sales executive
@@ -40,17 +41,25 @@ watch(() => form.quotation_id, (newVal) => {
         if (quote) {
             form.patron_id = quote.patron_id;
             form.site_id = quote.site_id;
-            form.sales_executive_id = quote.sales_executive_id || null;
+            form.sales_executive_id = quote.sales_executive_id;
         }
     } else {
         form.patron_id = null;
         form.site_id = null;
         form.sales_executive_id = null;
-        form.mix_design_id = null;
-        form.quantity = null;
-        form.rate = null;
+        form.items = [{ mix_design_id: null, quantity: null, rate: null }];
     }
 });
+
+const addItem = () => {
+    form.items.push({ mix_design_id: null, quantity: null, rate: null });
+};
+
+const removeItem = (index: number) => {
+    if (form.items.length > 1) {
+        form.items.splice(index, 1);
+    }
+};
 
 // Filter sites by selected patron
 const filteredSites = computed(() => {
@@ -61,12 +70,14 @@ const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(s
 
 // Quotation dropdown options with labels
 const quotationOptions = computed(() => {
+    // Filter out quotations that have an active sales order
+    const list = props.quotations.filter((q) => !q.is_salesorder || Number(q.is_salesorder) !== 1);
     return [
         { label: 'None (Direct Sales Order)', value: null },
-        ...props.quotations.map((q) => {
+        ...list.map((q) => {
             const patronName = props.patrons.find((p) => Number(p.id) === Number(q.patron_id))?.legal_name || 'Unknown';
             return {
-                label: `${q.reference || 'Draft'} - ${patronName} (₹${Number(q.amount_total || 0).toLocaleString('en-IN')})`,
+                label: q.reference ? `${q.reference} - ${patronName} (₹${Number(q.amount_total || 0).toLocaleString('en-IN')})` : `Draft - ${patronName}`,
                 value: q.id,
             };
         }),
@@ -104,119 +115,160 @@ const submit = () => {
             </div>
         </div>
 
-        <!-- Form Body -->
-        <div class="grid grid-cols-12 gap-5 p-5">
-            <!-- Source Quotation -->
-            <!-- <div class="col-span-12 md:col-span-4">
-                <BaseSelect
-                    v-model="form.quotation_id"
-                    :options="quotationOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    filter
-                    label="Source Quotation (Optional)"
-                    placeholder="Select Quotation"
-                    :error="form.errors.quotation_id"
-                />
-            </div> -->
+       <!-- Form Body -->
+<div class="grid grid-cols-12 gap-5 p-5">
 
-            <!-- Customer (Patron) -->
-            <div class="col-span-12 md:col-span-4">
-                <BaseSelect
-                    v-model="form.patron_id"
-                    :options="patrons"
-                    optionLabel="legal_name"
-                    optionValue="id"
-                    filter
-                    label="Customer"
-                    placeholder="Select Customer"
-                    :disabled="!!form.quotation_id"
-                    :error="form.errors.patron_id"
+    <!-- Sales Executive -->
+    <div class="xl:col-span-3">
+        <BaseSelect
+            v-model="form.sales_executive_id"
+            :options="salesExecutives"
+            optionLabel="label"
+            optionValue="value"
+            filter
+            label="Sales Executive"
+            placeholder="Select Sales Executive"
+            :error="form.errors.sales_executive_id"
+        />
+    </div>
+
+    <!-- Customer -->
+    <div class="xl:col-span-3">
+        <BaseSelect
+            v-model="form.patron_id"
+            :options="patrons"
+            optionLabel="legal_name"
+            optionValue="id"
+            filter
+            label="Customer"
+            placeholder="Select Customer"
+            :disabled="!!form.quotation_id"
+            :error="form.errors.patron_id"
+        />
+
+        <p
+            v-if="form.quotation_id"
+            class="mt-1 text-xs text-indigo-600"
+        >
+            Locked to Quotation Customer
+        </p>
+    </div>
+
+    <!-- Loading Site -->
+    <div class="xl:col-span-3">
+        <BaseSelect
+            v-model="form.site_id"
+            :options="filteredSites"
+            optionLabel="name"
+            optionValue="id"
+            filter
+            label="Loading Site"
+            placeholder="Select Site"
+            :disabled="!!form.quotation_id"
+            :error="form.errors.site_id"
+        />
+
+        <p
+            v-if="form.quotation_id"
+            class="mt-1 text-xs text-indigo-600"
+        >
+            Locked to Quotation Site
+        </p>
+    </div>
+
+    <!-- Order Date -->
+    <div class="xl:col-span-3">
+        <BaseDatePicker
+            v-model="form.order_date"
+            label="Order Date"
+            hourFormat="24"
+            fluid
+            :error="form.errors.order_date"
+        />
+    </div>
+
+    <!-- Mix Design Section -->
+    <template v-if="!form.quotation_id">
+
+        <div class="col-span-12 border-t pt-5 mt-2">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                    Mix Design Items
+                </h3>
+
+                <BaseButton
+                    icon="pi pi-plus"
+                    size="small"
+                    severity="primary"
+                    text
+                    @click="addItem"
                 />
-                <span v-if="form.quotation_id" class="text-[10px] text-indigo-600 mt-1 block font-medium">Locked to Quotation Customer</span>
             </div>
+        </div>
 
-            <!-- Site -->
-            <div class="col-span-12 md:col-span-4">
-                <BaseSelect
-                    v-model="form.site_id"
-                    :options="filteredSites"
-                    optionLabel="name"
-                    optionValue="id"
-                    filter
-                    label="Loading Site"
-                    placeholder="Select Site"
-                    :disabled="!!form.quotation_id"
-                    :error="form.errors.site_id"
-                />
-                <span v-if="form.quotation_id" class="text-[10px] text-indigo-600 mt-1 block font-medium">Locked to Quotation Site</span>
-            </div>
+        <div
+            v-for="(item, idx) in form.items"
+            :key="idx"
+            class="col-span-12 border rounded-xl p-4 bg-white dark:bg-slate-900 shadow-sm"
+        >
+            <div class="grid grid-cols-12 gap-4 items-end">
 
-            <!-- Sales Executive -->
-            <div class="col-span-12 md:col-span-4">
-                <BaseSelect
-                    v-model="form.sales_executive_id"
-                    :options="salesExecutiveOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    filter
-                    label="Sales Executive"
-                    placeholder="Select Executive"
-                    :disabled="!!form.quotation_id"
-                    :error="form.errors.sales_executive_id"
-                />
-                <span v-if="form.quotation_id" class="text-[10px] text-indigo-600 mt-1 block font-medium">Locked to Quotation Sales Executive</span>
-            </div>
-
-            <!-- Order Date -->
-            <div class="col-span-12 md:col-span-4">
-                <BaseDatePicker
-                fluid
-                 hourFormat="24"
-                    v-model="form.order_date"
-                    label="Order Date"
-                    :error="form.errors.order_date"
-                />
-            </div>
-
-            <!-- Mix Design, Quantity, Rate (Only for Direct Sales Order) -->
-            <template v-if="!form.quotation_id">
-                <div class="col-span-12 md:col-span-4">
+                <!-- Mix Design -->
+                <div class="col-span-12 lg:col-span-5">
                     <BaseSelect
-                        v-model="form.mix_design_id"
+                        v-model="item.mix_design_id"
                         :options="mixDesigns"
                         optionLabel="design_name"
                         optionValue="id"
                         filter
                         label="Mix Design"
                         placeholder="Select Mix Design"
-                        :error="form.errors.mix_design_id"
+                        :error="form.errors['items.' + idx + '.mix_design_id']"
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-4">
+                <!-- Quantity -->
+                <div class="col-span-12 sm:col-span-6 lg:col-span-3">
                     <BaseInput
                         type="number"
                         step="0.001"
-                        v-model="form.quantity"
+                        v-model="item.quantity"
                         label="Quantity (m³)"
                         placeholder="Enter Quantity"
-                        :error="form.errors.quantity"
+                        :error="form.errors['items.' + idx + '.quantity']"
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-4">
+                <!-- Rate -->
+                <div class="col-span-12 sm:col-span-5 lg:col-span-3">
                     <BaseInput
                         type="number"
                         step="0.01"
-                        v-model="form.rate"
+                        v-model="item.rate"
                         label="Rate (₹)"
                         placeholder="Enter Rate"
-                        :error="form.errors.rate"
+                        :error="form.errors['items.' + idx + '.rate']"
                     />
                 </div>
-            </template>
+
+                <!-- Delete -->
+                <div class="col-span-12 sm:col-span-1 lg:col-span-1 flex justify-center">
+                    <Button
+                        icon="pi pi-trash"
+                        severity="danger"
+                        rounded
+                        text
+                        :disabled="form.items.length === 1"
+                        @click="removeItem(idx)"
+                    />
+                </div>
+
+            </div>
         </div>
+
+    </template>
+
+</div>
 
         <!-- Action Button -->
         <div class="flex justify-end border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/30 px-4 py-3">

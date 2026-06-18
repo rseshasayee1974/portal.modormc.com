@@ -52,6 +52,8 @@ Route::middleware([
     // 0. Settings
     Route::get('/settings/customsetting', [\App\Http\Controllers\CustomSettingController::class, 'index'])->name('settings.customsetting');
     Route::post('/settings/customsetting', [\App\Http\Controllers\CustomSettingController::class, 'update'])->name('settings.customsetting.update');
+    Route::post('/settings/customsetting/store', [\App\Http\Controllers\CustomSettingController::class, 'store'])->name('settings.customsetting.store');
+    Route::delete('/settings/customsetting/{customsetting}', [\App\Http\Controllers\CustomSettingController::class, 'destroy'])->name('settings.customsetting.destroy');
 
     // 1. Context (Entity/Plant Switcher)
     Route::prefix('context')->group(function () {

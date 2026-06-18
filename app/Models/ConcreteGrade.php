@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\ProtectsSystemItems;
 use App\Traits\TracksModelChanges;
+use App\Traits\AuditFields;
 
 class ConcreteGrade extends Model
 {
-    use HasFactory, SoftDeletes, ProtectsSystemItems, TracksModelChanges;
+    use HasFactory, SoftDeletes, ProtectsSystemItems, TracksModelChanges, AuditFields;
     protected $table = 'mm_concrete_grades';
     protected $fillable = [
         'plant_id',
@@ -35,7 +36,16 @@ class ConcreteGrade extends Model
         'aggregate_ratio' => 'decimal:2',
     ];
 
-     protected $appends = ['is_in_use'];
+
+
+    protected static function booted()
+    {
+        static::deleting(function ($concreteGrade) {
+            foreach ($concreteGrade->items as $item) {
+                $item->delete();
+            }
+        });
+    }
 
     public function plant()
     {
@@ -49,10 +59,6 @@ class ConcreteGrade extends Model
     public function mixDesigns()
     {
         return $this->hasMany(MixDesign::class);
-    }
-        public function getIsInUseAttribute(): bool
-    {
-        return $this->mixDesigns()->exists();
     }
     
 }

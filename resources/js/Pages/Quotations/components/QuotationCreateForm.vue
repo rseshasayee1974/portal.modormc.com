@@ -42,7 +42,7 @@ const props = defineProps<{
     taxes: { id: number; tax_name?: string; tax_rate?: number }[];
     units?: { id: number; name: string }[]; // Falling back if missing
     instant_customer: number | boolean;
-    salesExecutives?: any[];
+    salesExecutives?: { id: number; label: string; value: number }[];
 }>();
 // console.log(props.taxes);
 const isOpen = ref(true);
@@ -272,7 +272,7 @@ const submit = () => {
             <div v-show="isOpen" class="p-6 border-t border-slate-100 bg-white">
                 <form @submit.prevent="submit" class="space-y-8">
                     <!-- Form Header Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-6 items-end">
+                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 items-end">
                         <BaseCreatableSelect 
                             v-if="isInstantCustomerEnabled"
                             v-model="form.patron_id" 
@@ -334,14 +334,15 @@ const submit = () => {
 
                         <BaseSelect 
                             v-model="form.sales_executive_id" 
-                            :options="salesExecutiveOptions" 
+                            :options="salesExecutives || []" 
                             optionLabel="label" 
                             optionValue="value" 
                             label="Sales Executive" 
-                            placeholder="Select Executive" 
+                            placeholder="Select Sales Executive" 
                             filter
+                            :error="form.errors.sales_executive_id"
                         />
-
+ 
                         <BaseDatePicker v-model="form.quote_date" label="Quote Date" required />
                         <BaseDatePicker v-model="form.validity_date" label="Valid Until" />
                         <BaseSelect 

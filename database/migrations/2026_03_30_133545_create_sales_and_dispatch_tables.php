@@ -18,7 +18,10 @@ return new class extends Migration
             $table->string('reference')->nullable();
             $table->unsignedBigInteger('patron_id');
             $table->unsignedBigInteger('site_id')->nullable();
-            
+              $table->foreignId('sales_executive_id')
+                ->nullable()
+                ->constrained('mm_users')
+                ->nullOnDelete();
             $table->decimal('adjustment', 15, 2)->default(0);
 
             $table->date('quote_date');
@@ -63,7 +66,10 @@ return new class extends Migration
             $table->unsignedBigInteger('quotation_id')->nullable();
             $table->unsignedBigInteger('patron_id');
             $table->unsignedBigInteger('site_id');
-
+            $table->foreignId('sales_executive_id')
+                ->nullable()
+                ->constrained('mm_users')
+                ->nullOnDelete();
             $table->date('order_date');
             $table->tinyInteger('status')->default(0);
 

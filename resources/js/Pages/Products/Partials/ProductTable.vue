@@ -9,6 +9,9 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
 import Tag from 'primevue/tag';
 import ProductEditForm from './ProductEditForm.vue';
+import { usePermissions } from '@/Composables/usePermissions';
+
+const { can } = usePermissions();
 
 interface Product {
     id: number;
@@ -71,7 +74,7 @@ const onRowCollapse = () => {
     expandedRows.value = {};
 };
 
-watch([filters, filterCategory], () => {
+const watchFilters = watch([filters, filterCategory], () => {
     onRowCollapse();
 }, { deep: true });
 </script>
@@ -152,9 +155,9 @@ watch([filters, filterCategory], () => {
 
             <Column header="Action" style="width: 26px; text-align: right">
                 <template #body="{ data }">
+                    <!-- :disabled="data.is_in_use" -->
+                    <!-- v-if="can('PRODUCT.delete')" -->
                     <BaseDeleteButton
-                        
-                        :disabled="data.is_in_use"
                         :url="route('products.destroy', data.id)"
                         title="Delete product?"
                         :text="`${data.title} will be permanently removed.`"

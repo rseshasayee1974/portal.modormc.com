@@ -14,6 +14,8 @@ class Personnel extends Model
 
     protected $table = 'mm_personnels';
 
+    protected $appends = ['label'];
+
     // ──────────────────────────────────────────────────────────────
     // Dropdown / Lookup Scopes
     // ──────────────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ class MixDesign extends Model
         'plant_id',
         'partner_id',
         'grade',
+        'concrete_grade_id',
         'design_name',
         'design_code',
         'design_type',

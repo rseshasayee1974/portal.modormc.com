@@ -18,10 +18,15 @@ class MixDesignFactory extends Factory
     {
         return [
             'plant_id' => \App\Models\Plant::factory(),
-            'grade' => $this->faker->randomElement(['M10', 'M20', 'M25', 'M30']),
+            'partner_id' => \App\Models\Patron::factory(),
+            'concrete_grade_id' => function (array $attributes) {
+                return \App\Models\ConcreteGrade::firstOrCreate(
+                    ['plant_id' => $attributes['plant_id'], 'name' => 'M25'],
+                    ['concrete_code' => 'M25-CODE']
+                )->id;
+            },
             'design_name' => 'Design ' . $this->faker->unique()->bothify('##??'),
             'design_code' => 'MD-' . $this->faker->unique()->numerify('####'),
-            'is_active' => true,
         ];
     }
 }

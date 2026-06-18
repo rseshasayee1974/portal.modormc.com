@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import DatePicker from 'primevue/datepicker';
 import BaseField from './BaseField.vue';
 
@@ -38,6 +39,27 @@ const emit = defineEmits<{
     (e: 'update:modelValue', v: any): void;
     (e: 'change', ev: any): void;
 }>();
+
+const internalValue = computed({
+    get() {
+        const parseValue = (val: any): any => {
+            if (!val) return null;
+            if (val instanceof Date) return val;
+            if (typeof val === 'string') {
+                const parsed = new Date(val);
+                return isNaN(parsed.getTime()) ? val : parsed;
+            }
+            if (Array.isArray(val)) {
+                return val.map(parseValue);
+            }
+            return val;
+        };
+        return parseValue(props.modelValue);
+    },
+    set(val) {
+        emit('update:modelValue', val);
+    }
+});
 </script>
 
 <template>
@@ -53,7 +75,7 @@ const emit = defineEmits<{
             <DatePicker
                 v-bind="$attrs"
                 :id="inputId"
-                :modelValue="modelValue"
+                :modelValue="internalValue"
                 :dateFormat="dateFormat"
                 :placeholder="placeholder"
                 :disabled="disabled"
@@ -65,7 +87,7 @@ const emit = defineEmits<{
                     inputClass,
                     invalid ? 'p-invalid' : null
                 ]"
-                @update:modelValue="emit('update:modelValue', $event)"
+                @update:modelValue="internalValue = $event"
                 @change="emit('change', $event)"
             />
         </template>

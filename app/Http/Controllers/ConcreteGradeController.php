@@ -14,12 +14,15 @@ use Illuminate\Support\Facades\DB;
 
 class ConcreteGradeController extends Controller
 {
+  
+
     public function index()
     {
         $plantId = session('active_plant_id');
 
         return Inertia::render('ConcreteGrades/Index', [
             'grades' => ConcreteGrade::where('plant_id', $plantId)
+                // ->withExists(['mixDesigns as is_in_use'])
                 ->with(['items.product'])
                 ->latest()
                 ->get(),
@@ -151,27 +154,11 @@ class ConcreteGradeController extends Controller
 
     public function destroy(ConcreteGrade $concretegrade)
     {
-        if ($concretegrade->mixDesigns()->exists()) {
-            return back()->with(
-                'error',
-                'This concrete grade cannot be deleted because it is linked to one or more mix designs.'
-            );
+        try {
+            $this->service->delete($concretegrade);
+            return back()->with('success', 'Concrete Grade master deleted successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->with('error', $e->validator->errors()->first());
         }
-
-        DB::transaction(function () use ($concretegrade) {
-            foreach ($concretegrade->items as $item) {
-                $item->deleted_by = Auth::id();
-                $item->save();
-                $item->delete();
-            }
-            $concretegrade->deleted_by = Auth::id();
-            $concretegrade->save();
-            $concretegrade->delete();
-        });
-
-        return back()->with(
-            'success',
-            'Concrete Grade master deleted successfully.'
-        );
     }
 }
