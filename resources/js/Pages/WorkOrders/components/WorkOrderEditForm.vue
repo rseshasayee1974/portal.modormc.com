@@ -171,81 +171,175 @@ const isOverdue = computed(() => {
         </div>
         </div>
 
-        <div class="grid grid-cols-12 gap-4">
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect
-                    v-model="form.sales_order_id"
-                    :options="salesOrderOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    filter
-                    label="Sales Order (Optional)"
-                    :error="form.errors.sales_order_id"
-                />
-            </div>
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+    <!-- Row 1 -->
+    <!-- <div class="col-span-1">
+        <BaseSelect
+            v-model="form.sales_order_id"
+            :options="salesOrderOptions"
+            optionLabel="label"
+            optionValue="value"
+            filter
+            label="Sales Order (Optional)"
+            :error="form.errors.sales_order_id"
+        />
+    </div> -->
 
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect v-model="form.customer_id" :options="customers" optionLabel="legal_name" optionValue="id" filter label="Customer" :error="form.errors.customer_id" :disabled="!!form.sales_order_id" />
-            </div>
+    <div class="col-span-1">
+        <BaseSelect
+            v-model="form.customer_id"
+            :options="customers"
+            optionLabel="legal_name"
+            optionValue="id"
+            filter
+            label="Customer"
+            :error="form.errors.customer_id"
+            :disabled="!!form.sales_order_id"
+        />
+    </div>
 
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect v-model="form.site_id" :options="sites" optionLabel="name" optionValue="id" filter label="Site" :error="form.errors.site_id" :disabled="!!form.sales_order_id" />
-            </div>
-            
-            <div class="col-span-12 md:col-span-3">
-                <BaseInputNumber v-model="form.total_qty" label="Total Quantity (m³)" :error="form.errors.total_qty" :minFractionDigits="3" />
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <BaseInputNumber v-model="form.produced_qty" label="Produced Quantity (m³)" :error="form.errors.produced_qty" readonly :minFractionDigits="3" disabled/>
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect v-model="form.status" :options="filteredStatuses" optionLabel="label" optionValue="value" label="Status" :error="form.errors.status" />
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect
-                    v-model="form.concrete_pump"
-                    :options="concretePumpOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    label="Concrete Type"
-                    placeholder="Select Concrete Type"
-                    :error="form.errors.concrete_pump"
-                />
-            </div>
+    <div class="col-span-1">
+        <BaseSelect
+            v-model="form.site_id"
+            :options="sites"
+            optionLabel="name"
+            optionValue="id"
+            filter
+            label="Site"
+            :error="form.errors.site_id"
+            :disabled="!!form.sales_order_id"
+        />
+    </div>
 
-            <div class="col-span-12 md:col-span-3">
-                <label class="mb-1 block text-xs font-semibold text-slate-500">Scheduled Start</label>
-                <BaseDatePicker v-model="form.scheduled_start" showTime hourFormat="24" fluid />
-                <small class="text-red-500">{{ form.errors.scheduled_start }}</small>
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <label class="mb-1 block text-xs font-semibold text-slate-500">Scheduled End</label>
-                <BaseDatePicker v-model="form.scheduled_end" showTime hourFormat="24" fluid />
-                <small class="text-red-500">{{ form.errors.scheduled_end }}</small>
+    <div class="col-span-1">
+        <BaseInputNumber
+            v-model="form.total_qty"
+            label="Total Quantity (m³)"
+            :error="form.errors.total_qty"
+            :minFractionDigits="3"
+        />
+    </div>
 
-</div>
+    <div class="col-span-1">
+        <BaseInputNumber
+            v-model="form.produced_qty"
+            label="Produced Quantity (m³)"
+            :error="form.errors.produced_qty"
+            readonly
+            disabled
+            :minFractionDigits="3"
+        />
+    </div>
 
-            <div class="col-span-12 md:col-span-6">
-                <div class="col-span-12 md:col-span-3">
-                    <BaseSelect v-model="form.mix_design_id" :options="mixDesigns"  optionLabel="design_name" optionValue="id" filter label="Mix Design" :error="form.errors.mix_design_id" :disabled="!!form.sales_order_id" />
-                </div>
-                
-                <div v-if="selectedMixIngredients.length" class="mt-2.5 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
-                    <div class="flex items-center justify-between">
-                        <label class="text-[9px] font-bold uppercase tracking-[0.1em] text-indigo-400">Recipe Details</label>
-                        <span v-if="selectedMixDesign?.grade" class="rounded bg-indigo-100 px-1 py-0.5 text-[8px] font-bold text-indigo-700">GRADE: {{ selectedMixDesign.design_name }}</span>
-                    </div>
-                    <div class="flex flex-wrap gap-1.5">
-                        <div v-for="item in selectedMixIngredients" :key="item.id" 
-                             class="group flex items-center gap-2 rounded-md bg-white/50 px-2 py-1 ring-1 ring-inset ring-indigo-100 transition-all hover:bg-white hover:shadow-sm hover:ring-indigo-200">
-                            <span class="text-[10px] font-medium text-slate-600">{{ item.name || 'Unknown' }}</span>
-                            <div class="h-3 w-px bg-indigo-100"></div>
-                            <span class="text-[10px] font-bold text-indigo-600">{{ item.qty }} <span class="text-[9px] font-medium text-slate-400">{{ item.uom }}</span></span>
-                        </div>
-                    </div>
-                </div>
+    <!-- Row 2 -->
+    <div class="col-span-1">
+        <BaseSelect
+            v-model="form.status"
+            :options="filteredStatuses"
+            optionLabel="label"
+            optionValue="value"
+            label="Status"
+            :error="form.errors.status"
+        />
+    </div>
+
+    <div class="col-span-1">
+        <BaseSelect
+            v-model="form.concrete_pump"
+            :options="concretePumpOptions"
+            optionLabel="label"
+            optionValue="value"
+            label="Concrete Type"
+            placeholder="Select Concrete Type"
+            :error="form.errors.concrete_pump"
+        />
+    </div>
+
+    <div class="col-span-1">
+        <label class="mb-1 block text-xs font-semibold text-slate-500">
+            Scheduled Start
+        </label>
+
+        <BaseDatePicker
+            v-model="form.scheduled_start"
+            showTime
+            hourFormat="24"
+            fluid
+        />
+
+        <small class="text-red-500">
+            {{ form.errors.scheduled_start }}
+        </small>
+    </div>
+
+    <div class="col-span-1">
+        <label class="mb-1 block text-xs font-semibold text-slate-500">
+            Scheduled End
+        </label>
+
+        <BaseDatePicker
+            v-model="form.scheduled_end"
+            showTime
+            hourFormat="24"
+            fluid
+        />
+
+        <small class="text-red-500">
+            {{ form.errors.scheduled_end }}
+        </small>
+    </div>
+
+    <div class="col-span-1">
+        <BaseSelect
+            v-model="form.mix_design_id"
+            :options="mixDesigns"
+            optionLabel="design_name"
+            optionValue="id"
+            filter
+            label="Mix Design"
+            :error="form.errors.mix_design_id"
+            :disabled="!!form.sales_order_id"
+        />
+    </div>
+
+    <!-- Recipe Details -->
+    <div
+        v-if="selectedMixIngredients.length"
+        class="md:col-span-5 rounded-lg border border-indigo-100 bg-indigo-50/40 p-3"
+    >
+        <div class="flex items-center justify-between">
+            <label class="text-[10px] font-bold uppercase tracking-[0.1em] text-indigo-500">
+                Recipe Details
+            </label>
+
+            <span
+                v-if="selectedMixDesign?.grade"
+                class="rounded bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700"
+            >
+                {{ selectedMixDesign.design_name }}
+            </span>
+        </div>
+
+        <div class="mt-3 flex flex-wrap gap-2">
+            <div
+                v-for="item in selectedMixIngredients"
+                :key="item.id"
+                class="flex items-center gap-2 rounded-md border border-indigo-100 bg-white px-3 py-2"
+            >
+                <span class="text-xs text-slate-700">
+                    {{ item.name || 'Unknown' }}
+                </span>
+
+                <span class="font-semibold text-indigo-600">
+                    {{ item.qty }}
+                    <span class="text-slate-400">
+                        {{ item.uom }}
+                    </span>
+                </span>
             </div>
         </div>
+    </div>
+</div>
 
         <div v-if="workOrder?.status === 1 || workOrder?.status === 4" class="mt-4 border-t border-indigo-100 pt-3">
             <BaseFormActions 

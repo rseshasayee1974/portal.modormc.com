@@ -28,6 +28,7 @@ const props = withDefaults(defineProps<{
 const form = useForm({
     quotation_id: null as number | null,
     patron_id: null as number | null,
+    status: 0 as number | null,
     site_id: null as number | null,
     sales_executive_id: null as number | null,
     concrete_pump: 'pump' as string | null,
@@ -90,6 +91,48 @@ const quotationOptions = computed(() => {
 });
 
 const submit = () => {
+    if (!form.quotation_id) {
+        // Direct Sales Order: validate items
+        let hasError = false;
+        form.clearErrors();
+        
+        if (!form.patron_id) {
+            form.setError('patron_id', 'Customer is required.');
+            hasError = true;
+        }
+        if (!form.site_id) {
+            form.setError('site_id', 'Loading Site is required.');
+            hasError = true;
+        }
+
+        form.items.forEach((item, idx) => {
+            if (!item.mix_design_id) {
+                form.setError(`items.${idx}.mix_design_id` as any, 'Mix Design is required.');
+                hasError = true;
+            }
+            if (!item.quantity || Number(item.quantity) <= 0) {
+                form.setError(`items.${idx}.quantity` as any, 'Quantity must be greater than 0.');
+                hasError = true;
+            }
+            if (!item.rate || Number(item.rate) < 0) {
+                form.setError(`items.${idx}.rate` as any, 'Rate cannot be negative.');
+                hasError = true;
+            }
+        });
+
+        if (hasError) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'Please fill the required fields in the form.',
+                timer: 3000,
+                showConfirmButton: false,
+            });
+            return;
+        }
+    }
+
     form.post(route('salesorders.store'), {
         onSuccess: () => {
             Swal.fire({
@@ -227,65 +270,74 @@ const submit = () => {
         </div>
 
         <div
-            v-for="(item, idx) in form.items"
-            :key="idx"
-            class="col-span-full p-4"
-        >
-            <div class="grid grid-cols-12 gap-2 items-end">
+    v-for="(item, idx) in form.items"
+    :key="idx"
+    class="col-span-full border-b border-indigo-100/50 pb-4 last:border-0 last:pb-0"
+>
+    <div class="grid grid-cols-12 gap-3 items-start">
+        <!-- Mix Design - gets 50% of row on md+ -->
+        <div class="col-span-12 md:col-span-6">
+            <BaseSelect
+                v-model="item.mix_design_id"
+                :options="mixDesigns"
+                optionLabel="design_name"
+                optionValue="id"
+                filter
+                label="Mix Design"
+                placeholder="Select Mix Design"
+                :error="form.errors[`items.${idx}.mix_design_id`]"
+            />
+        </div>
 
-                <!-- Mix Design -->
-                <div class="col-span-12 lg:col-span-5">
-                    <BaseSelect
-                        v-model="item.mix_design_id"
-                        :options="mixDesigns"
-                        optionLabel="design_name"
-                        optionValue="id"
-                        filter
-                        label="Mix Design"
-                        placeholder="Select Mix Design"
-                        :error="form.errors[`items.${idx}.mix_design_id`]"
-                    />
-                </div>
+        <!-- Quantity - 20% -->
+        <div class="col-span-6 md:col-span-2">
+            <BaseInput
+                v-model="item.quantity"
+                type="number"
+                step="0.001"
+                min="0.001"
+                label="Qty (m³)"
+                placeholder="0.000"
+                :error="form.errors[`items.${idx}.quantity`]"
+            />
+        </div>
 
-                <!-- Quantity -->
-                <div class="col-span-12 md:col-span-3">
-                    <BaseInput
-                        v-model="item.quantity"
-                        type="number"
-                        step="0.001"
-                        label="Quantity (m³)"
-                        placeholder="Quantity"
-                        :error="form.errors[`items.${idx}.quantity`]"
-                    />
-                </div>
+        <!-- Rate - 20% -->
+        <div class="col-span-6 md:col-span-2">
+            <BaseInput
+                v-model="item.rate"
+                type="number"
+                step="0.01"
+                min="0"
+                label="Rate (₹)"
+                placeholder="0.00"
+                :error="form.errors[`items.${idx}.rate`]"
+            />
+        </div>
 
-                <!-- Rate -->
-                <div class="col-span-12 md:col-span-3">
-                    <BaseInput
-                        v-model="item.rate"
-                        type="number"
-                        step="0.01"
-                        label="Rate (₹)"
-                        placeholder="Rate"
-                        :error="form.errors[`items.${idx}.rate`]"
-                    />
-                </div>
-
-                <!-- Delete -->
-                <div class="col-span-12 md:col-span-1 flex justify-center">
-                    <Button
-                        icon="pi pi-trash"
-                        severity="danger"
-                        rounded
-                        text
-                        :disabled="form.items.length === 1"
-                        @click="removeItem(idx)"
-                    />
-                </div>
-
+        <!-- Amount - 6% calculated -->
+        <div class="col-span-10 md:col-span-1">
+            <label class="block text-xs font-medium text-gray-700">Amount</label>
+            <div class="h-8 flex items-center px-3 text-sm font-semibold text-indigo-700 bg-indigo-50 rounded-md">
+                ₹{{ ((item.quantity || 0) * (item.rate || 0)).toFixed(2) }}
             </div>
         </div>
 
+        <!-- Delete - 4% -->
+        <div class="col-span-2 md:col-span-1 flex justify-end pt-6">
+            <Button
+                icon="pi pi-trash"
+                severity="danger"
+                rounded
+                text
+                size="small"
+                :disabled="form.items.length === 1"
+                @click="removeItem(idx)"
+                v-tooltip.top="'Remove item'"
+            />
+        </div>
+    </div>
+</div>
     </template>
 
 </div>

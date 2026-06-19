@@ -65,6 +65,9 @@ const filters = ref({
     'work_order.customer.id': { value: null, matchMode: 'equals' },
 });
 
+
+console.log('props.drivers',props);
+
 const dateFrom = ref<any>(null);
 const dateTo = ref<any>(null);
 
@@ -310,7 +313,12 @@ const handlePreviewClose = async (batchId: number | null) => {
         await refreshBatchRow(batchId);
     }
 };
-
+const handleBatchCreated = () => {
+    router.reload({ 
+        only: ['batches', 'nextBatchNo', 'workOrders'],
+        preserveScroll: true 
+    })
+}
 const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => {
     if (payload) {
         const { batchId, type } = payload;
@@ -338,8 +346,20 @@ const {
     closeTokenPreview,
     adjustIframeHeight,
     printTokenIframe,
-} = useBatchTokenPreview(closeAllMenus, handlePreviewClose);
-
+} = useBatchTokenPreview({
+    closeAllMenus,
+    onClose: (batchId, reason) => {
+        // This replaces your old emits + onPreviewClose
+        if (batchId) refreshBatchRow(batchId);
+        
+        if (reason === 'print' || reason === 'manual') {
+            router.reload({ 
+                only: ['batches', 'nextBatchNo'], 
+                preserveScroll: true 
+            })
+        }
+    }
+});
 // ── Invoice Actions ──────────────────────────────────────────────────
 const {
     generateInvoiceDirect,
@@ -464,6 +484,8 @@ const shareBatchEmail = () => {
                     :statuses="statuses"
                     :nextBatchNo="nextBatchNo"
                     :concretePumpOptions="concretePumpOptions"
+                            @created="handleBatchCreated"
+
                     @offline-batch-added="handleOfflineBatchAdded"
                 />
 

@@ -71,6 +71,17 @@ class SalesOrderTest extends TestCase
             'is_salesorder' => 0,
         ]);
 
+        $mixDesign = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id]);
+        $quotationItem = \App\Models\QuotationItem::create([
+            'quotation_id' => $quotation->id,
+            'mix_design_id' => $mixDesign->id,
+            'quantity' => 12.5,
+            'rate' => 600,
+            'tax_amount' => 0,
+            'untaxed_amount' => 7500,
+            'amount_total' => 7500,
+        ]);
+
         $response = $this->patch(route('quotations.convert', $quotation->id), [
             'is_salesorder' => 1,
         ]);
@@ -84,6 +95,10 @@ class SalesOrderTest extends TestCase
         $salesOrder = SalesOrder::where('quotation_id', $quotation->id)->first();
         $this->assertNotNull($salesOrder);
         $this->assertEquals($this->user->id, $salesOrder->converted_by_user_id);
+
+        $this->assertCount(1, $salesOrder->items);
+        $this->assertEquals(12.5, $salesOrder->items->first()->quantity);
+        $this->assertEquals(600, $salesOrder->items->first()->rate);
     }
 
     public function test_creating_sales_order_creates_sales_order_items()
@@ -359,5 +374,28 @@ class SalesOrderTest extends TestCase
 
         $response->assertStatus(302);
         $this->assertSoftDeleted($salesOrder);
+    }
+
+    public function test_direct_sales_order_requires_valid_item_fields()
+    {
+        $response = $this->post(route('salesorders.store'), [
+            'quotation_id' => null,
+            'patron_id' => $this->patron->id,
+            'site_id' => $this->site->id,
+            'order_date' => now()->format('Y-m-d'),
+            'items' => [
+                [
+                    'mix_design_id' => null,
+                    'quantity' => null,
+                    'rate' => null
+                ]
+            ]
+        ]);
+
+        $response->assertSessionHasErrors([
+            'items.0.mix_design_id',
+            'items.0.quantity',
+            'items.0.rate'
+        ]);
     }
 }

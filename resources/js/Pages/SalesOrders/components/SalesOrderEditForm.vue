@@ -151,6 +151,48 @@ const submit = () => {
         return;
     }
 
+    if (!form.quotation_id) {
+        // Direct Sales Order: validate items
+        let hasError = false;
+        form.clearErrors();
+        
+        if (!form.patron_id) {
+            form.setError('patron_id', 'Customer is required.');
+            hasError = true;
+        }
+        if (!form.site_id) {
+            form.setError('site_id', 'Site is required.');
+            hasError = true;
+        }
+
+        form.items.forEach((item, idx) => {
+            if (!item.mix_design_id) {
+                form.setError(`items.${idx}.mix_design_id` as any, 'Mix Design is required.');
+                hasError = true;
+            }
+            if (!item.quantity || Number(item.quantity) <= 0) {
+                form.setError(`items.${idx}.quantity` as any, 'Quantity must be greater than 0.');
+                hasError = true;
+            }
+            if (!item.rate || Number(item.rate) < 0) {
+                form.setError(`items.${idx}.rate` as any, 'Rate cannot be negative.');
+                hasError = true;
+            }
+        });
+
+        if (hasError) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'error',
+                title: 'Please fix the errors in the form.',
+                timer: 3000,
+                showConfirmButton: false,
+            });
+            return;
+        }
+    }
+
     form.put(route('salesorders.update', salesOrderId), {
         onSuccess: () => {
             Swal.fire({
@@ -168,28 +210,16 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-4 text-left">
-        <div class="mb-3 flex items-center justify-between">
+    <div class="rounded-lg border border-indigo-100 bg-white p-5 text-left">
+        <div class="mb-4 flex items-center justify-between">
             <h3 class="text-xs font-bold uppercase tracking-wide text-indigo-800">Edit Sales Order</h3>
             <span class="font-mono text-xs font-bold text-amber-600">
                 REF # : {{ salesOrder.quotation?.reference || 'Direct Sales Order' }}
             </span>
         </div>
 
-        <div class="grid grid-cols-12 gap-4">
-            <div class="col-span-12 md:col-span-4">
-                <BaseSelect
-                    v-model="form.quotation_id"
-                    :options="quotationOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    filter
-                    label="Quotation"
-                    placeholder="Select Quotation"
-                    :error="form.errors.quotation_id"
-                />
-            </div>
-            <div class="col-span-12 md:col-span-4">
+        <div class="grid grid-cols-12 md:grid-cols-5 gap-x-4 gap-y-3">
+            <div class="col-span-12 md:col-span-1">
                 <BaseSelect
                     v-model="form.sales_executive_id"
                     :options="salesExecutiveOptions"
@@ -201,7 +231,7 @@ const submit = () => {
                     :error="form.errors.sales_executive_id"
                 />
             </div>
-            <div class="col-span-12 md:col-span-4">
+            <div class="col-span-12 md:col-span-1">
                 <BaseSelect
                     v-model="form.concrete_pump"
                     :options="concretePumpOptions"
@@ -212,7 +242,7 @@ const submit = () => {
                     :error="form.errors.concrete_pump"
                 />
             </div>
-            <div class="col-span-12 md:col-span-4">
+            <div class="col-span-12 md:col-span-1">
                 <BaseSelect
                     v-model="form.patron_id"
                     :options="patrons"
@@ -224,10 +254,10 @@ const submit = () => {
                     :disabled="!!form.quotation_id"
                     :error="form.errors.patron_id"
                 />
-                <span v-if="form.quotation_id" class="text-[10px] text-indigo-600 mt-1 block font-medium">Locked to Quotation Customer</span>
+                <span v-if="form.quotation_id" class="text- text-indigo-600 mt-1 block font-medium">Locked to Quotation Customer</span>
             </div>
 
-            <div class="col-span-12 md:col-span-4">
+            <div class="col-span-12 md:col-span-1">
                 <BaseSelect
                     v-model="form.site_id"
                     :options="filteredSites"
@@ -239,21 +269,20 @@ const submit = () => {
                     :disabled="!!form.quotation_id"
                     :error="form.errors.site_id"
                 />
-                <span v-if="form.quotation_id" class="text-[10px] text-indigo-600 mt-1 block font-medium">Locked to Quotation Site</span>
+                <span v-if="form.quotation_id" class="text- text-indigo-600 mt-1 block font-medium">Locked to Quotation Site</span>
             </div>
 
-            <div class="col-span-12 md:col-span-4">
-                
+            <div class="col-span-12 md:col-span-1">
                 <BaseDatePicker
-                fluid
-                hourFormat="24"
-                label="Order Date"
-                v-model="form.order_date"
-                :error="form.errors.order_date"
+                    fluid
+                    hourFormat="24"
+                    label="Order Date"
+                    v-model="form.order_date"
+                    :error="form.errors.order_date"
                 />
             </div>
 
-            <div class="col-span-12 md:col-span-4">
+            <div class="col-span-12 md:col-span-1">
                 <BaseSelect
                     v-model="form.status"
                     :options="[
@@ -269,11 +298,10 @@ const submit = () => {
                 />
             </div>
 
-            <!-- Conditional Mix Design fields -->
             <!-- Direct Sales Order: Show multi-item list -->
             <template v-if="!form.quotation_id">
-                <div class="col-span-12 my-2 border-t border-indigo-100/50 pt-2">
-                    <div class="flex items-center justify-between">
+                <div class="col-span-12 md:col-span-5 mt-2 border-t border-gray-200 pt-4">
+                    <div class="flex items-center justify-between mb-3">
                         <span class="text-xs font-bold uppercase tracking-wide text-indigo-800">Mix Design Items</span>
                         <Button
                             icon="pi pi-plus"
@@ -286,62 +314,84 @@ const submit = () => {
                     </div>
                 </div>
 
-                <div v-for="(item, idx) in form.items" :key="idx" class="col-span-12 grid grid-cols-12 gap-4 items-end bg-indigo-50/20 p-4 rounded-xl border border-indigo-100/30 relative">
-                    <div class="col-span-12 md:col-span-5">
-                        <BaseSelect
-                            v-model="item.mix_design_id"
-                            :options="mixDesigns"
-                            optionLabel="design_name"
-                            optionValue="id"
-                            filter
-                            label="Mix Design"
-                            placeholder="Select Mix Design"
-                            :error="form.errors['items.' + idx + '.mix_design_id']"
-                        />
-                    </div>
-
-                    <div class="col-span-12 md:col-span-3">
-                        <BaseInput
-                            type="number"
-                            step="0.001"
-                            v-model="item.quantity"
-                            label="Quantity (m³)"
-                            placeholder="Enter Quantity"
-                            :error="form.errors['items.' + idx + '.quantity']"
-                        />
-                    </div>
-
-                    <div class="col-span-12 md:col-span-3">
-                        <BaseInput
-                            type="number"
-                            step="0.01"
-                            v-model="item.rate"
-                            label="Rate (₹)"
-                            placeholder="Enter Rate"
-                            :error="form.errors['items.' + idx + '.rate']"
-                        />
-                    </div>
-
-                    <div class="col-span-12 md:col-span-1 flex justify-center pb-1">
-                        <Button
-                            icon="pi pi-trash"
-                            severity="danger"
-                            text
-                            rounded
-                            :disabled="form.items.length === 1"
-                            @click="removeItem(idx)"
-                        />
+                <div class="col-span-12 md:col-span-5 space-y-3">
+                    <div 
+                        v-for="(item, idx) in form.items" 
+                        :key="idx" 
+                        class="grid grid-cols-12 gap-3 items-start pb-3"
+                    >
+                        <!-- Mix Design -->
+                        <div class="col-span-12 md:col-span-5">
+                            <BaseSelect
+                                v-model="item.mix_design_id"
+                                :options="mixDesigns"
+                                optionLabel="design_name"
+                                optionValue="id"
+                                filter
+                                label="Mix Design"
+                                placeholder="Select Mix Design"
+                                :error="form.errors[`items.${idx}.mix_design_id`]"
+                            />
+                        </div>
+                    
+                        <!-- Quantity -->
+                        <div class="col-span-4 md:col-span-2">
+                            <BaseInput
+                                type="number"
+                                step="0.001"
+                                min="0.001"
+                                v-model="item.quantity"
+                                label="Qty (m³)"
+                                placeholder="0.000"
+                                :error="form.errors[`items.${idx}.quantity`]"
+                            />
+                        </div>
+                    
+                        <!-- Rate -->
+                        <div class="col-span-4 md:col-span-2">
+                            <BaseInput
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                v-model="item.rate"
+                                label="Rate (₹)"
+                                placeholder="0.00"
+                                :error="form.errors[`items.${idx}.rate`]"
+                            />
+                        </div>
+                    
+                        <!-- Amount -->
+                        <div class="col-span-3 md:col-span-2">
+                            <label class="block text-xs font-medium text-gray-700">Amount</label>
+                            <div class="h-8 flex items-center text-sm font-semibold text-indigo-700">
+                                ₹{{ ((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2) }}
+                            </div>
+                        </div>
+                    
+                        <!-- Delete -->
+                        <div class="col-span-1 flex justify-end pt-6">
+                            <Button
+                                icon="pi pi-trash"
+                                severity="danger"
+                                text
+                                rounded
+                                size="small"
+                                :disabled="form.items.length === 1"
+                                @click="removeItem(idx)"
+                                v-tooltip.top="'Remove'"
+                            />
+                        </div>
                     </div>
                 </div>
             </template>
 
             <!-- Quotation-linked Sales Order with single item -->
-            <template v-else-if="!form.quotation_id && (salesOrder?.quotation?.items?.length === 1 || salesOrder?.items?.length === 1)">
-                <div class="col-span-12 my-2 border-t border-indigo-100/50 pt-2">
+            <template v-else-if="form.quotation_id && (salesOrder?.quotation?.items?.length === 1 || salesOrder?.items?.length === 1)">
+                <div class="col-span-12 md:col-span-5 mt-2 border-t border-gray-200 pt-4">
                     <span class="text-xs font-bold uppercase tracking-wide text-indigo-800">Item Details</span>
                 </div>
 
-                <div class="col-span-12 md:col-span-4">
+                <div class="col-span-12 md:col-span-2">
                     <BaseSelect
                         v-model="form.mix_design_id"
                         :options="mixDesigns"
@@ -354,33 +404,33 @@ const submit = () => {
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-4">
+                <div class="col-span-12 md:col-span-1">
                     <BaseInput
                         type="number"
                         step="0.001"
                         v-model="form.quantity"
-                        label="Quantity (m³)"
-                        placeholder="Enter Quantity"
+                        label="Qty (m³)"
+                        placeholder="0.000"
                         :error="form.errors.quantity"
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-4">
+                <div class="col-span-12 md:col-span-1">
                     <BaseInput
                         type="number"
                         step="0.01"
                         v-model="form.rate"
                         label="Rate (₹)"
-                        placeholder="Enter Rate"
+                        placeholder="0.00"
                         :error="form.errors.rate"
                     />
                 </div>
             </template>
         </div>
 
-        <div class="mt-4 border-t border-indigo-100 pt-3">
+        <div class="mt-5 flex justify-end gap-2 border-t border-gray-200 pt-4">
             <BaseFormActions
-            :disabled="props.salesOrder.has_workorders"
+                :disabled="props.salesOrder.has_workorders"
                 mode="update"
                 updateLabel="Update Sales Order"
                 :loading="form.processing"

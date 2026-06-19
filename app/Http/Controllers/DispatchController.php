@@ -86,6 +86,13 @@ class DispatchController extends Controller
                     $dispatchData['dispatch_no'] = $details['nextNumber'];
                 }
 
+                if (!empty($dispatchData['work_order_id'])) {
+                    $wo = \App\Models\WorkOrder::find($dispatchData['work_order_id']);
+                    if ($wo) {
+                        $dispatchData['sales_order_id'] = $wo->sales_order_id;
+                    }
+                }
+
                 // 2. Create Main Dispatch Record
                 $dispatch = Dispatch::create($dispatchData);
 Log::info($dispatch);
@@ -160,6 +167,15 @@ Log::info($dispatch);
                 'load_rate', 'load_tax_id', 'load_tax_amount', 'load_untax_amount', 'load_total_amount',
                 'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off'
             ]));
+
+            if (array_key_exists('work_order_id', $dispatchData)) {
+                if (!empty($dispatchData['work_order_id'])) {
+                    $wo = \App\Models\WorkOrder::find($dispatchData['work_order_id']);
+                    $dispatchData['sales_order_id'] = $wo ? $wo->sales_order_id : null;
+                } else {
+                    $dispatchData['sales_order_id'] = null;
+                }
+            }
 
             // 2. Update Main Dispatch Record
             $dispatch->update($dispatchData);

@@ -50,7 +50,7 @@ const props = withDefaults(defineProps<{
     concretePumpOptions: () => [],
 });
 
-const emit = defineEmits(['offline-batch-added']);
+const emit = defineEmits(['offline-batch-added', 'cancel','created']);
 
 const blankMaterial = (): BatchMaterial => ({
     product_id: null,
@@ -380,6 +380,8 @@ const submit = () => {
             form.concrete_pump = null;
             form.batch_size = 1;
             form.materials = [blankMaterial()];
+             // Force reload props from server to get latest batches/nextBatchNo
+            emit('created') // trigger parent to refresh
         },
         onError: (errors) => {
             const errorMessages = Object.values(errors).flat().join('\n');

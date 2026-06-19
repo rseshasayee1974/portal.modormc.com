@@ -99,27 +99,47 @@ class QuotationController extends Controller
             'is_salesorder' => 'required|integer|in:0,1,-1'
         ]);
 
-        $quotation->update($validated);
+        DB::transaction(function () use ($quotation, $validated) {
+            $quotation->update($validated);
 
-        $isSalesOrder = (int) $validated['is_salesorder'];
-        if ($isSalesOrder === 1) {
-            $user = auth()->user();
+            $isSalesOrder = (int) $validated['is_salesorder'];
+            if ($isSalesOrder === 1) {
+                $user = auth()->user();
 
-            \App\Models\SalesOrder::updateOrCreate(
-                ['quotation_id' => $quotation->id],
-                [
-                    'plant_id' => $quotation->plant_id,
-                    'patron_id' => $quotation->patron_id,
-                    'site_id' => $quotation->site_id,
-                    'sales_executive_id' => $quotation->sales_executive_id,
-                    'order_date' => now()->toDateString(),
-                    'status' => \App\Models\SalesOrder::STATUS_CONFIRMED,
-                    'converted_by_user_id' => $user->id,
-                ]
-            );
-        } else {
-            \App\Models\SalesOrder::where('quotation_id', $quotation->id)->delete();
-        }
+                $salesOrder = \App\Models\SalesOrder::updateOrCreate(
+                    ['quotation_id' => $quotation->id],
+                    [
+                        'plant_id' => $quotation->plant_id,
+                        'patron_id' => $quotation->patron_id,
+                        'site_id' => $quotation->site_id,
+                        'sales_executive_id' => $quotation->sales_executive_id,
+                        'concrete_pump' => $quotation->concrete_pump,
+                        'order_date' => now()->toDateString(),
+                        'status' => \App\Models\SalesOrder::STATUS_CONFIRMED,
+                        'converted_by_user_id' => $user->id,
+                    ]
+                );
+
+                // Clear any existing items in the sales order to avoid duplicates/orphans
+                $salesOrder->items()->delete();
+
+                // Copy items from quotation to sales order items
+                $quotation->load('items');
+                foreach ($quotation->items as $item) {
+                    $salesOrder->items()->create([
+                        'mix_design_id' => $item->mix_design_id,
+                        'quantity' => $item->quantity,
+                        'rate' => $item->rate,
+                        'tax_id' => $item->tax_id,
+                        'tax_amount' => $item->tax_amount,
+                        'untaxed_amount' => $item->untaxed_amount,
+                        'amount_total' => $item->amount_total,
+                    ]);
+                }
+            } else {
+                \App\Models\SalesOrder::where('quotation_id', $quotation->id)->delete();
+            }
+        });
 
         return redirect()->back()->with('success', 'Sales Order conversion status updated.');
     }
