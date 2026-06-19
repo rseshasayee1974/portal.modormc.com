@@ -86,12 +86,12 @@ class DispatchController extends Controller
                     $dispatchData['dispatch_no'] = $details['nextNumber'];
                 }
 
-                if (!empty($dispatchData['work_order_id'])) {
-                    $wo = \App\Models\WorkOrder::find($dispatchData['work_order_id']);
-                    if ($wo) {
-                        $dispatchData['sales_order_id'] = $wo->sales_order_id;
-                    }
-                }
+                // if (!empty($dispatchData['work_order_id'])) {
+                //     $wo = \App\Models\WorkOrder::find($dispatchData['work_order_id']);
+                //     if ($wo) {
+                //         $dispatchData['sales_order_id'] = $wo->sales_order_id;
+                //     }
+                // }
 
                 // 2. Create Main Dispatch Record
                 $dispatch = Dispatch::create($dispatchData);
@@ -168,14 +168,14 @@ Log::info($dispatch);
                 'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off'
             ]));
 
-            if (array_key_exists('work_order_id', $dispatchData)) {
-                if (!empty($dispatchData['work_order_id'])) {
-                    $wo = \App\Models\WorkOrder::find($dispatchData['work_order_id']);
-                    $dispatchData['sales_order_id'] = $wo ? $wo->sales_order_id : null;
-                } else {
-                    $dispatchData['sales_order_id'] = null;
-                }
-            }
+            // if (array_key_exists('work_order_id', $dispatchData)) {
+            //     if (!empty($dispatchData['work_order_id'])) {
+            //         $wo = \App\Models\WorkOrder::find($dispatchData['work_order_id']);
+            //         $dispatchData['sales_order_id'] = $wo ? $wo->sales_order_id : null;
+            //     } else {
+            //         $dispatchData['sales_order_id'] = null;
+            //     }
+            // }
 
             // 2. Update Main Dispatch Record
             $dispatch->update($dispatchData);
