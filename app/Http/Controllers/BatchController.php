@@ -271,7 +271,7 @@ class BatchController extends Controller
                 
                 $dispatchData = [
                     'work_order_id'       => $payload['work_order_id'],
-                    'sales_order_id'      => $workOrder->sales_order_id,
+                    // 'sales_order_id'      => $workOrder->sales_order_id,
                     'batch_id'            => $batch->id,
                     'plant_id'            => $activePlantId,
                     'customer_id'         => $workOrder->customer_id,
