@@ -246,11 +246,11 @@ if (!function_exists('PersonnelDropdown')) {
             $query->excludeId($excludeId);
         }
 
-        // if ($designationName) {
-        //     $query->whereHas('designation', function ($q) use ($designationName) {
-        //         $q->where('name', $designationName);
-        //     });
-        // }
+        if ($designationName) {
+            $query->whereHas('designation', function ($q) use ($designationName) {
+                $q->where('name', 'like', '%' . $designationName . '%');
+            });
+        }
 
         return $query->whereNull('deleted_at')
             ->orderBy('first_name')

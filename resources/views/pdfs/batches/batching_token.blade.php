@@ -240,13 +240,13 @@
             <td class="meta-value font-mono">
                 {{ optional($batch->load_time ?? $batch->created_at)->format('d-m-Y H:i') }}</td>
         </tr>
-        <tr>
+        {{-- <tr>
             <td class="meta-label">Shift:</td>
             <td class="meta-value">{{ $batch->shift ?? '-' }}</td>
-        </tr>
+        </tr> --}}
         <tr>
             <td class="meta-label">Operator:</td>
-            <td class="meta-value">{{ $batch->operator?->label ?? 'System' }}</td>
+            <td class="meta-value">{{ $batch->operator?->label ?? '-' }}</td>
         </tr>
     </table>
 

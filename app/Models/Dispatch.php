@@ -85,7 +85,7 @@ class Dispatch extends Model
 
     public function truck(): BelongsTo
     {
-        return $this->belongsTo(Machine::class, 'vehicle_id');
+        return $this->belongsTo(Machine::class, 'truck_id');
     }
 
     public function transport(): BelongsTo

@@ -27,7 +27,7 @@ class StoreBatchRequest extends FormRequest
             'shift' => ['nullable', 'string', 'max:50'],
             'empty_time' => ['nullable', 'date'] ,
             'load_time' => ['nullable', 'date'],
-            'truck_id' => ['required', 'integer', 'exists:mm_machines,id'],
+            'truck_id' => ['nullable', 'integer', 'exists:mm_machines,id'],
             'transport_id' => ['nullable', 'integer', 'exists:mm_patrons,id'],
             'driver_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
             'sales_executive_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],

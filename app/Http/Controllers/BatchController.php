@@ -94,10 +94,10 @@ class BatchController extends Controller
             ->withCount('batches')
             ->where('plant_id', $activePlantId)
             ->whereIn('status', [WorkOrder::STATUS_IN_PROGRESS])
-             ->where(function ($query) {
-        $query->whereNull('scheduled_end')
-              ->orWhere('scheduled_end', '>', now());              // to display the workorders which are active as per scheduled end date
-    })
+            ->where(function ($query) {
+                $query->whereNull('scheduled_end')
+                ->orWhere('scheduled_end', '>=', date('Y-m-d', strtotime(now()) ) );              // to display the workorders which are active as per scheduled end date
+            })
             ->orderBy('order_no')
             ->get();
 
@@ -157,7 +157,7 @@ class BatchController extends Controller
             //     'batches' => $batches,
             //     'workOrders' => $workOrders,
             // ]);
-      
+    //   dd($workOrders);
         return Inertia::render('Batches/Index', [
             'batches'           => $batches,
             'workOrders'        => $workOrders,
@@ -215,7 +215,22 @@ class BatchController extends Controller
                     }
                 }
 
-                $batch = Batch::create($payload);
+                $batchData = array_intersect_key($payload, array_flip([
+                    'work_order_id',
+                    'batch_no',
+                    'batch_size',
+                    'start_time',
+                    'end_time',
+                    'status',
+                    'operator_id',
+                    'shift',
+                    'sync_status',
+                    'batch_sheet_path',
+                    'batch_original_sheet_path',
+                    'created_by',
+                    'updated_by',
+                ]));
+                $batch = Batch::create($batchData);
                 $this->syncMaterials($batch, $materials);
                 
                 if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
@@ -671,61 +686,21 @@ class BatchController extends Controller
 
     public function token(Batch $batch)
     {
-        $batch->load([
-            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
-            'workOrder.customer:id,legal_name',
-            'workOrder.site:id,name',
-            'workOrder.plant:id,entity_id,name,logo_path',
-            'workOrder.plant.entity:id,legal_name',
-            'workOrder.plant.addresses',
-            'workOrder.mixDesign:id,design_name,design_code,design_type',
-            'workOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time',
-            'dispatches.truck:id,registration',
-            'dispatches.driver:id,first_name,last_name',
-            'dispatches.salesExecutive:id,first_name,last_name',
-            'dispatches.transport:id,legal_name',
-            'dispatches.loadSite:id,name',
-            'materials:id,batch_id,product_id,material_name,target_qty,uom_id',
-            'materials.product:id,title',
-            'materials.uom:id,unit_code',
-            'operator:id,first_name,last_name'
-        ]);
-
+        $this->loadBatchForToken($batch);
         $this->ensurePlantScope($batch->workOrder);
 
         $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
 
         return view('pdfs.batches.batching_token', [
-            'batch' => $batch,
+            'batch'     => $batch,
             'isPreview' => true,
-            'settings' => $settings,
+            'settings'  => $settings,
         ]);
     }
 
     public function downloadTokenPdf(Batch $batch)
     {
-        $batch->load([
-            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
-            'workOrder.customer:id,legal_name',
-            'workOrder.site:id,name',
-            'workOrder.plant:id,entity_id,name,logo_path',
-            'workOrder.plant.entity:id,legal_name',
-            'workOrder.plant.addresses',
-            'workOrder.mixDesign:id,design_name,design_code,design_type',
-            'workOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time',
-            'dispatches.truck:id,registration',
-            'dispatches.driver:id,first_name,last_name',
-            'dispatches.salesExecutive:id,first_name,last_name',
-            'dispatches.transport:id,legal_name',
-            'dispatches.loadSite:id,name',
-            'materials:id,batch_id,product_id,material_name,target_qty,uom_id',
-            'materials.product:id,title',
-            'materials.uom:id,unit_code',
-            'operator:id,first_name,last_name'
-        ]);
-
+        $this->loadBatchForToken($batch);
         $this->ensurePlantScope($batch->workOrder);
 
         $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
@@ -735,13 +710,64 @@ class BatchController extends Controller
         $height = 320 + ($materialsCount * 15);
 
         $pdf = Pdf::loadView('pdfs.batches.batching_token', [
-            'batch' => $batch,
+            'batch'     => $batch,
             'isPreview' => false,
-            'settings' => $settings,
+            'settings'  => $settings,
         ])->setPaper([0, 0, 226.77, $height], 'portrait');
 
         $filename = sprintf('batch-token-%s.pdf', $batch->batch_no ?? $batch->id);
         return $pdf->download($filename);
+    }
+
+    /**
+     * Load only the relationships the batching token blade actually uses.
+     *
+     * Blade audit (batching_token.blade.php):
+     *   - batch: batch_no, batch_size, load_time, created_at, shift, operator->label
+     *   - workOrder: order_no, customer->legal_name, site->name,
+     *                mixDesign->design_code/design_name, mixDesign->concrete_grade->name
+     *   - plant: name, logo_path, addresses->first() (line_1, city, state, pincode)
+     *   - dispatches->first(): truck->registration, driver->label, transport->legal_name,
+     *                          loadSite->name, salesExecutive->label,
+     *                          empty_weight_truck, empty_time
+     *   - materials: COMMENTED OUT in blade — not loaded at all
+     *
+     * Total: 2 queries (1 belongsTo chain + 1 constrained dispatch with its belongsTo)
+     * + 1 query for plant addresses (hasMany, kept separate to avoid row duplication)
+     */
+    private function loadBatchForToken(Batch $batch): void
+    {
+        // Query 1 – all pure belongsTo chains (no hasMany = no row duplication risk)
+        $batch->load([
+            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'workOrder.customer:id,legal_name',
+            'workOrder.site:id,name',
+            'workOrder.plant:id,entity_id,name,logo_path',
+            'workOrder.mixDesign:id,design_name,design_code,design_type',
+            'workOrder.mixDesign.concrete_grade:id,name',
+            'operator:id,first_name,last_name',
+        ]);
+
+        // Query 2 – only the first dispatch + its belongsTo associations
+        // (blade only ever calls $batch->dispatches->first(), never iterates all dispatches)
+        $batch->load([
+            'dispatches' => fn ($q) => $q
+                ->select('id', 'batch_id', 'truck_id', 'driver_id', 'transport_id', 'load_site_id', 'sales_executive_id', 'empty_weight_truck', 'empty_time')
+                ->oldest('id')
+                ->limit(1),
+            'dispatches.truck:id,registration',
+            'dispatches.driver:id,first_name,last_name',
+            'dispatches.salesExecutive:id,first_name,last_name',
+            'dispatches.transport:id,legal_name',
+            'dispatches.loadSite:id,name',
+        ]);
+
+        // Query 3 – plant addresses (hasMany on a nested model — isolated to prevent row duplication)
+        $batch->workOrder?->plant?->load('addresses');
+
+        // Note: materials are NOT loaded — the materials section is commented out in the blade view.
+        // Re-add this load if materials are re-enabled in the view:
+        // $batch->load(['materials:id,batch_id,product_id,material_name,target_qty,uom_id', 'materials.product:id,title', 'materials.uom:id,unit_code']);
     }
 
     public function dispatchToken(Batch $batch)
