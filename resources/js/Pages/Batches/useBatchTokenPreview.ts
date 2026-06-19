@@ -16,7 +16,10 @@ import { ref, onMounted, onUnmounted } from 'vue';
  *  - toggleMenu    : Toggle a specific row's menu
  *  - closeAllMenus : Close every open menu (bound to global click)
  */
-export function useBatchTokenPreview(closeAllMenus: () => void) {
+export function useBatchTokenPreview(
+    closeAllMenus: () => void,
+    onPreviewClose?: (batchId: number | null) => void
+) {
 
     // ── Token Preview State ───────────────────────────────────────────────────
     const tokenPreviewVisible = ref(false);
@@ -25,9 +28,11 @@ export function useBatchTokenPreview(closeAllMenus: () => void) {
     const previewTitle        = ref('Batching Token Preview');
     const previewWidth        = ref('380px');
     const previewIframeWidth  = ref('340px');
+    const currentBatchId      = ref<number | null>(null);
 
     // ── Open Token Dialog ────────────────────────────────────────────────────
     const viewToken = (id: number, type: string = 'batching') => {
+        currentBatchId.value = id;
         if (type === 'dispatch') {
             previewTitle.value      = 'Dispatch Token Preview';
             previewWidth.value      = '380px';
@@ -57,7 +62,11 @@ export function useBatchTokenPreview(closeAllMenus: () => void) {
         setTimeout(() => {
             tokenPreviewUrl.value = '';
             iframeHeight.value    = '300px';
-            window.location.reload();
+            if (onPreviewClose) {
+                onPreviewClose(currentBatchId.value);
+            } else {
+                window.location.reload();
+            }
         }, 350);
     };
 
@@ -97,7 +106,11 @@ export function useBatchTokenPreview(closeAllMenus: () => void) {
                 iframe.contentWindow.print();
             }
             setTimeout(() => {
-                window.location.reload();
+                if (onPreviewClose) {
+                    onPreviewClose(currentBatchId.value);
+                } else {
+                    window.location.reload();
+                }
             }, 500);
             return;
         }
@@ -109,13 +122,21 @@ export function useBatchTokenPreview(closeAllMenus: () => void) {
                 // Close the popup after the user dismisses the print dialog
                 popup.onafterprint = () => {
                     popup.close();
-                    window.location.reload();
+                    if (onPreviewClose) {
+                        onPreviewClose(currentBatchId.value);
+                    } else {
+                        window.location.reload();
+                    }
                 };
                 // Fallback close after 60s if onafterprint doesn't fire
                 setTimeout(() => {
                     try {
                         popup.close();
-                        window.location.reload();
+                        if (onPreviewClose) {
+                            onPreviewClose(currentBatchId.value);
+                        } else {
+                            window.location.reload();
+                        }
                     } catch(_) {}
                 }, 60000);
             }, 300);

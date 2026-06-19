@@ -45,7 +45,7 @@ const props = withDefaults(defineProps<{
     statuses: () => [],
 }); 
 const emit = defineEmits<{
-    (e: 'saved'): void;
+    (e: 'saved', payload?: { batchId: number, type: 'batching' | 'dispatch' }): void;
     (e: 'cancel'): void;
 }>();
 
@@ -491,6 +491,8 @@ const submit = () => {
             deviation_quantity: Number(item.actual_qty || 0) - Number(item.target_qty || 0),
         })),
     })).put(route('batches.update', props.batch?.id), {
+        preserveState: true,
+        preserveScroll: true,
         onSuccess: () => {
             Swal.fire({
                 toast: true,
@@ -501,7 +503,7 @@ const submit = () => {
                 showConfirmButton: false,
             });
             isSaved.value = true;
-            emit('saved');
+            emit('saved', { batchId: props.batch.id, type: 'batching' });
         },
         onError: (errors) => {
             const errorMessages = Object.values(errors).flat().join('\n');

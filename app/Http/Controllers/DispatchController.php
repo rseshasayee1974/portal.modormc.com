@@ -127,6 +127,9 @@ Log::info($dispatch);
         $this->authorizeModule('edit');
         // dd( $dispatch->all());
         $user = auth()->user();
+        if($dispatch->dispatch_status !== 'Draft'){
+            abort(403, 'Access Denied: This dispatch is already invoiced.');
+        }
         if ($user && $user->hasRole('Trip Operator')) {
             $isDataPresented = (float)$dispatch->load_rate > 0 || 
                                $dispatch->dispatch_status !== 'Draft' || 
@@ -206,10 +209,10 @@ Log::info($dispatch);
         ]);
         return DB::transaction(function () use ($dispatch, $validated) {
             $invoice = \App\Models\Invoice::createFromSource($dispatch, 'sales', [
-                'account_id' => $validated['ledger_id'],
-                'invoice_date' => $validated['invoice_date'],
-                'partner_id' => $dispatch->customer_id,
-                'plant_id' => $dispatch->plant_id,
+                'account_id'    => $validated['ledger_id'],
+                'invoice_date'  => $validated['invoice_date'],
+                'partner_id'    => $dispatch->customer_id,
+                'plant_id'      => $dispatch->plant_id,
                 'invoice_label' => 'Dispatch'
             ]);
             $dispatch->invoice($invoice);

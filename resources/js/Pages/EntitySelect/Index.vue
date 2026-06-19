@@ -69,29 +69,17 @@
 
         <!-- Main Body -->
         <section class="relative z-10 mx-auto w-full max-w-6xl flex-1 px-6 py-10 flex flex-col justify-center">
-            <!-- Breadcrumbs / Steps Indicator -->
+            <!-- Header Controls -->
             <div class="flex flex-wrap items-center justify-between gap-4 mb-10">
-                <div class="flex items-center gap-3">
-                    <button
-                        v-if="step === 'plant'"
-                        type="button"
-                        @click="goToEntityStep"
-                        class="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-indigo-600 bg-white border border-slate-100 rounded-full shadow-sm hover:shadow-md transition duration-300"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-                        </svg>
-                        Organizations
-                    </button>
-
+                <div>
                     <h2 class="text-2xl font-extrabold tracking-tight text-slate-900">
-                        {{ step === 'entity' ? 'Organizations' : `${selectedEntityName} / Facilities` }}
+                        Available Workspaces
                     </h2>
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <!-- Remember selection toggle (only in Plant step) -->
-                    <label v-if="step === 'plant'" class="flex items-center gap-3 bg-white border border-slate-100 rounded-2xl px-4 py-2 shadow-sm cursor-pointer select-none">
+                    <!-- Remember selection toggle -->
+                    <label class="flex items-center gap-3 bg-white border border-slate-100 rounded-2xl px-4 py-2 shadow-sm cursor-pointer select-none">
                         <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Remember selection</span>
                         <div class="relative shrink-0">
                             <input id="default-toggle" v-model="setAsDefault" type="checkbox" class="peer sr-only" />
@@ -106,17 +94,9 @@
                             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m0 0a7.5 7.5 0 1 0-10.607 0 7.5 7.5 0 0 0 10.607 0Z" />
                         </svg>
                         <input
-                            v-if="step === 'entity'"
-                            v-model="entitySearch"
-                            type="text"
-                            placeholder="Search organization..."
-                            class="w-full rounded-2xl border border-slate-100 bg-white py-2 pl-10 pr-4 text-xs font-bold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                        />
-                        <input
-                            v-else
                             v-model="plantSearch"
                             type="text"
-                            placeholder="Search facility..."
+                            placeholder="Search facility or organization..."
                             class="w-full rounded-2xl border border-slate-100 bg-white py-2 pl-10 pr-4 text-xs font-bold text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
                         />
                     </div>
@@ -131,88 +111,8 @@
                 <p class="font-semibold">{{ errorMessage }}</p>
             </div>
 
-            <!-- Zoho-style Apps Grid -->
-            <!-- Step 1: Organizations -->
-            <div v-if="step === 'entity'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8 justify-center">
-                <div
-                    v-for="(eu, index) in filteredEntities"
-                    :key="eu.entity_id"
-                    class="group relative flex flex-col items-center justify-center p-6 bg-transparent border border-transparent rounded-[24px] transition-all duration-300 hover:bg-slate-100/60 hover:border-slate-200/50 hover:-translate-y-1 cursor-pointer select-none"
-                    :class="[
-                        eu.is_suspended !== 0 ? 'opacity-65' : '',
-                        selectedEntityId === eu.entity_id ? 'bg-indigo-50/40 border-indigo-100/60 shadow-[0_4px_20px_-10px_rgba(79,70,229,0.15)]' : ''
-                    ]"
-                    @click="selectEntity(eu)"
-                >
-                    <!-- Small hovering utility actions at top-right of the card -->
-                    <div class="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20" @click.stop>
-                        <button
-                            type="button"
-                            @click="toggleSuspension(eu)"
-                            class="inline-flex size-7 items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-red-600 hover:bg-red-50 hover:border-red-100 shadow-sm transition"
-                            :title="eu.is_suspended !== 0 ? 'Reactivate' : 'Suspend'"
-                        >
-                            <svg v-if="eu.is_suspended !== 0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                            </svg>
-                            <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-3.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 1 1 9 0v3.75M3.75 21.75h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H3.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                            </svg>
-                        </button>
-                        <button
-                            type="button"
-                            @click="openEntityDetails(eu)"
-                            class="inline-flex size-7 items-center justify-center rounded-xl bg-white border border-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-100 shadow-sm transition"
-                            title="Details"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="size-3.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
-                            </svg>
-                        </button>
-                    </div>
-
-                    <!-- Organization logo or outline vector icon -->
-                    <div class="size-16 flex items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110 mb-3 select-none pointer-events-none">
-                        <img v-if="eu.entity_logo" :src="`/storage/${eu.entity_logo}`" :alt="eu.entity_name" class="size-full object-contain p-1" />
-                        <div v-else class="size-full flex items-center justify-center text-slate-700" v-html="getWorkspaceIcon(index)"></div>
-                    </div>
-
-                    <!-- Label -->
-                    <h3 class="text-[13px] font-medium text-slate-700 tracking-wide text-center group-hover:text-slate-900 w-full truncate mb-0.5">
-                        {{ eu.entity_name }}
-                    </h3>
-                    <p class="text-[10px] text-slate-400 font-medium tracking-wide text-center w-full truncate mb-2">
-                        {{ eu.entity_alias || eu.role_name }}
-                    </p>
-
-                    <!-- Maintenance / Inactive markers -->
-                    <span v-if="eu.is_suspended !== 0" class="px-2 py-0.5 rounded-full bg-red-50 border border-red-100 text-[8px] font-black uppercase tracking-wider text-red-600 scale-90">
-                        Suspended
-                    </span>
-                    <span v-else-if="eu.is_active" class="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-[8px] font-black uppercase tracking-wider text-emerald-600 scale-90">
-                        Active
-                    </span>
-
-                    <!-- Loading overlay for specific card -->
-                    <div v-if="switchingEntityId === eu.entity_id" class="absolute inset-0 flex items-center justify-center bg-white/95 backdrop-blur-sm rounded-[24px] z-10">
-                        <div class="size-6 animate-spin rounded-full border-3 border-indigo-600 border-t-transparent"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Empty state Organizations -->
-            <div v-if="step === 'entity' && filteredEntities.length === 0" class="max-w-md mx-auto rounded-[32px] border border-dashed border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
-                <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m0 0a7.5 7.5 0 1 0-10.607 0 7.5 7.5 0 0 0 10.607 0Z" />
-                    </svg>
-                </div>
-                <h4 class="text-sm font-bold text-slate-900 tracking-tight">No organizations found</h4>
-                <p class="mt-2 text-xs leading-5 text-slate-500">We couldn't find any organization matching "{{ entitySearch }}".</p>
-            </div>
-
-            <!-- Step 2: Facilities -->
-            <div v-if="step === 'plant'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8 justify-center">
+            <!-- Zoho-style Apps Grid: Direct Facilities -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8 justify-center">
                 <div
                     v-for="(plant, index) in filteredPlants"
                     :key="plant.id"
@@ -240,7 +140,7 @@
                     <!-- Facility logo or outline building icon -->
                     <div class="size-16 flex items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110 mb-3 select-none pointer-events-none">
                         <img v-if="plant.logo_path" :src="`/storage/${plant.logo_path}`" :alt="plant.name" class="size-full object-contain p-1" />
-                        <div v-else class="size-full flex items-center justify-center text-slate-700" v-html="getWorkspaceIcon(index + 3)"></div>
+                        <div v-else class="size-full flex items-center justify-center text-slate-700" v-html="getWorkspaceIcon(index)"></div>
                     </div>
 
                     <!-- Label -->
@@ -248,15 +148,18 @@
                         {{ plant.name }}
                     </h3>
                     <p class="text-[10px] text-slate-400 font-medium tracking-wide text-center w-full truncate mb-2">
-                        {{ plant.code || 'SYS-FACILITY' }}
+                        {{ plant.entity_name }} <span v-if="plant.code">({{ plant.code }})</span>
                     </p>
 
-                    <!-- Default / Inactive markers -->
+                    <!-- Default / Inactive / Role markers -->
                     <span v-if="defaults.plant_id === plant.id" class="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-100 text-[8px] font-black uppercase tracking-wider text-indigo-600 scale-90">
                         Default
                     </span>
                     <span v-else-if="plant.is_active === -1" class="px-2 py-0.5 rounded-full bg-red-50 border border-red-100 text-[8px] font-black uppercase tracking-wider text-red-600 scale-90">
                         Inactive
+                    </span>
+                    <span v-else class="px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-100 text-[8px] font-black uppercase tracking-wider text-emerald-600 scale-90 max-w-full truncate">
+                        {{ plant.role_name }}
                     </span>
 
                     <!-- Loading overlay for specific card -->
@@ -267,7 +170,7 @@
             </div>
 
             <!-- Empty state Facilities -->
-            <div v-if="step === 'plant' && filteredPlants.length === 0" class="max-w-md mx-auto rounded-[32px] border border-dashed border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
+            <div v-if="filteredPlants.length === 0" class="max-w-md mx-auto rounded-[32px] border border-dashed border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
                 <div class="mx-auto flex size-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 21V7.5A2.25 2.25 0 0 1 6.75 5.25h10.5A2.25 2.25 0 0 1 19.5 7.5V21M9 10.5h6M9 14.25h6M9 18h6" />
@@ -275,7 +178,7 @@
                 </div>
                 <h4 class="text-sm font-bold text-slate-900 tracking-tight">No facilities found</h4>
                 <p class="mt-2 text-xs leading-5 text-slate-500">
-                    {{ plantCount === 0 ? 'No active facilities are assigned to this organization.' : 'Try a different facility name or code.' }}
+                    Try searching with another facility or organization name.
                 </p>
             </div>
         </section>
@@ -286,7 +189,7 @@
                 <div class="px-6 pt-8 pb-4">
                     <div class="flex items-center justify-between gap-4">
                         <div>
-                            <p class="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">{{ detailModal.title }} details</p>
+                            <p class="text-[9px] font-black uppercase tracking-[0.25em] text-slate-400">Facility Details</p>
                             <h3 class="text-xl font-extrabold tracking-tight text-slate-950 mt-1">{{ detailModal.name }}</h3>
                         </div>
                         <button
@@ -310,31 +213,23 @@
                         <div class="min-w-0">
                             <p class="text-sm font-extrabold tracking-tight text-slate-900 truncate">{{ detailModal.name }}</p>
                             <p class="text-xs text-slate-500 mt-0.5 truncate">
-                                {{ detailModal.type === 'entity' ? detailModal.role : `Facility code: ${detailModal.code}` }}
+                                Code: {{ detailModal.code }}
                             </p>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                            <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">System ID</p>
-                            <p class="text-sm font-extrabold text-slate-800 mt-1">#{{ detailModal.id }}</p>
+                            <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Organization</p>
+                            <p class="text-sm font-extrabold text-slate-800 mt-1 truncate">{{ detailModal.alias }}</p>
                         </div>
                         <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-4">
-                            <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
-                                {{ detailModal.type === 'entity' ? 'Alias' : 'Status' }}
-                            </p>
-                            <p class="text-sm font-extrabold text-slate-800 mt-1 truncate">
-                                {{ detailModal.type === 'entity' ? detailModal.alias : detailModal.is_main ? 'Primary facility' : 'Standard facility' }}
-                            </p>
+                            <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">User Role</p>
+                            <p class="text-sm font-extrabold text-slate-800 mt-1 truncate">{{ detailModal.role }}</p>
                         </div>
                     </div>
 
                     <div class="space-y-3">
-                        <div class="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                            <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Registered Address</p>
-                            <p class="text-xs leading-5 text-slate-600 mt-1.5">{{ detailModal.address || 'No registered address data.' }}</p>
-                        </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div class="rounded-2xl border border-slate-100 bg-white px-4 py-3">
                                 <p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Phone</p>
@@ -367,19 +262,6 @@ import { computed, ref } from 'vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 
-interface EntityAccess {
-    entity_id: number;
-    entity_name: string;
-    entity_alias?: string;
-    entity_logo?: string;
-    role_name: string;
-    is_active: boolean;
-    is_suspended: number;
-    address?: string;
-    phone?: string;
-    email?: string;
-}
-
 interface PlantOption {
     id: number;
     name: string;
@@ -389,13 +271,14 @@ interface PlantOption {
     email_address?: string | null;
     mobile_number?: string | null;
     logo_path?: string | null;
+    entity_id: number;
+    entity_name: string;
+    entity_logo?: string | null;
+    role_name: string;
 }
 
-type DetailType = 'entity' | 'plant';
-type StepKey = 'entity' | 'plant';
-
 const props = defineProps<{
-    entityAccess: EntityAccess[];
+    plants: PlantOption[];
     defaults: {
         entity_id: number | null;
         plant_id: number | null;
@@ -403,32 +286,22 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
-const step = ref<StepKey>('entity');
-const entitySearch = ref('');
 const plantSearch = ref('');
 const errorMessage = ref('');
 const isLoading = ref(false);
-const switchingEntityId = ref<number | null>(null);
 const switchingPlantId = ref<number | null>(null);
-const selectedEntityId = ref<number | null>(props.defaults.entity_id ?? null);
-const selectedEntityName = ref('');
-const availablePlants = ref<PlantOption[]>([]);
 const setAsDefault = ref(false);
 
 const detailModal = ref({
     show: false,
-    type: 'entity' as DetailType,
-    title: '',
     name: '',
     logo: null as string | null,
     alias: '',
     id: 0,
     role: '',
-    address: '',
     phone: '',
     email: '',
     code: '',
-    is_main: false,
 });
 
 // Outlined SVG paths (like Zoho-style brand outline icons)
@@ -589,32 +462,14 @@ const userName = computed(() => {
     return user?.name || user?.username || 'User';
 });
 
-const entityCount = computed(() => props.entityAccess.length);
-const plantCount = computed(() => availablePlants.value.length);
-
-const selectedEntity = computed(() => {
-    return props.entityAccess.find((item) => item.entity_id === selectedEntityId.value) || null;
-});
-
-const filteredEntities = computed(() => {
-    if (!entitySearch.value) return props.entityAccess;
-    const query = entitySearch.value.toLowerCase();
-
-    return props.entityAccess.filter((entity) =>
-        entity.entity_name.toLowerCase().includes(query) ||
-        entity.entity_alias?.toLowerCase().includes(query) ||
-        entity.entity_id.toString().includes(query)
-    );
-});
-
 const filteredPlants = computed(() => {
-    if (!plantSearch.value) return availablePlants.value;
+    if (!plantSearch.value) return props.plants;
     const query = plantSearch.value.toLowerCase();
 
-    return availablePlants.value.filter((plant) =>
+    return props.plants.filter((plant) =>
         plant.name.toLowerCase().includes(query) ||
-        plant.code?.toLowerCase().includes(query) ||
-        plant.id.toString().includes(query)
+        (plant.code && plant.code.toLowerCase().includes(query)) ||
+        plant.entity_name.toLowerCase().includes(query)
     );
 });
 
@@ -626,117 +481,18 @@ const initials = (name: string) =>
         .map((part) => part.charAt(0).toUpperCase())
         .join('');
 
-const goToEntityStep = () => {
-    step.value = 'entity';
-    plantSearch.value = '';
-    errorMessage.value = '';
-};
-
-const openEntityDetails = (entity: EntityAccess) => {
-    detailModal.value = {
-        show: true,
-        type: 'entity',
-        title: 'Organization',
-        name: entity.entity_name,
-        logo: entity.entity_logo ? `/storage/${entity.entity_logo}` : null,
-        alias: entity.entity_alias || 'N/A',
-        id: entity.entity_id,
-        role: entity.role_name || 'Authorized member',
-        address: entity.address || 'No registered address data available.',
-        phone: entity.phone || 'N/A',
-        email: entity.email || 'N/A',
-        code: '',
-        is_main: false,
-    };
-};
-
 const openPlantDetails = (plant: PlantOption) => {
     detailModal.value = {
         show: true,
-        type: 'plant',
-        title: 'Facility',
         name: plant.name,
         logo: plant.logo_path ? `/storage/${plant.logo_path}` : null,
-        alias: '',
+        alias: plant.entity_name,
         id: plant.id,
-        role: '',
-        address: 'Facility site address context loaded dynamically.',
+        role: plant.role_name || 'Authorized member',
         phone: plant.mobile_number || 'N/A',
         email: plant.email_address || 'N/A',
         code: plant.code || 'SYS-FACILITY',
-        is_main: plant.is_main || false,
     };
-};
-
-const selectEntity = async (entity: EntityAccess) => {
-    if (isLoading.value) return;
-
-    if (entity.is_suspended !== 0) {
-        let reason = 'This organization is currently suspended.';
-        if (entity.is_suspended === -1) {
-            reason = 'This organization is suspended due to unpaid server charges or scheduled maintenance.';
-        } else if (entity.is_suspended === 1) {
-            reason = 'This organization is currently inactive or offline.';
-        }
-
-        alert(`Access Restricted:\n${reason}\n\nPlease contact administration to reactivate.`);
-        return;
-    }
-
-    if (selectedEntityId.value === entity.entity_id && availablePlants.value.length > 0) {
-        errorMessage.value = '';
-        step.value = 'plant';
-        return;
-    }
-
-    errorMessage.value = '';
-    plantSearch.value = '';
-    setAsDefault.value = false;
-    isLoading.value = true;
-    switchingEntityId.value = entity.entity_id;
-
-    try {
-        const { data } = await axios.post('/context/selectentity', { entity_id: entity.entity_id });
-        selectedEntityId.value = entity.entity_id;
-        selectedEntityName.value = entity.entity_name;
-        availablePlants.value = data.plants ?? [];
-        step.value = 'plant';
-    } catch (error: any) {
-        errorMessage.value = error.response?.data?.error || error.response?.data?.message || 'Unable to load facilities for this organization.';
-    } finally {
-        isLoading.value = false;
-        switchingEntityId.value = null;
-    }
-};
-
-const toggleSuspension = async (entity: EntityAccess) => {
-    if (isLoading.value) return;
-
-    if (entity.is_suspended !== 0 && !isSystemAdmin.value) {
-        alert('Action Denied:\nOnly a Super Administrator can reactivate a suspended organization.');
-        return;
-    }
-
-    isLoading.value = true;
-
-    try {
-        const { data } = await axios.post('/context/toggle-suspension', { entity_id: entity.entity_id });
-
-        if (data.status === 'success') {
-            entity.is_suspended = data.is_suspended;
-
-            if (data.is_suspended !== 0 && selectedEntityId.value === entity.entity_id) {
-                selectedEntityId.value = null;
-                selectedEntityName.value = '';
-                availablePlants.value = [];
-                goToEntityStep();
-            }
-        }
-    } catch (error: any) {
-        alert(error.response?.data?.error || 'Failed to toggle suspension.');
-    } finally {
-        isLoading.value = false;
-    }
 };
 
 const selectPlant = async (plant: PlantOption) => {

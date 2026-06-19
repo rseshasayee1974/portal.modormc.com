@@ -237,7 +237,7 @@ class BatchController extends Controller
                     'mixdesign_id'        => $workOrder->mix_design_id,
                     'unload_site_id'      => $workOrder->site_id,
                     'uom_id'              => $payload['uom_id'] ?? null,
-                    'vehicle_id'          => $payload['truck_id'] ?? null,
+                    'truck_id'          => $payload['truck_id'] ?? null,
                     'transport_id'        => $payload['transport_id'] ?? null,
                     'driver_id'           => $payload['driver_id'] ?? null,
                     'sales_executive_id'  => $payload['sales_executive_id'] ?? null,
@@ -529,7 +529,7 @@ class BatchController extends Controller
             $dispatch = $batch->dispatches()->first();
             if ($dispatch) {
                 $dispatch->update([
-                    'vehicle_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->vehicle_id,
+                    'truck_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->truck_id,
                     'transport_id' => array_key_exists('transport_id', $payload) ? $payload['transport_id'] : $dispatch->transport_id,
                     'driver_id' => array_key_exists('driver_id', $payload) ? $payload['driver_id'] : $dispatch->driver_id,
                     'sales_executive_id' => array_key_exists('sales_executive_id', $payload) ? $payload['sales_executive_id'] : $dispatch->sales_executive_id,

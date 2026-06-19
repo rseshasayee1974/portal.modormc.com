@@ -57,7 +57,10 @@ const isReadOnly = computed(() => {
 
 // console.log(props.dropdownData);
 
-const emit = defineEmits(['cancel', 'saved']);
+const emit = defineEmits<{
+    (e: 'saved', payload?: { batchId: number, type: 'batching' | 'dispatch' }): void;
+    (e: 'cancel'): void;
+}>();
 
 const form = useForm({
     id: props.dispatch?.id || null,
@@ -330,7 +333,7 @@ const submit = () => {
                     timer: 1500
                 });
                 console.log('DispatchSection: emitting saved');
-                emit('saved');
+                emit('saved', { batchId: props.batch.id, type: 'dispatch' });
             },
             onError: (errors) => {
                 console.error('DispatchSection: put errors:', errors);
@@ -358,7 +361,7 @@ const submit = () => {
                     timer: 1500
                 });
                 console.log('DispatchSection: emitting saved');
-                emit('saved');
+                emit('saved', { batchId: props.batch.id, type: 'dispatch' });
             },
             onError: (errors) => {
                 console.error('DispatchSection: post errors:', errors);
@@ -387,7 +390,7 @@ const handleGenerateInvoice = () => {
     }, {
         preserveScroll: true,
         onSuccess: () => {
-            emit('saved');
+            emit('saved', { batchId: props.batch.id, type: 'dispatch' });
         }
     });
 };
@@ -406,7 +409,7 @@ const handleDeleteInvoice = () => {
             router.delete(route('dispatches.delete-invoice', form.id), {
                 preserveScroll: true,
                 onSuccess: () => {
-                    emit('saved');
+                    emit('saved', { batchId: props.batch.id, type: 'dispatch' });
                 }
             });
         }

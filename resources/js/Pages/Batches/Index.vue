@@ -168,8 +168,9 @@ const fetchBatchDetails = async (id: number) => {
 /**
  * Toggle expand: uses our own expandedBatchId ref so we are never
  * affected by PrimeVue mutating the expandedRows object internally.
+ * Note: fetchBatchDetails is driven by the watch below — no direct call needed here.
  */
-const toggleExpand = async (data: any) => {
+const toggleExpand = (data: any) => {
     const id = Number(data.id);
 
     if (expandedBatchId.value === id) {
@@ -177,19 +178,33 @@ const toggleExpand = async (data: any) => {
         expandedBatchId.value = null;
         expandedRows.value     = {};
     } else {
-        // Expand (close any previously open row first)
+        // Expand — setting expandedBatchId triggers the watch which fetches details
         expandedBatchId.value = id;
         expandedRows.value    = { [id]: true };
-        await fetchBatchDetails(id);
     }
 };
 
 // Fired by PrimeVue's own row expander (not our custom button) — keep in sync
-const onRowExpand = async (event: any) => {
+const onRowExpand = (event: any) => {
     const id = Number(event.data.id);
     expandedBatchId.value = id;
-    await fetchBatchDetails(id);
+    // watch on expandedBatchId handles the fetch automatically
 };
+
+/**
+ * Watch expandedBatchId and fetch details whenever a row is opened.
+ * Using the watch (instead of inline calls) means any code that sets
+ * expandedBatchId will automatically get fresh data for the active row —
+ * including the initial toggle AND any programmatic re-expand after a save.
+ */
+watch(
+    () => expandedBatchId.value,
+    async (newId) => {
+        if (newId !== null) {
+            await fetchBatchDetails(newId);
+        }
+    }
+);
 
 const collapseExpandedRows = (batchId?: number) => {
     // console.log('Index.vue: collapseExpandedRows called with batchId:', batchId);
@@ -228,10 +243,7 @@ const cleanupSuccessHook = router.on('success', (event) => {
     const url = event.detail.visit?.url?.toString() || '';
     const method = event.detail.visit?.method?.toLowerCase() || '';
     console.log('Index.vue: Inertia success hook fired. URL:', url, '| method:', method, '| expandedBatchId:', expandedBatchId.value);
-    if (expandedBatchId.value !== null && (method === 'put' || method === 'post') && (url.includes('/dispatches') || url.includes('/batches'))) {
-        console.log('Index.vue: Inertia hook — closing row for ID:', expandedBatchId.value);
-        collapseExpandedRows(expandedBatchId.value);
-    }
+    // Modified to keep the row expanded on save.
 });
 
 onUnmounted(() => {
@@ -274,6 +286,45 @@ const closeAllMenus = () => {
 const { destroy, downloadPdf, retrySync, statusSeverity, statusLabel } =
     useBatchActions(props);
 
+const refreshBatchRow = async (id: number) => {
+    try {
+        const response = await axios.get(route('batches.show', id));
+        const updatedBatch = response.data;
+        
+        // 1. Update in localBatches using splice() to guarantee Vue reactivity
+        const index = localBatches.value.findIndex((b: any) => b.id === id);
+        if (index !== -1) {
+            localBatches.value.splice(index, 1, updatedBatch);
+        }
+        
+        // 2. Update detailedBatches — always set so BatchEditForm watcher fires
+        detailedBatches.value[id] = updatedBatch;
+    } catch (e) {
+        console.error('Failed to refresh batch row:', e);
+    }
+};
+
+const handlePreviewClose = async (batchId: number | null) => {
+    if (batchId) {
+        await refreshBatchRow(batchId);
+    }
+};
+
+const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => {
+    if (payload) {
+        const { batchId, type } = payload;
+        
+        // 1. Refresh row data so both localBatches and detailedBatches are up-to-date
+        await refreshBatchRow(batchId);
+        
+        // 2. Wait one tick for Vue to flush the reactive updates before showing the modal
+        await nextTick();
+        
+        // 3. Automatically open print preview
+        viewToken(batchId, type);
+    }
+};
+
 // ── Token Preview ─────────────────────────────────────────────────────
 const {
     tokenPreviewVisible,
@@ -286,7 +337,7 @@ const {
     closeTokenPreview,
     adjustIframeHeight,
     printTokenIframe,
-} = useBatchTokenPreview(closeAllMenus);
+} = useBatchTokenPreview(closeAllMenus, handlePreviewClose);
 
 // ── Invoice Actions ──────────────────────────────────────────────────
 const {
@@ -565,7 +616,7 @@ const shareBatchEmail = () => {
                                         <i class="pi pi-ellipsis-v text-sm font-bold"></i>
                                     </button>
 
-<<<<<<< Updated upstream
+ 
                                     <i v-if="slotProps.data.sync_status === 'success'" 
                                        class="pi pi-check-circle text-emerald-500 text-lg cursor-help" 
                                        v-tooltip.top="'Synced to Scheduler'"></i>
@@ -579,7 +630,7 @@ const shareBatchEmail = () => {
                                        class="pi pi-cloud-upload text-amber-500 text-lg cursor-pointer hover:text-amber-600 transition-colors" 
                                        v-tooltip.top="'Pending - Click to Post'" 
                                        @click.stop="retrySync(slotProps.data.id)"></i>
-=======
+ 
                                     <!-- Dropdown Menu -->
                                     <transition
                                         enter-active-class="transition ease-out duration-100"
@@ -723,7 +774,7 @@ const shareBatchEmail = () => {
                                             </div>
                                         </div>
                                     </transition>
->>>>>>> Stashed changes
+ 
                                 </div>
                                 <span v-else class="text-[10px] text-slate-400 font-bold uppercase">Syncing...</span>
                             </template>
@@ -752,7 +803,7 @@ const shareBatchEmail = () => {
                                         :uoms="uoms"
                                         :statuses="statuses"
                                         :loading_sites="loading_sites"
-                                        @saved="collapseExpandedRows(slotProps.data.id)"
+                                        @saved="handleBatchSaved"
                                         @cancel="collapseExpandedRows()"
                                     />
                                 </div>
@@ -801,7 +852,7 @@ const shareBatchEmail = () => {
                                         :drivers="drivers"
                                         :sales_executives="sales_executives"
                                         :settings="batchingSettings"
-                                        @saved="collapseExpandedRows(slotProps.data.id)"
+                                        @saved="handleBatchSaved"
                                         @cancel="collapseExpandedRows()"
                                     />
                                 </div>
@@ -847,7 +898,7 @@ const shareBatchEmail = () => {
             </template>
         </Dialog>
 
-<<<<<<< Updated upstream
+ 
         <Popover
             ref="actionMenu"
             class="!shadow-2xl !border !border-slate-200/80 dark:!border-slate-700/80 !rounded-xl overflow-hidden"
@@ -968,7 +1019,6 @@ const shareBatchEmail = () => {
                 </div>
             </div>
         </Popover>
-=======
         <!-- Premium Share Batch Dialog -->
         <Dialog v-model:visible="showShareBatchModal" modal header="Share Batch Report" :style="{ width: '450px' }" class="premium-dialog">
             <div class="p-2">
@@ -1056,7 +1106,6 @@ const shareBatchEmail = () => {
                 </div>
             </div>
         </Dialog>
->>>>>>> Stashed changes
     </AppLayout>
 </template>
 

@@ -17,53 +17,102 @@ class EntityContextController extends Controller
      * Show the entity selection page for the authenticated user.
      * All entities this user can access are fetched from mm_entity_users.
      */
+    /**
+     * Show the facility selection page for the authenticated user.
+     * All facilities/plants this user can access are fetched based on assignment.
+     */
     public function index()
     {
         $user = Auth::user();
         $isSuperAdmin = $user->isSystemAdmin();
 
+        $plants = collect();
+
         if ($isSuperAdmin) {
-            // Super Admin sees ALL entities; no role context shown
-            $entityAccess = Entity::with(['addresses', 'contacts'])->get()->map(fn ($e) => [
-                'entity_id'    => $e->id,
-                'entity_name'  => $e->legal_name,
-                'entity_alias' => $e->alias ?? null,
-                'entity_logo'  => $e->logo_file ?? null,
-                'role_name'    => 'Super Administrator',
-                'is_active'    => $e->id === (int) session('active_entity_id'),
-                'is_suspended' => (int) $e->is_suspended,
-                'address'      => ($addr = $e->addresses->first(fn($a) => $a->is_primary == 1) ?? $e->addresses->first()) 
-                    ? implode(', ', array_filter([$addr->line_1, $addr->line_2, $addr->city, $addr->zipcode])) 
-                    : null,
-                'phone'        => $e->contacts->first(fn($c) => $c->is_primary == 1)?->mobile ?? $e->contacts->first()?->mobile ?? null,
-                'email'        => $e->email ?? $e->contacts->first(fn($c) => $c->is_primary == 1)?->email ?? $e->contacts->first()?->email ?? null,
-            ])->values();
+            // Super Admin sees ALL plants
+            $allPlants = Plant::where('is_active', '!=', 0)->with('entity')->get();
+            foreach ($allPlants as $p) {
+                $plants->push([
+                    'id'            => $p->id,
+                    'name'          => $p->name,
+                    'code'          => $p->code,
+                    'is_main'       => $p->is_main,
+                    'is_active'     => $p->is_active,
+                    'logo_path'     => $p->logo_path,
+                    'email_address' => $p->email_address,
+                    'mobile_number' => $p->mobile_number,
+                    'entity_id'     => $p->entity_id,
+                    'entity_name'   => $p->entity->legal_name ?? 'Unknown Organization',
+                    'entity_logo'   => $p->entity->logo_file ?? null,
+                    'role_name'     => 'Super Administrator',
+                ]);
+            }
         } else {
-            // Normal users only see their assigned entities
-            $entityAccess = EntityUser::with(['entity.addresses', 'entity.contacts', 'role'])
+            // Normal users see plants they are explicitly assigned to (or all plants if entity assignment is global)
+            $entityUsers = EntityUser::with(['entity', 'role'])
                 ->where('user_id', $user->id)
-                ->get()
-                ->groupBy('entity_id')
-                ->map(fn ($group) => [
-                    'entity_id'    => $group->first()->entity_id,
-                    'entity_name'  => $group->first()->entity->legal_name ?? 'Unknown Entity',
-                    'entity_alias' => $group->first()->entity->alias ?? null,
-                    'entity_logo'  => $group->first()->entity->logo_file ?? null,
-                    'role_name'    => $group->first()->role->name ?? 'No Role',
-                    'is_active'    => $group->first()->entity_id === (int) session('active_entity_id'),
-                    'is_suspended' => (int) ($group->first()->entity->is_suspended ?? 0),
-                    'address'      => ($entity = $group->first()->entity) && ($addr = $entity->addresses->first(fn($a) => $a->is_primary == 1) ?? $entity->addresses->first())
-                        ? implode(', ', array_filter([$addr->line_1, $addr->line_2, $addr->city, $addr->zipcode]))
-                        : null,
-                    'phone'        => ($entity = $group->first()->entity) 
-                        ? ($entity->contacts->first(fn($c) => $c->is_primary == 1)?->mobile ?? $entity->contacts->first()?->mobile ?? null)
-                        : null,
-                    'email'        => ($entity = $group->first()->entity) 
-                        ? ($entity->email ?? $entity->contacts->first(fn($c) => $c->is_primary == 1)?->email ?? $entity->contacts->first()?->email ?? null)
-                        : null,
-                ])
-                ->values();
+                ->get();
+
+            foreach ($entityUsers as $row) {
+                $entity = $row->entity;
+                // Skip if organization is suspended
+                if (!$entity || $entity->is_suspended != 0) {
+                    continue;
+                }
+
+                $roleName = $row->role->name ?? 'No Role';
+
+                if ($row->plant_id) {
+                    // Specific plant access
+                    $p = Plant::where('id', $row->plant_id)
+                        ->where('entity_id', $row->entity_id)
+                        ->where('is_active', '!=', 0)
+                        ->first();
+
+                    if ($p) {
+                        $plants->push([
+                            'id'            => $p->id,
+                            'name'          => $p->name,
+                            'code'          => $p->code,
+                            'is_main'       => $p->is_main,
+                            'is_active'     => $p->is_active,
+                            'logo_path'     => $p->logo_path,
+                            'email_address' => $p->email_address,
+                            'mobile_number' => $p->mobile_number,
+                            'entity_id'     => $p->entity_id,
+                            'entity_name'   => $entity->legal_name,
+                            'entity_logo'   => $entity->logo_file,
+                            'role_name'     => $roleName,
+                        ]);
+                    }
+                } else {
+                    // Entity-wide access
+                    $entityPlants = Plant::where('entity_id', $row->entity_id)
+                        ->where('is_active', '!=', 0)
+                        ->get();
+
+                    foreach ($entityPlants as $p) {
+                        $plants->push([
+                            'id'            => $p->id,
+                            'name'          => $p->name,
+                            'code'          => $p->code,
+                            'is_main'       => $p->is_main,
+                            'is_active'     => $p->is_active,
+                            'logo_path'     => $p->logo_path,
+                            'email_address' => $p->email_address,
+                            'mobile_number' => $p->mobile_number,
+                            'entity_id'     => $p->entity_id,
+                            'entity_name'   => $entity->legal_name,
+                            'entity_logo'   => $entity->logo_file,
+                            'role_name'     => $roleName,
+                        ]);
+                    }
+                }
+            }
         }
+
+        // De-duplicate plants by id
+        $plants = $plants->unique('id')->values();
 
         // 1. Auto-redirect if user has defaults set (only if session is currently empty)
         if (!session('active_entity_id') && $user->default_entity_id && $user->default_plant_id) {
@@ -74,48 +123,21 @@ class EntityContextController extends Controller
             return redirect()->route('dashboard');
         }
 
-        // 2. Auto-redirect if exactly one entity and one plant are available
-        // We do this even if the session is set, because if they only have ONE choice, 
-        // there is no point in showing the selection screen.
-        if ($entityAccess->count() === 1) {
-            $entityId = $entityAccess[0]['entity_id'];
-            
-            $plantsQuery = Plant::where('entity_id', $entityId)->where('is_active', '!=', 0);
-            
-            if (!$isSuperAdmin) {
-                // For regular users, check their specific assignments
-                $assignments = EntityUser::where('user_id', $user->id)
-                    ->where('entity_id', $entityId)
-                    ->get(['plant_id']);
-                
-                $hasGlobalAccess = $assignments->contains(fn($a) => is_null($a->plant_id));
-                
-                if (!$hasGlobalAccess) {
-                    $plantsQuery->whereIn('id', $assignments->pluck('plant_id'));
-                }
-            }
-            
-            $plants = $plantsQuery->get();
-            
-            // If there's exactly one plant available for this single entity and it is active (is_active == 1)
-            if ($plants->count() === 1 && $plants->first()->is_active === 1) {
-                $plantId = $plants->first()->id;
-                
-                // Only redirect if the current session doesn't match the only choice,
-                // or if we're just landing here for the first time.
-                if (session('active_entity_id') != $entityId || session('active_plant_id') != $plantId) {
-                    session([
-                        'active_entity_id' => $entityId,
-                        'active_plant_id'  => $plantId
-                    ]);
-                    return redirect()->route('dashboard');
-                }
+        // 2. Auto-redirect if exactly one plant is available and active (is_active == 1)
+        if ($plants->count() === 1 && $plants->first()['is_active'] === 1) {
+            $p = $plants->first();
+            if (session('active_entity_id') != $p['entity_id'] || session('active_plant_id') != $p['id']) {
+                session([
+                    'active_entity_id' => $p['entity_id'],
+                    'active_plant_id'  => $p['id']
+                ]);
+                return redirect()->route('dashboard');
             }
         }
 
         return Inertia::render('EntitySelect/Index', [
-            'entityAccess' => $entityAccess,
-            'defaults'     => [
+            'plants'   => $plants,
+            'defaults' => [
                 'entity_id' => $user->default_entity_id,
                 'plant_id'  => $user->default_plant_id,
             ],
@@ -123,81 +145,15 @@ class EntityContextController extends Controller
     }
 
     /**
-     * Set the active entity for this session.
-     * Returns available plants for the selected entity so the user can pick one.
+     * Set the active entity for this session (Deprecated but kept for safety).
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'entity_id' => 'required|integer',
-        ]);
-
-        $user = Auth::user();
-        $entityId = (int) $request->entity_id;
-
-        $entity = Entity::find($entityId);
-        if ($entity && $entity->is_suspended != 0 && !$user->isSystemAdmin()) {
-            $reason = $entity->is_suspended == -1 
-                ? 'This organization is suspended due to unpaid server charges or scheduled maintenance.'
-                : 'This organization is currently inactive.';
-            return response()->json(['error' => $reason], 403);
-        }
-
-        // System Admins can switch freely — no mm_entity_users check required
-        if (!$user->isSystemAdmin()) {
-            $entityUser = EntityUser::where('user_id', $user->id)
-                ->where('entity_id', $entityId)
-                ->first();
-
-            if (!$entityUser) {
-                return back()->withErrors(['entity_id' => 'You do not have access to this entity.']);
-            }
-        }
-
-        // Persist the entity context in session
-        session(['active_entity_id' => $entityId]);
-
-        // Clear any previously active plant when switching entity
-        session()->forget('active_plant_id');
-
-        // Return only allowed plants for this user/entity.
-        // If user has at least one row with plant_id NULL, treat it as full plant access for that entity.
-        $plantsQuery = Plant::where('entity_id', $entityId)
-            ->where('is_active', '!=', 0)
-            ->select('id', 'name', 'code', 'is_main', 'is_active', 'email_address', 'mobile_number', 'logo_path')
-            ->orderByDesc('is_main')
-            ->orderBy('name');
-
-        if (!$user->isSystemAdmin()) {
-            $entityAssignments = EntityUser::where('user_id', $user->id)
-                ->where('entity_id', $entityId)
-                ->get(['plant_id']);
-
-            $hasEntityWideAccess = $entityAssignments->contains(fn ($row) => $row->plant_id === null);
-
-            if (!$hasEntityWideAccess) {
-                $allowedPlantIds = $entityAssignments
-                    ->pluck('plant_id')
-                    ->filter()
-                    ->map(fn ($id) => (int) $id)
-                    ->unique()
-                    ->values();
-
-                $plantsQuery->whereIn('id', $allowedPlantIds);
-            }
-        }
-
-        $plants = $plantsQuery->get();
-
-        return response()->json([
-            'status' => 'entity_set',
-            'plants' => $plants,
-        ]);
+        return response()->json(['message' => 'Deprecated.'], 410);
     }
 
     /**
      * Set the active plant for this session.
-     * Called after entity selection when user picks a plant.
      */
     public function setPlant(Request $request)
     {
@@ -206,31 +162,31 @@ class EntityContextController extends Controller
         ]);
 
         $user     = Auth::user();
-        $entityId = (int) session('active_entity_id');
         $plantId  = (int) $request->plant_id;
 
-        if (!$entityId) {
-            return response()->json(['error' => 'No active entity set.'], 422);
-        }
-
-        // Verify the plant belongs to the active entity and is not hidden
+        // Retrieve the plant first to find the entity_id
         $plant = Plant::where('id', $plantId)
-            ->where('entity_id', $entityId)
             ->where('is_active', '!=', 0)
             ->first();
 
         if (!$plant) {
-            return response()->json(['error' => 'Invalid plant for the selected entity.'], 422);
+            return response()->json(['error' => 'Invalid facility or it is inactive.'], 422);
         }
 
-        // Restrict access if the plant is inactive (is_active == -1)
         if ($plant->is_active === -1) {
             return response()->json(['error' => 'Access Restricted: This facility is currently inactive.'], 403);
         }
 
+        $entityId = $plant->entity_id;
+
         // For non-System Admins, verify access via mm_entity_users.
-        // plant_id NULL means entity-level access to all plants.
         if (!$user->isSystemAdmin()) {
+            // Check if the entity itself is suspended
+            $entity = Entity::find($entityId);
+            if ($entity && $entity->is_suspended != 0) {
+                return response()->json(['error' => 'Access Restricted: The organization is suspended.'], 403);
+            }
+
             $hasAccess = EntityUser::where('user_id', $user->id)
                 ->where('entity_id', $entityId)
                 ->where(function ($query) use ($plantId) {
@@ -240,11 +196,14 @@ class EntityContextController extends Controller
                 ->exists();
 
             if (!$hasAccess) {
-                return response()->json(['error' => 'You do not have access to this plant.'], 403);
+                return response()->json(['error' => 'You do not have access to this facility.'], 403);
             }
         }
 
-        session(['active_plant_id' => $plantId]);
+        session([
+            'active_entity_id' => $entityId,
+            'active_plant_id'  => $plantId
+        ]);
 
         // Always save selected entity and plant as the user's default / last login context
         $user->update([

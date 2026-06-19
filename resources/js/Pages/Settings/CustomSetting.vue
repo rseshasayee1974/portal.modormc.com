@@ -45,14 +45,14 @@ const form = useForm({
         loader_gif:        props.batchingSettings?.loader_gif   || '',
         sheet_upload:      props.batchingSettings?.sheet_upload == 1,
         hide_batch_form:   props.batchingSettings?.hide_batch_form == 1,
-<<<<<<< Updated upstream
+ 
         po_prefix:         props.batchingSettings?.po_prefix    || 'PO',
         so_prefix:         props.batchingSettings?.so_prefix    || 'SO',
         wo_prefix:         props.batchingSettings?.wo_prefix    || 'WO',
         quote_prefix:      props.batchingSettings?.quote_prefix || 'QT',
-=======
+ 
         target_to_actual:  props.batchingSettings?.target_to_actual == 1,
->>>>>>> Stashed changes
+ 
         custom_params:     props.batchingSettings?.custom_params || [],
     }
 });
