@@ -18,6 +18,7 @@ class SalesOrder extends Model
         'patron_id',
         'site_id',
         'sales_executive_id',
+        'concrete_pump',
         'order_date',
         'status',
         'sales_executive_id',

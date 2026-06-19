@@ -34,6 +34,8 @@ const districtsOptions = computed(() => districts.value.map(d => ({ label: d, va
 const zipcodesOptions = computed(() => uniqueZipcodes.value.map(z => ({ label: z, value: z })));
 const areasOptions = computed(() => areas.value.map(a => ({ label: a, value: a })));
 
+const hasDistrictOptions = computed(() => districts.value.length > 0);
+
 const loadDistricts = async (stateId: number, isInitial = false) => {
     if (!stateId) {
         districts.value = [];
@@ -257,96 +259,132 @@ onMounted(() => {
                     <small v-if="form.errors.address_state_id" class="p-error px-1">{{ form.errors.address_state_id }}</small>
                 </div>
 
-                <!-- 2. District Select -->
-                <div class="col-span-12 md:col-span-3">
-                    <BaseSelect 
-                        label="District" 
-                        v-model="selectedDistrict" 
-                        :options="districtsOptions" 
-                        optionLabel="label" 
-                        optionValue="value" 
-                        filter 
-                        clearable
-                        :disabled="!form.address_state_id || isLoadingDistricts"
-                        :placeholder="isLoadingDistricts ? 'Loading...' : 'Select District'"
-                        class="!rounded-xl !border-slate-200"
-                    />
-                </div>
+                <template v-if="hasDistrictOptions">
+                    <!-- 2. District Select -->
+                    <div class="col-span-12 md:col-span-3">
+                        <BaseSelect 
+                            label="District" 
+                            v-model="selectedDistrict" 
+                            :options="districtsOptions" 
+                            optionLabel="label" 
+                            optionValue="value" 
+                            filter 
+                            clearable
+                            :disabled="!form.address_state_id || isLoadingDistricts"
+                            :placeholder="isLoadingDistricts ? 'Loading...' : 'Select District'"
+                            class="!rounded-xl !border-slate-200"
+                        />
+                    </div>
 
-                <!-- 3. Zipcode Select -->
-                <div class="col-span-12 md:col-span-3">
-                    <BaseSelect 
-                        label="Zipcode / Pincode" 
-                        v-model="selectedZipcode" 
-                        :options="zipcodesOptions" 
-                        optionLabel="label" 
-                        optionValue="value" 
-                        filter 
-                        clearable
-                        :disabled="!selectedDistrict || isLoadingLocations"
-                        :placeholder="isLoadingLocations ? 'Loading...' : 'Select Zipcode'"
-                        class="!rounded-xl !border-slate-200"
-                    />
-                </div>
+                    <!-- 3. Zipcode Select -->
+                    <div class="col-span-12 md:col-span-3">
+                        <BaseSelect 
+                            label="Zipcode / Pincode" 
+                            v-model="selectedZipcode" 
+                            :options="zipcodesOptions" 
+                            optionLabel="label" 
+                            optionValue="value" 
+                            filter 
+                            clearable
+                            :disabled="!selectedDistrict || isLoadingLocations"
+                            :placeholder="isLoadingLocations ? 'Loading...' : 'Select Zipcode'"
+                            class="!rounded-xl !border-slate-200"
+                        />
+                    </div>
 
-                <!-- 4. Area Select -->
-                <div class="col-span-12 md:col-span-3">
-                    <BaseSelect 
-                        label="Area / Locality" 
-                        v-model="selectedArea" 
-                        :options="areasOptions" 
-                        optionLabel="label" 
-                        optionValue="value" 
-                        filter 
-                        clearable
-                        :disabled="!selectedZipcode"
-                        placeholder="Select Area"
-                        class="!rounded-xl !border-slate-200"
-                    />
-                </div>
+                    <!-- 4. Area Select -->
+                    <div class="col-span-12 md:col-span-3">
+                        <BaseSelect 
+                            label="Area / Locality" 
+                            v-model="selectedArea" 
+                            :options="areasOptions" 
+                            optionLabel="label" 
+                            optionValue="value" 
+                            filter 
+                            clearable
+                            :disabled="!selectedZipcode"
+                            placeholder="Select Area"
+                            class="!rounded-xl !border-slate-200"
+                        />
+                    </div>
+                </template>
+
+                <template v-else>
+                    <!-- 2. City / District Input (Manual) -->
+                    <div class="col-span-12 md:col-span-3">
+                        <BaseInput 
+                            label="City / District" 
+                            v-model="form.address_city" 
+                            placeholder="e.g. Puducherry" 
+                            :error="form.errors.address_city" 
+                        />
+                    </div>
+
+                    <!-- 3. Zipcode Input (Manual) -->
+                    <div class="col-span-12 md:col-span-3">
+                        <BaseInput 
+                            label="Zipcode" 
+                            v-model="form.address_zipcode" 
+                            placeholder="e.g. 605001" 
+                            :error="form.errors.address_zipcode" 
+                        />
+                    </div>
+
+                    <!-- 4. Office Address line 2 (Area, Manual) -->
+                    <div class="col-span-12 md:col-span-3">
+                        <BaseInput 
+                            label="Office Address line 2 (Area)" 
+                            v-model="form.address_line_2" 
+                            placeholder="e.g. Heritage Town" 
+                            :error="form.errors.address_line_2" 
+                        />
+                    </div>
+                </template>
 
                 <!-- 5. Address line 1 (Only Manual Input) -->
                 <div class="col-span-12 md:col-span-9">
                     <BaseInput label="Office Address line 1 (Street, Building, Door No.)" v-model="form.address_line_1" placeholder="e.g. No. 12, Gandhi Street" :error="form.errors.address_line_1" />
                 </div>
 
-                <!-- Address Previews (Read Only) -->
-                <div class="col-span-12 mt-2">
-                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-1">Formatted Address Preview</h4>
-                </div>
+                <template v-if="hasDistrictOptions">
+                    <!-- Address Previews (Read Only) -->
+                    <div class="col-span-12 mt-2">
+                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-1">Formatted Address Preview</h4>
+                    </div>
 
-                <!-- Address Line 2 (Area) -->
-                <div class="col-span-12 md:col-span-4">
-                    <BaseInput 
-                        label="Office Address line 2 (Area)" 
-                        v-model="form.address_line_2" 
-                        disabled
-                        placeholder="Selected Area will appear here" 
-                        inputClass="!w-full !rounded-xl !border-slate-100 bg-slate-50 text-slate-500 font-medium text-sm cursor-not-allowed"
-                    />
-                </div>
+                    <!-- Address Line 2 (Area) -->
+                    <div class="col-span-12 md:col-span-4">
+                        <BaseInput 
+                            label="Office Address line 2 (Area)" 
+                            v-model="form.address_line_2" 
+                            disabled
+                            placeholder="Selected Area will appear here" 
+                            inputClass="!w-full !rounded-xl !border-slate-100 bg-slate-50 text-slate-500 font-medium text-sm cursor-not-allowed"
+                        />
+                    </div>
 
-                <!-- City (District) -->
-                <div class="col-span-12 md:col-span-4">
-                    <BaseInput 
-                        label="City / District" 
-                        v-model="form.address_city" 
-                        disabled
-                        placeholder="Selected District will appear here" 
-                        inputClass="!w-full !rounded-xl !border-slate-100 bg-slate-50 text-slate-500 font-medium text-sm cursor-not-allowed"
-                    />
-                </div>
+                    <!-- City (District) -->
+                    <div class="col-span-12 md:col-span-4">
+                        <BaseInput 
+                            label="City / District" 
+                            v-model="form.address_city" 
+                            disabled
+                            placeholder="Selected District will appear here" 
+                            inputClass="!w-full !rounded-xl !border-slate-100 bg-slate-50 text-slate-500 font-medium text-sm cursor-not-allowed"
+                        />
+                    </div>
 
-                <!-- Zipcode -->
-                <div class="col-span-12 md:col-span-4">
-                    <BaseInput 
-                        label="Zipcode" 
-                        v-model="form.address_zipcode" 
-                        disabled
-                        placeholder="Selected Zipcode will appear here" 
-                        inputClass="!w-full !rounded-xl !border-slate-100 bg-slate-50 text-slate-500 font-medium text-sm cursor-not-allowed"
-                    />
-                </div>
+                    <!-- Zipcode -->
+                    <div class="col-span-12 md:col-span-4">
+                        <BaseInput 
+                            label="Zipcode" 
+                            v-model="form.address_zipcode" 
+                            disabled
+                            placeholder="Selected Zipcode will appear here" 
+                            inputClass="!w-full !rounded-xl !border-slate-100 bg-slate-50 text-slate-500 font-medium text-sm cursor-not-allowed"
+                        />
+                    </div>
+                </template>
                  <div class="col-span-12 md:col-span-3">
                     <BaseInput label="Primary Contact Person" v-model="form.contact_name" placeholder="Full Name" :error="form.errors.contact_name" />
                 </div>
@@ -361,9 +399,21 @@ onMounted(() => {
 
         <!-- ── Section: Banking Infrastructure ── -->
         <section>
-            <div class="flex items-center gap-2 mb-6">
-                <div class="w-1.5 h-6 bg-amber-500 rounded-full"></div>
-                <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-200">Banking Details</h3>
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-6 bg-amber-500 rounded-full"></div>
+                    <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-200">Banking Details</h3>
+                </div>
+                <Button 
+                    label="Add Bank Account" 
+                    icon="pi pi-plus" 
+                    outlined 
+                    size="small" 
+                    severity="warning" 
+                    class="!rounded-xl"
+                    type="button"
+                    @click="addBank"
+                />
             </div>
 
             <div class="flex flex-col gap-6">
@@ -397,8 +447,18 @@ onMounted(() => {
                     </div>
                 </div>
                 
-                <div v-if="!form.bank_accounts?.length" class="text-center py-10 border-2 border-dashed border-slate-200 rounded-2xl opacity-50">
+                <div v-if="!form.bank_accounts?.length" class="text-center py-10 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center gap-3">
                     <p class="text-xs font-bold text-slate-400 uppercase tracking-widest italic">No bank accounts linked</p>
+                    <Button 
+                        label="Link Bank Account" 
+                        icon="pi pi-plus" 
+                        outlined 
+                        size="small" 
+                        severity="warning" 
+                        class="!rounded-xl"
+                        type="button"
+                        @click="addBank"
+                    />
                 </div>
             </div>
         </section>

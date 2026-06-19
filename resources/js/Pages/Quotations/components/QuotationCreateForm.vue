@@ -20,6 +20,7 @@ import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
+import axios from 'axios';
 
 interface QuotationItemPayload {
     id?: number | null;
@@ -36,13 +37,14 @@ interface QuotationItemPayload {
 
 const props = defineProps<{
     patrons: { id: number; legal_name: string }[];
-    sites: { id: number; name: string }[];
+    sites: any[];
     unitOptions : {id: number, unit_code: string}[];
     mixDesigns: { id: number; title: string; code?: string; rate?: number; unit_id?: number }[];
     taxes: { id: number; tax_name?: string; tax_rate?: number }[];
     units?: { id: number; name: string }[]; // Falling back if missing
     instant_customer: number | boolean;
     salesExecutives?: { id: number; label: string; value: number }[];
+    concretePumpOptions?: { label: string; value: string }[];
 }>();
 // console.log(props.taxes);
 const isOpen = ref(true);
@@ -51,6 +53,7 @@ const form = useForm({
     patron_id: null as number | null,
     site_id: null as number | null,
     sales_executive_id: null as number | null,
+    concrete_pump: 'pump' as string | null,
     new_site_name: '' as string,
     is_new_site: false,
     quote_date: new Date().toISOString().substring(0, 10),
@@ -233,21 +236,145 @@ const handleCreatePatron = async (name: string) => {
 const isInstantCustomerEnabled = computed(() => Number(props.instant_customer) === 1);
 
 const submit = () => {
-    form.transform((data) => ({
-        ...data,
-        site_id: data.is_new_site ? null : (data.site_id ? Number(data.site_id) : null),
-        new_site_name: data.is_new_site ? data.new_site_name : null,
-        patron_id: data.patron_id ? Number(data.patron_id) : null,
-        quote_date: data.quote_date ? new Date(data.quote_date).toISOString().substring(0, 10) : null,
-        validity_date: data.validity_date ? new Date(data.validity_date).toISOString().substring(0, 10) : null,
-    })).post(route('quotations.store'), {
-        preserveScroll: true,
-        onSuccess: () => {
-            Swal.fire({ icon: 'success', title: 'Success', text: 'Quotation created successfully!' });
-            form.reset();
-            form.is_new_site = false;
-            form.items = [createNewItem()];
+    form.clearErrors();
+
+    let hasErrors = false;
+
+    // Header Validations
+    if (!form.patron_id) {
+        form.setError('patron_id', 'Customer is required.');
+        hasErrors = true;
+    }
+
+    if (!form.is_new_site && !form.site_id) {
+        form.setError('site_id', 'Project Site is required.');
+        hasErrors = true;
+    }
+
+    if (form.is_new_site && !form.new_site_name.trim()) {
+        form.setError('new_site_name', 'Site Name is required.');
+        hasErrors = true;
+    }
+
+    if (!form.sales_executive_id) {
+        form.setError('sales_executive_id', 'Sales Executive is required.');
+        hasErrors = true;
+    }
+
+    if (!form.quote_date) {
+        form.setError('quote_date', 'Quote Date is required.');
+        hasErrors = true;
+    }
+
+    if (!form.concrete_pump) {
+        form.setError('concrete_pump', 'Concrete Type is required.');
+        hasErrors = true;
+    }
+
+    // Item Validations
+    form.items.forEach((item, index) => {
+
+        if (!item.mix_design_id) {
+            form.setError(
+                `items.${index}.mix_design_id`,
+                'Mix Design is required.'
+            );
+            hasErrors = true;
         }
+
+        if (!item.uom_id) {
+            form.setError(
+                `items.${index}.uom_id`,
+                'UOM is required.'
+            );
+            hasErrors = true;
+        }
+
+        if (!item.quantity || Number(item.quantity) <= 0) {
+            form.setError(
+                `items.${index}.quantity`,
+                'Quantity must be greater than zero.'
+            );
+            hasErrors = true;
+        }
+
+        if (!item.rate || Number(item.rate) <= 0) {
+            form.setError(
+                `items.${index}.rate`,
+                'Rate must be greater than zero.'
+            );
+            hasErrors = true;
+        }
+
+        if (!item.tax_id) {
+            form.setError(
+                `items.${index}.tax_id`,
+                'Tax is required.'
+            );
+            hasErrors = true;
+        }
+    });
+
+    if (form.items.length === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Quotation',
+            text: 'Please add at least one line item.'
+        });
+        return;
+    }
+
+  if (hasErrors) {
+    const first = Object.entries(form.errors).find(([_, value]) => value);
+
+    Swal.fire({
+        icon: 'warning',
+        title: 'Validation Error',
+        html: first
+            ? `<b>${first[1]}</b>`
+            : 'Please correct the highlighted fields.'
+    });
+
+    return;
+}
+
+    form.transform(data => ({
+        ...data,
+        site_id: data.is_new_site
+            ? null
+            : (data.site_id ? Number(data.site_id) : null),
+
+        patron_id: data.patron_id
+            ? Number(data.patron_id)
+            : null,
+
+        sales_executive_id: data.sales_executive_id
+            ? Number(data.sales_executive_id)
+            : null,
+
+        quote_date: data.quote_date
+            ? new Date(data.quote_date).toISOString().substring(0, 10)
+            : null,
+
+        validity_date: data.validity_date
+            ? new Date(data.validity_date).toISOString().substring(0, 10)
+            : null,
+    }))
+    .post(route('quotations.store'), {
+        preserveScroll: true,
+
+        onSuccess: () => {
+            Swal.fire({
+                icon: 'success',
+                title: 'Success',
+                text: 'Quotation created successfully!'
+            });
+
+            form.reset();
+
+            form.items = [createNewItem()];
+            form.is_new_site = false;
+        },
     });
 };
 </script>
@@ -280,6 +407,7 @@ const submit = () => {
                             optionLabel="label" 
                             optionValue="value" 
                             label="Customer" 
+                            :error="form.errors.patron_id"
                             required 
                             placeholder="Select Customer" 
                             :creating="isCreatingPatron"
@@ -295,6 +423,8 @@ const submit = () => {
                             required 
                             placeholder="Select Customer" 
                             filter
+                                                        :error="form.errors.patron_id"
+
                         />
                         
                         <div class="relative">
@@ -307,6 +437,8 @@ const submit = () => {
                                     label="Project Site" 
                                     placeholder="Select Project Site" 
                                     addLabel="Create New Site"
+                                                                :error="form.errors.site_id"
+
                                     @add="form.is_new_site = true"
                                 />
                             </div>
@@ -334,13 +466,23 @@ const submit = () => {
 
                         <BaseSelect 
                             v-model="form.sales_executive_id" 
-                            :options="salesExecutives || []" 
+                            :options="salesExecutiveOptions" 
                             optionLabel="label" 
                             optionValue="value" 
                             label="Sales Executive" 
                             placeholder="Select Sales Executive" 
                             filter
                             :error="form.errors.sales_executive_id"
+                        />
+ 
+                        <BaseSelect 
+                            v-model="form.concrete_pump" 
+                            :options="concretePumpOptions || []" 
+                            optionLabel="label" 
+                            optionValue="value" 
+                            label="Concrete Type" 
+                            placeholder="Select Concrete Type" 
+                            :error="form.errors.concrete_pump"
                         />
  
                         <BaseDatePicker v-model="form.quote_date" label="Quote Date" required />

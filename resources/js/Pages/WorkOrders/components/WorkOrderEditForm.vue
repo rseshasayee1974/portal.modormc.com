@@ -16,6 +16,7 @@ const props = withDefaults(defineProps<{
     mixDesigns?: any[];
     salesOrders?: any[];
     statuses?: { label: string; value: number }[];
+    concretePumpOptions?: any[];
 }>(), {
     workOrder: () => ({}),
     customers: () => [],
@@ -23,6 +24,7 @@ const props = withDefaults(defineProps<{
     mixDesigns: () => [],
     salesOrders: () => [],
     statuses: () => [],
+    concretePumpOptions: () => [],
 });
 
 // Intercept and strictly allow only Scheduled (1), In Progress (2), and Cancelled (4)
@@ -71,6 +73,7 @@ const form = useForm({
     total_qty: Number(props.workOrder?.total_qty ?? 0),
     produced_qty: Number(props.workOrder?.produced_qty ?? 0),
     status: Number(props.workOrder?.status ?? 1),
+    concrete_pump: props.workOrder?.concrete_pump ?? null,
     scheduled_start: props.workOrder?.scheduled_start ? new Date(props.workOrder.scheduled_start) : null,
     scheduled_end: props.workOrder?.scheduled_end ? new Date(props.workOrder.scheduled_end) : null,
 });
@@ -97,6 +100,7 @@ watch(() => form.sales_order_id, (newVal) => {
         if (salesOrder) {
             form.customer_id = salesOrder.patron_id;
             form.site_id = salesOrder.site_id;
+            form.concrete_pump = salesOrder.concrete_pump;
             
             const firstItem = salesOrder.quotation?.items?.[0];
             if (firstItem) {
@@ -107,6 +111,7 @@ watch(() => form.sales_order_id, (newVal) => {
     } else {
         form.customer_id = null;
         form.site_id = null;
+        form.concrete_pump = null;
         form.mix_design_id = null;
         form.total_qty = 0;
     }
@@ -195,6 +200,17 @@ const isOverdue = computed(() => {
             </div>
             <div class="col-span-12 md:col-span-3">
                 <BaseSelect v-model="form.status" :options="filteredStatuses" optionLabel="label" optionValue="value" label="Status" :error="form.errors.status" />
+            </div>
+            <div class="col-span-12 md:col-span-3">
+                <BaseSelect
+                    v-model="form.concrete_pump"
+                    :options="concretePumpOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    label="Concrete Type"
+                    placeholder="Select Concrete Type"
+                    :error="form.errors.concrete_pump"
+                />
             </div>
 
             <div class="col-span-12 md:col-span-3">

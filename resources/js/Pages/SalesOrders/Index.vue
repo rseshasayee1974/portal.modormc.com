@@ -22,6 +22,7 @@ const props = defineProps<{
     quotations?: any[];
     mixDesigns?: any[];
     salesExecutives?: any[];
+    concretePumpOptions?: any[];
 }>();
 console.log('sdfsdfdsf',props.salesOrders);
 
@@ -247,6 +248,7 @@ watch(() => props.salesOrders, () => {
                 :quotations="quotations"
                 :mix-designs="mixDesigns"
                 :salesExecutives="salesExecutives"
+                :concretePumpOptions="concretePumpOptions"
             />
 
             <!-- List Of Sales Orders -->
@@ -388,6 +390,7 @@ watch(() => props.salesOrders, () => {
                                 :sites="sites"
                                 :mixDesigns="mixDesigns"
                                 :salesExecutives="salesExecutives"
+                                :concretePumpOptions="concretePumpOptions"
                                 @saved="expandedRows = {}"
                                 @cancel="expandedRows = {}"
                             />

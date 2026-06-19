@@ -26,6 +26,7 @@ class Quotation extends Model
         'patron_id',
         'site_id',
         'sales_executive_id',
+        'concrete_pump',
         'quote_date',
         'validity_date',
         'tax_id',

@@ -15,12 +15,14 @@ const props = withDefaults(defineProps<{
     quotations?: any[];
     mixDesigns?: any[];
     salesExecutives?: any[];
+    concretePumpOptions?: any[];
 }>(), {
     patrons: () => [],
     sites: () => [],
     quotations: () => [],
     mixDesigns: () => [],
     salesExecutives: () => [],
+    concretePumpOptions: () => [],
 });
 
 const form = useForm({
@@ -28,6 +30,7 @@ const form = useForm({
     patron_id: null as number | null,
     site_id: null as number | null,
     sales_executive_id: null as number | null,
+    concrete_pump: 'pump' as string | null,
     order_date: new Date().toISOString().split('T')[0],
     items: [
         { mix_design_id: null as number | null, quantity: null as number | null, rate: null as number | null }
@@ -42,11 +45,13 @@ watch(() => form.quotation_id, (newVal) => {
             form.patron_id = quote.patron_id;
             form.site_id = quote.site_id;
             form.sales_executive_id = quote.sales_executive_id;
+            form.concrete_pump = quote.concrete_pump;
         }
     } else {
         form.patron_id = null;
         form.site_id = null;
         form.sales_executive_id = null;
+        form.concrete_pump = null;
         form.items = [{ mix_design_id: null, quantity: null, rate: null }];
     }
 });
@@ -116,13 +121,14 @@ const submit = () => {
         </div>
 
        <!-- Form Body -->
-<div class="grid grid-cols-12 gap-5 p-5">
+<!-- Form Body -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5 p-5">
 
     <!-- Sales Executive -->
-    <div class="xl:col-span-3">
+    <div>
         <BaseSelect
             v-model="form.sales_executive_id"
-            :options="salesExecutives"
+            :options="salesExecutiveOptions"
             optionLabel="label"
             optionValue="value"
             filter
@@ -132,8 +138,21 @@ const submit = () => {
         />
     </div>
 
+    <!-- Concrete Type -->
+    <div>
+        <BaseSelect
+            v-model="form.concrete_pump"
+            :options="concretePumpOptions"
+            optionLabel="label"
+            optionValue="value"
+            label="Concrete Type"
+            placeholder="Select Concrete Type"
+            :error="form.errors.concrete_pump"
+        />
+    </div>
+
     <!-- Customer -->
-    <div class="xl:col-span-3">
+    <div>
         <BaseSelect
             v-model="form.patron_id"
             :options="patrons"
@@ -150,12 +169,12 @@ const submit = () => {
             v-if="form.quotation_id"
             class="mt-1 text-xs text-indigo-600"
         >
-            Locked to Quotation Customer
+            Locked to quotation customer
         </p>
     </div>
 
     <!-- Loading Site -->
-    <div class="xl:col-span-3">
+    <div>
         <BaseSelect
             v-model="form.site_id"
             :options="filteredSites"
@@ -172,17 +191,17 @@ const submit = () => {
             v-if="form.quotation_id"
             class="mt-1 text-xs text-indigo-600"
         >
-            Locked to Quotation Site
+            Locked to quotation site
         </p>
     </div>
 
     <!-- Order Date -->
-    <div class="xl:col-span-3">
+    <div>
         <BaseDatePicker
             v-model="form.order_date"
             label="Order Date"
-            hourFormat="24"
             fluid
+            hourFormat="24"
             :error="form.errors.order_date"
         />
     </div>
@@ -190,17 +209,18 @@ const submit = () => {
     <!-- Mix Design Section -->
     <template v-if="!form.quotation_id">
 
-        <div class="col-span-12 border-t pt-5 mt-2">
+        <div class="col-span-full border-t pt-3">
             <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-200">
+
+                <h3 class="text-sm font-semibold">
                     Mix Design Items
                 </h3>
 
                 <BaseButton
                     icon="pi pi-plus"
-                    size="small"
+                    label="Add Item"
                     severity="primary"
-                    text
+                    size="small"
                     @click="addItem"
                 />
             </div>
@@ -209,9 +229,9 @@ const submit = () => {
         <div
             v-for="(item, idx) in form.items"
             :key="idx"
-            class="col-span-12 border rounded-xl p-4 bg-white dark:bg-slate-900 shadow-sm"
+            class="col-span-full p-4"
         >
-            <div class="grid grid-cols-12 gap-4 items-end">
+            <div class="grid grid-cols-12 gap-2 items-end">
 
                 <!-- Mix Design -->
                 <div class="col-span-12 lg:col-span-5">
@@ -223,36 +243,36 @@ const submit = () => {
                         filter
                         label="Mix Design"
                         placeholder="Select Mix Design"
-                        :error="form.errors['items.' + idx + '.mix_design_id']"
+                        :error="form.errors[`items.${idx}.mix_design_id`]"
                     />
                 </div>
 
                 <!-- Quantity -->
-                <div class="col-span-12 sm:col-span-6 lg:col-span-3">
+                <div class="col-span-12 md:col-span-3">
                     <BaseInput
+                        v-model="item.quantity"
                         type="number"
                         step="0.001"
-                        v-model="item.quantity"
                         label="Quantity (m³)"
-                        placeholder="Enter Quantity"
-                        :error="form.errors['items.' + idx + '.quantity']"
+                        placeholder="Quantity"
+                        :error="form.errors[`items.${idx}.quantity`]"
                     />
                 </div>
 
                 <!-- Rate -->
-                <div class="col-span-12 sm:col-span-5 lg:col-span-3">
+                <div class="col-span-12 md:col-span-3">
                     <BaseInput
+                        v-model="item.rate"
                         type="number"
                         step="0.01"
-                        v-model="item.rate"
                         label="Rate (₹)"
-                        placeholder="Enter Rate"
-                        :error="form.errors['items.' + idx + '.rate']"
+                        placeholder="Rate"
+                        :error="form.errors[`items.${idx}.rate`]"
                     />
                 </div>
 
                 <!-- Delete -->
-                <div class="col-span-12 sm:col-span-1 lg:col-span-1 flex justify-center">
+                <div class="col-span-12 md:col-span-1 flex justify-center">
                     <Button
                         icon="pi pi-trash"
                         severity="danger"

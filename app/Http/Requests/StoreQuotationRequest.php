@@ -40,6 +40,7 @@ class StoreQuotationRequest extends FormRequest
             'site_id' => 'nullable|required_without:new_site_name|exists:mm_sites,id',
             'new_site_name' => 'nullable|string|max:255',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
+            'concrete_pump' => 'nullable|string',
             'quote_date' => 'required|date',
             'validity_date' => 'nullable|date',
             'amount_untaxed' => 'nullable|numeric',

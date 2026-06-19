@@ -44,6 +44,7 @@ const props = defineProps<{
     batchingSettings: any;
     payment_methods: any[];
     sales_ledgers: any[];
+    concretePumpOptions?: any[];
 }>();
 const dropdownData = computed(() => ({
     trucks: props.trucks,
@@ -462,6 +463,7 @@ const shareBatchEmail = () => {
                     :taxes="taxes"
                     :statuses="statuses"
                     :nextBatchNo="nextBatchNo"
+                    :concretePumpOptions="concretePumpOptions"
                     @offline-batch-added="handleOfflineBatchAdded"
                 />
 
@@ -616,7 +618,6 @@ const shareBatchEmail = () => {
                                         <i class="pi pi-ellipsis-v text-sm font-bold"></i>
                                     </button>
 
- 
                                     <i v-if="slotProps.data.sync_status === 'success'" 
                                        class="pi pi-check-circle text-emerald-500 text-lg cursor-help" 
                                        v-tooltip.top="'Synced to Scheduler'"></i>
@@ -630,7 +631,6 @@ const shareBatchEmail = () => {
                                        class="pi pi-cloud-upload text-amber-500 text-lg cursor-pointer hover:text-amber-600 transition-colors" 
                                        v-tooltip.top="'Pending - Click to Post'" 
                                        @click.stop="retrySync(slotProps.data.id)"></i>
- 
                                     <!-- Dropdown Menu -->
                                     <transition
                                         enter-active-class="transition ease-out duration-100"
@@ -774,7 +774,6 @@ const shareBatchEmail = () => {
                                             </div>
                                         </div>
                                     </transition>
- 
                                 </div>
                                 <span v-else class="text-[10px] text-slate-400 font-bold uppercase">Syncing...</span>
                             </template>
@@ -803,6 +802,7 @@ const shareBatchEmail = () => {
                                         :uoms="uoms"
                                         :statuses="statuses"
                                         :loading_sites="loading_sites"
+                                        :concretePumpOptions="concretePumpOptions"
                                         @saved="handleBatchSaved"
                                         @cancel="collapseExpandedRows()"
                                     />
@@ -903,6 +903,7 @@ const shareBatchEmail = () => {
             ref="actionMenu"
             class="!shadow-2xl !border !border-slate-200/80 dark:!border-slate-700/80 !rounded-xl overflow-hidden"
             style="padding: 0; width: 14rem;"
+            :pt="{ root: { id: 'batch-action-menu' } }"
         >
             <div v-if="activeBatch" class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left">
                 <!-- Group 1: General Batch Actions -->
@@ -921,10 +922,24 @@ const shareBatchEmail = () => {
                         <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
                         Download PDF Report
                     </button>
+                    <button
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        @click="sendBatchEmailDirect(activeBatch); closeAllMenus();"
+                    >
+                        <i class="pi pi-envelope mr-2 text-sky-500 font-bold"></i>
+                        Send Email Report
+                    </button>
+                    <button
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        @click="openShareBatch(activeBatch); closeAllMenus();"
+                    >
+                        <i class="pi pi-share-alt mr-2 text-indigo-500 font-bold"></i>
+                        Share Batch Report
+                    </button>
                 </div>
 
                 <!-- Group 2: Token Printing Actions -->
-                <div class="py-1 text-left">
+                <div class="py-1">
                     <button
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                         @click="viewToken(activeBatch.id, 'batching'); closeAllMenus();"
@@ -951,7 +966,7 @@ const shareBatchEmail = () => {
                 </div>
 
                 <!-- Group 3: Invoice & Invoicing Actions -->
-                <div v-if="activeBatch.dispatches?.[0]" class="py-1 text-left">
+                <div v-if="activeBatch.dispatches?.[0]" class="py-1">
                     <!-- If Invoice not yet generated -->
                     <button
                         v-if="activeBatch.status >= 3 && (!activeBatch.dispatches[0].status || activeBatch.dispatches[0].status.invoice_status !== 1)"
@@ -963,7 +978,7 @@ const shareBatchEmail = () => {
                     </button>
 
                     <!-- If Invoice is generated -->
-                    <template v-if="activeBatch.dispatches[0].status?.invoice_status === 1 && activeBatch.dispatches[0].status?.invoice">
+                    <div v-if="activeBatch.dispatches[0].status?.invoice_status === 1 && activeBatch.dispatches[0].status?.invoice">
                         <button
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="printInvoiceDirect(activeBatch.dispatches[0].status.invoice); closeAllMenus();"
@@ -994,7 +1009,7 @@ const shareBatchEmail = () => {
                             <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
                             Delete Invoice
                         </button>
-                    </template>
+                    </div>
 
                     <!-- WhatsApp (if dispatched) -->
                     <button
@@ -1008,7 +1023,7 @@ const shareBatchEmail = () => {
                 </div>
 
                 <!-- Group 4: Delete Batch -->
-                <div v-if="activeBatch.status < 3" class="py-1 text-left">
+                <div v-if="activeBatch.status < 3" class="py-1">
                     <button
                         class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
                         @click="destroy(activeBatch); closeAllMenus();"
@@ -1019,7 +1034,7 @@ const shareBatchEmail = () => {
                 </div>
             </div>
         </Popover>
-        <!-- Premium Share Batch Dialog -->
+                <!-- Premium Share Batch Dialog -->
         <Dialog v-model:visible="showShareBatchModal" modal header="Share Batch Report" :style="{ width: '450px' }" class="premium-dialog">
             <div class="p-2">
                 <p class="text-xs text-slate-500 mb-4">
@@ -1108,6 +1123,8 @@ const shareBatchEmail = () => {
         </Dialog>
     </AppLayout>
 </template>
+
+
 
 <style scoped>
 @keyframes batch-blink {

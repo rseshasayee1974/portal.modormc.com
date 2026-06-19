@@ -26,6 +26,7 @@ const props = defineProps<{
     unitOptions : {id: number, unit_code: string}[];
     drivers: { id: number; first_name: string; last_name: string }[];
     salesExecutives: any[];
+    concretePumpOptions?: any[];
 }>();
 
 const stateOptions = [
@@ -177,6 +178,7 @@ const updateConversion = (quotation: any) => {
                     :mixDesigns="mixDesigns"
                     :taxes="taxes"
                     :salesExecutives="salesExecutives"
+                    :concretePumpOptions="concretePumpOptions"
                 />
 
                 <hr class="border-slate-200 border-dashed" />
@@ -334,6 +336,7 @@ const updateConversion = (quotation: any) => {
                                     :unitOptions="unitOptions"
                                     :taxes="taxes"
                                     :salesExecutives="salesExecutives"
+                                    :concretePumpOptions="concretePumpOptions"
                                     @updated="collapseExpandedRows"
                                 />
                             </BaseExpansionPanel>

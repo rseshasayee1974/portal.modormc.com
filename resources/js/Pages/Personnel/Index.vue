@@ -125,14 +125,82 @@ const getInitialForm = () => ({
     salary_structures: [] as any[],
 });
 
+const formatDateStr = (val: any): string | null => {
+    if (!val) return null;
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+    const d = val instanceof Date ? val : new Date(String(val).split('T')[0]);
+    if (isNaN(d.getTime())) return null;
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
 const createForm = useForm(getInitialForm());
 const submitCreate = () => {
-    createForm.post(route('personnel.store'), {
+    // Client-side validation
+    let hasContactError = false;
+    let hasSalaryError = false;
+    const errors: Record<string, string> = {};
+
+    (createForm.contacts || []).forEach((contact: any, index: number) => {
+        if (!contact.contact_type) {
+            errors[`contacts.${index}.contact_type`] = 'The contact type field is required.';
+            hasContactError = true;
+        }
+        if (!contact.contact_value) {
+            errors[`contacts.${index}.contact_value`] = 'The contact detail field is required.';
+            hasContactError = true;
+        }
+    });
+
+    (createForm.salary_structures || []).forEach((struct: any, index: number) => {
+        if (!struct.salary_component_id) {
+            errors[`salary_structures.${index}.salary_component_id`] = 'The salary component field is required.';
+            hasSalaryError = true;
+        }
+        if (struct.amount === null || struct.amount === undefined || struct.amount === '') {
+            errors[`salary_structures.${index}.amount`] = 'The amount field is required.';
+            hasSalaryError = true;
+        } else if (isNaN(Number(struct.amount)) || Number(struct.amount) < 0) {
+            errors[`salary_structures.${index}.amount`] = 'The amount must be a positive number.';
+            hasSalaryError = true;
+        }
+        if (!struct.effective_from) {
+            errors[`salary_structures.${index}.effective_from`] = 'The effective from date is required.';
+            hasSalaryError = true;
+        }
+    });
+
+    if (Object.keys(errors).length > 0) {
+        createForm.setError(errors);
+        if (hasContactError) {
+            activeTabCreate.value = 'contacts';
+        } else if (hasSalaryError) {
+            activeTabCreate.value = 'salary_structure';
+        }
+        return;
+    }
+
+    const payload = {
+        ...createForm.data(),
+        date_of_birth: formatDateStr(createForm.date_of_birth),
+        joining_date:  formatDateStr(createForm.joining_date),
+        exit_date:     formatDateStr(createForm.exit_date),
+        salary_structures: (createForm.salary_structures || []).map((s: any) => ({
+            ...s,
+            effective_from: formatDateStr(s.effective_from),
+            effective_to:   formatDateStr(s.effective_to),
+        })),
+    };
+
+    createForm.transform(() => payload).post(route('personnel.store'), {
         onSuccess: () => {
             createForm.reset();
             createForm.clearErrors();
             activeTabCreate.value = 'details';
         },
+        onFinish: () => createForm.transform((d: any) => d),
     });
 };
 

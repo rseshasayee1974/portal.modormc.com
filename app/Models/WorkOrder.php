@@ -63,6 +63,7 @@ class WorkOrder extends Model
         'scheduled_end',
         'status',
         'sales_order_id',
+        'concrete_pump',
         'created_by',
         'updated_by',
         'deleted_by',

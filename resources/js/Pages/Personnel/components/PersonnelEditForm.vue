@@ -28,6 +28,7 @@ import ToggleSwitch from 'primevue/toggleswitch';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseActionButton from '@/Components/Base/BaseActionButton.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 
 import { useForm } from '@inertiajs/vue3';
 
@@ -141,6 +142,50 @@ const removeSalaryStructure = (index: number) => {
 };
 
 const submit = () => {
+    // Client-side validation
+    let hasContactError = false;
+    let hasSalaryError = false;
+    const errors: Record<string, string> = {};
+
+    (form.contacts || []).forEach((contact: any, index: number) => {
+        if (!contact.contact_type) {
+            errors[`contacts.${index}.contact_type`] = 'The contact type field is required.';
+            hasContactError = true;
+        }
+        if (!contact.contact_value) {
+            errors[`contacts.${index}.contact_value`] = 'The contact detail field is required.';
+            hasContactError = true;
+        }
+    });
+
+    (form.salary_structures || []).forEach((struct: any, index: number) => {
+        if (!struct.salary_component_id) {
+            errors[`salary_structures.${index}.salary_component_id`] = 'The salary component field is required.';
+            hasSalaryError = true;
+        }
+        if (struct.amount === null || struct.amount === undefined || struct.amount === '') {
+            errors[`salary_structures.${index}.amount`] = 'The amount field is required.';
+            hasSalaryError = true;
+        } else if (isNaN(Number(struct.amount)) || Number(struct.amount) < 0) {
+            errors[`salary_structures.${index}.amount`] = 'The amount must be a positive number.';
+            hasSalaryError = true;
+        }
+        if (!struct.effective_from) {
+            errors[`salary_structures.${index}.effective_from`] = 'The effective from date is required.';
+            hasSalaryError = true;
+        }
+    });
+
+    if (Object.keys(errors).length > 0) {
+        form.setError(errors);
+        if (hasContactError) {
+            emit('update:activeTab', 'contacts');
+        } else if (hasSalaryError) {
+            emit('update:activeTab', 'salary_structure');
+        }
+        return;
+    }
+
     const payload = {
         ...form.data(),
         date_of_birth: formatDateStr(form.date_of_birth),
@@ -325,19 +370,19 @@ const submit = () => {
                             <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                                 <div class="flex flex-col gap-2">
                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Salary Component <span class="text-red-500">*</span></label>
-                                    <BaseSelect v-model="struct.salary_component_id" :options="salaryComponentOptions" optionLabel="label" optionValue="value" placeholder="Select Component" filter class="w-full" />
+                                    <BaseSelect v-model="struct.salary_component_id" :options="salaryComponentOptions" optionLabel="label" optionValue="value" placeholder="Select Component" filter class="w-full" :error="form.errors[`salary_structures.${index}.salary_component_id`]" />
                                 </div>
                                 <div class="flex flex-col gap-2">
                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Monthly Amount <span class="text-red-500">*</span></label>
-                                    <BaseInput type="number" step="0.01" v-model="struct.amount" placeholder="0.00" class="w-full" />
+                                    <BaseInput type="number" step="0.01" v-model="struct.amount" placeholder="0.00" class="w-full" :error="form.errors[`salary_structures.${index}.amount`]" />
                                 </div>
                                 <div class="flex flex-col gap-2">
                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective From <span class="text-red-500">*</span></label>
-                                    <DatePicker v-model="struct.effective_from" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date" class="w-full" />
+                                    <BaseDatePicker v-model="struct.effective_from" iconDisplay="input" placeholder="Select Date" class="w-full" :error="form.errors[`salary_structures.${index}.effective_from`]" />
                                 </div>
                                 <div class="flex flex-col gap-2">
                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective To</label>
-                                    <DatePicker v-model="struct.effective_to" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date" class="w-full" />
+                                    <BaseDatePicker v-model="struct.effective_to" iconDisplay="input" placeholder="Select Date" class="w-full" :error="form.errors[`salary_structures.${index}.effective_to`]" />
                                 </div>
                             </div>
                             <BaseActionButton 
@@ -378,12 +423,12 @@ const submit = () => {
                         <div v-for="(contact, index) in form.contacts" :key="index" class="bg-gray-50/50 dark:bg-slate-800/30 border border-gray-100 dark:border-gray-700 p-6 rounded-xl relative group">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact Type</label>
-                                    <BaseSelect v-model="contact.contact_type" :options="contactTypeOptions" optionLabel="label" optionValue="value" placeholder="e.g. Mobile" class="w-full" />
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact Type <span class="text-red-500">*</span></label>
+                                    <BaseSelect v-model="contact.contact_type" :options="contactTypeOptions" optionLabel="label" optionValue="value" placeholder="e.g. Mobile" class="w-full" :error="form.errors[`contacts.${index}.contact_type`]" />
                                 </div>
                                 <div class="flex flex-col gap-2">
-                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact Detail</label>
-                                    <BaseInput v-model="contact.contact_value" placeholder="Enter value..." class="w-full" />
+                                    <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact Detail <span class="text-red-500">*</span></label>
+                                    <BaseInput v-model="contact.contact_value" placeholder="Enter value..." class="w-full" :error="form.errors[`contacts.${index}.contact_value`]" />
                                 </div>
                             </div>
                             <div class="flex items-center gap-2 mt-4">

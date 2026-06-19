@@ -33,6 +33,7 @@ const props = withDefaults(defineProps<{
     taxes?: any[];
     statuses?: { label: string; value: number }[];
     nextBatchNo?: number;
+    concretePumpOptions?: any[];
 }>(), {
     workOrders: () => [],
     trucks: () => [],
@@ -46,6 +47,7 @@ const props = withDefaults(defineProps<{
     nextBatchNo: 1,
     loading_sites: () => [],
     unloading_sites: () => [],
+    concretePumpOptions: () => [],
 });
 
 const emit = defineEmits(['offline-batch-added']);
@@ -66,6 +68,7 @@ const form = useForm({
     transport_id: null as number | null,
     driver_id: null as number | null,
     sales_executive_id: null as number | null,
+    concrete_pump: 'pump' as string | null,
     empty_weight_truck: 0,
     uom_id: null as number | null,
     site_id: null as number | null,
@@ -156,9 +159,11 @@ watch(() => form.work_order_id, (newVal) => {
             uom_id: item.uom_id || item.product?.unit_id,
         }));
         form.batch_no = props.nextBatchNo;
+        form.concrete_pump = selectedWorkOrder.value.concrete_pump;
     } else {
         form.materials = [blankMaterial()];
         form.batch_no = props.nextBatchNo;
+        form.concrete_pump = null;
     }
 });
 
@@ -298,6 +303,7 @@ const submit = () => {
             driver_id: form.driver_id,
             sales_executive_id: form.sales_executive_id,
             empty_weight_truck: form.empty_weight_truck,
+            concrete_pump: form.concrete_pump,
             uom_id: form.uom_id,
             site_id: form.site_id,
             status: 1,
@@ -337,6 +343,7 @@ const submit = () => {
         form.start_time = new Date();
         form.clearErrors();
         form.status = 1;
+        form.concrete_pump = null;
         form.batch_size = 1;
         form.materials = [blankMaterial()];
         return;
@@ -370,6 +377,7 @@ const submit = () => {
             form.start_time = new Date();
             form.clearErrors();
             form.status = 1;
+            form.concrete_pump = null;
             form.batch_size = 1;
             form.materials = [blankMaterial()];
         },
@@ -506,6 +514,17 @@ const submit = () => {
                             </div> -->
                             <div class="col-span-12 md:col-span-3">
                                 <BaseDatePicker v-model="form.empty_time" label="Empty Time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.empty_time" />
+                            </div>
+                            <div class="col-span-12 md:col-span-3">
+                                <BaseSelect
+                                    v-model="form.concrete_pump"
+                                    :options="concretePumpOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    label="Concrete Type"
+                                    placeholder="Select Concrete Type"
+                                    :error="form.errors.concrete_pump"
+                                />
                             </div>
                            
                             

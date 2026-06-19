@@ -29,6 +29,7 @@ class WorkOrderIndexDataFactory
                 ->get()
                 ->toArray() : [],
             'statuses' => WorkOrder::statusOptions(),
+            'concretePumpOptions' => ConcretePumpDropdown(),
             'activePlantId' => $activePlantId,
             'nextReference' => $activePlantId ? WorkOrder::generateOrderNo($activePlantId, 'WO')['full_number'] : null,
         ];

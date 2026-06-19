@@ -23,6 +23,22 @@ class StorePatronRequest extends FormRequest
         if (!$this->has('address_type_id') || is_null($this->address_type_id)) {
             $mergeData['address_type_id'] = 1;
         }
+
+        if ($this->has('contact_mobile') && !is_null($this->contact_mobile)) {
+            $cleaned = preg_replace('/[^0-9]/', '', $this->contact_mobile);
+            if (strlen($cleaned) === 12 && str_starts_with($cleaned, '91')) {
+                $cleaned = substr($cleaned, 2);
+            }
+            $mergeData['contact_mobile'] = $cleaned;
+        }
+        if ($this->has('contact_alt_mobile') && !is_null($this->contact_alt_mobile)) {
+            $cleaned = preg_replace('/[^0-9]/', '', $this->contact_alt_mobile);
+            if (strlen($cleaned) === 12 && str_starts_with($cleaned, '91')) {
+                $cleaned = substr($cleaned, 2);
+            }
+            $mergeData['contact_alt_mobile'] = $cleaned;
+        }
+
         if (!empty($mergeData)) {
             $this->merge($mergeData);
         }
@@ -97,7 +113,7 @@ class StorePatronRequest extends FormRequest
             
             // Multiple Bank Details (Optional)
             'bank_accounts' => 'nullable|array',
-            'bank_accounts.*.id' => 'nullable|exists:patron_bank_accounts,id',
+            'bank_accounts.*.id' => 'nullable|exists:mm_patron_bank_accounts,id',
             'bank_accounts.*.bank_account_type' => 'nullable|integer',
             'bank_accounts.*.account_holder_name' => 'required|string|max:255',
             'bank_accounts.*.account_number' => 'required|string|max:100',

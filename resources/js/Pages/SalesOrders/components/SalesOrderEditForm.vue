@@ -15,6 +15,7 @@ const props = withDefaults(defineProps<{
     sites?: any[];
     mixDesigns?: any[];
     salesExecutives?: any[];
+    concretePumpOptions?: any[];
 }>(), {
     salesOrder: () => ({}),
     quotations: () => [],   
@@ -22,6 +23,7 @@ const props = withDefaults(defineProps<{
     sites: () => [],
     mixDesigns: () => [],
     salesExecutives: () => [],
+    concretePumpOptions: () => [],
 });
 
 const emit = defineEmits<{
@@ -35,6 +37,7 @@ const form = useForm({
     patron_id: props.salesOrder?.patron_id ?? null,
     site_id: props.salesOrder?.site_id ?? null,
     sales_executive_id: props.salesOrder?.sales_executive_id ?? null,
+    concrete_pump: props.salesOrder?.concrete_pump ?? null,
     order_date: props.salesOrder?.order_date ?? '',
     status: props.salesOrder?.status ?? 1,
     items: [] as Array<{ mix_design_id: number | null, quantity: number | null, rate: number | null }>,
@@ -189,13 +192,24 @@ const submit = () => {
             <div class="col-span-12 md:col-span-4">
                 <BaseSelect
                     v-model="form.sales_executive_id"
-                    :options="salesExecutives"
+                    :options="salesExecutiveOptions"
                     optionLabel="label"
                     optionValue="value"
                     filter
                     label="Sales Executive"
                     placeholder="Select Sales Executive"
                     :error="form.errors.sales_executive_id"
+                />
+            </div>
+            <div class="col-span-12 md:col-span-4">
+                <BaseSelect
+                    v-model="form.concrete_pump"
+                    :options="concretePumpOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    label="Concrete Type"
+                    placeholder="Select Concrete Type"
+                    :error="form.errors.concrete_pump"
                 />
             </div>
             <div class="col-span-12 md:col-span-4">

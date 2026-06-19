@@ -33,6 +33,7 @@ const props = withDefaults(defineProps<{
     products?: any[];
     uoms?: any[];
     statuses?: { label: string; value: number }[];
+    concretePumpOptions?: any[];
 }>(), {
     batch: () => ({}),
     workOrders: () => [],
@@ -43,6 +44,7 @@ const props = withDefaults(defineProps<{
     products: () => [],
     uoms: () => [],
     statuses: () => [],
+    concretePumpOptions: () => [],
 }); 
 const emit = defineEmits<{
     (e: 'saved', payload?: { batchId: number, type: 'batching' | 'dispatch' }): void;
@@ -66,6 +68,7 @@ const form = useForm({
     transport_id: props.batch?.dispatches?.[0]?.transport_id ?? null,
     driver_id: props.batch?.dispatches?.[0]?.driver_id ?? null,
     sales_executive_id: props.batch?.dispatches?.[0]?.sales_executive_id ?? null,
+    concrete_pump: props.batch?.dispatches?.[0]?.concrete_pump ?? null,
     empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? 0),
     loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? 0),
         
@@ -182,6 +185,7 @@ const applyBatchToForm = (newBatch: any) => {
     form.transport_id = dispatch?.transport_id ?? null;
     form.driver_id = dispatch?.driver_id ?? null;
     form.sales_executive_id = dispatch?.sales_executive_id ?? null;
+    form.concrete_pump = dispatch?.concrete_pump ?? null;
     form.empty_weight_truck = Number(dispatch?.empty_weight_truck ?? 0);
     form.loaded_weight_truck = Number(dispatch?.loaded_weight_truck ?? 0);
     form.net_weight = Number(dispatch?.net_weight ?? 0);
@@ -673,6 +677,19 @@ const submit = () => {
                         </div>
                         <div class="col-span-12 md:col-span-3">
                             <BaseDatePicker label="Load Time" v-model="form.load_time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.load_time" :disabled="isLocked" />
+                        </div>
+                        <div class="col-span-12 md:col-span-3">
+                            <BaseSelect
+                                v-model="form.concrete_pump"
+                                :options="concretePumpOptions"
+                                label="Concrete Type"
+                                placeholder="Select Concrete Type"
+                                optionLabel="label"
+                                optionValue="value"
+                                :fluid="true"
+                                :error="form.errors.concrete_pump"
+                                :disabled="isLocked"
+                            />
                         </div>
                     </div>
 

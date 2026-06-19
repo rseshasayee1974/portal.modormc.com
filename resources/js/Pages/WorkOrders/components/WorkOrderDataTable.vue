@@ -18,6 +18,7 @@ const props = withDefaults(defineProps<{
     mixDesigns?: any[];
     salesOrders?: any[];
     statuses?: { label: string; value: number }[];
+    concretePumpOptions?: any[];
 }>(), {
     workOrders: () => [],
     customers: () => [],
@@ -25,6 +26,7 @@ const props = withDefaults(defineProps<{
     mixDesigns: () => [],
     salesOrders: () => [],
     statuses: () => [],
+    concretePumpOptions: () => [],
 });
 
 // console.log('sadssd',props.statuses);
@@ -164,6 +166,7 @@ const onSaved = () => {
                         :mixDesigns="mixDesigns"
                         :salesOrders="salesOrders"
                         :statuses="statuses"
+                        :concretePumpOptions="concretePumpOptions"
                         @saved="onSaved"
                         @cancel="expandedRows = {}"
                     />

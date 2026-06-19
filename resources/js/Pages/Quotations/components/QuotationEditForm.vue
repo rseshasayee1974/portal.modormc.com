@@ -38,6 +38,7 @@ const props = defineProps<{
     taxes: { id: number; title?: string; tax_name?: string; rate?: number; tax_rate?: number }[];
     unitOptions?: { id: number; unit_code: string }[];
     salesExecutives?: { id: number; label: string; value: number }[];
+    concretePumpOptions?: { label: string; value: string }[];
 }>();
 
 const emit = defineEmits<{
@@ -57,6 +58,7 @@ const form = useForm({
     patron_id: props.quotation.patron_id ?? null,
     site_id: props.quotation.site_id ?? null,
     sales_executive_id: props.quotation.sales_executive_id ?? null,
+    concrete_pump: props.quotation.concrete_pump ?? null,
     quote_date: props.quotation.quote_date ? String(props.quotation.quote_date).substring(0, 10) : new Date().toISOString().substring(0, 10),
     validity_date: props.quotation.validity_date ? String(props.quotation.validity_date).substring(0, 10) : null,
     status: Number(props.quotation.status ?? 0),
@@ -234,13 +236,24 @@ const sendEmail = () => {
 
     <BaseSelect
         v-model="form.sales_executive_id"
-        :options="salesExecutives || []"
+        :options="salesExecutiveOptions"
         optionLabel="label"
         optionValue="value"
         label="Sales Executive"
         placeholder="Select Sales Executive"
         filter
         :error="form.errors.sales_executive_id"
+        :disabled="isLocked"
+    />
+
+    <BaseSelect
+        v-model="form.concrete_pump"
+        :options="concretePumpOptions || []"
+        optionLabel="label"
+        optionValue="value"
+        label="Concrete Type"
+        placeholder="Select Concrete Type"
+        :error="form.errors.concrete_pump"
         :disabled="isLocked"
     />
 

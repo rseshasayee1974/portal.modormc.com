@@ -221,33 +221,7 @@ if (!function_exists('SitesDropdown')) {
     }
 }
 
-if (!function_exists('SalesExecutivesDropdown')) {
-    /**
-     * Active personnel for a plant.
-     *
-     * Edit scenarios: pass `$excludeId` to exclude the record being edited.
-     *
-     * @param  int|array  $plantId
-     * @param  int|null   $excludeId  Exclude personnel (edit mode)
-     * @param  int|null   $entityId
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    function SalesExecutivesDropdown($excludeId = null, $entityId = null)
-    {
-        return Personnel::where('plant_id', _activePlantId())
-            ->when($excludeId, fn($q) => $q->excludeId($excludeId))
-            ->whereNull('deleted_at')
-            ->whereHas('department', fn($q) => $q->where('name', 'Sales')->orWhere('name', 'sales'))
-            ->get()
-            ->map(fn($p) => [
-                'id' => $p->id,
-                'label' => trim($p->first_name . ' ' . $p->last_name),
-                'first_name' => $p->first_name,
-                'last_name' => $p->last_name,
-                'value' => $p->id
-            ]);
-    }
-}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // v1 – Personnel helpers
 // Conditions: entity_id (optional), plant_id, deleted_at IS NULL
@@ -293,44 +267,23 @@ if (!function_exists('PersonnelDropdown')) {
 
 if (!function_exists('SalesExecutivesDropdown')) {
     /**
-     * Active Sales Executives / Sales Personnel for a plant.
+     * Active Sales Executives for the active plant.
      */
     function SalesExecutivesDropdown($excludeId = null)
     {
-        $query = Personnel::with('designation', 'department')
+        $results = Personnel::with('designation')
             ->where('plant_id', _activePlantId())
-            ->when($excludeId, fn($q) => $q->excludeId($excludeId));
-
-        // 1. Try finding by code 'SE'
-        $seQuery = clone $query;
-        $seQuery->whereHas('designation', function ($q) {
-            $q->where('code', 'SE');
-        });
-
-        if ($seQuery->exists()) {
-            $results = $seQuery->orderBy('first_name')->get();
-        } else {
-            // 2. Try finding by name 'Sales'
-            $salesQuery = clone $query;
-            $salesQuery->where(function ($q) {
-                $q->whereHas('designation', function ($dq) {
-                    $dq->where('code', 'like', '%SE%');
-                // })->orWhereHas('department', function ($dpq) {
-                //     $dpq->where('name', 'like', '%Sales%');
-                });
-            });
-
-            if ($salesQuery->exists()) {
-                $results = $salesQuery->orderBy('first_name')->get();
-            } else {
-                // 3. Fallback to all active personnel in the plant
-                $results = $query->orderBy('first_name')->get();
-            }
-        }
+            ->when($excludeId, fn($q) => $q->excludeId($excludeId))
+            ->whereHas('designation', function ($q) {
+                $q->where('code', 'SE')
+                  ->orWhere('name', 'Sales Executive');
+            })
+            ->orderBy('first_name')
+            ->get();
 
         return $results->map(fn($personnel) => [
             'id' => $personnel->id,
-            'label' => $personnel->label ?? trim($personnel->first_name . ' ' . $personnel->last_name),
+            'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
             'value' => $personnel->id,
         ]);
     }
@@ -755,6 +708,31 @@ if (!function_exists('PaymentMethodsDropdown')) {
             ->get(['id', 'name']);
     }
 }
+if (!function_exists('ConcretePumpDropdown')) {
+    /**
+     * Dropdown for concrete pump type — sourced from mm_machine_types.
+     */
+    function ConcretePumpDropdown()
+    {
+        $types = \App\Models\MachineType::whereNull('deleted_at')
+            ->whereIn(\DB::raw('lower(name)'), ['manual', 'pump'])
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        if ($types->isEmpty()) {
+            return [
+                ['label' => 'Manual', 'value' => 'manual'],
+                ['label' => 'Pump', 'value' => 'pump'],
+            ];
+        }
+
+        return $types->map(fn($type) => [
+            'label' => $type->name,
+            'value' => strtolower($type->name),
+        ])->toArray();
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Utility helper for Select Options
 // ─────────────────────────────────────────────────────────────────────────────

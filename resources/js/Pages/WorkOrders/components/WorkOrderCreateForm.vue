@@ -1,4 +1,4 @@
-<script setup lang="ts">
+    <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -18,6 +18,7 @@ const props = withDefaults(defineProps<{
     statuses?: { label: string; value: number }[];
     activePlantId?: number;
     nextReference?: string;
+    concretePumpOptions?: any[];
 }>(), {
     customers: () => [],
     sites: () => [],
@@ -26,6 +27,7 @@ const props = withDefaults(defineProps<{
     statuses: () => [],
     activePlantId: 0,
     nextReference: '',
+    concretePumpOptions: () => [],
 });
 
 const showMixDesignModal = ref(false);
@@ -101,6 +103,7 @@ const form = useForm({
     total_qty: 0,
     produced_qty: 0,
     status: 1,
+    concrete_pump: 'pump' as string | null,
     scheduled_start: null as Date | null,
     scheduled_end: null as Date | null,
 });
@@ -254,6 +257,17 @@ const handleMixCreated = () => {
                     optionValue="value"
                     label="Status"
                     :error="form.errors.status"
+                />
+            </div>
+            <div class="col-span-12 md:col-span-3">
+                <BaseSelect
+                    v-model="form.concrete_pump"
+                    :options="concretePumpOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    label="Concrete Type"
+                    placeholder="Select Concrete Type"
+                    :error="form.errors.concrete_pump"
                 />
             </div>
 

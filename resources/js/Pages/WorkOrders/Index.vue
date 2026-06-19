@@ -15,6 +15,7 @@ defineProps<{
     statuses: { label: string; value: number }[];
     activePlantId: number;
     nextReference: string;
+    concretePumpOptions?: any[];
 }>();
 </script>
 
@@ -45,6 +46,7 @@ defineProps<{
                 :statuses="statuses"
                 :activePlantId="activePlantId"
                 :nextReference="nextReference"
+                :concretePumpOptions="concretePumpOptions"
             />
 
             <WorkOrderDataTable
@@ -54,6 +56,7 @@ defineProps<{
                 :mixDesigns="mixDesigns"
                 :salesOrders="salesOrders"
                 :statuses="statuses"
+                :concretePumpOptions="concretePumpOptions"
             />
         </div>
     </AppLayout>

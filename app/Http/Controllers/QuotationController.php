@@ -36,6 +36,7 @@ class QuotationController extends Controller
             'drivers'  => PersonnelDropdown(),
             'salesExecutives' => SalesExecutivesDropdown(),
             'unitOptions' => Productunit(),
+            'concretePumpOptions' => ConcretePumpDropdown(),
             'instant_customer' => CustomSetting::getForModule(session('active_entity_id'), 'quotation')['instant_customer'] ?? 0,
         ]);
     }

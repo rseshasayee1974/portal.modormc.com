@@ -42,6 +42,7 @@ class SalesOrderController extends Controller
             'quotations' => $quotations,
             'mixDesigns' => $mixDesigns,
             'salesExecutives' => SalesExecutivesDropdown(),
+            'concretePumpOptions' => ConcretePumpDropdown(),
         ]);
     }
 
@@ -54,6 +55,7 @@ class SalesOrderController extends Controller
             'patron_id' => 'required|exists:mm_patrons,id',
             'site_id' => 'required|exists:mm_sites,id',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
+            'concrete_pump' => 'nullable|string',
             'order_date' => 'required|date',
             'mix_design_id' => 'nullable|exists:mm_mix_designs,id',
             'quantity' => 'nullable|numeric|min:0.001',
@@ -106,6 +108,7 @@ class SalesOrderController extends Controller
                 'patron_id' => $validated['patron_id'],
                 'site_id' => $validated['site_id'],
                 'sales_executive_id' => $validated['sales_executive_id'] ?? ($quote?->sales_executive_id ?? null),
+                'concrete_pump' => $validated['concrete_pump'] ?? ($quote?->concrete_pump ?? null),
                 'order_date' => $validated['order_date'],
                 'status' => $validated['status'],
                 'converted_by_user_id' => $validated['converted_by_user_id'],
@@ -168,6 +171,7 @@ class SalesOrderController extends Controller
             'patron_id' => 'required|exists:mm_patrons,id',
             'site_id' => 'required|exists:mm_sites,id',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
+            'concrete_pump' => 'nullable|string',
             'order_date' => 'required|date',
             'status' => 'required|integer|in:0,1,2,3',
             'mix_design_id' => 'nullable|exists:mm_mix_designs,id',
@@ -217,6 +221,7 @@ class SalesOrderController extends Controller
                     'patron_id' => $validated['patron_id'],
                     'site_id' => $validated['site_id'],
                     'sales_executive_id' => $validated['sales_executive_id'] ?? null,
+                    'concrete_pump' => $validated['concrete_pump'] ?? null,
                     'order_date' => $validated['order_date'],
                     'status' => $validated['status'],
                 ]);
@@ -276,6 +281,7 @@ class SalesOrderController extends Controller
                     'patron_id' => $validated['patron_id'],
                     'site_id' => $validated['site_id'],
                     'sales_executive_id' => $validated['sales_executive_id'] ?? ($quotation?->sales_executive_id ?? null),
+                    'concrete_pump' => $validated['concrete_pump'] ?? ($quotation?->concrete_pump ?? null),
                     'order_date' => $validated['order_date'],
                     'status' => $validated['status'],
                 ]);

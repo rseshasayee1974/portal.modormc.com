@@ -29,6 +29,7 @@ import ToggleSwitch from 'primevue/toggleswitch';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseActionButton from '@/Components/Base/BaseActionButton.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 
 const props = defineProps<{
     form: any;
@@ -259,19 +260,19 @@ const handlePrimaryToggle = (index: number, val: any) => {
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                                     <div class="flex flex-col gap-2">
                                         <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Salary Component <span class="text-red-500">*</span></label>
-                                        <BaseSelect v-model="struct.salary_component_id" :options="salaryComponentOptions" optionLabel="label" optionValue="value" placeholder="Select Component" filter class="w-full" />
+                                        <BaseSelect v-model="struct.salary_component_id" :options="salaryComponentOptions" optionLabel="label" optionValue="value" placeholder="Select Component" filter class="w-full" :error="form.errors[`salary_structures.${index}.salary_component_id`]" />
                                     </div>
                                     <div class="flex flex-col gap-2">
                                         <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Monthly Amount <span class="text-red-500">*</span></label>
-                                        <BaseInput type="number" step="0.01" v-model="struct.amount" placeholder="0.00" class="w-full" />
+                                        <BaseInput type="number" step="0.01" v-model="struct.amount" placeholder="0.00" class="w-full" :error="form.errors[`salary_structures.${index}.amount`]" />
                                     </div>
                                     <div class="flex flex-col gap-2">
                                         <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective From <span class="text-red-500">*</span></label>
-                                        <DatePicker v-model="struct.effective_from" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date" class="w-full" />
+                                        <BaseDatePicker v-model="struct.effective_from" iconDisplay="input" placeholder="Select Date" class="w-full" :error="form.errors[`salary_structures.${index}.effective_from`]" />
                                     </div>
                                     <div class="flex flex-col gap-2">
                                         <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Effective To</label>
-                                        <DatePicker v-model="struct.effective_to" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date" class="w-full" />
+                                        <BaseDatePicker v-model="struct.effective_to" iconDisplay="input" placeholder="Select Date" class="w-full" :error="form.errors[`salary_structures.${index}.effective_to`]" />
                                     </div>
                                 </div>
                                 <BaseActionButton 
@@ -312,12 +313,12 @@ const handlePrimaryToggle = (index: number, val: any) => {
                             <div v-for="(contact, index) in form.contacts" :key="index" class="bg-gray-50/50 dark:bg-slate-800/30 border border-gray-100 dark:border-gray-700 p-6 rounded-xl relative group">
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact Type</label>
-                                        <BaseSelect v-model="contact.contact_type" :options="contactTypeOptions" optionLabel="label" optionValue="value" placeholder="e.g. Mobile" class="w-full" />
+                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact Type <span class="text-red-500">*</span></label>
+                                        <BaseSelect v-model="contact.contact_type" :options="contactTypeOptions" optionLabel="label" optionValue="value" placeholder="e.g. Mobile" class="w-full" :error="form.errors[`contacts.${index}.contact_type`]" />
                                     </div>
                                     <div class="flex flex-col gap-2">
-                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact Detail</label>
-                                        <BaseInput v-model="contact.contact_value" placeholder="Enter value..." class="w-full" />
+                                        <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Contact Detail <span class="text-red-500">*</span></label>
+                                        <BaseInput v-model="contact.contact_value" placeholder="Enter value..." class="w-full" :error="form.errors[`contacts.${index}.contact_value`]" />
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2 mt-4">

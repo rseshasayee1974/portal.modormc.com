@@ -245,20 +245,23 @@ class PersonnelController extends Controller
                 foreach ($validated['contacts'] as $contact) {
                     if (isset($contact['contact_id'])) {
                         PersonnelContact::where('contact_id', $contact['contact_id'])->update([
-                            'contact_type' => $contact['contact_type'],
-                            'contact_value' => $contact['contact_value'],
+                            'contact_type' => (string) $contact['contact_type'],
+                            'contact_value' => (string) $contact['contact_value'],
                             'is_primary' => $contact['is_primary'] ?? 0,
                         ]);
-                        \App\Models\Contact::where('id', $contact['contact_id'])->update([
-                            'mobile' => $contact['contact_type'] === 'Phone' || $contact['contact_type'] === 'Mobile' ? $contact['contact_value'] : '',
-                            'email' => $contact['contact_type'] === 'Email' ? $contact['contact_value'] : '',
-                        ]);
+
+                        if (is_numeric($contact['contact_id'])) {
+                            \App\Models\Contact::where('id', $contact['contact_id'])->update([
+                                'mobile' => $contact['contact_type'] === 'Phone' || $contact['contact_type'] === 'Mobile' ? (string) $contact['contact_value'] : '',
+                                'email' => $contact['contact_type'] === 'Email' ? (string) $contact['contact_value'] : '',
+                            ]);
+                        }
                     } else {
                         $contactRecord = \App\Models\Contact::create([
                             'plant_id' => $personnel->plant_id,
                             'name' => trim($personnel->first_name . ' ' . $personnel->last_name),
-                            'mobile' => $contact['contact_type'] === 'Phone' || $contact['contact_type'] === 'Mobile' ? $contact['contact_value'] : '',
-                            'email' => $contact['contact_type'] === 'Email' ? $contact['contact_value'] : '',
+                            'mobile' => $contact['contact_type'] === 'Phone' || $contact['contact_type'] === 'Mobile' ? (string) $contact['contact_value'] : '',
+                            'email' => $contact['contact_type'] === 'Email' ? (string) $contact['contact_value'] : '',
                             'contact_type_id' => 1,
                             'is_primary' => $contact['is_primary'] ?? 0,
                             'status' => 1,

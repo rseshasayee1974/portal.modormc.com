@@ -176,6 +176,7 @@ class BatchController extends Controller
             'sales_ledgers'     => toSelectOptions(LedgersDropdown('REVENUE'), 'title', 'id'),
             'nextBatchNo'       => $nextBatchNo ?: 1,
             'batchingSettings'  => CustomSetting::getForModule($activePlantId, 'batching'),
+            'concretePumpOptions' => ConcretePumpDropdown(),
         ]);
     }
 
@@ -241,6 +242,7 @@ class BatchController extends Controller
                     'transport_id'        => $payload['transport_id'] ?? null,
                     'driver_id'           => $payload['driver_id'] ?? null,
                     'sales_executive_id'  => $payload['sales_executive_id'] ?? null,
+                    'concrete_pump'       => $payload['concrete_pump'] ?? null,
                     'empty_weight_truck'  => $payload['empty_weight_truck'] ?? 0,
                     'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? null,
                     'net_weight'          => $payload['net_weight'] ?? null,
@@ -533,6 +535,7 @@ class BatchController extends Controller
                     'transport_id' => array_key_exists('transport_id', $payload) ? $payload['transport_id'] : $dispatch->transport_id,
                     'driver_id' => array_key_exists('driver_id', $payload) ? $payload['driver_id'] : $dispatch->driver_id,
                     'sales_executive_id' => array_key_exists('sales_executive_id', $payload) ? $payload['sales_executive_id'] : $dispatch->sales_executive_id,
+                    'concrete_pump' => array_key_exists('concrete_pump', $payload) ? $payload['concrete_pump'] : $dispatch->concrete_pump,
                     'empty_weight_truck' => array_key_exists('empty_weight_truck', $payload) ? $payload['empty_weight_truck'] : $dispatch->empty_weight_truck,
                     'loaded_weight_truck' => array_key_exists('loaded_weight_truck', $payload) ? $payload['loaded_weight_truck'] : $dispatch->loaded_weight_truck,
                     'net_weight' => array_key_exists('net_weight', $payload) ? $payload['net_weight'] : $dispatch->net_weight,
