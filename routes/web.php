@@ -39,7 +39,10 @@ Route::middleware([
     })->name('session.ping');
 
    Route::get('/dashboard', [\App\Http\Controllers\ERPDashboardController::class, 'index'])->name('dashboard');
-        Route::get('dashboard/data', [\App\Http\Controllers\ERPDashboardController::class, 'getData'])->name('dashboard.data');
+   Route::get('/dashboard/analytics', [\App\Http\Controllers\ERPDashboardController::class, 'analytics'])->name('dashboard.analytics');
+   Route::get('dashboard/data', [\App\Http\Controllers\ERPDashboardController::class, 'getData'])->name('dashboard.data');
+   Route::get('/production/dashboard', [\App\Http\Controllers\BatchingDashboardController::class, 'index'])->name('production.dashboard');
+   Route::get('/production/dashboard/data', [\App\Http\Controllers\BatchingDashboardController::class, 'getData'])->name('production.dashboard.data');
     Route::prefix('saas')->group(function () {
         Route::get('/dashboard', [SaasDashboardController::class, 'dashboard'])->name('saas.dashboard');
         Route::get('/billing', [SaasDashboardController::class, 'billing'])->name('saas.billing');
@@ -210,6 +213,8 @@ Route::middleware([
 
     // 7. Inventory & Production
     Route::prefix('inventory')->group(function () {
+        Route::get('dashboard', [\App\Http\Controllers\InventoryDashboardController::class, 'index'])->name('inventory.dashboard');
+        Route::patch('adjust/{id}', [\App\Http\Controllers\InventoryDashboardController::class, 'adjust'])->name('inventory.adjust');
         Route::resource('purchaseorder', PurchaseOrderController::class)->names('purchaseorder');
         Route::get('purchaseorder/{purchase_order}/download/{template?}', [PurchaseOrderController::class, 'downloadPdf'])->name('purchaseorder.download');
         Route::get('purchaseorder/{purchase_order}/report', [PurchaseOrderController::class, 'report'])->name('purchaseorder.report');
@@ -217,7 +222,7 @@ Route::middleware([
         Route::delete('purchaseorder/{purchase_order}/delete-bill', [PurchaseOrderController::class, 'deleteBill'])->name('purchaseorder.delete-bill');
           Route::resource('stock-exhausts', \App\Http\Controllers\StockExhaustController::class);
         Route::get('stocks', [\App\Http\Controllers\StockController::class, 'index'])->name('stocks.index');
-        Route::resource('inwards', PurchaseOrderInwardController::class);
+        Route::resource('inwards', PurchaseOrderInwardController::class)->except(['create']);
         Route::get('inwards/create/{purchase_order?}', [PurchaseOrderInwardController::class, 'create'])->name('inwards.create');
         Route::post('inwards/{inward}/update-weight', [PurchaseOrderInwardController::class, 'updateWeight'])->name('inwards.update-weight');
        
