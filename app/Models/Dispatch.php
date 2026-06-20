@@ -122,6 +122,10 @@ class Dispatch extends Model
     {
         return $this->belongsTo(Personnel::class, 'driver_id');
     }
+    public function drivers(): BelongsTo
+    {
+        return $this->belongsTo(Driver::class, 'id','personnel_id');
+    }
 
     public function salesExecutive(): BelongsTo
     {

@@ -85,7 +85,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('sales_order_id');
 
-            $table->unsignedBigInteger('vehicle_id');
+            $table->unsignedBigInteger('truck_id');
             $table->unsignedBigInteger('driver_id')->nullable();
             $table->unsignedBigInteger('plant_id');
 
@@ -97,7 +97,7 @@ return new class extends Migration
             $table->auditColumns();
 
             $table->foreign('sales_order_id')->references('id')->on('mm_sales_orders')->cascadeOnDelete();
-            $table->foreign('vehicle_id')->references('id')->on('mm_machines'); // Vehicles are in machines typically 
+            $table->foreign('truck_id')->references('id')->on('mm_machines'); // Vehicles are in machines typically 
             $table->foreign('plant_id')->references('id')->on('mm_plants');
         });
     }

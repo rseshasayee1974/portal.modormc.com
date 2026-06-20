@@ -183,147 +183,212 @@ const handleMixCreated = () => {
             </div>
         </div>
 
-        <div class="grid grid-cols-12 gap-5 p-5">
-            <!-- Row 1: Identification & Primary -->
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect
-                    v-model="form.sales_order_id"
-                    :options="salesOrderOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    filter
-                    label="Sales Order (Optional)"
-                    placeholder="Select Sales Order"
-                    :error="form.errors.sales_order_id"
-                />
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect
-                    v-model="form.customer_id"
-                    :options="safeCustomers"
-                    optionLabel="legal_name"
-                    optionValue="id"
-                    filter
-                    label="Customer"
-                    placeholder="Select Customer"
-                    :error="form.errors.customer_id"
-                    :disabled="!!form.sales_order_id"
-                />
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect
-                    v-model="form.site_id"
-                    :options="safeSites"
-                    optionLabel="name"
-                    optionValue="id"
-                    filter
-                    label="Site"
-                    placeholder="Select Site"
-                    :error="form.errors.site_id"
-                    :disabled="!!form.sales_order_id"
-                />
-            </div>
+       <div class="grid grid-cols-1 md:grid-cols-5 gap-5 p-5">
+    <!-- Row 1 -->
+    <!-- <div>
+        <BaseSelect
+            v-model="form.sales_order_id"
+            :options="salesOrderOptions"
+            optionLabel="label"
+            optionValue="value"
+            filter
+            label="Sales Order (Optional)"
+            placeholder="Select Sales Order"
+            :error="form.errors.sales_order_id"
+        />
+    </div> -->
 
-            <!-- Row 2: Technical & Status -->
-            <div class="col-span-12 md:col-span-3">
-                <div class="flex items-center justify-between mb-1">
-                    <label class="block text-[10px] font-bold uppercase tracking-widest text-gray-400">Mix Design</label>
-                    <button
-                        v-if="!form.sales_order_id"
-                        type="button"
-                        @click="showMixDesignModal = true"
-                        class="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
-                    >
-                        <BeakerIcon class="h-3 w-3" />
-                        <span>CREATE NEW</span>
-                    </button>
-                </div>
-                <BaseSelect
-                    v-model="form.mix_design_id"
-                    :options="safeMixDesigns"
-                    optionLabel="design_name"
-                    optionValue="id"
-                    filter
-                    placeholder="Select Design"
-                    :error="form.errors.mix_design_id"
-                    :disabled="!!form.sales_order_id"
-                />
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect
-                    v-model="form.status"
-                    :options="filteredStatuses"
-                    optionLabel="label"
-                    optionValue="value"
-                    label="Status"
-                    :error="form.errors.status"
-                />
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <BaseSelect
-                    v-model="form.concrete_pump"
-                    :options="concretePumpOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    label="Concrete Type"
-                    placeholder="Select Concrete Type"
-                    :error="form.errors.concrete_pump"
-                />
-            </div>
+    <div>
+        <BaseSelect
+            v-model="form.customer_id"
+            :options="safeCustomers"
+            optionLabel="legal_name"
+            optionValue="id"
+            filter
+            label="Customer"
+            placeholder="Select Customer"
+            :error="form.errors.customer_id"
+            :disabled="!!form.sales_order_id"
+        />
+    </div>
 
-            <div v-if="selectedMixDesign" class="col-span-12 rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">
-                <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-700">Selected Mix Design</span>
-                    <span class="text-xs font-semibold text-slate-700">{{ selectedMixDesign.design_name }}</span>
-                </div>
-                <div class="mt-2 flex flex-wrap gap-2">
-                    <div v-for="badge in mixDetailBadges" :key="badge.label" class="rounded-md border border-indigo-100 bg-white px-2 py-1">
-                        <span class="text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">{{ badge.label }}</span>
-                        <span class="ml-1 text-[11px] font-semibold text-slate-700">{{ badge.value }}</span>
-                    </div>
-                </div>
+    <div>
+        <BaseSelect
+            v-model="form.site_id"
+            :options="safeSites"
+            optionLabel="name"
+            optionValue="id"
+            filter
+            label="Site"
+            placeholder="Select Site"
+            :error="form.errors.site_id"
+            :disabled="!!form.sales_order_id"
+        />
+    </div>
 
-                <div v-if="selectedMixIngredients.length" class="mt-3">
-                    <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Mix Ingredients</p>
-                    <div class="mt-1.5 grid grid-cols-1 gap-1.5 md:grid-cols-2 xl:grid-cols-3">
-                        <div
-                            v-for="item in selectedMixIngredients"
-                            :key="item.id"
-                            class="flex items-center justify-between rounded-md border border-slate-200 bg-white px-2 py-1.5"
-                        >
-                            <span class="text-[11px] text-slate-700">{{ item.name || 'Unknown' }}</span>
-                            <span class="text-[11px] font-bold text-indigo-600">
-                                {{ Number(item.qty || 0).toFixed(3) }} {{ item.uom || '' }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <BaseInputNumber
-                    v-model="form.total_qty"
-                    label="Total Quantity (m³)"
-                    :error="form.errors.total_qty"
-                    :minFractionDigits="3"
-                    :disabled="!!form.sales_order_id"
-                />
-            </div>
-            <!-- <div class="col-span-12 md:col-span-3">
-                <BaseInputNumber v-model="form.produced_qty" label="Produced Quantity (m³)" :error="form.errors.produced_qty" :minFractionDigits="3" />
-            </div> -->
-            <div class="col-span-12 md:col-span-3">
-                <label class="mb-1 block text-[10px] font-bold uppercase tracking-widest text-gray-400">Scheduled Start</label>
-                <BaseDatePicker v-model="form.scheduled_start" showTime hourFormat="24" fluid class="w-full" />
-                <small v-if="form.errors.scheduled_start" class="text-red-500 text-[11px]">{{ form.errors.scheduled_start }}</small>
-            </div>
-            <div class="col-span-12 md:col-span-3">
-                <label class="mb-1 block text-[10px] font-bold uppercase tracking-widest text-gray-400">Scheduled End</label>
-                <BaseDatePicker v-model="form.scheduled_end" showTime hourFormat="24" fluid class="w-full" />
-                <small v-if="form.errors.scheduled_end" class="text-red-500 text-[11px]">{{ form.errors.scheduled_end }}</small>
-            </div>
+    <div>
+        <div class="flex items-center justify-between mb-1">
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                Mix Design
+            </label>
 
-
+            <button
+                v-if="!form.sales_order_id"
+                type="button"
+                @click="showMixDesignModal = true"
+                class="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+            >
+                <BeakerIcon class="h-3 w-3" />
+                <span>CREATE NEW</span>
+            </button>
         </div>
+
+        <BaseSelect
+            v-model="form.mix_design_id"
+            :options="safeMixDesigns"
+            optionLabel="design_name"
+            optionValue="id"
+            filter
+            placeholder="Select Design"
+            :error="form.errors.mix_design_id"
+            :disabled="!!form.sales_order_id"
+        />
+    </div>
+
+    <div>
+        <BaseSelect
+            v-model="form.status"
+            :options="filteredStatuses"
+            optionLabel="label"
+            optionValue="value"
+            label="Status"
+            :error="form.errors.status"
+        />
+    </div>
+
+    <!-- Row 2 -->
+    <div>
+        <BaseSelect
+            v-model="form.concrete_pump"
+            :options="concretePumpOptions"
+            optionLabel="label"
+            optionValue="value"
+            label="Concrete Type"
+            placeholder="Select Concrete Type"
+            :error="form.errors.concrete_pump"
+        />
+    </div>
+
+    <div>
+        <BaseInputNumber
+            v-model="form.total_qty"
+            label="Total Quantity (m³)"
+            :error="form.errors.total_qty"
+            :minFractionDigits="3"
+            :disabled="!!form.sales_order_id"
+        />
+    </div>
+
+    <div>
+        <label class="mb-1 block text-[10px] font-bold uppercase tracking-widest text-gray-400">
+            Scheduled Start
+        </label>
+
+        <BaseDatePicker
+            v-model="form.scheduled_start"
+            showTime
+            hourFormat="24"
+            fluid
+            class="w-full"
+        />
+
+        <small
+            v-if="form.errors.scheduled_start"
+            class="text-red-500 text-[11px]"
+        >
+            {{ form.errors.scheduled_start }}
+        </small>
+    </div>
+
+    <div>
+        <label class="mb-1 block text-[10px] font-bold uppercase tracking-widest text-gray-400">
+            Scheduled End
+        </label>
+
+        <BaseDatePicker
+            v-model="form.scheduled_end"
+            showTime
+            hourFormat="24"
+            fluid
+            class="w-full"
+        />
+
+        <small
+            v-if="form.errors.scheduled_end"
+            class="text-red-500 text-[11px]"
+        >
+            {{ form.errors.scheduled_end }}
+        </small>
+    </div>
+
+    <!-- Empty cell to complete 5 columns -->
+    <div></div>
+
+    <!-- Mix Design Details -->
+    <div
+        v-if="selectedMixDesign"
+        class="md:col-span-5 rounded-lg border border-indigo-100 bg-indigo-50/40 p-3"
+    >
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-700">
+                Selected Mix Design
+            </span>
+
+            <span class="text-xs font-semibold text-slate-700">
+                {{ selectedMixDesign.design_name }}
+            </span>
+        </div>
+
+        <div class="mt-2 flex flex-wrap gap-2">
+            <div
+                v-for="badge in mixDetailBadges"
+                :key="badge.label"
+                class="rounded-md border border-indigo-100 bg-white px-2 py-1"
+            >
+                <span class="text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                    {{ badge.label }}
+                </span>
+
+                <span class="ml-1 text-[11px] font-semibold text-slate-700">
+                    {{ badge.value }}
+                </span>
+            </div>
+        </div>
+
+        <div v-if="selectedMixIngredients.length" class="mt-3">
+            <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                Mix Ingredients
+            </p>
+
+            <div class="mt-1.5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5">
+                <div
+                    v-for="item in selectedMixIngredients"
+                    :key="item.id"
+                    class="flex items-center justify-between rounded-md border border-slate-200 bg-white px-2 py-1.5"
+                >
+                    <span class="text-[11px] text-slate-700">
+                        {{ item.name || 'Unknown' }}
+                    </span>
+
+                    <span class="text-[11px] font-bold text-indigo-600">
+                        {{ Number(item.qty || 0).toFixed(3) }}
+                        {{ item.uom || '' }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
         <div class="flex justify-end border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/30 px-4 py-3">
             <Button label="Create Work Order" icon="pi pi-check" :loading="form.processing" @click="submit" class="p-button-indigo" />

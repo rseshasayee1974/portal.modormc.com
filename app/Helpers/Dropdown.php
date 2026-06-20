@@ -44,6 +44,7 @@ use App\Models\Ledger;
 use App\Models\ContactType;
 use App\Models\AddressType;
 use App\Models\BankAccountType;
+use App\Models\Driver;
 use App\Models\StateCode;
 use App\Models\MixDesign;
 use App\Models\ExpenseType;
@@ -264,7 +265,31 @@ if (!function_exists('PersonnelDropdown')) {
             ]);
     }
 }
+if (!function_exists('DriversDropdown')) {
 
+    function DriversDropdown($excludeId = null)
+    {
+        $query = Driver::with('personnel')
+            ->where('plant_id', _activePlantId());
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query
+            ->where('status', 'active')
+            ->get()
+            ->map(function ($driver) {
+                return [
+                    'id' => $driver->id,
+                    'value' => $driver->id,
+                    'label' => optional($driver->personnel)->first_name . ' ' . optional($driver->personnel)->last_name,
+                    'first_name' => optional($driver->personnel)->first_name,
+                    'last_name' => optional($driver->personnel)->last_name,
+                ];
+            });
+    }
+}
 if (!function_exists('SalesExecutivesDropdown')) {
     /**
      * Active Sales Executives for the active plant.

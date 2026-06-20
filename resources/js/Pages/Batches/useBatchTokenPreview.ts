@@ -1,72 +1,75 @@
 import { ref, onMounted, onUnmounted } from 'vue';
+import type { Ref } from 'vue';
+
+type TokenType = 'batching' | 'dispatch' | 'delivery';
+type CloseReason = 'print' | 'close' | 'manual';
+
+interface UseBatchTokenPreviewOptions {
+    closeAllMenus: () => void;
+    onClose?: (batchId: number | null, reason: CloseReason) => void;
+}
+
+interface UseBatchTokenPreviewReturn {
+    tokenPreviewVisible: Ref<boolean>;
+    tokenPreviewUrl: Ref<string>;
+    iframeHeight: Ref<string>;
+    previewTitle: Ref<string>;
+    previewWidth: Ref<string>;
+    previewIframeWidth: Ref<string>;
+    viewToken: (id: number, type?: TokenType) => void;
+    closeTokenPreview: () => void;
+    adjustIframeHeight: (event: any) => void;
+    printTokenIframe: () => void;
+    handleShowTokenEvent: (e: any) => void;
+}
 
 /**
  * Composable – useBatchTokenPreview
- *
- * Manages the batch/dispatch/delivery token preview dialog:
- *  - Reactive state for dialog visibility, URL, dimensions
- *  - viewToken          : Open dialog for a given token type
- *  - adjustIframeHeight : Auto-resize iframe to its content height
- *  - printTokenIframe   : Trigger the browser print dialog for the iframe
- *  - handleShowTokenEvent : Handle the custom DOM 'show-batch-token' event
- *  - Registers / removes window event listeners on mount / unmount
- *
- * Also manages the actions dropdown menu:
- *  - activeMenuId  : Which row menu is currently open
- *  - toggleMenu    : Toggle a specific row's menu
- *  - closeAllMenus : Close every open menu (bound to global click)
  */
-export function useBatchTokenPreview(
-    closeAllMenus: () => void,
-    onPreviewClose?: (batchId: number | null) => void
-) {
+export function useBatchTokenPreview({
+    closeAllMenus,
+    onClose,
+}: UseBatchTokenPreviewOptions): UseBatchTokenPreviewReturn {
 
     // ── Token Preview State ───────────────────────────────────────────────────
     const tokenPreviewVisible = ref(false);
-    const tokenPreviewUrl     = ref('');
-    const iframeHeight        = ref('300px');
-    const previewTitle        = ref('Batching Token Preview');
-    const previewWidth        = ref('380px');
-    const previewIframeWidth  = ref('340px');
-    const currentBatchId      = ref<number | null>(null);
+    const tokenPreviewUrl = ref('');
+    const iframeHeight = ref('300px');
+    const previewTitle = ref('Batching Token Preview');
+    const previewWidth = ref('380px');
+    const previewIframeWidth = ref('340px');
+    const currentBatchId = ref<number | null>(null);
 
     // ── Open Token Dialog ────────────────────────────────────────────────────
-    const viewToken = (id: number, type: string = 'batching') => {
+    const viewToken = (id: number, type: TokenType = 'batching') => {
         currentBatchId.value = id;
         if (type === 'dispatch') {
-            previewTitle.value      = 'Dispatch Token Preview';
-            previewWidth.value      = '380px';
+            previewTitle.value = 'Dispatch Token Preview';
+            previewWidth.value = '380px';
             previewIframeWidth.value = '340px';
-            tokenPreviewUrl.value   = route('batches.dispatch-token', id);
+            tokenPreviewUrl.value = route('batches.dispatch-token', id);
         } else if (type === 'delivery') {
-            previewTitle.value      = 'Delivery Token Preview (A4)';
-            previewWidth.value      = '850px';
+            previewTitle.value = 'Delivery Token Preview (A4)';
+            previewWidth.value = '850px';
             previewIframeWidth.value = '810px';
-            tokenPreviewUrl.value   = route('batches.delivery-token', id);
+            tokenPreviewUrl.value = route('batches.delivery-token', id);
         } else {
-            previewTitle.value      = 'Batching Token Preview';
-            previewWidth.value      = '380px';
+            previewTitle.value = 'Batching Token Preview';
+            previewWidth.value = '380px';
             previewIframeWidth.value = '340px';
-            tokenPreviewUrl.value   = route('batches.token', id);
+            tokenPreviewUrl.value = route('batches.token', id);
         }
-        iframeHeight.value        = '300px'; // Reset before load
+        iframeHeight.value = '300px';
         tokenPreviewVisible.value = true;
     };
 
     // ── Close Token Dialog ───────────────────────────────────────────────────
-    // Hides the dialog first, then clears the iframe src after the close
-    // animation completes. This prevents the iframe unmount from triggering
-    // a parent-page navigation / Inertia reload.
     const closeTokenPreview = () => {
         tokenPreviewVisible.value = false;
         setTimeout(() => {
             tokenPreviewUrl.value = '';
-            iframeHeight.value    = '300px';
-            if (onPreviewClose) {
-                onPreviewClose(currentBatchId.value);
-            } else {
-                window.location.reload();
-            }
+            iframeHeight.value = '300px';
+            onClose?.(currentBatchId.value, 'manual');
         }, 350);
     };
 
@@ -76,9 +79,9 @@ export function useBatchTokenPreview(
         if (iframe && iframe.contentDocument) {
             setTimeout(() => {
                 try {
-                    const doc    = iframe.contentDocument;
+                    const doc = iframe.contentDocument;
                     const height = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
-                    iframeHeight.value = `${height + 15}px`; // +15px buffer to hide inner scrollbar
+                    iframeHeight.value = `${height + 15}px`;
                 } catch (e) {
                     console.error(e);
                 }
@@ -90,8 +93,10 @@ export function useBatchTokenPreview(
     const printTokenIframe = () => {
         if (!tokenPreviewUrl.value) return;
 
-        // Open in a small hidden popup window — printing from iframe.contentWindow
-        // causes the parent Inertia page to reload in many browsers.
+        const handlePrintComplete = () => {
+            onClose?.(currentBatchId.value, 'print');
+        };
+
         const popup = window.open(
             tokenPreviewUrl.value,
             '_blank',
@@ -99,19 +104,12 @@ export function useBatchTokenPreview(
         );
 
         if (!popup) {
-            // Fallback if popup was blocked — print directly from the iframe
             const iframe = document.querySelector('.token-preview-dialog iframe') as HTMLIFrameElement;
             if (iframe && iframe.contentWindow) {
                 iframe.contentWindow.focus();
                 iframe.contentWindow.print();
             }
-            setTimeout(() => {
-                if (onPreviewClose) {
-                    onPreviewClose(currentBatchId.value);
-                } else {
-                    window.location.reload();
-                }
-            }, 500);
+            setTimeout(handlePrintComplete, 500);
             return;
         }
 
@@ -119,25 +117,15 @@ export function useBatchTokenPreview(
             setTimeout(() => {
                 popup.focus();
                 popup.print();
-                // Close the popup after the user dismisses the print dialog
                 popup.onafterprint = () => {
                     popup.close();
-                    if (onPreviewClose) {
-                        onPreviewClose(currentBatchId.value);
-                    } else {
-                        window.location.reload();
-                    }
+                    handlePrintComplete();
                 };
-                // Fallback close after 60s if onafterprint doesn't fire
                 setTimeout(() => {
                     try {
                         popup.close();
-                        if (onPreviewClose) {
-                            onPreviewClose(currentBatchId.value);
-                        } else {
-                            window.location.reload();
-                        }
-                    } catch(_) {}
+                        handlePrintComplete();
+                    } catch (_) { }
                 }, 60000);
             }, 300);
         };
@@ -150,20 +138,20 @@ export function useBatchTokenPreview(
         tokenPreviewUrl.value = e.detail.url;
 
         if (e.detail.url.includes('delivery-token')) {
-            previewTitle.value      = 'Delivery Token Preview (A4)';
-            previewWidth.value      = '850px';
+            previewTitle.value = 'Delivery Token Preview (A4)';
+            previewWidth.value = '850px';
             previewIframeWidth.value = '810px';
         } else if (e.detail.url.includes('dispatch-token')) {
-            previewTitle.value      = 'Dispatch Token Preview';
-            previewWidth.value      = '380px';
+            previewTitle.value = 'Dispatch Token Preview';
+            previewWidth.value = '380px';
             previewIframeWidth.value = '340px';
         } else {
-            previewTitle.value      = 'Batching Token Preview';
-            previewWidth.value      = '380px';
+            previewTitle.value = 'Batching Token Preview';
+            previewWidth.value = '380px';
             previewIframeWidth.value = '340px';
         }
 
-        iframeHeight.value        = '300px';
+        iframeHeight.value = '300px';
         tokenPreviewVisible.value = true;
     };
 

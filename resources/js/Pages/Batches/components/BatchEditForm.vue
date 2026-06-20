@@ -51,6 +51,8 @@ const emit = defineEmits<{
     (e: 'cancel'): void;
 }>();
 
+
+
 const blankMaterial = (): BatchMaterial => ({
     product_id: null,
     material_name: '',
@@ -93,6 +95,8 @@ const form = useForm({
         }));
     })(),
 });
+
+console.log('batcjh==',props);
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
@@ -620,7 +624,7 @@ const submit = () => {
                                 <div class="flex-1">
                                     <BaseInputNumber v-model="form.loaded_weight_truck" :disabled="isLocked || !customSettings?.batching?.manual_weight" label="Full Weight" :required="isMetricTon" :error="form.errors.loaded_weight_truck" />
                                 </div>
-                                <button v-if="!isLocked && customSettings?.batching?.manual_weight && form.net_weight<=0" @click="handleWeightCapture('loaded')" type="button" 
+                                <button v-if="!isLocked && !customSettings?.batching?.manual_weight && form.net_weight<=0" @click="handleWeightCapture('loaded')" type="button" 
                                     :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
                                     :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
                                     <div class="flex flex-col items-center gap-0.5">

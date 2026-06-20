@@ -36,13 +36,21 @@ class BatchController extends Controller
         $this->authorizeModule('menu');
         $activePlantId = session('active_plant_id');
 
-        $batches = Batch::with([
-            'workOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty',
-            'workOrder.customer:id,legal_name',
-            'workOrder.mixDesign:id,design_name,design_code',
-            'workOrder.site:id,name',
-            
-        ])
+     $batches = Batch::with([
+        'dispatches:id,batch_id,truck_id,transport_id,driver_id,sales_executive_id,concrete_pump,empty_weight_truck,loaded_weight_truck,empty_time,load_time',
+        'dispatches.truck',
+        'dispatches.transport', 
+        'dispatches.drivers',
+        'dispatches.salesExecutive',
+        'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
+        'materials.product:id,title',
+        'materials.uom:id,unit_code',
+        'workOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty',
+        'workOrder.customer:id,legal_name',
+        'workOrder.mixDesign:id,design_name,design_code',
+        'workOrder.site:id,name',
+    ])
+
         ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
         ->latest()
         ->get(); 
@@ -166,7 +174,8 @@ class BatchController extends Controller
             'transporters'      => PatronsDropdown('Transporter'),
             'loading_sites'     => SitesDropdown('loading'),
             'unloading_sites'   => SitesDropdown('unloading'),
-            'drivers'            => PersonnelDropdown('','Driver'),
+            // 'drivers'            => PersonnelDropdown('','Driver'),
+            'drivers'            => DriversDropdown(),
             'sales_executives'   => PersonnelDropdown('','Sales Executive'),
             'taxes'             => TaxesDropdown('sales'),
             'products'          => fn () => ProductsDropdown(),
@@ -183,37 +192,38 @@ class BatchController extends Controller
     /**
      * Store a newly created batch in storage.
      */
-    public function store(StoreBatchRequest $request)
-    {
-        $this->authorizeModule('create');
-        
-        // Reverted back to custom FormRequest rules container safely
-        $payload = $request->validated();
-        
-        $workOrder = WorkOrder::query()->findOrFail($payload['work_order_id']);
-        $this->ensurePlantScope($workOrder);
+   public function store(StoreBatchRequest $request)
+{
+    $this->authorizeModule('create');
+    
+    $payload = $request->validated();
+    
+    $workOrder = WorkOrder::query()->findOrFail($payload['work_order_id']);
+    $this->ensurePlantScope($workOrder);
 
-        $emptyPhoto = $payload['empty_weight_photo'] ?? null;
-        $loadedPhoto = $payload['loaded_weight_photo'] ?? null;
-        unset($payload['empty_weight_photo'], $payload['loaded_weight_photo']);
+    $emptyPhoto = $payload['empty_weight_photo'] ?? null;
+    $loadedPhoto = $payload['loaded_weight_photo'] ?? null;
+    unset($payload['empty_weight_photo'], $payload['loaded_weight_photo']);
 
-        $materialsData = $payload['materials'] ?? [];
+    $materialsData = $payload['materials'] ?? [];
+    $activePlantId = session('active_plant_id', $workOrder->plant_id);
 
-        try {
-            $batch = DB::transaction(function () use ($payload, $workOrder, $emptyPhoto, $loadedPhoto, $materialsData) {
-                $payload['batch_no'] = $payload['batch_no'] ?? ($workOrder->batches()->max('batch_no') + 1);
-                $payload['status'] = $payload['status'] ?? Batch::STATUS_PLANNED;
+    try {
+        $batch = DB::transaction(function () use ($payload, $workOrder, $emptyPhoto, $loadedPhoto, $materialsData, $activePlantId) {
+            $payload['batch_no'] = $payload['batch_no'] ?? ($workOrder->batches()->max('batch_no') + 1);
+            $payload['status'] = $payload['status'] ?? Batch::STATUS_PLANNED;
+            $payload['plant_id'] = $activePlantId; // ensure plant_id is set
 
-                $materials = $materialsData;
-                unset($payload['materials']);
+            $materials = $materialsData;
+            unset($payload['materials']);
 
-                if (empty($payload['shift'])) {
-                    $plant = Plant::where('id','=',session('active_plant_id'))->first();
-                    if ($plant) {
-                        $shiftInfo = $plant->getCurrentShiftInfo($payload['start_time'] ?? null);
-                        $payload['shift'] = $shiftInfo['shift'];
-                    }
+            if (empty($payload['shift'])) {
+                $plant = Plant::find($activePlantId);
+                if ($plant) {
+                    $shiftInfo = $plant->getCurrentShiftInfo($payload['start_time'] ?? null);
+                    $payload['shift'] = $shiftInfo['shift'];
                 }
+            }
 
                 $batchData = array_intersect_key($payload, array_flip([
                     'work_order_id',
@@ -240,72 +250,82 @@ class BatchController extends Controller
                 
                 $workOrder->refreshProduction();
 
-                if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-                    $this->sendBatchCompletedMail($batch);
-                }
+            if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                $this->sendBatchCompletedMail($batch);
+            }
 
-                // Compile structured parameters safely
-                $dispatchData = [
-                    'work_order_id'       => $payload['work_order_id'],
-                    'batch_id'            => $batch->id,
-                    'plant_id'            => session('active_plant_id', $workOrder->plant_id),
-                    'customer_id'         => $workOrder->customer_id,
-                    'mixdesign_id'        => $workOrder->mix_design_id,
-                    'unload_site_id'      => $workOrder->site_id,
-                    'uom_id'              => $payload['uom_id'] ?? null,
-                    'truck_id'          => $payload['truck_id'] ?? null,
-                    'transport_id'        => $payload['transport_id'] ?? null,
-                    'driver_id'           => $payload['driver_id'] ?? null,
-                    'sales_executive_id'  => $payload['sales_executive_id'] ?? null,
-                    'concrete_pump'       => $payload['concrete_pump'] ?? null,
-                    'empty_weight_truck'  => $payload['empty_weight_truck'] ?? 0,
-                    'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? null,
-                    'net_weight'          => $payload['net_weight'] ?? null,
-                    'load_site_id'        => $payload['site_id'] ?? null,
-                    'empty_time'          => $payload['empty_time'] ?? null,
-                    'load_time'           => $payload['load_time'] ?? null,
-                    'dispatch_status'     => 'Draft',
-                ];
-
+            // Only create dispatch if we have minimum required data
+            $shouldCreateDispatch = !empty($payload['truck_id']) || !empty($payload['transport_id']);
+            
+            if ($shouldCreateDispatch) {
                 $currentDate = now();
                 $startYear = $currentDate->month >= 4 ? $currentDate->year : $currentDate->year - 1;
                 $endYear = $startYear + 1;
                 $fyString = substr($startYear, -2) . substr($endYear, -2);
                 $prefix = "DP-{$fyString}-";
                 
-                $maxNumber = Dispatch::query()->where('plant_id', $dispatchData['plant_id'])
+                $maxNumber = Dispatch::query()
+                    ->where('plant_id', $activePlantId)
                     ->where('prefix', $prefix)
                     ->max(DB::raw('CAST(dispatch_no AS UNSIGNED)'));
                 
-                $dispatchData['prefix'] = $prefix;
-                $dispatchData['dispatch_no'] = (string)(($maxNumber ?: 0) + 1);
+                $dispatchData = [
+                    'work_order_id'       => $payload['work_order_id'],
+                    // 'sales_order_id'      => $workOrder->sales_order_id,
+                    'batch_id'            => $batch->id,
+                    'plant_id'            => $activePlantId,
+                    'customer_id'         => $workOrder->customer_id,
+                    'mixdesign_id'        => $workOrder->mix_design_id,
+                    'unload_site_id'      => $workOrder->site_id,
+                    'load_site_id'        => $activePlantId, // usually plant is the load site, not $payload['site_id']
+                    'uom_id'              => $payload['uom_id'] ?? null,
+                    'truck_id'            => $payload['truck_id'] ?? null,
+                    'transport_id'        => $payload['transport_id'] ?? null,
+                    'driver_id'           => $payload['driver_id'] ?? null,
+                    'sales_executive_id'  => $payload['sales_executive_id'] ?? null,
+                    'concrete_pump'       => $payload['concrete_pump'] ?? null,
+                    'empty_weight_truck'  => $payload['empty_weight_truck'] ?? 0,
+                    'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? 0,
+                    'net_weight'          => $payload['net_weight'] ?? 0,
+                    'empty_time'          => $payload['empty_time'] ?? null,
+                    'load_time'           => $payload['load_time'] ?? null,
+                    'dispatch_status'     => 'Draft',
+                    'prefix'              => $prefix,
+                    'dispatch_no'         => (string)(($maxNumber ?: 0) + 1),
+                    'dispatch_time' => now()->format('H:i:s'),
+                    'created_at' => now(),
+                ];
+
+                // Log what we're about to insert
+                \Log::info('Creating Dispatch', $dispatchData);
 
                 $dispatch = Dispatch::create($dispatchData);
+                
                 $dispatch->status()->updateOrCreate(
                     ['dispatch_id' => $dispatch->id],
                     ['plant_id' => $dispatch->plant_id]
                 );
+            }
 
-                if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
-                if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
+            if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
+            if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
 
-                return $batch;
-            });
-        } catch (ValidationException $e) {
-            throw $e;
-        } catch (\Throwable $e) {
-            throw ValidationException::withMessages([
-                'error' => [$e->getMessage()]
-            ]);
-        }
-
-        // Executed outside the database transaction scope safely to avoid table deadlocks
-        // $this->pushToSchedulerAPI($batch, $materialsData);
-        // $this->broadcastBatchChange('BatchCreated', $batch);
-
-        return redirect()->route('batches.token', $batch->id);
+            return $batch;
+        });
+    } catch (ValidationException $e) {
+        throw $e;
+    } catch (\Throwable $e) {
+        \Log::error('Batch Store Failed: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+            'payload' => $payload
+        ]);
+        throw ValidationException::withMessages([
+            'error' => ['Failed to create batch: ' . $e->getMessage()]
+        ]);
     }
 
+    return redirect()->route('batches.token', $batch->id);
+}
     /**
      * Pushes structural context configurations out to remote active hardware loops.
      */
