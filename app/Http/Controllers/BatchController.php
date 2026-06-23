@@ -10,7 +10,7 @@ use App\Models\BatchMaterial;
 use App\Models\Image;
 use App\Models\Product;
 use App\Models\Quantity;
-use App\Models\WorkOrder;
+use App\Models\SalesOrder;
 use App\Models\Dispatch;
 use App\Models\Plant;
 use App\Models\CustomSetting;
@@ -89,7 +89,7 @@ class BatchController extends Controller
             });
         });
 
-        $workOrders = WorkOrder::query()
+        $workOrders = SalesOrder::query()
             ->with([
                 'customer:id,plant_id,legal_name,code,patron_type,gstin,email,mobile',
                 'site:id,plant_id,name,site_address_1,type',
@@ -101,7 +101,7 @@ class BatchController extends Controller
             ])
             ->withCount('batches')
             ->where('plant_id', $activePlantId)
-            ->whereIn('status', [WorkOrder::STATUS_IN_PROGRESS])
+            ->whereIn('status', [SalesOrder::STATUS_IN_PROGRESS])
             ->where(function ($query) {
                 $query->whereNull('scheduled_end')
                 ->orWhere('scheduled_end', '>=', date('Y-m-d', strtotime(now()) ) );              // to display the workorders which are active as per scheduled end date
@@ -198,7 +198,7 @@ class BatchController extends Controller
     
     $payload = $request->validated();
     
-    $workOrder = WorkOrder::query()->findOrFail($payload['work_order_id']);
+    $workOrder = SalesOrder::query()->findOrFail($payload['sales_order_id']);
     $this->ensurePlantScope($workOrder);
 
     $emptyPhoto = $payload['empty_weight_photo'] ?? null;
@@ -226,7 +226,7 @@ class BatchController extends Controller
             }
 
                 $batchData = array_intersect_key($payload, array_flip([
-                    'work_order_id',
+                    'sales_order_id',
                     'batch_no',
                     'batch_size',
                     'start_time',
@@ -270,8 +270,8 @@ class BatchController extends Controller
                     ->max(DB::raw('CAST(dispatch_no AS UNSIGNED)'));
                 
                 $dispatchData = [
-                    'work_order_id'       => $payload['work_order_id'],
-                    // 'sales_order_id'      => $workOrder->sales_order_id,
+                    'sales_order_id'      => $payload['sales_order_id'],
+                    'customer_po_id'      => $workOrder->customer_po_id,
                     'batch_id'            => $batch->id,
                     'plant_id'            => $activePlantId,
                     'customer_id'         => $workOrder->customer_id,
@@ -1182,7 +1182,7 @@ class BatchController extends Controller
         }
     }
 
-    private function ensurePlantScope(WorkOrder $workOrder): void
+    private function ensurePlantScope(SalesOrder $workOrder): void
     {
         if ((int) $workOrder->plant_id !== (int) session('active_plant_id')) {
             abort(403, 'You can only manage batches from the active plant.');

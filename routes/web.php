@@ -38,9 +38,16 @@ Route::middleware([
         return response()->json(['status' => 'active']);
     })->name('session.ping');
 
-   Route::get('/dashboard', [\App\Http\Controllers\ERPDashboardController::class, 'index'])->name('dashboard');
-   Route::get('/dashboard/analytics', [\App\Http\Controllers\ERPDashboardController::class, 'analytics'])->name('dashboard.analytics');
-   Route::get('dashboard/data', [\App\Http\Controllers\ERPDashboardController::class, 'getData'])->name('dashboard.data');
+    Route::get('/dashboard', [\App\Http\Controllers\ERPDashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/analytics', [\App\Http\Controllers\ERPDashboardController::class, 'analytics'])->name('dashboard.analytics');
+    Route::get('dashboard/data', [\App\Http\Controllers\ERPDashboardController::class, 'getData'])->name('dashboard.data');
+    Route::get('dashboard/data/metrics', [\App\Http\Controllers\ERPDashboardController::class, 'getMetricsData'])->name('dashboard.data.metrics');
+    Route::get('dashboard/data/finance-trend', [\App\Http\Controllers\ERPDashboardController::class, 'getFinanceTrendData'])->name('dashboard.data.finance-trend');
+    Route::get('dashboard/data/dispatch-status', [\App\Http\Controllers\ERPDashboardController::class, 'getDispatchStatusData'])->name('dashboard.data.dispatch-status');
+    Route::get('dashboard/data/customer-leaderboard', [\App\Http\Controllers\ERPDashboardController::class, 'getCustomerLeaderboardData'])->name('dashboard.data.customer-leaderboard');
+    Route::get('dashboard/data/stock', [\App\Http\Controllers\ERPDashboardController::class, 'getStockData'])->name('dashboard.data.stock');
+    Route::get('dashboard/data/recent-activity', [\App\Http\Controllers\ERPDashboardController::class, 'getRecentActivityData'])->name('dashboard.data.recent-activity');
+    Route::get('dashboard/data/feeds', [\App\Http\Controllers\ERPDashboardController::class, 'getFeedsData'])->name('dashboard.data.feeds');
    Route::get('/production/dashboard', [\App\Http\Controllers\BatchingDashboardController::class, 'index'])->name('production.dashboard');
    Route::get('/production/dashboard/data', [\App\Http\Controllers\BatchingDashboardController::class, 'getData'])->name('production.dashboard.data');
     Route::prefix('saas')->group(function () {
@@ -181,13 +188,13 @@ Route::middleware([
         Route::get('quotations/{quotation}/report', [\App\Http\Controllers\QuotationController::class, 'report'])->name('quotations.report');
         Route::patch('quotations/{quotation}/convert', [\App\Http\Controllers\QuotationController::class, 'updateConversionStatus'])->name('quotations.convert');
         Route::post('quotations/{quotation}/send-email', [\App\Http\Controllers\QuotationController::class, 'sendEmail'])->name('quotations.send-email');
-        Route::get('salesorders', [\App\Http\Controllers\SalesOrderController::class, 'index'])->name('salesorders.index');
-        Route::post('salesorders', [\App\Http\Controllers\SalesOrderController::class, 'store'])->name('salesorders.store');
-        Route::delete('salesorders/{salesOrder}', [\App\Http\Controllers\SalesOrderController::class, 'destroy'])->name('salesorders.destroy');
-        Route::put('salesorders/{salesOrder}', [\App\Http\Controllers\SalesOrderController::class, 'update'])->name('salesorders.update');
-        Route::post('salesorders/{salesOrder}/convert-workorder', [\App\Http\Controllers\SalesOrderController::class, 'convertToWorkOrder'])->name('salesorders.convert-workorder');
-        Route::post('salesorders/{salesOrder}/dispatches', [\App\Http\Controllers\DispatchController::class, 'storeForSalesOrder'])->name('salesorders.dispatches.store');
-        Route::resource('workorders', \App\Http\Controllers\WorkOrderController::class);
+        Route::get('customer-po', [\App\Http\Controllers\CustomerPOController::class, 'index'])->name('customer-po.index');
+        Route::post('customer-po', [\App\Http\Controllers\CustomerPOController::class, 'store'])->name('customer-po.store');
+        Route::delete('customer-po/{customerPO}', [\App\Http\Controllers\CustomerPOController::class, 'destroy'])->name('customer-po.destroy');
+        Route::put('customer-po/{customerPO}', [\App\Http\Controllers\CustomerPOController::class, 'update'])->name('customer-po.update');
+        Route::post('customer-po/{customerPO}/convert-salesorder', [\App\Http\Controllers\CustomerPOController::class, 'convertToSalesOrder'])->name('customer-po.convert-salesorder');
+        Route::post('customer-po/{customerPO}/dispatches', [\App\Http\Controllers\DispatchController::class, 'storeForSalesOrder'])->name('customer-po.dispatches.store');
+        Route::resource('salesorders', \App\Http\Controllers\SalesOrderController::class);
         Route::resource('batches', \App\Http\Controllers\BatchController::class);
         Route::post('batches/{batch}/send-email', [\App\Http\Controllers\BatchController::class, 'sendEmail'])->name('batches.send-email');
         Route::get('batches/{batch}/report', [\App\Http\Controllers\BatchController::class, 'report'])->name('batches.report');
@@ -337,5 +344,24 @@ Route::get('public/invoice/{token}', [\App\Http\Controllers\InvoiceShareControll
 Route::get('public/invoice/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadPDF'])->name('public.invoice.pdf');
 Route::get('public/report/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewReport'])->name('public.report.view');
 Route::get('public/report/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadReportPDF'])->name('public.report.pdf');
-Route::get('public/batch/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewBatch'])->name('public.batch.view');
-Route::get('public/batch/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadBatchPDF'])->name('public.batch.pdf');
+Route::get('/public/batch/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewBatch'])->name('public.batch.view');
+Route::get('/public/batch/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadBatchPDF'])->name('public.batch.pdf');
+
+Route::get('/temp-rename-dirs', function () {
+    $pagesDir = base_path('resources/js/Pages');
+    $out = [];
+    if (is_dir("$pagesDir/SalesOrders") && !is_dir("$pagesDir/CustomerPOs")) {
+        rename("$pagesDir/SalesOrders", "$pagesDir/CustomerPOs");
+        $out[] = "Renamed SalesOrders to CustomerPOs";
+    } else {
+        $out[] = "SalesOrders not found or CustomerPOs already exists";
+    }
+
+    if (is_dir("$pagesDir/WorkOrders") && !is_dir("$pagesDir/SalesOrders")) {
+        rename("$pagesDir/WorkOrders", "$pagesDir/SalesOrders");
+        $out[] = "Renamed WorkOrders to SalesOrders";
+    } else {
+        $out[] = "WorkOrders not found or SalesOrders already exists";
+    }
+    return response()->json($out);
+});

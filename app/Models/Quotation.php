@@ -167,9 +167,9 @@ class Quotation extends Model
         return $this->belongsTo(Personnel::class, 'sales_executive_id', 'id');
     }
 
-    public function salesOrders()
+    public function customerPOs()
     {
-        return $this->hasMany(SalesOrder::class);
+        return $this->hasMany(CustomerPO::class, 'quotation_id');
     }
 
     // Business Logic

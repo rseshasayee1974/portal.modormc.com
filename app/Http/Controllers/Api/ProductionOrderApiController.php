@@ -55,10 +55,10 @@ class ProductionOrderApiController extends Controller
             ], 422);
         }
 
-        if (!Schema::hasTable('mm_work_orders')) {
+        if (!Schema::hasTable('mm_sales_orders')) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Work order table is not available.',
+                'message' => 'Sales order table is not available.',
             ], 500);
         }
 
@@ -89,12 +89,12 @@ class ProductionOrderApiController extends Controller
         $site = $this->resolveSite($payload, $plant->id);
         $mixDesign = $this->resolveMixDesign($payload, $plant->id);
 
-        $isNewSchema = Schema::hasColumn('mm_work_orders', 'order_no');
+        $isNewSchema = Schema::hasColumn('mm_sales_orders', 'order_no');
         $orderColumn = $isNewSchema ? 'order_no' : 'work_order_number';
-        if (!Schema::hasColumn('mm_work_orders', $orderColumn)) {
+        if (!Schema::hasColumn('mm_sales_orders', $orderColumn)) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'No usable work order identifier column found.',
+                'message' => 'No usable sales order identifier column found.',
             ], 500);
         }
 
@@ -102,29 +102,29 @@ class ProductionOrderApiController extends Controller
         $record[$orderColumn] = $payload['order_no'];
 
         DB::transaction(function () use ($orderColumn, $payload, $record) {
-            $existing = DB::table('mm_work_orders')
+            $existing = DB::table('mm_sales_orders')
                 ->where($orderColumn, $payload['order_no'])
                 ->first();
 
             if ($existing) {
                 $record['updated_at'] = now();
-                if (Schema::hasColumn('mm_work_orders', 'modified')) {
+                if (Schema::hasColumn('mm_sales_orders', 'modified')) {
                     $record['modified'] = now();
                 }
-                DB::table('mm_work_orders')
+                DB::table('mm_sales_orders')
                     ->where('id', $existing->id)
                     ->update($record);
             } else {
-                if (Schema::hasColumn('mm_work_orders', 'created_at')) {
+                if (Schema::hasColumn('mm_sales_orders', 'created_at')) {
                     $record['created_at'] = now();
                 }
-                if (Schema::hasColumn('mm_work_orders', 'updated_at')) {
+                if (Schema::hasColumn('mm_sales_orders', 'updated_at')) {
                     $record['updated_at'] = now();
                 }
-                if (Schema::hasColumn('mm_work_orders', 'created')) {
+                if (Schema::hasColumn('mm_sales_orders', 'created')) {
                     $record['created'] = now();
                 }
-                DB::table('mm_work_orders')->insert($record);
+                DB::table('mm_sales_orders')->insert($record);
             }
         });
 
@@ -221,37 +221,37 @@ class ProductionOrderApiController extends Controller
     {
         $record = [];
 
-        if (Schema::hasColumn('mm_work_orders', 'prefix')) {
+        if (Schema::hasColumn('mm_sales_orders', 'prefix')) {
             $record['prefix'] = 'WO';
         }
-        if (Schema::hasColumn('mm_work_orders', 'plant_id')) {
+        if (Schema::hasColumn('mm_sales_orders', 'plant_id')) {
             $record['plant_id'] = $plantId;
         }
-        if (Schema::hasColumn('mm_work_orders', 'customer_id') && $customerId) {
+        if (Schema::hasColumn('mm_sales_orders', 'customer_id') && $customerId) {
             $record['customer_id'] = $customerId;
         }
-        if (Schema::hasColumn('mm_work_orders', 'site_id') && $siteId) {
+        if (Schema::hasColumn('mm_sales_orders', 'site_id') && $siteId) {
             $record['site_id'] = $siteId;
         }
-        if (Schema::hasColumn('mm_work_orders', 'mix_design_id') && $mixDesignId) {
+        if (Schema::hasColumn('mm_sales_orders', 'mix_design_id') && $mixDesignId) {
             $record['mix_design_id'] = $mixDesignId;
         }
-        if (Schema::hasColumn('mm_work_orders', 'total_qty')) {
+        if (Schema::hasColumn('mm_sales_orders', 'total_qty')) {
             $record['total_qty'] = (float) $payload['production_qty'];
         }
-        if (Schema::hasColumn('mm_work_orders', 'quantity')) {
+        if (Schema::hasColumn('mm_sales_orders', 'quantity')) {
             $record['quantity'] = (float) $payload['production_qty'];
         }
-        if (Schema::hasColumn('mm_work_orders', 'produced_qty')) {
+        if (Schema::hasColumn('mm_sales_orders', 'produced_qty')) {
             $record['produced_qty'] = 0;
         }
-        if (Schema::hasColumn('mm_work_orders', 'status')) {
+        if (Schema::hasColumn('mm_sales_orders', 'status')) {
             $record['status'] = $this->mapStatus($payload['order_status']);
         }
-        if (Schema::hasColumn('mm_work_orders', 'scheduled_start') && !empty($payload['order_date'])) {
+        if (Schema::hasColumn('mm_sales_orders', 'scheduled_start') && !empty($payload['order_date'])) {
             $record['scheduled_start'] = $payload['order_date'];
         }
-        if (Schema::hasColumn('mm_work_orders', 'scheduled_end') && !empty($payload['order_date'])) {
+        if (Schema::hasColumn('mm_sales_orders', 'scheduled_end') && !empty($payload['order_date'])) {
             $record['scheduled_end'] = $payload['order_date'];
         }
 

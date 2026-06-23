@@ -86,7 +86,7 @@ const settingRows = computed(() => [
     // Document Prefixes
     { section: 'Document Prefixes', key: 'po_prefix',         label: 'Purchase Order Prefix',           value: form.settings.po_prefix,          type: 'text' },
     { section: 'Document Prefixes', key: 'so_prefix',         label: 'Sales Order Prefix',              value: form.settings.so_prefix,          type: 'text' },
-    { section: 'Document Prefixes', key: 'wo_prefix',         label: 'Work Order Prefix',              value: form.settings.wo_prefix,          type: 'text' },
+    { section: 'Document Prefixes', key: 'wo_prefix',         label: 'Customer PO Prefix (Not Used)',    value: form.settings.wo_prefix,          type: 'text' },
     { section: 'Document Prefixes', key: 'quote_prefix',      label: 'Quotation Prefix',                value: form.settings.quote_prefix,       type: 'text' },
     // Custom / Module-specific dynamic parameters
     ...form.settings.custom_params.map((p: any) => ({

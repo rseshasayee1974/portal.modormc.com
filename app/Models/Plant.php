@@ -87,4 +87,15 @@ class Plant extends Model
             'shift' => 'A', // Default shift name
         ];
     }
+
+    protected static function booted()
+    {
+        static::saved(function ($plant) {
+            \Illuminate\Support\Facades\Cache::forget("plants");
+        });
+
+        static::deleted(function ($plant) {
+            \Illuminate\Support\Facades\Cache::forget("plants");
+        });
+    }
 }

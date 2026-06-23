@@ -25,7 +25,7 @@ interface BatchMaterial {
 
 const props = withDefaults(defineProps<{
     batch?: any;
-    workOrders?: any[];
+    salesOrders?: any[];
     trucks?: any[];
     transporters?: any[];
     sales_executives?: any[];
@@ -36,7 +36,7 @@ const props = withDefaults(defineProps<{
     concretePumpOptions?: any[];
 }>(), {
     batch: () => ({}),
-    workOrders: () => [],
+    salesOrders: () => [],
     trucks: () => [],
     transporters: () => [],
     sales_executives: () => [],
@@ -63,7 +63,7 @@ const blankMaterial = (): BatchMaterial => ({
 });
 
 const form = useForm({
-    work_order_id: props.batch?.work_order_id ?? null,
+    sales_order_id: props.batch?.sales_order_id ?? null,
     batch_no: props.batch?.batch_no ?? null,
     batch_size: Number(props.batch?.batch_size ?? 1),
     truck_id: props.batch?.dispatches?.[0]?.truck_id ?? null,
@@ -110,13 +110,13 @@ const isLocked = computed(() => {
 });
 
 const selectedWorkOrder = computed(() => {
-    if (props.batch?.work_order && props.batch.work_order.id === form.work_order_id) {
+    if (props.batch?.work_order && props.batch.work_order.id === form.sales_order_id) {
         return props.batch.work_order;
     }
-    return props.workOrders.find(wo => wo.id === form.work_order_id);
+    return props.salesOrders.find(wo => wo.id === form.sales_order_id);
 });
 
-const workOrderDetails = computed(() => {
+const salesOrderDetails = computed(() => {
     if (!selectedWorkOrder.value) return [];
     const wo = selectedWorkOrder.value;
     return [
@@ -132,7 +132,7 @@ const workOrderDetails = computed(() => {
 });
 
 watch(() => form.batch_size, (newVal) => {
-    if (form.work_order_id && selectedWorkOrder.value?.mix_design?.items) {
+    if (form.sales_order_id && selectedWorkOrder.value?.mix_design?.items) {
         form.materials.forEach((mat) => {
             const originalItem = selectedWorkOrder.value.mix_design.items.find((item: any) => item.product_id === mat.product_id);
             if (originalItem) {
@@ -180,7 +180,7 @@ watch(
 const applyBatchToForm = (newBatch: any) => {
     if (!newBatch) return;
 
-    form.work_order_id = newBatch.work_order_id ?? null;
+    form.sales_order_id = newBatch.sales_order_id ?? null;
     form.batch_no = newBatch.batch_no ?? null;
     form.batch_size = Number(newBatch.batch_size ?? 1);
     
@@ -556,24 +556,24 @@ const submit = () => {
                        
                         <div class="col-span-12 md:col-span-3 py-3">
                             <BaseSelect 
-                                v-model="form.work_order_id" 
+                                v-model="form.sales_order_id" 
                                 optionLabel="full_number" 
-                                :options="workOrders"  
+                                :options="salesOrders"  
                                 optionValue="id" 
                                 filter 
                                 :disabled="true"
-                                label="Work Order" 
-                                :error="form.errors.work_order_id" 
+                                label="Sales Order" 
+                                :error="form.errors.sales_order_id" 
                             />
                         </div>
-                        <!-- Work Order Details Hint -->
-                        <div v-if="workOrderDetails.length" class="rounded-xl border border-cyan-100 bg-white p-4 shadow-sm relative overflow-hidden">
+                        <!-- Sales Order Details Hint -->
+                        <div v-if="salesOrderDetails.length" class="rounded-xl border border-cyan-100 bg-white p-4 shadow-sm relative overflow-hidden">
                             <div class="absolute -top-2 -right-2 opacity-5">
                                 <InformationCircleIcon class="w-16 h-16 text-cyan-600" />
                             </div>
-                            <h4 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-cyan-500 border-b border-cyan-50 italic">Work Order Context</h4>
+                            <h4 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-cyan-500 border-b border-cyan-50 italic">Sales Order Context</h4>
                             <div class="space-y-2">
-                                <div v-for="detail in workOrderDetails" :key="detail.label" class="flex flex-col">
+                                <div v-for="detail in salesOrderDetails" :key="detail.label" class="flex flex-col">
                                     <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ detail.label }}</span>
                                     <span class="text-xs font-semibold text-cyan-900 leading-tight">{{ detail.value }}</span>
                                 </div>

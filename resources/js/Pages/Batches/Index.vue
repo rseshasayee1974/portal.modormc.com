@@ -27,7 +27,7 @@ import { CubeIcon, ListBulletIcon, PaperAirplaneIcon } from '@heroicons/vue/24/o
 
 const props = defineProps<{
     batches: any[];
-    workOrders: any[];
+    salesOrders: any[];
     trucks: any[];
     customers: any[];
     transporters: any[];
@@ -154,7 +154,7 @@ const entriesOptions = [
 
 /**
  * Always fetches fresh data from batches.show so the edit form always
- * has up-to-date materials, dispatch info, and workOrder relationships.
+ * has up-to-date materials, dispatch info, and salesOrder relationships.
  */
 const fetchBatchDetails = async (id: number) => {
     isLoadingBatch.value[id] = true;
@@ -315,7 +315,7 @@ const handlePreviewClose = async (batchId: number | null) => {
 };
 const handleBatchCreated = () => {
     router.reload({ 
-        only: ['batches', 'nextBatchNo', 'workOrders'],
+        only: ['batches', 'nextBatchNo', 'salesOrders'],
         preserveScroll: true 
     })
 }
@@ -471,7 +471,7 @@ const shareBatchEmail = () => {
 
                 <BatchCreateForm
                     v-if="!hideBatchForm"
-                    :workOrders="workOrders"
+                    :salesOrders="salesOrders"
                     :trucks="trucks"
                     :transporters="transporters"
                     :drivers="drivers"
@@ -520,10 +520,10 @@ const shareBatchEmail = () => {
                     >
                         <template #filters>
                             <div class="flex flex-col gap-1.5">
-                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by Work Order</label>
+                                <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by Sales Order</label>
                                 <BaseSelect 
                                     v-model="filters['work_order.id'].value"
-                                    :options="[{order_no: 'All Orders', id: null}, ...workOrders]"
+                                    :options="[{order_no: 'All Orders', id: null}, ...salesOrders]"
                                     optionLabel="order_no"
                                     optionValue="id"
                                     placeholder="Select Order"
@@ -815,7 +815,7 @@ const shareBatchEmail = () => {
                                     
                                     <BatchEditForm
                                         :batch="detailedBatches[slotProps.data.id]"
-                                        :workOrders="workOrders"
+                                        :salesOrders="salesOrders"
                                         :trucks="trucks"
                                         :transporters="transporters"
                                         :drivers="drivers"
@@ -868,7 +868,7 @@ const shareBatchEmail = () => {
                                 <div v-if="slotProps.data.status === 3 || slotProps.data.status === 4"  class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                     <DispatchSection 
                                         :batch="detailedBatches[slotProps.data.id] || slotProps.data" 
-                                        :workOrder="(detailedBatches[slotProps.data.id] || slotProps.data).work_order"
+                                        :salesOrder="(detailedBatches[slotProps.data.id] || slotProps.data).work_order"
                                         :dispatch="(detailedBatches[slotProps.data.id] || slotProps.data).dispatches?.[0]"
                                         :dropdownData="dropdownData"
                                         :drivers="drivers"

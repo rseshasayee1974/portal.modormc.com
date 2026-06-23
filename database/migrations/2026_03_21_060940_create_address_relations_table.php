@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('mm_address_relation', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('address_id')->constrained()->onDelete('cascade');
+            $table->foreignId('address_id')->constrained('mm_addresses')->onDelete('cascade');
             $table->morphs('addressable');
             $table->timestamps();
         });

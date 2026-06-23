@@ -11,11 +11,12 @@ use App\Models\Plant;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Quantity;
-use App\Models\WorkOrder;
+use App\Models\SalesOrder;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 
 class ERPDashboardController extends Controller
@@ -29,10 +30,22 @@ class ERPDashboardController extends Controller
         );
         $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
 
-        $patrons = Patron::query()
-            ->when($plantId, fn ($query) => $query->where('plant_id', $plantId))
-            ->orderBy('legal_name')
-            ->get(['id', 'legal_name']);
+        $patronCacheKey = $plantId ? "patrons.{$plantId}" : "patrons.all";
+        $patrons = Cache::remember($patronCacheKey, now()->addDays(7), function () use ($plantId) {
+            return Patron::query()
+                ->when($plantId, fn ($query) => $query->where('plant_id', $plantId))
+                ->orderBy('legal_name')
+                ->get(['id', 'legal_name']);
+        });
+
+        $cacheKey = $this->getCacheKey('full', $plantId, $request);
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        $initialData = $plantId
+            ? Cache::remember($cacheKey, now()->addMinutes(5), fn() => $this->buildDashboardPayload($plantId, $start, $end, $patronId))
+            : $this->emptyPayload();
 
         return Inertia::render('Dashboard/Dashboard', [
             'patrons' => $patrons,
@@ -41,9 +54,44 @@ class ERPDashboardController extends Controller
                 'end_date' => $end->toDateString(),
                 'patron_id' => $patronId,
             ],
-            'initialData' => $plantId
-                ? $this->buildDashboardPayload($plantId, $start, $end, $patronId)
-                : $this->emptyPayload(),
+            'initialData' => $initialData,
+        ]);
+    }
+
+    public function analytics(Request $request)
+    {
+        $plantId = $this->resolvePlantId();
+        [$start, $end] = $this->resolveDateRange(
+            $request->input('start_date'),
+            $request->input('end_date')
+        );
+        $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
+
+        $patronCacheKey = $plantId ? "patrons.{$plantId}" : "patrons.all";
+        $patrons = Cache::remember($patronCacheKey, now()->addDays(7), function () use ($plantId) {
+            return Patron::query()
+                ->when($plantId, fn ($query) => $query->where('plant_id', $plantId))
+                ->orderBy('legal_name')
+                ->get(['id', 'legal_name']);
+        });
+
+        $cacheKey = $this->getCacheKey('full', $plantId, $request);
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        $initialData = $plantId
+            ? Cache::remember($cacheKey, now()->addMinutes(5), fn() => $this->buildDashboardPayload($plantId, $start, $end, $patronId))
+            : $this->emptyPayload();
+
+        return Inertia::render('Dashboard/AnalyticsDashboard', [
+            'patrons' => $patrons,
+            'filters' => [
+                'start_date' => $start->toDateString(),
+                'end_date' => $end->toDateString(),
+                'patron_id' => $patronId,
+            ],
+            'initialData' => $initialData,
         ]);
     }
 
@@ -62,7 +110,197 @@ class ERPDashboardController extends Controller
 
         $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
 
-        return response()->json($this->buildDashboardPayload($plantId, $start, $end, $patronId));
+        $cacheKey = $this->getCacheKey('full', $plantId, $request);
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        $payload = Cache::remember($cacheKey, now()->addMinutes(5), fn() => $this->buildDashboardPayload($plantId, $start, $end, $patronId));
+
+        return response()->json($payload);
+    }
+
+    public function getMetricsData(Request $request)
+    {
+        $plantId = $this->resolvePlantId();
+        if (!$plantId) return response()->json(['metrics' => [], 'module_cards' => []]);
+
+        $cacheKey = $this->getCacheKey('metrics', $plantId, $request);
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        $data = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($plantId, $request) {
+            [$start, $end] = $this->resolveDateRange($request->input('start_date'), $request->input('end_date'));
+            $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
+
+            $stockOverview = $this->getStockOverview($plantId);
+
+            $salesAgg = $this->salesInvoiceQuery($plantId, $start, $end, $patronId)
+                ->selectRaw('COALESCE(SUM(total_amount), 0) as total, COUNT(*) as count')
+                ->first();
+
+            $purchaseAgg = $this->purchaseOrderQuery($plantId, $start, $end, $patronId)
+                ->selectRaw('COALESCE(SUM(amount_total), 0) as total, COUNT(*) as count')
+                ->first();
+
+            $dispatchAgg = $this->dispatchQuery($plantId, $start, $end, $patronId)
+                ->selectRaw('COALESCE(SUM(load_total_amount), 0) as total_amount, COALESCE(SUM(delivered_qty), 0) as total_qty, COUNT(*) as count')
+                ->first();
+
+            $receiptsAgg = $this->journalLineQuery($plantId, $start, $end, 'RECEIPT', $patronId)
+                ->selectRaw('COALESCE(SUM(credit_amount), 0) as total')
+                ->first();
+
+            $paymentsAgg = $this->journalLineQuery($plantId, $start, $end, 'PAYMENT', $patronId)
+                ->selectRaw('COALESCE(SUM(debit_amount), 0) as total')
+                ->first();
+
+            $aggregates = [
+                'sales_revenue' => (float) $salesAgg->total,
+                'sales_count' => (int) $salesAgg->count,
+                'purchase_spend' => (float) $purchaseAgg->total,
+                'purchase_count' => (int) $purchaseAgg->count,
+                'dispatch_revenue' => (float) $dispatchAgg->total_amount,
+                'dispatch_quantity' => (float) $dispatchAgg->total_qty,
+                'dispatch_trips' => (int) $dispatchAgg->count,
+                'collections' => (float) $receiptsAgg->total,
+                'payments' => (float) $paymentsAgg->total,
+            ];
+
+            return [
+                'metrics' => $this->getMetrics($plantId, $start, $end, $patronId, $stockOverview, $aggregates),
+                'module_cards' => $this->getModuleCards($plantId, $start, $end, $patronId, $stockOverview, $aggregates)
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    public function getFinanceTrendData(Request $request)
+    {
+        $plantId = $this->resolvePlantId();
+        if (!$plantId) return response()->json(['finance_trend' => ['labels' => [], 'series' => []]]);
+
+        $cacheKey = $this->getCacheKey('finance-trend', $plantId, $request);
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        $data = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($plantId, $request) {
+            [$start, $end] = $this->resolveDateRange($request->input('start_date'), $request->input('end_date'));
+            $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
+            return [
+                'finance_trend' => $this->getFinanceTrend($plantId, $start, $end, $patronId)
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    public function getDispatchStatusData(Request $request)
+    {
+        $plantId = $this->resolvePlantId();
+        if (!$plantId) return response()->json(['dispatch_status' => []]);
+
+        $cacheKey = $this->getCacheKey('dispatch-status', $plantId, $request);
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        $data = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($plantId, $request) {
+            [$start, $end] = $this->resolveDateRange($request->input('start_date'), $request->input('end_date'));
+            $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
+            return [
+                'dispatch_status' => $this->getDispatchStatusBreakdown($plantId, $start, $end, $patronId)
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    public function getCustomerLeaderboardData(Request $request)
+    {
+        $plantId = $this->resolvePlantId();
+        if (!$plantId) return response()->json(['customer_leaderboard' => []]);
+
+        $cacheKey = $this->getCacheKey('customer-leaderboard', $plantId, $request);
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        $data = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($plantId, $request) {
+            [$start, $end] = $this->resolveDateRange($request->input('start_date'), $request->input('end_date'));
+            $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
+            return [
+                'customer_leaderboard' => $this->getCustomerLeaderboard($plantId, $start, $end, $patronId)
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    public function getStockData(Request $request)
+    {
+        $plantId = $this->resolvePlantId();
+        if (!$plantId) return response()->json(['stock_snapshot' => [], 'stock_alerts' => []]);
+
+        $cacheKey = $this->getCacheKey('stock', $plantId, $request);
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        $data = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($plantId) {
+            $stockSnapshot = $this->getStockSnapshot($plantId);
+            return [
+                'stock_snapshot' => $stockSnapshot,
+                'stock_alerts' => collect($stockSnapshot)->where('is_critical', true)->values()->all()
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    public function getRecentActivityData(Request $request)
+    {
+        $plantId = $this->resolvePlantId();
+        if (!$plantId) return response()->json(['recent_transactions' => []]);
+
+        $cacheKey = $this->getCacheKey('recent-activity', $plantId, $request);
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        $data = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($plantId, $request) {
+            $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
+            return [
+                'recent_transactions' => $this->getRecentActivity($plantId, $patronId)
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    public function getFeedsData(Request $request)
+    {
+        $plantId = $this->resolvePlantId();
+        if (!$plantId) return response()->json(['sales_orders' => [], 'dispatches' => [], 'purchase_orders' => []]);
+
+        $cacheKey = $this->getCacheKey('feeds', $plantId, $request);
+        if ($request->boolean('refresh')) {
+            Cache::forget($cacheKey);
+        }
+
+        $data = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($plantId, $request) {
+            $patronId = $request->filled('patron_id') ? (int) $request->input('patron_id') : null;
+            return [
+                'sales_orders' => $this->getRecentSalesOrders($plantId, $patronId),
+                'dispatches' => $this->getRecentDispatches($plantId, $patronId),
+                'purchase_orders' => $this->getRecentPurchaseOrders($plantId, $patronId),
+            ];
+        });
+
+        return response()->json($data);
     }
 
     private function buildDashboardPayload(int $plantId, Carbon $start, Carbon $end, ?int $patronId): array
@@ -70,17 +308,50 @@ class ERPDashboardController extends Controller
         $stockSnapshot = $this->getStockSnapshot($plantId);
         $stockOverview = $this->getStockOverview($plantId);
 
+        // Fetch aggregated values once
+        $salesAgg = $this->salesInvoiceQuery($plantId, $start, $end, $patronId)
+            ->selectRaw('COALESCE(SUM(total_amount), 0) as total, COUNT(*) as count')
+            ->first();
+
+        $purchaseAgg = $this->purchaseOrderQuery($plantId, $start, $end, $patronId)
+            ->selectRaw('COALESCE(SUM(amount_total), 0) as total, COUNT(*) as count')
+            ->first();
+
+        $dispatchAgg = $this->dispatchQuery($plantId, $start, $end, $patronId)
+            ->selectRaw('COALESCE(SUM(load_total_amount), 0) as total_amount, COALESCE(SUM(delivered_qty), 0) as total_qty, COUNT(*) as count')
+            ->first();
+
+        $receiptsAgg = $this->journalLineQuery($plantId, $start, $end, 'RECEIPT', $patronId)
+            ->selectRaw('COALESCE(SUM(credit_amount), 0) as total')
+            ->first();
+
+        $paymentsAgg = $this->journalLineQuery($plantId, $start, $end, 'PAYMENT', $patronId)
+            ->selectRaw('COALESCE(SUM(debit_amount), 0) as total')
+            ->first();
+
+        $aggregates = [
+            'sales_revenue' => (float) $salesAgg->total,
+            'sales_count' => (int) $salesAgg->count,
+            'purchase_spend' => (float) $purchaseAgg->total,
+            'purchase_count' => (int) $purchaseAgg->count,
+            'dispatch_revenue' => (float) $dispatchAgg->total_amount,
+            'dispatch_quantity' => (float) $dispatchAgg->total_qty,
+            'dispatch_trips' => (int) $dispatchAgg->count,
+            'collections' => (float) $receiptsAgg->total,
+            'payments' => (float) $paymentsAgg->total,
+        ];
+
         return [
             'generated_at' => now()->toIso8601String(),
-            'metrics' => $this->getMetrics($plantId, $start, $end, $patronId, $stockOverview),
-            'module_cards' => $this->getModuleCards($plantId, $start, $end, $patronId, $stockOverview),
+            'metrics' => $this->getMetrics($plantId, $start, $end, $patronId, $stockOverview, $aggregates),
+            'module_cards' => $this->getModuleCards($plantId, $start, $end, $patronId, $stockOverview, $aggregates),
             'finance_trend' => $this->getFinanceTrend($plantId, $start, $end, $patronId),
             'dispatch_status' => $this->getDispatchStatusBreakdown($plantId, $start, $end, $patronId),
             'customer_leaderboard' => $this->getCustomerLeaderboard($plantId, $start, $end, $patronId),
             'stock_snapshot' => $stockSnapshot,
             'stock_alerts' => collect($stockSnapshot)->where('is_critical', true)->values(),
             'recent_transactions' => $this->getRecentActivity($plantId, $patronId),
-            'work_orders' => $this->getRecentWorkOrders($plantId, $patronId),
+            'sales_orders' => $this->getRecentSalesOrders($plantId, $patronId),
             'dispatches' => $this->getRecentDispatches($plantId, $patronId),
             'purchase_orders' => $this->getRecentPurchaseOrders($plantId, $patronId),
         ];
@@ -95,7 +366,7 @@ class ERPDashboardController extends Controller
         }
 
         return Invoice::latest('invoice_date')->value('plant_id')
-            ?? WorkOrder::latest()->value('plant_id')
+            ?? SalesOrder::latest()->value('plant_id')
             ?? Plant::where('is_active', true)->value('id');
     }
 
@@ -152,16 +423,8 @@ class ERPDashboardController extends Controller
             });
     }
 
-    private function getMetrics(int $plantId, Carbon $start, Carbon $end, ?int $patronId, array $stockOverview): array
+    private function getMetrics(int $plantId, Carbon $start, Carbon $end, ?int $patronId, array $stockOverview, array $aggregates): array
     {
-        $salesRevenue = (float) $this->salesInvoiceQuery($plantId, $start, $end, $patronId)->sum('total_amount');
-        $purchaseSpend = (float) $this->purchaseOrderQuery($plantId, $start, $end, $patronId)->sum('amount_total');
-        $dispatchRevenue = (float) $this->dispatchQuery($plantId, $start, $end, $patronId)->sum('load_total_amount');
-        $dispatchQuantity = (float) $this->dispatchQuery($plantId, $start, $end, $patronId)->sum('delivered_qty');
-        $dispatchTrips = (int) $this->dispatchQuery($plantId, $start, $end, $patronId)->count();
-        $collections = (float) $this->journalLineQuery($plantId, $start, $end, 'RECEIPT', $patronId)->sum('credit_amount');
-        $payments = (float) $this->journalLineQuery($plantId, $start, $end, 'PAYMENT', $patronId)->sum('debit_amount');
-
         $receivables = (float) Invoice::query()
             ->where('plant_id', $plantId)
             ->where('invoice_type', 'sales')
@@ -176,10 +439,10 @@ class ERPDashboardController extends Controller
 
         $stockValue = (float) ($stockOverview['stock_value'] ?? 0);
         $lowStockCount = (int) ($stockOverview['low_stock_count'] ?? 0);
-        $openWorkOrders = WorkOrder::query()
+        $openWorkOrders = SalesOrder::query()
             ->where('plant_id', $plantId)
             ->when($patronId, fn ($query) => $query->where('customer_id', $patronId))
-            ->whereIn('status', [WorkOrder::STATUS_SCHEDULED, WorkOrder::STATUS_IN_PROGRESS])
+            ->whereIn('status', [SalesOrder::STATUS_SCHEDULED, SalesOrder::STATUS_IN_PROGRESS])
             ->count();
 
         $activeBatches = Batch::query()
@@ -193,57 +456,51 @@ class ERPDashboardController extends Controller
             ->count();
 
         return [
-            'sales_revenue' => round($salesRevenue, 2),
-            'purchase_spend' => round($purchaseSpend, 2),
-            'dispatch_revenue' => round($dispatchRevenue, 2),
-            'dispatch_quantity' => round($dispatchQuantity, 3),
-            'dispatch_trips' => $dispatchTrips,
-            'collections' => round($collections, 2),
-            'payments' => round($payments, 2),
+            'sales_revenue' => round($aggregates['sales_revenue'], 2),
+            'purchase_spend' => round($aggregates['purchase_spend'], 2),
+            'dispatch_revenue' => round($aggregates['dispatch_revenue'], 2),
+            'dispatch_quantity' => round($aggregates['dispatch_quantity'], 3),
+            'dispatch_trips' => $aggregates['dispatch_trips'],
+            'collections' => round($aggregates['collections'], 2),
+            'payments' => round($aggregates['payments'], 2),
             'receivables' => round($receivables, 2),
             'payables' => round($payables, 2),
-            'cash_delta' => round($collections - $payments, 2),
+            'cash_delta' => round($aggregates['collections'] - $aggregates['payments'], 2),
             'stock_value' => round((float) $stockValue, 2),
             'low_stock_count' => $lowStockCount,
-            'open_work_orders' => $openWorkOrders,
+            'open_sales_orders' => $openWorkOrders,
             'active_batches' => $activeBatches,
         ];
     }
 
-    private function getModuleCards(int $plantId, Carbon $start, Carbon $end, ?int $patronId, array $stockOverview): array
+    private function getModuleCards(int $plantId, Carbon $start, Carbon $end, ?int $patronId, array $stockOverview, array $aggregates): array
     {
-        $salesInvoices = $this->salesInvoiceQuery($plantId, $start, $end, $patronId);
-        $purchaseOrders = $this->purchaseOrderQuery($plantId, $start, $end, $patronId);
-        $dispatches = $this->dispatchQuery($plantId, $start, $end, $patronId);
-        $receipts = $this->journalLineQuery($plantId, $start, $end, 'RECEIPT', $patronId);
-        $payments = $this->journalLineQuery($plantId, $start, $end, 'PAYMENT', $patronId);
-
         return [
             [
                 'key' => 'sales',
                 'title' => 'Sales',
-                'value' => round((float) $salesInvoices->sum('total_amount'), 2),
-                'meta' => $salesInvoices->count() . ' invoices',
+                'value' => round($aggregates['sales_revenue'], 2),
+                'meta' => $aggregates['sales_count'] . ' invoices',
                 'accent' => 'amber',
             ],
             [
                 'key' => 'purchase',
                 'title' => 'Purchase',
-                'value' => round((float) $purchaseOrders->sum('amount_total'), 2),
-                'meta' => $purchaseOrders->count() . ' orders',
+                'value' => round($aggregates['purchase_spend'], 2),
+                'meta' => $aggregates['purchase_count'] . ' orders',
                 'accent' => 'sky',
             ],
             [
                 'key' => 'dispatch',
                 'title' => 'Dispatch',
-                'value' => round((float) $dispatches->sum('delivered_qty'), 3),
-                'meta' => $dispatches->count() . ' trips',
+                'value' => round($aggregates['dispatch_quantity'], 3),
+                'meta' => $aggregates['dispatch_trips'] . ' trips',
                 'accent' => 'emerald',
             ],
             [
                 'key' => 'accounting',
                 'title' => 'Accounting',
-                'value' => round((float) $receipts->sum('credit_amount') - (float) $payments->sum('debit_amount'), 2),
+                'value' => round($aggregates['collections'] - $aggregates['payments'], 2),
                 'meta' => 'cash delta',
                 'accent' => 'violet',
             ],
@@ -420,9 +677,9 @@ class ERPDashboardController extends Controller
             ->all();
     }
 
-    private function getRecentWorkOrders(int $plantId, ?int $patronId): array
+    private function getRecentSalesOrders(int $plantId, ?int $patronId): array
     {
-        return WorkOrder::query()
+        return SalesOrder::query()
             ->with(['customer', 'mixDesign'])
             ->where('plant_id', $plantId)
             ->when($patronId, fn ($query) => $query->where('customer_id', $patronId))
@@ -437,7 +694,7 @@ class ERPDashboardController extends Controller
                 'scheduled' => optional($workOrder->scheduled_start)->format('d M, H:i') ?? 'Not scheduled',
                 'qty' => (float) $workOrder->total_qty,
                 'produced_qty' => (float) $workOrder->produced_qty,
-                'status' => WorkOrder::statusLabel((int) $workOrder->status),
+                'status' => SalesOrder::statusLabel((int) $workOrder->status),
             ])
             ->values()
             ->all();
@@ -510,6 +767,22 @@ class ERPDashboardController extends Controller
             ->all();
     }
 
+    private function getCacheKey(string $endpoint, int $plantId, Request $request): string
+    {
+        $filters = [
+            'start_date' => $request->input('start_date'),
+            'end_date' => $request->input('end_date'),
+            'patron_id' => $request->input('patron_id'),
+        ];
+        return sprintf(
+            'erp.dashboard.%s.%d.%d.%s',
+            $endpoint,
+            auth()->id(),
+            $plantId,
+            md5(json_encode($filters))
+        );
+    }
+
     private function emptyPayload(): array
     {
         return [
@@ -522,7 +795,7 @@ class ERPDashboardController extends Controller
             'stock_snapshot' => [],
             'stock_alerts' => [],
             'recent_transactions' => [],
-            'work_orders' => [],
+            'sales_orders' => [],
             'dispatches' => [],
             'purchase_orders' => [],
         ];

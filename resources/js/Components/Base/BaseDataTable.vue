@@ -85,6 +85,11 @@ const props = withDefaults(
 
         // Row styling
         rowClass?: (row: any) => string | string[] | object | undefined;
+
+        // Virtual Scrolling & Performance
+        scrollable?: boolean;
+        scrollHeight?: string;
+        virtualScrollerOptions?: any;
     }>(),
     {
         loading: false,
@@ -105,7 +110,10 @@ const props = withDefaults(
         heading : "",
         headingIcon:'',
         showExport: false,
-        exportFilename: 'report'
+        exportFilename: 'report',
+        scrollable: false,
+        scrollHeight: undefined,
+        virtualScrollerOptions: undefined
     }
 );
 
@@ -333,6 +341,9 @@ const toggleFilterPopover = (event: any) => {
             :rowClass="rowClass"
             :selection="selection"
             :selectionMode="selectionMode"
+            :scrollable="scrollable"
+            :scrollHeight="scrollHeight"
+            :virtualScrollerOptions="virtualScrollerOptions"
             @update:first="$emit('update:first', $event)"
             @update:rows="$emit('update:rows', $event)"
             @update:filters="$emit('update:filters', $event)"

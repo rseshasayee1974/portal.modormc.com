@@ -15,7 +15,7 @@ class DispatchStoreRequest extends FormRequest
     {
         return [
             // Root level fields (mm_dispatches table)
-            'work_order_id' => 'nullable|exists:mm_work_orders,id',
+            'sales_order_id' => 'nullable|exists:mm_sales_orders,id',
             'batch_id' => 'nullable|exists:mm_batches,id',
             'plant_id' => 'nullable|exists:mm_plants,id',
             'truck_id' => 'nullable|exists:mm_machines,id',

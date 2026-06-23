@@ -273,7 +273,7 @@ class DashboardRepository
         $hasConcreteGrades = Schema::hasTable('mm_concrete_grades');
 
         $query = Batch::query()
-            ->join('mm_work_orders as wo', 'wo.id', '=', 'mm_batches.work_order_id')
+            ->join('mm_sales_orders as wo', 'wo.id', '=', 'mm_batches.sales_order_id')
             ->join('mm_mix_designs as md', 'md.id', '=', 'wo.mix_design_id')
             ->when($hasConcreteGrades, function ($query) {
                 $query->leftJoin('mm_concrete_grades as cg', function ($join) {

@@ -1,187 +1,272 @@
-<script setup lang="ts">
+    <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { computed, watch } from 'vue';
-import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import { computed, ref, watch } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
+import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
+import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import DatePicker from 'primevue/datepicker';
 import Button from 'primevue/button';
 import Swal from 'sweetalert2';
-import { PlusCircleIcon, DocumentTextIcon } from '@heroicons/vue/24/outline';
+import { PlusCircleIcon, InformationCircleIcon, BeakerIcon } from '@heroicons/vue/24/outline';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
-import BaseButton from '@/Components/Base/BaseButton.vue';
 
 const props = withDefaults(defineProps<{
-    patrons?: any[];
+    customers?: any[];
     sites?: any[];
-    quotations?: any[];
     mixDesigns?: any[];
-    salesExecutives?: any[];
+    customerPOs?: any[];
+    statuses?: { label: string; value: number }[];
+    activePlantId?: number;
+    nextReference?: string;
     concretePumpOptions?: any[];
 }>(), {
-    patrons: () => [],
+    customers: () => [],
     sites: () => [],
-    quotations: () => [],
     mixDesigns: () => [],
-    salesExecutives: () => [],
+    customerPOs: () => [],
+    statuses: () => [],
+    activePlantId: 0,
+    nextReference: '',
     concretePumpOptions: () => [],
 });
 
-const form = useForm({
-    quotation_id: null as number | null,
-    patron_id: null as number | null,
-    status: 0 as number | null,
-    site_id: null as number | null,
-    sales_executive_id: null as number | null,
-    concrete_pump: 'pump' as string | null,
-    order_date: new Date().toISOString().split('T')[0],
-    items: [
-        { mix_design_id: null as number | null, quantity: null as number | null, rate: null as number | null }
-    ] as Array<{ mix_design_id: number | null, quantity: number | null, rate: number | null }>,
+const showMixDesignModal = ref(false);
+const safeCustomers = computed(() => props.customers ?? []);
+const safeSites = computed(() => props.sites ?? []);
+const safeMixDesigns = computed(() => props.mixDesigns ?? []);
+const safeStatuses = computed(() => props.statuses ?? []);
+
+const selectedMixDesign = computed(() => {
+    const selectedId = form.mix_design_id !== null ? Number(form.mix_design_id) : null;
+    return safeMixDesigns.value.find((md) => Number(md?.id) === selectedId);
 });
 
-// Watch quotation selection to auto-fill patron, site, and sales executive
-watch(() => form.quotation_id, (newVal) => {
-    if (newVal) {
-        const quote = props.quotations.find((q) => Number(q.id) === Number(newVal));
-        if (quote) {
-            form.patron_id = quote.patron_id;
-            form.site_id = quote.site_id;
-            form.sales_executive_id = quote.sales_executive_id;
-            form.concrete_pump = quote.concrete_pump;
-        }
-    } else {
-        form.patron_id = null;
-        form.site_id = null;
-        form.sales_executive_id = null;
-        form.concrete_pump = null;
-        form.items = [{ mix_design_id: null, quantity: null, rate: null }];
+// Intercept and strictly allow only Scheduled (1), In Progress (2), and Cancelled (4)
+const filteredStatuses = computed(() => {
+    const backupStatuses = [
+        { label: 'Scheduled', value: 1 },
+        { label: 'In Progress', value: 2 },
+        { label: 'Cancelled', value: 4 }
+    ];
+    
+    if (!props.statuses || props.statuses.length === 0) {
+        return backupStatuses;
     }
+    
+    // Filter incoming array values matching the desired target status IDs
+    return props.statuses.filter(status => [1, 2, 4].includes(Number(status.value)));
+});
+const selectedMixIngredients = computed(() => {
+    const mix = selectedMixDesign.value;
+    if (!mix) return [];
+    
+    return Array.isArray(mix.ingredients) ? mix.ingredients : [];
 });
 
-const addItem = () => {
-    form.items.push({ mix_design_id: null, quantity: null, rate: null });
-};
-
-const removeItem = (index: number) => {
-    if (form.items.length > 1) {
-        form.items.splice(index, 1);
+const mixDetailBadges = computed(() => {
+    const mix = selectedMixDesign.value;
+    if (!mix) {
+        return [];
     }
-};
 
-// Filter sites by selected patron
-const filteredSites = computed(() => {
-    return props.sites;
+    return [
+        { label: 'Design Code', value: mix.design_code || 'N/A' },
+        { label: 'Grade', value: mix.grade || 'N/A' },
+           { label: 'Ratio', value: mix.ratio || 'N/A' },
+        { label: 'Ingredients', value: String(selectedMixIngredients.value.length) },
+    ];
 });
 
-const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
-
-// Quotation dropdown options with labels
-const quotationOptions = computed(() => {
-    // Filter out quotations that have an active sales order
-    const list = props.quotations.filter((q) => !q.is_salesorder || Number(q.is_salesorder) !== 1);
+const customerPOOptions = computed(() => {
     return [
         { label: 'None (Direct Sales Order)', value: null },
-        ...list.map((q) => {
-            const patronName = props.patrons.find((p) => Number(p.id) === Number(q.patron_id))?.legal_name || 'Unknown';
+        ...props.customerPOs.map((so) => {
+            const patronName = so.patron?.legal_name || 'Unknown';
+            const mixName = so.quotation?.items?.[0]?.mix_design?.design_name || 'N/A';
+            const qty = so.quotation?.items?.[0]?.quantity || 0;
             return {
-                label: q.reference ? `${q.reference} - ${patronName} (₹${Number(q.amount_total || 0).toLocaleString('en-IN')})` : `Draft - ${patronName}`,
-                value: q.id,
+                label: `PO #${so.id} - ${patronName} (${mixName}, ${qty} m³)`,
+                value: so.id,
             };
         }),
     ];
 });
 
-const submit = () => {
-    if (!form.quotation_id) {
-        // Direct Sales Order: validate items
-        let hasError = false;
-        form.clearErrors();
-        
-        if (!form.patron_id) {
-            form.setError('patron_id', 'Customer is required.');
-            hasError = true;
-        }
-        if (!form.site_id) {
-            form.setError('site_id', 'Loading Site is required.');
-            hasError = true;
-        }
+const form = useForm({
+    prefix: 'SO',
+    order_no: '',
+    plant_id: props.activePlantId,
+    customer_id: null as number | null,
+    site_id: null as number | null,
+    mix_design_id: null as number | null,
+    customer_po_id: null as number | null,
+    total_qty: 0,
+    produced_qty: 0,
+    status: 1,
+    concrete_pump: 'pump' as string | null,
+    scheduled_start: null as Date | null,
+    scheduled_end: null as Date | null,
+});
 
-        form.items.forEach((item, idx) => {
-            if (!item.mix_design_id) {
-                form.setError(`items.${idx}.mix_design_id` as any, 'Mix Design is required.');
-                hasError = true;
+// Watch sales order selection to auto-fill patron, site, mix design, and total quantity
+watch(() => form.customer_po_id, (newVal) => {
+    if (newVal) {
+        const customerPO = props.customerPOs.find((so) => Number(so.id) === Number(newVal));
+        if (customerPO) {
+            form.customer_id = customerPO.patron_id;
+            form.site_id = customerPO.site_id;
+            
+            const firstItem = customerPO.quotation?.items?.[0];
+            if (firstItem) {
+                form.mix_design_id = firstItem.mix_design_id;
+                form.total_qty = Number(firstItem.quantity || 0);
             }
-            if (!item.quantity || Number(item.quantity) <= 0) {
-                form.setError(`items.${idx}.quantity` as any, 'Quantity must be greater than 0.');
-                hasError = true;
-            }
-            if (!item.rate || Number(item.rate) < 0) {
-                form.setError(`items.${idx}.rate` as any, 'Rate cannot be negative.');
-                hasError = true;
-            }
-        });
-
-        if (hasError) {
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'error',
-                title: 'Please fill the required fields in the form.',
-                timer: 3000,
-                showConfirmButton: false,
-            });
-            return;
         }
+    } else {
+        form.customer_id = null;
+        form.site_id = null;
+        form.mix_design_id = null;
+        form.total_qty = 0;
     }
+});
 
-    form.post(route('salesorders.store'), {
+const submit = () => {
+    form.transform((data) => ({
+        ...data,
+        scheduled_start: data.scheduled_start ? data.scheduled_start.toISOString() : null,
+        scheduled_end: data.scheduled_end ? data.scheduled_end.toISOString() : null,
+        order_no: data.order_no || null,
+    })).post(route('salesorders.store'), {
         onSuccess: () => {
             Swal.fire({
                 toast: true,
                 position: 'top-end',
                 icon: 'success',
-                title: 'Sales Order created successfully.',
+                title: 'Sales Order created',
                 timer: 1500,
                 showConfirmButton: false,
             });
             form.reset();
             form.clearErrors();
-            form.order_date = new Date().toISOString().split('T')[0];
+            form.prefix = 'WO';
+            form.plant_id = props.activePlantId;
+            form.status = 1;
         },
+    });
+};
+
+const handleMixCreated = () => {
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'New Design available in dropdown',
+        timer: 1500,
+        showConfirmButton: false,
     });
 };
 </script>
 
 <template>
     <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-        <!-- Card Header -->
         <div class="border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 px-4 py-3 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
-                <div class="rounded-lg bg-indigo-100 dark:bg-indigo-950/50 p-1.5 text-indigo-700 dark:text-indigo-400 ring-1 ring-indigo-200 dark:ring-indigo-900/30">
+                <div class="rounded-lg bg-indigo-100 p-1.5 text-indigo-700 ring-1 ring-indigo-200">
                     <PlusCircleIcon class="h-4 w-4" />
                 </div>
-                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">Create Sales Order</h2>
+                <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700">New Sales Order</h2>
+            </div>
+
+            <div v-if="nextReference" class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700">
+                <InformationCircleIcon class="h-3.5 w-3.5" />
+                <span class="text-[10px] font-bold uppercase tracking-tight">Next Ref: {{ nextReference }}</span>
             </div>
         </div>
 
-       <!-- Form Body -->
-<!-- Form Body -->
-<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5 p-5">
-
-    <!-- Sales Executive -->
-    <div>
+       <div class="grid grid-cols-1 md:grid-cols-5 gap-5 p-5">
+    <!-- Row 1 -->
+    <!-- <div>
         <BaseSelect
-            v-model="form.sales_executive_id"
-            :options="salesExecutiveOptions"
+            v-model="form.customer_po_id"
+            :options="customerPOOptions"
             optionLabel="label"
             optionValue="value"
             filter
-            label="Sales Executive"
-            placeholder="Select Sales Executive"
-            :error="form.errors.sales_executive_id"
+            label="Sales Order (Optional)"
+            placeholder="Select Sales Order"
+            :error="form.errors.customer_po_id"
+        />
+    </div> -->
+
+    <div>
+        <BaseSelect
+            v-model="form.customer_id"
+            :options="safeCustomers"
+            optionLabel="legal_name"
+            optionValue="id"
+            filter
+            label="Customer"
+            placeholder="Select Customer"
+            :error="form.errors.customer_id"
+            :disabled="!!form.customer_po_id"
         />
     </div>
 
-    <!-- Concrete Type -->
+    <div>
+        <BaseSelect
+            v-model="form.site_id"
+            :options="safeSites"
+            optionLabel="name"
+            optionValue="id"
+            filter
+            label="Site"
+            placeholder="Select Site"
+            :error="form.errors.site_id"
+            :disabled="!!form.customer_po_id"
+        />
+    </div>
+
+    <div>
+        <div class="flex items-center justify-between mb-1">
+            <label class="block text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                Mix Design
+            </label>
+
+            <button
+                v-if="!form.customer_po_id"
+                type="button"
+                @click="showMixDesignModal = true"
+                class="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+            >
+                <BeakerIcon class="h-3 w-3" />
+                <span>CREATE NEW</span>
+            </button>
+        </div>
+
+        <BaseSelect
+            v-model="form.mix_design_id"
+            :options="safeMixDesigns"
+            optionLabel="design_name"
+            optionValue="id"
+            filter
+            placeholder="Select Design"
+            :error="form.errors.mix_design_id"
+            :disabled="!!form.customer_po_id"
+        />
+    </div>
+
+    <div>
+        <BaseSelect
+            v-model="form.status"
+            :options="filteredStatuses"
+            optionLabel="label"
+            optionValue="value"
+            label="Status"
+            :error="form.errors.status"
+        />
+    </div>
+
+    <!-- Row 2 -->
     <div>
         <BaseSelect
             v-model="form.concrete_pump"
@@ -194,166 +279,119 @@ const submit = () => {
         />
     </div>
 
-    <!-- Customer -->
     <div>
-        <BaseSelect
-            v-model="form.patron_id"
-            :options="patrons"
-            optionLabel="legal_name"
-            optionValue="id"
-            filter
-            label="Customer"
-            placeholder="Select Customer"
-            :disabled="!!form.quotation_id"
-            :error="form.errors.patron_id"
+        <BaseInputNumber
+            v-model="form.total_qty"
+            label="Total Quantity (m³)"
+            :error="form.errors.total_qty"
+            :minFractionDigits="3"
+            :disabled="!!form.customer_po_id"
         />
-
-        <p
-            v-if="form.quotation_id"
-            class="mt-1 text-xs text-indigo-600"
-        >
-            Locked to quotation customer
-        </p>
     </div>
 
-    <!-- Loading Site -->
     <div>
-        <BaseSelect
-            v-model="form.site_id"
-            :options="filteredSites"
-            optionLabel="name"
-            optionValue="id"
-            filter
-            label="Loading Site"
-            placeholder="Select Site"
-            :disabled="!!form.quotation_id"
-            :error="form.errors.site_id"
-        />
+        <label class="mb-1 block text-[10px] font-bold uppercase tracking-widest text-gray-400">
+            Scheduled Start
+        </label>
 
-        <p
-            v-if="form.quotation_id"
-            class="mt-1 text-xs text-indigo-600"
-        >
-            Locked to quotation site
-        </p>
-    </div>
-
-    <!-- Order Date -->
-    <div>
         <BaseDatePicker
-            v-model="form.order_date"
-            label="Order Date"
-            fluid
+            v-model="form.scheduled_start"
+            showTime
             hourFormat="24"
-            :error="form.errors.order_date"
+            fluid
+            class="w-full"
         />
+
+        <small
+            v-if="form.errors.scheduled_start"
+            class="text-red-500 text-[11px]"
+        >
+            {{ form.errors.scheduled_start }}
+        </small>
     </div>
 
-    <!-- Mix Design Section -->
-    <template v-if="!form.quotation_id">
+    <div>
+        <label class="mb-1 block text-[10px] font-bold uppercase tracking-widest text-gray-400">
+            Scheduled End
+        </label>
 
-        <div class="col-span-full border-t pt-3">
-            <div class="flex items-center justify-between">
+        <BaseDatePicker
+            v-model="form.scheduled_end"
+            showTime
+            hourFormat="24"
+            fluid
+            class="w-full"
+        />
 
-                <h3 class="text-sm font-semibold">
-                    Mix Design Items
-                </h3>
+        <small
+            v-if="form.errors.scheduled_end"
+            class="text-red-500 text-[11px]"
+        >
+            {{ form.errors.scheduled_end }}
+        </small>
+    </div>
 
-                <BaseButton
-                    icon="pi pi-plus"
-                    label="Add Item"
-                    severity="primary"
-                    size="small"
-                    @click="addItem"
-                />
+    <!-- Empty cell to complete 5 columns -->
+    <div></div>
+
+    <!-- Mix Design Details -->
+    <div
+        v-if="selectedMixDesign"
+        class="md:col-span-5 rounded-lg border border-indigo-100 bg-indigo-50/40 p-3"
+    >
+        <div class="flex flex-wrap items-center gap-2">
+            <span class="text-[10px] font-bold uppercase tracking-[0.12em] text-indigo-700">
+                Selected Mix Design
+            </span>
+
+            <span class="text-xs font-semibold text-slate-700">
+                {{ selectedMixDesign.design_name }}
+            </span>
+        </div>
+
+        <div class="mt-2 flex flex-wrap gap-2">
+            <div
+                v-for="badge in mixDetailBadges"
+                :key="badge.label"
+                class="rounded-md border border-indigo-100 bg-white px-2 py-1"
+            >
+                <span class="text-[9px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                    {{ badge.label }}
+                </span>
+
+                <span class="ml-1 text-[11px] font-semibold text-slate-700">
+                    {{ badge.value }}
+                </span>
             </div>
         </div>
 
-        <div
-    v-for="(item, idx) in form.items"
-    :key="idx"
-    class="col-span-full border-b border-indigo-100/50 pb-4 last:border-0 last:pb-0"
->
-    <div class="grid grid-cols-12 gap-3 items-start">
-        <!-- Mix Design - gets 50% of row on md+ -->
-        <div class="col-span-12 md:col-span-6">
-            <BaseSelect
-                v-model="item.mix_design_id"
-                :options="mixDesigns"
-                optionLabel="design_name"
-                optionValue="id"
-                filter
-                label="Mix Design"
-                placeholder="Select Mix Design"
-                :error="form.errors[`items.${idx}.mix_design_id`]"
-            />
-        </div>
+        <div v-if="selectedMixIngredients.length" class="mt-3">
+            <p class="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                Mix Ingredients
+            </p>
 
-        <!-- Quantity - 20% -->
-        <div class="col-span-6 md:col-span-2">
-            <BaseInput
-                v-model="item.quantity"
-                type="number"
-                step="0.001"
-                min="0.001"
-                label="Qty (m³)"
-                placeholder="0.000"
-                :error="form.errors[`items.${idx}.quantity`]"
-            />
-        </div>
+            <div class="mt-1.5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5">
+                <div
+                    v-for="item in selectedMixIngredients"
+                    :key="item.id"
+                    class="flex items-center justify-between rounded-md border border-slate-200 bg-white px-2 py-1.5"
+                >
+                    <span class="text-[11px] text-slate-700">
+                        {{ item.name || 'Unknown' }}
+                    </span>
 
-        <!-- Rate - 20% -->
-        <div class="col-span-6 md:col-span-2">
-            <BaseInput
-                v-model="item.rate"
-                type="number"
-                step="0.01"
-                min="0"
-                label="Rate (₹)"
-                placeholder="0.00"
-                :error="form.errors[`items.${idx}.rate`]"
-            />
-        </div>
-
-        <!-- Amount - 6% calculated -->
-        <div class="col-span-10 md:col-span-1">
-            <label class="block text-xs font-medium text-gray-700">Amount</label>
-            <div class="h-8 flex items-center px-3 text-sm font-semibold text-indigo-700 bg-indigo-50 rounded-md">
-                ₹{{ ((item.quantity || 0) * (item.rate || 0)).toFixed(2) }}
+                    <span class="text-[11px] font-bold text-indigo-600">
+                        {{ Number(item.qty || 0).toFixed(3) }}
+                        {{ item.uom || '' }}
+                    </span>
+                </div>
             </div>
-        </div>
-
-        <!-- Delete - 4% -->
-        <div class="col-span-2 md:col-span-1 flex justify-end pt-6">
-            <Button
-                icon="pi pi-trash"
-                severity="danger"
-                rounded
-                text
-                size="small"
-                :disabled="form.items.length === 1"
-                @click="removeItem(idx)"
-                v-tooltip.top="'Remove item'"
-            />
         </div>
     </div>
 </div>
-    </template>
 
-</div>
-
-        <!-- Action Button -->
         <div class="flex justify-end border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/30 px-4 py-3">
-            <Button
-                label="Create Sales Order"
-                icon="pi pi-check"
-                :loading="form.processing"
-                @click="submit"
-                class="p-button-indigo"
-            />
+            <Button label="Create Sales Order" icon="pi pi-check" :loading="form.processing" @click="submit" class="p-button-indigo" />
         </div>
     </div>
 </template>
-
-<style scoped>
-</style>

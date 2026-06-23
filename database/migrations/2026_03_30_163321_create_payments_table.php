@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::create('mm_payments', function (Blueprint $table) {
             $table->id();
 
-            $table->foreignId('plant_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('plant_id')->constrained('mm_plants')->cascadeOnDelete();
 
-            $table->foreignId('ledger_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('patron_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('ledger_id')->constrained('mm_ledgers')->cascadeOnDelete();
+            $table->foreignId('patron_id')->nullable()->constrained('mm_patrons')->nullOnDelete();
 
             $table->decimal('amount', 12, 2)->default(0);
 

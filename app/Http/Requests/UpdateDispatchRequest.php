@@ -14,7 +14,7 @@ class UpdateDispatchRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'work_order_id' => ['required', 'integer', 'exists:mm_work_orders,id'],
+            'sales_order_id' => ['required', 'integer', 'exists:mm_sales_orders,id'],
             'batch_id' => ['required', 'integer', 'exists:mm_batches,id'],
             'truck_id' => ['required', 'integer', 'exists:mm_machines,id'],
             'driver_id' => ['nullable', 'integer', 'exists:mm_patrons,id'],

@@ -11,14 +11,31 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('mm_dispatches', function (Blueprint $table) {
-            $table->dropForeign(['sales_order_id']);
-        });
+        try {
+            Schema::table('mm_dispatches', function (Blueprint $table) {
+                $table->dropForeign(['sales_order_id']);
+            });
+        } catch (\Exception $e) {
+            // ignore if foreign key doesn't exist
+        }
 
-        Schema::table('mm_dispatches', function (Blueprint $table) {
-            $table->unsignedBigInteger('sales_order_id')->nullable()->change();
-            $table->foreign('sales_order_id')->references('id')->on('mm_sales_orders')->cascadeOnDelete();
-        });
+        if (Schema::hasColumn('mm_dispatches', 'sales_order_id')) {
+            Schema::table('mm_dispatches', function (Blueprint $table) {
+                $table->unsignedBigInteger('sales_order_id')->nullable()->change();
+            });
+        } else {
+            Schema::table('mm_dispatches', function (Blueprint $table) {
+                $table->unsignedBigInteger('sales_order_id')->nullable();
+            });
+        }
+
+        try {
+            Schema::table('mm_dispatches', function (Blueprint $table) {
+                $table->foreign('sales_order_id')->references('id')->on('mm_sales_orders')->cascadeOnDelete();
+            });
+        } catch (\Exception $e) {
+            // ignore if foreign key already exists or cannot be created
+        }
     }
 
     /**

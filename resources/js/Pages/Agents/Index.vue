@@ -8,7 +8,10 @@ import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import Swal2 from 'sweetalert2';
 import axios from 'axios';
-import apexchart from 'vue3-apexcharts';
+import { defineAsyncComponent } from 'vue';
+const ApexChart = defineAsyncComponent(() =>
+    import('vue3-apexcharts')
+);
 import {
     CpuChipIcon,
     PlusIcon,

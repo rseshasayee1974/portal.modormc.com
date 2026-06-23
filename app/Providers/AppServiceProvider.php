@@ -83,11 +83,11 @@ class AppServiceProvider extends ServiceProvider
         // Global Auditing Columns Standard macro
         Blueprint::macro('auditColumns', function () {
             $this->timestamp('created_at')->nullable();
-            $this->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $this->foreignId('created_by')->nullable()->constrained('mm_users')->nullOnDelete();
             $this->timestamp('updated_at')->nullable();
-            $this->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
+            $this->foreignId('updated_by')->nullable()->constrained('mm_users')->nullOnDelete();
             $this->softDeletes(); // adds deleted_at
-            $this->foreignId('deleted_by')->nullable()->constrained('users')->nullOnDelete();
+            $this->foreignId('deleted_by')->nullable()->constrained('mm_users')->nullOnDelete();
         });
 
         // Record last_login, ip_address, location and set login_status = true on every successful login

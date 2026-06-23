@@ -70,7 +70,12 @@ class Dispatch extends Model
      */
     public function workOrder(): BelongsTo
     {
-        return $this->belongsTo(WorkOrder::class);
+        return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+    }
+
+    public function customerPO(): BelongsTo
+    {
+        return $this->belongsTo(CustomerPO::class, 'customer_po_id');
     }
 
     public function batch(): BelongsTo

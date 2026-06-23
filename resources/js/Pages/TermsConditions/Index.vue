@@ -64,7 +64,7 @@ const form = ref({
 
 const typeOptions = [
     { label: 'Purchase Order', value: 'Purchase Order' },
-    { label: 'Sales Order', value: 'Sales Order' },
+    { label: 'Customer PO', value: 'Customer PO' },
     { label: 'Quotation', value: 'Quotation' },
     { label: 'Delivery Challan', value: 'Delivery Challan' },
 ];

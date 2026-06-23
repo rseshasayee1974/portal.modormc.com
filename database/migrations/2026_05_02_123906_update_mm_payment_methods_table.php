@@ -31,26 +31,26 @@ return new class extends Migration
             
             // Add missing audit and soft delete columns manually to avoid duplicates with existing timestamps
             if (!Schema::hasColumn('mm_payment_methods', 'created_by')) {
-                $table->foreignId('created_by')->nullable()->after('updated_at')->constrained('users')->nullOnDelete();
+                $table->foreignId('created_by')->nullable()->after('updated_at')->constrained('mm_users')->nullOnDelete();
             }
             if (!Schema::hasColumn('mm_payment_methods', 'updated_by')) {
-                $table->foreignId('updated_by')->nullable()->after('created_by')->constrained('users')->nullOnDelete();
+                $table->foreignId('updated_by')->nullable()->after('created_by')->constrained('mm_users')->nullOnDelete();
             }
             if (!Schema::hasColumn('mm_payment_methods', 'deleted_at')) {
                 $table->softDeletes()->after('updated_by');
             }
             if (!Schema::hasColumn('mm_payment_methods', 'deleted_by')) {
-                $table->foreignId('deleted_by')->nullable()->after('deleted_at')->constrained('users')->nullOnDelete();
+                $table->foreignId('deleted_by')->nullable()->after('deleted_at')->constrained('mm_users')->nullOnDelete();
             }
         });
 
         // Seed if empty
         if (DB::table('mm_payment_methods')->count() == 0) {
             DB::table('mm_payment_methods')->insert([
-                ['name' => 'Cash', 'is_active' => true, 'created_at' => now(), 'updated_at' => now(), 'created_by' => 1],
-                ['name' => 'UPI', 'is_active' => true, 'created_at' => now(), 'updated_at' => now(), 'created_by' => 1],
-                ['name' => 'Bank Transfer', 'is_active' => true, 'created_at' => now(), 'updated_at' => now(), 'created_by' => 1],
-                ['name' => 'Check', 'is_active' => true, 'created_at' => now(), 'updated_at' => now(), 'created_by' => 1],
+                ['name' => 'Cash', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'UPI', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Bank Transfer', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+                ['name' => 'Check', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
             ]);
         }
     }

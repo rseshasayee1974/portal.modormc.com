@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('mm_contact_relation', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('contact_id')->constrained()->onDelete('cascade');
+            $table->foreignId('contact_id')->constrained('mm_contacts')->onDelete('cascade');
             $table->morphs('contactable');
             $table->timestamps();
         });

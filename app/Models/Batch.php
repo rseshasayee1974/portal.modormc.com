@@ -17,7 +17,7 @@ class Batch extends Model
 
     protected $fillable = [
         'plant_id',
-        'work_order_id',
+        'sales_order_id',
         'batch_no',
         'batch_size',
         'start_time',
@@ -114,7 +114,7 @@ class Batch extends Model
 
     public function workOrder()
     {
-        return $this->belongsTo(WorkOrder::class, 'work_order_id');
+        return $this->belongsTo(SalesOrder::class, 'sales_order_id');
     }
 
 

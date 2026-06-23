@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Repositories\DashboardRepository;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardService
 {
@@ -15,7 +16,10 @@ class DashboardService
 
     public function getSalesSummary(array $filters)
     {
-        return $this->repository->getSalesSummary($filters);
+        $key = 'dashboard.sales.summary.' . auth()->id() . '.' . md5(json_encode($filters));
+        return Cache::remember($key, now()->addMinutes(5), function () use ($filters) {
+            return $this->repository->getSalesSummary($filters);
+        });
     }
 
     public function getSalesStats(array $filters)
@@ -25,7 +29,10 @@ class DashboardService
 
     public function getTopProducts(array $filters)
     {
-        return $this->repository->getTopProducts($filters);
+        $key = 'dashboard.top.products.' . auth()->id() . '.' . md5(json_encode($filters));
+        return Cache::remember($key, now()->addMinutes(5), function () use ($filters) {
+            return $this->repository->getTopProducts($filters);
+        });
     }
 
     public function getTopMixDesignsFromBatches(array $filters)
@@ -35,12 +42,18 @@ class DashboardService
 
     public function getStockDetails(array $filters)
     {
-        return $this->repository->getStockDetails($filters);
+        $key = 'dashboard.stock.details.' . auth()->id() . '.' . md5(json_encode($filters));
+        return Cache::remember($key, now()->addMinutes(5), function () use ($filters) {
+            return $this->repository->getStockDetails($filters);
+        });
     }
 
     public function getTripsDetails(array $filters)
     {
-        return $this->repository->getTripsDetails($filters);
+        $key = 'dashboard.trips.details.' . auth()->id() . '.' . md5(json_encode($filters));
+        return Cache::remember($key, now()->addMinutes(5), function () use ($filters) {
+            return $this->repository->getTripsDetails($filters);
+        });
     }
 
     public function getCustomerDetails(array $filters)

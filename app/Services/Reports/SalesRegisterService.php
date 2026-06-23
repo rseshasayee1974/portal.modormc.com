@@ -206,29 +206,19 @@ class SalesRegisterService
      */
     protected function handleExcelExport(array $filters): mixed
     {
-        $query    = $this->repository->getSalesRegisterQuery($filters);
-        $rowCount = $query->count();
-        $limit    = config('reports.export_queue_threshold', 10000);
+        $statusKey = 'report_export_' . Str::uuid();
+        Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
 
-        if ($rowCount > $limit || !empty($filters['queue'])) {
-            $statusKey = 'report_export_' . Str::uuid();
-            Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
-            QueueReportExportJob::dispatch('sales', $filters, $statusKey);
+        $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-            return [
-                'status'     => true,
-                'queued'     => true,
-                'status_key' => $statusKey,
-                'message'    => 'Report generation has been queued.',
-            ];
-        }
+        QueueReportExportJob::dispatch('sales', $filters, $statusKey, 'excel');
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'sales_reg_');
-        $exporter = new SalesRegisterExport($query, $this);
-        $exporter->export($tempPath);
-
-        return response()->download($tempPath, 'Sales_Register_' . date('Ymd_His') . '.xlsx')
-            ->deleteFileAfterSend(true);
+        return [
+            'status'     => true,
+            'queued'     => true,
+            'status_key' => $statusKey,
+            'message'    => 'Report generation has been queued.',
+        ];
     }
 
     /**
@@ -236,29 +226,45 @@ class SalesRegisterService
      */
     protected function handlePdfExport(array $filters): mixed
     {
-        $query    = $this->repository->getSalesRegisterQuery($filters);
-        $rowCount = $query->count();
-        $pdfLimit = config('reports.pdf_max_limit', 1000);
+        $statusKey = 'report_export_' . Str::uuid();
+        Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
 
-        if ($rowCount > $pdfLimit) {
-            return response()->json([
-                'status'  => false,
-                'message' => "The report contains {$rowCount} records, which exceeds the PDF limit of {$pdfLimit}. Please export as Excel instead.",
-            ], 422);
+        $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
+
+        QueueReportExportJob::dispatch('sales', $filters, $statusKey, 'pdf');
+
+        return [
+            'status'     => true,
+            'queued'     => true,
+            'status_key' => $statusKey,
+            'message'    => 'Report generation has been queued.',
+        ];
+    }
+
+    /**
+     * Generate report and save to physical file path (for queued job).
+     */
+    public function generateAndSaveReport(string $format, array $filters, string $filePath): void
+    {
+        $query = $this->repository->getSalesRegisterQuery($filters);
+        
+        if ($format === 'excel') {
+            $exporter = new SalesRegisterExport($query);
+            $exporter->export($filePath);
+        } elseif ($format === 'pdf') {
+            $rows       = $query->get()->map(fn ($item) => $this->mapSalesRow($item))->values()->all();
+            $taxColumns = $this->collectTaxColumns($rows);
+            $totals     = $this->computeTotals($filters);
+
+            $pdf = Pdf::loadView('reports.sales_register_pdf', [
+                'items'        => $rows,
+                'tax_columns'  => $taxColumns,
+                'totals'       => $totals,
+                'filters'      => $filters,
+                'generated_at' => now()->format('d-m-Y H:i:s'),
+            ])->setPaper('a4', 'landscape');
+
+            $pdf->save($filePath);
         }
-
-        $rows       = $query->get()->map(fn ($item) => $this->mapSalesRow($item))->values()->all();
-        $taxColumns = $this->collectTaxColumns($rows);
-        $totals     = $this->computeTotals($filters);
-
-        $pdf = Pdf::loadView('reports.sales_register_pdf', [
-            'items'        => $rows,
-            'tax_columns'  => $taxColumns,
-            'totals'       => $totals,
-            'filters'      => $filters,
-            'generated_at' => now()->format('d-m-Y H:i:s'),
-        ])->setPaper('a4', 'landscape');
-
-        return $pdf->download('Sales_Register_' . date('Ymd_His') . '.pdf');
     }
 }

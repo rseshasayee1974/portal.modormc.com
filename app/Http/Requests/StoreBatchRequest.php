@@ -18,7 +18,7 @@ class StoreBatchRequest extends FormRequest
         $isMetricTon = isset($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
 
         return [
-            'work_order_id' => ['required', 'integer', 'exists:mm_work_orders,id'],
+            'sales_order_id' => ['required', 'integer', 'exists:mm_sales_orders,id'],
             'batch_no' => ['nullable', 'integer', 'min:1'],
             'batch_size' => ['required', 'numeric', 'min:0.1', 'max:9.9'],
             'start_time' => ['nullable', 'date'],
@@ -53,11 +53,11 @@ class StoreBatchRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            $workOrderId = $this->input('work_order_id');
+            $salesOrderId = $this->input('sales_order_id');
             $batchSize = (float) $this->input('batch_size', 0);
             
-            if ($workOrderId && $batchSize > 0) {
-                $workOrder = \App\Models\WorkOrder::find($workOrderId);
+            if ($salesOrderId && $batchSize > 0) {
+                $workOrder = \App\Models\SalesOrder::find($salesOrderId);
                 if ($workOrder) {
                     $totalQty = (float) $workOrder->total_qty;
                     $producedQty = (float) $workOrder->produced_qty;

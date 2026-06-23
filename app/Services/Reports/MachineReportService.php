@@ -249,42 +249,19 @@ class MachineReportService
      */
     protected function handleExcelExport(string $reportType, array $filters): mixed
     {
-        if ($reportType === 'machine_summary') {
-            $query = $this->repository->getMachineSummaryQuery($filters);
-        } else {
-            $query = $this->repository->getVehiclePLQuery($filters);
-        }
+        $statusKey = 'report_export_' . Str::uuid();
+        Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
 
-        $rowCount = $query->count();
-        $limit    = config('reports.export_queue_threshold', 10000);
+        $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        if ($rowCount > $limit || !empty($filters['queue'])) {
-            $statusKey = 'report_export_' . Str::uuid();
-            Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
-            QueueReportExportJob::dispatch($reportType, $filters, $statusKey);
+        QueueReportExportJob::dispatch($reportType, $filters, $statusKey, 'excel');
 
-            return [
-                'status'     => true,
-                'queued'     => true,
-                'status_key' => $statusKey,
-                'message'    => 'Report generation has been queued.',
-            ];
-        }
-
-        $tempPath = tempnam(sys_get_temp_dir(), 'mach_rep_');
-
-        if ($reportType === 'machine_summary') {
-            $exporter = new MachineSummaryExport($query, $this);
-            $filename = 'Machine_Summary_' . date('Ymd_His') . '.xlsx';
-        } else {
-            $exporter = new VehiclePLExport($query, $this);
-            $filename = 'Vehicle_PL_' . date('Ymd_His') . '.xlsx';
-        }
-
-        $exporter->export($tempPath);
-
-        return response()->download($tempPath, $filename)
-            ->deleteFileAfterSend(true);
+        return [
+            'status'     => true,
+            'queued'     => true,
+            'status_key' => $statusKey,
+            'message'    => 'Report generation has been queued.',
+        ];
     }
 
     /**
@@ -292,45 +269,62 @@ class MachineReportService
      */
     protected function handlePdfExport(string $reportType, array $filters): mixed
     {
+        $statusKey = 'report_export_' . Str::uuid();
+        Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
+
+        $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
+
+        QueueReportExportJob::dispatch($reportType, $filters, $statusKey, 'pdf');
+
+        return [
+            'status'     => true,
+            'queued'     => true,
+            'status_key' => $statusKey,
+            'message'    => 'Report generation has been queued.',
+        ];
+    }
+
+    /**
+     * Generate report and save to physical file path (for queued job).
+     */
+    public function generateAndSaveReport(string $reportType, string $format, array $filters, string $filePath): void
+    {
         if ($reportType === 'machine_summary') {
             $query = $this->repository->getMachineSummaryQuery($filters);
         } else {
             $query = $this->repository->getVehiclePLQuery($filters);
         }
 
-        $rowCount = $query->count();
-        $pdfLimit = config('reports.pdf_max_limit', 1000);
+        if ($format === 'excel') {
+            if ($reportType === 'machine_summary') {
+                $exporter = new MachineSummaryExport($query, $this);
+            } else {
+                $exporter = new VehiclePLExport($query, $this);
+            }
+            $exporter->export($filePath);
+        } elseif ($format === 'pdf') {
+            $plantId = session('active_plant_id');
+            $plant   = \App\Models\Plant::with(['addresses.state', 'contacts'])->find($plantId);
 
-        if ($rowCount > $pdfLimit) {
-            return response()->json([
-                'status'  => false,
-                'message' => "The report contains {$rowCount} records, which exceeds the PDF limit of {$pdfLimit}. Please export as Excel instead.",
-            ], 422);
+            if ($reportType === 'machine_summary') {
+                $rows   = $query->get()->map(fn ($item) => $this->mapMachineSummaryRow($item))->values()->all();
+                $totals = $this->computeMachineSummaryTotals($filters);
+                $view   = 'reports.machine_summary_pdf';
+            } else {
+                $rows   = $query->get()->map(fn ($item) => $this->mapVehiclePLRow($item))->values()->all();
+                $totals = $this->computeVehiclePLTotals($filters);
+                $view   = 'reports.vehicle_pl_pdf';
+            }
+
+            $pdf = Pdf::loadView($view, [
+                'items'        => $rows,
+                'totals'       => $totals,
+                'filters'      => $filters,
+                'plant'        => $plant,
+                'generated_at' => now()->format('d-m-Y H:i:s'),
+            ])->setPaper('a4', 'landscape');
+
+            $pdf->save($filePath);
         }
-
-        $plantId = session('active_plant_id');
-        $plant   = \App\Models\Plant::with(['addresses.state', 'contacts'])->find($plantId);
-
-        if ($reportType === 'machine_summary') {
-            $rows   = $query->get()->map(fn ($item) => $this->mapMachineSummaryRow($item))->values()->all();
-            $totals = $this->computeMachineSummaryTotals($filters);
-            $view   = 'reports.machine_summary_pdf';
-            $filename = 'Machine_Summary_' . date('Ymd_His') . '.pdf';
-        } else {
-            $rows   = $query->get()->map(fn ($item) => $this->mapVehiclePLRow($item))->values()->all();
-            $totals = $this->computeVehiclePLTotals($filters);
-            $view   = 'reports.vehicle_pl_pdf';
-            $filename = 'Vehicle_PL_' . date('Ymd_His') . '.pdf';
-        }
-
-        $pdf = Pdf::loadView($view, [
-            'items'        => $rows,
-            'totals'       => $totals,
-            'filters'      => $filters,
-            'plant'        => $plant,
-            'generated_at' => now()->format('d-m-Y H:i:s'),
-        ])->setPaper('a4', 'landscape');
-
-        return $pdf->download($filename);
     }
 }

@@ -7,7 +7,7 @@ use App\Models\Plant;
 use App\Models\CustomSetting;
 use App\Models\Quotation;
 use App\Models\PurchaseOrder;
-use App\Models\WorkOrder;
+use App\Models\SalesOrder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -103,7 +103,7 @@ class CustomSettingPrefixTest extends TestCase
             'module_id' => 0
         ]);
 
-        $details = WorkOrder::generateOrderNo($this->plant->id, 'WO');
+        $details = SalesOrder::generateOrderNo($this->plant->id, 'WO');
         
         $this->assertStringStartsWith('ABC-WO/', $details['full_number']);
     }

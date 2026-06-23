@@ -3,7 +3,7 @@
 namespace App\Ai\Tools;
 
 use App\Models\Batch;
-use App\Models\WorkOrder;
+use App\Models\SalesOrder;
 use Laravel\Ai\Contracts\Tool;
 use Stringable;
 

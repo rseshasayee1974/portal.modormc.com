@@ -64,7 +64,7 @@ const emit = defineEmits<{
 
 const form = useForm({
     id: props.dispatch?.id || null,
-    work_order_id: props.dispatch?.work_order_id || props.workOrder?.id,
+    sales_order_id: props.dispatch?.sales_order_id || props.workOrder?.id,
     batch_id: props.dispatch?.batch_id || props.batch?.id,
     batch_size: props.dispatch?.batch_size || props.batch?.batch_size || 0,
     prefix: props.dispatch?.prefix || '',

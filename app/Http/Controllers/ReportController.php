@@ -54,20 +54,25 @@ class ReportController extends Controller
             'patron_id'        => $patronId,
             'voucher_type'     => strtoupper($type),
             'valuation_method' => $request->input('valuation_method', 'FIFO'),
+            'consolidation'    => $request->input('consolidation', 'po'),
+            'plant_id'         => session('active_plant_id'),
         ];
 
+        if ($export === 'excel' || $export === 'pdf') {
+            $statusKey = 'report_export_' . \Illuminate\Support\Str::uuid();
+            Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
+
+            \App\Jobs\QueueReportExportJob::dispatch($type, $params, $statusKey, $export);
+
+            return response()->json([
+                'status'     => true,
+                'queued'     => true,
+                'status_key' => $statusKey,
+                'message'    => 'Report generation has been queued.',
+            ]);
+        }
+
         $data       = $service->generate($params);
-        $targetName = $service->targetName($params);
-
-        if ($export === 'excel') {
-            return $this->exportExcel($type, $start, $end, $data, $excelService);
-        }
-
-        if ($export === 'pdf') {
-            $consolidation = $request->input('consolidation', 'po');
-            return $this->exportPdf($type, $targetName, $start, $end, $data, $id, $patronId, $consolidation);
-        }
-
         return response()->json($data);
     }
 

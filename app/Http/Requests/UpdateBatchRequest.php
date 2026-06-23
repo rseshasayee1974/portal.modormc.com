@@ -15,20 +15,20 @@ class UpdateBatchRequest extends FormRequest
     public function rules(): array
     {
         $batchId = $this->route('batch')?->id ?? $this->route('batch');
-        $workOrderId = (int) ($this->input('work_order_id') ?? $this->route('batch')?->work_order_id);
+        $salesOrderId = (int) ($this->input('sales_order_id') ?? $this->route('batch')?->sales_order_id);
         
         $plantId = session('active_plant_id');
         $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
         $isMetricTon = isset($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
 
         return [
-            'work_order_id' => ['nullable', 'integer'],
+            'sales_order_id' => ['nullable', 'integer', 'exists:mm_sales_orders,id'],
             'batch_no' => [
                 'required',
                 'integer',
                 'min:1',
                 Rule::unique('mm_batches', 'batch_no')
-                    ->where(fn ($q) => $q->where('work_order_id', $workOrderId))->where('deleted_at',null)
+                    ->where(fn ($q) => $q->where('sales_order_id', $salesOrderId))->where('deleted_at',null)
                     ->ignore($batchId),
             ],
             'batch_size' => ['required', 'numeric', 'gt:0'],
@@ -66,11 +66,11 @@ class UpdateBatchRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $batchId = $this->route('batch')?->id ?? $this->route('batch');
-            $workOrderId = $this->input('work_order_id') ?? $this->route('batch')?->work_order_id;
+            $salesOrderId = $this->input('sales_order_id') ?? $this->route('batch')?->sales_order_id;
             $newBatchSize = (float) $this->input('batch_size', 0);
             
-            if ($workOrderId && $newBatchSize > 0) {
-                $workOrder = \App\Models\WorkOrder::find($workOrderId);
+            if ($salesOrderId && $newBatchSize > 0) {
+                $workOrder = \App\Models\SalesOrder::find($salesOrderId);
                 $batch = \App\Models\Batch::find($batchId);
                 
                 if ($workOrder && $batch) {

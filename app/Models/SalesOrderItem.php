@@ -2,30 +2,31 @@
 
 namespace App\Models;
 
+use App\Traits\AuditFields;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Traits\AuditFields;
-use App\Traits\TracksModelChanges;
 
 class SalesOrderItem extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, TracksModelChanges;
-
+    use HasFactory, AuditFields, SoftDeletes;
+    
     protected $table = 'mm_sales_order_items';
+    public $timestamps = false;
 
     protected $fillable = [
         'sales_order_id',
-        'mix_design_id',
-        'quantity',
-        'rate',
-        'tax_id',
-        'tax_amount',
-        'untaxed_amount',
-        'amount_total',
+        'material_id',
+        'required_qty',
+        'issued_qty',
+        'uom_id',
+        'location_id',
+        'status',
         'created_by',
+        'created',
+        'modified',
         'updated_by',
-        'deleted_by',
+        'deleted_by'
     ];
 
     public function salesOrder()
@@ -33,13 +34,19 @@ class SalesOrderItem extends Model
         return $this->belongsTo(SalesOrder::class, 'sales_order_id');
     }
 
-    public function mixDesign()
+    public function material()
     {
-        return $this->belongsTo(MixDesign::class, 'mix_design_id');
+        return $this->belongsTo(Product::class, 'material_id');
     }
 
-    public function tax()
+    public function uom()
     {
-        return $this->belongsTo(Tax::class, 'tax_id');
+        return $this->belongsTo(ProductUnit::class, 'uom_id');
+    }
+
+    public function issueMaterial($qty)
+    {
+        $this->issued_qty += $qty;
+        $this->save();
     }
 }

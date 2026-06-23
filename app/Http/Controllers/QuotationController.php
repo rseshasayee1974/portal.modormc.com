@@ -23,7 +23,7 @@ class QuotationController extends Controller
         $plantId = session('active_plant_id');
 
         return Inertia::render('Quotations/Index', [
-            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'salesOrders', 'creator', 'modifier','salesExecutive'])
+            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'customerPOs', 'creator', 'modifier','salesExecutive'])
                 ->where('plant_id', $plantId)
                 ->latest()
                 ->get(),
@@ -106,7 +106,7 @@ class QuotationController extends Controller
             if ($isSalesOrder === 1) {
                 $user = auth()->user();
 
-                $salesOrder = \App\Models\SalesOrder::updateOrCreate(
+                $customerPO = \App\Models\CustomerPO::updateOrCreate(
                     ['quotation_id' => $quotation->id],
                     [
                         'plant_id' => $quotation->plant_id,
@@ -115,18 +115,18 @@ class QuotationController extends Controller
                         'sales_executive_id' => $quotation->sales_executive_id,
                         'concrete_pump' => $quotation->concrete_pump,
                         'order_date' => now()->toDateString(),
-                        'status' => \App\Models\SalesOrder::STATUS_CONFIRMED,
+                        'status' => \App\Models\CustomerPO::STATUS_CONFIRMED,
                         'converted_by_user_id' => $user->id,
                     ]
                 );
 
-                // Clear any existing items in the sales order to avoid duplicates/orphans
-                $salesOrder->items()->delete();
+                // Clear any existing items in the customer PO to avoid duplicates/orphans
+                $customerPO->items()->delete();
 
-                // Copy items from quotation to sales order items
+                // Copy items from quotation to customer PO items
                 $quotation->load('items');
                 foreach ($quotation->items as $item) {
-                    $salesOrder->items()->create([
+                    $customerPO->items()->create([
                         'mix_design_id' => $item->mix_design_id,
                         'quantity' => $item->quantity,
                         'rate' => $item->rate,
@@ -137,11 +137,11 @@ class QuotationController extends Controller
                     ]);
                 }
             } else {
-                \App\Models\SalesOrder::where('quotation_id', $quotation->id)->delete();
+                \App\Models\CustomerPO::where('quotation_id', $quotation->id)->delete();
             }
         });
 
-        return redirect()->back()->with('success', 'Sales Order conversion status updated.');
+        return redirect()->back()->with('success', 'Customer PO conversion status updated.');
     }
 
     public function sendEmail(Quotation $quotation)

@@ -59,6 +59,7 @@ class Quantity extends Model
          * Capture Newly Seeded Stock Records
          */
         static::created(function ($model) {
+            \Illuminate\Support\Facades\Cache::forget("inventory.dashboard.data.{$model->plant_id}");
             try {
                 $model->writeAuditLog(
                     'stockin', 
@@ -76,6 +77,7 @@ class Quantity extends Model
          * Capture Fluctuating Shifts across Quantities safely
          */
         static::updated(function ($model) {
+            \Illuminate\Support\Facades\Cache::forget("inventory.dashboard.data.{$model->plant_id}");
             // Optimized: Using isDirty ensures we bypass tracking loops if unrelated flags get shifted
             if ($model->isDirty('quantity')) {
                 try {
@@ -106,6 +108,7 @@ class Quantity extends Model
          * Capture Model System Truncations / Evictions
          */
         static::deleted(function ($model) {
+            \Illuminate\Support\Facades\Cache::forget("inventory.dashboard.data.{$model->plant_id}");
             try {
                 $productName = $model->relationLoaded('product') && $model->product 
                     ? $model->product->title 

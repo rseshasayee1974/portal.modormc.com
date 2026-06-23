@@ -307,6 +307,24 @@ const generateReport = async () => {
     }
 };
 
+const startQueuedExport = async (url) => {
+    loading.value = true;
+    try {
+        const response = await axios.get(url);
+        if (response.data && response.data.queued) {
+            exportProgress.value = { status: 'queued', progress: 0 };
+            checkExportStatus(response.data.status_key);
+        } else {
+            alert('Export failed to start.');
+        }
+    } catch (error) {
+        console.error('Error initiating export:', error);
+        alert('Export failed to start.');
+    } finally {
+        loading.value = false;
+    }
+};
+
 const exportPdf = () => {
     let url = route('reports.generate', {
         type: reportType.value,
@@ -348,10 +366,10 @@ const exportPdf = () => {
             export: 'pdf'
         });
     }
-    window.open(url, '_blank');
+    startQueuedExport(url);
 };
 
-const exportExcel = async () => {
+const exportExcel = () => {
     let url = route('reports.generate', {
         type: reportType.value,
         id: selectedId.value,
@@ -392,26 +410,7 @@ const exportExcel = async () => {
             export: 'excel'
         });
     }
-
-    if (['sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl'].includes(reportType.value)) {
-        loading.value = true;
-        try {
-            const response = await axios.get(url);
-            if (response.data && response.data.queued) {
-                exportProgress.value = { status: 'queued', progress: 0 };
-                checkExportStatus(response.data.status_key);
-            } else {
-                window.open(url + (url.indexOf('?') !== -1 ? '&direct=1' : '?direct=1'), '_blank');
-            }
-        } catch (error) {
-            console.error('Error initiating Excel export:', error);
-            alert('Export failed to start.');
-        } finally {
-            loading.value = false;
-        }
-    } else {
-        window.open(url, '_blank');
-    }
+    startQueuedExport(url);
 };
 
 const schedules = ref([]);

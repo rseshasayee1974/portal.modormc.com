@@ -37,7 +37,7 @@ class NotificationEmailController extends Controller
             'notificationEmails' => $notificationEmails,
             'plants' => $plants,
             'roles' => $roles,
-            'types' => ['Purchase Order','Batching','Quotation','Sales Order', 'Invoice', 'Dispatch', 'Payment', 'Other'] // Example notification types
+            'types' => ['Purchase Order','Batching','Quotation','Customer PO', 'Invoice', 'Dispatch', 'Payment', 'Other'] // Example notification types
         ]);
     }
 

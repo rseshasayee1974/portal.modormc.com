@@ -23,6 +23,16 @@ class Patron extends Model
                 $patron->code = self::generateCode($patron->plant_id, $patron->patron_type);
             }
         });
+
+        static::saved(function ($patron) {
+            \Illuminate\Support\Facades\Cache::forget("patrons.{$patron->plant_id}");
+            \Illuminate\Support\Facades\Cache::forget("patrons.all");
+        });
+
+        static::deleted(function ($patron) {
+            \Illuminate\Support\Facades\Cache::forget("patrons.{$patron->plant_id}");
+            \Illuminate\Support\Facades\Cache::forget("patrons.all");
+        });
     }
 
     // ──────────────────────────────────────────────────────────────

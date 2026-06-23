@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
 
 $table->foreignId('concrete_grade_id')
-    ->constrained()
+    ->constrained('mm_concrete_grades')
     ->restrictOnDelete();         
        $table->foreignId('plant_id')->constrained('mm_plants')->cascadeOnDelete();
             $table->foreignId('partner_id')->constrained('mm_patrons')->cascadeOnDelete();

@@ -111,7 +111,7 @@ class Site extends Model
 
     public function getIsInUseAttribute()
     {
-        return \App\Models\WorkOrder::where('site_id', $this->id)->exists() ||
+        return \App\Models\SalesOrder::where('site_id', $this->id)->exists() ||
                \App\Models\Quotation::where('site_id', $this->id)->exists() ||
                \App\Models\Dispatch::where('load_site_id', $this->id)->orWhere('unload_site_id', $this->id)->exists();
     }

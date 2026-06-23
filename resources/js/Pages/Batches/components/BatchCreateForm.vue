@@ -21,7 +21,7 @@ interface BatchMaterial {
 }
 
 const props = withDefaults(defineProps<{
-    workOrders?: any[];
+    salesOrders?: any[];
     trucks?: any[];
     transporters?: any[];
     sales_executives?: any[];
@@ -35,7 +35,7 @@ const props = withDefaults(defineProps<{
     nextBatchNo?: number;
     concretePumpOptions?: any[];
 }>(), {
-    workOrders: () => [],
+    salesOrders: () => [],
     trucks: () => [],
     transporters: () => [],
     sales_executives: () => [],
@@ -61,7 +61,7 @@ const blankMaterial = (): BatchMaterial => ({
 });
 
 const form = useForm({
-    work_order_id: null as number | null,
+    sales_order_id: null as number | null,
     batch_no: null as number | null,
     batch_size: 1,
     truck_id: null as number | null,
@@ -127,15 +127,15 @@ const isMetricTon = computed(() => {
 });
 
 const selectedWorkOrder = computed(() => {
-    if (!form.work_order_id) return null;
-    return props.workOrders.find(wo => Number(wo.id) === Number(form.work_order_id));
+    if (!form.sales_order_id) return null;
+    return props.salesOrders.find(wo => Number(wo.id) === Number(form.sales_order_id));
 });
 
 const nextBatchNoDisplay = computed(() => {
     return props.nextBatchNo;
 });
 
-const workOrderDetails = computed(() => {
+const salesOrderDetails = computed(() => {
     if (!selectedWorkOrder.value) return [];
     const wo = selectedWorkOrder.value;
     return [
@@ -149,7 +149,7 @@ const workOrderDetails = computed(() => {
     ];
 });
 
-watch(() => form.work_order_id, (newVal) => {
+watch(() => form.sales_order_id, (newVal) => {
     if (newVal && selectedWorkOrder.value?.mix_design?.items) {
         form.materials = selectedWorkOrder.value.mix_design.items.map((item: any) => ({
             product_id: item.product_id,
@@ -189,7 +189,7 @@ watch(() => form.batch_size, (newVal) => {
         }
     }
     
-    if (form.work_order_id && selectedWorkOrder.value?.mix_design?.items) {
+    if (form.sales_order_id && selectedWorkOrder.value?.mix_design?.items) {
         form.materials.forEach((mat, index) => {
             const originalItem = selectedWorkOrder.value.mix_design.items[index];
             if (originalItem) {
@@ -248,7 +248,7 @@ const submit = () => {
     : 9.9;
 
     const validations = [
-        { condition: !form.work_order_id, field: 'work_order_id', message: 'Work Order is required' },
+        { condition: !form.sales_order_id, field: 'sales_order_id', message: 'Sales Order is required' },
         { condition: !form.truck_id, field: 'truck_id', message: 'Truck is required' },
         // { condition: !form.transport_id, field: 'transport_id', message: 'Transporter is required' },
         // { condition: !form.driver_id, field: 'driver_id', message: 'Driver is required' },
@@ -256,14 +256,14 @@ const submit = () => {
         { condition: !form.batch_size || form.batch_size < 0.1 || form.batch_size > 9.9, field: 'batch_size', message: 'Batch Quantity must be between 0.1 and 9.9 m³' },
         {
             condition:
-                form.work_order_id &&
+                form.sales_order_id &&
                 Number(form.batch_size.toFixed(3)) > remainingQty,
             field: 'batch_size',
             message: `Batch Quantity cannot exceed remaining order quantity (${remainingQty.toFixed(3)} m³)`
         },
         { condition: isMetricTon.value && (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0), field: 'empty_weight_truck', message: 'Empty Weight is required when InvoiceInMetricTon is enabled' },
         { condition: isMetricTon.value && !form.empty_time, field: 'empty_time', message: 'Empty Time is required when InvoiceInMetricTon is enabled' },
-        // { condition: form.work_order_id && form.batch_size > maxAllowed, field: 'batch_size', message: `Batch Quantity cannot exceed remaining order quantity (${maxAllowed.toFixed(3)} m³)` }
+        // { condition: form.sales_order_id && form.batch_size > maxAllowed, field: 'batch_size', message: `Batch Quantity cannot exceed remaining order quantity (${maxAllowed.toFixed(3)} m³)` }
     ];
 
     let hasErrors = false;
@@ -294,7 +294,7 @@ const submit = () => {
         const formattedBatch = {
             id: -Date.now(), // Temporary negative ID
             batch_no: form.batch_no || props.nextBatchNo,
-            work_order_id: form.work_order_id,
+            sales_order_id: form.sales_order_id,
             work_order: selectedWorkOrder.value,
             batch_size: form.batch_size,
             truck_id: form.truck_id,
@@ -424,25 +424,25 @@ const submit = () => {
                     <div class="sticky top-4 space-y-6">
                         <div class="rounded-xl bg-slate-50 p-4 border border-slate-200/60 shadow-sm">
                             <BaseSelect 
-                                v-model="form.work_order_id" 
-                                :options="workOrders" 
+                                v-model="form.sales_order_id" 
+                                :options="salesOrders" 
                                 optionLabel="full_number" 
                                 optionValue="id" 
                                 filter 
-                                label="Select Work Order" 
+                                label="Select Sales Order" 
                                 required
-                                :error="form.errors.work_order_id" 
+                                :error="form.errors.sales_order_id" 
                             />
                         </div>
 
-                        <!-- Work Order Details Card -->
-                        <div v-if="workOrderDetails.length" class="rounded-xl border border-indigo-100 bg-white p-4 shadow-sm overflow-hidden relative">
+                        <!-- Sales Order Details Card -->
+                        <div v-if="salesOrderDetails.length" class="rounded-xl border border-indigo-100 bg-white p-4 shadow-sm overflow-hidden relative">
                             <div class="absolute top-0 right-0 p-2 opacity-10">
                                 <InformationCircleIcon class="w-12 h-12 text-indigo-500" />
                             </div>
                             <h3 class="mb-4 text-[10px] font-bold uppercase tracking-widest text-indigo-500 border-b border-indigo-50 pb-2">Reference Details</h3>
                             <div class="space-y-4">
-                                <div v-for="detail in workOrderDetails" :key="detail.label" class="flex flex-col">
+                                <div v-for="detail in salesOrderDetails" :key="detail.label" class="flex flex-col">
                                     <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ detail.label }}</span>
                                     <span class="text-xs font-semibold text-slate-700 leading-tight">{{ detail.value }}</span>
                                 </div>

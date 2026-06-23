@@ -34,7 +34,24 @@ const props = defineProps({
 const page = usePage();
 const activePlant = computed(() => page.props.active_plant || null);
 
-const loading = ref(false);
+const metricsLoading = ref(false);
+const financeLoading = ref(false);
+const dispatchLoading = ref(false);
+const leaderboardLoading = ref(false);
+const stockLoading = ref(false);
+const activityLoading = ref(false);
+const feedsLoading = ref(false);
+
+const loading = computed(() => {
+    return metricsLoading.value ||
+           financeLoading.value ||
+           dispatchLoading.value ||
+           leaderboardLoading.value ||
+           stockLoading.value ||
+           activityLoading.value ||
+           feedsLoading.value;
+});
+
 const errorMessage = ref('');
 const lastUpdated = ref(props.initialData?.generated_at || '');
 const activeFeed = ref('dispatches');
@@ -61,7 +78,7 @@ const defaultMetrics = {
     cash_delta: 0,
     stock_value: 0,
     low_stock_count: 0,
-    open_work_orders: 0,
+    open_sales_orders: 0,
     active_batches: 0,
 };
 
@@ -77,13 +94,13 @@ const customerLeaderboard = ref(props.initialData?.customer_leaderboard || []);
 const stockSnapshot = ref(props.initialData?.stock_snapshot || []);
 const stockAlerts = ref(props.initialData?.stock_alerts || []);
 const recentTransactions = ref(props.initialData?.recent_transactions || []);
-const workOrders = ref(props.initialData?.work_orders || []);
+const workOrders = ref(props.initialData?.sales_orders || []);
 const dispatches = ref(props.initialData?.dispatches || []);
 const purchaseOrders = ref(props.initialData?.purchase_orders || []);
 
 const feedTabs = [
     { key: 'dispatches', label: 'Dispatches' },
-    { key: 'work_orders', label: 'Work Orders' },
+    { key: 'sales_orders', label: 'Sales Orders' },
     { key: 'purchase_orders', label: 'Purchases' },
 ];
 
@@ -299,7 +316,7 @@ const leaderboardOptions = computed(() => ({
 }));
 
 const activeFeedRows = computed(() => {
-    if (activeFeed.value === 'work_orders') return workOrders.value;
+    if (activeFeed.value === 'sales_orders') return workOrders.value;
     if (activeFeed.value === 'purchase_orders') return purchaseOrders.value;
     return dispatches.value;
 });
@@ -314,33 +331,129 @@ function applyDashboardPayload(data = {}) {
     stockSnapshot.value = data.stock_snapshot || [];
     stockAlerts.value = data.stock_alerts || [];
     recentTransactions.value = data.recent_transactions || [];
-    workOrders.value = data.work_orders || [];
+    salesOrders.value = data.sales_orders || [];
     dispatches.value = data.dispatches || [];
     purchaseOrders.value = data.purchase_orders || [];
     lastUpdated.value = data.generated_at || new Date().toISOString();
 }
 
-const fetchDashboardData = async ({ silent = false } = {}) => {
-    if (!silent) loading.value = true;
+const fetchDashboardData = async ({ silent = false, refresh = false } = {}) => {
+    errorMessage.value = '';
 
-    try {
-        const { data } = await axios.get(route('dashboard.data'), {
-            params: queryParams.value,
-        });
+    const params = { ...queryParams.value };
+    if (refresh) {
+        params.refresh = true;
+    }
 
-        applyDashboardPayload(data);
-    } catch (error) {
+    const handleError = (error) => {
         if (error?.response?.status === 401 || error?.response?.status === 419) {
             // Session expired — stop polling and redirect to login
             if (pollTimer) clearInterval(pollTimer);
             window.location.href = '/login';
-            return;
         }
-        console.error('Failed to fetch dashboard data', error);
-        errorMessage.value = 'Unable to refresh live dashboard data right now.';
-    } finally {
-        loading.value = false;
-    }
+        console.error('Failed to fetch dashboard component data', error);
+        errorMessage.value = 'Unable to refresh some live dashboard data right now.';
+    };
+
+    const loadMetrics = async () => {
+        metricsLoading.value = true;
+        try {
+            const { data } = await axios.get(route('dashboard.data.metrics'), { params });
+            metrics.value = data.metrics;
+            moduleCards.value = data.module_cards;
+        } catch (error) {
+            handleError(error);
+        } finally {
+            metricsLoading.value = false;
+        }
+    };
+
+    const loadFinanceTrend = async () => {
+        financeLoading.value = true;
+        try {
+            const { data } = await axios.get(route('dashboard.data.finance-trend'), { params });
+            financeTrend.value = data.finance_trend;
+        } catch (error) {
+            handleError(error);
+        } finally {
+            financeLoading.value = false;
+        }
+    };
+
+    const loadDispatchStatus = async () => {
+        dispatchLoading.value = true;
+        try {
+            const { data } = await axios.get(route('dashboard.data.dispatch-status'), { params });
+            dispatchStatus.value = data.dispatch_status;
+        } catch (error) {
+            handleError(error);
+        } finally {
+            dispatchLoading.value = false;
+        }
+    };
+
+    const loadCustomerLeaderboard = async () => {
+        leaderboardLoading.value = true;
+        try {
+            const { data } = await axios.get(route('dashboard.data.customer-leaderboard'), { params });
+            customerLeaderboard.value = data.customer_leaderboard;
+        } catch (error) {
+            handleError(error);
+        } finally {
+            leaderboardLoading.value = false;
+        }
+    };
+
+    const loadStock = async () => {
+        stockLoading.value = true;
+        try {
+            const { data } = await axios.get(route('dashboard.data.stock'), { params });
+            stockSnapshot.value = data.stock_snapshot;
+            stockAlerts.value = data.stock_alerts;
+        } catch (error) {
+            handleError(error);
+        } finally {
+            stockLoading.value = false;
+        }
+    };
+
+    const loadRecentActivity = async () => {
+        activityLoading.value = true;
+        try {
+            const { data } = await axios.get(route('dashboard.data.recent-activity'), { params });
+            recentTransactions.value = data.recent_transactions;
+        } catch (error) {
+            handleError(error);
+        } finally {
+            activityLoading.value = false;
+        }
+    };
+
+    const loadFeeds = async () => {
+        feedsLoading.value = true;
+        try {
+            const { data } = await axios.get(route('dashboard.data.feeds'), { params });
+            salesOrders.value = data.sales_orders;
+            dispatches.value = data.dispatches;
+            purchaseOrders.value = data.purchase_orders;
+        } catch (error) {
+            handleError(error);
+        } finally {
+            feedsLoading.value = false;
+        }
+    };
+
+    await Promise.all([
+        loadMetrics(),
+        loadFinanceTrend(),
+        loadDispatchStatus(),
+        loadCustomerLeaderboard(),
+        loadStock(),
+        loadRecentActivity(),
+        loadFeeds(),
+    ]);
+
+    lastUpdated.value = new Date().toISOString();
 };
 
 watch(
@@ -451,7 +564,7 @@ function toneClasses(tone) {
                             <div class="flex flex-wrap items-center gap-3 text-sm text-slate-500">
                                 <span class="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-3 py-2 text-white shadow-lg shadow-slate-200">
                                     <ChartBarIcon class="size-4" />
-                                    {{ metrics.open_work_orders }} open work orders
+                                    {{ metrics.open_sales_orders }} open sales orders
                                 </span>
                                 <span class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
                                     <TruckIcon class="size-4 text-slate-400" />
@@ -481,7 +594,7 @@ function toneClasses(tone) {
                             <button
                                 type="button"
                                 class="sm:col-span-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#f0f3f6] shadow-[-4px_-4px_8px_#ffffff,4px_4px_8px_#d1d9e6] active:shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6] px-4 py-3 text-sm font-bold text-slate-700 transition"
-                                @click="fetchDashboardData()"
+                                @click="fetchDashboardData({ refresh: true })"
                             >
                                 <ArrowPathIcon class="size-4" :class="loading ? 'animate-spin' : ''" />
                                 Refresh live data
@@ -498,41 +611,59 @@ function toneClasses(tone) {
                 </section>
 
                 <section class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <article
-                        v-for="card in summaryCards"
-                        :key="card.key"
-                        class="rounded-[28px] bg-[#f0f3f6] p-5 shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]"
-                    >
-                        <div class="flex items-start justify-between gap-4">
-                            <div>
-                                <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">{{ card.title }}</p>
-                                <p class="mt-3 text-3xl font-black tracking-tight text-slate-950">
-                                    {{ ['dispatch_quantity'].includes(card.key) ? formatNumber(card.value, 3) : formatCurrency(card.value) }}
-                                </p>
-                                <p class="mt-2 text-sm font-medium text-slate-500">{{ card.meta }}</p>
-                            </div>
-                            <div :class="['flex size-12 items-center justify-center rounded-2xl border', toneClasses(card.tone)]">
-                                <component :is="card.icon" class="size-6" />
-                            </div>
+                    <template v-if="metricsLoading">
+                        <div v-for="i in 6" :key="'summary-sk-' + i" class="rounded-[28px] bg-[#f0f3f6] p-5 shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] animate-pulse h-[130px]">
+                            <div class="h-4 bg-slate-300 rounded w-1/3 mb-4"></div>
+                            <div class="h-8 bg-slate-300 rounded w-1/2 mb-3"></div>
+                            <div class="h-3 bg-slate-200 rounded w-1/4"></div>
                         </div>
-                    </article>
+                    </template>
+                    <template v-else>
+                        <article
+                            v-for="card in summaryCards"
+                            :key="card.key"
+                            class="rounded-[28px] bg-[#f0f3f6] p-5 shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]"
+                        >
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">{{ card.title }}</p>
+                                    <p class="mt-3 text-3xl font-black tracking-tight text-slate-950">
+                                        {{ ['dispatch_quantity'].includes(card.key) ? formatNumber(card.value, 3) : formatCurrency(card.value) }}
+                                    </p>
+                                    <p class="mt-2 text-sm font-medium text-slate-500">{{ card.meta }}</p>
+                                </div>
+                                <div :class="['flex size-12 items-center justify-center rounded-2xl border', toneClasses(card.tone)]">
+                                    <component :is="card.icon" class="size-6" />
+                                </div>
+                            </div>
+                        </article>
+                    </template>
                 </section>
 
                 <section class="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-5">
-                    <article
-                        v-for="card in moduleCards"
-                        :key="card.key"
-                        class="rounded-[26px] bg-[#f0f3f6] p-5 shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]"
-                    >
-                        <div class="flex items-center justify-between gap-4">
-                            <div>
-                                <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">{{ card.title }}</p>
-                                <p class="mt-2 text-2xl font-black tracking-tight text-slate-950">{{ moduleCardValue(card) }}</p>
-                                <p class="mt-1 text-sm text-slate-500">{{ card.meta }}</p>
-                            </div>
-                            <div :class="['h-12 w-1 rounded-full', toneClasses(card.accent)]"></div>
+                    <template v-if="metricsLoading">
+                        <div v-for="i in 5" :key="'module-sk-' + i" class="rounded-[26px] bg-[#f0f3f6] p-5 shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] animate-pulse h-[110px]">
+                            <div class="h-3 bg-slate-300 rounded w-1/2 mb-3"></div>
+                            <div class="h-6 bg-slate-300 rounded w-3/4 mb-2"></div>
+                            <div class="h-3 bg-slate-200 rounded w-1/3"></div>
                         </div>
-                    </article>
+                    </template>
+                    <template v-else>
+                        <article
+                            v-for="card in moduleCards"
+                            :key="card.key"
+                            class="rounded-[26px] bg-[#f0f3f6] p-5 shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#cbd5e1]"
+                        >
+                            <div class="flex items-center justify-between gap-4">
+                                <div>
+                                    <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">{{ card.title }}</p>
+                                    <p class="mt-2 text-2xl font-black tracking-tight text-slate-950">{{ moduleCardValue(card) }}</p>
+                                    <p class="mt-1 text-sm text-slate-500">{{ card.meta }}</p>
+                                </div>
+                                <div :class="['h-12 w-1 rounded-full', toneClasses(card.accent)]"></div>
+                            </div>
+                        </article>
+                    </template>
                 </section>
 
                 <section class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.9fr),minmax(360px,1fr)]">
@@ -548,7 +679,11 @@ function toneClasses(tone) {
                         </div>
 
                         <div class="mt-6">
+                            <div v-if="financeLoading" class="animate-pulse h-[360px] bg-slate-100 rounded-[20px] flex items-center justify-center text-slate-400 font-bold">
+                                Loading Chart...
+                            </div>
                             <VueApexCharts
+                                v-show="!financeLoading"
                                 type="area"
                                 height="360"
                                 :options="financeChartOptions"
@@ -568,7 +703,11 @@ function toneClasses(tone) {
                             </div>
 
                             <div class="mt-5">
+                                <div v-if="dispatchLoading" class="animate-pulse h-[300px] bg-slate-100 rounded-[20px] flex items-center justify-center text-slate-400 font-bold">
+                                    Loading distribution...
+                                </div>
                                 <VueApexCharts
+                                    v-show="!dispatchLoading"
                                     type="donut"
                                     height="300"
                                     :options="dispatchStatusOptions"
@@ -586,18 +725,23 @@ function toneClasses(tone) {
                                 <ReceiptPercentIcon class="size-5 text-slate-300" />
                             </div>
 
-                            <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                <div class="rounded-2xl bg-emerald-50 p-4">
-                                    <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-600">Collections</p>
-                                    <p class="mt-2 text-lg font-black text-emerald-900">{{ formatCurrency(metrics.collections) }}</p>
+                            <div class="mt-5">
+                                <div v-if="metricsLoading" class="animate-pulse grid grid-cols-1 gap-3 sm:grid-cols-3 h-[90px]">
+                                    <div v-for="i in 3" :key="i" class="bg-slate-100 rounded-2xl"></div>
                                 </div>
-                                <div class="rounded-2xl bg-rose-50 p-4">
-                                    <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-rose-600">Payables</p>
-                                    <p class="mt-2 text-lg font-black text-rose-900">{{ formatCurrency(metrics.payables) }}</p>
-                                </div>
-                                <div class="rounded-2xl bg-slate-950 p-4 text-white">
-                                    <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-300">Cash Delta</p>
-                                    <p class="mt-2 text-lg font-black">{{ formatCurrency(metrics.cash_delta) }}</p>
+                                <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                                    <div class="rounded-2xl bg-emerald-50 p-4">
+                                        <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-600">Collections</p>
+                                        <p class="mt-2 text-lg font-black text-emerald-900">{{ formatCurrency(metrics.collections) }}</p>
+                                    </div>
+                                    <div class="rounded-2xl bg-rose-50 p-4">
+                                        <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-rose-600">Payables</p>
+                                        <p class="mt-2 text-lg font-black text-rose-900">{{ formatCurrency(metrics.payables) }}</p>
+                                    </div>
+                                    <div class="rounded-2xl bg-slate-950 p-4 text-white">
+                                        <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-300">Cash Delta</p>
+                                        <p class="mt-2 text-lg font-black">{{ formatCurrency(metrics.cash_delta) }}</p>
+                                    </div>
                                 </div>
                             </div>
                         </article>
@@ -627,13 +771,21 @@ function toneClasses(tone) {
 
                         <div class="mt-6 overflow-hidden rounded-[24px] bg-[#f0f3f6] shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6]">
                             <div class="grid grid-cols-[1.2fr,1fr,0.8fr,0.8fr] bg-slate-50 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">
-                                <span>{{ activeFeed === 'dispatches' ? 'Ticket' : activeFeed === 'work_orders' ? 'Order' : 'PO' }}</span>
+                                <span>{{ activeFeed === 'dispatches' ? 'Ticket' : activeFeed === 'sales_orders' ? 'Order' : 'PO' }}</span>
                                 <span>{{ activeFeed === 'purchase_orders' ? 'Vendor' : 'Customer' }}</span>
                                 <span>{{ activeFeed === 'purchase_orders' ? 'Date' : 'Qty' }}</span>
                                 <span>Status</span>
                             </div>
 
-                            <div v-if="activeFeedRows.length" class="divide-y divide-slate-100">
+                            <div v-if="feedsLoading" class="animate-pulse p-4 space-y-4">
+                                <div v-for="i in 5" :key="i" class="grid grid-cols-[1.2fr,1fr,0.8fr,0.8fr] gap-3">
+                                    <div class="h-4 bg-slate-300 rounded w-3/4"></div>
+                                    <div class="h-4 bg-slate-300 rounded w-1/2"></div>
+                                    <div class="h-4 bg-slate-300 rounded w-1/3"></div>
+                                    <div class="h-4 bg-slate-300 rounded w-1/2"></div>
+                                </div>
+                            </div>
+                            <div v-else-if="activeFeedRows.length" class="divide-y divide-slate-100">
                                 <div
                                     v-for="row in activeFeedRows"
                                     :key="`${activeFeed}-${row.id}`"
@@ -641,10 +793,10 @@ function toneClasses(tone) {
                                 >
                                     <div class="min-w-0">
                                         <p class="truncate font-black text-slate-900">
-                                            {{ activeFeed === 'dispatches' ? row.ticket : activeFeed === 'work_orders' ? row.number : row.number }}
+                                            {{ activeFeed === 'dispatches' ? row.ticket : activeFeed === 'sales_orders' ? row.number : row.number }}
                                         </p>
                                         <p class="mt-1 truncate text-xs text-slate-500">
-                                            {{ activeFeed === 'dispatches' ? row.vehicle : activeFeed === 'work_orders' ? row.grade : `Amount ${formatCurrency(row.amount)}` }}
+                                            {{ activeFeed === 'dispatches' ? row.vehicle : activeFeed === 'sales_orders' ? row.grade : `Amount ${formatCurrency(row.amount)}` }}
                                         </p>
                                     </div>
                                     <p class="truncate font-medium text-slate-600">
@@ -678,7 +830,11 @@ function toneClasses(tone) {
                             </div>
 
                             <div class="mt-5">
+                                <div v-if="leaderboardLoading" class="animate-pulse h-[280px] bg-slate-100 rounded-[20px] flex items-center justify-center text-slate-400 font-bold">
+                                    Loading leaderboard...
+                                </div>
                                 <VueApexCharts
+                                    v-show="!leaderboardLoading"
                                     type="bar"
                                     height="280"
                                     :options="leaderboardOptions"
@@ -697,35 +853,43 @@ function toneClasses(tone) {
                             </div>
 
                             <div class="mt-5 space-y-4">
-                                <div
-                                    v-for="item in stockSnapshot"
-                                    :key="item.id"
-                                    class="rounded-2xl border border-slate-200 bg-white p-4"
-                                >
-                                    <div class="flex items-start justify-between gap-4">
-                                        <div class="min-w-0">
-                                            <p class="truncate font-black text-slate-900">{{ item.name }}</p>
-                                            <p class="mt-1 text-sm text-slate-500">
-                                                {{ formatNumber(item.quantity, 2) }} {{ item.unit }}
-                                                <span v-if="item.alert_level"> / alert {{ formatNumber(item.alert_level, 2) }}</span>
-                                            </p>
-                                        </div>
-                                        <span
-                                            class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold"
-                                            :class="item.is_critical ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'"
-                                        >
-                                            {{ item.is_critical ? 'Critical' : 'Healthy' }}
-                                        </span>
-                                    </div>
-
-                                    <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
-                                        <div
-                                            class="h-full rounded-full transition-all"
-                                            :class="item.is_critical ? 'bg-rose-500' : 'bg-emerald-500'"
-                                            :style="{ width: `${Math.max(8, item.coverage)}%` }"
-                                        ></div>
+                                <div v-if="stockLoading" class="animate-pulse space-y-4">
+                                    <div v-for="i in 3" :key="i" class="rounded-2xl border border-slate-200 bg-white p-4 h-[100px]">
+                                        <div class="h-4 bg-slate-300 rounded w-1/2 mb-2"></div>
+                                        <div class="h-3 bg-slate-200 rounded w-1/3"></div>
                                     </div>
                                 </div>
+                                <template v-else>
+                                    <div
+                                        v-for="item in stockSnapshot"
+                                        :key="item.id"
+                                        class="rounded-2xl border border-slate-200 bg-white p-4"
+                                    >
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div class="min-w-0">
+                                                <p class="truncate font-black text-slate-900">{{ item.name }}</p>
+                                                <p class="mt-1 text-sm text-slate-500">
+                                                    {{ formatNumber(item.quantity, 2) }} {{ item.unit }}
+                                                    <span v-if="item.alert_level"> / alert {{ formatNumber(item.alert_level, 2) }}</span>
+                                                </p>
+                                            </div>
+                                            <span
+                                                class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold"
+                                                :class="item.is_critical ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'"
+                                            >
+                                                {{ item.is_critical ? 'Critical' : 'Healthy' }}
+                                            </span>
+                                        </div>
+
+                                        <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                                            <div
+                                                class="h-full rounded-full transition-all"
+                                                :class="item.is_critical ? 'bg-rose-500' : 'bg-emerald-500'"
+                                                :style="{ width: `${Math.max(8, item.coverage)}%` }"
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                         </article>
                     </div>
@@ -742,30 +906,42 @@ function toneClasses(tone) {
                         </div>
 
                         <div class="mt-6 grid gap-3">
-                            <div
-                                v-for="(trx, index) in recentTransactions"
-                                :key="`${trx.voucher_no}-${index}`"
-                                class="flex items-center gap-4 rounded-[24px] border border-slate-200 bg-white px-4 py-4"
-                            >
+                            <div v-if="activityLoading" class="animate-pulse space-y-3">
+                                <div v-for="i in 4" :key="i" class="flex items-center gap-4 rounded-[24px] border border-slate-200 bg-white px-4 py-4 h-[75px]">
+                                    <div class="size-11 rounded-2xl bg-slate-200"></div>
+                                    <div class="flex-1 space-y-2">
+                                        <div class="h-4 bg-slate-300 rounded w-1/2"></div>
+                                        <div class="h-3 bg-slate-200 rounded w-1/3"></div>
+                                    </div>
+                                    <div class="w-16 h-6 bg-slate-300 rounded"></div>
+                                </div>
+                            </div>
+                            <template v-else>
                                 <div
-                                    class="flex size-11 shrink-0 items-center justify-center rounded-2xl font-black"
-                                    :class="trx.dr_cr === 'Dr' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'"
+                                    v-for="(trx, index) in recentTransactions"
+                                    :key="`${trx.voucher_no}-${index}`"
+                                    class="flex items-center gap-4 rounded-[24px] border border-slate-200 bg-white px-4 py-4"
                                 >
-                                    {{ trx.dr_cr }}
+                                    <div
+                                        class="flex size-11 shrink-0 items-center justify-center rounded-2xl font-black"
+                                        :class="trx.dr_cr === 'Dr' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'"
+                                    >
+                                        {{ trx.dr_cr }}
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="truncate font-black text-slate-900">{{ trx.ledger }}</p>
+                                        <p class="mt-1 truncate text-sm text-slate-500">{{ trx.partner }}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="font-black text-slate-950">{{ formatCurrency(trx.amount) }}</p>
+                                        <p class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">{{ trx.voucher_type }}</p>
+                                    </div>
                                 </div>
-                                <div class="min-w-0 flex-1">
-                                    <p class="truncate font-black text-slate-900">{{ trx.ledger }}</p>
-                                    <p class="mt-1 truncate text-sm text-slate-500">{{ trx.partner }}</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="font-black text-slate-950">{{ formatCurrency(trx.amount) }}</p>
-                                    <p class="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">{{ trx.voucher_type }}</p>
-                                </div>
-                            </div>
 
-                            <div v-if="!recentTransactions.length" class="rounded-[24px] border border-dashed border-slate-300 bg-white px-6 py-14 text-center text-sm text-slate-500">
-                                No recent accounting activity in this range.
-                            </div>
+                                <div v-if="!recentTransactions.length" class="rounded-[24px] border border-dashed border-slate-300 bg-white px-6 py-14 text-center text-sm text-slate-500">
+                                    No recent accounting activity in this range.
+                                </div>
+                            </template>
                         </div>
                     </article>
 
@@ -779,20 +955,25 @@ function toneClasses(tone) {
                         </div>
 
                         <div class="mt-5 space-y-3">
-                            <div
-                                v-for="item in stockAlerts"
-                                :key="`alert-${item.id}`"
-                                class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4"
-                            >
-                                <p class="font-black text-rose-900">{{ item.name }}</p>
-                                <p class="mt-1 text-sm text-rose-700">
-                                    {{ formatNumber(item.quantity, 2) }} {{ item.unit }} remaining
-                                </p>
+                            <div v-if="stockLoading" class="animate-pulse space-y-3">
+                                <div v-for="i in 2" :key="i" class="rounded-2xl border border-rose-100 bg-rose-50/50 px-4 py-4 h-[60px]"></div>
                             </div>
+                            <template v-else>
+                                <div
+                                    v-for="item in stockAlerts"
+                                    :key="`alert-${item.id}`"
+                                    class="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4"
+                                >
+                                    <p class="font-black text-rose-900">{{ item.name }}</p>
+                                    <p class="mt-1 text-sm text-rose-700">
+                                        {{ formatNumber(item.quantity, 2) }} {{ item.unit }} remaining
+                                    </p>
+                                </div>
 
-                            <div v-if="!stockAlerts.length" class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-8 text-center text-sm font-semibold text-emerald-700">
-                                No stock alerts right now.
-                            </div>
+                                <div v-if="!stockAlerts.length" class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-8 text-center text-sm font-semibold text-emerald-700">
+                                    No stock alerts right now.
+                                </div>
+                            </template>
                         </div>
                     </article>
                 </section>

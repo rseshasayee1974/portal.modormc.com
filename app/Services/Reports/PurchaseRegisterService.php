@@ -236,35 +236,23 @@ class PurchaseRegisterService
      */
     protected function handleExcelExport(array $filters): mixed
     {
-        $query    = $this->repository->getPurchaseRegisterQuery($filters);
-        $rowCount = $query->count();
-        $limit    = config('reports.export_queue_threshold', 10000);
+        $statusKey = 'report_export_' . Str::uuid();
+        Cache::put(
+            $statusKey,
+            ['status' => 'queued', 'progress' => 0],
+            now()->addHour()
+        );
 
-        if ($rowCount > $limit || !empty($filters['queue'])) {
-            $statusKey = 'report_export_' . Str::uuid();
-            Cache::put(
-                $statusKey,
-                ['status' => 'queued', 'progress' => 0],
-                now()->addHour()
-            );
+        $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-            QueueReportExportJob::dispatch('purchase', $filters, $statusKey);
+        QueueReportExportJob::dispatch('purchase', $filters, $statusKey, 'excel');
 
-            return [
-                'status'     => true,
-                'queued'     => true,
-                'status_key' => $statusKey,
-                'message'    => 'Report generation has been queued. You will be notified when the export completes.',
-            ];
-        }
-
-        // Direct stream generation
-        $tempPath = tempnam(sys_get_temp_dir(), 'purch_reg_');
-        $exporter = new PurchaseRegisterExport($query);
-        $exporter->export($tempPath);
-
-        $fileName = 'Purchase_Register_' . date('Ymd_His') . '.xlsx';
-        return response()->download($tempPath, $fileName)->deleteFileAfterSend(true);
+        return [
+            'status'     => true,
+            'queued'     => true,
+            'status_key' => $statusKey,
+            'message'    => 'Report generation has been queued. You will be notified when the export completes.',
+        ];
     }
 
     /**
@@ -272,40 +260,60 @@ class PurchaseRegisterService
      */
     protected function handlePdfExport(array $filters): mixed
     {
-        $query    = $this->repository->getPurchaseRegisterQuery($filters);
-        $rowCount = $query->count();
-        $pdfLimit = config('reports.pdf_max_limit', 1000);
+        $statusKey = 'report_export_' . Str::uuid();
+        Cache::put(
+            $statusKey,
+            ['status' => 'queued', 'progress' => 0],
+            now()->addHour()
+        );
 
-        if ($rowCount > $pdfLimit) {
-            return response()->json([
-                'status'  => false,
-                'message' => "The report contains {$rowCount} records, which exceeds the PDF limit of {$pdfLimit}. Please export as Excel instead.",
-            ], 422);
-        }
+        $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        $rows = $query->get()->map(fn ($item) => $this->mapPurchaseRow($item))->values()->all();
-        $taxColumns = $this->collectTaxColumns($rows);
+        QueueReportExportJob::dispatch('purchase', $filters, $statusKey, 'pdf');
 
-        // Fetch totals
-        $raw = $this->repository->getPurchaseTotals($filters);
-        $totals = [
-            'qty'         => round((float) ($raw['total_qty'] ?? 0), 2),
-            'taxable'     => round((float) ($raw['total_taxable'] ?? 0), 2),
-            'gst'         => round((float) ($raw['total_gst'] ?? 0), 2),
-            'grand_total' => round((float) ($raw['grand_total'] ?? 0), 2),
-            'cgst'        => round((float) ($raw['total_cgst'] ?? 0), 2),
-            'sgst'        => round((float) ($raw['total_sgst'] ?? 0), 2),
-            'igst'        => round((float) ($raw['total_igst'] ?? 0), 2),
+        return [
+            'status'     => true,
+            'queued'     => true,
+            'status_key' => $statusKey,
+            'message'    => 'Report generation has been queued. You will be notified when the export completes.',
         ];
+    }
 
-        $pdf = Pdf::loadView('reports.purchase_register_pdf', [
-            'items'        => $rows,
-            'tax_columns'  => $taxColumns,
-            'totals'       => $totals,
-            'filters'      => $filters,
-            'generated_at' => now()->format('d-m-Y H:i:s'),
-        ])->setPaper('a4', 'landscape');
+    /**
+     * Generate report and save to physical file path (for queued job).
+     */
+    public function generateAndSaveReport(string $format, array $filters, string $filePath): void
+    {
+        $query = $this->repository->getPurchaseRegisterQuery($filters);
+        
+        if ($format === 'excel') {
+            $exporter = new PurchaseRegisterExport($query);
+            $exporter->export($filePath);
+        } elseif ($format === 'pdf') {
+            $rows = $query->get()->map(fn ($item) => $this->mapPurchaseRow($item))->values()->all();
+            $taxColumns = $this->collectTaxColumns($rows);
 
-        return $pdf->download('Purchase_Register_' . date('Ymd_His') . '.pdf');
+            // Fetch totals
+            $raw = $this->repository->getPurchaseTotals($filters);
+            $totals = [
+                'qty'         => round((float) ($raw['total_qty'] ?? 0), 2),
+                'taxable'     => round((float) ($raw['total_taxable'] ?? 0), 2),
+                'gst'         => round((float) ($raw['total_gst'] ?? 0), 2),
+                'grand_total' => round((float) ($raw['grand_total'] ?? 0), 2),
+                'cgst'        => round((float) ($raw['total_cgst'] ?? 0), 2),
+                'sgst'        => round((float) ($raw['total_sgst'] ?? 0), 2),
+                'igst'        => round((float) ($raw['total_igst'] ?? 0), 2),
+            ];
+
+            $pdf = Pdf::loadView('reports.purchase_register_pdf', [
+                'items'        => $rows,
+                'tax_columns'  => $taxColumns,
+                'totals'       => $totals,
+                'filters'      => $filters,
+                'generated_at' => now()->format('d-m-Y H:i:s'),
+            ])->setPaper('a4', 'landscape');
+
+            $pdf->save($filePath);
+        }
     }
 }

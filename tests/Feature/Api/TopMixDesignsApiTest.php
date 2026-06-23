@@ -16,7 +16,7 @@ class TopMixDesignsApiTest extends TestCase
         $this->withoutMiddleware();
 
         Schema::dropIfExists('mm_batches');
-        Schema::dropIfExists('mm_work_orders');
+        Schema::dropIfExists('mm_sales_orders');
         Schema::dropIfExists('mm_concrete_grades');
         Schema::dropIfExists('mm_mix_designs');
 
@@ -36,7 +36,7 @@ class TopMixDesignsApiTest extends TestCase
             $table->timestamp('deleted_at')->nullable();
         });
 
-        Schema::create('mm_work_orders', function (Blueprint $table) {
+        Schema::create('mm_sales_orders', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('mix_design_id')->nullable();
             $table->timestamp('deleted_at')->nullable();
@@ -45,7 +45,7 @@ class TopMixDesignsApiTest extends TestCase
         Schema::create('mm_batches', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('plant_id')->nullable();
-            $table->unsignedBigInteger('work_order_id')->nullable();
+            $table->unsignedBigInteger('sales_order_id')->nullable();
             $table->decimal('batch_size', 10, 3)->default(0);
             $table->timestamp('start_time')->nullable();
             $table->timestamp('deleted_at')->nullable();
@@ -72,7 +72,7 @@ class TopMixDesignsApiTest extends TestCase
             ['id' => 6, 'plant_id' => 2, 'design_name' => 'M10 Base', 'design_code' => 'M10B', 'design_type' => 'M10', 'deleted_at' => null],
         ]);
 
-        DB::table('mm_work_orders')->insert([
+        DB::table('mm_sales_orders')->insert([
             ['id' => 11, 'mix_design_id' => 1, 'deleted_at' => null],
             ['id' => 12, 'mix_design_id' => 2, 'deleted_at' => null],
             ['id' => 13, 'mix_design_id' => 3, 'deleted_at' => null],
@@ -82,14 +82,14 @@ class TopMixDesignsApiTest extends TestCase
         ]);
 
         DB::table('mm_batches')->insert([
-            ['plant_id' => 2, 'work_order_id' => 11, 'batch_size' => 5.000, 'start_time' => '2026-05-10 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
-            ['plant_id' => 2, 'work_order_id' => 11, 'batch_size' => 2.500, 'start_time' => '2026-05-11 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
-            ['plant_id' => 2, 'work_order_id' => 12, 'batch_size' => 6.000, 'start_time' => '2026-05-12 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
-            ['plant_id' => 2, 'work_order_id' => 13, 'batch_size' => 4.500, 'start_time' => '2026-05-13 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
-            ['plant_id' => 2, 'work_order_id' => 14, 'batch_size' => 3.000, 'start_time' => '2026-05-14 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
-            ['plant_id' => 2, 'work_order_id' => 15, 'batch_size' => 2.000, 'start_time' => '2026-05-15 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
-            ['plant_id' => 2, 'work_order_id' => 16, 'batch_size' => 1.000, 'start_time' => '2026-05-16 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
-            ['plant_id' => 3, 'work_order_id' => 16, 'batch_size' => 99.000, 'start_time' => '2026-05-16 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
+            ['plant_id' => 2, 'sales_order_id' => 11, 'batch_size' => 5.000, 'start_time' => '2026-05-10 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
+            ['plant_id' => 2, 'sales_order_id' => 11, 'batch_size' => 2.500, 'start_time' => '2026-05-11 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
+            ['plant_id' => 2, 'sales_order_id' => 12, 'batch_size' => 6.000, 'start_time' => '2026-05-12 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
+            ['plant_id' => 2, 'sales_order_id' => 13, 'batch_size' => 4.500, 'start_time' => '2026-05-13 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
+            ['plant_id' => 2, 'sales_order_id' => 14, 'batch_size' => 3.000, 'start_time' => '2026-05-14 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
+            ['plant_id' => 2, 'sales_order_id' => 15, 'batch_size' => 2.000, 'start_time' => '2026-05-15 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
+            ['plant_id' => 2, 'sales_order_id' => 16, 'batch_size' => 1.000, 'start_time' => '2026-05-16 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
+            ['plant_id' => 3, 'sales_order_id' => 16, 'batch_size' => 99.000, 'start_time' => '2026-05-16 10:00:00', 'deleted_at' => null, 'created_at' => now(), 'updated_at' => now()],
         ]);
 
         $response = $this->getJson('/api/dashboard/top-mix-designs?from_date=2026-05-01&to_date=2026-05-18&plant_id=2&type=daily');
