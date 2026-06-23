@@ -150,7 +150,7 @@ class SalesOrder extends Model
         $fyString = substr($startYear, -2) . substr($endYear, -2);
         
         $customPrefix = $prefix;
-        if ($prefix === 'WO' || $prefix === 'SO') {
+        if ($prefix === 'SO') {
             $settings = CustomSetting::getForModule($plantId, 'batching');
             if (!empty($settings['so_prefix'])) {
                 $customPrefix = $settings['so_prefix'];

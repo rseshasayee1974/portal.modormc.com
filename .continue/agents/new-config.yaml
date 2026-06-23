@@ -1,0 +1,38 @@
+name: OneModo AI
+version: 1.0.0
+schema: v1
+
+models:
+  # Main Chat / Edit model
+  - name: Qwen 2.5 Coder Chat
+    provider: openai
+    model: qwen2.5-coder-7b-instruct
+    apiBase: http://192.168.1.166:1234/v1
+    apiKey: lmstudio
+
+    roles:
+      - chat
+      - edit
+      - apply
+
+    capabilities:
+      - tool_use
+
+    defaultCompletionOptions:
+      temperature: 0.2
+      maxTokens: 4096
+
+  # Autocomplete model
+  - name: Qwen 2.5 Coder Autocomplete
+    provider: openai
+    model: qwen2.5-coder-7b-instruct
+    apiBase: http://192.168.1.166:1234/v1
+    apiKey: lmstudio
+
+    roles:
+      - autocomplete
+
+    autocompleteOptions:
+      debounceDelay: 200
+      maxPromptTokens: 2048
+      onlyMyCode: true

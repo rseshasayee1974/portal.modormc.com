@@ -46,8 +46,8 @@ const form = useForm({
         sheet_upload:      props.batchingSettings?.sheet_upload == 1,
         hide_batch_form:   props.batchingSettings?.hide_batch_form == 1,
         po_prefix:         props.batchingSettings?.po_prefix    || 'PO',
+        cpo_prefix:        props.batchingSettings?.cpo_prefix    || 'CPO',
         so_prefix:         props.batchingSettings?.so_prefix    || 'SO',
-        wo_prefix:         props.batchingSettings?.wo_prefix    || 'WO',
         quote_prefix:      props.batchingSettings?.quote_prefix || 'QT',
         target_to_actual:  props.batchingSettings?.target_to_actual == 1,
         custom_params:     props.batchingSettings?.custom_params || [],
@@ -86,7 +86,7 @@ const settingRows = computed(() => [
     // Document Prefixes
     { section: 'Document Prefixes', key: 'po_prefix',         label: 'Purchase Order Prefix',           value: form.settings.po_prefix,          type: 'text' },
     { section: 'Document Prefixes', key: 'so_prefix',         label: 'Sales Order Prefix',              value: form.settings.so_prefix,          type: 'text' },
-    { section: 'Document Prefixes', key: 'wo_prefix',         label: 'Customer PO Prefix (Not Used)',    value: form.settings.wo_prefix,          type: 'text' },
+    { section: 'Document Prefixes', key: 'cpo_prefix',         label: 'Customer Order Prefix',           value: form.settings.cpo_prefix,          type: 'text' },
     { section: 'Document Prefixes', key: 'quote_prefix',      label: 'Quotation Prefix',                value: form.settings.quote_prefix,       type: 'text' },
     // Custom / Module-specific dynamic parameters
     ...form.settings.custom_params.map((p: any) => ({
@@ -504,9 +504,9 @@ const deleteModule = (id: number) => {
                                     <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Sales Orders.</p>
                                 </div>
                                 <div class="flex flex-col gap-1.5">
-                                    <label class="text-xs font-bold text-slate-500 uppercase">Work Order Prefix</label>
-                                    <InputText v-model="form.settings.wo_prefix" placeholder="WO" class="w-full text-sm" />
-                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Work Orders.</p>
+                                    <label class="text-xs font-bold text-slate-500 uppercase">Customer Purchase Order Prefix</label>
+                                    <InputText v-model="form.settings.cpo_prefix" placeholder="CPO" class="w-full text-sm" />
+                                    <p class="text-[10px] text-slate-400 italic mt-0.5">Used for generated Customer Purchase Orders.</p>
                                 </div>
                                 <div class="flex flex-col gap-1.5">
                                     <label class="text-xs font-bold text-slate-500 uppercase">Quotation Prefix</label>

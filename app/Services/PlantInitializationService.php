@@ -690,6 +690,7 @@ class PlantInitializationService
             ['name' => 'Quality Engineer',    'code' => 'QE'],
             ['name' => 'Accountant',          'code' => 'ACCT'],
             ['name' => 'Operator',            'code' => 'OPR'],
+            ['name' => 'Sales Executive',            'code' => 'SE'],
         ];
 
         foreach ($designations as $desig) {

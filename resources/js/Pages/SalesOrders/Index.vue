@@ -16,6 +16,9 @@ defineProps<{
     activePlantId: number;
     nextReference: string;
     concretePumpOptions?: any[];
+    products?: any[];
+    units?: any[];
+    designTypes?: any[];
 }>();
 </script>
 
@@ -47,6 +50,9 @@ defineProps<{
                 :activePlantId="activePlantId"
                 :nextReference="nextReference"
                 :concretePumpOptions="concretePumpOptions"
+                :products="products"
+                :units="units"
+                :designTypes="designTypes"
             />
 
             <SalesOrderDataTable

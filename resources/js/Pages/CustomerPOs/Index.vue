@@ -24,7 +24,7 @@ const props = defineProps<{
     salesExecutives?: any[];
     concretePumpOptions?: any[];
 }>();
-console.log('sdfsdfdsf',props.customerPOs);
+// console.log('sdfsdfdsf',props.customerPOs);
 
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
@@ -111,32 +111,32 @@ const deleteCustomerPO = (salesOrder: any) => {
     });
 };
 
-const getCustomerPOTotalQty = (salesOrder: any) => {
-    return salesOrder.items?.reduce((sum: number, item: any) => sum + Number(item.quantity || 0), 0) || 0;
+const getCustomerPOTotalQty = (customerPO: any) => {
+    return customerPO.items?.reduce((sum: number, item: any) => sum + Number(item.quantity || 0), 0) || 0;
 };
 
-const getCustomerPOCompletedQty = (salesOrder: any) => {
-    return customerPO.sales_orders?.reduce((sum: number, wo: any) => sum + Number(wo.total_qty || 0), 0) || 0;
+const getCustomerPOCompletedQty = (customerPO: any) => {
+    return customerPO?.sales_orders?.reduce((sum: number, wo: any) => sum + Number(wo.total_qty || 0), 0) || 0;
 };
 
-const isCustomerPOCompleted = (salesOrder: any) => {
-    const total = getCustomerPOTotalQty(salesOrder);
+const isCustomerPOCompleted = (customerPO: any) => {
+    const total = getCustomerPOTotalQty(customerPO);
     if (total === 0) return true;
-    const completed = getCustomerPOCompletedQty(salesOrder);
+    const completed = getCustomerPOCompletedQty(customerPO);
     return completed >= total;
 };
 
-const getCustomerPOProgressPercent = (salesOrder: any) => {
-    const total = getCustomerPOTotalQty(salesOrder);
+const getCustomerPOProgressPercent = (customerPO: any) => {
+    const total = getCustomerPOTotalQty(customerPO);
     if (total === 0) return 0;
-    const completed = getCustomerPOCompletedQty(salesOrder);
+    const completed = getCustomerPOCompletedQty(customerPO);
     return Math.min(100, Math.round((completed / total) * 100));
 };
 
 
-const convertToSalesOrder = (salesOrder: any) => {
-    const total = getCustomerPOTotalQty(salesOrder);
-    const completed = getCustomerPOCompletedQty(salesOrder);
+const convertToSalesOrder = (customerPO: any) => {
+    const total = getCustomerPOTotalQty(customerPO);
+    const completed = getCustomerPOCompletedQty(customerPO);
     const remainingQty = Math.max(0, total - completed);
     const defaultQty = remainingQty > 0 ? remainingQty : 1;
 
@@ -170,7 +170,7 @@ const convertToSalesOrder = (salesOrder: any) => {
     }).then((result) => {
         if (!result.isConfirmed || !result.value) return;
 
-        router.post(route('customer-po.convert-salesorder', salesOrder.id), {
+        router.post(route('customer-po.convert-salesorder', customerPO.id), {
             quantity: result.value
         }, {
             preserveScroll: true,
@@ -439,7 +439,7 @@ watch(() => props.customerPOs, () => {
                 </div>
 
                 <!-- Group 2: Edit Customer PO -->
-                <div class="py-1">
+                <!-- <div class="py-1">
                     <button
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                         @click="toggleEditRow(activeCustomerPO); closeAllMenus();"
@@ -447,7 +447,7 @@ watch(() => props.customerPOs, () => {
                         <i class="pi pi-pencil mr-2 text-amber-500 font-bold"></i>
                         Edit Customer PO
                     </button>
-                </div>
+                </div> -->
 
                 <!-- Group 3: Delete Customer PO -->
                 <div class="py-1">

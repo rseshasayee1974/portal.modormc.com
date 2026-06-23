@@ -68,7 +68,7 @@ class CustomerPOTest extends TestCase
             'plant_id' => $this->plant->id,
             'patron_id' => $this->patron->id,
             'site_id' => $this->site->id,
-            'is_salesorder' => 0,
+            'is_customer_po' => 0,
         ]);
 
         $mixDesign = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id]);
@@ -83,14 +83,14 @@ class CustomerPOTest extends TestCase
         ]);
 
         $response = $this->patch(route('quotations.convert', $quotation->id), [
-            'is_salesorder' => 1,
+            'is_customer_po' => 1,
         ]);
 
         $response->assertSessionHasNoErrors();
         $response->assertStatus(302);
         
         $quotation->refresh();
-        $this->assertEquals(1, $quotation->is_salesorder);
+        $this->assertEquals(1, $quotation->is_customer_po);
 
         $customerPO = CustomerPO::where('quotation_id', $quotation->id)->first();
         $this->assertNotNull($customerPO);

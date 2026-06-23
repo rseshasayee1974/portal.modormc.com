@@ -49,14 +49,14 @@ class PurchaseOrderControllerTest extends TestCase
         $entityId = $this->plant->entity_id;
 
         // Correctly initialize account and account type with entity_id to prevent constraint errors
-        $account = \App\Models\Accounts::factory()->create([
+        $this->account = \App\Models\Accounts::factory()->create([
             'plant_id' => $this->plant->id,
         ]);
 
         $accountsType = \App\Models\AccountsType::factory()->create([
             'plant_id' => $this->plant->id,
             'entity_id' => $entityId,
-            'account_id' => $account->id,
+            'account_id' => $this->account->id,
         ]);
 
         // Seed default accounting ledgers for the plant context using the valid accountsType
@@ -285,6 +285,9 @@ class PurchaseOrderControllerTest extends TestCase
             'account_id' => $this->purchaseLedger->id,
             'invoice_date' => '2026-06-05',
         ]);
+        // if (!session()->has('success')) {
+        //     dd(session()->all());
+        // }
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
@@ -323,16 +326,20 @@ class PurchaseOrderControllerTest extends TestCase
             'product_id' => $this->product->id,
             'product_uom' => $this->unit->id,
             'product_quantity' => 10,
+            'received_quantity' => 10,
             'unit_price' => 100,
             'discount_type' => 'percentage',
             'discount_amount' => 0,
         ]);
 
-        // First generation request
+        $this->withoutExceptionHandling();
         $response1 = $this->post(route('purchaseorder.generate-bill', $po->id), [
             'account_id' => $this->purchaseLedger->id,
             'invoice_date' => '2026-06-05',
         ]);
+        if (!session()->has('success')) {
+            dd(session()->all());
+        }
         $response1->assertSessionHas('success');
 
         // Second duplicate request (e.g. double click or concurrent request)

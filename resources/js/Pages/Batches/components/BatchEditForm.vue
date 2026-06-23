@@ -11,6 +11,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { CubeIcon, InformationCircleIcon, BeakerIcon, ListBulletIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline';
 import { useWeighbridge } from '@/Composables/useWeighbridge';
+import BatchSheetUploader from './BatchSheetUploader.vue';
 
 interface BatchMaterial {
     id?: number;
@@ -290,72 +291,20 @@ const handleWeightCapture = (type: 'empty' | 'loaded') => {
 const isFetchingConsumption = ref(false);
 const isConsumptionSynced = ref(false);
 const isSaved = ref(false);
-const isScanning = ref(false);
-const uploadProgress = ref(0); // 0-100
+const isScanning = ref(false); // Kept for button loading compat
 const sheetUrl = ref<string | null>(props.batch?.sheet_url ?? null);
-const ocrFileInput = ref<HTMLInputElement | null>(null);
-const isDragOver = ref(false);
 const showUploadZone = ref(false);
-const selectedFileName = ref<string | null>(null);
 
 const openUploadZone = () => { showUploadZone.value = true; };
-const closeUploadZone = () => { showUploadZone.value = false; isDragOver.value = false; selectedFileName.value = null; };
+const closeUploadZone = () => { showUploadZone.value = false; };
 
-const onDragOver = (e: DragEvent) => { e.preventDefault(); isDragOver.value = true; };
-const onDragLeave = () => { isDragOver.value = false; };
-const onDrop = (e: DragEvent) => {
-    e.preventDefault();
-    isDragOver.value = false;
-    const file = e.dataTransfer?.files?.[0];
-    if (file) processUploadFile(file);
-};
-const onFileSelected = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
-    if (file) processUploadFile(file);
-    if (target) target.value = '';
+const handleUploaderCompleted = (data: any) => {
+    if (data?.materials?.length) applyMaterialData(data.materials);
+    if (data?.url) sheetUrl.value = data.url;
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Sheet uploaded & analysed successfully', showConfirmButton: false, timer: 1800 });
+    setTimeout(() => closeUploadZone(), 1200);
 };
 
-const processUploadFile = async (file: File) => {
-    selectedFileName.value = file.name;
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('batch_id', String(props.batch?.id ?? ''));
-
-    isScanning.value = true;
-    uploadProgress.value = 0;
-    try {
-        const response = await axios.post(route('batches.ocr'), formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-            onUploadProgress: (progressEvent) => {
-                const pct = progressEvent.total
-                    ? Math.round((progressEvent.loaded / progressEvent.total) * 80)
-                    : 40;
-                uploadProgress.value = pct;
-            },
-        });
-        uploadProgress.value = 85;
-        await new Promise(r => setTimeout(r, 300));
-        uploadProgress.value = 100;
-
-        const data = response.data;
-        if (data?.status) {
-            if (data.data.materials?.length) applyMaterialData(data.data.materials);
-            if (data.data?.url) sheetUrl.value = data.data.url;
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: data.message || 'Sheet uploaded & analysed successfully', showConfirmButton: false, timer: 1800 });
-            setTimeout(() => closeUploadZone(), 1200);
-        } else {
-            Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: data?.message || 'No material data found in file', showConfirmButton: false, timer: 2000 });
-        }
-    } catch (error: any) {
-        const msg = error?.response?.data?.message || 'Failed to parse uploaded file';
-        Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: msg, showConfirmButton: false, timer: 2000 });
-        console.error('OCR error:', error);
-    } finally {
-        isScanning.value = false;
-        setTimeout(() => { uploadProgress.value = 0; }, 1500);
-    }
-};
 onUnmounted(() => {
     showUploadZone.value = false;
 });
@@ -421,13 +370,7 @@ const fetchConsumption = async () => {
     }
 };
 
-// Option 2: Upload PDF/image → now handled by the drag-drop zone
-const triggerOcrScan = () => openUploadZone();
 
-// Legacy handleOcrUpload kept for compat (now unused directly)
-const handleOcrUpload = async (event: Event) => {
-    onFileSelected(event);
-};
 
 const copyTargetsToActuals = () => {
     form.materials.forEach((mat) => {
@@ -728,15 +671,6 @@ const submit = () => {
                                 <h3 class="text-xs font-bold uppercase tracking-wide text-slate-600">Input Reconciliation</h3>
                             </div>
                              <div class="flex items-center gap-2">
-                                <!-- Hidden file input -->
-                                <input
-                                    type="file"
-                                    ref="ocrFileInput"
-                                    class="hidden"
-                                    :accept="isUploadFetchEnabled ? 'image/*,application/pdf' : 'image/*'"
-                                    @change="handleOcrUpload"
-                                />
-
                                 <!-- Upload Batch Sheet button - always visible when batch is active -->
                                 <Button
                                     v-if="form.status !== 3 && isUploadFetchEnabled"
@@ -757,7 +691,7 @@ const submit = () => {
                                         style="background:rgba(15,23,42,0.55);backdrop-filter:blur(4px)"
                                         @click.self="closeUploadZone"
                                     >
-                                        <div class="relative w-full max-w-md mx-4 rounded-2xl bg-white shadow-2xl overflow-hidden">
+                                        <div class="relative w-full max-w-2xl mx-4 rounded-2xl bg-white shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
                                             <!-- Header -->
                                             <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-cyan-50 to-blue-50">
                                                 <div class="flex items-center gap-3">
@@ -769,77 +703,18 @@ const submit = () => {
                                                         <p class="text-[10px] text-slate-400">AI will extract material weights automatically</p>
                                                     </div>
                                                 </div>
-                                                <button @click="closeUploadZone" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors" :disabled="isScanning">
+                                                <button @click="closeUploadZone" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
                                                     <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
                                                 </button>
                                             </div>
 
                                             <!-- Drop Zone -->
                                             <div class="p-5">
-                                                <div
-                                                    @dragover="onDragOver"
-                                                    @dragleave="onDragLeave"
-                                                    @drop="onDrop"
-                                                    :class="[
-                                                        'relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed transition-all duration-200 cursor-pointer p-8',
-                                                        isDragOver ? 'border-cyan-400 bg-cyan-50 scale-[1.01]' : 'border-slate-200 bg-slate-50 hover:border-cyan-300 hover:bg-cyan-50/40',
-                                                        isScanning ? 'pointer-events-none opacity-60' : ''
-                                                    ]"
-                                                    @click="ocrFileInput?.click()"
-                                                >
-                                                    <!-- Idle / Drag state -->
-                                                    <template v-if="!isScanning">
-                                                        <div :class="['w-14 h-14 rounded-2xl flex items-center justify-center transition-colors', isDragOver ? 'bg-cyan-100' : 'bg-white border border-slate-200 shadow-sm']">
-                                                            <svg :class="['w-7 h-7 transition-colors', isDragOver ? 'text-cyan-500' : 'text-slate-400']" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
-                                                        </div>
-                                                        <div class="text-center">
-                                                            <p class="text-sm font-semibold text-slate-700">{{ isDragOver ? 'Drop it here!' : 'Drag & drop or click to browse' }}</p>
-                                                            <p class="text-[11px] text-slate-400 mt-0.5">Supports JPG, PNG, PDF · Max 20 MB</p>
-                                                        </div>
-                                                        <div v-if="selectedFileName" class="flex items-center gap-2 rounded-lg bg-white border border-cyan-200 px-3 py-1.5 shadow-sm">
-                                                            <svg class="w-3.5 h-3.5 text-cyan-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                                            <span class="text-[11px] font-medium text-cyan-700 truncate max-w-[220px]">{{ selectedFileName }}</span>
-                                                        </div>
-                                                    </template>
-
-                                                    <!-- Scanning / Progress state -->
-                                                    <template v-else>
-                                                        <div class="w-14 h-14 rounded-2xl bg-cyan-50 flex items-center justify-center">
-                                                            <svg class="w-7 h-7 text-cyan-500 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                                        </div>
-                                                        <div class="text-center">
-                                                            <p class="text-sm font-bold text-cyan-700">
-                                                                {{ uploadProgress < 80 ? 'Uploading file…' : uploadProgress < 100 ? 'AI analysing sheet…' : '✓ Complete!' }}
-                                                            </p>
-                                                            <p class="text-[11px] text-slate-400 mt-0.5">{{ selectedFileName }}</p>
-                                                        </div>
-                                                        <div class="w-full">
-                                                            <div class="flex justify-between mb-1">
-                                                                <span class="text-[10px] text-slate-400">
-                                                                    {{ uploadProgress < 80 ? 'Uploading…' : uploadProgress < 100 ? 'AI Analysing…' : 'Done!' }}
-                                                                </span>
-                                                                <span class="text-[10px] font-bold text-cyan-600">{{ uploadProgress }}%</span>
-                                                            </div>
-                                                            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                                                                <div
-                                                                    class="h-2 rounded-full transition-all duration-300 ease-out"
-                                                                    :class="uploadProgress === 100 ? 'bg-emerald-500' : 'bg-gradient-to-r from-cyan-400 to-blue-500'"
-                                                                    :style="{ width: uploadProgress + '%' }"
-                                                                ></div>
-                                                            </div>
-                                                        </div>
-                                                    </template>
-                                                </div>
-
-                                                <!-- Supported formats tags -->
-                                                <div class="flex items-center gap-2 mt-3 flex-wrap">
-                                                    <span class="text-[10px] text-slate-400 font-medium">Supported:</span>
-                                                    <span v-for="fmt in ['JPG','PNG','WEBP','PDF']" :key="fmt" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">{{ fmt }}</span>
-                                                    <span class="ml-auto text-[10px] text-amber-500 font-semibold flex items-center gap-1">
-                                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
-                                                        AI Powered
-                                                    </span>
-                                                </div>
+                                                <BatchSheetUploader
+                                                    :batchId="props.batch?.id"
+                                                    @completed="handleUploaderCompleted"
+                                                    @close="closeUploadZone"
+                                                />
                                             </div>
                                         </div>
                                 </div>

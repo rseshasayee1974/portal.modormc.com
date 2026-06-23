@@ -62,7 +62,7 @@ class SalesOrderSeeder extends Seeder
                 'quote_date' => now()->subDays(rand(1, 10))->toDateString(),
                 'validity_date' => now()->addDays(rand(10, 20)),
                 'status' => 2, // Approved
-                'is_salesorder' => 0,
+                'is_customer_po' => 0,
                 'amount_untaxed' => 5000 * $i,
                 'amount_tax' => 900 * $i,
                 'amount_total' => 5900 * $i,
@@ -90,7 +90,7 @@ class SalesOrderSeeder extends Seeder
                 'quote_date' => now()->subDays(rand(1, 10))->toDateString(),
                 'validity_date' => now()->addDays(rand(10, 20)),
                 'status' => 2, // Approved
-                'is_salesorder' => 1,
+                'is_customer_po' => 1,
                 'amount_untaxed' => 5000 * $i,
                 'amount_tax' => 900 * $i,
                 'amount_total' => 5900 * $i,

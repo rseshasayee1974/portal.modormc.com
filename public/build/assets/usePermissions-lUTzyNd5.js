@@ -1,1 +1,0 @@
-import{g as e,v as t}from"./app-D5B-nIjt.js";function p(){const r=t(),n=e(()=>r.props.user_permissions??[]),s=e(()=>r.props.user_role??""),u=e(()=>s.value==="Super Administrator"||s.value==="Saas Owner");return{can:o=>u.value?!0:n.value.includes(o),isSuperAdmin:u,permissions:n,userRole:s}}export{p as u};

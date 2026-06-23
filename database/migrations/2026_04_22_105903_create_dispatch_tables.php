@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         if (!Schema::hasTable('mm_dispatches')) {
@@ -60,7 +57,6 @@ return new class extends Migration
                 $table->unsignedBigInteger('deleted_by')->nullable();
 
                 $table->timestamps();
-                $table->softDeletes();
             });
         }
 

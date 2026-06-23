@@ -110,6 +110,57 @@ CREATE TABLE `agent_conversations` (
   KEY `agent_conversations_user_id_updated_at_index` (`user_id`,`updated_at`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `ai_conversations`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ai_conversations` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned DEFAULT NULL,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `session_token` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `channel` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'chatbot',
+  `language` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'en',
+  `customer_name` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_email` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_phone` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_escalated` tinyint(1) NOT NULL DEFAULT '0',
+  `escalated_at` timestamp NULL DEFAULT NULL,
+  `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
+  `message_count` int unsigned NOT NULL DEFAULT '0',
+  `summary` text COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `ai_conversations_session_token_unique` (`session_token`),
+  KEY `ai_conversations_entity_id_index` (`entity_id`),
+  KEY `ai_conversations_plant_id_index` (`plant_id`),
+  KEY `ai_conversations_user_id_index` (`user_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `ai_messages`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `ai_messages` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `conversation_id` bigint unsigned NOT NULL,
+  `role` enum('user','assistant','system') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `content` longtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `language` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `provider` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `model` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `input_tokens` int unsigned DEFAULT NULL,
+  `output_tokens` int unsigned DEFAULT NULL,
+  `has_audio` tinyint(1) NOT NULL DEFAULT '0',
+  `audio_path` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rag_sources` json DEFAULT NULL,
+  `metadata` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `ai_messages_conversation_id_foreign` (`conversation_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `batch_deposits_tables`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -118,6 +169,27 @@ CREATE TABLE `batch_deposits_tables` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `document_chunks`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `document_chunks` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `rag_document_id` bigint unsigned NOT NULL,
+  `entity_id` bigint unsigned DEFAULT NULL,
+  `chunk_index` smallint unsigned NOT NULL,
+  `content` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `embedding` longtext COLLATE utf8mb4_unicode_ci,
+  `content_hash` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `token_count` int unsigned DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `document_chunks_rag_document_id_chunk_index_index` (`rag_document_id`,`chunk_index`),
+  KEY `document_chunks_entity_id_index` (`entity_id`),
+  KEY `document_chunks_content_hash_index` (`content_hash`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `migrations`;
@@ -369,6 +441,97 @@ CREATE TABLE `mm_batch_materials` (
   `updated_at` timestamp NULL DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_batch_sheet_field_dictionary`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_batch_sheet_field_dictionary` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `canonical_name` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Internal field name, e.g. batch_number',
+  `aliases` json NOT NULL COMMENT 'Array of known label variations',
+  `category` varchar(30) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'header, material, metadata, aggregate',
+  `data_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'string' COMMENT 'string, number, date, time',
+  `db_column` varchar(80) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Target column in batch/dispatch tables',
+  `db_table` varchar(80) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Target table, e.g. mm_batches, mm_dispatches',
+  `is_system` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_batch_sheet_field_dictionary_canonical_name_unique` (`canonical_name`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_batch_sheet_templates`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_batch_sheet_templates` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `customer_id` bigint unsigned DEFAULT NULL,
+  `name` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `source_type` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'pdf, image, excel, csv',
+  `field_mapping` json NOT NULL COMMENT 'Canonical field → uploaded field label mapping',
+  `layout_fingerprint` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Hash of header structure for auto-detection',
+  `keywords` json DEFAULT NULL COMMENT 'Keywords for template matching, e.g. ["schwing", "stetter"]',
+  `usage_count` int unsigned NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `mm_batch_sheet_templates_customer_id_foreign` (`customer_id`),
+  KEY `mm_batch_sheet_templates_plant_id_customer_id_is_active_index` (`plant_id`,`customer_id`,`is_active`),
+  KEY `mm_batch_sheet_templates_layout_fingerprint_index` (`layout_fingerprint`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_batch_sheet_uploads`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_batch_sheet_uploads` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `plant_id` bigint unsigned NOT NULL,
+  `user_id` bigint unsigned NOT NULL,
+  `customer_id` bigint unsigned DEFAULT NULL,
+  `batch_id` bigint unsigned DEFAULT NULL,
+  `original_filename` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `stored_filename` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `stored_path` varchar(191) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `mime_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `file_size` bigint unsigned NOT NULL,
+  `sha256_hash` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `file_extension` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('uploaded','validating','processing','ocr_running','extracting','review','completed','failed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'uploaded',
+  `ocr_required` tinyint(1) NOT NULL DEFAULT '0',
+  `parser_used` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `raw_text` longtext COLLATE utf8mb4_unicode_ci,
+  `parsed_json` json DEFAULT NULL,
+  `normalized_json` json DEFAULT NULL,
+  `confidence_score` decimal(5,2) DEFAULT NULL,
+  `field_scores` json DEFAULT NULL,
+  `template_id` bigint unsigned DEFAULT NULL,
+  `processing_log` json DEFAULT NULL,
+  `processing_started_at` timestamp NULL DEFAULT NULL,
+  `processing_completed_at` timestamp NULL DEFAULT NULL,
+  `error_message` text COLLATE utf8mb4_unicode_ci,
+  `reviewed_by` bigint unsigned DEFAULT NULL,
+  `reviewed_at` timestamp NULL DEFAULT NULL,
+  `created_by` bigint unsigned DEFAULT NULL,
+  `updated_by` bigint unsigned DEFAULT NULL,
+  `deleted_by` bigint unsigned DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  `deleted_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_batch_sheet_uploads_stored_filename_unique` (`stored_filename`),
+  KEY `mm_batch_sheet_uploads_plant_id_foreign` (`plant_id`),
+  KEY `mm_batch_sheet_uploads_user_id_foreign` (`user_id`),
+  KEY `mm_batch_sheet_uploads_customer_id_foreign` (`customer_id`),
+  KEY `mm_batch_sheet_uploads_batch_id_foreign` (`batch_id`),
+  KEY `mm_batch_sheet_uploads_reviewed_by_foreign` (`reviewed_by`),
+  KEY `mm_batch_sheet_uploads_sha256_hash_index` (`sha256_hash`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `mm_batches`;
@@ -764,10 +927,10 @@ DROP TABLE IF EXISTS `mm_dispatches`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `mm_dispatches` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
-  `sales_order_id` bigint unsigned NOT NULL,
-  `vehicle_id` bigint unsigned NOT NULL,
+  `truck_id` bigint unsigned NOT NULL,
   `driver_id` bigint unsigned DEFAULT NULL,
   `sales_executive_id` bigint unsigned DEFAULT NULL,
+  `concrete_pump` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `plant_id` bigint unsigned NOT NULL,
   `dispatch_time` datetime NOT NULL,
   `delivery_time` datetime DEFAULT NULL,
@@ -779,10 +942,10 @@ CREATE TABLE `mm_dispatches` (
   `deleted_at` timestamp NULL DEFAULT NULL,
   `deleted_by` bigint unsigned DEFAULT NULL,
   `work_order_id` bigint unsigned DEFAULT NULL,
+  `batch_id` bigint unsigned DEFAULT NULL,
   `transport_id` bigint unsigned DEFAULT NULL,
   `mixdesign_id` bigint unsigned DEFAULT NULL,
   `payment_mode` enum('cash','credit') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'credit',
-  `plant_sno` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `prefix` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `dispatch_reference` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `empty_time` timestamp NULL DEFAULT NULL,
@@ -805,17 +968,19 @@ CREATE TABLE `mm_dispatches` (
   `customer_id` bigint unsigned DEFAULT NULL,
   `load_site_id` bigint unsigned DEFAULT NULL,
   `unload_site_id` bigint unsigned DEFAULT NULL,
+  `uom_id` bigint unsigned DEFAULT NULL,
+  `dispatch_no` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `mm_dispatches_created_by_foreign` (`created_by`),
   KEY `mm_dispatches_updated_by_foreign` (`updated_by`),
   KEY `mm_dispatches_deleted_by_foreign` (`deleted_by`),
-  KEY `mm_dispatches_sales_order_id_foreign` (`sales_order_id`),
-  KEY `mm_dispatches_vehicle_id_foreign` (`vehicle_id`),
+  KEY `mm_dispatches_vehicle_id_foreign` (`truck_id`),
   KEY `mm_dispatches_plant_id_foreign` (`plant_id`),
   KEY `mm_dispatches_transport_id_foreign` (`transport_id`),
   KEY `mm_dispatches_mixdesign_id_foreign` (`mixdesign_id`),
   KEY `mm_dispatches_load_tax_id_foreign` (`load_tax_id`),
-  KEY `mm_dispatches_work_order_id_index` (`work_order_id`)
+  KEY `mm_dispatches_work_order_id_index` (`work_order_id`),
+  KEY `mm_dispatches_batch_id_index` (`batch_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `mm_drivers`;
@@ -2126,6 +2291,7 @@ CREATE TABLE `mm_machines` (
   `deleted_at` timestamp NULL DEFAULT NULL,
   `deleted_by` bigint unsigned DEFAULT NULL,
   `is_active` tinyint(1) DEFAULT '1',
+  `concrete_pump` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `mm_machines_plant_id_foreign` (`plant_id`),
   KEY `mm_machines_created_by_foreign` (`created_by`),
@@ -3042,6 +3208,29 @@ CREATE TABLE `mm_products` (
   KEY `mm_products_entity_id_foreign` (`entity_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `mm_public_document_links`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `mm_public_document_links` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `document_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `document_id` bigint unsigned DEFAULT NULL,
+  `token` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `expires_at` datetime DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_by` bigint unsigned DEFAULT NULL,
+  `plant_id` bigint unsigned NOT NULL,
+  `document_params` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `mm_public_document_links_token_unique` (`token`),
+  KEY `mm_public_document_links_created_by_foreign` (`created_by`),
+  KEY `mm_public_document_links_plant_id_foreign` (`plant_id`),
+  KEY `mm_public_document_links_token_index` (`token`),
+  KEY `mm_public_document_links_document_type_document_id_index` (`document_type`,`document_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `mm_purchase_order_history`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -3245,20 +3434,23 @@ CREATE TABLE `mm_quotations` (
   `amount_tax` decimal(15,2) NOT NULL DEFAULT '0.00',
   `amount_total` decimal(15,2) NOT NULL DEFAULT '0.00',
   `status` tinyint NOT NULL DEFAULT '0',
-  `is_salesorder` tinyint NOT NULL DEFAULT '0' COMMENT '0=None, 1=Converted, -1=Rejected',
+  `is_customer_po` tinyint NOT NULL DEFAULT '0' COMMENT '0=None, 1=Converted, -1=Rejected',
   `created_at` timestamp NULL DEFAULT NULL,
   `created_by` bigint unsigned DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `updated_by` bigint unsigned DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
   `deleted_by` bigint unsigned DEFAULT NULL,
+  `sales_executive_id` bigint unsigned DEFAULT NULL,
+  `concrete_pump` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `mm_quotations_created_by_foreign` (`created_by`),
   KEY `mm_quotations_updated_by_foreign` (`updated_by`),
   KEY `mm_quotations_deleted_by_foreign` (`deleted_by`),
   KEY `mm_quotations_patron_id_foreign` (`patron_id`),
   KEY `mm_quotations_plant_id_foreign` (`plant_id`),
-  KEY `mm_quotations_site_id_foreign` (`site_id`)
+  KEY `mm_quotations_site_id_foreign` (`site_id`),
+  KEY `fk_mm_quotations_sales_executive` (`sales_executive_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `mm_report_schedules`;
@@ -3414,6 +3606,8 @@ CREATE TABLE `mm_sales_orders` (
   `updated_by` bigint unsigned DEFAULT NULL,
   `deleted_at` timestamp NULL DEFAULT NULL,
   `deleted_by` bigint unsigned DEFAULT NULL,
+  `sales_executive_id` bigint unsigned DEFAULT NULL,
+  `concrete_pump` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `mm_sales_orders_created_by_foreign` (`created_by`),
   KEY `mm_sales_orders_updated_by_foreign` (`updated_by`),
@@ -3422,7 +3616,8 @@ CREATE TABLE `mm_sales_orders` (
   KEY `mm_sales_orders_quotation_id_foreign` (`quotation_id`),
   KEY `mm_sales_orders_patron_id_foreign` (`patron_id`),
   KEY `mm_sales_orders_site_id_foreign` (`site_id`),
-  KEY `mm_sales_orders_converted_by_user_id_foreign` (`converted_by_user_id`)
+  KEY `mm_sales_orders_converted_by_user_id_foreign` (`converted_by_user_id`),
+  KEY `fk_mm_sales_order_sales_executive` (`sales_executive_id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE IF EXISTS `mm_sessions`;
@@ -3871,6 +4066,7 @@ CREATE TABLE `mm_work_orders` (
   `scheduled_start` datetime DEFAULT NULL,
   `scheduled_end` datetime DEFAULT NULL,
   `status` tinyint NOT NULL DEFAULT '1',
+  `concrete_pump` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` datetime DEFAULT NULL,
   `created_by` bigint unsigned DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL,
@@ -4041,6 +4237,31 @@ CREATE TABLE `tr_workspaces` (
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+DROP TABLE IF EXISTS `voice_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `voice_logs` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `conversation_id` bigint unsigned DEFAULT NULL,
+  `user_id` bigint unsigned DEFAULT NULL,
+  `type` enum('stt','tts') COLLATE utf8mb4_unicode_ci NOT NULL,
+  `provider` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'sarvam',
+  `language` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `input_audio_path` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `transcript` longtext COLLATE utf8mb4_unicode_ci,
+  `input_text` longtext COLLATE utf8mb4_unicode_ci,
+  `output_audio_path` varchar(191) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `duration_ms` int unsigned DEFAULT NULL,
+  `status` enum('success','failed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'success',
+  `error` text COLLATE utf8mb4_unicode_ci,
+  `metadata` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `voice_logs_conversation_id_foreign` (`conversation_id`),
+  KEY `voice_logs_user_id_index` (`user_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -4191,7 +4412,7 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (140,'2026_04_18_13
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (141,'2026_04_18_180527_add_stock_alert_to_products_table',1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (142,'2026_04_19_092547_create_print_templates_table',1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (143,'2026_04_19_092554_create_print_template_settings_table',1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (144,'2026_04_19_112552_add_is_salesorder_to_quotations_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (144,'2026_04_19_112552_add_is_customer_po_to_quotations_table',1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (145,'2026_04_19_112951_rename_product_id_to_mix_design_id_in_quotation_items_table',1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (146,'2026_04_19_152159_add_address_and_zip_to_sites_table',1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (147,'2026_04_19_152404_add_code_to_patrons_table',1);
@@ -4284,3 +4505,17 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (233,'2026_06_16_00
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (234,'2026_06_16_100000_add_conversion_fields_to_sales_orders_table',1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (235,'2026_06_16_110000_create_sales_order_items_table',1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (236,'2026_06_17_113000_remove_role_and_department_from_sales_orders_table',1);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (237,'2026_06_17_104000_add_uom_id_to_dispatches_table',2);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (238,'2026_06_17_110000_remove_plant_sno_from_dispatches_table',2);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (239,'2026_06_17_200000_create_ai_conversations_table',2);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (240,'2026_06_17_200001_create_ai_messages_table',2);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (241,'2026_06_17_200002_create_voice_logs_table',2);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (242,'2026_06_17_200003_create_document_chunks_table',2);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (243,'2026_06_18_171500_add_batch_id_to_dispatches_table',2);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (244,'2026_06_18_173000_add_sales_executive_id_to_quotations_and_sales_orders',2);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (245,'2026_06_18_170000_create_public_document_links_table',3);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (246,'2026_06_19_040000_add_concrete_pump_to_quotations_sales_orders_work_orders',3);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (247,'2026_06_19_133824_make_sales_order_id_nullable_in_dispatches_table',4);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (248,'2026_06_20_100000_create_batch_sheet_uploads_table',5);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (249,'2026_06_20_100100_create_batch_sheet_templates_table',5);
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (250,'2026_06_20_100200_create_batch_sheet_field_dictionary_table',5);

@@ -58,7 +58,9 @@ return new class extends Migration
             }
 
             // Foreign keys - try to add them if they don't exist
-            try { $table->foreign('account_id')->references('id')->on('mm_accounts'); } catch (\Exception $e) {}
+            // try { $table->foreign('account_id')->references('id')->on('mm_accounts'); } catch (\Exception $e) {}
+                        try { $table->foreign('account_id')->references('id')->on('mm_ledgers'); } catch (\Exception $e) {}
+
             try { $table->foreign('journal_id')->references('id')->on('mm_journal_entries'); } catch (\Exception $e) {}
             try { $table->foreign('shipping_tax_id')->references('id')->on('mm_taxes'); } catch (\Exception $e) {}
             try { $table->foreign('truck_id')->references('id')->on('mm_machines'); } catch (\Exception $e) {}

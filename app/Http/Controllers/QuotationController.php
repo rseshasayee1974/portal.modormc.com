@@ -96,13 +96,13 @@ class QuotationController extends Controller
     public function updateConversionStatus(Request $request, Quotation $quotation)
     {
         $validated = $request->validate([
-            'is_salesorder' => 'required|integer|in:0,1,-1'
+            'is_customer_po' => 'required|integer|in:0,1,-1'
         ]);
 
         DB::transaction(function () use ($quotation, $validated) {
             $quotation->update($validated);
 
-            $isSalesOrder = (int) $validated['is_salesorder'];
+            $isSalesOrder = (int) $validated['is_customer_po'];
             if ($isSalesOrder === 1) {
                 $user = auth()->user();
 

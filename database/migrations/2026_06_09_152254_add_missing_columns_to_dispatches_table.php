@@ -22,6 +22,33 @@ return new class extends Migration
             if (!Schema::hasColumn('mm_dispatches', 'mixdesign_id')) {
                 $table->foreignId('mixdesign_id')->nullable()->constrained('mm_mix_designs')->nullOnDelete();
             }
+            if (!Schema::hasColumn('mm_dispatches', 'customer_id')) {
+                $table->foreignId('customer_id')->nullable()->constrained('mm_patrons')->nullOnDelete();
+            }
+            if (!Schema::hasColumn('mm_dispatches', 'load_site_id')) {
+                $table->foreignId('load_site_id')->nullable()->constrained('mm_sites')->nullOnDelete();
+            }
+            if (!Schema::hasColumn('mm_dispatches', 'unload_site_id')) {
+                $table->foreignId('unload_site_id')->nullable()->constrained('mm_sites')->nullOnDelete();
+            }
+            if (!Schema::hasColumn('mm_dispatches', 'driver_id')) {
+                $table->foreignId('driver_id')->nullable()->constrained('mm_personnels')->nullOnDelete();
+            }
+            if (!Schema::hasColumn('mm_dispatches', 'dispatch_no')) {
+                $table->string('dispatch_no')->nullable();
+            }
+            if (!Schema::hasColumn('mm_dispatches', 'dispatch_status')) {
+                $table->string('dispatch_status', 50)->default('Draft');
+            }
+            if (!Schema::hasColumn('mm_dispatches', 'delivered_qty')) {
+                $table->decimal('delivered_qty', 10, 3)->default(0);
+            }
+            if (!Schema::hasColumn('mm_dispatches', 'load_total_amount')) {
+                $table->decimal('load_total_amount', 17, 2)->default(0);
+            }
+            if (!Schema::hasColumn('mm_dispatches', 'deleted_at')) {
+                $table->softDeletes();
+            }
             if (!Schema::hasColumn('mm_dispatches', 'payment_mode')) {
                 $table->enum('payment_mode', ['cash', 'credit'])->default('credit');
             }

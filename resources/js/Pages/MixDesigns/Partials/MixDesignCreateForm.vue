@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, readonly } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -184,7 +184,7 @@ const submit = () => {
                                         <small v-if="form.errors[`items.${index}.uom_id`]" class="err-msg">{{ form.errors[`items.${index}.uom_id`] }}</small>
                                     </td>
                                     <td>
-                                        <BaseInputNumber v-model="item.actual_quantity" readonly :minFractionDigits="3" placeholder="0.0000" fluid :inputClass="'text-right'" />
+                                        <BaseInputNumber v-model="item.actual_quantity" :readonly="item.actual_quantity === 0" placeholder="0.0000" fluid :inputClass="'text-right'" />
                                         <small v-if="form.errors[`items.${index}.actual_quantity`]" class="err-msg text-right block">{{ form.errors[`items.${index}.actual_quantity`] }}</small>
                                     </td>
                                     <td>

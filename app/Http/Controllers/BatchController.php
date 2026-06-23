@@ -29,7 +29,7 @@ class BatchController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'work_orders';
+    protected string $module = 'sales_orders';
 
     public function index()
     {
@@ -45,34 +45,34 @@ class BatchController extends Controller
         'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
         'materials.product:id,title',
         'materials.uom:id,unit_code',
-        'workOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty',
-        'workOrder.customer:id,legal_name',
-        'workOrder.mixDesign:id,design_name,design_code',
-        'workOrder.site:id,name',
+        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty',
+        'salesOrder.customer:id,legal_name',
+        'salesOrder.mixDesign:id,design_name,design_code',
+        'salesOrder.site:id,name',
     ])
 
-        ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
+        ->whereHas('salesOrder', fn ($q) => $q->where('plant_id', $activePlantId))
         ->latest()
         ->get(); 
 
         $batches->each(function ($batch) {
             $batch->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-            if ($batch->workOrder) {
-                $batch->workOrder->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-                if ($batch->workOrder->mixDesign) {
-                    $batch->workOrder->mixDesign->makeHidden([
+            if ($batch->salesOrder) {
+                $batch->salesOrder->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+                if ($batch->salesOrder->mixDesign) {
+                    $batch->salesOrder->mixDesign->makeHidden([
                         'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
                         'is_used_in_quotations', 'is_used_in_batching'
                     ]);
                 }
-                if ($batch->workOrder->customer) {
-                    $batch->workOrder->customer->makeHidden([
+                if ($batch->salesOrder->customer) {
+                    $batch->salesOrder->customer->makeHidden([
                         'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
                         'is_in_use'
                     ]);
                 }
-                if ($batch->workOrder->site) {
-                    $batch->workOrder->site->makeHidden([
+                if ($batch->salesOrder->site) {
+                    $batch->salesOrder->site->makeHidden([
                         'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
                         'is_in_use'
                     ]);
@@ -89,7 +89,7 @@ class BatchController extends Controller
             });
         });
 
-        $workOrders = SalesOrder::query()
+        $salesOrders = SalesOrder::query()
             ->with([
                 'customer:id,plant_id,legal_name,code,patron_type,gstin,email,mobile',
                 'site:id,plant_id,name,site_address_1,type',
@@ -104,23 +104,23 @@ class BatchController extends Controller
             ->whereIn('status', [SalesOrder::STATUS_IN_PROGRESS])
             ->where(function ($query) {
                 $query->whereNull('scheduled_end')
-                ->orWhere('scheduled_end', '>=', date('Y-m-d', strtotime(now()) ) );              // to display the workorders which are active as per scheduled end date
+                ->orWhere('scheduled_end', '>=', date('Y-m-d', strtotime(now()) ) );              // to display the sales orders which are active as per scheduled end date
             })
             ->orderBy('order_no')
             ->get();
 
-        $workOrders->each(function ($wo) {
-            $wo->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+        $salesOrders->each(function ($so) {
+            $so->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
             
-            if ($wo->mixDesign) {
-                $wo->mixDesign->makeHidden([
+            if ($so->mixDesign) {
+                $so->mixDesign->makeHidden([
                     'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
                     'is_used_in_quotations', 'is_used_in_batching'
                 ]);
-                if ($wo->mixDesign->concreteGrade) {
-                    $wo->mixDesign->concreteGrade->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+                if ($so->mixDesign->concreteGrade) {
+                    $so->mixDesign->concreteGrade->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
                 }
-                $wo->mixDesign->items->each(function ($item) {
+                $so->mixDesign->items->each(function ($item) {
                     $item->makeHidden([
                         'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
                         'used_in_batching'
@@ -137,15 +137,15 @@ class BatchController extends Controller
                 });
             }
 
-            if ($wo->customer) {
-                $wo->customer->makeHidden([
+            if ($so->customer) {
+                $so->customer->makeHidden([
                     'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
                     'is_in_use'
                 ]);
             }
 
-            if ($wo->site) {
-                $wo->site->makeHidden([
+            if ($so->site) {
+                $so->site->makeHidden([
                     'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
                     'is_in_use'
                 ]);
@@ -157,18 +157,18 @@ class BatchController extends Controller
         $fyStart = Carbon::create($startYear, 4, 1, 0, 0, 0);
 
         $nextBatchNo = Batch::query()
-            ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
+            ->whereHas('salesOrder', fn ($q) => $q->where('plant_id', $activePlantId))
             ->where('created_at', '>=', $fyStart)
             ->max('batch_no') + 1;
 
             // return response()->json([
             //     'batches' => $batches,
-            //     'workOrders' => $workOrders,
+            //     'salesOrders' => $salesOrders,
             // ]);
-    //   dd($workOrders);
+    //   dd($salesOrders);
         return Inertia::render('Batches/Index', [
             'batches'           => $batches,
-            'workOrders'        => $workOrders,
+            'salesOrders'        => $salesOrders,
             'trucks'            => MachinesDropdown(),
             'customers'         => PatronsDropdown('Customer'),
             'transporters'      => PatronsDropdown('Transporter'),
@@ -198,19 +198,19 @@ class BatchController extends Controller
     
     $payload = $request->validated();
     
-    $workOrder = SalesOrder::query()->findOrFail($payload['sales_order_id']);
-    $this->ensurePlantScope($workOrder);
+    $salesOrder = SalesOrder::query()->findOrFail($payload['sales_order_id']);
+    $this->ensurePlantScope($salesOrder);
 
     $emptyPhoto = $payload['empty_weight_photo'] ?? null;
     $loadedPhoto = $payload['loaded_weight_photo'] ?? null;
     unset($payload['empty_weight_photo'], $payload['loaded_weight_photo']);
 
     $materialsData = $payload['materials'] ?? [];
-    $activePlantId = session('active_plant_id', $workOrder->plant_id);
+    $activePlantId = session('active_plant_id', $salesOrder->plant_id);
 
     try {
-        $batch = DB::transaction(function () use ($payload, $workOrder, $emptyPhoto, $loadedPhoto, $materialsData, $activePlantId) {
-            $payload['batch_no'] = $payload['batch_no'] ?? ($workOrder->batches()->max('batch_no') + 1);
+        $batch = DB::transaction(function () use ($payload, $salesOrder, $emptyPhoto, $loadedPhoto, $materialsData, $activePlantId) {
+            $payload['batch_no'] = $payload['batch_no'] ?? ($salesOrder->batches()->max('batch_no') + 1);
             $payload['status'] = $payload['status'] ?? Batch::STATUS_PLANNED;
             $payload['plant_id'] = $activePlantId; // ensure plant_id is set
 
@@ -248,7 +248,7 @@ class BatchController extends Controller
                     $this->adjustStock($batch, $materials);
                 }
                 
-                $workOrder->refreshProduction();
+                $salesOrder->refreshProduction();
 
             if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
                 $this->sendBatchCompletedMail($batch);
@@ -271,12 +271,12 @@ class BatchController extends Controller
                 
                 $dispatchData = [
                     'sales_order_id'      => $payload['sales_order_id'],
-                    'customer_po_id'      => $workOrder->customer_po_id,
+                    // 'customer_po_id'      => $salesOrder->customer_po_id,
                     'batch_id'            => $batch->id,
                     'plant_id'            => $activePlantId,
-                    'customer_id'         => $workOrder->customer_id,
-                    'mixdesign_id'        => $workOrder->mix_design_id,
-                    'unload_site_id'      => $workOrder->site_id,
+                    'customer_id'         => $salesOrder->customer_id,
+                    'mixdesign_id'        => $salesOrder->mix_design_id,
+                    'unload_site_id'      => $salesOrder->site_id,
                     'load_site_id'        => $activePlantId, // usually plant is the load site, not $payload['site_id']
                     'uom_id'              => $payload['uom_id'] ?? null,
                     'truck_id'            => $payload['truck_id'] ?? null,
@@ -332,8 +332,8 @@ class BatchController extends Controller
     private function pushToSchedulerAPI(Batch $batch, array $materialsData): bool
     {
         try {
-            $workOrder = $batch->workOrder;
-            $workOrder->loadMissing(['plant', 'customer.addresses', 'site', 'mixDesign']);
+            $salesOrder = $batch->salesOrder;
+            $salesOrder->loadMissing(['plant', 'customer.addresses', 'site', 'mixDesign']);
             
             // Fixed N+1 anomaly: Query product definitions in a single trip
             $productIds = collect($materialsData)->pluck('product_id')->filter()->unique()->toArray();
@@ -353,18 +353,18 @@ class BatchController extends Controller
 
             // Fixed structural reference anomaly on payload properties
             $schedulerPayload = [
-                "plant_sl"     => $workOrder->plant->code ?? "",
-                "plant_type"   => $workOrder->plant->plant_type ?? "",
-                "order_no"     => $workOrder->order_no ?? "",
-                "order_date"   => $workOrder->created_at ? $workOrder->created_at->format('Y-m-d') : "",
-                "order_status" => (string)$workOrder->status,
-                "cust_id"      => current(explode('-', $workOrder->customer->code ?? "")) ?: ($workOrder->customer->id ?? ""),
-                "cust_name"    => $workOrder->customer->legal_name ?? "",
-                "cust_add_l1"  => $workOrder->customer->addresses->first()->line_1 ?? "",
-                "cust_add_l2"  => $workOrder->customer->addresses->first()->city ?? "",
-                "site_name"    => $workOrder->site->name ?? "",
-                "site_add_l1"  => $workOrder->site->site_address_1 ?? "",
-                "site_add_l2"  => $workOrder->site->zipcode ?? "", 
+                "plant_sl"     => $salesOrder->plant->code ?? "",
+                "plant_type"   => $salesOrder->plant->plant_type ?? "",
+                "order_no"     => $salesOrder->order_no ?? "",
+                "order_date"   => $salesOrder->created_at ? $salesOrder->created_at->format('Y-m-d') : "",
+                "order_status" => (string)$salesOrder->status,
+                "cust_id"      => current(explode('-', $salesOrder->customer->code ?? "")) ?: ($salesOrder->customer->id ?? ""),
+                "cust_name"    => $salesOrder->customer->legal_name ?? "",
+                "cust_add_l1"  => $salesOrder->customer->addresses->first()->line_1 ?? "",
+                "cust_add_l2"  => $salesOrder->customer->addresses->first()->city ?? "",
+                "site_name"    => $salesOrder->site->name ?? "",
+                "site_add_l1"  => $salesOrder->site->site_address_1 ?? "",
+                "site_add_l2"  => $salesOrder->site->zipcode ?? "", 
                 "strength"     => "",
                 "consistency"  => "",
                 "slump"        => "",
@@ -372,20 +372,20 @@ class BatchController extends Controller
                 "mix_time"     => "",
                 "mix_dis_time" => "",
                 "pre_mix_time" => "",
-                "rec_id"       => current(explode('-', $workOrder->mixDesign->design_code ?? "")) ?: ($workOrder->mixDesign->design_code ?? ""),
-                "rec_name"     => $workOrder->mixDesign->design_name ?? "",
+                "rec_id"       => current(explode('-', $salesOrder->mixDesign->design_code ?? "")) ?: ($salesOrder->mixDesign->design_code ?? ""),
+                "rec_name"     => $salesOrder->mixDesign->design_name ?? "",
                 "qty"          => (string)($batch->batch_size ?? "0"),
                 "mat"          => $matArray
             ];
 
-            $token = $this->getSchedulerToken($workOrder->plant);
+            $token = $this->getSchedulerToken($salesOrder->plant);
             $request = Http::withHeaders(['Accept' => 'application/json']);
 
             if ($token) {
                 $request = $request->withToken($token);
             }
 
-            $apiUrl = $workOrder->plant->scheduler_api_url ?: url('/api/production__Order__data');
+            $apiUrl = $salesOrder->plant->scheduler_api_url ?: url('/api/production__Order__data');
             $response = $request->post($apiUrl, $schedulerPayload);
             
             if ($response->successful()) {
@@ -415,7 +415,7 @@ class BatchController extends Controller
     public function syncToScheduler(Batch $batch)
     {
         $this->authorizeModule('edit');
-        $this->ensurePlantScope($batch->workOrder);
+        $this->ensurePlantScope($batch->salesOrder);
         
         $success = $this->pushToSchedulerAPI($batch, $batch->materials->toArray());
         
@@ -456,15 +456,15 @@ class BatchController extends Controller
     {
         // Log::info($request->all());
         $this->authorizeModule('menu');
-        $batch->unsetRelation('workOrder');
+        $batch->unsetRelation('salesOrder');
         $batch->unsetRelation('dispatches');
 
         $batch->load([
-            'workOrder.customer',
-            'workOrder.mixDesign.items.product',
-            'workOrder.mixDesign.items.uom',
-            'workOrder.mixDesign.concrete_grade',
-            'workOrder.site',
+            'salesOrder.customer',
+            'salesOrder.mixDesign.items.product',
+            'salesOrder.mixDesign.items.uom',
+            'salesOrder.mixDesign.concrete_grade',
+            'salesOrder.site',
             'materials',
             'materials.product:id,title', 
             'materials.uom:id,unit_name,unit_code',
@@ -477,11 +477,11 @@ class BatchController extends Controller
             'dispatches.modifier:id,email'
         ]);
 
-        if ($batch->workOrder?->mixDesign) {
-            $batch->workOrder->mixDesign->makeHidden(['is_used_in_quotations', 'is_used_in_batching']);
+        if ($batch->salesOrder?->mixDesign) {
+            $batch->salesOrder->mixDesign->makeHidden(['is_used_in_quotations', 'is_used_in_batching']);
         }
 
-        $batch->workOrder?->mixDesign?->items->each(function ($item) {
+        $batch->salesOrder?->mixDesign?->items->each(function ($item) {
             $item->makeHidden(['used_in_batching']);
             $item->product?->makeHidden(['can_delete', 'can_update', 'is_in_use']);
         });
@@ -498,9 +498,9 @@ class BatchController extends Controller
        
         // dd($request->all());
         $this->authorizeModule('edit');
-        // $batch->load('workOrder');
-        //  dd($batch->load('workOrder'));
-        // $this->ensurePlantScope($batch->workOrder);
+        // $batch->load('salesOrder');
+        //  dd($batch->load('salesOrder'));
+        // $this->ensurePlantScope($batch->salesOrder);
 
         $payload = $request->validated();
         
@@ -551,7 +551,7 @@ class BatchController extends Controller
             if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
                 $this->adjustStock($batch, $materials);
             }
-            $batch->workOrder->refreshProduction();
+            $batch->salesOrder->refreshProduction();
 
             // Send notification if batch is newly dispatched or completed
             if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]) && 
@@ -600,8 +600,8 @@ class BatchController extends Controller
     public function destroy(Batch $batch)
     {
         $this->authorizeModule('delete');
-        $batch->load('workOrder');
-        $this->ensurePlantScope($batch->workOrder);
+        $batch->load('salesOrder');
+        $this->ensurePlantScope($batch->salesOrder);
 
         $batchId = $batch->id;
         DB::transaction(function () use ($batch) {
@@ -628,7 +628,7 @@ class BatchController extends Controller
             $batch->delete();
             
             // Recalculate production quantity for the work order
-            $batch->workOrder->refreshProduction();
+            $batch->salesOrder->refreshProduction();
         });
 
         $this->broadcastBatchDeletion($batchId);
@@ -661,7 +661,7 @@ class BatchController extends Controller
             'isPreview' => false,
         ])->setPaper('a4', 'landscape');
 
-        $orderNo = $batch->workOrder?->order_no ?? 'order';
+        $orderNo = $batch->salesOrder?->order_no ?? 'order';
         $safeOrderNo = str_replace(['/', '\\'], '-', $orderNo);
         $filename = sprintf(
             'batch-sheet-%s-%s.pdf',
@@ -677,7 +677,7 @@ class BatchController extends Controller
         $batch = $this->resolveBatchSheetBatch($batch);
 
         try {
-            $customer = $batch->workOrder?->customer;
+            $customer = $batch->salesOrder?->customer;
         
             $customerEmail = null;
             if ($customer) {
@@ -707,9 +707,9 @@ class BatchController extends Controller
     public function token(Batch $batch)
     {
         $this->loadBatchForToken($batch);
-        $this->ensurePlantScope($batch->workOrder);
+        $this->ensurePlantScope($batch->salesOrder);
 
-        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+        $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
 
         return view('pdfs.batches.batching_token', [
             'batch'     => $batch,
@@ -721,9 +721,9 @@ class BatchController extends Controller
     public function downloadTokenPdf(Batch $batch)
     {
         $this->loadBatchForToken($batch);
-        $this->ensurePlantScope($batch->workOrder);
+        $this->ensurePlantScope($batch->salesOrder);
 
-        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+        $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
 
         // 80mm width = 226.77pt. DomPDF uses points (72pt = 1in). Custom portrait ticket size.
         $materialsCount = $batch->materials->count();
@@ -744,7 +744,7 @@ class BatchController extends Controller
      *
      * Blade audit (batching_token.blade.php):
      *   - batch: batch_no, batch_size, load_time, created_at, shift, operator->label
-     *   - workOrder: order_no, customer->legal_name, site->name,
+     *   - salesOrder: order_no, customer->legal_name, site->name,
      *                mixDesign->design_code/design_name, mixDesign->concrete_grade->name
      *   - plant: name, logo_path, addresses->first() (line_1, city, state, pincode)
      *   - dispatches->first(): truck->registration, driver->label, transport->legal_name,
@@ -759,12 +759,12 @@ class BatchController extends Controller
     {
         // Query 1 – all pure belongsTo chains (no hasMany = no row duplication risk)
         $batch->load([
-            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
-            'workOrder.customer:id,legal_name',
-            'workOrder.site:id,name',
-            'workOrder.plant:id,entity_id,name,logo_path',
-            'workOrder.mixDesign:id,design_name,design_code,design_type',
-            'workOrder.mixDesign.concrete_grade:id,name',
+            'salesOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'salesOrder.customer:id,legal_name',
+            'salesOrder.site:id,name',
+            'salesOrder.plant:id,entity_id,name,logo_path',
+            'salesOrder.mixDesign:id,design_name,design_code,design_type',
+            'salesOrder.mixDesign.concrete_grade:id,name',
             'operator:id,first_name,last_name',
         ]);
 
@@ -783,7 +783,7 @@ class BatchController extends Controller
         ]);
 
         // Query 3 – plant addresses (hasMany on a nested model — isolated to prevent row duplication)
-        $batch->workOrder?->plant?->load('addresses');
+        $batch->salesOrder?->plant?->load('addresses');
 
         // Note: materials are NOT loaded — the materials section is commented out in the blade view.
         // Re-add this load if materials are re-enabled in the view:
@@ -793,14 +793,14 @@ class BatchController extends Controller
     public function dispatchToken(Batch $batch)
     {
         $batch->load([
-            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
-            'workOrder.customer:id,legal_name',
-            'workOrder.site:id,name',
-            'workOrder.plant:id,entity_id,name,logo_path',
-            'workOrder.plant.entity:id,legal_name',
-            'workOrder.plant.addresses',
-            'workOrder.mixDesign:id,design_name,design_code,design_type',
-            'workOrder.mixDesign.concrete_grade:id,name',
+            'salesOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'salesOrder.customer:id,legal_name',
+            'salesOrder.site:id,name',
+            'salesOrder.plant:id,entity_id,name,logo_path',
+            'salesOrder.plant.entity:id,legal_name',
+            'salesOrder.plant.addresses',
+            'salesOrder.mixDesign:id,design_name,design_code,design_type',
+            'salesOrder.mixDesign.concrete_grade:id,name',
             'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
@@ -813,9 +813,9 @@ class BatchController extends Controller
             'operator:id,first_name,last_name'
         ]);
 
-        $this->ensurePlantScope($batch->workOrder);
+        $this->ensurePlantScope($batch->salesOrder);
 
-        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+        $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
 
         return view('pdfs.batches.dispatch_token', [
             'batch' => $batch,
@@ -827,14 +827,14 @@ class BatchController extends Controller
     public function downloadDispatchTokenPdf(Batch $batch)
     {
         $batch->load([
-            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
-            'workOrder.customer:id,legal_name',
-            'workOrder.site:id,name',
-            'workOrder.plant:id,entity_id,name,logo_path',
-            'workOrder.plant.entity:id,legal_name',
-            'workOrder.plant.addresses',
-            'workOrder.mixDesign:id,design_name,design_code,design_type',
-            'workOrder.mixDesign.concrete_grade:id,name',
+            'salesOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'salesOrder.customer:id,legal_name',
+            'salesOrder.site:id,name',
+            'salesOrder.plant:id,entity_id,name,logo_path',
+            'salesOrder.plant.entity:id,legal_name',
+            'salesOrder.plant.addresses',
+            'salesOrder.mixDesign:id,design_name,design_code,design_type',
+            'salesOrder.mixDesign.concrete_grade:id,name',
             'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
@@ -847,9 +847,9 @@ class BatchController extends Controller
             'operator:id,first_name,last_name'
         ]);
 
-        $this->ensurePlantScope($batch->workOrder);
+        $this->ensurePlantScope($batch->salesOrder);
 
-        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+        $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
 
         $materialsCount = $batch->materials->count();
         $height = 360 + ($materialsCount * 18);
@@ -867,14 +867,14 @@ class BatchController extends Controller
     public function deliveryToken(Batch $batch)
     {
         $batch->load([
-            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
-            'workOrder.customer:id,legal_name',
-            'workOrder.site:id,name',
-            'workOrder.plant:id,entity_id,name,logo_path',
-            'workOrder.plant.entity:id,legal_name',
-            'workOrder.plant.addresses',
-            'workOrder.mixDesign:id,design_name,design_code,design_type',
-            'workOrder.mixDesign.concrete_grade:id,name',
+            'salesOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'salesOrder.customer:id,legal_name',
+            'salesOrder.site:id,name',
+            'salesOrder.plant:id,entity_id,name,logo_path',
+            'salesOrder.plant.entity:id,legal_name',
+            'salesOrder.plant.addresses',
+            'salesOrder.mixDesign:id,design_name,design_code,design_type',
+            'salesOrder.mixDesign.concrete_grade:id,name',
             'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
@@ -887,13 +887,13 @@ class BatchController extends Controller
             'operator:id,first_name,last_name'
         ]);
 
-        $this->ensurePlantScope($batch->workOrder);
+        $this->ensurePlantScope($batch->salesOrder);
 
-        $templateKey = \App\Services\PrintDataFormatter::resolveTemplateKey('delivery_challans', $batch->workOrder->plant_id);
+        $templateKey = \App\Services\PrintDataFormatter::resolveTemplateKey('delivery_challans', $batch->salesOrder->plant_id);
         $view = \App\Services\PrintDataFormatter::resolveView($templateKey);
 
         if ($templateKey === 'delivery_challan_a4') {
-            $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+            $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
             return view($view, [
                 'batch' => $batch,
                 'isPreview' => true,
@@ -908,14 +908,14 @@ class BatchController extends Controller
     public function downloadDeliveryTokenPdf(Batch $batch)
     {
         $batch->load([
-            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
-            'workOrder.customer:id,legal_name',
-            'workOrder.site:id,name',
-            'workOrder.plant:id,entity_id,name,logo_path',
-            'workOrder.plant.entity:id,legal_name',
-            'workOrder.plant.addresses',
-            'workOrder.mixDesign:id,design_name,design_code,design_type',
-            'workOrder.mixDesign.concrete_grade:id,name',
+            'salesOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'salesOrder.customer:id,legal_name',
+            'salesOrder.site:id,name',
+            'salesOrder.plant:id,entity_id,name,logo_path',
+            'salesOrder.plant.entity:id,legal_name',
+            'salesOrder.plant.addresses',
+            'salesOrder.mixDesign:id,design_name,design_code,design_type',
+            'salesOrder.mixDesign.concrete_grade:id,name',
             'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
@@ -928,13 +928,13 @@ class BatchController extends Controller
             'operator:id,first_name,last_name'
         ]);
 
-        $this->ensurePlantScope($batch->workOrder);
+        $this->ensurePlantScope($batch->salesOrder);
 
-        $templateKey = \App\Services\PrintDataFormatter::resolveTemplateKey('delivery_challans', $batch->workOrder->plant_id);
+        $templateKey = \App\Services\PrintDataFormatter::resolveTemplateKey('delivery_challans', $batch->salesOrder->plant_id);
         $view = \App\Services\PrintDataFormatter::resolveView($templateKey);
 
         if ($templateKey === 'delivery_challan_a4') {
-            $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+            $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
             $pdf = Pdf::loadView($view, [
                 'batch' => $batch,
                 'isPreview' => false,
@@ -952,17 +952,17 @@ class BatchController extends Controller
     private function resolveBatchSheetBatch(Batch $batch): Batch
     {
         $batch->load([
-            'workOrder.customer',
-            'workOrder.site',
-            'workOrder.plant.entity',
-            'workOrder.mixDesign.concrete_grade',
+            'salesOrder.customer',
+            'salesOrder.site',
+            'salesOrder.plant.entity',
+            'salesOrder.mixDesign.concrete_grade',
             'dispatches.truck',
             'dispatches.driver',
             'materials.product.category',
             'materials.uom',
         ]);
 
-        $this->ensurePlantScope($batch->workOrder);
+        $this->ensurePlantScope($batch->salesOrder);
 
         return $batch;
     }
@@ -1008,7 +1008,7 @@ class BatchController extends Controller
 
     private function checkStock(Batch $batch, array $newMaterials, array $oldMaterials = [], bool $wasDeducted = false): void
     {
-        $plantId = $batch->workOrder->plant_id ?? session('active_plant_id');
+        $plantId = $batch->salesOrder->plant_id ?? session('active_plant_id');
 
         // 1. Aggregate new quantities required (grouped by product_id and uom_id)
         $newAggregated = [];
@@ -1088,7 +1088,7 @@ class BatchController extends Controller
     {
         $userId = auth()->id();
         $date = $batch->created_at ? $batch->created_at->toDateString() : now()->toDateString();
-        $plantId = $batch->workOrder->plant_id ?? session('active_plant_id');
+        $plantId = $batch->salesOrder->plant_id ?? session('active_plant_id');
 
         // Aggregate adjustments by product and uom to reduce time complexity and DB operations
         $aggregated = [];
@@ -1182,9 +1182,9 @@ class BatchController extends Controller
         }
     }
 
-    private function ensurePlantScope(SalesOrder $workOrder): void
+    private function ensurePlantScope(SalesOrder $salesOrder): void
     {
-        if ((int) $workOrder->plant_id !== (int) session('active_plant_id')) {
+        if ((int) $salesOrder->plant_id !== (int) session('active_plant_id')) {
             abort(403, 'You can only manage batches from the active plant.');
         }
     }
@@ -1196,9 +1196,9 @@ class BatchController extends Controller
     {
         try {
             $batch->loadMissing([
-                'workOrder.customer',
-                'workOrder.mixDesign',
-                'workOrder.site',
+                'salesOrder.customer',
+                'salesOrder.mixDesign',
+                'salesOrder.site',
                 'dispatches.truck',
                 'dispatches.salesExecutive',
                 'dispatches.creator:id,email',
@@ -1232,7 +1232,7 @@ class BatchController extends Controller
     private function sendBatchCompletedMail(Batch $batch): void
     {
         try {
-            $customer = $batch->workOrder?->customer;
+            $customer = $batch->salesOrder?->customer;
             $customerEmail = null;
             if ($customer) {
                 $contact = $customer->contacts()->where('is_primary', true)->first() ?? $customer->contacts()->first();

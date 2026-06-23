@@ -115,7 +115,7 @@ const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(s
 // Quotation dropdown options with labels
 const quotationOptions = computed(() => {
     // Filter out quotations that have an active sales order
-    const list = props.quotations.filter((q) => !q.is_salesorder || Number(q.is_salesorder) !== 1);
+    const list = props.quotations.filter((q) => !q.is_customer_po || Number(q.is_customer_po) !== 1);
     
     // Ensure the current sales order's linked quotation is included in the options list
     if (props.customerPO?.quotation) {

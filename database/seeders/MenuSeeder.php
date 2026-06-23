@@ -89,8 +89,8 @@ class MenuSeeder extends Seeder
 
             // Sidebar: Orders (parent_id = 3)
             ['id' => 57, 'menutype' => 2, 'title' => 'Quotation',       'alias' => 'quotations',    'link' => 'orders/quotations',      'icon' => 'DocumentChartBarIcon',     'published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 1, 'permission_name' => 'QUOTATION.VIEW'],
-            ['id' => 79, 'menutype' => 2, 'title' => 'Customer PO',      'alias' => 'salesorders',   'link' => 'orders/salesorders',     'icon' => 'ShoppingBagIcon',          'published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 2, 'permission_name' => 'SALES_ORDER.VIEW'],
-            ['id' => 59, 'menutype' => 2, 'title' => 'Work Order',      'alias' => 'workorders',    'link' => 'orders/workorders',      'icon' => 'ClipboardDocumentCheckIcon','published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 3, 'permission_name' => 'WORK_ORDER.VIEW'],
+            ['id' => 79, 'menutype' => 2, 'title' => 'Customer PO',      'alias' => 'customerpos',   'link' => 'orders/customer-po',     'icon' => 'ShoppingBagIcon',          'published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 2, 'permission_name' => 'SALES_ORDER.VIEW'],
+            ['id' => 59, 'menutype' => 2, 'title' => 'Sales Order',      'alias' => 'salesorders',    'link' => 'orders/salesorders',      'icon' => 'ClipboardDocumentCheckIcon','published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 3, 'permission_name' => 'WORK_ORDER.VIEW'],
             ['id' => 60, 'menutype' => 2, 'title' => 'Party Rate',      'alias' => 'partyrates',    'link' => 'orders/partyrates',      'icon' => 'CurrencyRupeeIcon',         'published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 4, 'permission_name' => 'PARTY_RATE.VIEW'],
             ['id' => 78, 'menutype' => 2, 'title' => 'Batching',        'alias' => 'Batching',      'link' => 'orders/batches',         'icon' => 'ClipboardDocumentListIcon', 'published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 5, 'permission_name' => 'BATCH.VIEW'], // ID updated from 61 to 78
 

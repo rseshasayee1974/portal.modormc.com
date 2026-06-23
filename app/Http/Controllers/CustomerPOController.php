@@ -28,9 +28,9 @@ class CustomerPOController extends Controller
         $patrons = \App\Models\Patron::select('id', 'legal_name')->orderBy('legal_name')->get();
         $sites = \App\Models\Site::select('id', 'name')->orderBy('name')->get();
         $quotations = Quotation::with(['items:id,quotation_id,mix_design_id,quantity,rate,tax_id,tax_amount,untaxed_amount,amount_total'])
-            ->select('id', 'reference', 'amount_total', 'patron_id', 'site_id', 'is_salesorder')
+            ->select('id', 'reference', 'amount_total', 'patron_id', 'site_id', 'is_customer_po')
             ->where('plant_id', $plantId)
-            ->where('is_salesorder', 0)
+            ->where('is_customer_po', 0)
             ->orderBy('reference')
             ->get();
         $mixDesigns = \App\Models\MixDesign::select('id', 'design_name')->orderBy('design_name')->get();
@@ -100,7 +100,7 @@ class CustomerPOController extends Controller
                 $quote = Quotation::find($validated['quotation_id']);
                 Quotation::where('id', $validated['quotation_id'])->update([
                     'status' => Quotation::STATUS_ACCEPTED,
-                    'is_salesorder' => 1
+                    'is_customer_po' => 1
                 ]);
             }
 
@@ -153,7 +153,7 @@ class CustomerPOController extends Controller
         
         if ($customerPO->quotation_id) {
             Quotation::where('id', $customerPO->quotation_id)->update([
-                'is_salesorder' => 0
+                'is_customer_po' => 0
             ]);
         }
 
@@ -210,7 +210,7 @@ class CustomerPOController extends Controller
                     ->exists();
                 if (!$otherUses) {
                     Quotation::where('id', $customerPO->quotation_id)->update([
-                        'is_salesorder' => 0
+                        'is_customer_po' => 0
                     ]);
                 }
             }
@@ -241,7 +241,7 @@ class CustomerPOController extends Controller
             } else {
                 Quotation::where('id', $validated['quotation_id'])->update([
                     'status' => Quotation::STATUS_ACCEPTED,
-                    'is_salesorder' => 1
+                    'is_customer_po' => 1
                 ]);
 
                 $quotation = Quotation::find($validated['quotation_id']);

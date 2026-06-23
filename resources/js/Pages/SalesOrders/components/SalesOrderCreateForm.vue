@@ -1,14 +1,16 @@
     <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
+import { useForm, router } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import DatePicker from 'primevue/datepicker';
 import Button from 'primevue/button';
+import Dialog from 'primevue/dialog';
 import Swal from 'sweetalert2';
 import { PlusCircleIcon, InformationCircleIcon, BeakerIcon } from '@heroicons/vue/24/outline';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+import MixDesignCreateForm from '@/Pages/MixDesigns/Partials/MixDesignCreateForm.vue';
 
 const props = withDefaults(defineProps<{
     customers?: any[];
@@ -19,6 +21,9 @@ const props = withDefaults(defineProps<{
     activePlantId?: number;
     nextReference?: string;
     concretePumpOptions?: any[];
+    products?: any[];
+    units?: any[];
+    designTypes?: any[];
 }>(), {
     customers: () => [],
     sites: () => [],
@@ -28,6 +33,9 @@ const props = withDefaults(defineProps<{
     activePlantId: 0,
     nextReference: '',
     concretePumpOptions: () => [],
+    products: () => [],
+    units: () => [],
+    designTypes: () => [],
 });
 
 const showMixDesignModal = ref(false);
@@ -155,14 +163,25 @@ const submit = () => {
     });
 };
 
+const loadDependencies = () => {
+    if (!props.products?.length || !props.units?.length || !props.designTypes?.length) {
+        router.reload({ only: ['products', 'units', 'designTypes'] });
+    }
+};
+
 const handleMixCreated = () => {
-    Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: 'New Design available in dropdown',
-        timer: 1500,
-        showConfirmButton: false,
+    router.reload({
+        only: ['mixDesigns'],
+        onSuccess: () => {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'New Design available in dropdown',
+                timer: 1500,
+                showConfirmButton: false,
+            });
+        }
     });
 };
 </script>
@@ -393,5 +412,16 @@ const handleMixCreated = () => {
         <div class="flex justify-end border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-800/30 px-4 py-3">
             <Button label="Create Sales Order" icon="pi pi-check" :loading="form.processing" @click="submit" class="p-button-indigo" />
         </div>
+
+        <Dialog v-model:visible="showMixDesignModal" modal header="Create Mix Design" :style="{ width: '80vw' }" @show="loadDependencies">
+            <MixDesignCreateForm
+                v-if="showMixDesignModal"
+                :products="products"
+                :units="units"
+                :partners="customers"
+                :designTypes="designTypes"
+                @created="showMixDesignModal = false; handleMixCreated()"
+            />
+        </Dialog>
     </div>
 </template>

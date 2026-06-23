@@ -115,17 +115,17 @@ Log::info($dispatch);
           
 
                 // Send Notification
-                $dispatch->load(['customer.contacts']);
-                $primaryContact = $dispatch->customer->contacts()->where('is_primary', 1)->first() 
-                                ?? $dispatch->customer->contacts()->first();
-                
-                if ($primaryContact?->email) {
-                    \Illuminate\Support\Facades\Notification::route('mail', $primaryContact->email)
-                        ->notify(new \App\Notifications\DispatchCompletedNotification($dispatch));
+                if ($dispatch->customer) {
+                    $dispatch->load(['customer.contacts']);
+                    $primaryContact = $dispatch->customer->contacts()->where('is_primary', 1)->first() 
+                                    ?? $dispatch->customer->contacts()->first();
+                    
+                    // if ($primaryContact?->email) {
+                    //     \Illuminate\Support\Facades\Notification::route('mail', $primaryContact->email)
+                    //         ->notify(new \App\Notifications\DispatchCreated($dispatch));
+                    // }
                 }
-
                 return redirect()->back()->with('success', 'Dispatch processed successfully.');
-      
         });
     }
 

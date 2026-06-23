@@ -25,6 +25,8 @@ class PersonnelTest extends TestCase
         $this->entity = Entity::factory()->create();
         $this->plant = Plant::factory()->create(['entity_id' => $this->entity->id]);
         
+        \App\Models\ContactType::firstOrCreate(['id' => 1], ['type' => 'Phone', 'is_active' => true]);
+        
         session(['active_entity_id' => $this->entity->id]);
         session(['active_plant_id' => $this->plant->id]);
         

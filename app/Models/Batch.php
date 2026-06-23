@@ -116,6 +116,10 @@ class Batch extends Model
     {
         return $this->belongsTo(SalesOrder::class, 'sales_order_id');
     }
+    public function salesOrder()
+    {
+        return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+    }
 
 
 

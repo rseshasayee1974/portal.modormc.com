@@ -142,13 +142,13 @@ const toggleExpand = (row: any) => {
 
 const conversionOptions = [
     { label: 'None', value: 0 },
-    { label: 'Sales Order', value: 1 },
+    { label: 'Customer PO', value: 1 },
     { label: 'Rejected', value: -1 },
 ];
 
 const updateConversion = (quotation: any) => {
     router.patch(route('quotations.convert', quotation.id), {
-        is_salesorder: quotation.is_salesorder
+        is_customer_po: quotation.is_customer_po
     }, {
         preserveScroll: true,
         onSuccess: () => {
@@ -268,7 +268,7 @@ const updateConversion = (quotation: any) => {
                                     <!-- Conversion Dropdown - Only if Approved (2) -->
                                     <div v-if="Number(slotProps.data.status) === 2" class="mt-1">
                                         <Select 
-                                            v-model="slotProps.data.is_salesorder"
+                                            v-model="slotProps.data.is_customer_po"
                                             :options="conversionOptions"
                                             optionLabel="label"
                                             optionValue="value"

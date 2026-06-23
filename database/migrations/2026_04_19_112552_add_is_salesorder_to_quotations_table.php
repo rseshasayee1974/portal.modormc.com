@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('mm_quotations', function (Blueprint $table) {
-            if (!Schema::hasColumn('mm_quotations', 'is_salesorder')) {
-                $table->tinyInteger('is_salesorder')->default(0)->after('status')->comment('0=None, 1=Converted, -1=Rejected');
+            if (!Schema::hasColumn('mm_quotations', 'is_customer_po')) {
+                $table->tinyInteger('is_customer_po')->default(0)->after('status')->comment('0=None, 1=Converted, -1=Rejected');
             }
         });
     }
@@ -24,7 +24,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('mm_quotations', function (Blueprint $table) {
-            $table->dropColumn('is_salesorder');
+            $table->dropColumn('is_customer_po');
         });
     }
 };

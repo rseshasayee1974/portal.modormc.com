@@ -32,6 +32,9 @@ class SalesOrderIndexDataFactory
             'concretePumpOptions' => ConcretePumpDropdown(),
             'activePlantId' => $activePlantId,
             'nextReference' => $activePlantId ? SalesOrder::generateOrderNo($activePlantId, 'SO')['full_number'] : null,
+            'products' => \Inertia\Inertia::lazy(fn() => $activePlantId ? ProductsDropdown('Purchase')->toArray() : []),
+            'units' => \Inertia\Inertia::lazy(fn() => $activePlantId ? Productunit() : []),
+            'designTypes' => \Inertia\Inertia::lazy(fn() => $activePlantId ? \App\Models\ConcreteGrade::query()->where('plant_id', '=', $activePlantId)->select(['id', 'name'])->get()->toArray() : []),
         ];
     }
 

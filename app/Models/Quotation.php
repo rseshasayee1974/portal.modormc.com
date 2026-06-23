@@ -35,7 +35,7 @@ class Quotation extends Model
         'adjustment',
         'amount_total',
         'status',
-        'is_salesorder',
+        'is_customer_po',
         'sales_executive_id',
         'created_by',
         'updated_by',
@@ -43,7 +43,7 @@ class Quotation extends Model
     ];
 
     protected $casts = [
-        'is_salesorder' => 'integer',
+        'is_customer_po' => 'integer',
         'sales_executive_id' => 'integer',
         'amount_untaxed' => 'decimal:2',
         'amount_tax' => 'decimal:2',
