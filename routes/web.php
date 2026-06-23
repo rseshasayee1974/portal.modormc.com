@@ -207,6 +207,14 @@ Route::middleware([
         Route::get('batches/{batch}/delivery-token/download', [\App\Http\Controllers\BatchController::class, 'downloadDeliveryTokenPdf'])->name('batches.delivery-token.download');
         Route::post('batches/{batch}/sync', [\App\Http\Controllers\BatchController::class, 'syncToScheduler'])->name('batches.sync');
         Route::post('batches/ocr', [\App\Http\Controllers\Api\BatchOcrController::class, 'process'])->name('batches.ocr');
+        Route::prefix('api/batch-sheets')->group(function () {
+            Route::post('upload', [\App\Http\Controllers\Api\BatchSheetUploadController::class, 'upload'])->name('batch-sheets.upload');
+            Route::get('{id}/status', [\App\Http\Controllers\Api\BatchSheetUploadController::class, 'status'])->name('batch-sheets.status');
+            Route::get('{id}/verify', [\App\Http\Controllers\Api\BatchSheetUploadController::class, 'verify'])->name('batch-sheets.verify');
+            Route::post('{id}/save', [\App\Http\Controllers\Api\BatchSheetUploadController::class, 'saveToDatabase'])->name('batch-sheets.save');
+            Route::post('{id}/template', [\App\Http\Controllers\Api\BatchSheetUploadController::class, 'saveTemplate'])->name('batch-sheets.save-template');
+            Route::delete('{id}', [\App\Http\Controllers\Api\BatchSheetUploadController::class, 'destroy'])->name('batch-sheets.destroy');
+        });
         Route::post('weighbridge/alert', [\App\Http\Controllers\Api\WeighbridgeApiController::class, 'sendAlert'])->name('weighbridge.alert');
         Route::get('production/batch', [\App\Http\Controllers\Api\ProductionApiController::class, 'getConsumption'])->name('batches.production');
         Route::get('dispatches/dropdowns', [\App\Http\Controllers\DispatchController::class, 'dropdowns'])->name('dispatches.dropdowns');

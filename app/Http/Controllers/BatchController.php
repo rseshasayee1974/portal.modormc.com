@@ -80,12 +80,10 @@ class BatchController extends Controller
             }
             $batch->dispatches->each(function ($dispatch) {
                 $dispatch->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-                if ($dispatch->truck) {
-                    $dispatch->truck->makeHidden([
-                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                        'can_delete', 'can_update', 'is_in_use'
-                    ]);
-                }
+                $dispatch->truck?->makeHidden([
+                    'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                    'can_delete', 'can_update', 'is_in_use'
+                ]);
             });
         });
 
@@ -174,9 +172,8 @@ class BatchController extends Controller
             'transporters'      => PatronsDropdown('Transporter'),
             'loading_sites'     => SitesDropdown('loading'),
             'unloading_sites'   => SitesDropdown('unloading'),
-            // 'drivers'            => PersonnelDropdown('','Driver'),
-            'drivers'            => DriversDropdown(),
-            'sales_executives'   => PersonnelDropdown('','Sales Executive'),
+            'drivers'           => DriversDropdown(),
+            'sales_executives'  => PersonnelDropdown('','Sales Executive'),
             'taxes'             => TaxesDropdown('sales'),
             'products'          => fn () => ProductsDropdown(),
             'uoms'              => Productunit(),
@@ -201,9 +198,10 @@ class BatchController extends Controller
     $salesOrder = SalesOrder::query()->findOrFail($payload['sales_order_id']);
     $this->ensurePlantScope($salesOrder);
 
-    $emptyPhoto = $payload['empty_weight_photo'] ?? null;
-    $loadedPhoto = $payload['loaded_weight_photo'] ?? null;
-    unset($payload['empty_weight_photo'], $payload['loaded_weight_photo']);
+        // Extract photos before unsetting
+        $emptyPhoto = $payload['empty_weight_photo'] ?? null;
+        $loadedPhoto = $payload['loaded_weight_photo'] ?? null;
+        unset($payload['empty_weight_photo'], $payload['loaded_weight_photo']);
 
     $materialsData = $payload['materials'] ?? [];
     $activePlantId = session('active_plant_id', $salesOrder->plant_id);
@@ -214,16 +212,15 @@ class BatchController extends Controller
             $payload['status'] = $payload['status'] ?? Batch::STATUS_PLANNED;
             $payload['plant_id'] = $activePlantId; // ensure plant_id is set
 
-            $materials = $materialsData;
-            unset($payload['materials']);
+                unset($payload['materials']);
 
-            if (empty($payload['shift'])) {
-                $plant = Plant::find($activePlantId);
-                if ($plant) {
-                    $shiftInfo = $plant->getCurrentShiftInfo($payload['start_time'] ?? null);
-                    $payload['shift'] = $shiftInfo['shift'];
+                if (empty($payload['shift'])) {
+                    $plant = Plant::find($activePlantId);
+                    if ($plant) {
+                        $shiftInfo = $plant->getCurrentShiftInfo($payload['start_time'] ?? null);
+                        $payload['shift'] = $shiftInfo['shift'];
+                    }
                 }
-            }
 
                 $batchData = array_intersect_key($payload, array_flip([
                     'sales_order_id',
@@ -240,19 +237,20 @@ class BatchController extends Controller
                     'created_by',
                     'updated_by',
                 ]));
+                
                 $batch = Batch::create($batchData);
-                $this->syncMaterials($batch, $materials);
+                $this->syncMaterials($batch, $materialsData);
                 
                 if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-                    $this->checkStock($batch, $materials);
-                    $this->adjustStock($batch, $materials);
+                    $this->checkStock($batch, $materialsData);
+                    $this->adjustStock($batch, $materialsData);
                 }
                 
                 $salesOrder->refreshProduction();
 
-            if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-                $this->sendBatchCompletedMail($batch);
-            }
+                if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                    $this->sendBatchCompletedMail($batch);
+                }
 
             // Only create dispatch if we have minimum required data
             $shouldCreateDispatch = !empty($payload['truck_id']) || !empty($payload['transport_id']);
@@ -296,33 +294,31 @@ class BatchController extends Controller
                     'created_at' => now(),
                 ];
 
-                // Log what we're about to insert
-                \Log::info('Creating Dispatch', $dispatchData);
+                    Log::info('Creating Dispatch', $dispatchData);
+                    $dispatch = Dispatch::create($dispatchData);
+                    
+                    $dispatch->status()->updateOrCreate(
+                        ['dispatch_id' => $dispatch->id],
+                        ['plant_id' => $dispatch->plant_id]
+                    );
+                }
 
-                $dispatch = Dispatch::create($dispatchData);
-                
-                $dispatch->status()->updateOrCreate(
-                    ['dispatch_id' => $dispatch->id],
-                    ['plant_id' => $dispatch->plant_id]
-                );
-            }
+                if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
+                if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
 
-            if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
-            if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
-
-            return $batch;
-        });
-    } catch (ValidationException $e) {
-        throw $e;
-    } catch (\Throwable $e) {
-        \Log::error('Batch Store Failed: ' . $e->getMessage(), [
-            'trace' => $e->getTraceAsString(),
-            'payload' => $payload
-        ]);
-        throw ValidationException::withMessages([
-            'error' => ['Failed to create batch: ' . $e->getMessage()]
-        ]);
-    }
+                return $batch;
+            });
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::error('Batch Store Failed: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'payload' => $payload
+            ]);
+            throw ValidationException::withMessages([
+                'error' => ['Failed to create batch: ' . $e->getMessage()]
+            ]);
+        }
 
     return redirect()->route('batches.token', $batch->id);
 }
@@ -510,28 +506,28 @@ class BatchController extends Controller
 
         $oldMaterials = $batch->materials()->get()->toArray();
         $oldStatus = $batch->status;
-        // dd($oldMaterials,$oldStatus);
-     try {
-        DB::transaction(function () use ($batch, $payload, $emptyPhoto, $loadedPhoto, $oldMaterials, $oldStatus) {
-            $materials = $payload['materials'] ?? [];
-            unset($payload['materials']);
-// dd($materials);
-            // Check stock first before proceeding with saving and new consumption
-            $newStatus = $payload['status'] ?? $batch->status;
-            $hasActual = collect($materials)->contains(fn($m) => (float)($m['actual_qty'] ?? 0) > 0);
-            if ($hasActual && $newStatus == Batch::STATUS_PLANNED) {
-                $newStatus = Batch::STATUS_DISPATCHED;
-            }
 
-            if (in_array($newStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-                $wasDeducted = in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]);
-                $this->checkStock($batch, $materials, $oldMaterials, $wasDeducted);
-            }
+        try {
+            DB::transaction(function () use ($batch, $payload, $emptyPhoto, $loadedPhoto, $oldMaterials, $oldStatus) {
+                $materials = $payload['materials'] ?? [];
+                unset($payload['materials']);
 
-            // 1. Revert old consumption only if it was previously deducted
-            if (in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
-                $this->adjustStock($batch, $oldMaterials, true);
-            }
+                $newStatus = $payload['status'] ?? $batch->status;
+                $hasActual = collect($materials)->contains(fn($m) => (float)($m['actual_qty'] ?? 0) > 0);
+                if ($hasActual && $newStatus == Batch::STATUS_PLANNED) {
+                    $newStatus = Batch::STATUS_DISPATCHED;
+                    $payload['status'] = $newStatus;
+                }
+
+                if (in_array($newStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                    $wasDeducted = in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]);
+                    $this->checkStock($batch, $materials, $oldMaterials, $wasDeducted);
+                }
+
+                // Revert old consumption only if it was previously deducted
+                if (in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                    $this->adjustStock($batch, $oldMaterials, true);
+                }
 
             $batch->fill($payload);
             
@@ -553,38 +549,36 @@ class BatchController extends Controller
             }
             $batch->salesOrder->refreshProduction();
 
-            // Send notification if batch is newly dispatched or completed
-            if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]) && 
-                $oldStatus != $batch->status) {
-                $this->sendBatchCompletedMail($batch);
-            }
-            if ($batch->status == Batch::STATUS_DISPATCHED && $oldStatus != Batch::STATUS_DISPATCHED) {
-                session()->flash('dispatched_batch_id', $batch->id);
-            }
+                if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]) && 
+                    $oldStatus != $batch->status) {
+                    $this->sendBatchCompletedMail($batch);
+                }
+                if ($batch->status == Batch::STATUS_DISPATCHED && $oldStatus != Batch::STATUS_DISPATCHED) {
+                    session()->flash('dispatched_batch_id', $batch->id);
+                }
 
-            // Update associated dispatch if it exists
-            $dispatch = $batch->dispatches()->first();
-            if ($dispatch) {
-                $dispatch->update([
-                    'truck_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->truck_id,
-                    'transport_id' => array_key_exists('transport_id', $payload) ? $payload['transport_id'] : $dispatch->transport_id,
-                    'driver_id' => array_key_exists('driver_id', $payload) ? $payload['driver_id'] : $dispatch->driver_id,
-                    'sales_executive_id' => array_key_exists('sales_executive_id', $payload) ? $payload['sales_executive_id'] : $dispatch->sales_executive_id,
-                    'concrete_pump' => array_key_exists('concrete_pump', $payload) ? $payload['concrete_pump'] : $dispatch->concrete_pump,
-                    'empty_weight_truck' => array_key_exists('empty_weight_truck', $payload) ? $payload['empty_weight_truck'] : $dispatch->empty_weight_truck,
-                    'loaded_weight_truck' => array_key_exists('loaded_weight_truck', $payload) ? $payload['loaded_weight_truck'] : $dispatch->loaded_weight_truck,
-                    'net_weight' => array_key_exists('net_weight', $payload) ? $payload['net_weight'] : $dispatch->net_weight,
-                    'load_site_id' => array_key_exists('site_id', $payload) ? $payload['site_id'] : $dispatch->load_site_id,
-                    'uom_id' => array_key_exists('uom_id', $payload) ? $payload['uom_id'] : $dispatch->uom_id,
-                    'empty_time' => array_key_exists('empty_time', $payload) ? $payload['empty_time'] : $dispatch->empty_time,
-                    'load_time' => array_key_exists('load_time', $payload) ? $payload['load_time'] : $dispatch->load_time,
-                ]);
-            }
+                $dispatch = $batch->dispatches()->first();
+                if ($dispatch) {
+                    $dispatch->update([
+                        'truck_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->truck_id,
+                        'transport_id' => array_key_exists('transport_id', $payload) ? $payload['transport_id'] : $dispatch->transport_id,
+                        'driver_id' => array_key_exists('driver_id', $payload) ? $payload['driver_id'] : $dispatch->driver_id,
+                        'sales_executive_id' => array_key_exists('sales_executive_id', $payload) ? $payload['sales_executive_id'] : $dispatch->sales_executive_id,
+                        'concrete_pump' => array_key_exists('concrete_pump', $payload) ? $payload['concrete_pump'] : $dispatch->concrete_pump,
+                        'empty_weight_truck' => array_key_exists('empty_weight_truck', $payload) ? $payload['empty_weight_truck'] : $dispatch->empty_weight_truck,
+                        'loaded_weight_truck' => array_key_exists('loaded_weight_truck', $payload) ? $payload['loaded_weight_truck'] : $dispatch->loaded_weight_truck,
+                        'net_weight' => array_key_exists('net_weight', $payload) ? $payload['net_weight'] : $dispatch->net_weight,
+                        'uom_id' => array_key_exists('uom_id', $payload) ? $payload['uom_id'] : $dispatch->uom_id,
+                        'empty_time' => array_key_exists('empty_time', $payload) ? $payload['empty_time'] : $dispatch->empty_time,
+                        'load_time' => array_key_exists('load_time', $payload) ? $payload['load_time'] : $dispatch->load_time,
+                        'updated_by' => auth()->id(),
+                    ]);
+                }
 
-            if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
-            if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
-        });
-           } catch (ValidationException $e) {
+                if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
+                if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
+            });
+        } catch (ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
             throw ValidationException::withMessages([
@@ -593,7 +587,6 @@ class BatchController extends Controller
         }
 
         $this->broadcastBatchChange('BatchUpdated', $batch);
-
         return redirect()->back()->with('success', 'Batch updated successfully.');
     }
 

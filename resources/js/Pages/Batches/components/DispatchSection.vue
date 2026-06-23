@@ -13,6 +13,8 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { usePermissions } from '@/Composables/usePermissions';
 
+declare const route: any;
+
 onUnmounted(() => {
     console.log('DispatchSection: onUnmounted called');
 });
@@ -23,7 +25,7 @@ onUpdated(() => {
 
 const props = defineProps<{
     batch: any;
-    workOrder: any;
+    salesOrder: any;
     sales_executives:any;
     drivers:any;
     
@@ -40,6 +42,7 @@ const props = defineProps<{
     };
     settings?: any;
     dispatch?: any;
+    onSaved?: (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => void;
 }>();
 
 const { userRole } = usePermissions();
@@ -58,13 +61,14 @@ const isReadOnly = computed(() => {
 // console.log(props.dropdownData);
 
 const emit = defineEmits<{
+    (e: 'tripSaved'): void;
     (e: 'saved', payload?: { batchId: number, type: 'batching' | 'dispatch' }): void;
     (e: 'cancel'): void;
 }>();
 
 const form = useForm({
     id: props.dispatch?.id || null,
-    sales_order_id: props.dispatch?.sales_order_id || props.workOrder?.id,
+    sales_order_id: props.dispatch?.sales_order_id || props.salesOrder?.id,
     batch_id: props.dispatch?.batch_id || props.batch?.id,
     batch_size: props.dispatch?.batch_size || props.batch?.batch_size || 0,
     prefix: props.dispatch?.prefix || '',
@@ -167,6 +171,37 @@ onMounted(async () => {
         console.error('Failed to fetch next dispatch number:', error);
     }
 });
+
+// Watch for changes in props.batch (important for syncing batch weights and details to new dispatches)
+watch(() => props.batch, (newBatch) => {
+    if (newBatch && !form.id) {
+        form.sales_order_id = props.salesOrder?.id || newBatch.sales_order_id;
+        form.batch_id = newBatch.id;
+        form.batch_size = newBatch.batch_size || 0;
+        form.delivered_qty = newBatch.batch_size || 0;
+        form.truck_id = newBatch.truck_id || form.truck_id;
+        form.transport_id = newBatch.transport_id || form.transport_id;
+        form.customer_id = newBatch.customer_id || form.customer_id;
+        form.mixdesign_id = newBatch.mix_design_id || form.mixdesign_id;
+        form.uom_id = newBatch.uom_id || form.uom_id;
+        form.load_site_id = newBatch.load_site_id || form.load_site_id;
+        form.unload_site_id = newBatch.unload_site_id || form.unload_site_id;
+        form.driver_id = newBatch.driver_id || form.driver_id;
+        form.sales_executive_id = newBatch.sales_executive_id || form.sales_executive_id;
+
+        form.weights.empty_weight_truck = newBatch.empty_weight_truck || 0;
+        form.weights.loaded_weight_truck = newBatch.loaded_weight_truck || 0;
+        form.weights.empty_weight_time_load = newBatch.empty_time ? new Date(newBatch.empty_time) : null;
+        form.weights.loaded_weight_time_load = newBatch.load_time ? new Date(newBatch.load_time) : null;
+
+        form.financials.load_units = newBatch.loaded_weight_truck ? Number((Number(newBatch.loaded_weight_truck) - Number(newBatch.empty_weight_truck || 0)).toFixed(3)) : (newBatch.batch_size || 0);
+        form.financials.load_uom_id = newBatch.uom_id || form.financials.load_uom_id;
+        form.financials.unload_units = newBatch.batch_size || 0;
+        form.financials.unload_uom_id = newBatch.uom_id || form.financials.unload_uom_id;
+        form.financials.transport_units = newBatch.batch_size || 0;
+        form.financials.transport_uom_id = newBatch.uom_id || form.financials.transport_uom_id;
+    }
+}, { deep: true, immediate: true });
 
 // Watch for changes in props.dispatch (important for async loading in expansion)
 watch(() => props.dispatch, (newDispatch) => {
@@ -314,6 +349,7 @@ const selectedUom = computed(() => {
 });
 
 const submit = () => {
+    emit('tripSaved');
     // console.log('DispatchSection: submit called, form.id is:', form.id);
     if (form.id) {
         form.put(route('dispatches.update', form.id), {
@@ -332,8 +368,12 @@ const submit = () => {
                     showConfirmButton: false,
                     timer: 1500
                 });
-                console.log('DispatchSection: emitting saved');
-                emit('saved', { batchId: props.batch.id, type: 'dispatch' });
+                console.log('DispatchSection: invoking onSaved prop');
+                if (props.onSaved) {
+                    props.onSaved({ batchId: props.batch.id, type: 'dispatch' });
+                } else {
+                    emit('saved', { batchId: props.batch.id, type: 'dispatch' });
+                }
             },
             onError: (errors) => {
                 console.error('DispatchSection: put errors:', errors);
@@ -360,8 +400,12 @@ const submit = () => {
                     showConfirmButton: false,
                     timer: 1500
                 });
-                console.log('DispatchSection: emitting saved');
-                emit('saved', { batchId: props.batch.id, type: 'dispatch' });
+                console.log('DispatchSection: invoking onSaved prop');
+                if (props.onSaved) {
+                    props.onSaved({ batchId: props.batch.id, type: 'dispatch' });
+                } else {
+                    emit('saved', { batchId: props.batch.id, type: 'dispatch' });
+                }
             },
             onError: (errors) => {
                 console.error('DispatchSection: post errors:', errors);
@@ -390,7 +434,11 @@ const handleGenerateInvoice = () => {
     }, {
         preserveScroll: true,
         onSuccess: () => {
-            emit('saved', { batchId: props.batch.id, type: 'dispatch' });
+            if (props.onSaved) {
+                props.onSaved({ batchId: props.batch.id, type: 'dispatch' });
+            } else {
+                emit('saved', { batchId: props.batch.id, type: 'dispatch' });
+            }
         }
     });
 };
@@ -409,7 +457,11 @@ const handleDeleteInvoice = () => {
             router.delete(route('dispatches.delete-invoice', form.id), {
                 preserveScroll: true,
                 onSuccess: () => {
-                    emit('saved', { batchId: props.batch.id, type: 'dispatch' });
+                    if (props.onSaved) {
+                        props.onSaved({ batchId: props.batch.id, type: 'dispatch' });
+                    } else {
+                        emit('saved', { batchId: props.batch.id, type: 'dispatch' });
+                    }
                 }
             });
         }
@@ -426,7 +478,7 @@ const handleDeleteInvoice = () => {
                 </div>
                 <div>
                     <h2 class="text-sm font-black text-slate-800 uppercase tracking-tight">Generate Dispatch</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Batch #{{ batch.batch_no }} &bull; WO #{{ workOrder.order_no }}</p>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Batch #{{ batch.batch_no }} &bull; WO #{{ salesOrder.order_no }}</p>
                 </div>
             </div>
             
@@ -558,6 +610,7 @@ const handleDeleteInvoice = () => {
                                     label="Save Trip" 
                                     variant="filled" 
                                     severity="primary" 
+                                    
                                     class="!py-3 !text-[10px] !font-black uppercase tracking-widest shadow-lg shadow-indigo-200/50"
                                     :loading="form.processing"
                                     :disabled="isReadOnly"

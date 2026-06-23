@@ -132,28 +132,28 @@ const print = () => {
 
             <div class="grid grid-cols-3 gap-y-2 gap-x-12 mb-8 text-[11px] leading-tight border-y border-black py-6 uppercase">
                 <div class="flex justify-between"><span>Batch Number</span> <span class="font-bold">: {{ batch.batch_no }}</span></div>
-                <div class="flex justify-between"><span>Recipe Name</span> <span class="font-bold">: {{ batch.work_order?.mix_design?.concrete_grade?.name || 'M30' }}</span></div>
+                <div class="flex justify-between"><span>Recipe Name</span> <span class="font-bold">: {{ batch.sales_order?.mix_design?.concrete_grade?.name || 'M30' }}</span></div>
                 <div class="flex justify-between"><span>Mixer Capacity</span> <span class="font-bold">: 1.25</span></div>
                 
                 <div class="flex justify-between"><span>Batch Date</span> <span class="font-bold">: {{ formatDate(batch.load_time || batch.created_at) }}</span></div>
-                <div class="flex justify-between"><span>Recipe Code</span> <span class="font-bold">: {{ batch.work_order?.mix_design?.mix_id || 'M30(N)' }}</span></div>
+                <div class="flex justify-between"><span>Recipe Code</span> <span class="font-bold">: {{ batch.sales_order?.mix_design?.mix_id || 'M30(N)' }}</span></div>
                 <div class="flex justify-between"><span>Batch Size</span> <span class="font-bold">: {{ Number(batch.batch_size).toFixed(4) }}</span></div>
                 
                 <div class="flex justify-between"><span>Batch Start Time</span> <span class="font-bold">: {{ formatTime(batch.start_time) }}</span></div>
                 <div class="flex justify-between"><span>Truck No</span> <span class="font-bold">: {{ batch.truck?.registration || '-' }}</span></div>
-                <div class="flex justify-between"><span>Production Qty</span> <span class="font-bold">: {{ Number(batch.work_order?.produced_qty || 0).toFixed(2) }}</span></div>
+                <div class="flex justify-between"><span>Production Qty</span> <span class="font-bold">: {{ Number(batch.sales_order?.produced_qty || 0).toFixed(2) }}</span></div>
                 
                 <div class="flex justify-between"><span>Batch End Time</span> <span class="font-bold">: {{ formatTime(batch.end_time) }}</span></div>
                 <div class="flex justify-between"><span>Truck Driver</span> <span class="font-bold">: {{ batch.driver?.name || 'GUNA' }}</span></div>
-                <div class="flex justify-between"><span>Order No</span> <span class="font-bold">: {{ batch.work_order?.order_no }}</span></div>
+                <div class="flex justify-between"><span>Order No</span> <span class="font-bold">: {{ batch.sales_order?.order_no }}</span></div>
                 
-                <div class="flex justify-between"><span>Customer</span> <span class="font-bold">: {{ batch.work_order?.customer?.legal_name || '-' }}</span></div>
+                <div class="flex justify-between"><span>Customer</span> <span class="font-bold">: {{ batch.sales_order?.customer?.legal_name || '-' }}</span></div>
                 <div class="flex justify-between"><span>Adj / Manual Qty</span> <span class="font-bold">: 0.00</span></div>
-                <div class="flex justify-between"><span>Ordered Qty</span> <span class="font-bold">: {{ Number(batch.work_order?.total_qty || 0).toFixed(2) }}</span></div>
+                <div class="flex justify-between"><span>Ordered Qty</span> <span class="font-bold">: {{ Number(batch.sales_order?.total_qty || 0).toFixed(2) }}</span></div>
                 
-                <div class="flex justify-between"><span>Site</span> <span class="font-bold">: {{ batch.work_order?.site?.name || '-' }}</span></div>
+                <div class="flex justify-between"><span>Site</span> <span class="font-bold">: {{ batch.sales_order?.site?.name || '-' }}</span></div>
                 <div class="flex justify-between"><span></span> <span></span></div>
-                <div class="flex justify-between"><span>With This Load</span> <span class="font-bold">: {{ Number(batch.work_order?.produced_qty || 0).toFixed(2) }}</span></div>
+                <div class="flex justify-between"><span>With This Load</span> <span class="font-bold">: {{ Number(batch.sales_order?.produced_qty || 0).toFixed(2) }}</span></div>
             </div>
 
             <!-- Materials Table -->
@@ -275,3 +275,4 @@ const print = () => {
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 </style>
+

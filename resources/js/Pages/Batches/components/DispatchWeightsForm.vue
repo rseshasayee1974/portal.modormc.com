@@ -34,7 +34,7 @@ const props = withDefaults(defineProps<{
     isReadOnly: false
 });
 // console.log(props.sales_ledgers)
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'generateInvoice' , 'deleteInvoice']);
 
 
 import { watch } from 'vue';

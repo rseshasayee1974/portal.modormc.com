@@ -74,12 +74,22 @@ const handleFile = async (file: File) => {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
 
-        // Response format from BatchOcrController:
-        // { status: true, message: "...", data: { materials: [...], url: "..." } }
-        const data = response.data.data;
-        
+        const result = response.data;
         processing.value = false;
-        emit('completed', data);
+
+        if (!result.status) {
+            Swal.fire({
+                timer: 6000,
+                timerProgressBar: true,
+                title: 'Extraction Failed',
+                text: result.message || 'Could not automatically read materials. Please enter them manually.',
+                icon: 'warning',
+                confirmButtonText: 'Enter Manually',
+                confirmButtonColor: '#4f46e5'
+            });
+        }
+
+        emit('completed', result);
     } catch (e: any) {
         processing.value = false;
         uploading.value = false;

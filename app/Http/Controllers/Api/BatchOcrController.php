@@ -3,509 +3,404 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Batch;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Smalot\PdfParser\Parser as PdfParser;
 
-/**
- * BatchOcrController
- * 
- * Dynamically parses uploaded batch sheet files (PDF or image) to extract
- * "Total Actual Weight" values per material, then returns them as a normalized
- * JSON list that the frontend can directly apply to the Input Reconciliation table.
- * 
- * Parse strategy (in priority order):
- *  1. PDF  → smalot/pdfparser (text extraction) → regex strategies
- *  2. Image → Gemini Vision API  (if GEMINI_API_KEY is set in .env)
- *  3. Image → OpenAI GPT-4o API (if OPENAI_API_KEY is set in .env)
- * 
- * Generates an Excel file with categorized materials and links it to the batch.
- */
 class BatchOcrController extends Controller
 {
-    public function process(Request $request)
+        private array $lastAiErrors = [];   // <— add this
+
+    private const CATEGORY_RULES = [
+        'Silica' => '/silica|microsilica|sil|ms/i',
+        'Admixture' => '/admix|adm|plastic|superplastic|hyper|retarder|accelerator|chemical|additive/i',
+        'Water' => '/water|wtr|ice|wc|moisture/i',
+        'Cement' => '/cement|cem|opc|ppc|psc|slag|ggbs|ggbfs|fly|flyash|pfa|ash/i',
+        'Aggregate' => '/sand|msand|psand|csand|dsand|rsand|dust|jelly|metal|chips|agg|aggregate|6mm|10mm|12mm|20mm|40mm|grit|moi|stone/i',
+    ];
+
+    public function process(Request $request): JsonResponse
     {
         $request->validate([
-            'file' => 'required|file|max:20480|mimes:jpg,jpeg,png,webp,pdf',
+            'file' => 'required|file|max:20480|mimes:jpg,jpeg,png,webp,pdf,xls,xlsx,csv,doc,docx,txt',
+            'batch_id' => 'nullable|integer',
+            'batch_no' => 'nullable|string',
         ]);
 
-        $file     = $request->file('file');
-        $mimeType = $file->getMimeType();
-        $isPdf    = $mimeType === 'application/pdf';
+        $file = $request->file('file');
+        $ext = strtolower($file->getClientOriginalExtension());
+        $mime = $file->getMimeType();
+        $sourceType = $this->detectSource($ext, $mime);
 
-        try {
-            $parsed = $isPdf
-                ? $this->parsePdf($file)
-                : $this->parseImage($file);
+       try {
+    $parsed = match($sourceType) {
+        'excel' => $this->parseSpreadsheet($file),
+        'pdf' => $this->parsePdf($file),
+        'text' => $this->parseDocument($file),
+        default => $this->parseImage($file),
+    };
 
-            $materials = $parsed['materials'] ?? [];
-            $batchNo   = $parsed['batch_no'] ?? $request->input('batch_no', 'Unknown');
+    $materials = $parsed['materials']?? [];
+    $batchNo = $parsed['batch_no']?: $request->input('batch_no', 'Unknown');
 
-            // ── 1. Store the original uploaded image/PDF ──────────────────
-            $originalPath = $file->store('batch-sheets/originals', 'public');
+    $originalPath = $file->store('batch-sheets/originals', 'public');
+    $excelPath = $this->buildExcel($materials, $batchNo);
+    $this->updateBatchPaths($request->input('batch_id'), $excelPath, $originalPath);
 
-            // ── 2. Generate and Store Excel File ─────────────────────────
-            $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
-            $sheet = $spreadsheet->getActiveSheet();
-
-            // Safe sheet name (max 31 chars, no invalid chars)
-            $safeSheetName = preg_replace('/[\[\]\*\/\:\\\?]/', '', $batchNo);
-            $safeSheetName = substr($safeSheetName ?: 'Batch', 0, 31);
-            $sheet->setTitle($safeSheetName);
-
-            // Headers
-            $sheet->setCellValue('A1', 'Category');
-            $sheet->setCellValue('B1', 'Material Name');
-            $sheet->setCellValue('C1', 'Actual Weight');
-
-            // Data rows
-            $row = 2;
-            foreach ($materials as $m) {
-                $sheet->setCellValue('A' . $row, $m['category'] ?? '');
-                $sheet->setCellValue('B' . $row, $m['item'] ?? '');
-                $sheet->setCellValue('C' . $row, $m['actual'] ?? 0);
-                $row++;
-            }
-
-            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-            $excelFileName = 'batch-sheets/excel/batch_' . time() . '_' . \Illuminate\Support\Str::slug($batchNo) . '.xlsx';
-            $tempFile = tempnam(sys_get_temp_dir(), 'excel');
-            $writer->save($tempFile);
-            \Illuminate\Support\Facades\Storage::disk('public')->put($excelFileName, file_get_contents($tempFile));
-            @unlink($tempFile);
-
-            // ── 3. Update the Batch record ────────────────────────────────
-            $batchId = $request->input('batch_id');
-            if ($batchId) {
-                $batch = \App\Models\Batch::find($batchId);
-                if ($batch) {
-                    // Delete old files if they exist
-                    if ($batch->batch_sheet_path) {
-                        \Illuminate\Support\Facades\Storage::disk('public')->delete($batch->batch_sheet_path);
-                    }
-                    if ($batch->batch_original_sheet_path) {
-                        \Illuminate\Support\Facades\Storage::disk('public')->delete($batch->batch_original_sheet_path);
-                    }
-                    $batch->update([
-                        'batch_sheet_path'          => $excelFileName,   // Excel file
-                        'batch_original_sheet_path' => $originalPath,    // Original image/PDF
-                    ]);
-                }
-            }
-
-            if (empty($materials)) {
-                return response()->json([
-                    'status'  => false,
-                    'message' => 'Could not find any material weights in the uploaded file. Files stored successfully.',
-                    'data'    => [
-                        'source'       => $isPdf ? 'pdf' : 'image',
-                        'batch_no'     => $batchNo,
-                        'path'         => $excelFileName,
-                        'url'          => \Illuminate\Support\Facades\Storage::url($excelFileName),
-                        'original_url' => \Illuminate\Support\Facades\Storage::url($originalPath),
-                        'materials'    => [],
-                    ],
-                ], 422);
-            }
-
-            return response()->json([
-                'status'  => true,
-                'message' => count($materials) . ' material(s) parsed. Image & Excel stored successfully.',
-                'data'    => [
-                    'source'       => $isPdf ? 'pdf' : 'image',
-                    'batch_no'     => $batchNo,
-                    'path'         => $excelFileName,
-                    'url'          => \Illuminate\Support\Facades\Storage::url($excelFileName),
-                    'original_url' => \Illuminate\Support\Facades\Storage::url($originalPath),
-                    'materials'    => $materials,
-                ],
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('BatchOCR parsing failed: ' . $e->getMessage());
-            return response()->json([
-                'status'  => false,
-                'message' => $e->getMessage(),
-            ], 422);
-        }
+    // SUCCESS
+    if (!empty($materials)) {
+        return response()->json([
+            'status' => true,
+            'message' => count($materials).' material(s) parsed.',
+            'data' => $this->responseData($sourceType, $batchNo, $excelPath, $originalPath, $materials),
+        ]);
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // PDF Parsing (no external API needed)
-    // ──────────────────────────────────────────────────────────────────────────
+    // EMPTY — AI down or unreadable
+    return response()->json([
+        'status' => false,
+        'manual_entry_required' => true,
+        'message' => 'Automatic reading failed (AI services unavailable, or image unclear). Please enter the weights manually.',
+        'errors' => $this->lastAiErrors,
+        'data' => $this->responseData($sourceType, $batchNo, $excelPath, $originalPath, []),
+    ], 200); // 200 so frontend can handle gracefully
 
+} catch (\Exception $e) {
+    Log::error('BatchOCR fatal', ['error'=>$e->getMessage(), 'trace'=>$e->getTraceAsString()]);
+
+    // store original anyway
+    $originalPath = isset($file)? $file->store('batch-sheets/originals', 'public') : null;
+
+    return response()->json([
+        'status' => false,
+        'manual_entry_required' => true,
+        'message' => 'System error while reading file. Please enter data manually.',
+        'errors' => array_merge($this->lastAiErrors, [$e->getMessage()]),
+        'data' => [
+            'source' => $sourceType?? 'unknown',
+            'batch_no' => $request->input('batch_no', ''),
+            'original_url' => $originalPath? Storage::url($originalPath) : null,
+            'materials' => [],
+        ]
+    ], 200);
+}
+    }
+
+    // ── File type routing ─────────────────────────────────────────────
+    private function detectSource(string $ext, string $mime): string
+    {
+        return match(true) {
+            in_array($ext, ['xls','xlsx','csv']) => 'excel',
+            $ext === 'pdf' || $mime === 'application/pdf' => 'pdf',
+            in_array($ext, ['doc','docx','txt']) || str_contains($mime, 'text/') => 'text',
+            default => 'image',
+        };
+    }
+
+    // ── Parsers ───────────────────────────────────────────────────────
     private function parsePdf($file): array
     {
-        if (!class_exists(\Smalot\PdfParser\Parser::class)) {
-            throw new \RuntimeException('PDF parser not installed. Run: composer require smalot/pdfparser');
+        if (!class_exists(PdfParser::class)) {
+            throw new \RuntimeException('Run: composer require smalot/pdfparser');
         }
+        $text = (new PdfParser())->parseFile($file->getRealPath())->getText();
+        return $this->parseFromText($text);
+    }
 
-        $parser = new \Smalot\PdfParser\Parser();
-        $pdf    = $parser->parseFile($file->getRealPath());
-        $text   = $pdf->getText();
+    private function parseSpreadsheet($file): array
+    {
+        $sheet = IOFactory::load($file->getRealPath());
+        $text = '';
+        foreach ($sheet->getWorksheetIterator() as $ws) {
+            foreach ($ws->toArray() as $row) {
+                $text.= implode("\t", array_filter($row, fn($v) => $v!== null)). "\n";
+            }
+        }
+        return $this->parseFromText($text);
+    }
 
-        Log::debug('BatchOCR PDF text extracted', ['length' => strlen($text), 'preview' => substr($text, 0, 500)]);
+    private function parseDocument($file): array
+    {
+        $text = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', ' ', file_get_contents($file->getRealPath()));
+        return $this->parseFromText($text);
+    }
 
-        $batchNo = $this->extractBatchNoFromText($text);
-        $materials = $this->extractMaterialsFromText($text);
+    private function parseFromText(string $text): array
+    {
+        $batchNo = $this->extractBatchNo($text);
+        $materials = $this->extractMaterials($text);
+
+        if (empty($materials)) {
+            $materials = $this->tryAiProviders(null, $text)['materials']?? [];
+        }
 
         foreach ($materials as &$m) {
-            $m['category'] = $this->categorizeMaterial($m['item']);
+            $m['category'] = $m['category']?? $this->categorize($m['item']);
         }
 
-        return [
-            'batch_no' => $batchNo,
-            'materials' => $materials,
-        ];
+        return ['batch_no' => $batchNo, 'materials' => $materials];
     }
-
-    /**
-     * Multi-strategy text parser for batch sheet layouts.
-     * Tries strategies in order; returns the first non-empty result.
-     */
-    private function extractMaterialsFromText(string $text): array
-    {
-        // Strategy 1: Schwing Stetter columnar format
-        //   Header row: D SAND   M SAND   20MM   12MM ...
-        //   "Total Actual Weight in kg" row: 1301   2011   2482 ...
-        $result = $this->parseColumnarBatchSheet($text);
-        if (!empty($result)) return $result;
-
-        // Strategy 2: Row-per-material format
-        //   MATERIAL_NAME   target   ACTUAL
-        $result = $this->parseRowPerMaterial($text);
-        if (!empty($result)) return $result;
-
-        // Strategy 3: Key–value pairs  (MATERIAL_NAME : ACTUAL  or  = ACTUAL)
-        $result = $this->parseKeyValueFormat($text);
-        if (!empty($result)) return $result;
-
-        return [];
-    }
-
-    /**
-     * Strategy 1 – Schwing Stetter columnar layout
-     * 
-     * The PDF contains a table where:
-     *  - Row N:   material names in columns  (D SAND, M SAND, 20MM, ...)
-     *  - Row M:   "Total Actual Weight in kg" followed by the actual values
-     */
-    private function parseColumnarBatchSheet(string $text): array
-    {
-        $lines = preg_split('/\r?\n/', $text);
-        $materials   = [];
-        $headerNames = [];
-
-        foreach ($lines as $i => $rawLine) {
-            $line = trim($rawLine);
-            if ($line === '') continue;
-
-            // ── Detect material name header row ─────────────────────────
-            // e.g. "D SAND  M SAND  20MM  12MM  CEM2  FLY  WTR  ADM 2"
-            // Heuristic: ≥3 tokens that look like material codes (all-caps, short)
-            if (empty($headerNames) && !$this->isNumericLine($line)) {
-                $tokens = preg_split('/\s{2,}/', $line);
-                $tokens = array_values(array_filter(array_map('trim', $tokens)));
-                $materialLike = array_filter($tokens, fn($t) => preg_match('/^[A-Z0-9][A-Z0-9\s\/\-]{0,15}$/', $t));
-
-                if (count($materialLike) >= 3) {
-                    $headerNames = array_values($materialLike);
-                }
-            }
-
-            // ── Detect "Total Actual Weight" data row ───────────────────
-            if (!empty($headerNames) && preg_match('/total\s+actual\s+weight/i', $line)) {
-                // Extract all numbers from this line (or look ahead 1 line)
-                $numbers = $this->extractNumbers($line);
-
-                if (count($numbers) < count($headerNames)) {
-                    // Numbers might be on the next line
-                    $nextLine = isset($lines[$i + 1]) ? trim($lines[$i + 1]) : '';
-                    $numbers  = array_merge($numbers, $this->extractNumbers($nextLine));
-                }
-
-                foreach ($headerNames as $idx => $name) {
-                    if (isset($numbers[$idx]) && $numbers[$idx] > 0) {
-                        $materials[] = ['item' => $name, 'actual' => $numbers[$idx]];
-                    }
-                }
-
-                if (!empty($materials)) return $materials;
-            }
-        }
-
-        return $materials;
-    }
-
-    /**
-     * Strategy 2 – Row-per-material tabular format
-     * 
-     * Each line: MATERIAL_NAME   <target>   <actual>   <deviation>
-     * We treat the second-to-last or last number as the actual weight.
-     */
-    private function parseRowPerMaterial(string $text): array
-    {
-        $materials = [];
-        $lines = preg_split('/\r?\n/', $text);
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '' || $this->isNumericLine($line)) continue;
-
-            // Pattern: starts with a material name, then 2+ numbers
-            if (preg_match('/^([A-Z][A-Z0-9\s\/\-]{1,18}?)\s{2,}([\d\s.,]+)$/', $line, $match)) {
-                $name    = trim($match[1]);
-                $numbers = $this->extractNumbers($match[2]);
-
-                // Actual is usually the 2nd number (target=1st, actual=2nd)
-                $actual = count($numbers) >= 2 ? $numbers[1] : ($numbers[0] ?? 0);
-
-                if ($actual > 0 && strlen($name) >= 2) {
-                    $materials[] = ['item' => $name, 'actual' => $actual];
-                }
-            }
-        }
-
-        return $materials;
-    }
-
-    /**
-     * Strategy 3 – Key–value pair format
-     * e.g.  "CEMENT : 425.5 kg"  or  "WATER = 182"
-     */
-    private function parseKeyValueFormat(string $text): array
-    {
-        $materials = [];
-
-        preg_match_all(
-            '/([A-Z][A-Z0-9\s\/\-]{1,18}?)\s*[:=]\s*([\d,]+(?:\.\d{1,3})?)\s*(?:kg|KG)?/m',
-            $text,
-            $matches,
-            PREG_SET_ORDER
-        );
-
-        foreach ($matches as $m) {
-            $name   = trim($m[1]);
-            $actual = (float) str_replace(',', '', $m[2]);
-            if ($actual > 0 && strlen($name) >= 2 && strlen($name) <= 22) {
-                $materials[] = ['item' => $name, 'actual' => $actual];
-            }
-        }
-
-        return $materials;
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Image Parsing  (AI Vision API)
-    // ──────────────────────────────────────────────────────────────────────────
 
     private function parseImage($file): array
     {
-        $geminiKey = env('GEMINI_API_KEY');
-        $openaiKey = env('OPENAI_API_KEY');
-
-        if ($geminiKey) {
-            return $this->parseWithGemini($file, $geminiKey);
-        }
-
-        if ($openaiKey) {
-            return $this->parseWithOpenAI($file, $openaiKey);
-        }
-
-        throw new \RuntimeException(
-            'No AI Vision API key configured for image parsing. ' .
-            'Set GEMINI_API_KEY or OPENAI_API_KEY in your .env file, ' .
-            'or upload the batch sheet as a PDF instead.'
-        );
+        return $this->tryAiProviders($file, null);
     }
 
-    private function parseWithGemini($file, string $apiKey): array
+    // ── Material extraction strategies ────────────────────────────────
+    private function extractMaterials(string $text): array
     {
-        $imageData = base64_encode(file_get_contents($file->getRealPath()));
-        $mimeType  = $file->getMimeType();
-
-        $prompt = <<<PROMPT
-This is a concrete batch plant production report (e.g. Schwing Stetter, Liebherr, or similar).
-Your task is to extract data into a specific JSON structure.
-1. Find the "Batch Number" (or Docket Number / Delivery No / Order No if Batch Number is missing).
-2. The report might be formatted column-wise (material headers at the top) or row-wise (materials on the left). Carefully analyze the layout and perform a cross-verification (checking both column-wise alignment and row-wise labels, and verifying totals against individual batch rows if present) to strictly ensure each material is accurately matched to its correct "Total Actual Weight" or "Actual Weight" value.
-   IMPORTANT: Do NOT skip any material column even if its value is 0 or appears empty. All columns including those with numeric names like "12mm", "20mm", "12M", "20M" must be extracted. A "0" column header between material headers is NOT a material and should be ignored.
-   If a total weight value is 0, still include that material with "actual": 0.
-3. Categorize each material into exactly one of these 5 categories based on its name (treat names case-insensitively and ignore any spaces, tabs, or erratic spacing; e.g. 'cem 1', 'c e m 1', 'cem1' are all 'Cement'):
-   - "Aggregate" (e.g. C Sand, M Sand, P Sand, Sand, 12mm, 20mm, D Sand)
-   - "Cement" (e.g. cem1, cem2, cem3, cem4, cem, GGBS, Cement 1, cement 2, cement 3, FLy)
-   - "Water" (e.g. wtr1, WTR, WC, wtr 2, ICE, Water)
-   - "Admixture" (e.g. admix1, admix 2, adm 1, adm 2, admix-1, Admixture, aditive)
-   - "Silica" (e.g. silica, sil)
-
-Return ONLY a valid JSON object — no explanation, no markdown:
-{
-  "batch_no": "12345",
-  "materials": [
-    {"category": "Aggregate", "item": "MATERIAL NAME", "actual": 1234.5}
-  ]
-}
-If materials cannot be found, return {"batch_no": "", "materials": []}
-PROMPT;
-
-        $response = Http::timeout(30)->post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}",
-            [
-                'contents' => [[
-                    'parts' => [
-                        ['text' => $prompt],
-                        ['inline_data' => ['mime_type' => $mimeType, 'data' => $imageData]],
-                    ],
-                ]],
-                'generationConfig' => ['temperature' => 0, 'maxOutputTokens' => 1024],
-            ]
-        );
-
-        if (!$response->successful()) {
-            throw new \RuntimeException('Gemini API error: ' . $response->status() . ' – ' . substr($response->body(), 0, 200));
-        }
-
-        $text = $response->json('candidates.0.content.parts.0.text') ?? '';
-        Log::debug('BatchOCR Gemini response', ['text' => $text]);
-
-        return $this->parseJsonResponse($text);
+        return $this->parseColumnar($text)
+           ?: $this->parseRowPerMaterial($text)
+           ?: $this->parseKeyValue($text)
+           ?: [];
     }
 
-    private function parseWithOpenAI($file, string $apiKey): array
+    private function parseColumnar(string $text): array
     {
-        $imageData = base64_encode(file_get_contents($file->getRealPath()));
-        $mimeType  = $file->getMimeType();
-
-        $prompt = <<<PROMPT
-This is a concrete batch plant production report (e.g. Schwing Stetter, Liebherr, or similar).
-Your task is to extract data into a specific JSON structure.
-1. Find the "Batch Number" (or Docket Number / Delivery No / Order No if Batch Number is missing).
-2. The report might be formatted column-wise (material headers at the top) or row-wise (materials on the left). Carefully analyze the layout and perform a cross-verification (checking both column-wise alignment and row-wise labels, and verifying totals against individual batch rows if present) to strictly ensure each material is accurately matched to its correct "Total Actual Weight" or "Actual Weight" value.
-   IMPORTANT: Do NOT skip any material column even if its value is 0 or appears empty. All columns including those with numeric names like "12mm", "20mm", "12M", "20M" must be extracted. A "0" column header between material headers is NOT a material and should be ignored.
-   If a total weight value is 0, still include that material with "actual": 0.
-3. Categorize each material into exactly one of these 5 categories based on its name (treat names case-insensitively and ignore any spaces, tabs, or erratic spacing; e.g. 'cem 1', 'c e m 1', 'cem1' are all 'Cement'):
-   - "Aggregate" (e.g. C Sand, M Sand, P Sand, Sand, 12mm, 20mm, D Sand)
-   - "Cement" (e.g. cem1, cem2, cem3, cem4, cem, GGBS, Cement 1, cement 2, cement 3, FLy)
-   - "Water" (e.g. wtr1, WTR, WC, wtr 2, ICE, Water)
-   - "Admixture" (e.g. admix1, admix 2, adm 1, adm 2, admix-1, Admixture, aditive)
-   - "Silica" (e.g. silica, sil)
-
-Return ONLY a valid JSON object — no explanation, no markdown:
-{
-  "batch_no": "12345",
-  "materials": [
-    {"category": "Aggregate", "item": "MATERIAL NAME", "actual": 1234.5}
-  ]
-}
-If materials cannot be found, return {"batch_no": "", "materials": []}
-PROMPT;
-
-        $response = Http::withToken($apiKey)->timeout(30)->post(
-            'https://api.openai.com/v1/chat/completions',
-            [
-                'model'      => 'gpt-4o',
-                'max_tokens' => 512,
-                'temperature'=> 0,
-                'messages'   => [[
-                    'role'    => 'user',
-                    'content' => [
-                        ['type' => 'text',      'text'      => $prompt],
-                        ['type' => 'image_url', 'image_url' => ['url' => "data:{$mimeType};base64,{$imageData}"]],
-                    ],
-                ]],
-            ]
-        );
-
-        if (!$response->successful()) {
-            throw new \RuntimeException('OpenAI API error: ' . $response->status() . ' – ' . substr($response->body(), 0, 200));
-        }
-
-        $text = $response->json('choices.0.message.content') ?? '';
-        Log::debug('BatchOCR OpenAI response', ['text' => $text]);
-
-        return $this->parseJsonResponse($text);
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Helpers
-    // ──────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Extract a JSON array from an AI text response (handles markdown code fences).
-     */
-    private function parseJsonResponse(string $text): array
-    {
-        // Strip markdown code fences if present
-        $text = preg_replace('/```(?:json)?\s*(.*?)\s*```/s', '$1', $text);
-
-        if (preg_match('/\{.*\}/s', $text, $match)) {
-            $decoded = json_decode($match[0], true);
-            if (is_array($decoded) && isset($decoded['materials'])) {
-                $materials = array_values(array_filter(
-                    array_map(function ($row) {
-                        if (!is_array($row)) return null;
-                        $item   = trim($row['item']   ?? $row['name']     ?? $row['material'] ?? '');
-                        $actual = (float)($row['actual'] ?? $row['act'] ?? $row['weight'] ?? 0);
-                        $category = trim($row['category'] ?? $this->categorizeMaterial($item));
-                        // Keep material even if actual=0 (e.g. 20mm column that has 0 this batch)
-                        return $item ? compact('category', 'item', 'actual') : null;
-                    }, $decoded['materials'])
-                ));
-                $batchNo = $decoded['batch_no'] ?? '';
-                return ['batch_no' => $batchNo, 'materials' => $materials];
+        $lines = preg_split('/\r?\n/', $text);
+        $headers = [];
+        foreach ($lines as $i => $line) {
+            if (!$headers &&!$this->isNumericLine($line)) {
+                $tokens = array_values(array_filter(preg_split('/\s{2,}|\t+/', trim($line))));
+                if (count(array_filter($tokens, fn($t) => preg_match('/^[A-Z0-9][A-Z0-9\s\/\-]{0,15}$/', $t))) >= 3) {
+                    $headers = $tokens;
+                }
+            }
+            if ($headers && preg_match('/total\s+actual/i', $line)) {
+                $nums = $this->extractNumbers($line. ' '. ($lines[$i+1]?? ''));
+                $out = [];
+                foreach ($headers as $idx => $name) {
+                    if (isset($nums[$idx])) $out[] = ['item' => $name, 'actual' => $nums[$idx]];
+                }
+                return $out;
             }
         }
+        return [];
+    }
 
-        // Fallback for old array format
-        if (preg_match('/\[.*\]/s', $text, $match)) {
-            $decoded = json_decode($match[0], true);
-            if (is_array($decoded)) {
-                $materials = array_values(array_filter(
-                    array_map(function ($row) {
-                        if (!is_array($row)) return null;
-                        $item   = trim($row['item']   ?? $row['name']     ?? $row['material'] ?? '');
-                        $actual = (float)($row['actual'] ?? $row['act'] ?? $row['weight'] ?? 0);
-                        $category = trim($row['category'] ?? $this->categorizeMaterial($item));
-                        // Keep material even if actual=0
-                        return $item ? compact('category', 'item', 'actual') : null;
-                    }, $decoded)
-                ));
-                return ['batch_no' => '', 'materials' => $materials];
+    private function parseRowPerMaterial(string $text): array
+    {
+        $out = [];
+        foreach (preg_split('/\r?\n/', $text) as $line) {
+            if (preg_match('/^([A-Z][A-Z0-9\s\/\-]{1,18})\s{2,}([\d\s.,]+)$/', trim($line), $m)) {
+                $nums = $this->extractNumbers($m[2]);
+                $actual = $nums[1]?? $nums[0]?? 0;
+                if ($actual > 0) $out[] = ['item' => trim($m[1]), 'actual' => $actual];
             }
         }
-
-        throw new \RuntimeException('AI did not return parseable JSON. Response: ' . substr($text, 0, 300));
+        return $out;
     }
 
-    private function extractBatchNoFromText(string $text): string
+    private function parseKeyValue(string $text): array
     {
-        if (preg_match('/(?:Batch|Docket|Delivery|Order)\s*(?:Number|No\.?|Num)?\s*[:=]?\s*([a-zA-Z0-9\-\_]+)/i', $text, $match)) {
-            return $match[1];
+        preg_match_all('/([A-Z][A-Z0-9\s\/\-]{1,18})\s*[:=]\s*([\d,]+\.?\d*)/m', $text, $m, PREG_SET_ORDER);
+        return array_map(fn($x) => ['item' => trim($x[1]), 'actual' => (float)str_replace(',', '', $x[2])], $m);
+    }
+
+    // ── AI ────────────────────────────────────────────────────────────
+    private function tryAiProviders($file,?string $text): array
+    {
+            $this->lastAiErrors = [];
+
+        $providers = [
+            'gemini' => ['key' => env('GEMINI_API_KEY'), 'fn' => fn($k) => $this->callGemini($file, $text, $k)],
+            'openai' => ['key' => env('OPENAI_API_KEY'), 'fn' => fn($k) => $this->callOpenAI($file, $text, $k, 'https://api.openai.com/v1/chat/completions', ['gpt-4o-mini'])],
+            'groq' => ['key' => env('GROQ_API_KEY'), 'fn' => fn($k) => $this->callOpenAI($file, $text, $k, 'https://api.groq.com/openai/v1/chat/completions', ['llama-3.2-90b-vision-preview'])],
+            'kimi' => ['key' => env('KIMI_API_KEY'), 'fn' => fn($k) => $this->callOpenAI($file, $text, $k, 'https://api.moonshot.cn/v1/chat/completions', ['moonshot-v1-8k-vision-preview'])],
+            'sarvam' => ['key' => env('SARVAM_API_KEY'), 'fn' => fn($k) => $this->callOpenAI($file, $text, $k, 'https://api.sarvam.ai/v1/chat/completions', ['sarvam-vision-preview'])],
+        ];
+
+           foreach ($providers as $name => $p) {
+        if (!$p['key']) {
+            $this->lastAiErrors[] = "$name: missing API key";
+            continue;
         }
-        return '';
+        try {
+            $result = $p['fn']($p['key']);
+            if (!empty($result['materials'])) return $result;
+        } catch (\Exception $e) {
+            $msg = "$name: ".$e->getMessage();
+            $this->lastAiErrors[] = $msg;
+            Log::warning('BatchOCR provider failed', ['provider'=>$name, 'error'=>$e->getMessage()]);
+        }
+    }
+    // all failed — return empty, don't throw
+    return ['batch_no' => '', 'materials' => []];
     }
 
-    private function categorizeMaterial(string $name): string
+    private function callGemini($file,?string $text, string $key): array
     {
-        $n = strtolower(trim($name));
-        if (preg_match('/silica|sil/i', $n)) return 'Silica';
-        if (preg_match('/admix|adm|aditive/i', $n)) return 'Admixture';
-        if (preg_match('/water|wtr|wc|ice/i', $n)) return 'Water';
-        if (preg_match('/cement|cem|ggbs|fly/i', $n)) return 'Cement';
-        return 'Aggregate'; 
+        $parts = [['text' => $this->aiPrompt($text)]];
+        if ($file) $parts[] = ['inline_data' => ['mime_type' => $file->getMimeType(), 'data' => base64_encode(file_get_contents($file->getRealPath()))]];
+
+        $resp = Http::withoutVerifying()->timeout(90)->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$key", [
+            'contents' => [['parts' => $parts]],
+            'generationConfig' => ['temperature' => 0, 'responseMimeType' => 'application/json'],
+        ]);
+        if (!$resp->successful()) throw new \RuntimeException($resp->body());
+        return $this->normalizeAiResponse($resp->json('candidates.0.content.parts.0.text'));
     }
 
-    /** Extract all decimal numbers from a string. */
-    private function extractNumbers(string $line): array
+    private function callOpenAI($file,?string $text, string $key, string $url, array $models): array
     {
-        preg_match_all('/\d+(?:[.,]\d+)?/', $line, $matches);
-        return array_map(fn($n) => (float) str_replace(',', '', $n), $matches[0]);
+        $content = [['type' => 'text', 'text' => $this->aiPrompt($text)]];
+        if ($file &&!$text) $content[] = ['type' => 'image_url', 'image_url' => ['url' => 'data:'.$file->getMimeType().';base64,'.base64_encode(file_get_contents($file->getRealPath())), 'detail' => 'high']];
+
+        $resp = Http::withoutVerifying()->withToken($key)->timeout(90)->post($url, [
+            'model' => $models[0], 'temperature' => 0, 'messages' => [['role' => 'user', 'content' => $content]], 'response_format' => ['type' => 'json_object']
+        ]);
+        if (!$resp->successful()) throw new \RuntimeException($resp->body());
+        return $this->normalizeAiResponse($resp->json('choices.0.message.content'));
     }
 
-    /** Returns true if the line is mostly numbers (data row, not a header). */
-    private function isNumericLine(string $line): bool
+    private function aiPrompt(?string $text): string
     {
-        $stripped = preg_replace('/[\d\s.,\-+%\/()]/', '', $line);
-        return strlen($stripped) <= 3;
+        $promptFile = __DIR__.'/prompts/batch_ocr.txt';
+        $base = file_exists($promptFile) ? file_get_contents($promptFile) : $this->getAiPrompt();
+        return $text ? $base . "\n\n--- TEXT ---\n" . $text : $base;
     }
+
+    // ── Helpers ───────────────────────────────────────────────────────
+    private function buildExcel(array $materials, string $batchNo): string
+    {
+        $ss = new Spreadsheet();
+        $sh = $ss->getActiveSheet();
+        $sh->setTitle(substr(preg_replace('/[\[\]\*\/:\\\?]/', '', $batchNo)?: 'Batch', 0, 31));
+        $sh->fromArray([['Category','Material Name','Actual Weight']], null, 'A1');
+
+        $row = 2;
+        foreach ($materials as $m) {
+            $sh->setCellValue("A$row", $m['category']?? $this->categorize($m['item']));
+            $sh->setCellValue("B$row", $m['item']);
+            $sh->setCellValue("C$row", $m['actual']?? 0);
+            $row++;
+        }
+        $path = 'batch-sheets/excel/batch_'.time().'_'.Str::slug($batchNo).'.xlsx';
+        Storage::disk('public')->put($path, (function() use ($ss) {
+            $tmp = tempnam(sys_get_temp_dir(), 'x');
+            (new Xlsx($ss))->save($tmp);
+            $data = file_get_contents($tmp); unlink($tmp); return $data;
+        })());
+        return $path;
+    }
+
+    private function updateBatchPaths(?int $id, string $excel, string $original): void
+    {
+        if (!$id ||!($b = Batch::find($id))) return;
+        collect([$b->batch_sheet_path, $b->batch_original_sheet_path])->filter()->each(fn($p) => Storage::disk('public')->delete($p));
+        $b->update(['batch_sheet_path' => $excel, 'batch_original_sheet_path' => $original]);
+    }
+
+    private function responseData(string $src, string $batchNo, string $excel, string $orig, array $mats): array
+    {
+        return ['source' => $src, 'batch_no' => $batchNo, 'path' => $excel, 'url' => Storage::url($excel), 'original_url' => Storage::url($orig), 'materials' => $mats];
+    }
+
+    private function normalizeAiResponse(string $text): array
+    {
+        $json = json_decode(preg_replace('/```json|```/', '', $text), true);
+        $mats = $json['materials']?? $json?? [];
+        $mats = array_values(array_filter(array_map(fn($r) => isset($r['item'])? [
+            'item' => trim($r['item']),
+            'actual' => (float)($r['actual']?? 0),
+            'category' => $r['category']?? $this->categorize($r['item'])
+        ] : null, $mats)));
+        return ['batch_no' => $json['batch_no']?? '', 'materials' => $mats];
+    }
+
+    private function categorize(string $name): string
+    {
+        foreach (self::CATEGORY_RULES as $cat => $rx) {
+            if (preg_match($rx, $name)) return $cat;
+        }
+        return 'Aggregate';
+    }
+
+    private function extractBatchNo(string $text): string
+    {
+        return preg_match('/(?:Batch|Docket|Delivery|Order)\s*(?:Number|No\.?)?\s*[:=]?\s*([A-Z0-9\-\/]+)/i', $text, $m)? $m[1] : '';
+    }
+
+    private function extractNumbers(string $s): array { preg_match_all('/\d+(?:[.,]\d+)?/', $s, $m); return array_map(fn($n)=>(float)str_replace(',','',$n), $m[0]); }
+    private function isNumericLine(string $l): bool { return strlen(preg_replace('/[\d\s.,\-+%\/()]/', '', $l)) <= 3; }
+
+    // keep your original long prompt here
+    private function getAiPrompt(): string { /*... your existing prompt... */ return <<<PROMPT
+You are a forensic OCR extractor for concrete batch reports. The image or text may be:
+- printed Schwing Stetter / Liebherr / Ajax
+- a low-res phone photo, skewed, with shadows
+- a small-plant handwritten docket
+- extracted tabular text from PDF/Excel
+- in English or mixed English/Tamil/Hindi numerals
+
+GOAL: Return ONLY batch number and the FINAL ACTUAL weight for every material. No guessing.
+
+--- UNIVERSAL RULES ---
+
+1. BATCH ID (search everywhere, top 40% of page first)
+   Extract the FIRST non-empty value after any of these labels (case-insensitive, with or without colon, handwritten allowed):
+   "Batch Number", "Batch No", "Batch No.", "Docket Number", "Docket No", "Delivery No", "Ticket No", "Load No", "Order No"
+   Keep exactly as printed: "550", "21128.00", "338", "TN22DC5577/2". Return as string.
+
+2. DETECT LAYOUT (do not assume columns)
+   A) COLUMN-WISE (most common): material names are across the top, numbers go down
+   B) ROW-WISE (handwritten/small plants): first column = material name, next columns = Target / Actual
+   Decide by looking: if you see >5 material names in one horizontal line → COLUMN-WISE. Otherwise → ROW-WISE.
+
+3. FIND THE "ACTUAL" VALUES
+   COLUMN-WISE:
+      - Find the row labeled (exact or fuzzy): "Total Actual Weight", "Total Actual", "Actual in Kgs", "Actual Qty", "Actual"
+      - If that row is missing, SUM all rows labeled "Actual Values in kg" for each column.
+      - Read numbers LEFT-TO-RIGHT under each material header. Keep negatives (-10) and decimals.
+
+   ROW-WISE:
+      - Find the column headed "Actual", "Act.", "Actual Wt", "Achieved"
+      - Read each material row left-to-right.
+
+4. BUILD MATERIAL LIST (never skip zeros)
+      - For COLUMN-WISE: join multi-line headers ("D" + "SAND" = "D SAND", "20M"+"M"="20MM"). Trim spaces for output but keep original form in "item".
+      - DROP columns where header is exactly: "0", "NA", "N/A", "-", blank, "Total", "Difference", "%"
+      - KEEP columns even if value = 0, 0.00, or unreadable (use 0 if unreadable, do NOT drop)
+      - If same name repeats, make unique: "CEMENT", "CEMENT_2", "CEMENT_3"
+
+5. CATEGORIZE INTO 5 BUCKETS (use name, not position)
+   Normalize name: lowercase, remove all spaces/punctuation for matching only.
+      - Aggregate: sand, msand, psand, csand, dsand, rsand, dust, jelly, metal, chips, agg, aggregate, 6mm, 10mm, 12mm, 20mm, 40mm, 12m, 20m, grit, moi, stone
+      - Cement: cem, cement, opc, ppc, psc, slag, ggbs, ggbfs, fly, flyash, pfa, ash
+      - Water: water, wtr, wtr1, wtr2, ice, wc, moisture
+      - Admixture: admix, adm, admixture, plasticizer, superplasticizer, hyper, retarder, accelerator, chemical, additive
+      - Silica: silica, microsilica, sil, ms
+   If unsure, choose the closest bucket. Never create a 6th category.
+
+6. HANDWRITTEN / POOR QUALITY RULES
+      - Read digit-by-digit: 0 vs 8, 1 vs 7, 5 vs 6. Use surrounding numbers as context.
+      - If a cell is smudged, output 0 but KEEP the material.
+      - Do not invent materials that are not visible.
+
+7. VALIDATION (must pass before output)
+      - Count materials: must be >=3
+      - Sum of all "actual" > 0
+      - Cross-check: for COLUMN-WISE, sum of individual "Actual Values" rows should ≈ Total Actual (±3%). If mismatch, trust Total Actual row.
+
+8. OUTPUT
+   Return ONLY this JSON, no markdown, no explanation:
+   {
+     "batch_no": "string",
+     "materials": [
+       {"category": "Aggregate", "item": "D SAND", "actual": 1301},
+       {"category": "Aggregate", "item": "M SAND", "actual": 2011}
+     ]
+   }
+      - "actual" is a number (float), not string
+      - Keep original header spelling in "item"
+      - If nothing found: {"batch_no":"","materials":[]}
+PROMPT; }
 }

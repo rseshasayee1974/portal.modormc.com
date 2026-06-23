@@ -25,6 +25,8 @@ import Dialog from 'primevue/dialog';
 import Popover from 'primevue/popover';
 import { CubeIcon, ListBulletIcon, PaperAirplaneIcon } from '@heroicons/vue/24/outline';
 
+declare const route: any;
+
 const props = defineProps<{
     batches: any[];
     salesOrders: any[];
@@ -61,8 +63,8 @@ const dropdownData = computed(() => ({
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
     status: { value: null, matchMode: 'equals' },
-    'work_order.id': { value: null, matchMode: 'equals' },
-    'work_order.customer.id': { value: null, matchMode: 'equals' },
+    'sales_order.id': { value: null, matchMode: 'equals' },
+    'sales_order.customer.id': { value: null, matchMode: 'equals' },
 });
 
 
@@ -83,7 +85,6 @@ const blinkingBatchId  = ref<number | null>(null);
 // Fallback REST polling via Inertia reload
 const fetchBatchesFallback = () => {
     router.reload({
-        only: ['batches', 'nextBatchNo'],
         preserveScroll: true
     });
 };
@@ -320,6 +321,7 @@ const handleBatchCreated = () => {
     })
 }
 const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => {
+    router.reload();
     if (payload) {
         const { batchId, type } = payload;
         
@@ -406,6 +408,11 @@ const openShareBatch = (batch: any) => {
     shareBatchLink.value = '';
     showShareBatchModal.value = true;
 };
+
+const handleInvoiceGenerated = () => {
+router.reload({ only: ['batches', 'nextBatchNo'] });
+};
+
 
 const generateShareBatchLink = async () => {
     if (!selectedShareBatch.value) return;
@@ -508,7 +515,7 @@ const shareBatchEmail = () => {
                         rowHover
                         filterDisplay="menu"
                         class="cursor-pointer"
-                        :globalFilterFields="['batch_no', 'work_order.order_no', 'work_order.customer.legal_name', 'work_order.mix_design.design_name']"
+                        :globalFilterFields="['batch_no', 'sales_order.order_no', 'sales_order.customer.legal_name', 'sales_order.mix_design.design_name']"
                         showSerial
                         heading="List Of Batches"
                         headingIcon="ListBulletIcon"
@@ -522,7 +529,7 @@ const shareBatchEmail = () => {
                             <div class="flex flex-col gap-1.5">
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by Sales Order</label>
                                 <BaseSelect 
-                                    v-model="filters['work_order.id'].value"
+                                    v-model="filters['sales_order.id'].value"
                                     :options="[{order_no: 'All Orders', id: null}, ...salesOrders]"
                                     optionLabel="order_no"
                                     optionValue="id"
@@ -534,7 +541,7 @@ const shareBatchEmail = () => {
                             <div class="flex flex-col gap-1.5">
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by Customer</label>
                                 <BaseSelect 
-                                    v-model="filters['work_order.customer.id'].value"
+                                    v-model="filters['sales_order.customer.id'].value"
                                     :options="[{legal_name: 'All Customers', id: null}, ...customers]"
                                     optionLabel="legal_name"
                                     optionValue="id"
@@ -571,25 +578,25 @@ const shareBatchEmail = () => {
                                     >
                                         B{{ slotProps.data.batch_no }}
                                     </button>
-                                    <div class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{{ slotProps.data.work_order?.full_number || (slotProps.data.work_order ? (slotProps.data.work_order.prefix || '') + String(slotProps.data.work_order.order_no || '').padStart(4,'0') : '-') }}</div>
+                                    <div class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{{ slotProps.data.sales_order?.full_number || (slotProps.data.sales_order ? (slotProps.data.sales_order.prefix || '') + String(slotProps.data.sales_order.order_no || '').padStart(4,'0') : '-') }}</div>
                                 </div>
                             </template>
                         </Column>
 
-                        <Column field="work_order.customer.legal_name" header="Customer" sortable>
+                        <Column field="sales_order.customer.legal_name" header="Customer" sortable>
                             <template #body="slotProps">
                                 <div class="flex flex-col">
-                                    <span class="text-xs font-bold text-slate-700">{{ slotProps.data.work_order?.customer?.legal_name || '-' }}</span>
-                                    <span class="text-[10px] text-slate-400 font-medium uppercase">{{ slotProps.data.work_order?.site?.name || 'Main Site' }}</span>
+                                    <span class="text-xs font-bold text-slate-700">{{ slotProps.data.sales_order?.customer?.legal_name || '-' }}</span>
+                                    <span class="text-[10px] text-slate-400 font-medium uppercase">{{ slotProps.data.sales_order?.site?.name || 'Main Site' }}</span>
                                 </div>
                             </template>
                         </Column>
 
-                        <Column field="work_order.mix_design.design_name" header="Design" sortable>
+                        <Column field="sales_order.mix_design.design_name" header="Design" sortable>
                             <template #body="slotProps">
                                 <div class="flex flex-col">
-                                    <span class="text-xs font-black text-slate-800">{{ slotProps.data.work_order?.mix_design?.design_name || '-' }}</span>
-                                    <span class="text-[10px] text-emerald-600 font-black tracking-tighter uppercase">{{ slotProps.data.work_order?.mix_design?.design_code || '-' }}</span>
+                                    <span class="text-xs font-black text-slate-800">{{ slotProps.data.sales_order?.mix_design?.design_name || '-' }}</span>
+                                    <span class="text-[10px] text-emerald-600 font-black tracking-tighter uppercase">{{ slotProps.data.sales_order?.mix_design?.design_code || '-' }}</span>
                                 </div>
                             </template>
                         </Column>
@@ -825,7 +832,7 @@ const shareBatchEmail = () => {
                                         :statuses="statuses"
                                         :loading_sites="loading_sites"
                                         :concretePumpOptions="concretePumpOptions"
-                                        @saved="handleBatchSaved"
+                                        :onSaved="handleBatchSaved"
                                         @cancel="collapseExpandedRows()"
                                     />
                                 </div>
@@ -868,13 +875,16 @@ const shareBatchEmail = () => {
                                 <div v-if="slotProps.data.status === 3 || slotProps.data.status === 4"  class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                                     <DispatchSection 
                                         :batch="detailedBatches[slotProps.data.id] || slotProps.data" 
-                                        :salesOrder="(detailedBatches[slotProps.data.id] || slotProps.data).work_order"
+                                        :salesOrder="(detailedBatches[slotProps.data.id] || slotProps.data).sales_order"
                                         :dispatch="(detailedBatches[slotProps.data.id] || slotProps.data).dispatches?.[0]"
                                         :dropdownData="dropdownData"
                                         :drivers="drivers"
                                         :sales_executives="sales_executives"
                                         :settings="batchingSettings"
-                                        @saved="handleBatchSaved"
+                                        :onSaved="handleBatchSaved"
+                                        @tripSaved="handleBatchSaved"
+                                        @generateInvoice="handleInvoiceGenerated"
+                                        @deleteInvoice="handleInvoiceGenerated"
                                         @cancel="collapseExpandedRows()"
                                     />
                                 </div>
@@ -887,10 +897,14 @@ const shareBatchEmail = () => {
         <Dialog
             v-model:visible="tokenPreviewVisible"
             modal
+                @hide="closeTokenPreview"
+
             :style="{ width: previewWidth, maxWidth: '95vw' }"
             class="token-preview-dialog"
             :pt="{
-                root: { class: 'border-0 shadow-2xl rounded-2xl overflow-hidden' },
+                        mask: { class: 'backdrop-blur-sm bg-slate-900/30' },
+
+                root: { class: 'border-0 shadow-2xl rounded-2xl overflow-hidden ' },
                 header: { class: 'bg-slate-50 border-b border-slate-100 py-2.5 px-4 flex items-center justify-between' },
                 content: { class: 'p-0 bg-slate-50' },
                 footer: { class: 'bg-white border-t border-slate-100 py-2 px-4 flex justify-end gap-2' }
@@ -1164,3 +1178,4 @@ const shareBatchEmail = () => {
     transition: none !important;
 }
 </style>
+

@@ -35,6 +35,7 @@ const props = withDefaults(defineProps<{
     uoms?: any[];
     statuses?: { label: string; value: number }[];
     concretePumpOptions?: any[];
+    onSaved?: (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => void;
 }>(), {
     batch: () => ({}),
     salesOrders: () => [],
@@ -110,16 +111,16 @@ const isLocked = computed(() => {
     return form.status === 3;
 });
 
-const selectedWorkOrder = computed(() => {
-    if (props.batch?.work_order && props.batch.work_order.id === form.sales_order_id) {
-        return props.batch.work_order;
+const selectedSalesOrder = computed(() => {
+    if (props.batch?.sales_order && props.batch.sales_order.id === form.sales_order_id) {
+        return props.batch.sales_order;
     }
     return props.salesOrders.find(wo => wo.id === form.sales_order_id);
 });
 
 const salesOrderDetails = computed(() => {
-    if (!selectedWorkOrder.value) return [];
-    const wo = selectedWorkOrder.value;
+    if (!selectedSalesOrder.value) return [];
+    const wo = selectedSalesOrder.value;
     return [
         { label: 'Customer', value: wo.customer?.legal_name || 'N/A' },
         { label: 'Site', value: wo.site?.name || 'N/A' },
@@ -133,9 +134,9 @@ const salesOrderDetails = computed(() => {
 });
 
 watch(() => form.batch_size, (newVal) => {
-    if (form.sales_order_id && selectedWorkOrder.value?.mix_design?.items) {
+    if (form.sales_order_id && selectedSalesOrder.value?.mix_design?.items) {
         form.materials.forEach((mat) => {
-            const originalItem = selectedWorkOrder.value.mix_design.items.find((item: any) => item.product_id === mat.product_id);
+            const originalItem = selectedSalesOrder.value.mix_design.items.find((item: any) => item.product_id === mat.product_id);
             if (originalItem) {
                 mat.target_qty = Number(originalItem.cross_quantity || originalItem.actual_quantity || originalItem.quantity || 0) * newVal;
             }
@@ -291,22 +292,33 @@ const handleWeightCapture = (type: 'empty' | 'loaded') => {
 const isFetchingConsumption = ref(false);
 const isConsumptionSynced = ref(false);
 const isSaved = ref(false);
-const isScanning = ref(false); // Kept for button loading compat
-const sheetUrl = ref<string | null>(props.batch?.sheet_url ?? null);
+const isScanning = ref(false);
+const ocrWarning = ref<string | null>(null);
+const sheetUrl = ref<string | null>(props.batch?.original_sheet_url ?? props.batch?.sheet_url ?? null);
 const showUploadZone = ref(false);
 
 const openUploadZone = () => { showUploadZone.value = true; };
 const closeUploadZone = () => { showUploadZone.value = false; };
 
-const handleUploaderCompleted = (data: any) => {
+const handleUploaderCompleted = (result: any) => {
+    const data = result.data || result; // Fallback in case just data was passed
+    
     if (data?.materials?.length) applyMaterialData(data.materials);
-    if (data?.url) sheetUrl.value = data.url;
-    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Sheet uploaded & analysed successfully', showConfirmButton: false, timer: 1800 });
+    if (data?.original_url || data?.url) sheetUrl.value = data.original_url || data.url;
+
+    if (result.status === false) {
+        ocrWarning.value = result.message || 'Automatic parsing failed. Please enter the data manually.';
+        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'File uploaded, but parsing failed', showConfirmButton: false, timer: 3000 });
+    } else {
+        ocrWarning.value = null;
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Sheet uploaded & analysed successfully', showConfirmButton: false, timer: 1800 });
+    }
     setTimeout(() => closeUploadZone(), 1200);
 };
 
 onUnmounted(() => {
     showUploadZone.value = false;
+    // showReviewZone.value = false;
 });
 
 const hasConsumptionData = computed(() => {
@@ -339,7 +351,7 @@ const applyMaterialData = (materials: any[]) => {
 };
 
 const viewBatchSheet = () => {
-    const url = sheetUrl.value ?? props.batch?.sheet_url;
+    const url = sheetUrl.value ?? props.batch?.original_sheet_url ?? props.batch?.sheet_url;
     if (url) {
         window.open(url, '_blank');
     }
@@ -387,10 +399,33 @@ const copyTargetsToActuals = () => {
     });
 };
 
+const normalizeNumber = (val: any) => {
+    const n = Number(val);
+    return isNaN(n) || val === null || val === '' ? 0 : n;
+}
+
+// Run it on key financial fields whenever they change
+watch(() => [
+    form.empty_weight_truck, 
+    form.loaded_weight_truck, 
+    form.net_weight,
+    form.batch_size,
+    ...form.materials.flatMap(m => [m.target_qty, m.actual_qty])
+], () => {
+    form.empty_weight_truck = normalizeNumber(form.empty_weight_truck);
+    form.loaded_weight_truck = normalizeNumber(form.loaded_weight_truck);
+    form.net_weight = normalizeNumber(form.net_weight);
+    form.batch_size = normalizeNumber(form.batch_size) || 1; // batch_size min 1
+    
+    form.materials.forEach(m => {
+        m.target_qty = normalizeNumber(m.target_qty);
+        m.actual_qty = normalizeNumber(m.actual_qty);
+        m.deviation_quantity = m.actual_qty - m.target_qty;
+    });
+}, { deep: true });
 const submit = () => {
     form.clearErrors();
     let hasErrors = false;
-    if (isMetricTon.value) {
         if (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0) {
             form.setError('empty_weight_truck', 'Empty Weight is required');
             hasErrors = true;
@@ -407,7 +442,6 @@ const submit = () => {
             form.setError('load_time', 'Load Time is required');
             hasErrors = true;
         }
-    }
     if (hasErrors) {
         Swal.fire({
             icon: 'error',
@@ -544,7 +578,7 @@ const submit = () => {
                         <div class="col-span-12 md:col-span-3">
                             <div class="flex items-end gap-2">
                                 <div class="flex-1">
-                                    <BaseInputNumber v-model="form.empty_weight_truck" :disabled="isLocked || !customSettings?.batching?.manual_weight" label="Empty Weight" :required="isMetricTon" :error="form.errors.empty_weight_truck" />
+                                    <BaseInputNumber v-model="form.empty_weight_truck" :disabled="isLocked " label="Empty Weight" required :error="form.errors.empty_weight_truck" />
                                 </div>
                                 <!-- <button v-if="customSettings?.batching?.manual_weight" @click="handleWeightCapture('empty')" type="button" 
                                     :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
@@ -565,7 +599,7 @@ const submit = () => {
                         <div class="col-span-12 md:col-span-3">
                             <div class="flex items-end gap-2">
                                 <div class="flex-1">
-                                    <BaseInputNumber v-model="form.loaded_weight_truck" :disabled="isLocked || !customSettings?.batching?.manual_weight" label="Full Weight" :required="isMetricTon" :error="form.errors.loaded_weight_truck" />
+                                    <BaseInputNumber v-model="form.loaded_weight_truck" :disabled="isLocked || customSettings?.batching?.manual_weight === 0" label="Full Weight" required :error="form.errors.loaded_weight_truck" />
                                 </div>
                                 <button v-if="!isLocked && !customSettings?.batching?.manual_weight && form.net_weight<=0" @click="handleWeightCapture('loaded')" type="button" 
                                     :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
@@ -585,7 +619,7 @@ const submit = () => {
                         </div>
                         
                         <div class="col-span-12 md:col-span-3">
-                            <BaseInputNumber v-model="form.net_weight" :disabled="isLocked || isMetricTon" label="Net Weight (kg)" :required="!isMetricTon" :error="form.errors.net_weight" />
+                            <BaseInputNumber v-model="form.net_weight" :disabled="isLocked || isMetricTon || customSettings?.batching?.manual_weight === 1" label="Net Weight (kg)" :required="!isMetricTon" :error="form.errors.net_weight" />
                         </div>
                         <div class="col-span-12 md:col-span-3">
                         <BaseSelect
@@ -641,7 +675,7 @@ const submit = () => {
                     </div>
 
                     <!-- Target Recipe Visualization -->
-                    <!-- <div v-if="selectedWorkOrder?.mix_design?.items?.length" class="rounded-xl border border-cyan-100 bg-cyan-50/30 p-4">
+                    <!-- <div v-if="selectedSalesOrder?.mix_design?.items?.length" class="rounded-xl border border-cyan-100 bg-cyan-50/30 p-4">
                         <div class="mb-3 flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <BeakerIcon class="w-4 h-4 text-cyan-500" />
@@ -650,7 +684,7 @@ const submit = () => {
                             <span class="text-[9px] text-cyan-400 font-bold uppercase tracking-tighter">Yield: {{ form.batch_size }} m³</span>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <div v-for="item in selectedWorkOrder.mix_design.items" :key="item.id" 
+                            <div v-for="item in selectedSalesOrder.mix_design.items" :key="item.id" 
                                 class="flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-sm border border-cyan-100/50">
                                 <span class="text-[10px] font-bold text-slate-500 uppercase">{{ item.product?.title || 'Material' }}</span>
                                 <span class="h-4 w-[1px] bg-slate-100"></span>
@@ -684,7 +718,6 @@ const submit = () => {
                                     @click="openUploadZone"
                                 />
 
-                                <!-- Upload Drag-Drop Modal Overlay (In-component fixed position to avoid Teleport unmount issues) -->
                                 <Transition name="ocr-fade">
                                     <div v-if="showUploadZone"
                                         class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
@@ -759,6 +792,24 @@ const submit = () => {
 
                                 <Button v-if="form.status !== 3" label="Add" icon="pi pi-plus" size="small" text rounded class="!text-xs !text-cyan-600" @click="addMaterial" />
                             </div>
+                        </div>
+
+                        <!-- OCR Failure Warning -->
+                        <div v-if="ocrWarning" class="mx-5 m-4 p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-800 text-xs shadow-sm flex items-start gap-3 relative overflow-hidden">
+                            <div class="absolute inset-y-0 left-0 w-1 bg-orange-400"></div>
+                            <div class="mt-0.5 bg-orange-100 rounded-full p-1.5 flex-shrink-0">
+                                <svg class="w-4 h-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <h4 class="font-bold text-orange-800 text-sm mb-1">Manual Entry Required</h4>
+                                <p class="text-orange-700">{{ ocrWarning }}</p>
+                                <!-- <p class="text-orange-600 mt-2 font-medium italic text-[11px]">You can click "View Sheet" to open the uploaded document side-by-side.</p> -->
+                            </div>
+                            <button @click="ocrWarning = null" class="text-orange-400 hover:text-orange-600 transition-colors p-1 rounded-full hover:bg-orange-100/50">
+                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
                         </div>
 
                         <div v-if="form.errors.materials" class="m-5 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-xs flex flex-col gap-1.5 shadow-sm">
@@ -934,3 +985,4 @@ const submit = () => {
     transform: scale(0.97);
 }
 </style>
+

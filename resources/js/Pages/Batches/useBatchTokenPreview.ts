@@ -48,6 +48,7 @@ export function useBatchTokenPreview({
             previewWidth.value = '380px';
             previewIframeWidth.value = '340px';
             tokenPreviewUrl.value = route('batches.dispatch-token', id);
+            
         } else if (type === 'delivery') {
             previewTitle.value = 'Delivery Token Preview (A4)';
             previewWidth.value = '850px';

@@ -218,7 +218,7 @@ const submit = () => {
 
             
         </div>
-        <div class="flex justify-end py-6 border-t border-slate-100">
+        <div class="flex justify-end p-4 border-t border-slate-100">
                 <BaseFormActions label="Save Mix Design" :loading="form.processing" @submit="submit" @reset="() => { form.reset(); form.items = [blankItem()]; }" />
             </div>
     </div>

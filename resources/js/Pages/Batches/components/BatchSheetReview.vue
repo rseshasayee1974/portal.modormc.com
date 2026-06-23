@@ -24,7 +24,7 @@ const dropdowns = ref<any>({
     drivers: [],
     operators: [],
     products: [],
-    work_orders: [],
+    sales_orders: [],
 });
 
 // Extracted headers & materials for binding
@@ -71,7 +71,7 @@ const fetchReviewData = async () => {
             truck_id: norm.header?.truck_id || null,
             driver_id: norm.header?.driver_id || null,
             operator_id: norm.header?.operator_id || null,
-            work_order_id: norm.header?.work_order_id || null,
+            sales_order_id: norm.header?.sales_order_id || null,
         };
 
         materialsData.value = (norm.materials || []).map((m: any) => ({
@@ -333,9 +333,9 @@ const isPdf = computed(() => {
                             <!-- Work Order Dropdown mapping -->
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">Work Order Link</label>
-                                <select v-model="headerData.work_order_id" class="w-full px-3 py-2 bg-white border border-gray-300 rounded text-xs focus:outline-none focus:border-indigo-500">
+                                <select v-model="headerData.sales_order_id" class="w-full px-3 py-2 bg-white border border-gray-300 rounded text-xs focus:outline-none focus:border-indigo-500">
                                     <option :value="null">-- Map Work Order --</option>
-                                    <option v-for="wo in dropdowns.work_orders" :key="wo.id" :value="wo.id">
+                                    <option v-for="wo in dropdowns.sales_orders" :key="wo.id" :value="wo.id">
                                         Order #{{ wo.order_no }} (Qty: {{ wo.produced_qty }}/{{ wo.total_qty }} m³)
                                     </option>
                                 </select>
@@ -412,3 +412,4 @@ const isPdf = computed(() => {
         </div>
     </div>
 </template>
+

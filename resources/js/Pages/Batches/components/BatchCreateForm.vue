@@ -60,6 +60,7 @@ const blankMaterial = (): BatchMaterial => ({
     uom_id: null,
 });
 
+
 const form = useForm({
     sales_order_id: null as number | null,
     batch_no: null as number | null,
@@ -102,6 +103,7 @@ const startLiveTimer = () => {
     }, 1000);
 };
 
+
 onMounted(() => {
     startLiveTimer();
 });
@@ -126,7 +128,7 @@ const isMetricTon = computed(() => {
     return customSettings?.batching?.InvoiceInMetricTon == 1;
 });
 
-const selectedWorkOrder = computed(() => {
+const selectedSalesOrder = computed(() => {
     if (!form.sales_order_id) return null;
     return props.salesOrders.find(wo => Number(wo.id) === Number(form.sales_order_id));
 });
@@ -136,8 +138,8 @@ const nextBatchNoDisplay = computed(() => {
 });
 
 const salesOrderDetails = computed(() => {
-    if (!selectedWorkOrder.value) return [];
-    const wo = selectedWorkOrder.value;
+    if (!selectedSalesOrder.value) return [];
+    const wo = selectedSalesOrder.value;
     return [
         { label: 'Order #', value: wo.full_number },
         { label: 'Customer', value: wo.customer?.legal_name || 'N/A' },
@@ -150,8 +152,8 @@ const salesOrderDetails = computed(() => {
 });
 
 watch(() => form.sales_order_id, (newVal) => {
-    if (newVal && selectedWorkOrder.value?.mix_design?.items) {
-        form.materials = selectedWorkOrder.value.mix_design.items.map((item: any) => ({
+    if (newVal && selectedSalesOrder.value?.mix_design?.items) {
+        form.materials = selectedSalesOrder.value.mix_design.items.map((item: any) => ({
             product_id: item.product_id,
             material_name: item.product?.title || 'Material',
             target_qty: Number(item.cross_quantity || item.quantity || 0) * form.batch_size,
@@ -159,7 +161,7 @@ watch(() => form.sales_order_id, (newVal) => {
             uom_id: item.uom_id || item.product?.unit_id,
         }));
         form.batch_no = props.nextBatchNo;
-        form.concrete_pump = selectedWorkOrder.value.concrete_pump;
+        form.concrete_pump = selectedSalesOrder.value.concrete_pump;
     } else {
         form.materials = [blankMaterial()];
         form.batch_no = props.nextBatchNo;
@@ -189,9 +191,9 @@ watch(() => form.batch_size, (newVal) => {
         }
     }
     
-    if (form.sales_order_id && selectedWorkOrder.value?.mix_design?.items) {
+    if (form.sales_order_id && selectedSalesOrder.value?.mix_design?.items) {
         form.materials.forEach((mat, index) => {
-            const originalItem = selectedWorkOrder.value.mix_design.items[index];
+            const originalItem = selectedSalesOrder.value.mix_design.items[index];
             if (originalItem) {
                 mat.target_qty = Number(originalItem.cross_quantity || originalItem.quantity || 0) * newVal;
             }
@@ -232,17 +234,20 @@ const handleWeightCapture = () => {
     });
 };
 
+// console.log('opekrpe',props);
+// console.log('customSettings?.batching?.manual_weight',customSettings?.batching?.manual_weight);
+
 const submit = () => {
     form.clearErrors();
     
-    const maxAllowed = selectedWorkOrder.value 
-        ? Math.max(0, Number(selectedWorkOrder.value.total_qty) - Number(selectedWorkOrder.value.produced_qty))
+    const maxAllowed = selectedSalesOrder.value 
+        ? Math.max(0, Number(selectedSalesOrder.value.total_qty) - Number(selectedSalesOrder.value.produced_qty))
         : 9.9;
-        const remainingQty = selectedWorkOrder.value
+        const remainingQty = selectedSalesOrder.value
     ? Number(
         (
-            Number(selectedWorkOrder.value.total_qty) -
-            Number(selectedWorkOrder.value.produced_qty)
+            Number(selectedSalesOrder.value.total_qty) -
+            Number(selectedSalesOrder.value.produced_qty)
         ).toFixed(3)
       )
     : 9.9;
@@ -295,7 +300,7 @@ const submit = () => {
             id: -Date.now(), // Temporary negative ID
             batch_no: form.batch_no || props.nextBatchNo,
             sales_order_id: form.sales_order_id,
-            work_order: selectedWorkOrder.value,
+            sales_order: selectedSalesOrder.value,
             batch_size: form.batch_size,
             truck_id: form.truck_id,
             truck_registration: props.trucks.find(t => t.id === form.truck_id)?.registration || 'N/A',
@@ -483,9 +488,9 @@ const submit = () => {
                             <div class="col-span-12 md:col-span-3">
                                 <div class="flex items-end">
                                     <div class="flex-1">
-                                        <BaseInputNumber v-model="form.empty_weight_truck" :disabled="!customSettings?.batching?.manual_weight" label="Empty Weight" :required="isMetricTon" :error="form.errors.empty_weight_truck" />
+                                        <BaseInputNumber v-model="form.empty_weight_truck" :disabled="customSettings?.batching?.manual_weight === 0" label="Empty Weight" :required="customSettings?.batching?.manual_weight === 1" :error="form.errors.empty_weight_truck" />
                                     </div>
-                                    <button @click="handleWeightCapture" type="button" v-if="!customSettings?.batching?.manual_weight" 
+                                    <button @click="handleWeightCapture" type="button" v-if="customSettings?.batching?.manual_weight === 0" 
                                         :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
                                         :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
                                         <div class="flex flex-col items-center gap-0.5">
@@ -534,16 +539,16 @@ const submit = () => {
                     </div>
 
                     <!-- Target Recipe Visualization -->
-                    <!-- <div v-if="selectedWorkOrder?.mix_design?.items?.length" class="rounded-xl border border-indigo-100 bg-indigo-50/30 p-4">
+                    <!-- <div v-if="selectedSalesOrder?.mix_design?.items?.length" class="rounded-xl border border-indigo-100 bg-indigo-50/30 p-4">
                         <div class="mb-3 flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <BeakerIcon class="w-4 h-4 text-indigo-500" />
-                                <h3 class="text-[10px] font-bold uppercase tracking-widest text-indigo-500">Target Recipe ({{ selectedWorkOrder.mix_design?.design_name }})</h3>
+                                <h3 class="text-[10px] font-bold uppercase tracking-widest text-indigo-500">Target Recipe ({{ selectedSalesOrder.mix_design?.design_name }})</h3>
                             </div>
                             <span class="text-[9px] text-indigo-400 font-medium">Batch Factor: {{ form.batch_size }} m³</span>
                         </div>
                         <div class="flex flex-wrap gap-2">
-                            <div v-for="item in selectedWorkOrder.mix_design.items" :key="item.id" 
+                            <div v-for="item in selectedSalesOrder.mix_design.items" :key="item.id" 
                                 class="flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-sm ring-1 ring-indigo-100/50">
                                 <span class="text-[10px] font-bold text-slate-500 uppercase">{{ item.product?.title || 'Material' }}</span>
                                 <span class="h-4 w-[1px] bg-slate-100"></span>
@@ -646,3 +651,4 @@ const submit = () => {
         </div>
     </div>
 </template>
+

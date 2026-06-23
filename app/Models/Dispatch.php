@@ -196,8 +196,8 @@ class Dispatch extends Model
     public function resetInvoice()
     {
         $this->update(['dispatch_status' => 'Draft']);
-        if ($this->status) {
-            $this->status->update([
+        if ($statusRecord = $this->status()->first()) {
+            $statusRecord->update([
                 'invoice_id'     => null,
                 'invoice_number' => null,
                 'invoice_date'   => null,

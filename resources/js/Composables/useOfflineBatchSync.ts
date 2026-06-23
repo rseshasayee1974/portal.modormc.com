@@ -20,7 +20,7 @@ export function useOfflineBatchSync(
 ) {
     // ── State ──────────────────────────────────────────────────────────────
     const localBatches = ref<any[]>([]);
-    const isSyncing    = ref(false);
+    const isSyncing = ref(false);
 
     // ── Helpers ────────────────────────────────────────────────────────────
 

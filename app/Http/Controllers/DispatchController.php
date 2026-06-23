@@ -86,12 +86,12 @@ class DispatchController extends Controller
                     $dispatchData['dispatch_no'] = $details['nextNumber'];
                 }
 
-                if (!empty($dispatchData['sales_order_id'])) {
-                    $wo = \App\Models\SalesOrder::find($dispatchData['sales_order_id']);
-                    if ($wo) {
-                        $dispatchData['customer_po_id'] = $wo->customer_po_id;
-                    }
-                }
+                // if (!empty($dispatchData['sales_order_id'])) {
+                //     $wo = \App\Models\SalesOrder::find($dispatchData['sales_order_id']);
+                //     if ($wo) {
+                //         $dispatchData['customer_po_id'] = $wo->customer_po_id;
+                //     }
+                // }
 
                 // 2. Create Main Dispatch Record
                 $dispatch = Dispatch::create($dispatchData);
@@ -140,7 +140,7 @@ Log::info($dispatch);
         if ($user && $user->hasRole('Trip Operator')) {
             $isDataPresented = (float)$dispatch->load_rate > 0 || 
                                $dispatch->dispatch_status !== 'Draft' || 
-                               ($dispatch->status && $dispatch->status->invoice_status == 1) ||
+                               ($dispatch->status()->first() && $dispatch->status()->first()->invoice_status == 1) ||
                                $dispatch->payments()->exists();
                                
             if ($isDataPresented) {
@@ -168,14 +168,14 @@ Log::info($dispatch);
                 'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off'
             ]));
 
-            if (array_key_exists('sales_order_id', $dispatchData)) {
-                if (!empty($dispatchData['sales_order_id'])) {
-                    $wo = \App\Models\SalesOrder::find($dispatchData['sales_order_id']);
-                    $dispatchData['customer_po_id'] = $wo ? $wo->customer_po_id : null;
-                } else {
-                    $dispatchData['customer_po_id'] = null;
-                }
-            }
+            // if (array_key_exists('sales_order_id', $dispatchData)) {
+            //     if (!empty($dispatchData['sales_order_id'])) {
+            //         $wo = \App\Models\SalesOrder::find($dispatchData['sales_order_id']);
+            //         $dispatchData['customer_po_id'] = $wo ? $wo->customer_po_id : null;
+            //     } else {
+            //         $dispatchData['customer_po_id'] = null;
+            //     }
+            // }
 
             // 2. Update Main Dispatch Record
             $dispatch->update($dispatchData);
@@ -207,6 +207,7 @@ Log::info($dispatch);
 
 
             return redirect()->back()->with('success', 'Dispatch updated successfully.');
+            
         });
     }
 
@@ -241,7 +242,7 @@ Log::info($dispatch);
         $this->authorizeModule('edit');
   
         return DB::transaction(function () use ($dispatch) {
-            $status = $dispatch->status;
+            $status = $dispatch->status()->first();
            
             if ($status && $status->invoice_id) {
                 $invoice = \App\Models\Invoice::query()->find($status->invoice_id);
