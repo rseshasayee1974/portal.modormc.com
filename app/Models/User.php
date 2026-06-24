@@ -153,7 +153,7 @@ class User extends Authenticatable implements MustVerifyEmail
 			$user = self::create($data);
 
             // Dispatch Registered event to trigger email verification notification
-            event(new \Illuminate\Auth\Events\Registered($user));
+            // event(new \Illuminate\Auth\Events\Registered($user));
 
 			if (isset($data['entity_users']) && is_array($data['entity_users']) && count($data['entity_users']) > 0) {
 				foreach ($data['entity_users'] as $eu) {
