@@ -152,6 +152,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
 			$user = self::create($data);
 
+			// disabled temporarily
             // Dispatch Registered event to trigger email verification notification
             // event(new \Illuminate\Auth\Events\Registered($user));
 
