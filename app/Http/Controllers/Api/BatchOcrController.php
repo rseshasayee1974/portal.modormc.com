@@ -52,15 +52,14 @@ class BatchOcrController extends Controller
     $batchNo = $parsed['batch_no']?: $request->input('batch_no', 'Unknown');
 
     $originalPath = $file->store('batch-sheets/originals', 'public');
-    $excelPath = $this->buildExcel($materials, $batchNo);
-    $this->updateBatchPaths($request->input('batch_id'), $excelPath, $originalPath);
+    $this->updateBatchPaths($request->input('batch_id'), $originalPath);
 
     // SUCCESS
     if (!empty($materials)) {
         return response()->json([
             'status' => true,
             'message' => count($materials).' material(s) parsed.',
-            'data' => $this->responseData($sourceType, $batchNo, $excelPath, $originalPath, $materials),
+            'data' => $this->responseData($sourceType, $batchNo, $originalPath, $originalPath, $materials),
         ]);
     }
 
@@ -70,7 +69,7 @@ class BatchOcrController extends Controller
         'manual_entry_required' => true,
         'message' => 'Automatic reading failed (AI services unavailable, or image unclear). Please enter the weights manually.',
         'errors' => $this->lastAiErrors,
-        'data' => $this->responseData($sourceType, $batchNo, $excelPath, $originalPath, []),
+        'data' => $this->responseData($sourceType, $batchNo, $originalPath, $originalPath, []),
     ], 200); // 200 so frontend can handle gracefully
 
 } catch (\Exception $e) {
@@ -258,6 +257,7 @@ class BatchOcrController extends Controller
             'model' => $models[0], 'temperature' => 0, 'messages' => [['role' => 'user', 'content' => $content]], 'response_format' => ['type' => 'json_object']
         ]);
         if (!$resp->successful()) throw new \RuntimeException($resp->body());
+        Log::info('BatchOCR provider response', ['model'=>$models, 'response'=>$resp->json()]);
         return $this->normalizeAiResponse($resp->json('choices.0.message.content'));
     }
 
@@ -269,34 +269,11 @@ class BatchOcrController extends Controller
     }
 
     // ── Helpers ───────────────────────────────────────────────────────
-    private function buildExcel(array $materials, string $batchNo): string
-    {
-        $ss = new Spreadsheet();
-        $sh = $ss->getActiveSheet();
-        $sh->setTitle(substr(preg_replace('/[\[\]\*\/:\\\?]/', '', $batchNo)?: 'Batch', 0, 31));
-        $sh->fromArray([['Category','Material Name','Actual Weight']], null, 'A1');
-
-        $row = 2;
-        foreach ($materials as $m) {
-            $sh->setCellValue("A$row", $m['category']?? $this->categorize($m['item']));
-            $sh->setCellValue("B$row", $m['item']);
-            $sh->setCellValue("C$row", $m['actual']?? 0);
-            $row++;
-        }
-        $path = 'batch-sheets/excel/batch_'.time().'_'.Str::slug($batchNo).'.xlsx';
-        Storage::disk('public')->put($path, (function() use ($ss) {
-            $tmp = tempnam(sys_get_temp_dir(), 'x');
-            (new Xlsx($ss))->save($tmp);
-            $data = file_get_contents($tmp); unlink($tmp); return $data;
-        })());
-        return $path;
-    }
-
-    private function updateBatchPaths(?int $id, string $excel, string $original): void
+    private function updateBatchPaths(?int $id, string $path): void
     {
         if (!$id ||!($b = Batch::find($id))) return;
         collect([$b->batch_sheet_path, $b->batch_original_sheet_path])->filter()->each(fn($p) => Storage::disk('public')->delete($p));
-        $b->update(['batch_sheet_path' => $excel, 'batch_original_sheet_path' => $original]);
+        $b->update(['batch_sheet_path' => $path, 'batch_original_sheet_path' => $path]);
     }
 
     private function responseData(string $src, string $batchNo, string $excel, string $orig, array $mats): array

@@ -38,6 +38,20 @@ const emit = defineEmits(['update:modelValue', 'generateInvoice' , 'deleteInvoic
 
 
 import { watch } from 'vue';
+import Swal from 'sweetalert2';
+
+const handleGenerateInvoice = () => {
+    if (!props.modelValue.ledger_id) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Missing Ledger',
+            text: 'Please select a Sales Ledger before generating the invoice.',
+            confirmButtonColor: '#4f46e5',
+        });
+        return;
+    }
+    emit('generateInvoice');
+};
 
 watch(() => props.modelValue.payment_mode, (newMode) => {
     if (newMode === 'cash') {
@@ -222,7 +236,7 @@ const formatTime = (dateVal: any) => {
             <div class="flex justify-end pt-2">
                 <button 
                     type="button"
-                    @click="$emit('generateInvoice')"
+                    @click="handleGenerateInvoice"
                     class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm text-white text-[11px] font-black uppercase tracking-widest rounded-xl"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">

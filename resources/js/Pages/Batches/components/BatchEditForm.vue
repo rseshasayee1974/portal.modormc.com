@@ -330,22 +330,43 @@ const isUploadFetchEnabled = computed(() => !!customSettings?.batching?.sheet_up
 
 // Shared function – applies extracted material list to the form
 const applyMaterialData = (materials: any[]) => {
+    let usedIndices = new Set();
+    
     materials.forEach((apiMat: any) => {
         const key = (apiMat.item || apiMat.name || '').toString();
         if (!key) return;
 
-        const matchedMat = form.materials.find(mat => {
+        let matchIndex = form.materials.findIndex((mat, idx) => {
+            if (usedIndices.has(idx)) return false;
             const productName = props.products.find((p: any) => p.id === mat.product_id)?.title || '';
             const materialName = mat.material_name || '';
             return (
                 productName.toUpperCase().includes(key.toUpperCase()) ||
                 materialName.toUpperCase().includes(key.toUpperCase()) ||
-                key.toUpperCase().includes(productName.toUpperCase().trim())
+                (productName.trim() && key.toUpperCase().includes(productName.toUpperCase().trim()))
             );
         });
 
-        if (matchedMat) {
-            matchedMat.actual_qty = Number(apiMat.actual ?? apiMat.act ?? 0);
+        if (matchIndex === -1) {
+            matchIndex = form.materials.findIndex(mat => {
+                const productName = props.products.find((p: any) => p.id === mat.product_id)?.title || '';
+                const materialName = mat.material_name || '';
+                return (
+                    productName.toUpperCase().includes(key.toUpperCase()) ||
+                    materialName.toUpperCase().includes(key.toUpperCase()) ||
+                    (productName.trim() && key.toUpperCase().includes(productName.toUpperCase().trim()))
+                );
+            });
+        }
+
+        if (matchIndex !== -1) {
+            const val = Number(apiMat.actual ?? apiMat.act ?? 0);
+            if (!usedIndices.has(matchIndex)) {
+                form.materials[matchIndex].actual_qty = val;
+            } else {
+                form.materials[matchIndex].actual_qty = Number(form.materials[matchIndex].actual_qty || 0) + val;
+            }
+            usedIndices.add(matchIndex);
         }
     });
 };

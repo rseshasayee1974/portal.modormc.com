@@ -266,8 +266,8 @@ const submit = () => {
             field: 'batch_size',
             message: `Batch Quantity cannot exceed remaining order quantity (${remainingQty.toFixed(3)} m³)`
         },
-        { condition: isMetricTon.value && (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0), field: 'empty_weight_truck', message: 'Empty Weight is required when InvoiceInMetricTon is enabled' },
-        { condition: isMetricTon.value && !form.empty_time, field: 'empty_time', message: 'Empty Time is required when InvoiceInMetricTon is enabled' },
+        { condition: (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0.00), field: 'empty_weight_truck', message: 'Empty Weight is required' },
+        { condition: !form.empty_time, field: 'empty_time', message: 'Empty Time is required' },
         // { condition: form.sales_order_id && form.batch_size > maxAllowed, field: 'batch_size', message: `Batch Quantity cannot exceed remaining order quantity (${maxAllowed.toFixed(3)} m³)` }
     ];
 
