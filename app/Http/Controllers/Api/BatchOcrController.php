@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
+use App\Models\BatchSheetUpload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -48,11 +49,29 @@ class BatchOcrController extends Controller
         default => $this->parseImage($file),
     };
 
-    $materials = $parsed['materials']?? [];
-    $batchNo = $parsed['batch_no']?: $request->input('batch_no', 'Unknown');
+    $materials = $parsed['materials'] ?? [];
+    $batchNo = $parsed['batch_no'] ?: $request->input('batch_no', 'Unknown');
 
     $originalPath = $file->store('batch-sheets/originals', 'public');
     $this->updateBatchPaths($request->input('batch_id'), $originalPath);
+
+    BatchSheetUpload::create([
+        'plant_id' => session('active_plant_id') ?? 1,
+        'user_id' => auth()->id() ?? 1,
+        'batch_id' => $request->input('batch_id'),
+        'original_filename' => $file->getClientOriginalName(),
+        'stored_filename' => basename($originalPath),
+        'stored_path' => $originalPath,
+        'mime_type' => $mime,
+        'file_size' => $file->getSize(),
+        'sha256_hash' => hash_file('sha256', $file->getRealPath()),
+        'file_extension' => $ext,
+        'status' => empty($materials) ? 'failed' : 'completed',
+        'parsed_json' => $materials,
+        'ocr_required' => $sourceType === 'image',
+        'parser_used' => $sourceType,
+        'error_message' => empty($materials) ? implode(', ', $this->lastAiErrors) : null,
+    ]);
 
     // SUCCESS
     if (!empty($materials)) {
@@ -77,6 +96,24 @@ class BatchOcrController extends Controller
 
     // store original anyway
     $originalPath = isset($file)? $file->store('batch-sheets/originals', 'public') : null;
+
+    if (isset($file)) {
+        BatchSheetUpload::create([
+            'plant_id' => session('active_plant_id') ?? 1,
+            'user_id' => auth()->id() ?? 1,
+            'batch_id' => $request->input('batch_id'),
+            'original_filename' => $file->getClientOriginalName(),
+            'stored_filename' => basename($originalPath),
+            'stored_path' => $originalPath,
+            'mime_type' => $mime,
+            'file_size' => $file->getSize(),
+            'sha256_hash' => hash_file('sha256', $file->getRealPath()),
+            'file_extension' => $ext,
+            'status' => 'failed',
+            'parser_used' => $sourceType ?? 'unknown',
+            'error_message' => $e->getMessage(),
+        ]);
+    }
 
     return response()->json([
         'status' => false,
