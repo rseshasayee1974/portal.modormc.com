@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\WorkOrder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class DataNormalizer
@@ -153,13 +154,17 @@ class DataNormalizer
         $cleanName = trim($name);
         if (empty($cleanName)) return null;
 
-        $driver = Driver::where('plant_id', $plantId)->where('name', $cleanName)->first();
-        if ($driver) return $driver->id;
-
-        $driver = Driver::where('plant_id', $plantId)->where('name', 'like', "%{$cleanName}%")->first();
-        if ($driver) return $driver->id;
-
-        return null;
+        $driver = Personnel::where('plant_id', $plantId)
+            ->whereHas('designation', function ($q) {
+                $q->where('name', 'Driver');
+            })
+            ->where(function ($q) use ($cleanName) {
+                $q->where(DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', "%{$cleanName}%")
+                  ->orWhere('first_name', 'like', "%{$cleanName}%");
+            })
+            ->first();
+            
+        return $driver ? $driver->id : null;
     }
 
     protected function resolveOperator(string $name, int $plantId): ?int
@@ -167,13 +172,14 @@ class DataNormalizer
         $cleanName = trim($name);
         if (empty($cleanName)) return null;
 
-        $op = Personnel::where('plant_id', $plantId)->where('name', $cleanName)->first();
-        if ($op) return $op->id;
+        $op = Personnel::where('plant_id', $plantId)
+            ->where(function ($q) use ($cleanName) {
+                $q->where(DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', "%{$cleanName}%")
+                  ->orWhere('first_name', 'like', "%{$cleanName}%");
+            })
+            ->first();
 
-        $op = Personnel::where('plant_id', $plantId)->where('name', 'like', "%{$cleanName}%")->first();
-        if ($op) return $op->id;
-
-        return null;
+        return $op ? $op->id : null;
     }
 
     protected function resolveWorkOrder(string $orderNo, int $plantId): ?int

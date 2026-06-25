@@ -92,7 +92,7 @@ const submit = () => {
         form.items.forEach((item, i) => {
             if (!item.product_id) { form.setError(`items.${i}.product_id`, 'Material required.'); hasErrors = true; }
             if (!item.uom_id) { form.setError(`items.${i}.uom_id`, 'UOM required.'); hasErrors = true; }
-            if (!item.actual_quantity || item.actual_quantity <= 0) { form.setError(`items.${i}.actual_quantity`, 'Qty > 0'); hasErrors = true; }
+            // if (!item.actual_quantity || item.actual_quantity <= 0) { form.setError(`items.${i}.actual_quantity`, 'Qty > 0'); hasErrors = true; }
              if (!item.cross_quantity || item.cross_quantity <= 0) { form.setError(`items.${i}.cross_quantity`, 'Qty > 0'); hasErrors = true; }
         });
     }

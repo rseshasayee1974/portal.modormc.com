@@ -23,7 +23,7 @@ defineEmits<{
     <div class="flex flex-col gap-2">
         <form class="flex flex-col gap-2" @submit.prevent="$emit('submit')">
             <!-- Error Summary -->
-            <Message
+            <!-- <Message
                 v-if="form.errors && Object.keys(form.errors).length > 0"
                 severity="error"
                 :closable="false"
@@ -33,7 +33,7 @@ defineEmits<{
                 <ul class="mt-1 list-disc pl-4 text-sm font-normal">
                     <li v-for="(error, field) in form.errors" :key="field">{{ error }}</li>
                 </ul>
-            </Message>
+            </Message> -->
 
             <EntityFormFields
                 :form="form"

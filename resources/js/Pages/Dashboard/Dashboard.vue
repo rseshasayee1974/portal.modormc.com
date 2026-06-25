@@ -94,7 +94,7 @@ const customerLeaderboard = ref(props.initialData?.customer_leaderboard || []);
 const stockSnapshot = ref(props.initialData?.stock_snapshot || []);
 const stockAlerts = ref(props.initialData?.stock_alerts || []);
 const recentTransactions = ref(props.initialData?.recent_transactions || []);
-const workOrders = ref(props.initialData?.sales_orders || []);
+const salesOrders = ref(props.initialData?.sales_orders || []);
 const dispatches = ref(props.initialData?.dispatches || []);
 const purchaseOrders = ref(props.initialData?.purchase_orders || []);
 
@@ -316,7 +316,7 @@ const leaderboardOptions = computed(() => ({
 }));
 
 const activeFeedRows = computed(() => {
-    if (activeFeed.value === 'sales_orders') return workOrders.value;
+    if (activeFeed.value === 'sales_orders') return salesOrders.value;
     if (activeFeed.value === 'purchase_orders') return purchaseOrders.value;
     return dispatches.value;
 });

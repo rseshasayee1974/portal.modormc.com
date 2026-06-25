@@ -9,6 +9,7 @@ import Tab from 'primevue/tab';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
 import Button from 'primevue/button';
+import { ref, watch } from 'vue';
 import type { EntityAddress, EntityContact, EntityBankAccount } from '@/Pages/Entities/useEntityStore';
 
 const props = defineProps<{
@@ -34,10 +35,37 @@ const addTax = () => props.form.taxes.push({ tax_type: 'GST', tax_number: '', co
 
 const removeRel = (arr: any[], idx: number) => arr.splice(idx, 1);
 const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
+
+const activeTab = ref('0');
+
+watch(() => props.form.errors, (errors) => {
+    if (errors && Object.keys(errors).length > 0) {
+        const firstErrorKey = Object.keys(errors)[0];
+        
+        if (firstErrorKey.startsWith('addresses')) {
+            activeTab.value = '1';
+        } else if (firstErrorKey.startsWith('contacts')) {
+            activeTab.value = '2';
+        } else if (firstErrorKey.startsWith('bank_accounts')) {
+            activeTab.value = '3';
+        } else if (firstErrorKey.startsWith('taxes')) {
+            activeTab.value = '4';
+        } else {
+            activeTab.value = '0';
+        }
+
+        setTimeout(() => {
+            const firstErrorEl = document.querySelector('.p-invalid, .text-red-500');
+            // if (firstErrorEl) {
+            //     firstErrorEl.scrollIntoView({ behavior: 'smooth'});
+            // }
+        }, 150);
+    }
+}, { deep: true });
 </script>
 
 <template>
-    <Tabs value="0">
+    <Tabs v-model:value="activeTab">
         <TabList>
             <Tab value="0">
                 <i class="pi pi-info-circle mr-2 text-xs"></i>General
@@ -134,7 +162,7 @@ const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
                         <div class="grid grid-cols-12 gap-3">
                             <div class="col-span-12 md:col-span-4 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Type</label>
-                                <BaseSelect v-model="addr.address_type" :options="addressTypes" optionLabel="type" optionValue="id" placeholder="Address Type" :disabled="readonly" fluid />
+                                <BaseSelect v-model="addr.address_type" :options="addressTypes" optionLabel="type" optionValue="id" placeholder="Address Type" :disabled="readonly" required fluid :error="form.errors?.[`addresses.${i}.address_type`]" />
                             </div>
                             <div class="col-span-12 md:col-span-8 flex items-center gap-3 pt-6">
                                 <ToggleSwitch v-model="addr.is_primary" :trueValue="1" :falseValue="0" :disabled="readonly" />
@@ -143,7 +171,7 @@ const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
                             
                             <div class="col-span-12 md:col-span-6 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Address line 1</label>
-                                <BaseInput v-model="addr.line_1" placeholder="Plot No, Building..." :disabled="readonly" fluid />
+                                <BaseInput v-model="addr.line_1" placeholder="Plot No, Building..." :disabled="readonly" required fluid :error="form.errors?.[`addresses.${i}.line_1`]" />
                             </div>
                             <div class="col-span-12 md:col-span-6 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Address line 2</label>
@@ -152,7 +180,7 @@ const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
 
                             <div class="col-span-12 md:col-span-3 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">City</label>
-                                <BaseInput v-model="addr.city" placeholder="City" :disabled="readonly" fluid />
+                                <BaseInput v-model="addr.city" placeholder="City" :disabled="readonly" required fluid :error="form.errors?.[`addresses.${i}.city`]" />
                             </div>
                             <div class="col-span-12 md:col-span-3 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Zipcode</label>
@@ -200,7 +228,7 @@ const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
                         <div class="grid grid-cols-12 gap-3">
                             <div class="col-span-12 md:col-span-4 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Type</label>
-                                <BaseSelect v-model="cont.contact_type" :options="contactTypes" optionLabel="type" optionValue="id" placeholder="Contact Type" :disabled="readonly" fluid />
+                                <BaseSelect v-model="cont.contact_type" :options="contactTypes" optionLabel="type" optionValue="id" placeholder="Contact Type" :disabled="readonly" required fluid :error="form.errors?.[`contacts.${i}.contact_type`]" />
                             </div>
                             <div class="col-span-12 md:col-span-8 flex items-center gap-2 pt-6">
                                 <ToggleSwitch v-model="cont.is_primary" :trueValue="1" :falseValue="0" :disabled="readonly" />
@@ -209,7 +237,7 @@ const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
                             
                             <div class="col-span-12 md:col-span-6 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Contact Person</label>
-                                <BaseInput v-model="cont.contact_person" placeholder="Name" :disabled="readonly" fluid />
+                                <BaseInput v-model="cont.contact_person" placeholder="Name" :disabled="readonly" required fluid :error="form.errors?.[`contacts.${i}.contact_person`]" />
                             </div>
                             <div class="col-span-12 md:col-span-3 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Mobile</label>
@@ -262,7 +290,7 @@ const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
                         <div class="grid grid-cols-12 gap-3">
                             <div class="col-span-12 md:col-span-4 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Account Type</label>
-                                <BaseSelect v-model="bank.account_type" :options="bankAccountTypes" optionLabel="type" optionValue="id" placeholder="Account Type" :disabled="readonly" fluid />
+                                <BaseSelect v-model="bank.account_type" :options="bankAccountTypes" optionLabel="type" optionValue="id" placeholder="Account Type" :disabled="readonly" required fluid :error="form.errors?.[`bank_accounts.${i}.account_type`]" />
                             </div>
                             <div class="col-span-12 md:col-span-8 flex items-center gap-2 pt-6">
                                 <ToggleSwitch v-model="bank.is_primary" :trueValue="1" :falseValue="0" :disabled="readonly" />
@@ -271,11 +299,11 @@ const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
 
                             <div class="col-span-12 md:col-span-4 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Bank Name</label>
-                                <BaseInput v-model="bank.bank_name" placeholder="Bank Name" :disabled="readonly" fluid />
+                                <BaseInput v-model="bank.bank_name" placeholder="Bank Name" :disabled="readonly" required fluid :error="form.errors?.[`bank_accounts.${i}.bank_name`]" />
                             </div>
                             <div class="col-span-12 md:col-span-4 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Account Number</label>
-                                <BaseInput v-model="bank.account_number" placeholder="Account #" :disabled="readonly" fluid />
+                                <BaseInput v-model="bank.account_number" placeholder="Account #" :disabled="readonly" required fluid :error="form.errors?.[`bank_accounts.${i}.account_number`]" />
                             </div>
                             <div class="col-span-12 md:col-span-4 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">IFSC Code</label>
@@ -324,7 +352,7 @@ const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
                         <div class="grid grid-cols-12 gap-3">
                             <div class="col-span-12 md:col-span-4 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Tax Type</label>
-                                <BaseSelect v-model="tax.tax_type" :options="taxTypeOptions" placeholder="Select Type" :disabled="readonly" fluid />
+                                <BaseSelect v-model="tax.tax_type" :options="taxTypeOptions" placeholder="Select Type" :disabled="readonly" required fluid :error="form.errors?.[`taxes.${i}.tax_type`]" />
                             </div>
                             <div class="col-span-12 md:col-span-5 flex flex-col gap-1">
                                 <label class="text-[10px] font-bold uppercase text-gray-400">Tax Number</label>
@@ -332,8 +360,10 @@ const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
                                     v-model="tax.tax_number" 
                                     placeholder="Registration No / ID" 
                                     :disabled="readonly" 
+                                    required
                                     fluid 
                                     @input="tax.tax_number = tax.tax_number.toUpperCase().replace(/[^A-Z0-9]/g, '')"
+                                    :error="form.errors?.[`taxes.${i}.tax_number`]"
                                 />
                             </div>
                             <div class="col-span-12 md:col-span-3 flex items-center gap-2 pt-6">

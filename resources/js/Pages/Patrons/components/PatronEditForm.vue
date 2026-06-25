@@ -34,12 +34,12 @@ defineEmits<{
         </div> -->
 
         <form class="flex flex-col gap-2" @submit.prevent="$emit('submit')">
-            <Message v-if="Object.keys(form.errors).length > 0" severity="error" :closable="false">
+            <!-- <Message v-if="Object.keys(form.errors).length > 0" severity="error" :closable="false">
                 <div class="font-bold">Please correct the following errors before updating:</div>
                 <ul class="mt-1 list-disc pl-4 text-sm font-normal">
                     <li v-for="(error, field) in form.errors" :key="field">{{ error }}</li>
                 </ul>
-            </Message>
+            </Message> -->
 
             <PatronFormFields
                 :form="form"

@@ -5,6 +5,7 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useAddressTypeStore } from '@/Pages/AddressTypes/useAddressTypeStore';
+// import { router } from '@inertiajs/vue3';
 
 // PrimeVue
 import Column from 'primevue/column';
@@ -96,10 +97,12 @@ const submitModal = async () => {
         if (modalMode.value === 'create') {
             const response = await axios.post(route('addresstypes.store'), { type: modalForm.value.type });
             store.addAddressType(response.data.addressType);
+            // router.reload();
             toast.add({ severity: 'success', summary: 'Success', detail: 'Address type created' });
         } else {
             const response = await axios.put(route('addresstypes.update', editingId.value), { type: modalForm.value.type });
             store.updateAddressType(response.data.addressType);
+            // router.reload();
             toast.add({ severity: 'success', summary: 'Success', detail: 'Address type updated' });
         }
         closeModal();

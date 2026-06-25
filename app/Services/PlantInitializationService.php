@@ -274,6 +274,7 @@ class PlantInitializationService
             $account = Accounts::updateOrCreate(
                 ['code' => $groupData['code'], 'is_system' => true],
                 [
+                    'entity_id' => $plant->entity_id,
                     'title'     => $groupTitle,
                     'is_system' => true,
                     'status'    => 1,
@@ -286,6 +287,7 @@ class PlantInitializationService
                 $accountType = AccountsType::updateOrCreate(
                     ['code' => $subGroupData['code'], 'plant_id' => $plant->id],
                     [
+                        'entity_id'  => $plant->entity_id,
                         'account_id' => $account->id,
                         'title'      => $subGroupTitle,
                         'is_system'  => true,
@@ -299,6 +301,7 @@ class PlantInitializationService
                     Ledger::updateOrCreate(
                         ['code' => $ledgerData['code'], 'plant_id' => $plant->id],
                         [
+                            'entity_id'       => $plant->entity_id,
                             'account_type_id' => $accountType->id,
                             'title'           => $ledgerData['title'],
                             'slug'            => Str::slug($ledgerData['title']),
@@ -594,7 +597,9 @@ class PlantInitializationService
             $patron = Patron::where('plant_id', $plant->id)->first();
         }
 
+        $concrete_grade = ConcreteGrade::where('plant_id', $plant->id)->first();
         $mix = MixDesign::updateOrCreate([
+            'concrete_grade_id' => $concrete_grade->id,
             'plant_id' => $plant->id,
             'design_name' => 'Default M25 Design',
         ], [

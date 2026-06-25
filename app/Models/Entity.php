@@ -142,8 +142,7 @@ class Entity extends Model
             }
 
             $entity = self::create($data);
-
-            if (!empty($data['addresses']) && is_array($data['addresses'])) {
+if (!empty($data['addresses']) && is_array($data['addresses'])) {
                 $entity->addresses()->createMany($data['addresses']);
             }
 
@@ -158,6 +157,7 @@ class Entity extends Model
             if (!empty($data['taxes']) && is_array($data['taxes'])) {
                 $entity->taxes()->createMany($data['taxes']);
             }
+            
 
             DB::commit();
             return $entity->fresh(['addresses', 'contacts', 'bankAccounts', 'taxes']);
