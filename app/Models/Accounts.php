@@ -17,6 +17,7 @@ class Accounts extends Model
     public $timestamps = false;
     protected $fillable = [
         'plant_id',
+        'entity_id',
         'code',
         'title',
         'status',

@@ -191,7 +191,7 @@ const deletePlant = (id: number) => {
                 preserveScroll: true,
                 onSuccess: () => {
                     if (editingId.value === id) resetEditForm();
-                    toast.add({ severity: 'info', summary: 'Deleted', detail: 'Plant removed', life: 1500 });
+                    toast.add({ severity: 'error', summary: 'Deleted', detail: 'Plant removed', life: 1500 });
                 }
             });
         }

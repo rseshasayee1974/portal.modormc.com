@@ -52,13 +52,15 @@ const emit = defineEmits(['submit', 'cancel']);
                     :canEditIdentityOnUpdate="canEditIdentityOnUpdate"
                 />
 
+            <div class="pt-4">
                 <BaseFormActions
                     submit-label="Update Plant"
                     submit-icon="pi pi-save"
                     :loading="processing"
                     @submit="emit('submit')"
                     @cancel="emit('cancel')"
-                />
+                    />
+                </div>
             </form>
         </div>
     </div>

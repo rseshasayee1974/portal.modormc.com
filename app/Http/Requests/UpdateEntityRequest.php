@@ -81,4 +81,20 @@ class UpdateEntityRequest extends FormRequest
             'taxes.*.is_primary' => 'boolean',
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'addresses.*.address_type.required' => 'Please select an address type.',
+            'addresses.*.line_1.required' => 'Address line 1 is required.',
+            'addresses.*.city.required' => 'City is required.',
+            'contacts.*.contact_type.required' => 'Please select a contact type.',
+            'contacts.*.contact_person.required' => 'Contact person name is required.',
+            'bank_accounts.*.account_type.required' => 'Please select a bank account type.',
+            'bank_accounts.*.bank_name.required' => 'Bank name is required.',
+            'bank_accounts.*.account_number.required' => 'Account number is required.',
+            'taxes.*.tax_type.required' => 'Please select a tax type.',
+            'taxes.*.tax_number.required' => 'Tax number is required.',
+        ];
+    }
 }

@@ -21,6 +21,7 @@ class Ledger extends Model
     protected $fillable = [
          
         'plant_id',
+        'entity_id',
         'account_type_id',
         'code',
         'is_pnl',

@@ -7,7 +7,6 @@ use App\Models\Batch;
 use App\Models\BatchSheetTemplate;
 use App\Models\BatchSheetUpload;
 use App\Models\Dispatch;
-use App\Models\Driver;
 use App\Models\Machine;
 use App\Models\Patron;
 use App\Models\Personnel;
@@ -130,8 +129,22 @@ class BatchSheetUploadController extends Controller
         // Fetch dropdown options for UI mapping
         $customers = Patron::where('plant_id', $plantId)->get(['id', 'legal_name']);
         $trucks = Machine::where('plant_id', $plantId)->get(['id', 'registration']);
-        $drivers = Driver::where('plant_id', $plantId)->get(['id', 'name']);
-        $operators = Personnel::where('plant_id', $plantId)->get(['id', 'name']);
+        $drivers = Personnel::where('plant_id', $plantId)
+            ->whereHas('designation', function ($q) {
+                $q->where('name', 'Driver');
+            })
+            ->select('id', 'first_name', 'last_name')
+            ->get()
+            ->map(function ($p) {
+                return ['id' => $p->id, 'name' => trim($p->first_name . ' ' . $p->last_name)];
+            });
+            
+        $operators = Personnel::where('plant_id', $plantId)
+            ->select('id', 'first_name', 'last_name')
+            ->get()
+            ->map(function ($p) {
+                return ['id' => $p->id, 'name' => trim($p->first_name . ' ' . $p->last_name)];
+            });
         $products = Product::where('plant_id', $plantId)->get(['id', 'title']);
         
         $workOrders = WorkOrder::where('plant_id', $plantId)

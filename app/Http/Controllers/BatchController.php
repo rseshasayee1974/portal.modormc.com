@@ -40,7 +40,7 @@ class BatchController extends Controller
         'dispatches:id,batch_id,truck_id,transport_id,driver_id,sales_executive_id,concrete_pump,empty_weight_truck,loaded_weight_truck,empty_time,load_time',
         'dispatches.truck',
         'dispatches.transport', 
-        'dispatches.drivers',
+        'dispatches.driver',
         'dispatches.salesExecutive',
         'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
         'materials.product:id,title',

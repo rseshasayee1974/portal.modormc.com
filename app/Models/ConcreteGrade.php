@@ -19,6 +19,7 @@ class ConcreteGrade extends Model
         'concrete_code',
         'concrete_ratio',
         'cement_ratio',
+        
         'sand_ratio',
         'aggregate_ratio',
         'is_system',

@@ -99,10 +99,7 @@ class Personnel extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function driver()
-    {
-        return $this->hasOne(Driver::class, 'personnel_id');
-    }
+    // removed old driver relation
 
     public function entity()
     {
