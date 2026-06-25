@@ -68,10 +68,10 @@ return new class extends Migration
 
             // Foreign keys
             $table->foreign('plant_id')->references('id')->on('mm_plants')->onDelete('cascade');
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('user_id')->references('id')->on('mm_users')->onDelete('cascade');
             $table->foreign('customer_id')->references('id')->on('mm_patrons')->nullOnDelete();
             $table->foreign('batch_id')->references('id')->on('mm_batches')->nullOnDelete();
-            $table->foreign('reviewed_by')->references('id')->on('users')->nullOnDelete();
+            $table->foreign('reviewed_by')->references('id')->on('mm_users')->nullOnDelete();
         });
     }
 

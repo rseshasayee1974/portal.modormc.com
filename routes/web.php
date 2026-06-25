@@ -354,22 +354,3 @@ Route::get('public/report/{token}', [\App\Http\Controllers\InvoiceShareControlle
 Route::get('public/report/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadReportPDF'])->name('public.report.pdf');
 Route::get('/public/batch/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewBatch'])->name('public.batch.view');
 Route::get('/public/batch/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadBatchPDF'])->name('public.batch.pdf');
-
-Route::get('/temp-rename-dirs', function () {
-    $pagesDir = base_path('resources/js/Pages');
-    $out = [];
-    if (is_dir("$pagesDir/SalesOrders") && !is_dir("$pagesDir/CustomerPOs")) {
-        rename("$pagesDir/SalesOrders", "$pagesDir/CustomerPOs");
-        $out[] = "Renamed SalesOrders to CustomerPOs";
-    } else {
-        $out[] = "SalesOrders not found or CustomerPOs already exists";
-    }
-
-    if (is_dir("$pagesDir/WorkOrders") && !is_dir("$pagesDir/SalesOrders")) {
-        rename("$pagesDir/WorkOrders", "$pagesDir/SalesOrders");
-        $out[] = "Renamed WorkOrders to SalesOrders";
-    } else {
-        $out[] = "WorkOrders not found or SalesOrders already exists";
-    }
-    return response()->json($out);
-});
