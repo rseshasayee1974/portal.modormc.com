@@ -10,7 +10,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-class CustomerPOController extends Controller
+class CustomerPoController extends Controller
 {
     use AuthorizesModule;
     protected string $module = 'sales_orders'; // keeping module permission scope
