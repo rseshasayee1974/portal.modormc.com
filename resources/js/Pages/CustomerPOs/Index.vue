@@ -229,7 +229,7 @@ watch(() => props.customerPOs, () => {
 
         <div class="px-4 py-5 md:px-6 space-y-4">
             <!-- Header section -->
-            <div class="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-900 via-indigo-900 to-sky-800 px-5 py-4 text-white shadow">
+            <!-- <div class="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-900 via-indigo-900 to-sky-800 px-5 py-4 text-white shadow">
                 <div class="flex items-start gap-3">
                     <div class="rounded-lg bg-white/10 p-2 text-indigo-100">
                         <ShoppingBagIcon class="h-5 w-5" />
@@ -239,7 +239,7 @@ watch(() => props.customerPOs, () => {
                         <p class="mt-1 text-xs text-slate-200">View customer Customer POs, track which user converted them, and generate corresponding Sales Orders.</p>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Create Form -->
             <CustomerPOCreateForm

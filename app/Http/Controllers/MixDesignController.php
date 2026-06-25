@@ -195,6 +195,7 @@ class MixDesignController extends Controller
 
     public function destroy(MixDesign $mixdesign)
     {
+        $this->authorizeModule('delete');
         if ($mixdesign->is_used_in_batching) {
             return redirect()->back()->with('error', 'Mix Design is used in batching and cannot be deleted.');
         }

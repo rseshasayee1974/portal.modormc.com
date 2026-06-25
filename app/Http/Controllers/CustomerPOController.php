@@ -10,10 +10,10 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-class CustomerPoController extends Controller
+class CustomerpoController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'sales_orders'; // keeping module permission scope
+    protected string $module = 'sales_orders'; // keeping module permission scope asdssd
 
     public function index()
     {

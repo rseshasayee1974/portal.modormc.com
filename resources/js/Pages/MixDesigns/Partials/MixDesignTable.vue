@@ -30,16 +30,16 @@ const onSaved = () => { expandedRows.value = {}; };
 const getDeleteTooltip = (mixDesign) => {
     const reasons = [];
 
-    if (mixDesign.is_used_in_quotations) {
-        reasons.push('quotations');
-    }
+    // if (mixDesign.is_used_in_quotations) {
+    //     reasons.push('quotations');
+    // }
 
-    if (mixDesign.is_used_in_batching) {
-        reasons.push('batching');
-    }
+    // if (mixDesign.is_used_in_batching) {
+    //     reasons.push('batching');
+    // }
 
     if (reasons.length) {
-        return `This mix design is used in ${reasons.join(' and ')} and cannot be deleted.`;
+        return `This mix design is used in ${reasons.join(' and ')} . Are you sure you want to delete?`;
     }
 
     return 'This mix design will be permanently removed.';
@@ -137,12 +137,12 @@ const getDeleteTooltip = (mixDesign) => {
             <Column header="Actions" style="width: 70px; text-align: right">
                 <template #body="slotProps">
                     <div class="flex justify-end">
+                        <!-- :disabled="slotProps.data.is_used_in_quotations || slotProps.data.is_used_in_batching" -->
+                        <!-- v-tooltip.right="getDeleteTooltip(slotProps.data)"                         -->
                         <BaseDeleteButton
                         v-if="can('concrete-mix-designs.delete')"
-                            :disabled="slotProps.data.is_used_in_quotations || slotProps.data.is_used_in_batching"
                             :url="route('mixdesigns.destroy', slotProps.data.id)"
-                            title="Delete Mix Design?"
-                            v-tooltip.right="getDeleteTooltip(slotProps.data)"                        />
+                            title="Delete Mix Design?"/>
                     </div>
                 </template>
             </Column>
@@ -161,8 +161,6 @@ const getDeleteTooltip = (mixDesign) => {
                         :partners="partners"
                         :defaultUomId="defaultUomId"
                         :designTypes="designTypes"
-                         :is-used-in-quotations="data.is_used_in_quotations"
-    :is-used-in-batching="data.is_used_in_batching"
                         @cancel="expandedRows = {}"
                         @saved="onSaved"
                     />
