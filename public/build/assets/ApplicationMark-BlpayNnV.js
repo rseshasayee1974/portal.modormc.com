@@ -1,5 +1,1 @@
-<<<<<<<< HEAD:public/build/assets/ApplicationMark-BRrzRa1Y.js
-import{_ as o}from"./app-Dsu7Sj_l.js";import{p as n,q as e,l as r}from"./vue-DYKetM4p.js";const s={},a={class:"flex items-center justify-center font-black tracking-tighter text-white"};function c(i,t){return r(),n("div",a,[...t[0]||(t[0]=[e("div",{class:"bg-gradient-to-br from-indigo-500 to-teal-400 p-2 rounded-xl shadow-lg"},[e("span",{class:"text-2xl leading-none"},"O")],-1)])])}const f=o(s,[["render",c]]);export{f as A};
-========
 import{_ as o}from"./app-Dg26KF7p.js";import{p as n,q as e,l as r}from"./vue-DYKetM4p.js";const s={},a={class:"flex items-center justify-center font-black tracking-tighter text-white"};function c(i,t){return r(),n("div",a,[...t[0]||(t[0]=[e("div",{class:"bg-gradient-to-br from-indigo-500 to-teal-400 p-2 rounded-xl shadow-lg"},[e("span",{class:"text-2xl leading-none"},"O")],-1)])])}const f=o(s,[["render",c]]);export{f as A};
->>>>>>>> bf7fc279db81aac8cfaa5019a21c576d694e6c41:public/build/assets/ApplicationMark-BlpayNnV.js

@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/AuthenticationCard-C41TOIEk.js
-import{_ as o}from"./app-Dsu7Sj_l.js";import{l as r,p as a,q as s,B as t}from"./vue-DYKetM4p.js";const n={},c={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},d={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"};function l(e,i){return r(),a("div",c,[s("div",null,[t(e.$slots,"logo")]),s("div",d,[t(e.$slots,"default")])])}const _=o(n,[["render",l]]);export{_ as A};
-========
-import{_ as o}from"./app-Dg26KF7p.js";import{l as r,p as a,q as s,B as t}from"./vue-DYKetM4p.js";const n={},c={class:"min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900"},d={class:"w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg"};function l(e,i){return r(),a("div",c,[s("div",null,[t(e.$slots,"logo")]),s("div",d,[t(e.$slots,"default")])])}const _=o(n,[["render",l]]);export{_ as A};
->>>>>>>> bf7fc279db81aac8cfaa5019a21c576d694e6c41:public/build/assets/AuthenticationCard-CagRY_er.js
