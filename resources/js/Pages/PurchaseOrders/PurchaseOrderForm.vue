@@ -77,11 +77,16 @@ const form = useForm({
 });
 
 function createNewItem() {
+    const defaultTaxId = props.taxes?.[0]?.id || null;
+    const defaultUomId = props.productUnits?.find(u => u.unit_code === 'MTR')?.id 
+                      || props.productUnits?.[0]?.id 
+                      || null;
+
     return {
         id: null,
         product_id: null,
-        product_uom: null,
-        tax_id: null,
+        product_uom: defaultUomId,
+        tax_id: defaultTaxId,
         product_quantity: 1,
         unit_price: 0,
         discount_type: 'percentage',

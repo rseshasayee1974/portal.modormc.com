@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\ConcreteGrade;
 use App\Models\ConcreteGradeItem;
 use App\Models\Product;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ConcreteGradeController extends Controller
-{
+{ use AuthorizesModule;
   
 
     public function index()
@@ -154,8 +155,9 @@ class ConcreteGradeController extends Controller
 
     public function destroy(ConcreteGrade $concretegrade)
     {
+         $this->authorizeModule('delete', $concretegrade);
         try {
-            $this->service->delete($concretegrade);
+            $concretegrade->delete();
             return back()->with('success', 'Concrete Grade master deleted successfully.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return back()->with('error', $e->validator->errors()->first());

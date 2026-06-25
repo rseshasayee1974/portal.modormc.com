@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\MixDesign;
 use App\Models\MixDesignItem;
 use App\Models\CustomSetting;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\DB;
 
 class MixDesignController extends Controller
 {
+    use AuthorizesModule;
     public function __construct()
     {
         $this->authorizeResource(MixDesign::class, 'mixdesign');
