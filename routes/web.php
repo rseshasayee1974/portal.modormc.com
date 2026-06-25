@@ -188,11 +188,11 @@ Route::middleware([
         Route::get('quotations/{quotation}/report', [\App\Http\Controllers\QuotationController::class, 'report'])->name('quotations.report');
         Route::patch('quotations/{quotation}/convert', [\App\Http\Controllers\QuotationController::class, 'updateConversionStatus'])->name('quotations.convert');
         Route::post('quotations/{quotation}/send-email', [\App\Http\Controllers\QuotationController::class, 'sendEmail'])->name('quotations.send-email');
-        Route::get('customer-po', [\App\Http\Controllers\CustomerpoController::class, 'index'])->name('customer-po.index');
-        Route::post('customer-po', [\App\Http\Controllers\CustomerpoController::class, 'store'])->name('customer-po.store');
-        Route::delete('customer-po/{customerPO}', [\App\Http\Controllers\CustomerpoController::class, 'destroy'])->name('customer-po.destroy');
-        Route::put('customer-po/{customerPO}', [\App\Http\Controllers\CustomerpoController::class, 'update'])->name('customer-po.update');
-        Route::post('customer-po/{customerPO}/convert-salesorder', [\App\Http\Controllers\CustomerpoController::class, 'convertToSalesOrder'])->name('customer-po.convert-salesorder');
+        Route::get('customer-po', [\App\Http\Controllers\CustomerPOController::class, 'index'])->name('customer-po.index');
+        Route::post('customer-po', [\App\Http\Controllers\CustomerPOController::class, 'store'])->name('customer-po.store');
+        Route::delete('customer-po/{customerPO}', [\App\Http\Controllers\CustomerPOController::class, 'destroy'])->name('customer-po.destroy');
+        Route::put('customer-po/{customerPO}', [\App\Http\Controllers\CustomerPOController::class, 'update'])->name('customer-po.update');
+        Route::post('customer-po/{customerPO}/convert-salesorder', [\App\Http\Controllers\CustomerPOController::class, 'convertToSalesOrder'])->name('customer-po.convert-salesorder');
         Route::post('customer-po/{customerPO}/dispatches', [\App\Http\Controllers\DispatchController::class, 'storeForSalesOrder'])->name('customer-po.dispatches.store');
         Route::resource('salesorders', \App\Http\Controllers\SalesOrderController::class);
         Route::resource('batches', \App\Http\Controllers\BatchController::class);
