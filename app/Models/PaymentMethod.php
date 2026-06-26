@@ -33,6 +33,6 @@ class PaymentMethod extends Model
 
     public function tripPayments()
     {
-        return $this->hasMany(TripPayment::class, 'payment_method_id');
+        return $this->hasMany(PaymentMethod::class, 'payment_method_id');
     }
 }

@@ -124,7 +124,7 @@ const visibleSideNav = (topItemId) => {
     const children = page.props.menus?.sidebar_nav?.[topItemId] || [];
     return children.filter(child => !child.permission_name || can(child.permission_name));
 };
-console.log(page.props.auth.user);
+// console.log(page.props.auth.user);
 defineProps({
     title: String,
 });

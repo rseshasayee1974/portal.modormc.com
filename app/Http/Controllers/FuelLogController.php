@@ -64,19 +64,24 @@ class FuelLogController extends Controller
         // Optimized dropdown data
         $machines = MachinesDropdown(); // Helper from Dropdown.php
         
-        $drivers = Personnel::where('plant_id', $activePlantId)
-            ->where('employee_type', 'Driver')
-            ->whereNull('deleted_at')
+        $drivers = Personnel::query()
+            ->where('plant_id', $activePlantId)
+            ->where('status', 'active')
+            ->whereRelation('designation', 'name', 'Driver')
+            ->orderBy('id')
             ->get()
-            ->map(fn($p) => [
-                'id' => $p->id,
+            ->map(fn ($p) => [
+                'id'    => $p->id,
                 'label' => trim($p->first_name . ' ' . $p->last_name),
-                'value' => $p->id
+                'value' => $p->id,
             ]);
 
         // Standard payment options
         $paymentMethods = PaymentMethodsDropdown();
-
+// return response()->json([
+//     'drivers' => $drivers,
+//     'paymentMethods' => $paymentMethods
+// ]);
         return Inertia::render('FuelLogs/Index', [
             'fuelLogs' => $fuelLogs,
             'machines' => $machines,

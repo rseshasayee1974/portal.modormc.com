@@ -1020,17 +1020,17 @@ class PlantInitializationService
     {
         $components = [
             // Earnings
-            ['name' => 'Basic Salary',          'type' => 'earning',   'calculation_type' => '₹',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
-            ['name' => 'House Rent Allowance',  'type' => 'earning',   'calculation_type' => '%',  'default_value' => 40,   'is_taxable' => false, 'is_statutory' => false],
-            ['name' => 'Conveyance Allowance',  'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 1600, 'is_taxable' => false, 'is_statutory' => false],
-            ['name' => 'Special Allowance',     'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
-            ['name' => 'Overtime',              'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'Basic Salary',          'type' => 'earning',   'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'House Rent Allowance',  'type' => 'earning',   'calculation_type' => 'percentage',  'default_value' => 40,   'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Conveyance Allowance',  'type' => 'earning',   'calculation_type' => 'fixed',       'default_value' => 1600, 'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Special Allowance',     'type' => 'earning',   'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'Overtime',              'type' => 'earning',   'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
             // Deductions
-            ['name' => 'Provident Fund (PF)',   'type' => 'deduction', 'calculation_type' => '%',  'default_value' => 12,   'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'ESI',                   'type' => 'deduction', 'calculation_type' => '%',  'default_value' => 0.75, 'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'Professional Tax',      'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 200,  'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'TDS',                   'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'Advance Deduction',     'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Provident Fund (PF)',   'type' => 'deduction', 'calculation_type' => 'percentage',  'default_value' => 12,   'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'ESI',                   'type' => 'deduction', 'calculation_type' => 'percentage',  'default_value' => 0.75, 'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'Professional Tax',      'type' => 'deduction', 'calculation_type' => 'fixed',       'default_value' => 200,  'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'TDS',                   'type' => 'deduction', 'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'Advance Deduction',     'type' => 'deduction', 'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => false],
         ];
 
         foreach ($components as $comp) {

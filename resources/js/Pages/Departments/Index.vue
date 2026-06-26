@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { ref, computed, onMounted, watch } from 'vue';
 import Swal from 'sweetalert2';
 import { PencilSquareIcon, TrashIcon, PlusIcon, FolderOpenIcon } from '@heroicons/vue/24/outline';
@@ -68,8 +68,9 @@ const deleteDepartment = (id: number) => {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            form.delete(route('departments.destroy', id), {
-                onSuccess: () => Swal.fire('Deleted!', 'Department has been deleted.', 'success')
+    router.delete(route('departments.destroy', id), {
+                preserveScroll: true,
+                preserveState: true
             });
         }
     });

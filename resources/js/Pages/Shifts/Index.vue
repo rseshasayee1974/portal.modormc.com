@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Swal from 'sweetalert2';
 import { ClockIcon, UserGroupIcon, CalendarDaysIcon, PlusIcon, SparklesIcon } from '@heroicons/vue/24/outline';
@@ -22,6 +22,7 @@ import Tab from 'primevue/tab';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
 import Tag from 'primevue/tag';
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 
 interface Shift {
     id: number;
@@ -86,12 +87,20 @@ const shiftOptions = computed(() =>
 );
 
 // Shift Actions
+const parseTime = (timeStr: string | null) => {
+    if (!timeStr) return null;
+    const d = new Date();
+    const [h, m, s] = timeStr.split(':');
+    d.setHours(Number(h), Number(m), Number(s || 0));
+    return d;
+};
+
 const editShift = (shift: Shift) => {
     editingShiftId.value = shift.id;
     shiftForm.shift_name = shift.shift_name;
-    shiftForm.start_time = shift.start_time;
-    shiftForm.end_time = shift.end_time;
-    shiftForm.grace_time = shift.grace_time || '';
+    shiftForm.start_time = parseTime(shift.start_time);
+    shiftForm.end_time = parseTime(shift.end_time);
+    shiftForm.grace_time = parseTime(shift.grace_time || '');
     shiftForm.working_hours = Number(shift.working_hours);
     shiftForm.is_night_shift = !!shift.is_night_shift;
 };
@@ -102,14 +111,36 @@ const resetShiftForm = () => {
     shiftForm.clearErrors();
 };
 
+const formatTimeStr = (val: any): string | null => {
+    if (!val) return null;
+    if (typeof val === 'string' && /^\d{2}:\d{2}(:\d{2})?$/.test(val)) {
+        return val.length === 5 ? `${val}:00` : val;
+    }
+    const d = val instanceof Date ? val : new Date(val);
+    if (isNaN(d.getTime())) return null;
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${hh}:${mm}:${ss}`;
+};
+
 const submitShift = () => {
+    const payload = {
+        ...shiftForm.data(),
+        start_time: formatTimeStr(shiftForm.start_time),
+        end_time: formatTimeStr(shiftForm.end_time),
+        grace_time: formatTimeStr(shiftForm.grace_time),
+    };
+
     if (editingShiftId.value) {
-        shiftForm.put(route('shifts.update', editingShiftId.value), {
+        shiftForm.transform(() => payload).put(route('shifts.update', editingShiftId.value), {
             onSuccess: () => resetShiftForm(),
+            onFinish: () => shiftForm.transform((d: any) => d),
         });
     } else {
-        shiftForm.post(route('shifts.store'), {
+        shiftForm.transform(() => payload).post(route('shifts.store'), {
             onSuccess: () => resetShiftForm(),
+            onFinish: () => shiftForm.transform((d: any) => d),
         });
     }
 };
@@ -125,8 +156,9 @@ const deleteShift = (id: number) => {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            shiftForm.delete(route('shifts.destroy', id), {
-                onSuccess: () => Swal.fire('Deleted!', 'Shift definition has been deleted.', 'success')
+            router.delete(route('shifts.destroy', id), {
+                preserveScroll: true,
+                preserveState: true
             });
         }
     });
@@ -153,8 +185,9 @@ const unassignShift = (id: number) => {
         confirmButtonText: 'Yes, remove it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            assignForm.delete(route('shifts.unassign', id), {
-                onSuccess: () => Swal.fire('Removed!', 'Shift assignment has been removed.', 'success')
+              router.delete(route('shifts.unassign', id), {
+                preserveScroll: true,
+                preserveState: true
             });
         }
     });
@@ -227,17 +260,17 @@ watch(
                                             <div class="grid grid-cols-2 gap-4">
                                                 <div class="flex flex-col gap-2">
                                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Start Time <span class="text-red-500">*</span></label>
-                                                    <BaseInput type="text" v-model="shiftForm.start_time" placeholder="HH:MM:SS" />
+                                                    <BaseDatePicker v-model="shiftForm.start_time" mode="time" show-time :hour12="false" />
                                                 </div>
                                                 <div class="flex flex-col gap-2">
                                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">End Time <span class="text-red-500">*</span></label>
-                                                    <BaseInput type="text" v-model="shiftForm.end_time" placeholder="HH:MM:SS" />
+                                                    <BaseDatePicker v-model="shiftForm.end_time" show-time mode="time" :hour12="false" />
                                                 </div>
                                             </div>
                                             <div class="grid grid-cols-2 gap-4">
                                                 <div class="flex flex-col gap-2">
                                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Grace Time</label>
-                                                    <BaseInput type="text" v-model="shiftForm.grace_time" placeholder="HH:MM:SS" />
+                                                    <BaseDatePicker v-model="shiftForm.grace_time" show-time mode="time" :hour12="false" />
                                                 </div>
                                                 <div class="flex flex-col gap-2">
                                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Working Hours</label>

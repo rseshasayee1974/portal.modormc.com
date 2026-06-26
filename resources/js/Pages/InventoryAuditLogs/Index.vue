@@ -560,6 +560,7 @@ const hasActiveFilters = computed(() => {
                 heading-icon="ClipboardDocumentListIcon"
                 data-key="id"
                 :striped-rows="true"
+                :delete-url="row => route('inventory-audit-logs.destroy', row.id)"
                 @page="handlePageChange"
             >
                 <!-- <Column expander style="width: 3rem" /> -->
@@ -576,7 +577,7 @@ const hasActiveFilters = computed(() => {
                 </Column>
 
                 <!-- Transaction Type -->
-                <Column field="transaction_type" header="Transaction" style="min-width:90px">
+                <!-- <Column field="transaction_type" header="Transaction" style="min-width:90px">
                     <template #body="{ data }">
                         <span
                             class="inline-flex items-center rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-wider"
@@ -585,7 +586,7 @@ const hasActiveFilters = computed(() => {
                             {{ data.transaction_type }}
                         </span>
                     </template>
-                </Column>
+                </Column> -->
 
                 <!-- Reference -->
                 <Column header="Reference" style="min-width:95px">

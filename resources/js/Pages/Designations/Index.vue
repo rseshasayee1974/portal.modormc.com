@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { ref, computed, onMounted, watch } from 'vue';
 import Swal from 'sweetalert2';
 import { PencilSquareIcon, TrashIcon, PlusIcon, IdentificationIcon } from '@heroicons/vue/24/outline';
@@ -73,8 +73,9 @@ const deleteDesignation = (id: number) => {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            form.delete(route('designations.destroy', id), {
-                onSuccess: () => Swal.fire('Deleted!', 'Designation has been deleted.', 'success')
+            router.delete(route('designations.destroy', id), {
+                preserveScroll: true,
+                preserveState: true
             });
         }
     });

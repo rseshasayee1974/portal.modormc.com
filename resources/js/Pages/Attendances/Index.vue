@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Swal from 'sweetalert2';
 import { IdentificationIcon, PencilSquareIcon, TrashIcon, CalendarDaysIcon } from '@heroicons/vue/24/outline';
@@ -14,9 +14,9 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseCard from '@/Components/Base/BaseCard.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
-import DatePicker from 'primevue/datepicker';
 import Tag from 'primevue/tag';
 import ToggleSwitch from 'primevue/toggleswitch';
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 
 interface Personnel {
     id: number;
@@ -115,6 +115,24 @@ const resetForm = () => {
 };
 
 const submitForm = () => {
+    form.clearErrors();
+    let hasError = false;
+    
+    if (Number(form.worked_hours) > 24) {
+        form.setError('worked_hours', 'The worked hours field must not be greater than 24.');
+        hasError = true;
+    }
+    if (Number(form.overtime_hours) > 24) {
+        form.setError('overtime_hours', 'The overtime hours field must not be greater than 24.');
+        hasError = true;
+    }
+    if (Number(form.late_hours) > 24) {
+        form.setError('late_hours', 'The late hours field must not be greater than 24.');
+        hasError = true;
+    }
+    
+    if (hasError) return;
+
     if (editingId.value) {
         form.put(route('attendances.update', editingId.value), {
             onSuccess: () => resetForm(),
@@ -125,6 +143,51 @@ const submitForm = () => {
         });
     }
 };
+
+watch([() => form.check_in, () => form.check_out, () => form.shift_id], ([checkIn, checkOut, shiftId]) => {
+    if (checkIn && checkOut) {
+        const inTime = checkIn instanceof Date ? checkIn.getTime() : new Date(checkIn).getTime();
+        const outTime = checkOut instanceof Date ? checkOut.getTime() : new Date(checkOut).getTime();
+        
+        if (outTime > inTime) {
+            let worked = (outTime - inTime) / (1000 * 60 * 60);
+            form.worked_hours = Number(Math.min(24, Math.max(0, worked)).toFixed(1));
+        }
+    }
+    
+    if (shiftId && checkIn) {
+        const shift = props.shifts.find(s => s.id === shiftId);
+        if (shift) {
+            const [sh, sm, ss] = shift.start_time.split(':').map(Number);
+            const inDate = checkIn instanceof Date ? checkIn : new Date(checkIn);
+            const shiftStartTime = new Date(inDate);
+            shiftStartTime.setHours(sh, sm, ss || 0, 0);
+            
+            if (inDate > shiftStartTime) {
+                let late = (inDate.getTime() - shiftStartTime.getTime()) / (1000 * 60 * 60);
+                form.late_hours = Number(Math.min(24, Math.max(0, late)).toFixed(1));
+            }
+        }
+    }
+    
+    if (shiftId && form.worked_hours > 0) {
+        const shift = props.shifts.find(s => s.id === shiftId);
+        if (shift) {
+            const [sh, sm, ss] = shift.start_time.split(':').map(Number);
+            const [eh, em, es] = shift.end_time.split(':').map(Number);
+            let shiftStart = new Date(1970, 0, 1, sh, sm, ss || 0);
+            let shiftEnd = new Date(1970, 0, 1, eh, em, es || 0);
+            if (shiftEnd <= shiftStart) {
+                shiftEnd.setDate(shiftEnd.getDate() + 1);
+            }
+            let scheduledHrs = (shiftEnd.getTime() - shiftStart.getTime()) / (1000 * 60 * 60);
+            if (form.worked_hours > scheduledHrs) {
+                let ot = form.worked_hours - scheduledHrs;
+                form.overtime_hours = Number(Math.min(24, Math.max(0, ot)).toFixed(1));
+            }
+        }
+    }
+});
 
 const deleteAttendance = (id: number) => {
     Swal.fire({
@@ -137,9 +200,9 @@ const deleteAttendance = (id: number) => {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            form.delete(route('attendances.destroy', id), {
-                onSuccess: () => Swal.fire('Deleted!', 'Attendance log has been deleted.', 'success')
-            });
+              router.delete(route('attendances.destroy', id), {
+                preserveScroll: true,
+                preserveState: true});
         }
     });
 };
@@ -188,7 +251,7 @@ const getStatusSeverity = (status: string) => {
                                 </div>
                                 <div class="flex flex-col gap-2">
                                     <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Attendance Date <span class="text-red-500">*</span></label>
-                                    <DatePicker v-model="form.attendance_date" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date" class="w-full" :disabled="!!editingId" />
+                                    <BaseDatePicker v-model="form.attendance_date" hour-format="12" dateFormat="yy-mm-dd" showIcon iconDisplay="input" placeholder="Select Date" class="w-full" :disabled="!!editingId" />
                                     <small v-if="form.errors.attendance_date" class="p-error text-[10px]">{{ form.errors.attendance_date }}</small>
                                 </div>
                                 <div class="flex flex-col gap-2">
@@ -199,26 +262,26 @@ const getStatusSeverity = (status: string) => {
                                 <div class="grid grid-cols-2 gap-4">
                                     <div class="flex flex-col gap-2">
                                         <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Check In Time</label>
-                                        <DatePicker v-model="form.check_in" showTime hourFormat="24" showIcon iconDisplay="input" placeholder="Check In" class="w-full" />
+                                        <BaseDatePicker v-model="form.check_in" showTime hourFormat="12" :showIcon=false iconDisplay="input" placeholder="Check In" class="w-full" />
                                     </div>
                                     <div class="flex flex-col gap-2">
                                         <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Check Out Time</label>
-                                        <DatePicker v-model="form.check_out" showTime hourFormat="24" showIcon iconDisplay="input" placeholder="Check Out" class="w-full" />
+                                        <BaseDatePicker v-model="form.check_out" showTime hourFormat="12" :showIcon=false iconDisplay="input" placeholder="Check Out" class="w-full" />
                                     </div>
                                 </div>
 
                                 <div class="grid grid-cols-3 gap-4">
                                     <div class="flex flex-col gap-2">
                                         <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Worked Hrs</label>
-                                        <BaseInput type="number" step="0.1" v-model="form.worked_hours" />
+                                        <BaseInput type="number" step="0.1" min="0" max="24" v-model="form.worked_hours" :error="form.errors.worked_hours" />
                                     </div>
                                     <div class="flex flex-col gap-2">
                                         <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Overtime Hrs</label>
-                                        <BaseInput type="number" step="0.1" v-model="form.overtime_hours" />
+                                        <BaseInput type="number" step="0.1" min="0" max="24" v-model="form.overtime_hours" :error="form.errors.overtime_hours" />
                                     </div>
                                     <div class="flex flex-col gap-2">
                                         <label class="text-[10px] font-bold uppercase text-gray-400 tracking-widest">Late Hrs</label>
-                                        <BaseInput type="number" step="0.1" v-model="form.late_hours" />
+                                        <BaseInput type="number" step="0.1" min="0" max="24" v-model="form.late_hours" :error="form.errors.late_hours" />
                                     </div>
                                 </div>
 

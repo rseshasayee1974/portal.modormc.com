@@ -44,7 +44,6 @@ use App\Models\Ledger;
 use App\Models\ContactType;
 use App\Models\AddressType;
 use App\Models\BankAccountType;
-use App\Models\Driver;
 use App\Models\StateCode;
 use App\Models\MixDesign;
 use App\Models\ExpenseType;
@@ -735,6 +734,7 @@ if (!function_exists('PaymentMethodsDropdown')) {
     {
         return PaymentMethod::where('is_active', true)
             ->whereNull('deleted_at')
+            ->orderByRaw("CASE WHEN name = 'Cash' THEN 0 ELSE 1 END")
             ->orderBy('name')
             ->get(['id', 'name']);
     }

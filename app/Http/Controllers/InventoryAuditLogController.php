@@ -133,7 +133,17 @@ class InventoryAuditLogController extends Controller
      */
     public function show(InventoryAuditLog $inventoryAuditLog)
     {
-        $inventoryAuditLog->load(['user:id,username,email', 'plant:id,name', 'reference']);
+        $inventoryAuditLog->load(['user:id,username,email', 'plant:id,name']);
+        
+        $reference = null;
+        if ($inventoryAuditLog->reference_type) {
+            $type = $inventoryAuditLog->reference_type;
+            $modelClass = class_exists($type) ? $type : '\\App\\Models\\' . $type;
+            
+            if (class_exists($modelClass)) {
+                $reference = $modelClass::find($inventoryAuditLog->reference_id);
+            }
+        }
 
         return Inertia::render('InventoryAuditLogs/Show', [
             'log' => [
@@ -146,7 +156,7 @@ class InventoryAuditLogController extends Controller
                 'transaction_type' => $inventoryAuditLog->transaction_type,
                 'reference_type' => $inventoryAuditLog->reference_type,
                 'reference_id' => $inventoryAuditLog->reference_id,
-                'reference' => $inventoryAuditLog->reference,
+                'reference' => $reference,
                 'log_from' => $inventoryAuditLog->log_from,
                 'log_to' => $inventoryAuditLog->log_to,
                 'user' => $inventoryAuditLog->user ? [
@@ -159,5 +169,11 @@ class InventoryAuditLogController extends Controller
                 'created_at' => optional($inventoryAuditLog->created_at)->toIso8601String(),
             ]
         ]);
+    }
+    public function destroy(InventoryAuditLog $inventoryAuditLog)
+    {
+        $inventoryAuditLog->delete();
+
+        return redirect()->back()->with('success', 'Inventory audit log deleted successfully.');
     }
 }

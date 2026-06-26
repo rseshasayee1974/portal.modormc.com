@@ -67,6 +67,8 @@ const props = defineProps<{
 
 const editingId = ref<number | null>(null);
 
+const expandedRows = ref<any[]>([]);
+
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
 });
@@ -144,6 +146,40 @@ const cancelEdit = () => {
 };
 
 const submitForm = () => {
+    form.clearErrors();
+    let hasError = false;
+
+    if (!form.machine_id) {
+        form.setError('machine_id', 'The machine / vehicle field is required.');
+        hasError = true;
+    }
+    
+    if (form.shift === null || form.shift === undefined || form.shift === '') {
+        form.setError('shift', 'The shift field is required.');
+        hasError = true;
+    }
+
+    if (form.eb_start === null || form.eb_start === undefined || form.eb_start === 0) {
+        form.setError('eb_start', 'The eb start field is required.');
+        hasError = true;
+    }
+
+    if (form.eb_close === null || form.eb_close === undefined || form.eb_close === 0) {
+        form.setError('eb_close', 'The eb close field is required.');
+        hasError = true;
+    }
+
+    if (form.last_fuel_filled_km === null || form.last_fuel_filled_km === undefined || form.last_fuel_filled_km === 0) {
+        form.setError('last_fuel_filled_km', 'The last fuel filled km field is required.');
+        hasError = true;
+    }
+
+    if (hasError) {
+        // Scroll to top so user can see errors
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+    }
+
     if (editingId.value) {
         form.put(route('machine-trackers.update', editingId.value), {
             onSuccess: () => {
@@ -217,65 +253,57 @@ watch(() => page.props.flash, (flash: any) => {
                             <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                                 <!-- Machine and Shift -->
                                 <div class="col-span-12 md:col-span-4 field-group">
-                                    <label class="field-label">Machine / Vehicle *</label>
-                                    <BaseSelect v-model="form.machine_id" :options="machineOptions" optionLabel="label" optionValue="value" placeholder="Select Asset" :error="form.errors.machine_id" />
+                                    <BaseSelect v-model="form.machine_id" :options="machineOptions" label="Machine / Vehicle" required optionLabel="label" optionValue="value" placeholder="Select Asset" :error="form.errors.machine_id" />
                                 </div>
                                 <div class="col-span-12 md:col-span-4 field-group">
-                                    <label class="field-label">Shift *</label>
-                                    <BaseSelect v-model="form.shift" :options="shiftOptions" optionLabel="label" optionValue="value" :error="form.errors.shift" />
+                                    <BaseSelect v-model="form.shift" :options="shiftOptions" label="Shift" required optionLabel="label" optionValue="value" :error="form.errors.shift" />
                                 </div>
                                 <div class="col-span-12 md:col-span-4 field-group">
                                     <label class="field-label">Operator</label>
-                                    <BaseSelect v-model="form.operator_id" :options="operatorOptions" optionLabel="label" optionValue="value" placeholder="Select User" />
+                                    <BaseSelect v-model="form.operator_id" :options="operatorOptions" optionLabel="label" optionValue="value" placeholder="Select User" :error="form.errors.operator_id" />
                                 </div>
 
                                 <!-- Hours / Kms -->
                                 <div class="col-span-6 md:col-span-3 field-group">
                                     <label class="field-label">Odometer Start</label>
-                                    <BaseInputNumber v-model="form.odometer_start" placeholder="0" />
+                                    <BaseInputNumber v-model="form.odometer_start" placeholder="0" :error="form.errors.odometer_start" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
                                     <label class="field-label">Odometer End</label>
-                                    <BaseInputNumber v-model="form.odometer_end" placeholder="0" />
+                                    <BaseInputNumber v-model="form.odometer_end" placeholder="0" :error="form.errors.odometer_end" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
                                     <label class="field-label">Hourmeter Start</label>
-                                    <BaseInputNumber v-model="form.hourmeter_start" placeholder="0" />
+                                    <BaseInputNumber v-model="form.hourmeter_start" placeholder="0" :error="form.errors.hourmeter_start" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
                                     <label class="field-label">Hourmeter End</label>
-                                    <BaseInputNumber v-model="form.hourmeter_end" placeholder="0" />
+                                    <BaseInputNumber v-model="form.hourmeter_end" placeholder="0" :error="form.errors.hourmeter_end" />
                                 </div>
 
                                 <!-- EB Start / Close -->
                                 <div class="col-span-6 md:col-span-3 field-group">
-                                    <label class="field-label">EB Start *</label>
-                                    <BaseInputNumber v-model="form.eb_start" placeholder="0" :error="form.errors.eb_start" />
+                                    <BaseInputNumber v-model="form.eb_start" required label="EB Start" placeholder="0" :error="form.errors.eb_start" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
-                                    <label class="field-label">EB Close *</label>
-                                    <BaseInputNumber v-model="form.eb_close" placeholder="0" :error="form.errors.eb_close" />
+                                    <BaseInputNumber v-model="form.eb_close" required label="EB Close" placeholder="0" :error="form.errors.eb_close" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
-                                    <label class="field-label">Opening HSD</label>
-                                    <BaseInputNumber v-model="form.opening_hsd" placeholder="0" />
+                                    <BaseInputNumber v-model="form.opening_hsd" label="Opening HSD" placeholder="0" :error="form.errors.opening_hsd" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
-                                    <label class="field-label">Closing HSD</label>
-                                    <BaseInputNumber v-model="form.closing_hsd" placeholder="0" />
+                                    <BaseInputNumber v-model="form.closing_hsd" label="Closing HSD" placeholder="0" :error="form.errors.closing_hsd" />
                                 </div>
 
                                 <!-- Dates -->
                                 <div class="col-span-12 md:col-span-4 field-group">
-                                    <label class="field-label">Opening DateTime</label>
-                                    <DatePicker v-model="form.opening" showTime hourFormat="24" dateFormat="yy-mm-dd" class="!w-full h-10" />
+                                    <BaseInput type="datetime-local" v-model="form.opening" label="Opening DateTime" :error="form.errors.opening" />
                                 </div>
                                 <div class="col-span-12 md:col-span-4 field-group">
-                                    <label class="field-label">Closing DateTime</label>
-                                    <DatePicker v-model="form.closing" showTime hourFormat="24" dateFormat="yy-mm-dd" class="!w-full h-10" />
+                                    <BaseInput type="datetime-local" v-model="form.closing" label="Closing DateTime" :error="form.errors.closing" />
                                 </div>
                                 <div class="col-span-12 md:col-span-4 field-group">
-                                    <BaseInput v-model="form.operation_type" label="Operation Type" placeholder="E.g. Transport, Excavation" />
+                                    <BaseInput v-model="form.operation_type" label="Operation Type" placeholder="E.g. Transport, Excavation" :error="form.errors.operation_type" />
                                 </div>
 
                                 <!-- Fuel Details -->
@@ -283,37 +311,32 @@ watch(() => page.props.flash, (flash: any) => {
                                     <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-4">Fuel Refills & Consumption</h3>
                                     <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                                         <div class="col-span-6 md:col-span-3 field-group">
-                                            <label class="field-label">Fuel Filled (Liters)</label>
-                                            <BaseInputNumber v-model="form.fuel" placeholder="0" />
+                                            <BaseInputNumber v-model="form.fuel" label="Fuel Filled (Liters)" placeholder="0" :error="form.errors.fuel" />
                                         </div>
                                         <div class="col-span-6 md:col-span-3 field-group">
-                                            <label class="field-label">Fuel Cost Amount</label>
-                                            <BaseInputNumber v-model="form.amount" mode="currency" currency="INR" locale="en-IN" placeholder="₹0.00" />
+                                            <BaseInputNumber v-model="form.amount" label="Fuel Cost Amount" mode="currency" currency="INR" locale="en-IN" placeholder="₹0.00" :error="form.errors.amount" />
                                         </div>
                                         <div class="col-span-6 md:col-span-3 field-group">
-                                            <label class="field-label">Last Fuel KM *</label>
-                                            <BaseInputNumber v-model="form.last_fuel_filled_km" placeholder="0" :error="form.errors.last_fuel_filled_km" />
+                                            <BaseInputNumber v-model="form.last_fuel_filled_km" label="Last Fuel KM" required placeholder="0" :error="form.errors.last_fuel_filled_km" />
                                         </div>
                                         <div class="col-span-6 md:col-span-3 field-group">
-                                            <label class="field-label">Fuel Filled KM</label>
-                                            <BaseInputNumber v-model="form.fuel_filled_km" placeholder="0" />
+                                            <BaseInputNumber v-model="form.fuel_filled_km" label="Fuel Filled KM" placeholder="0" :error="form.errors.fuel_filled_km" />
                                         </div>
                                         
                                         <div class="col-span-6 md:col-span-4 field-group">
-                                            <BaseInput v-model="form.pump_name" label="Pump Name" placeholder="Reliance, HP Pump" />
+                                            <BaseInput v-model="form.pump_name" label="Pump Name" placeholder="Reliance, HP Pump" :error="form.errors.pump_name" />
                                         </div>
                                         <div class="col-span-6 md:col-span-4 field-group">
-                                            <BaseInput v-model="form.pump_reading" label="Pump Reading" placeholder="Receipt reading details" />
+                                            <BaseInput v-model="form.pump_reading" label="Pump Reading" placeholder="Receipt reading details" :error="form.errors.pump_reading" />
                                         </div>
                                         <div class="col-span-12 md:col-span-4 field-group">
-                                            <label class="field-label">Fuel Refilled On</label>
-                                            <DatePicker v-model="form.fuel_filled_on" showTime hourFormat="24" dateFormat="yy-mm-dd" class="!w-full h-10" />
+                                            <BaseInput type="datetime-local" v-model="form.fuel_filled_on" label="Fuel Refilled On" :error="form.errors.fuel_filled_on" />
                                         </div>
                                     </div>
                                 </div>
 
                                 <div class="col-span-12 field-group">
-                                    <BaseInput v-model="form.notes" label="Tracker Notes" placeholder="Log operational issues, site status, operator reports" />
+                                    <BaseInput v-model="form.notes" label="Tracker Notes" placeholder="Log operational issues, site status, operator reports" :error="form.errors.notes" />
                                 </div>
                             </div>
 
@@ -346,14 +369,17 @@ watch(() => page.props.flash, (flash: any) => {
                     <BaseDataTable
                         :value="trackers"
                         v-model:filters="filters"
-                        :globalFilterFields="['machine.registration', 'operation_type', 'operator.username']"
+                        :globalFilterFields="['machine.registration', 'operation_type', 'operator.username', 'notes', 'pump_name', 'category']"
                         showSearch
                         showSerial
                         heading="Tracker Ledger"
                         headingIcon="ClockIcon"
                         :rows="30"
+                        v-model:expandedRows="expandedRows"
                         class="tracker-table"
                     >
+                        <!-- Row Expansion Trigger -->
+                        <Column expander style="width: 3rem" />
                         <!-- Machine -->
                         <Column header="Vehicle" sortable field="machine.registration">
                             <template #body="slotProps">
@@ -439,6 +465,49 @@ watch(() => page.props.flash, (flash: any) => {
                                 </div>
                             </template>
                         </Column>
+
+                        <!-- Row Expansion Template -->
+                        <template #expansion="slotProps">
+                            <div class="p-6 bg-slate-50/50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 m-2">
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Detailed Log Information</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                                    <div>
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase">Operation Type</p>
+                                        <p class="text-sm font-semibold text-slate-700">{{ slotProps.data.operation_type || '—' }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase">Opening Time</p>
+                                        <p class="text-sm font-semibold text-slate-700">{{ slotProps.data.opening ? new Date(slotProps.data.opening).toLocaleString() : '—' }}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase">Closing Time</p>
+                                        <p class="text-sm font-semibold text-slate-700">{{ slotProps.data.closing ? new Date(slotProps.data.closing).toLocaleString() : '—' }}</p>
+                                    </div>
+                                    <div class="md:col-span-4">
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase">Notes / Remarks</p>
+                                        <p class="text-sm font-medium text-slate-600">{{ slotProps.data.notes || 'No notes provided.' }}</p>
+                                    </div>
+                                    
+                                    <div v-if="slotProps.data.pump_name || slotProps.data.pump_reading" class="md:col-span-4 border-t border-slate-200/60 pt-4 mt-2">
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase mb-2">Fuel Pump Details</p>
+                                        <div class="flex gap-8">
+                                            <div>
+                                                <p class="text-[9px] font-bold text-slate-400 uppercase">Pump Name</p>
+                                                <p class="text-sm font-semibold text-slate-700">{{ slotProps.data.pump_name || '—' }}</p>
+                                            </div>
+                                            <div>
+                                                <p class="text-[9px] font-bold text-slate-400 uppercase">Receipt/Reading</p>
+                                                <p class="text-sm font-semibold text-slate-700">{{ slotProps.data.pump_reading || '—' }}</p>
+                                            </div>
+                                            <div>
+                                                <p class="text-[9px] font-bold text-slate-400 uppercase">Refilled On</p>
+                                                <p class="text-sm font-semibold text-slate-700">{{ slotProps.data.fuel_filled_on ? new Date(slotProps.data.fuel_filled_on).toLocaleString() : '—' }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
 
                         <!-- Empty State -->
                         <template #empty>

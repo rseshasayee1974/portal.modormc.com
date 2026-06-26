@@ -21,6 +21,8 @@ const props = defineProps<{
 }>();
 console.log(props.transportOwnerOptions);
 const activeTab = ref<'specs' | 'compliance' | 'finance'>('specs');
+
+defineExpose({ activeTab });
 </script>
 
 <template>
@@ -65,7 +67,8 @@ const activeTab = ref<'specs' | 'compliance' | 'finance'>('specs');
                 <div class="col-span-12 md:col-span-3 field-group">
                     <BaseInput 
                         v-model="form.registration" 
-                        label="Registration ID *"
+                        label="Registration ID"
+                        required
                         placeholder="E.g. UP 15 AH 1234"
                         :error="form.errors.registration"
                     />

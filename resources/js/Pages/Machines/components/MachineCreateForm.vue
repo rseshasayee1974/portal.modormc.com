@@ -17,6 +17,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['submit']);
 const isOpen = ref(true);
+const formFieldsRef = ref();
 
 const toggle = () => {
     isOpen.value = !isOpen.value;
@@ -24,6 +25,17 @@ const toggle = () => {
         props.form.reset();
         props.form.clearErrors();
     }
+};
+
+const handleSubmit = () => {
+    if (!props.form.registration) {
+        props.form.errors.registration = 'Registration ID is required';
+        if (formFieldsRef.value) {
+            formFieldsRef.value.activeTab = 'specs';
+        }
+        return;
+    }
+    emit('submit');
 };
 </script>
 
@@ -47,6 +59,7 @@ const toggle = () => {
         <Transition name="panel-slide">
             <div v-if="isOpen" class="create-panel__body">
                 <MachineFormFields
+                    ref="formFieldsRef"
                     :form="form"
                     :vehicle-options="vehicleOptions"
                     :doc-type-options="docTypeOptions"
@@ -62,7 +75,7 @@ const toggle = () => {
                         label="Enroll Asset"
                         cancel-label="Reset Registry"
                         :loading="form.processing"
-                        @submit="$emit('submit')"
+                        @submit="handleSubmit"
                         @reset="form.reset(); form.clearErrors()"
                     />
                 </div>

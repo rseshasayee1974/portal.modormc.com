@@ -11,7 +11,8 @@ import {
     DocumentTextIcon,
     LinkIcon,
     ClipboardDocumentIcon,
-    ArrowsRightLeftIcon
+    ArrowsRightLeftIcon,
+    TrashIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps<{
@@ -283,6 +284,16 @@ function getActionBadgeClass(action: string): string {
 function formatFieldLabel(field: string): string {
     return field.replace(/_/g, ' ');
 }
+
+const deleteLog = () => {
+    if (confirm('Are you sure you want to delete this audit log?')) {
+        router.delete(route('inventory-audit-logs.destroy', props.log.id), {
+            onSuccess: () => {
+                router.visit(route('inventory-audit-logs.index'));
+            }
+        });
+    }
+};
 </script>
 
 <template>
@@ -302,13 +313,20 @@ function formatFieldLabel(field: string): string {
                         <h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-slate-100">Audit Log #{{ log.id }}</h1>
                     </div>
                 </div>
-                <div>
+                <div class="flex items-center gap-3">
                     <span
                         class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wider shadow-sm"
                         :class="badgeClass(log.transaction_type)"
                     >
                         {{ log.transaction_type }}
                     </span>
+                    <button
+                        @click="deleteLog"
+                        class="p-2 bg-white border border-slate-200 hover:bg-rose-50 hover:border-rose-200 dark:bg-slate-900 dark:border-slate-850 dark:hover:bg-rose-950/30 dark:hover:border-rose-900 rounded-xl transition-all shadow-sm text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400"
+                        title="Delete Audit Log"
+                    >
+                        <TrashIcon class="w-4 h-4" />
+                    </button>
                 </div>
             </div>
         </template>

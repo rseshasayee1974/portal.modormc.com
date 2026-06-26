@@ -381,8 +381,8 @@ class PersonnelController extends Controller
     {
         $this->authorizeModule('delete');
         
-        $personnel->deleted_by = auth()->id();
-        $personnel->save();
+        // $personnel->deleted_by = auth()->id();
+        // $personnel->save();
         $personnel->delete();
 
         return redirect()->back()->with('success', 'Personnel record deleted successfully.');

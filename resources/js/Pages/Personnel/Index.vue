@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { useForm, usePage, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Swal from 'sweetalert2';
 import { UserGroupIcon } from '@heroicons/vue/24/outline';
@@ -215,8 +215,9 @@ const deletePersonnel = (id: number) => {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            createForm.delete(route('personnel.destroy', id), {
-                onSuccess: () => Swal.fire('Deleted!', 'Personnel record has been deleted.', 'success')
+            router.delete(route('personnel.destroy', id), {
+                preserveScroll: true,
+                preserveState: true
             });
         }
     });

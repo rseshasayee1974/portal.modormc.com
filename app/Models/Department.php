@@ -6,14 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\AuditFields;
+use App\Traits\PlantScoping;
 
 class Department extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
 
     protected $table = 'mm_departments';
 
     protected $fillable = [
+        'plant_id',
         'name',
         'code',
     ];

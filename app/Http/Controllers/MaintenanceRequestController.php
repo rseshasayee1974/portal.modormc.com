@@ -34,7 +34,7 @@ class MaintenanceRequestController extends Controller
         ->where('plant_id', session('active_plant_id'))
         ->latest()
         ->get();
-
+// return json_encode(['getDropdownData' => $this->getDropdownData(), 'requests' => $requests->toArray()]);
         return Inertia::render('MaintenanceRequests/Index', array_merge([
             'requests' => $requests
         ], $this->getDropdownData()));
@@ -45,7 +45,13 @@ class MaintenanceRequestController extends Controller
         return [
             'machines' => MachinesDropdown()->toArray(),
             'vendors' => PatronsDropdown(['Vendor', 'Transporter'])->toArray(),
-            'responsibleUsers' => User::select('id', 'username')->orderBy('username')->get()->toArray(),
+            'responsibleUsers' => User::select('id', 'username')
+                ->whereHas('entityUsers', function ($query) {
+                    $query->where('plant_id', session('active_plant_id'));
+                })
+                ->orderBy('username')
+                ->get()
+                ->toArray(),
             'taxes' => TaxesDropdown('purchase')->toArray(),
             'products' => ProductsDropdown('purchase')->toArray(),
             'units' => Productunit()->toArray(),
@@ -65,9 +71,9 @@ class MaintenanceRequestController extends Controller
             'maintanence_type' => 'required|integer',
             'service_km' => 'required|numeric',
             'priority' => 'required|integer',
-            'responsible_id' => 'required|exists:users,id',
+            'responsible_id' => 'required|exists:mm_users,id',
             'repair_location' => 'required|string|max:100',
-            'repair_vendor_id' => 'required|exists:mm_patrons,id',
+            'repair_vendor_id' => 'nullable|exists:mm_patrons,id',
             'bill_no' => 'nullable|string|max:150',
             'order_no' => 'nullable|string|max:150',
             'discount_amount' => 'required|numeric',
@@ -134,9 +140,9 @@ class MaintenanceRequestController extends Controller
             'maintanence_type' => 'required|integer',
             'service_km' => 'required|numeric',
             'priority' => 'required|integer',
-            'responsible_id' => 'required|exists:users,id',
+            'responsible_id' => 'required|exists:mm_users,id',
             'repair_location' => 'required|string|max:100',
-            'repair_vendor_id' => 'required|exists:mm_patrons,id',
+            'repair_vendor_id' => 'nullable|exists:mm_patrons,id',
             'bill_no' => 'nullable|string|max:150',
             'order_no' => 'nullable|string|max:150',
             'discount_amount' => 'required|numeric',

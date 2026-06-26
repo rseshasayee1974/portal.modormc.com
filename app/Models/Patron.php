@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\AuditFields;
 use App\Traits\ProtectsSystemItems;
 use App\Traits\PlantScoping;
+use Illuminate\Support\Arr;
 
 class Patron extends Model
 {
@@ -69,15 +70,10 @@ class Patron extends Model
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function scopeOfType($query, $types)
-    {
-        $types = (array) $types;
-
-        return $query->where(function ($q) use ($types) {
-            foreach ($types as $type) {
-                $q->whereJsonContains('patron_type', $type);
-            }
-        });
-    }
+{
+    $types = Arr::wrap($types);
+    return $query->whereJsonContains('patron_type', $types); // Laravel handles OR for array
+}
 
     /**
      * Scope: exclude one or more patrons by id (edit/update scenarios).

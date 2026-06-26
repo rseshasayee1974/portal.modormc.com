@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
         $this->call(\Database\Seeders\CountrySeeder::class);
         $this->call(\Database\Seeders\StateCodeSeeder::class);
         $this->call(\Database\Seeders\TaxSeeder::class);
+        $this->call(\Database\Seeders\PaymentMethodSeeder::class);
         $this->call(\Database\Seeders\ProductUnitSeeder::class);
         $this->call(\Database\Seeders\ProductSeeder::class);
         $this->call(\Database\Seeders\MachineSeeder::class);

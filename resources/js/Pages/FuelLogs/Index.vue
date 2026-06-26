@@ -78,9 +78,11 @@ const driverOptions = computed(() =>
 
 const paymentMethodOptions = computed(() => {
     return Array.isArray(props.paymentMethods) 
-        ? props.paymentMethods.map(p => ({ label: p.name || p.label || p, value: p.id || p.value || p }))
+        ? props.paymentMethods.map(p => ({ label: p.name || p.label || p, value: p.name || p.value || p }))
         : [];
 });
+console.log('paymentMethodOptions',paymentMethodOptions.value);
+
 
 const getInitialForm = () => ({
     machine_id: null as number | null,

@@ -176,9 +176,9 @@ const startEdit = (req: MaintenanceRequest) => {
     form.filename = req.filename || '';
     form.status = req.status;
     form.bill_status = req.bill_status;
-    form.dead_line = req.dead_line ? new Date(req.dead_line) : null;
-    form.start_date = req.start_date ? new Date(req.start_date) : null;
-    form.end_date = req.end_date ? new Date(req.end_date) : null;
+    form.dead_line = req.dead_line ? String(req.dead_line).substring(0, 10) : null;
+    form.start_date = req.start_date ? String(req.start_date).substring(0, 10) : null;
+    form.end_date = req.end_date ? String(req.end_date).substring(0, 10) : null;
     form.lines = req.lines.map(l => ({
         ...l,
         date_planned: l.date_planned ? new Date(l.date_planned) : null,
@@ -314,73 +314,73 @@ watch(() => page.props.flash, (flash: any) => {
                             <!-- Request Details -->
                             <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
                                 <div class="col-span-12 md:col-span-4 field-group">
-                                    <BaseInput v-model="form.name" label="Ticket Subject *" placeholder="Enter maintenance label" :error="form.errors.name" />
+                                    <BaseInput v-model="form.name" label="Ticket Subject" required placeholder="Enter maintenance label" :error="form.errors.name" />
                                 </div>
                                 <div class="col-span-12 md:col-span-4 field-group">
-                                    <label class="field-label">Machine / Vehicle *</label>
-                                    <BaseSelect v-model="form.machine_id" :options="machineOptions" optionLabel="label" optionValue="value" placeholder="Select Asset" :error="form.errors.machine_id" />
+                                    <label class="field-label">Machine / Vehicle</label>
+                                    <BaseSelect v-model="form.machine_id" :options="machineOptions" required optionLabel="label" optionValue="value" placeholder="Select Asset" :error="form.errors.machine_id" />
                                 </div>
                                 <div class="col-span-12 md:col-span-4 field-group">
-                                    <label class="field-label">Responsible Person *</label>
-                                    <BaseSelect v-model="form.responsible_id" :options="userOptions" optionLabel="label" optionValue="value" placeholder="Select Handler" :error="form.errors.responsible_id" />
+                                    <label class="field-label">Responsible Person</label>
+                                    <BaseSelect v-model="form.responsible_id" :options="userOptions" required optionLabel="label" optionValue="value" placeholder="Select Handler" :error="form.errors.responsible_id" />
                                 </div>
 
                                 <div class="col-span-12 md:col-span-8 field-group">
-                                    <BaseInput v-model="form.description" label="Problem Details *" placeholder="Detail description of problem" :error="form.errors.description" />
+                                    <BaseInput v-model="form.description" label="Problem Details" required placeholder="Detail description of problem" :error="form.errors.description" />
                                 </div>
                                 <div class="col-span-12 md:col-span-4 field-group">
-                                    <label class="field-label">Repair Vendor *</label>
-                                    <BaseSelect v-model="form.repair_vendor_id" :options="vendorOptions" optionLabel="label" optionValue="value" placeholder="Select Vendor" :error="form.errors.repair_vendor_id" />
+                                    <label class="field-label">Repair Vendor</label>
+                                    <BaseSelect v-model="form.repair_vendor_id" :options="vendorOptions" required optionLabel="label" optionValue="value" placeholder="Select Vendor" :error="form.errors.repair_vendor_id" />
                                 </div>
 
                                 <div class="col-span-6 md:col-span-3 field-group">
                                     <label class="field-label">Maintenance Type</label>
-                                    <BaseSelect v-model="form.maintanence_type" :options="maintenanceTypes" optionLabel="label" optionValue="value" />
+                                    <BaseSelect v-model="form.maintanence_type" :options="maintenanceTypes" optionLabel="label" optionValue="value" :error="form.errors.maintanence_type" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
                                     <label class="field-label">Priority</label>
-                                    <BaseSelect v-model="form.priority" :options="priorityLevels" optionLabel="label" optionValue="value" />
+                                    <BaseSelect v-model="form.priority" :options="priorityLevels" optionLabel="label" optionValue="value" :error="form.errors.priority" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
-                                    <BaseInput v-model="form.repair_location" label="Location *" placeholder="Workshop / Site" :error="form.errors.repair_location" />
+                                    <BaseInput v-model="form.repair_location" label="Location" required placeholder="Workshop / Site" :error="form.errors.repair_location" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
                                     <label class="field-label">Service Km</label>
-                                    <BaseInputNumber v-model="form.service_km" placeholder="0.00" />
+                                    <BaseInputNumber v-model="form.service_km" placeholder="0.00" :error="form.errors.service_km" />
                                 </div>
 
                                 <div class="col-span-6 md:col-span-4 field-group">
-                                    <label class="field-label">Deadline *</label>
-                                    <DatePicker v-model="form.dead_line" dateFormat="yy-mm-dd" class="!w-full h-10" />
+                                    <BaseInput type="date" v-model="form.dead_line" label="Deadline" required :error="form.errors.dead_line" />
                                 </div>
                                 <div class="col-span-6 md:col-span-4 field-group">
-                                    <label class="field-label">Start Date *</label>
-                                    <DatePicker v-model="form.start_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
+                                    <BaseInput type="date" v-model="form.start_date" label="Start Date" required :error="form.errors.start_date" />
                                 </div>
                                 <div class="col-span-6 md:col-span-4 field-group">
-                                    <label class="field-label">End Date *</label>
-                                    <DatePicker v-model="form.end_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
+                                    <BaseInput type="date" v-model="form.end_date" label="End Date" required :error="form.errors.end_date" />
                                 </div>
 
                                 <div class="col-span-6 md:col-span-3 field-group">
-                                    <BaseInput v-model="form.bill_no" label="Bill No" placeholder="Invoice reference" />
+                                    <BaseInput v-model="form.bill_no" label="Bill No" placeholder="Invoice reference" :error="form.errors.bill_no" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
-                                    <BaseInput v-model="form.order_no" label="Order No" placeholder="PO reference" />
+                                    <BaseInput v-model="form.order_no" label="Order No" placeholder="PO reference" :error="form.errors.order_no" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
-                                    <BaseInput v-model="form.max_idle_days" label="Max Idle Days" placeholder="3" />
+                                    <BaseInput v-model="form.max_idle_days" label="Max Idle Days" placeholder="3" :error="form.errors.max_idle_days" />
                                 </div>
                                 <div class="col-span-6 md:col-span-3 field-group">
                                     <label class="field-label">Status</label>
-                                    <BaseSelect v-model="form.status" :options="requestStatuses" optionLabel="label" optionValue="value" />
+                                    <BaseSelect v-model="form.status" :options="requestStatuses" optionLabel="label" optionValue="value" :error="form.errors.status" />
                                 </div>
                             </div>
 
                             <!-- Lines Form Section -->
                             <div class="mt-8 border-t border-slate-100 dark:border-slate-800 pt-6">
                                 <div class="flex justify-between items-center mb-4">
-                                    <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Required Parts & Services (Lines)</h3>
+                                    <div>
+                                        <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Required Parts & Services (Lines)</h3>
+                                        <p v-if="form.errors.lines" class="text-red-500 text-[10px] mt-1 font-medium">{{ form.errors.lines }}</p>
+                                    </div>
                                     <button type="button" @click="addLine" class="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">
                                         <PlusIcon class="w-3.5 h-3.5" /> Add Row
                                     </button>
@@ -409,28 +409,28 @@ watch(() => page.props.flash, (flash: any) => {
                                         <tbody>
                                             <tr v-for="(line, index) in form.lines" :key="index" class="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/30">
                                                 <td class="py-2 pr-2">
-                                                    <BaseInput v-model="line.name" placeholder="Item name" class="!h-9 text-xs" />
+                                                    <BaseInput v-model="line.name" placeholder="Item name" class="!h-9 text-xs" :error="form.errors[`lines.${index}.name`]" />
                                                 </td>
                                                 <td class="py-2 px-2">
-                                                    <BaseSelect v-model="line.product_id" :options="productOptions" optionLabel="label" optionValue="value" placeholder="Select" class="!h-9 text-xs" />
+                                                    <BaseSelect v-model="line.product_id" :options="productOptions" optionLabel="label" optionValue="value" placeholder="Select" class="!h-9 text-xs" :error="form.errors[`lines.${index}.product_id`]" />
                                                 </td>
                                                 <td class="py-2 px-2">
-                                                    <BaseInput v-model="line.product_quantity" placeholder="1" class="!h-9 text-xs" @input="calculateLineTotals(index)" />
+                                                    <BaseInput v-model="line.product_quantity" placeholder="1" class="!h-9 text-xs" @input="calculateLineTotals(index)" :error="form.errors[`lines.${index}.product_quantity`]" />
                                                 </td>
                                                 <td class="py-2 px-2">
-                                                    <BaseSelect v-model="line.product_uom" :options="unitOptions" optionLabel="label" optionValue="value" placeholder="Select" class="!h-9 text-xs" />
+                                                    <BaseSelect v-model="line.product_uom" :options="unitOptions" optionLabel="label" optionValue="value" placeholder="Select" class="!h-9 text-xs" :error="form.errors[`lines.${index}.product_uom`]" />
                                                 </td>
                                                 <td class="py-2 px-2">
-                                                    <BaseInput v-model="line.price_unit" placeholder="0" class="!h-9 text-xs" @input="calculateLineTotals(index)" />
+                                                    <BaseInput v-model="line.price_unit" placeholder="0" class="!h-9 text-xs" @input="calculateLineTotals(index)" :error="form.errors[`lines.${index}.price_unit`]" />
                                                 </td>
                                                 <td class="py-2 px-2">
-                                                    <BaseSelect v-model="line.tax_id" :options="taxOptions" optionLabel="label" optionValue="value" placeholder="No Tax" class="!h-9 text-xs" @change="calculateLineTotals(index)" />
+                                                    <BaseSelect v-model="line.tax_id" :options="taxOptions" optionLabel="label" optionValue="value" placeholder="No Tax" class="!h-9 text-xs" @change="calculateLineTotals(index)" :error="form.errors[`lines.${index}.tax_id`]" />
                                                 </td>
                                                 <td class="py-2 px-2 text-xs font-mono font-bold text-slate-600">
                                                     ₹{{ Number(line.price_total).toLocaleString('en-IN', {minimumFractionDigits: 2}) }}
                                                 </td>
                                                 <td class="py-2 px-2">
-                                                    <BaseSelect v-model="line.partner_id" :options="vendorOptions" optionLabel="label" optionValue="value" placeholder="Select" class="!h-9 text-xs" />
+                                                    <BaseSelect v-model="line.partner_id" :options="vendorOptions" optionLabel="label" optionValue="value" placeholder="Select" class="!h-9 text-xs" :error="form.errors[`lines.${index}.partner_id`]" />
                                                 </td>
                                                 <td class="py-2 pl-2 text-right">
                                                     <button type="button" @click="removeLine(index)" class="p-2 text-slate-300 hover:text-red-500 transition-colors">
