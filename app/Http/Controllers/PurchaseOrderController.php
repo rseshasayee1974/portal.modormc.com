@@ -26,7 +26,7 @@ class PurchaseOrderController extends Controller
 
         $purchaseOrders = PurchaseOrder::query()
             ->where('plant_id', $allowedPlantIds)
-            ->with(['vendor', 'currency'])
+            ->with(['vendor'])
             ->latest()
             ->get();
 
@@ -125,6 +125,7 @@ class PurchaseOrderController extends Controller
 
     public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $purchaseorder)
     {
+        
         $purchaseOrder = $purchaseorder; // Keep using the camelCase variable for consistency in the method body
         $this->authorizeModule('edit');
         $this->authorizePlantAccess($purchaseOrder);
@@ -149,19 +150,20 @@ class PurchaseOrderController extends Controller
 
     public function generateBill(Request $request, PurchaseOrder $purchase_order)
     {
-        $this->authorizeModule('edit');
+        // $this->authorizeModule('generatebill');
         $this->authorizePlantAccess($purchase_order);
 
         // Check if already invoiced - look for any active (non-deleted) bill for this PO
-        $existingBill = \App\Models\Invoice::where('ref_id','=', $purchase_order->id)
-            ->where('invoice_type', 'bill')->where('invoice_label','=','purchase')
-            ->where('plant_id', session('active_plant_id', $purchase_order->plant_id))
+        $existingBill = \App\Models\Invoice::query()->where('ref_id','=', $purchase_order->id)
+            ->where('invoice_type', 'Bill')->where('invoice_label','=','Purchase')
+            ->where('plant_id', session('active_plant_id'))
             ->whereNull('deleted_at')
             ->first();
 
         if ($existingBill || (int)$purchase_order->invoice_status === 1) {
             // If invoice_status is 1 but record is missing, it might have been deleted,
             // but we should still be cautious. If the record exists, we definitely block.
+            dd($existingBill);
             if ($existingBill) {
                 return redirect()->back()->with('error', 'A bill (' . $existingBill->invoice_number . ') has already been generated for this Purchase Order.');
             }
@@ -266,7 +268,9 @@ class PurchaseOrderController extends Controller
             'invoice_date'     => $request->input('invoice_date', now()),
             'due_date'         => $request->input('due_date', $purchase_order->due_date),
             'subtotal'         => $subtotal,
-            'global_discount'  => $discountTotal,
+            'global_discount_type' => '₹',
+            'global_discount'  => (float)$purchase_order->discount_amount,
+            'discount_total'   => $discountTotal,
             'tax_amount'       => $taxAmount,
             'adjustment'       => $adjustment,
             'shipping_charges' => $shippingCharges,

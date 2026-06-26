@@ -97,6 +97,7 @@ class MenuSeeder extends Seeder
             // Sidebar: Inventory (parent_id = 5)
             ['id' => 62, 'menutype' => 2, 'title' => 'Product',         'alias' => 'products',         'link' => 'inventory/products',       'icon' => 'ArchiveBoxIcon',    'published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 1, 'permission_name' => 'PRODUCT.VIEW'],
                         ['id' => 58, 'menutype' => 2, 'title' => 'Purchase Orders', 'alias' => 'purchaseorder', 'link' => 'inventory/purchaseorder','icon' => 'ClipboardDocumentCheckIcon','published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 2, 'permission_name' => 'PURCHASE_ORDER.VIEW'],
+            ['id' => 85, 'menutype' => 2, 'title' => 'Purchase Bills',  'alias' => 'purchasebills',  'link' => 'finance/purchase-bills',    'icon' => 'DocumentTextIcon',           'published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 3, 'permission_name' => 'PURCHASE_BILL.VIEW'],
 
             ['id' => 63, 'menutype' => 2, 'title' => 'Inward',          'alias' => 'inward',           'link' => 'inventory/inwards',        'icon' => 'CogIcon',           'published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 2, 'permission_name' => 'INWARD.VIEW'],
             ['id' => 64, 'menutype' => 2, 'title' => 'Unit',            'alias' => 'productunits',     'link' => 'master/productunits',      'icon' => 'ScaleIcon',         'published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 3, 'permission_name' => 'PRODUCT_UNIT.VIEW'],

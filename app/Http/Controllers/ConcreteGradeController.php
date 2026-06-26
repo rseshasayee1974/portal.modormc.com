@@ -13,17 +13,13 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-use App\Http\Controllers\Concerns\AuthorizesModule;
-
 class ConcreteGradeController extends Controller
-<<<<<<< HEAD
+
 {
     use AuthorizesModule;
 
     protected string $module = 'concrete_grades';
-=======
-{ use AuthorizesModule;
->>>>>>> 344061bb331e907ba0957b5bb1c965d316f4e9f9
+
   
 
     public function index()
@@ -167,11 +163,9 @@ class ConcreteGradeController extends Controller
 
     public function destroy(ConcreteGrade $concretegrade)
     {
-<<<<<<< HEAD
+
         $this->authorizeModule('delete');
-=======
-         $this->authorizeModule('delete', $concretegrade);
->>>>>>> 344061bb331e907ba0957b5bb1c965d316f4e9f9
+
         try {
             $concretegrade->delete();
             return back()->with('success', 'Concrete Grade master deleted successfully.');

@@ -64,11 +64,8 @@ class PermissionSeeder extends Seeder
             'QUOTATION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'CUSTOMER_PO' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'SALES_ORDER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
-<<<<<<< HEAD
-=======
-            'CUSTOMER_PO' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
->>>>>>> 344061bb331e907ba0957b5bb1c965d316f4e9f9
             'PURCHASE_ORDER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'PURCHASE_BILL' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'INVOICE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'PARTY_RATE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
             'BATCH' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],

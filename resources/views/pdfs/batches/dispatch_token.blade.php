@@ -290,6 +290,29 @@
 
     <div class="divider"></div>
 
+    @php
+        $dispatchInstance = $batch->dispatches->first();
+        $tripsDoneCount = 0;
+        if ($dispatchInstance && $dispatchInstance->truck_id) {
+            $unloadSiteId = $dispatchInstance->unload_site_id ?? $batch->workOrder?->site_id;
+            if ($unloadSiteId) {
+                $dispatchDate = $dispatchInstance->dispatch_time ?? $dispatchInstance->created_at;
+                $dateString = $dispatchDate ? $dispatchDate->toDateString() : date('Y-m-d');
+                $tripsDoneCount = \App\Models\Dispatch::where('truck_id', $dispatchInstance->truck_id)
+                    ->where(function($q) use ($unloadSiteId) {
+                        $q->where('unload_site_id', $unloadSiteId)
+                          ->orWhere(fn($sq) => $sq->whereNull('unload_site_id')->whereHas('workOrder', fn($ssq) => $ssq->where('site_id', $unloadSiteId)));
+                    })
+                    ->where(function($q) use ($dateString) {
+                        $q->whereDate('dispatch_time', $dateString)
+                          ->orWhereDate('created_at', $dateString);
+                    })
+                    ->where('id', '<', $dispatchInstance->id)
+                    ->count();
+            }
+        }
+    @endphp
+
     <table class="meta-table">
         <tr>
             <td class="meta-label">Truck No:</td>
@@ -301,6 +324,14 @@
             <td class="meta-value">
                 {{ trim(($batch->dispatches->first()?->driver?->first_name ?? '') . ' ' . ($batch->dispatches->first()?->driver?->last_name ?? '')) ?: '-' }}
             </td>
+        </tr>
+        <tr>
+            <td class="meta-label">Trips Done:</td>
+            <td class="meta-value font-mono">{{ $tripsDoneCount }}</td>
+        </tr>
+        <tr>
+            <td class="meta-label">Trip No:</td>
+            <td class="meta-value font-mono" style="font-weight: bold;">{{ $tripsDoneCount + 1 }}</td>
         </tr>
     </table>
 

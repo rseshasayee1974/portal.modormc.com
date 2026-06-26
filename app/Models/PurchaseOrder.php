@@ -80,6 +80,18 @@ class PurchaseOrder extends Model
         'exchange_rate' => 'decimal:6',
     ];
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::saving(function ($model) {
+            if (in_array(strtolower($model->state ?? ''), ['approved', 'billed'])) {
+                if (empty($model->date_approve)) {
+                    $model->date_approve = now()->toDateString();
+                }
+            }
+        });
+    }
 
     public function plant()
     {
@@ -129,10 +141,11 @@ class PurchaseOrder extends Model
         $amountTax = (float) $this->items()->sum('price_tax');
         $shippingCharges = (float) ($this->shipping_charges ?? 0);
         $adjustment = (float) ($this->adjustment ?? 0);
+        $roundingValue = (float) ($this->rounding_value ?? 0);
 
         $this->amount_untaxed = $amountUntaxed;
         $this->amount_tax = $amountTax;
-        $this->amount_total = $amountUntaxed + $amountTax + $shippingCharges + $adjustment;
+        $this->amount_total = $amountUntaxed + $amountTax + $shippingCharges + $adjustment + $roundingValue;
 
         $this->save();
     }

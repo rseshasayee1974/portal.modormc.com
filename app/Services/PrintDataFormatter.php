@@ -378,7 +378,7 @@ class PrintDataFormatter
 
         $data['totals'] = [
             'sub_total'   => (float)$invoice->subtotal,
-            'discount'    => (float)$invoice->global_discount,
+            'discount'    => (float)($invoice->discount_total ?? $invoice->global_discount),
             'tax_lines'   => $taxLines,
             'shipping'    => (float)$invoice->shipping_charges,
             'adjustment'  => (float)$invoice->adjustment,

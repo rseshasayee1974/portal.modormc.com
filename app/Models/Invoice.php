@@ -10,8 +10,16 @@ use App\Traits\AuditFields;
 use App\Traits\PostsToAccounting;
 use App\Traits\PlantScoping;
 use App\Models\JournalEntry;
+use App\Contracts\Postable;
+use App\DTO\TaxLineDTO;
+use App\DTO\AdjustmentLineDTO;
+use App\Accounting\AccountingPostingService;
+use App\Accounting\LedgerResolver;
+use App\Models\AccountDefaultSetting;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
-class Invoice extends Model
+class Invoice extends Model implements Postable
 {
     use HasFactory, SoftDeletes, AuditFields, PostsToAccounting, PlantScoping;
 
@@ -21,7 +29,7 @@ class Invoice extends Model
         'plant_id', 'partner_id', 'account_id', 
         'invoice_type', 'invoice_label', 'ref_id', 'ref_title',  
         'invoice_number', 'prefix', 'invoice_date', 'due_date', 'period',
-        'subtotal', 'global_discount_type', 'global_discount', 'tax_amount', 'adjustment',
+        'subtotal', 'global_discount_type', 'global_discount', 'discount_total', 'tax_amount', 'adjustment',
         'shipping_charges', 'shipping_tax_id',
         'total_amount', 'round_off', 'tds_amount', 'tds_tax_id',
         'paid_amount', 'balance_amount',
@@ -53,12 +61,12 @@ class Invoice extends Model
     ];
 
     // ------------------------------------------------------------------ constants
-    const STATUS_DRAFT     = 'draft';
-    const STATUS_APPROVED  = 'approved';
-    const STATUS_PAID      = 'paid';
-    const STATUS_CANCELLED = 'cancelled';
+    const STATUS_DRAFT     = 'Draft';
+    const STATUS_APPROVED  = 'Approved';
+    const STATUS_PAID      = 'Paid';
+    const STATUS_CANCELLED = 'Cancelled';
 
-    public static array $statuses = ['draft', 'approved', 'paid', 'cancelled'];
+    public static array $statuses = ['Draft', 'Approved', 'Paid', 'Cancelled'];
 
     // ------------------------------------------------------------------ boot / audit
     protected static function boot(): void
@@ -200,7 +208,7 @@ class Invoice extends Model
 
         $this->updateQuietly([
             'subtotal'       => $subtotal,
-            'global_discount' => $discountTotal,
+            'discount_total' => $discountTotal,
             'tax_amount'     => $taxAmount,
             'total_amount'   => $rounded,
             'round_off'      => $roundOff,
@@ -560,5 +568,180 @@ class Invoice extends Model
         } catch (\Exception $e) {
             return parent::resolveRouteBinding($value, $field);
         }
+    }
+
+    // ================================================================== Postable implementation
+    // These methods fulfill the App\Contracts\Postable contract so that
+    // AccountingPostingService can work with Invoice without knowing its internals.
+
+    public function getDocumentId(): int
+    {
+        return $this->id;
+    }
+
+    public function getDocumentType(): string
+    {
+        // Normalize 'bill' to 'bill', 'sales' to 'invoice' — keeps DocumentTypeConfig simple
+        $type = strtolower($this->invoice_type ?? 'invoice');
+        return match($type) {
+            'sales'    => 'invoice',
+            'purchase' => 'bill',
+            default    => $type, // 'invoice', 'bill', 'expense', 'stockin', 'stockout', etc.
+        };
+    }
+
+    public function getVoucherNumber(): string
+    {
+        return $this->full_number ?? $this->invoice_number ?? '---';
+    }
+
+    public function getVoucherDate(): Carbon
+    {
+        return $this->invoice_date instanceof Carbon
+            ? $this->invoice_date
+            : Carbon::parse($this->invoice_date ?? now());
+    }
+
+    public function getPlantId(): int
+    {
+        // Never falls back to session — plant_id MUST be persisted on the record
+        if (!$this->plant_id) {
+            throw new \App\Exceptions\AccountingException(
+                "Invoice #{$this->id} has no plant_id set. Cannot post to accounting."
+            );
+        }
+        return (int) $this->plant_id;
+    }
+
+    public function getEntityId(): int
+    {
+        return (int) ($this->plant?->entity_id ?? 1);
+    }
+
+    public function getPartnerId(): ?int
+    {
+        return $this->partner_id ? (int) $this->partner_id : null;
+    }
+
+    public function getPartnerLedgerId(): ?int
+    {
+        return $this->partner?->ledger_id ? (int) $this->partner->ledger_id : null;
+    }
+
+    public function getPartnerName(): string
+    {
+        return $this->partner?->legal_name ?? 'Unknown Partner';
+    }
+
+    public function getBaseAccountId(): ?int
+    {
+        return $this->account_id ? (int) $this->account_id : null;
+    }
+
+    public function getContraAccountId(): ?int
+    {
+        return null; // Not applicable for invoices/bills
+    }
+
+    public function getSubtotalCents(): int
+    {
+        return (int) round((float)($this->subtotal ?? 0) * 100);
+    }
+
+    public function getTaxTotalCents(): int
+    {
+        return (int) round((float)($this->tax_amount ?? 0) * 100);
+    }
+
+    public function getTotalAmountCents(): int
+    {
+        return (int) round((float)($this->total_amount ?? 0) * 100);
+    }
+
+    /**
+     * Build TaxLineDTO collection from the already-synced mm_order_taxes rows.
+     * syncTaxSplits() MUST be called before postToAccounting() — which is already
+     * guaranteed by the pipeline in createWithItems / updateWithItems / createFromSource.
+     */
+    public function getTaxLines(): Collection
+    {
+        $docType = $this->getDocumentType();
+        $module  = match($docType) {
+            'invoice' => 'Invoice',
+            'bill'    => 'Purchase',
+            default   => ucfirst($docType),
+        };
+
+        return OrderTax::query()
+            ->where('order_id', $this->id)
+            ->where('order_type', $module)
+            ->get()
+            ->map(fn($row) => new TaxLineDTO(
+                amountCents: (int) round((float)($row->amount ?? 0) * 100),
+                accountId:   $row->account_id ? (int) $row->account_id : null,
+                taxName:     $row->name ?? 'Tax',
+                taxId:       $row->tax_id ? (int) $row->tax_id : null,
+            ));
+    }
+
+    /**
+     * Build AdjustmentLineDTO collection for shipping, round-off, and global discount.
+     * Adjustment lines are all handled here; account IDs are resolved via AccountDefaultSetting.
+     */
+    public function getAdjustmentLines(): Collection
+    {
+        $adjustments = collect();
+        $plantId = $this->getPlantId();
+        $module  = match($this->getDocumentType()) {
+            'invoice' => 'Invoice',
+            'bill'    => 'Purchase',
+            default   => ucfirst($this->getDocumentType()),
+        };
+
+        $resolver = app(LedgerResolver::class);
+
+        $map = [
+            'shipping_charges' => ['key' => 'shipping_account',   'label' => 'Shipping',   'invert' => false],
+            'adjustment'       => ['key' => 'adjustment_account',  'label' => 'Adjustment', 'invert' => false],
+            'round_off'        => ['key' => 'round_off_account',   'label' => 'Round Off',  'invert' => false],
+            'global_discount'  => ['key' => 'discount_account',    'label' => 'Discount',   'invert' => true],
+        ];
+
+        foreach ($map as $field => $cfg) {
+            $value = round((float)($this->{$field} ?? 0), 2);
+            if ($value == 0) continue;
+
+            $amountCents = (int) round($value * 100);
+            if ($cfg['invert']) $amountCents = -$amountCents; // discount = negative
+
+            $accountId = $resolver->resolve($plantId, $module, $cfg['key'], $cfg['label']);
+
+            $adjustments->push(new AdjustmentLineDTO(
+                amountCents: $amountCents,
+                accountId:   $accountId,
+                label:       $cfg['label'],
+            ));
+        }
+
+        return $adjustments;
+    }
+
+    // ================================================================== Accounting trigger
+
+    /**
+     * Post (or re-post idempotently) this invoice to the journal.
+     * Delegates entirely to AccountingPostingService via the Postable contract.
+     * Kept as a public method for backward-compat with all call sites (controllers, observers).
+     *
+     * MUST be called inside an open DB transaction.
+     *
+     * @throws \App\Exceptions\AccountingException on user-fixable config errors
+     */
+    public function postToAccounting(): JournalEntry
+    {
+        // Make sure tax splits are always in sync before posting
+        $this->syncTaxSplits($this->invoice_type ?? 'sales');
+
+        return app(AccountingPostingService::class)->post($this);
     }
 }

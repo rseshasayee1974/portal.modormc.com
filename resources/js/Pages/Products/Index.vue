@@ -64,7 +64,7 @@ defineProps<{
                 </div>
             </div> -->
 
-            <ProductCreateForm v-if="can('PRODUCT.create')" :categories="categories" :units="units" :purchaseTaxes="purchaseTaxes" :saleTaxes="saleTaxes" :productTypes="productTypes" />
+            <ProductCreateForm v-if="can('PRODUCT.CREATE')" :categories="categories" :units="units" :purchaseTaxes="purchaseTaxes" :saleTaxes="saleTaxes" :productTypes="productTypes" />
             <ProductTable :products="products" :categories="categories" :units="units" :purchaseTaxes="purchaseTaxes" :saleTaxes="saleTaxes" :productTypes="productTypes" />
         </div>
     </AppLayout>

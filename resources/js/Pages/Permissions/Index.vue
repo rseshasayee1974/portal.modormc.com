@@ -60,7 +60,7 @@ const submitModal = async () => {
     formErrors.value = {};
 
     const payload = { ...modalForm.value };
-    const targetUrl = modalMode.value === 'edit' ? `/permissions/${payload.id}` : '/permissions';
+    const targetUrl = modalMode.value === 'edit' ? `/settings/permissions/${payload.id}` : '/settings/permissions';
     const method = modalMode.value === 'edit' ? 'put' : 'post';
 
     try {
@@ -89,7 +89,7 @@ const confirmDelete = (id: number) => {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            router.delete(`/permissions/${id}`, {
+            router.delete(`/settings/permissions/${id}`, {
                 onSuccess: () => {
                     toast.add({ severity: 'success', summary: 'Deleted', detail: 'Permission removed' });
                 }
@@ -99,11 +99,11 @@ const confirmDelete = (id: number) => {
 };
 
 const onPage = (event: any) => {
-    router.get('/permissions', { page: event.page + 1, search: searchQuery.value }, { preserveState: true });
+    router.get('/settings/permissions', { page: event.page + 1, search: searchQuery.value }, { preserveState: true });
 };
 
 const handleSearch = debounce(() => {
-    router.get('/permissions', { search: searchQuery.value }, { preserveState: true, replace: true });
+    router.get('/settings/permissions', { search: searchQuery.value }, { preserveState: true, replace: true });
 }, 300);
 </script>
 

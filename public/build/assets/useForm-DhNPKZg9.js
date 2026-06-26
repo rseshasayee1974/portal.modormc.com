@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/useForm-DhNPKZg9.js
-import{G as f,f as n}from"./vue-UJqly-A_.js";function a(o){if(o)return Array.isArray(o)?o[0]:o}function p(o){const e=f(o),t=n(()=>e.errors??{});function i(s){const r=s.replace(/\[(\d+)\]/g,".$1");return a(t.value[r]??t.value[s])}function u(s){const r=s;r!=null&&r.errors&&typeof r.errors=="object"&&(e.clearErrors(),e.setError(r.errors))}const c=n(()=>!!e.processing);return{...e,errors:t,errorFor:i,setApiErrors:u,isSubmitting:c}}export{p as u};
-========
-import{G as f,f as n}from"./vue-BaLwzGAE.js";function a(o){if(o)return Array.isArray(o)?o[0]:o}function p(o){const e=f(o),t=n(()=>e.errors??{});function i(s){const r=s.replace(/\[(\d+)\]/g,".$1");return a(t.value[r]??t.value[s])}function u(s){const r=s;r!=null&&r.errors&&typeof r.errors=="object"&&(e.clearErrors(),e.setError(r.errors))}const c=n(()=>!!e.processing);return{...e,errors:t,errorFor:i,setApiErrors:u,isSubmitting:c}}export{p as u};
->>>>>>>> 344061bb331e907ba0957b5bb1c965d316f4e9f9:public/build/assets/useForm-DAXkqX7D.js

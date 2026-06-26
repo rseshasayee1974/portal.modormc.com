@@ -70,10 +70,10 @@ const taxOptions = computed(() => props.taxes?.map(t => ({ label: t.tax_name, va
 const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: '₹' }];
 
 const stateOptions = [
-    { label: 'Draft', value: 'draft' },
-    { label: 'Approved', value: 'approved' },
-    { label: 'Billed', value: 'billed' },
-    { label: 'Cancelled', value: 'cancel' }
+    { label: 'Draft', value: 'Draft' },
+    { label: 'Approved', value: 'Approved' },
+    { label: 'Billed', value: 'Billed' },
+    { label: 'Cancelled', value: 'Cancelled' }
 ];
 
 const receiptStatusOptions = [
@@ -129,11 +129,15 @@ const handleDeleteBill = () => {
 <template>
     <div class="p-4 lg:p-4" >
         <!-- Header -->
-        
+        <div class="flex justify-end items-center mb-6">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
+                <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Ref No:</span>
+                <span class="text-xs font-black text-indigo-600 dark:text-indigo-400 font-mono tracking-wider">{{ form.po_number }}</span>
+            </div>
+        </div>
 
-      
-            <div   class="">
-                <form @submit.prevent="submit" class="space-y-6">
+        <div class="">
+            <form @submit.prevent="submit" class="space-y-6">
                     
 
                     
@@ -166,18 +170,13 @@ const handleDeleteBill = () => {
                                 :disabled="isReceived"
                             />
                         </div>
-                        <div class="field-group col-span-12 md:col-span-3">
-                            <label class="field-label">Ref Number</label>
-                             <BaseInput v-model="form.referencenumber" disabled class="w-full bg-slate-50 border-none font-mono font-semibold text-slate-500" />
-                        </div>
-
                         <BaseSelect 
                             v-model="form.state" 
                             :options="stateOptions" 
                             label="Order Status"
                             optionLabel="label" 
                             optionValue="value" 
-                            class="col-span-12 md:col-span-2"
+                            class="col-span-12 md:col-span-3"
                             :disabled="isReceived"
                         />
 
