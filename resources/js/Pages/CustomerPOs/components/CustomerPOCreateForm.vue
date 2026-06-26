@@ -272,7 +272,7 @@ const submit = () => {
         <div
     v-for="(item, idx) in form.items"
     :key="idx"
-    class="col-span-full border-b border-indigo-100/50 pb-4 last:border-0 last:pb-0"
+    class="col-span-full pb-0 last:border-0 last:pb-0"
 >
     <div class="grid grid-cols-12 gap-3 items-start">
         <!-- Mix Design - gets 50% of row on md+ -->

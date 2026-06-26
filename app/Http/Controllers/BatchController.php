@@ -62,7 +62,7 @@ class BatchController extends Controller
                 if ($batch->salesOrder->mixDesign) {
                     $batch->salesOrder->mixDesign->makeHidden([
                         'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                        'is_used_in_quotations', 'is_used_in_batching'
+                        // 'is_used_in_quotations', 'is_used_in_batching'
                     ]);
                 }
                 if ($batch->salesOrder->customer) {
@@ -113,7 +113,7 @@ class BatchController extends Controller
             if ($so->mixDesign) {
                 $so->mixDesign->makeHidden([
                     'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                    'is_used_in_quotations', 'is_used_in_batching'
+                    // 'is_used_in_quotations', 'is_used_in_batching'
                 ]);
                 if ($so->mixDesign->concreteGrade) {
                     $so->mixDesign->concreteGrade->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
@@ -473,9 +473,9 @@ class BatchController extends Controller
             'dispatches.modifier:id,email'
         ]);
 
-        if ($batch->salesOrder?->mixDesign) {
-            $batch->salesOrder->mixDesign->makeHidden(['is_used_in_quotations', 'is_used_in_batching']);
-        }
+        // if ($batch->salesOrder?->mixDesign) {
+        //     $batch->salesOrder->mixDesign->makeHidden(['is_used_in_quotations', 'is_used_in_batching']);
+        // }
 
         $batch->salesOrder?->mixDesign?->items->each(function ($item) {
             $item->makeHidden(['used_in_batching']);

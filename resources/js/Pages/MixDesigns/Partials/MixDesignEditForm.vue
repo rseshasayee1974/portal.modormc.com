@@ -13,6 +13,7 @@ import {
     TableCellsIcon
 } from '@heroicons/vue/24/outline';
 import Swal from 'sweetalert2';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps<{
     design: any;
@@ -21,8 +22,8 @@ const props = defineProps<{
     partners: any[];
     defaultUomId?: number | null;
     designTypes: any[];
-    isUsedInQuotations: boolean;
-    isUsedInBatching: boolean;
+    // isUsedInQuotations: boolean;
+    // isUsedInBatching: boolean;
 }>();
 
 const emit = defineEmits(['saved', 'cancel']);
@@ -32,15 +33,17 @@ const productOptions = computed(() => props.products.map(p => ({ label: p.title,
 const unitOptions = computed(() => props.units.map(u => ({ label: u.unit_code, value: u.id })));
 const typeOptions = computed(() => props.designTypes.map(t => ({ label: t.name, value: t.name })));
 const fallbackUomId = computed(() => props.defaultUomId ?? props.units[0]?.id ?? null);
-const isLocked = computed(() =>
-    props.design.is_used_in_quotations ||
-    props.design.is_used_in_batching
-);
+const { isSuperAdmin } = usePermissions();
+
+const isLocked = computed(() => {
+    if (isSuperAdmin.value) return false;
+    return props.design.is_used_in_batching;
+});
 
 const lockReason = computed(() => {
+    if (isSuperAdmin.value) return '';
     const reasons = [];
 
-    if (props.design.is_used_in_quotations) reasons.push('quotations');
     if (props.design.is_used_in_batching) reasons.push('batching');
 
     return reasons.length
@@ -56,7 +59,7 @@ const form = useForm({
     rate_per_qty: parseFloat(props.design.rate_per_qty || '0'),
     items: props.design.items.map((item: any) => ({
             id: item.id,
-            isLocked: true,
+            isLocked: isLocked.value,
             product_id: item.product_id,
             uom_id: item.uom_id ?? props.defaultUomId ?? props.units[0]?.id ?? null,
             rate: parseFloat(item.rate || 0),
@@ -119,7 +122,7 @@ const submit = () => {
         form.items.forEach((item: any, i: number) => {
             if (!item.product_id) { form.setError(`items.${i}.product_id`, 'Material required.'); hasErrors = true; }
             if (!item.uom_id) { form.setError(`items.${i}.uom_id`, 'UOM required.'); hasErrors = true; }
-            if (!item.actual_quantity || item.actual_quantity <= 0) { form.setError(`items.${i}.actual_quantity`, 'Qty > 0'); hasErrors = true; }
+            // if (!item.actual_quantity || item.actual_quantity <= 0) { form.setError(`items.${i}.actual_quantity`, 'Qty > 0'); hasErrors = true; }
         });
     }
 
@@ -191,7 +194,7 @@ const submit = () => {
                                     <small v-if="form.errors[`items.${index}.uom_id`]" class="err-msg">{{ form.errors[`items.${index}.uom_id`] }}</small>
                                 </td>
                                 <td>
-                                    <BaseInputNumber v-model="item.actual_quantity" :disabled="item.isLocked" :minFractionDigits="3" placeholder="0.0000" fluid :inputClass="'text-right'" />
+                                    <BaseInputNumber v-model="item.actual_quantity" :disabled="isLocked" :minFractionDigits="3" placeholder="0.0000" fluid :inputClass="'text-right'" />
                                     <small v-if="form.errors[`items.${index}.actual_quantity`]" class="err-msg text-right block">{{ form.errors[`items.${index}.actual_quantity`] }}</small>
                                 </td>
                                 <td>

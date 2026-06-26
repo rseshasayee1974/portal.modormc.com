@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,7 +12,7 @@ use App\Traits\AuditFields;
 
 class ConcreteGrade extends Model
 {
-    use HasFactory, SoftDeletes, ProtectsSystemItems, TracksModelChanges, AuditFields;
+    use HasFactory, SoftDeletes, ProtectsSystemItems, TracksModelChanges, AuditFields ;
     protected $table = 'mm_concrete_grades';
     protected $fillable = [
         'plant_id',

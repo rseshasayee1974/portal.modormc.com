@@ -543,7 +543,10 @@ if (!function_exists('Productunit')) {
             $query->excludeId($excludeId);
         }
 
-        return $query->whereNull('deleted_at')->orderBy('unit_name')->get();
+        return $query->whereNull('deleted_at')
+            ->orderByRaw("CASE WHEN unit_code = 'MTR' THEN 0 ELSE 1 END")
+            ->orderBy('unit_name')
+            ->get();
     }
 }
 

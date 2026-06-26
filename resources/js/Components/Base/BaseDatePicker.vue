@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import DatePicker from 'primevue/datepicker';
 import BaseField from './BaseField.vue';
 
@@ -23,6 +23,10 @@ const props = withDefaults(
         iconDisplay?: 'input' | 'button';
         fieldClass?: string;
         inputClass?: string;
+        // new time props
+        showTime?: boolean;
+        hourFormat?: '12' | '24';
+        showSeconds?: boolean;
     }>(),
     {
         required: false,
@@ -32,6 +36,9 @@ const props = withDefaults(
         fluid: true,
         showIcon: true,
         iconDisplay: 'button',
+        showTime: false,
+        hourFormat: '24',
+        showSeconds: false,
     }
 );
 
@@ -40,18 +47,22 @@ const emit = defineEmits<{
     (e: 'change', ev: any): void;
 }>();
 
+onMounted(() => {
+    if (props.modelValue === null || props.modelValue === undefined || props.modelValue === '') {
+        emit('update:modelValue', new Date()); // includes current time
+    }
+});
+
 const internalValue = computed({
     get() {
         const parseValue = (val: any): any => {
-            if (!val) return null;
+            if (!val) return new Date(); // default to now
             if (val instanceof Date) return val;
             if (typeof val === 'string') {
                 const parsed = new Date(val);
-                return isNaN(parsed.getTime()) ? val : parsed;
+                return isNaN(parsed.getTime()) ? new Date() : parsed;
             }
-            if (Array.isArray(val)) {
-                return val.map(parseValue);
-            }
+            if (Array.isArray(val)) return val.map(parseValue);
             return val;
         };
         return parseValue(props.modelValue);
@@ -83,10 +94,10 @@ const internalValue = computed({
                 :fluid="fluid"
                 :showIcon="showIcon"
                 :iconDisplay="iconDisplay"
-                :class="[
-                    inputClass,
-                    invalid ? 'p-invalid' : null
-                ]"
+                :showTime="showTime"
+                :hourFormat="hourFormat"
+                :showSeconds="showSeconds"
+                :class="[inputClass, invalid ? 'p-invalid' : null]"
                 @update:modelValue="internalValue = $event"
                 @change="emit('change', $event)"
             />

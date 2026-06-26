@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
-import { useForm } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import { 
     ShoppingCartIcon, 
@@ -25,7 +25,7 @@ interface QuotationItemPayload {
     tax_id: number | null;
     rate: number;
     uom_id: null | number;
-    tax_amount: number;
+    tax_amount: number | null;
     untaxed_amount: number;
     amount_total: number;
 }
@@ -138,11 +138,17 @@ const formatDate = (date: string | null) => {
 };
 
 function createNewItem(): QuotationItemPayload {
+    const defaultUomId = props.unitOptions?.find(u => u.unit_code === 'MTR')?.id 
+                      || props.unitOptions?.[0]?.id 
+                      || null;
+                      
+    const defaultTaxId = props.taxes?.[0]?.id || null;
+
     return {
         id: null,
         mix_design_id: null,
-        tax_id: null,
-        uom_id: null,
+        tax_id: defaultTaxId,
+        uom_id: defaultUomId,
         quantity: 1,
         rate: 0,
         tax_amount: 0,

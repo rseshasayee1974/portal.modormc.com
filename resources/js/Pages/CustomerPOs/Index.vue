@@ -24,7 +24,6 @@ const props = defineProps<{
     salesExecutives?: any[];
     concretePumpOptions?: any[];
 }>();
-// console.log('sdfsdfdsf',props.customerPOs);
 
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
@@ -84,33 +83,6 @@ const getStatusSeverity = (status: number) => {
     }
 };
 
-const deleteCustomerPO = (salesOrder: any) => {
-    Swal.fire({
-        title: 'Delete Customer PO?',
-        text: `Are you sure you want to delete this Customer PO?`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        confirmButtonText: 'Yes, delete',
-    }).then((result) => {
-        if (!result.isConfirmed) return;
-
-        router.delete(route('customer-po.destroy', salesOrder.id), {
-            preserveScroll: true,
-            onSuccess: () => {
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'success',
-                    title: 'Customer PO deleted successfully.',
-                    showConfirmButton: false,
-                    timer: 1500,
-                });
-            },
-        });
-    });
-};
-
 const getCustomerPOTotalQty = (customerPO: any) => {
     return customerPO.items?.reduce((sum: number, item: any) => sum + Number(item.quantity || 0), 0) || 0;
 };
@@ -132,13 +104,72 @@ const getCustomerPOProgressPercent = (customerPO: any) => {
     const completed = getCustomerPOCompletedQty(customerPO);
     return Math.min(100, Math.round((completed / total) * 100));
 };
+// --- Delete restriction helpers ---
+const hasSalesOrders = (customerPO: any) => {
+    return getCustomerPOCompletedQty(customerPO) > 0;
+};
 
+const canDeleteCustomerPO = (customerPO: any): boolean => {
+    if (!customerPO) return false;
+    
+    const completedQty = getCustomerPOCompletedQty(customerPO);
+    
+    // Rule: allow delete when nothing has been allocated to Sales Orders yet
+    // This works for Draft AND Confirmed — status no longer blocks it
+    return completedQty === 0;
+};
+
+const getDeleteRestrictionReason = (customerPO: any): string => {
+    if (!customerPO) return 'Invalid PO';
+    
+    const completedQty = getCustomerPOCompletedQty(customerPO);
+    
+    if (completedQty === 0) return ''; // no restriction
+    
+    return `Cannot delete — ${completedQty} m³ already allocated to Sales Orders`;
+};
+
+const deleteCustomerPO = (customerPO: any) => {
+    if (!canDeleteCustomerPO(customerPO)) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Delete blocked',
+            text: getDeleteRestrictionReason(customerPO),
+        });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Delete Customer PO?',
+        text: `Are you sure you want to delete this Customer PO?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, delete',
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+
+        router.delete(route('customer-po.destroy', customerPO.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Customer PO deleted successfully.',
+                    showConfirmButton: false,
+                    timer: 1500,
+                });
+            },
+        });
+    });
+};
 
 const convertToSalesOrder = (customerPO: any) => {
     const total = getCustomerPOTotalQty(customerPO);
     const completed = getCustomerPOCompletedQty(customerPO);
     const remainingQty = Math.max(0, total - completed);
-    const defaultQty = remainingQty > 0 ? remainingQty : 1;
+    const defaultQty = remainingQty > 0? remainingQty : 1;
 
     Swal.fire({
         title: 'Generate Sales Order',
@@ -168,7 +199,7 @@ const convertToSalesOrder = (customerPO: any) => {
             }
         }
     }).then((result) => {
-        if (!result.isConfirmed || !result.value) return;
+        if (!result.isConfirmed ||!result.value) return;
 
         router.post(route('customer-po.convert-salesorder', customerPO.id), {
             quantity: result.value
@@ -228,19 +259,6 @@ watch(() => props.customerPOs, () => {
         </template>
 
         <div class="px-4 py-5 md:px-6 space-y-4">
-            <!-- Header section -->
-            <div class="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-900 via-indigo-900 to-sky-800 px-5 py-4 text-white shadow">
-                <div class="flex items-start gap-3">
-                    <div class="rounded-lg bg-white/10 p-2 text-indigo-100">
-                        <ShoppingBagIcon class="h-5 w-5" />
-                    </div>
-                    <div>
-                        <h1 class="text-xl font-bold tracking-tight">Customer PO Dashboard</h1>
-                        <p class="mt-1 text-xs text-slate-200">View customer Customer POs, track which user converted them, and generate corresponding Sales Orders.</p>
-                    </div>
-                </div>
-            </div>
-
             <!-- Create Form -->
             <CustomerPOCreateForm
                 :patrons="patrons"
@@ -279,8 +297,8 @@ watch(() => props.customerPOs, () => {
                                 optionLabel="label"
                                 optionValue="value"
                                 placeholder="Filter Status"
-                                class="w-44 !h-9 !rounded-lg !border-slate-300 !text-[11px]"
-                                pt:label:class="!px-3 !py-1"
+                                class="w-44!h-9!rounded-lg!border-slate-300!text-"
+                                pt:label:class="!px-3!py-1"
                             />
                         </div>
                     </template>
@@ -310,21 +328,20 @@ watch(() => props.customerPOs, () => {
                                 <div class="text-slate-400 text-xs font-bold">
                                     {{ slotProps.data.site?.name || 'Main Site' }}
                                 </div>
-                                
                             </div>
-                            <span v-else class="text-slate-400 text-xs font-bold">{{  slotProps.data.site?.name || '' }}</span>
+                            <span v-else class="text-slate-400 text-xs font-bold">{{ slotProps.data.site?.name || '' }}</span>
                         </template>
                     </Column>
                     <Column header="WO Status">
                         <template #body="slotProps">
-                            <div class="space-y-1 min-w-[120px]">
+                            <div class="space-y-1 min-w-">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                    <span class="text- font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                                         {{ getCustomerPOCompletedQty(slotProps.data) }} / {{ getCustomerPOTotalQty(slotProps.data) }} m³
                                     </span>
                                     <span
-                                        class="text-[10px] font-black tabular-nums"
-                                        :class="isCustomerPOCompleted(slotProps.data) ? 'text-emerald-600' : 'text-indigo-600'"
+                                        class="text- font-black tabular-nums"
+                                        :class="isCustomerPOCompleted(slotProps.data)? 'text-emerald-600' : 'text-indigo-600'"
                                     >
                                         {{ getCustomerPOProgressPercent(slotProps.data) }}%
                                     </span>
@@ -332,35 +349,17 @@ watch(() => props.customerPOs, () => {
                                 <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                                     <div
                                         class="h-full rounded-full transition-all duration-500"
-                                        :class="isCustomerPOCompleted(slotProps.data) ? 'bg-emerald-500' : 'bg-indigo-500'"
+                                        :class="isCustomerPOCompleted(slotProps.data)? 'bg-emerald-500' : 'bg-indigo-500'"
                                         :style="{ width: getCustomerPOProgressPercent(slotProps.data) + '%' }"
                                     ></div>
                                 </div>
                                 <div v-if="isCustomerPOCompleted(slotProps.data)" class="flex items-center gap-1">
-                                    <i class="pi pi-check-circle text-[10px] text-emerald-500"></i>
-                                    <span class="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">Fully Allocated</span>
+                                    <i class="pi pi-check-circle text- text-emerald-500"></i>
+                                    <span class="text- font-bold text-emerald-600 uppercase tracking-widest">Fully Allocated</span>
                                 </div>
                             </div>
                         </template>
                     </Column>
-
-                   
-                    <!-- <Column header="Work Orders">
-                        <template #body="slotProps">
-                            <div class="flex flex-wrap gap-1">
-                                <template v-if="slotProps.data.work_orders && slotProps.data.work_orders.length > 0">
-                                    <span
-                                        v-for="wo in slotProps.data.work_orders"
-                                        :key="wo.id"
-                                        class="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-1.5 py-0.5 rounded font-mono text-[10px] font-bold"
-                                    >
-                                        {{ wo.prefix }}{{ wo.order_no }}
-                                    </span>
-                                </template>
-                                <span v-else class="text-slate-400 text-xs italic">No Work Orders</span>
-                            </div>
-                        </template>
-                    </Column> -->
 
                     <Column field="status" header="Status" sortable>
                         <template #body="slotProps">
@@ -401,7 +400,7 @@ watch(() => props.customerPOs, () => {
         </div>
         <Popover
             ref="actionMenu"
-            class="!shadow-2xl !border !border-slate-200/80 dark:!border-slate-700/80 !rounded-xl overflow-hidden"
+            class="!shadow-2xl!border!border-slate-200/80 dark:!border-slate-700/80!rounded-xl overflow-hidden"
             style="padding: 0; width: 14rem;"
             :pt="{ root: { id: 'so-action-menu' } }"
             @show="onActionMenuShow"
@@ -409,21 +408,6 @@ watch(() => props.customerPOs, () => {
             <div v-if="activeCustomerPO" class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left">
                 <!-- Group 1: WO Generation -->
                 <div class="py-1">
-                    <!-- Progress info
-                    <div class="px-4 py-2 space-y-1.5">
-                        <div class="flex items-center justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                            <span>WO Allocation</span>
-                            <span>{{ getCustomerPOCompletedQty(activeCustomerPO) }} / {{ getCustomerPOTotalQty(activeCustomerPO) }} m³</span>
-                        </div>
-                        <div class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                                class="h-full rounded-full transition-all duration-500"
-                                :class="isCustomerPOCompleted(activeCustomerPO) ? 'bg-emerald-500' : 'bg-indigo-500'"
-                                :style="{ width: getCustomerPOProgressPercent(activeCustomerPO) + '%' }"
-                            ></div>
-                        </div>
-                    </div> -->
-                    <!-- Create WO button (visible when not fully allocated) -->
                     <button
                         v-if="!isCustomerPOCompleted(activeCustomerPO)"
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
@@ -438,21 +422,10 @@ watch(() => props.customerPOs, () => {
                     </div>
                 </div>
 
-                <!-- Group 2: Edit Customer PO -->
-                <!-- <div class="py-1">
-                    <button
-                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                        @click="toggleEditRow(activeCustomerPO); closeAllMenus();"
-                    >
-                        <i class="pi pi-pencil mr-2 text-amber-500 font-bold"></i>
-                        Edit Customer PO
-                    </button>
-                </div> -->
-
                 <!-- Group 3: Delete Customer PO -->
                 <div class="py-1">
                     <button
-                        v-if="!activeCustomerPO.has_workorders"
+                        v-if="canDeleteCustomerPO(activeCustomerPO)"
                         class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
                         @click="deleteCustomerPO(activeCustomerPO); closeAllMenus();"
                     >
@@ -462,7 +435,7 @@ watch(() => props.customerPOs, () => {
                     <div
                         v-else
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-400 cursor-not-allowed"
-                        v-tooltip.right="'Customer PO cannot be deleted as it has Sales Orders'"
+                        v-tooltip.right="getDeleteRestrictionReason(activeCustomerPO)"
                     >
                         <i class="pi pi-trash mr-2 text-slate-400 font-bold"></i>
                         Delete (Locked)

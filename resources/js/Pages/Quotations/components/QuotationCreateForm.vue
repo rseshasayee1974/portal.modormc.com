@@ -28,7 +28,7 @@ interface QuotationItemPayload {
     quantity: number;
     tax_id: number | null;
     rate: number;
-      uom_id: null, // Added
+    uom_id: number | null, // Added
     // Calculated fields strictly for the new schema
     // tax_amount: number;
     untaxed_amount: number;
@@ -69,12 +69,18 @@ const form = useForm({
 });
 
 function createNewItem(): QuotationItemPayload {
+    const defaultUomId = props.unitOptions?.find(u => u.unit_code === 'MTR')?.id 
+                      || props.unitOptions?.[0]?.id 
+                      || null;
+                      
+    const defaultTaxId = props.taxes?.[0]?.id || null;
+
     return {
         id: null,
         mix_design_id: null,
         quantity: 1,
-        tax_id: null,
-        uom_id: null, 
+        tax_id: defaultTaxId,
+        uom_id: defaultUomId, 
         rate: 0,
         // tax_amount: 0,
         untaxed_amount: 0,

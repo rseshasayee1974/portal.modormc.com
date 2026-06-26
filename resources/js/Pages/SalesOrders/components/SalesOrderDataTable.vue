@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
+import { usePermissions } from '@/Composables/usePermissions';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -37,6 +38,7 @@ const filters = ref({
     status: { value: null, matchMode: 'equals' },
 });
 const expandedRows = ref<Record<number, boolean>>({});
+const { can, isSuperAdmin } = usePermissions();
 
 const statusSeverity = (status: number) => {
     if (status === 3) return 'success';
@@ -48,16 +50,28 @@ const statusSeverity = (status: number) => {
 const statusLabel = (status: number) => props.statuses.find((entry) => entry.value === status)?.label ?? 'Unknown';
 
 const destroy = (row: any) => {
+    const hasActiveData = row.batches_count > 0 || row.dispatches_count > 0 || row.status === 3;
+    const warningText = hasActiveData 
+        ? `WARNING: This order has active batches or dispatches! Deleting it may cause data inconsistencies. Are you sure you want to delete Order ${row.order_no}?`
+        : `Order ${row.order_no} will be archived.`;
+
     Swal.fire({
-        title: 'Delete sales order?',
-        text: `Order ${row.order_no} will be archived.`,
+        title: hasActiveData ? 'Force Delete Sales Order?' : 'Delete Sales Order?',
+        text: warningText,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
-        confirmButtonText: 'Yes, delete',
+        confirmButtonText: hasActiveData ? 'Yes, force delete' : 'Yes, delete',
     }).then((result) => {
         if (!result.isConfirmed) return;
-        router.delete(route('salesorders.destroy', row.id));
+        
+        const id = row.id ?? row.sales_order_id;
+        router.delete(route('salesorders.destroy', id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                Swal.fire('Deleted!', 'The sales order has been archived.', 'success');
+            }
+        });
     });
 };
 
@@ -141,7 +155,7 @@ const onSaved = () => {
                 </template>
             </Column>
 
-            <Column header="Actions" style="width: 80px">
+            <Column header="Actions" style="width: 80px" v-if="can('SALES_ORDER.DELETE')">
                 <template #body="{ data }">
                     <div class="flex justify-end">
                         <Button 
@@ -150,8 +164,8 @@ const onSaved = () => {
                             rounded 
                             severity="danger" 
                             @click="destroy(data)"
-                            :disabled="data.batches_count > 0 || data.dispatches_count > 0 || data.status === 3"
-                            v-tooltip.top="(data.batches_count > 0 || data.dispatches_count > 0 || data.status === 3) ? 'Cannot delete: active batches or dispatches exist' : 'Delete Sales Order'"
+                            :disabled="!isSuperAdmin && (data.batches_count > 0 || data.dispatches_count > 0 || data.status === 3)"
+                            v-tooltip.top="(!isSuperAdmin && (data.batches_count > 0 || data.dispatches_count > 0 || data.status === 3)) ? 'Cannot delete: active batches or dispatches exist' : 'Delete Sales Order'"
                         />
                     </div>
                 </template>
@@ -160,6 +174,7 @@ const onSaved = () => {
             <template #expansion="{ data }">
                 <div class="p-3">
                     <SalesOrderEditForm
+                        v-if="can('SALES_ORDER.UPDATE')"
                         :salesOrder="{ ...data, id: data?.id ?? data?.sales_order_id ?? null }"
                         :customers="customers"
                         :sites="sites"
@@ -170,6 +185,9 @@ const onSaved = () => {
                         @saved="onSaved"
                         @cancel="expandedRows = {}"
                     />
+                    <div v-else class="text-sm text-center text-slate-500 py-4">
+                        You do not have permission to edit this sales order.
+                    </div>
                 </div>
             </template>
         </BaseDataTable>
