@@ -60,7 +60,7 @@ class PurchaseOrderInwardControllerTest extends TestCase
             'product_uom' => $this->unit->id,
             'product_quantity' => 100,
             'received_quantity' => 0,
-            'discount_type' => 'percentage',
+            'discount_type' => '%',
             'discount_amount' => 0,
         ]);
 

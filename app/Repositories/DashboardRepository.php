@@ -49,11 +49,11 @@ class DashboardRepository
             'total_sales' => round($total, 2),
             'cash_sales' => [
                 'amount' => round($cash, 2),
-                'percentage' => $total > 0 ? round(($cash / $total) * 100, 1) : 0
+                '%' => $total > 0 ? round(($cash / $total) * 100, 1) : 0
             ],
             'credit_sales' => [
                 'amount' => round($credit, 2),
-                'percentage' => $total > 0 ? round(($credit / $total) * 100, 1) : 0
+                '%' => $total > 0 ? round(($credit / $total) * 100, 1) : 0
             ]
         ];
     }

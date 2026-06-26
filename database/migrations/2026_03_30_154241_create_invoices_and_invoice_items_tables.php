@@ -69,7 +69,7 @@ return new class extends Migration
             $table->decimal('price_unit', 15, 2)->default(0);
 
             // Discount
-            $table->string('discount_type', 20)->default('%'); // 'percent' | 'fixed'
+            $table->string('discount_type', 20)->default('%'); // 'percent' | '₹'
             $table->decimal('discount', 15, 2)->default(0);
             $table->decimal('discount_amount', 17, 2)->default(0);
 

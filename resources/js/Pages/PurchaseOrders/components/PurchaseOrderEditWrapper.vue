@@ -38,7 +38,6 @@ const form = useForm({
     date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : new Date().toISOString().substring(0, 10),
     billed_date: props.purchaseOrder?.billed_date ? props.purchaseOrder.billed_date.substring(0, 10) : null,
     due_date: props.purchaseOrder?.due_date ? props.purchaseOrder.due_date.substring(0, 10) : null,
-    currency_id: props.purchaseOrder?.currency_id || (props.currencies?.[0]?.id || null),
     exchange_rate: props.purchaseOrder?.exchange_rate || 0.0,
     amount_untaxed: Number(props.purchaseOrder?.amount_untaxed) || 0,
     amount_tax: Number(props.purchaseOrder?.amount_tax) || 0,
@@ -72,7 +71,6 @@ onMounted(() => {
             form.date_order = data.date_order ? data.date_order.substring(0, 10) : '';
             form.billed_date = data.billed_date ? data.billed_date.substring(0, 10) : null;
             form.due_date = data.due_date ? data.due_date.substring(0, 10) : null;
-            form.currency_id = data.currency_id;
             form.exchange_rate = data.exchange_rate;
             form.amount_untaxed = Number(data.amount_untaxed) || 0;
             form.amount_tax = Number(data.amount_tax) || 0;
@@ -90,6 +88,7 @@ onMounted(() => {
 
             form.items = data.items ? data.items.map((i: any) => ({ 
                 ...i, 
+                discount_type: i.discount_type || '%',
                 product_quantity: Number(i.product_quantity) || 0,
                 unit_price: Number(i.unit_price) || 0,
                 discount_amount: Number(i.discount_amount) || 0,
@@ -117,7 +116,7 @@ function createNewItem() {
         tax_id: null,
         product_quantity: 1,
         unit_price: 0,
-        discount_type: 'percentage',
+        discount_type: '%',
         discount_amount: 0,
         total_discount: 0,
         description: '',
@@ -160,7 +159,7 @@ const calculateItemTotals = (index: number) => {
     
     let discount = 0;
     const discAmount = Number(item.discount_amount) || 0;
-    if (item.discount_type === 'percentage') {
+    if (item.discount_type === '%') {
         discount = (subtotal * discAmount) / 100;
     } else {
         discount = discAmount;

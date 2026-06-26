@@ -12,13 +12,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
+
 class JournalEntryController extends Controller
 {
+    use AuthorizesModule;
+
+    protected string $module = 'journal_entries';
     /**
      * Display a listing of journal entries.
      */
     public function index()
     {
+        $this->authorizeModule('menu');
         $entityId = session('active_entity_id');
 
         $entries = JournalEntry::with(['lines.ledger', 'creator'])
@@ -54,6 +60,7 @@ class JournalEntryController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $entityId = session('active_entity_id');
         $userId = Auth::id();
 
@@ -133,6 +140,7 @@ class JournalEntryController extends Controller
      */
     public function destroy($id)
     {
+        $this->authorizeModule('delete');
         $entityId = session('active_entity_id');
         $entry = JournalEntry::where('entity_id', $entityId)->findOrFail($id);
         

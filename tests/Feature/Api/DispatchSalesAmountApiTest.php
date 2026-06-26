@@ -129,11 +129,11 @@ class DispatchSalesAmountApiTest extends TestCase
                     'total_sales' => 2000.0,
                     'cash_sales' => [
                         'amount' => 1200.0,
-                        'percentage' => 60.0,
+                        '%' => 60.0,
                     ],
                     'credit_sales' => [
                         'amount' => 800.0,
-                        'percentage' => 40.0,
+                        '%' => 40.0,
                     ],
                 ],
             ]);

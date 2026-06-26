@@ -108,7 +108,7 @@ class PurchaseOrderItem extends Model
         $subtotal = $qty * $price;
         
         $discountAmount = (float) $this->discount_amount;
-        if ($this->discount_type === 'percentage') {
+        if ($this->discount_type === '%') {
              $calculatedDiscount = ($subtotal * $discountAmount) / 100;
         } else {
              $calculatedDiscount = $discountAmount;

@@ -7,10 +7,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
+
 class ProductCategoryController extends Controller
 {
+    use AuthorizesModule;
+
+    protected string $module = 'product_categories';
     public function index()
     {
+        $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
         return Inertia::render('Products/Categories', [
             'categories' => ProductCategory::where('plant_id', $plantId)->get(),
@@ -19,6 +25,7 @@ class ProductCategoryController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $plantId = session('active_plant_id');
         if (! $plantId) {
             return redirect()->back()->withErrors(['plant_id' => 'Select an active plant first.']);
@@ -43,6 +50,7 @@ class ProductCategoryController extends Controller
 
     public function update(Request $request, ProductCategory $productcategory)
     {
+        $this->authorizeModule('edit');
         $plantId = session('active_plant_id');
         if (! $plantId) {
             return redirect()->back()->withErrors(['plant_id' => 'Select an active plant first.']);
@@ -69,6 +77,7 @@ class ProductCategoryController extends Controller
 
     public function destroy(ProductCategory $productcategory)
     {
+        $this->authorizeModule('delete');
         $productcategory->delete();
         return redirect()->back()->with('success', 'Category deleted successfully.');
     }

@@ -247,7 +247,7 @@ class FlowAndRelationshipTest extends TestCase
                     'product_uom' => $this->unit->id,
                     'product_quantity' => 100,
                     'unit_price' => 10,
-                    'discount_type' => 'percentage',
+                    'discount_type' => '%',
                     'discount_amount' => 0,
                 ]
             ]
@@ -273,7 +273,7 @@ class FlowAndRelationshipTest extends TestCase
                     'product_uom' => $this->unit->id,
                     'product_quantity' => 150, // Updated qty
                     'unit_price' => 10,
-                    'discount_type' => 'percentage',
+                    'discount_type' => '%',
                     'discount_amount' => 0,
                 ]
             ]

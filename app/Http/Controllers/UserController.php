@@ -13,6 +13,9 @@ use App\Http\Requests\UpdateUserRequest;
 use Spatie\Permission\Models\Role;
 use App\Models\Plant;
 use App\Http\Controllers\Concerns\AuthorizesModule;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Config;
 
 class UserController extends Controller
 {
@@ -30,11 +33,18 @@ class UserController extends Controller
                 $q->where('code', 'SAAS_OWNER');
             });
 
-        $activeEntityId = session('active_entity_id');
-        if ($activeEntityId) {
-            $query->whereHas('entityUsers', function ($q) use ($activeEntityId) {
-                $q->where('entity_id', $activeEntityId);
+        $activePlantId = session('active_plant_id');
+        if ($activePlantId) {
+            $query->whereHas('entityUsers', function ($q) use ($activePlantId) {
+                $q->where('plant_id', $activePlantId);
             });
+        } else {
+            $activeEntityId = session('active_entity_id');
+            if ($activeEntityId) {
+                $query->whereHas('entityUsers', function ($q) use ($activeEntityId) {
+                    $q->where('entity_id', $activeEntityId);
+                });
+            }
         }
 
         if ($request->has('search')) {
@@ -73,14 +83,19 @@ class UserController extends Controller
         $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
         $userLevel = empty($levels) ? 999 : min($levels);
         
-        $userGroups = Role::where('level', '<', $userLevel)->get()->map(function ($group) {
+        $userGroups = Role::where('level', '<=', $userLevel)->get()->map(function ($group) {
             return [
                 'value' => $group->id,
                 'label' => $group->name,
             ];
         })->values();
         // dd($userGroups,$levels,$userLevel,$entityLevel,$spatieLevel);
-        $plants = Plant::where('is_active', 1)->get()->map(fn($p) => [
+        $activePlantId = session('active_plant_id');
+        $plantsQuery = Plant::where('is_active', 1);
+        if ($activePlantId) {
+            $plantsQuery->where('id', $activePlantId);
+        }
+        $plants = $plantsQuery->get()->map(fn($p) => [
             'value' => $p->id, 
             'label' => $p->name,
             'entity_id' => $p->entity_id
@@ -158,5 +173,48 @@ class UserController extends Controller
         $user->delete();
 
         return redirect()->back()->with('success', 'User deleted successfully.');
+    }
+
+    /**
+     * Generate WhatsApp verification link for the user.
+     */
+    public function whatsappVerificationUrl(User $user)
+    {
+        $this->authorizeModule('edit');
+
+        if (empty($user->mobile)) {
+            return response()->json([
+                'message' => 'User does not have a mobile number saved.'
+            ], 422);
+        }
+
+        $mobile = preg_replace('/[^0-9]/', '', $user->mobile);
+        if (strlen($mobile) === 10) {
+            $mobile = '91' . $mobile;
+        }
+
+        $signedUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            Carbon::now()->addMinutes(Config::get('auth.verification.expire', 60)),
+            [
+                'id' => $user->getKey(),
+                'hash' => sha1($user->getEmailForVerification()),
+            ]
+        );
+
+        $message = "*onemodo.com*\n"
+            . "Hello *" . $user->username . "*!\n"
+            . "Please click the link below to verify your email address.\n\n"
+            . "*Verify Email Address*\n"
+            . $signedUrl . "\n\n"
+            . "If you did not create an account, no further action is required.\n\n"
+            . "Regards,\n"
+            . "*Modormc*";
+
+        $waUrl = "https://wa.me/" . $mobile . "?text=" . urlencode($message);
+
+        return response()->json([
+            'url' => $waUrl
+        ]);
     }
 }

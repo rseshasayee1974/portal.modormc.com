@@ -12,12 +12,18 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
+
 class ConcreteGradeController extends Controller
 {
+    use AuthorizesModule;
+
+    protected string $module = 'concrete_grades';
   
 
     public function index()
     {
+        $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
 
         return Inertia::render('ConcreteGrades/Index', [
@@ -32,6 +38,7 @@ class ConcreteGradeController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $plantId = session('active_plant_id');
 
         $validated = $request->validate([
@@ -76,6 +83,7 @@ class ConcreteGradeController extends Controller
 
     public function update(Request $request, ConcreteGrade $concretegrade)
     {
+        $this->authorizeModule('edit');
         $plantId = session('active_plant_id');
 
         $validated = $request->validate([
@@ -154,6 +162,7 @@ class ConcreteGradeController extends Controller
 
     public function destroy(ConcreteGrade $concretegrade)
     {
+        $this->authorizeModule('delete');
         try {
             $this->service->delete($concretegrade);
             return back()->with('success', 'Concrete Grade master deleted successfully.');

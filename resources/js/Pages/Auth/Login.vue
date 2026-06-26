@@ -11,11 +11,11 @@ const props = defineProps({
     status: String,
     defaultLayout: {
         type: String,
-        default: 'centered'
+        default: 'split'
     }
 });
 
-const layout = ref(localStorage.getItem('login_layout') || props.defaultLayout || 'centered');
+const layout = ref(localStorage.getItem('login_layout') || 'split'  || props.defaultLayout);
 
 const setLayout = (val) => {
     layout.value = val;

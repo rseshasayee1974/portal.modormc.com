@@ -9,17 +9,22 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Http\Controllers\Concerns\GeneratesAccountingCode;
 
 class AccountsTypeController extends Controller
 {
     use GeneratesAccountingCode;
+    use AuthorizesModule;
+
+    protected string $module = 'account_types';
 
     /**
      * Display a listing of account types.
      */
     public function index()
     {
+        $this->authorizeModule('menu');
         $account_types = AccountsType::with(['account', 'parent'])
             ->where('plant_id', session('active_plant_id'))
             ->whereNull('deleted_at')
@@ -40,6 +45,7 @@ class AccountsTypeController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $entityId = session('active_entity_id');
 
         $validated = $request->validate([
@@ -94,6 +100,7 @@ class AccountsTypeController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $this->authorizeModule('edit');
         $validated = $request->validate([
             'account_id' => ['required', 'integer', 'exists:mm_accounts,id'],
             'title'      => ['required', 'string', 'max:255'],
@@ -121,6 +128,7 @@ class AccountsTypeController extends Controller
      */
     public function destroy($id)
     {
+        $this->authorizeModule('delete');
         $account_type = AccountsType::findOrFail($id);
 
         $account_type->deleted_by = Auth::id();

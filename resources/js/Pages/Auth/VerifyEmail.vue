@@ -52,7 +52,7 @@ const resendEmail = async () => {
                 <div class="relative z-10 flex items-center gap-3">
                     <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-black tracking-tight text-slate-950">MM</div>
                     <div>
-                        <p class="text-sm font-semibold">Modo Mines</p>
+                        <p class="text-sm font-semibold">Modo Rmc</p>
                         <p class="text-xs text-white/50">Account Activation</p>
                     </div>
                 </div>
@@ -89,7 +89,7 @@ const resendEmail = async () => {
                     <div class="mb-8 flex items-center gap-3 lg:hidden">
                         <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-950 text-sm font-black tracking-tight text-white dark:bg-white dark:text-slate-950">MM</div>
                         <div>
-                            <p class="text-sm font-semibold">Modo Mines</p>
+                            <p class="text-sm font-semibold">Modo Rmc</p>
                             <p class="text-xs text-slate-500 dark:text-slate-400">Account Activation</p>
                         </div>
                     </div>

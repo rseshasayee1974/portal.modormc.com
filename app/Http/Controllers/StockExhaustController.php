@@ -16,7 +16,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class StockExhaustController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'machines';
+    protected string $module = 'stock_exhausts';
 
     public function index()
     {

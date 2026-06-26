@@ -62,8 +62,8 @@ class PermissionSeeder extends Seeder
             'TAX' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'PRICE_LIST' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'QUOTATION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'CUSTOMER_PO' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'SALES_ORDER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
-            'WORK_ORDER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'PURCHASE_ORDER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'INVOICE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'PARTY_RATE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
@@ -78,9 +78,19 @@ class PermissionSeeder extends Seeder
             'MACHINE_SERVICE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'MAINTENANCE_REQUEST' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'STOCK_EXHAUST' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'STOCK' => ['VIEW'],
             'GPS_DEVICE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'GEOFENCE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'PERSONNEL' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
+            'DEPARTMENT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'DESIGNATION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'SHIFT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'ATTENDANCE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
+            'LEAVE_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'LEAVE_APPLICATION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE'],
+            'SALARY_COMPONENT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'PAYROLL_PERIOD' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'PAYSLIP' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'DRIVER' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'FUEL_LOG' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'SITE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
@@ -97,6 +107,7 @@ class PermissionSeeder extends Seeder
             'CURRENCY' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'STATE_CODE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'INVOICE_STATUS' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'PAYMENT_STATUS' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'PLAN' => ['VIEW', 'CREATE', 'UPDATE'],
             'SUBSCRIPTION_STATUS' => ['VIEW', 'CREATE', 'UPDATE'],
             'TERMS_CONDITION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE']
@@ -157,7 +168,7 @@ class PermissionSeeder extends Seeder
         $salesRole = Role::where('code', 'SALES_MANAGER')->first();
         if ($salesRole) {
             $salesPermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['QUOTATION', 'SALES_ORDER', 'INVOICE', 'PATRON', 'PRODUCT', 'SITE'])
+                return Str::startsWith($p, ['QUOTATION', 'SALES_ORDER', 'CUSTOMER_PO', 'INVOICE', 'PATRON', 'PRODUCT', 'SITE'])
                        || Str::endsWith($p, '.VIEW');
             });
             $salesRole->syncPermissions($salesPermissions);
@@ -177,7 +188,7 @@ class PermissionSeeder extends Seeder
         $tripOperatorRole = Role::where('code', 'TRIP_OPERATOR')->first();
         if ($tripOperatorRole) {
             $tripOperatorPermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['TRIP', 'WORK_ORDER', 'MACHINE', 'PERSONNEL', 'SITE', 'PATRON'])
+                return Str::startsWith($p, ['TRIP', 'SALES_ORDER', 'MACHINE', 'PERSONNEL', 'SITE', 'PATRON'])
                        || Str::contains($p, 'DASHBOARD.VIEW');
             });
             $tripOperatorRole->syncPermissions($tripOperatorPermissions);
@@ -200,6 +211,36 @@ class PermissionSeeder extends Seeder
                 return !Str::startsWith($p, ['PERMISSION', 'ROLE', 'FISCAL_YEAR', 'USER']);
             });
             $opsManagerRole->syncPermissions($opsPermissions);
+        }
+
+        // HR_MANAGER - Personnel and HRMS full access
+        $hrManagerRole = Role::where('code', 'HR_MANAGER')->first();
+        if ($hrManagerRole) {
+            $hrPermissions = array_filter($allPermissionNames, function($p) {
+                return Str::startsWith($p, [
+                    'PERSONNEL',
+                    'DEPARTMENT',
+                    'DESIGNATION',
+                    'SHIFT',
+                    'ATTENDANCE',
+                    'LEAVE_TYPE',
+                    'LEAVE_APPLICATION',
+                    'SALARY_COMPONENT',
+                    'PAYROLL_PERIOD',
+                    'PAYSLIP'
+                ]) || $p === 'USER.VIEW';
+            });
+            $hrManagerRole->syncPermissions($hrPermissions);
+        }
+
+        // FINANCE_MANAGER - Financials + Invoices + View basic masters
+        $financeManagerRole = Role::where('code', 'FINANCE_MANAGER')->first();
+        if ($financeManagerRole) {
+            $financePermissions = array_filter($allPermissionNames, function($p) {
+                return Str::startsWith($p, ['ACCOUNT', 'LEDGER', 'VOUCHER', 'INVOICE', 'PAYMENT', 'EXPENSE', 'PETTY_CASH', 'TAX', 'CURRENCY', 'BILLING'])
+                       || Str::endsWith($p, '.VIEW');
+            });
+            $financeManagerRole->syncPermissions($financePermissions);
         }
 
         // RE-FLUSH

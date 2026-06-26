@@ -10,13 +10,19 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
+
 class TermsConditionController extends Controller
 {
+    use AuthorizesModule;
+
+    protected string $module = 'terms_conditions';
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
         $user = Auth::user();
         if ($user->hasRole('Super Administrator')) {
             $allowedEntityIds = Entity::pluck('id')->toArray();
@@ -53,6 +59,7 @@ class TermsConditionController extends Controller
      */
     public function store(StoreTermsConditionRequest $request)
     {
+        $this->authorizeModule('create');
         $validated = $request->validated();
         
         TermsCondition::create(array_merge($validated, [
@@ -68,6 +75,7 @@ class TermsConditionController extends Controller
      */
     public function update(UpdateTermsConditionRequest $request, TermsCondition $termsCondition)
     {
+        $this->authorizeModule('edit');
         $validated = $request->validated();
 
         $termsCondition->update(array_merge($validated, [
@@ -82,6 +90,7 @@ class TermsConditionController extends Controller
      */
     public function destroy(TermsCondition $termsCondition)
     {
+        $this->authorizeModule('delete');
         // Tracker deletion fields
         $termsCondition->deleted_by = Auth::id();
         $termsCondition->save();

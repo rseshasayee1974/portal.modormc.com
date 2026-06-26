@@ -11,7 +11,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class MachineServiceController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'machines';
+    protected string $module = 'machine_services';
 
     public function index()
     {

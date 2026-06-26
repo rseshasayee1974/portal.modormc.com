@@ -9,7 +9,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class PayrollPeriodController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'personnel';
+    protected string $module = 'payroll_periods';
 
     public function index()
     {

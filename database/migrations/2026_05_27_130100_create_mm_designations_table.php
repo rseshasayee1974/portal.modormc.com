@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('mm_designations', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('plant_id')->constrained('mm_plants')->onDelete('cascade');
             $table->string('name');
             $table->string('code')->nullable();
             $table->decimal('min_salary', 12, 2)->nullable();

@@ -10,17 +10,14 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class DesignationController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'personnel';
+    protected string $module = 'designations';
 
     public function index()
     {
         $this->authorizeModule('menu');
 
-        $activePlantId = session('active_plant_id');
-
         return Inertia::render('Designations/Index', [
-            'designations' => Designation::where('plant_id', $activePlantId)
-                ->latest()
+            'designations' => Designation::orderBy('name', 'asc')
                 ->get(),
         ]);
     }
@@ -36,7 +33,6 @@ class DesignationController extends Controller
             'max_salary' => 'nullable|numeric|min:0',
         ]);
 
-        $validated['plant_id'] = session('active_plant_id');
 
         Designation::create($validated);
 

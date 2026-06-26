@@ -16,6 +16,7 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
+
 Route::get('/register', function () {
     return redirect()->route('login');
 })->name('register');
@@ -155,6 +156,7 @@ Route::middleware([
 
     // 5. Patrons & Personnel (Membership)
     Route::prefix('membership')->group(function () {
+        Route::get('users/{user}/whatsapp-verification', [\App\Http\Controllers\UserController::class, 'whatsappVerificationUrl'])->name('users.whatsapp-verification');
         Route::resource('users', \App\Http\Controllers\UserController::class);
         Route::resource('personnel', \App\Http\Controllers\PersonnelController::class);
         

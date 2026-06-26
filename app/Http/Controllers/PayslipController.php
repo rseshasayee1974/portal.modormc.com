@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\DB;
 class PayslipController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'personnel';
+    protected string $module = 'payslips';
 
     public function index()
     {

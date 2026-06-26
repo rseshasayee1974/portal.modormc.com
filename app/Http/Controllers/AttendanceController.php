@@ -13,7 +13,7 @@ use Illuminate\Validation\Rule;
 class AttendanceController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'personnel';
+    protected string $module = 'attendances';
 
     public function index()
     {

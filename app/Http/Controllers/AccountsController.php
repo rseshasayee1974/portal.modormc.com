@@ -7,11 +7,15 @@ use Inertia\Inertia;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Http\Controllers\Concerns\GeneratesAccountingCode;
 
 class AccountsController extends Controller
 {
     use GeneratesAccountingCode;
+    use AuthorizesModule;
+
+    protected string $module = 'accounts';
 
     protected function activeEntityId(): ?int
     {
@@ -23,6 +27,7 @@ class AccountsController extends Controller
      */
     public function index()
     {
+        $this->authorizeModule('menu');
         $entityId = $this->activeEntityId();
 
         $accounts = Accounts::query()
@@ -40,6 +45,7 @@ class AccountsController extends Controller
      */
     public function create()
     {
+        $this->authorizeModule('create');
         return redirect()->route('accounts.index');
     }
 
@@ -48,6 +54,7 @@ class AccountsController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'code'  => ['nullable', 'string', 'max:50'],
@@ -85,6 +92,7 @@ class AccountsController extends Controller
      */
     public function show(string $id)
     {
+        $this->authorizeModule('show');
                 $account = Accounts::findOrFail($id);
 
         return response()->json(['account' => $account]);
@@ -95,6 +103,7 @@ class AccountsController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        $this->authorizeModule('edit');
         $validated = $request->validate([
             'title'  => ['required', 'string', 'max:255'],
             'code'   => ['nullable', 'string', 'max:50'],
@@ -120,6 +129,7 @@ class AccountsController extends Controller
      */
     public function destroy(string $id)
     {
+        $this->authorizeModule('delete');
         $account = Accounts::findOrFail($id);
 
         $account->updated_by = Auth::id();

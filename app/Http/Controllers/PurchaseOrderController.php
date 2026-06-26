@@ -190,7 +190,7 @@ class PurchaseOrderController extends Controller
             $discountVal = (float) $item->discount_amount;
             $lineSubtotalBeforeDiscount = $qty * $priceUnit;
             
-            if ($discountType === 'percentage') {
+            if ($discountType === '%') {
                 $lineDiscount = ($lineSubtotalBeforeDiscount * $discountVal) / 100;
             } else {
                 $orderedQty = (float) $item->product_quantity;

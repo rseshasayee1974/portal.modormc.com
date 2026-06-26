@@ -11,17 +11,14 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class DepartmentController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'personnel'; // uses personnel permissions
+    protected string $module = 'departments';
 
     public function index()
     {
         $this->authorizeModule('menu');
 
-        $activePlantId = session('active_plant_id');
-
         return Inertia::render('Departments/Index', [
-            'departments' => Department::where('plant_id', $activePlantId)
-                ->latest()
+            'departments' => Department::orderBy('name', 'asc')
                 ->get(),
         ]);
     }
@@ -35,7 +32,6 @@ class DepartmentController extends Controller
             'code' => 'nullable|string|max:50'
         ]);
 
-        $validated['plant_id'] = session('active_plant_id');
 
         Department::create($validated);
 

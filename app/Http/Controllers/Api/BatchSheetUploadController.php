@@ -13,6 +13,7 @@ use App\Models\Personnel;
 use App\Models\Product;
 use App\Models\WorkOrder;
 use App\Jobs\ProcessBatchSheetJob;
+use App\Models\SalesOrder;
 use App\Services\BatchSheet\UploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -92,7 +93,7 @@ class BatchSheetUploadController extends Controller
             return response()->json(['error' => 'Upload record not found.'], 404);
         }
 
-        // Map status to progress percentage
+        // Map status to progress %
         $progressMap = [
             BatchSheetUpload::STATUS_UPLOADED => 10,
             BatchSheetUpload::STATUS_VALIDATING => 25,
@@ -147,7 +148,7 @@ class BatchSheetUploadController extends Controller
             });
         $products = Product::where('plant_id', $plantId)->get(['id', 'title']);
         
-        $workOrders = WorkOrder::where('plant_id', $plantId)
+        $workOrders = SalesOrder::query()->where('plant_id', $plantId)
             ->get(['id', 'order_no', 'produced_qty', 'total_qty']);
 
         return response()->json([

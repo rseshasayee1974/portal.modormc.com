@@ -40,7 +40,6 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'billed_date' => 'nullable|date',
             'delivery_date' => 'nullable|date',
             'due_date' => 'nullable|date',
-            'currency_id' => 'sometimes|exists:mm_currencies,id',
             'exchange_rate' => 'sometimes|numeric|min:0',
             'amount_untaxed' => 'sometimes|numeric',
             'amount_tax' => 'sometimes|numeric',
@@ -61,7 +60,7 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
             'items.*.product_quantity' => 'required_with:items|numeric|gt:0',
             'items.*.unit_price' => 'required_with:items|numeric|min:0',
-            'items.*.discount_type' => 'nullable|string|in:percentage,fixed',
+            'items.*.discount_type' => 'nullable|string|in:%,₹',
             'items.*.discount_amount' => 'nullable|numeric|min:0',
             'items.*.total_discount' => 'nullable|numeric|min:0',
             'items.*.description' => 'nullable|string',
@@ -110,9 +109,6 @@ class UpdatePurchaseOrderRequest extends FormRequest
     protected function prepareForValidation()
     {
         $merge = [];
-        if ($this->has('currency_id') && ($this->input('currency_id') === null || $this->input('currency_id') === '')) {
-            $merge['currency_id'] = 1;
-        }
         if ($this->has('exchange_rate') && ($this->input('exchange_rate') === null || $this->input('exchange_rate') === '')) {
             $merge['exchange_rate'] = 1.0;
         }

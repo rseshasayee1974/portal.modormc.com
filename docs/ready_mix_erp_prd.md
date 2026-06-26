@@ -184,7 +184,7 @@ graph LR
 - **Permissions**: Store Keeper (Write), Purchase Manager (Read).
 - **Reports**: Daily Stock Ledger, Silo Sensor Sync Logs, Variance Report.
 - **Notifications**: "Sand Stock Critically Low", "Cement Silo 2 Level Alert".
-- **KPIs**: Stock Turn Rate, Inventory Discrepancy Percentage (System vs Physical Count).
+- **KPIs**: Stock Turn Rate, Inventory Discrepancy % (System vs Physical Count).
 - **DB Tables**: `mm_inventory_ledgers`, `mm_silo_sensors`, `mm_grn_records`.
 - **APIs**: `GET /api/v1/inventory/silo-levels`, `POST /api/v1/inventory/grn`.
 - **Business Rules**: Silo levels must be calibrated with daily physical measurements to correct sensor drifts.

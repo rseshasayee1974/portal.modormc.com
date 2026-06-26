@@ -3517,7 +3517,7 @@ CREATE TABLE `mm_salary_components` (
   `plant_id` bigint unsigned NOT NULL,
   `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `type` enum('earning','deduction') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `calculation_type` enum('fixed','percentage','formula','attendance_based') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `calculation_type` enum('₹','%','formula','attendance_based') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `default_value` decimal(12,2) NOT NULL DEFAULT '0.00',
   `is_taxable` tinyint(1) NOT NULL DEFAULT '1',
   `is_statutory` tinyint(1) NOT NULL DEFAULT '0',

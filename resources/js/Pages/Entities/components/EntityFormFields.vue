@@ -83,7 +83,7 @@ watch(() => props.form.errors, (errors) => {
                 <span v-if="form.bank_accounts?.length" class="ml-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[8px] font-black">{{ form.bank_accounts.length }}</span>
             </Tab>
             <Tab value="4">
-                <i class="pi pi-percentage mr-2 text-xs"></i>Taxes
+                <i class="pi pi-% mr-2 text-xs"></i>Taxes
                 <span v-if="form.taxes?.length" class="ml-1.5 flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[8px] font-black">{{ form.taxes.length }}</span>
             </Tab>
         </TabList>
@@ -392,7 +392,7 @@ watch(() => props.form.errors, (errors) => {
                         @click="addTax"
                     />
                     <div v-if="!form.taxes?.length" class="text-center py-6 text-gray-400 text-sm">
-                        <i class="pi pi-percentage text-2xl mb-2 block opacity-30"></i>
+                        <i class="pi pi-% text-2xl mb-2 block opacity-30"></i>
                         No tax information added yet.
                     </div>
                 </div>

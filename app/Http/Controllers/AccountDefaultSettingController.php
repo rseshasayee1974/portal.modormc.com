@@ -26,49 +26,56 @@ class AccountDefaultSettingController extends Controller
         ]);
     }
 
-   public function store(Request $request)
-{
-    $plantId = session('active_plant_id');
+    public function store(Request $request)
+    {
+        $plantId = session('active_plant_id');
 
-    $validated = $request->validate([
-        'settings' => 'nullable|array',
-  
-        // 'settings.*.module_id' => 'required|exists:mm_modules,id',
-        // 'settings.*.setting_key' => 'required|string',
-        // 'settings.*.ledger_id' => 'nullable|exists:mm_ledgers,id',
-    ]);
+        $validated = $request->validate([
+            'settings' => 'nullable|array',
+        ]);
 
-    DB::transaction(function () use ($plantId, $validated) {
+        DB::transaction(function () use ($plantId, $validated) {
+            foreach (($validated['settings'] ?? []) as $item) {
+                $moduleId = $item['module_id'];
+                $settingKey = $item['setting_key'];
+                $ledgerId = $item['ledger_id'] ?? null;
 
-        
-        foreach (($validated['settings'] ?? []) as $item) {
+                $module = Module::findOrFail($moduleId);
 
-            // Skip empty ledger selections
-            if (empty($item['ledger_id'])) {
-                continue;
+                // Find existing record, including soft-deleted ones
+                $setting = AccountDefaultSetting::withTrashed()
+                    ->where([
+                        'plant_id' => $plantId,
+                        'module_id' => $moduleId,
+                        'setting_key' => $settingKey,
+                    ])
+                    ->first();
+
+                if ($setting) {
+                    if ($setting->trashed()) {
+                        $setting->restore();
+                    }
+                    $setting->update([
+                        'module_name' => $module->module_name,
+                        'ledger_id' => $ledgerId,
+                        'is_active' => true,
+                    ]);
+                } else {
+                    AccountDefaultSetting::create([
+                        'plant_id' => $plantId,
+                        'module_id' => $moduleId,
+                        'setting_key' => $settingKey,
+                        'module_name' => $module->module_name,
+                        'ledger_id' => $ledgerId,
+                        'is_active' => true,
+                    ]);
+                }
             }
+        });
 
-            $module = Module::findOrFail($item['module_id']);
-
-            AccountDefaultSetting::updateOrCreate(
-                [
-                    'plant_id' => $plantId,
-                    'module_id' => $item['module_id'],
-                    'setting_key' => $item['setting_key'],
-                ],
-                [
-                    'module_name' => $module->module_name,
-                    'ledger_id' => $item['ledger_id'],
-                    'is_active' => true,
-                ]
-            );
-        }
-        
-    });
-
-    return redirect()->back()->with(
-        'success',
-        'Accounting settings updated successfully.'
-    );
-}
+        return redirect()->back()->with(
+            'success',
+            'Accounting settings updated successfully.'
+        );
+    }
 }

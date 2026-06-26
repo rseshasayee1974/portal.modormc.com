@@ -15,7 +15,7 @@ class DispatchController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'work_orders';
+    protected string $module = 'sales_orders';
 
     private function mapNestedFields(?array $source, array $fields): array
     {

@@ -19,7 +19,7 @@ export default defineConfig({
             },
         }),
         visualizer({
-            open: true,
+            open: false,
             gzipSize: true,
             filename: 'stats.html',
         }),

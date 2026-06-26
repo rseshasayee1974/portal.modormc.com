@@ -11,10 +11,16 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
+
 class SiteController extends Controller
 {
+    use AuthorizesModule;
+
+    protected string $module = 'sites';
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
 
         $query = Site::query()
@@ -62,6 +68,7 @@ class SiteController extends Controller
 
     public function store(StoreSiteRequest $request)
     {
+        $this->authorizeModule('create');
         $payload = $request->validated();
         $user = Auth::user();
         // $isPrivileged = $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Administrator');
@@ -89,6 +96,7 @@ class SiteController extends Controller
 
     public function update(UpdateSiteRequest $request, Site $site)
     {
+        $this->authorizeModule('edit');
         $payload = $request->validated();
         $user = Auth::user();
         $isPrivileged = $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Administrator');
@@ -108,6 +116,7 @@ class SiteController extends Controller
 
     public function destroy(Site $site)
     {
+        $this->authorizeModule('delete');
         if ($site->is_in_use) {
             return redirect()->back()->with('error', 'Site cannot be deleted because it is in use by other records (Work Orders, Quotations, or Dispatches).');
         }

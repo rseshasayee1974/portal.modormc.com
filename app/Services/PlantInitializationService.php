@@ -57,6 +57,7 @@ class PlantInitializationService
 
         try {
             return DB::transaction(function () use ($plant) {
+                $this->seedModules();
                 $this->seedAccounting($plant);
                 $this->seedTaxes($plant);
                 $this->seedAccountDefaultSettings($plant);
@@ -66,7 +67,6 @@ class PlantInitializationService
                 $this->seedPatron($plant);
                 $this->seedSite($plant);
                 $this->seedTemplates($plant);
-                // $this->seedModules();
                 // $this->seedVoucherTypes($plant);
                 // $this->seedPaymentMethods($plant);
                 $this->seedCustomSettings($plant);
@@ -104,11 +104,13 @@ class PlantInitializationService
 
         $password = Str::random(8);
         
-        $user = User::updateOrCreate(
+        $user = $this->updateOrCreateWithTrashed(
+            User::class,
             ['email' => $plant->email_address],
             [
                 'username' => $plant->name . ' Admin',
                 'password' => Hash::make($password),
+                'mobile' => $plant->mobile,
                 'is_active'=>1,
                 'is_otp_enabled'=>0,
                 'created_at'=> now(),
@@ -117,19 +119,22 @@ class PlantInitializationService
             ]
         );
 
-        $role = Role::where('name', 'Super Admin')->first();
+        $role = Role::where('name', 'Administrator')->first();
         if ($role) {
             $user->assignRole($role);
         }
 
-        EntityUser::updateOrCreate([
-            'user_id' => $user->id,
-            'entity_id' => $plant->entity_id,
-            'plant_id' => $plant->id,
-        ], [
-            'role_id' => $role ? $role->id : 3, // Defaulting to 3 if role not found
-            'created_by' => Auth::id() ?? 1,
-        ]);
+        $this->updateOrCreateWithTrashed(
+            EntityUser::class,
+            [
+                'user_id' => $user->id,
+                'entity_id' => $plant->entity_id,
+                'plant_id' => $plant->id,
+            ], [
+                'role_id' => $role ? $role->id : 3, // Defaulting to 3 if role not found
+                'created_by' => Auth::id() ?? 1,
+            ]
+        );
 
         // Email sending is now handled by a separate method
         // to allow manual triggering from the UI.
@@ -150,6 +155,29 @@ class PlantInitializationService
         } catch (\Exception $e) {
             \Log::error("Failed to send plant initialization email: " . $e->getMessage());
             return false;
+        }
+    }
+
+    private function seedModules()
+    {
+        $modules = [
+            ['module_name' => 'Invoice', 'display_value' => 'Sales Invoicing'],
+            ['module_name' => 'Purchase', 'display_value' => 'Purchase Billing'],
+            ['module_name' => 'Payment', 'display_value' => 'Payments'],
+            ['module_name' => 'Receipt', 'display_value' => 'Receipts'],
+            ['module_name' => 'Inventory', 'display_value' => 'Inventory Management'],
+            ['module_name' => 'Patron', 'display_value' => 'Patron Ledgers'],
+        ];
+
+        foreach ($modules as $module) {
+            $this->updateOrCreateWithTrashed(
+                Module::class,
+                ['module_name' => $module['module_name']],
+                [
+                    'display_value' => $module['display_value'],
+                    'is_active' => true,
+                ]
+            );
         }
     }
 
@@ -237,6 +265,7 @@ class PlantInitializationService
                         'code' => '4301',
                         'ledgers' => [
                             ['code' => '4302', 'title' => 'Other Income', 'is_pnl' => true],
+                            ['code' => '4303', 'title' => 'Discount Received', 'is_pnl' => true],
                         ]
                     ],
                 ]
@@ -271,7 +300,8 @@ class PlantInitializationService
         ];
 
         foreach ($schema as $groupTitle => $groupData) {
-            $account = Accounts::updateOrCreate(
+            $account = $this->updateOrCreateWithTrashed(
+                Accounts::class,
                 ['code' => $groupData['code'], 'is_system' => true],
                 [
                     'entity_id' => $plant->entity_id,
@@ -284,7 +314,8 @@ class PlantInitializationService
             );
 
             foreach ($groupData['subgroups'] as $subGroupTitle => $subGroupData) {
-                $accountType = AccountsType::updateOrCreate(
+                $accountType = $this->updateOrCreateWithTrashed(
+                    AccountsType::class,
                     ['code' => $subGroupData['code'], 'plant_id' => $plant->id],
                     [
                         'entity_id'  => $plant->entity_id,
@@ -298,7 +329,8 @@ class PlantInitializationService
                 );
 
                 foreach ($subGroupData['ledgers'] as $ledgerData) {
-                    Ledger::updateOrCreate(
+                    $this->updateOrCreateWithTrashed(
+                        Ledger::class,
                         ['code' => $ledgerData['code'], 'plant_id' => $plant->id],
                         [
                             'entity_id'       => $plant->entity_id,
@@ -319,73 +351,258 @@ class PlantInitializationService
 
     private function seedTaxes(Plant $plant)
     {
-        $slabs = [0, 5, 12, 18, 28];
+        // --- GST Slabs (Sales) ---
+        $slabs = [ 5, 12, 18, 28];
+
         foreach ($slabs as $rate) {
             if ($rate == 0) {
-                Tax::firstOrCreate([
+                // Create both Exempt and Nil Rated for 0%
+                $types = ['Exempt', 'Nil Rated'];
+                foreach ($types as $type) {
+                    $this->updateOrCreateWithTrashed(
+                        Tax::class,
+                        [
+                            'plant_id' => $plant->id,
+                            'tax_name' => "GST $rate% ($type) (Sales)",
+                        ], [
+                            'entity_id' => $plant->entity_id,
+                            'tax_type' => 'sales',
+                            'tax_group' => 'GST',
+                            'tax_rate' => $rate,
+                            'parent_id' => null,
+                            'is_system' => true,
+                            'status' => 1,
+                        ]
+                    );
+                }
+                continue;
+            }
+
+            // Root GST (Combined)
+            $gstRoot = $this->updateOrCreateWithTrashed(
+                Tax::class,
+                [
                     'plant_id' => $plant->id,
-                    'tax_name' => "GST $rate% (Exempt) (Sales)",
+                    'tax_name' => "GST $rate% (Sales)",
                 ], [
                     'entity_id' => $plant->entity_id,
                     'tax_type' => 'sales',
                     'tax_group' => 'GST',
                     'tax_rate' => $rate,
+                    'parent_id' => null,
                     'is_system' => true,
                     'status' => 1,
-                ]);
+                ]
+            );
+
+            // CGST (Child)
+            $this->updateOrCreateWithTrashed(
+                Tax::class,
+                [
+                    'plant_id' => $plant->id,
+                    'tax_name' => "CGST " . ($rate/2) . "%",
+                ], [
+                    'entity_id' => $plant->entity_id,
+                    'tax_type' => 'sales',
+                    'tax_group' => 'CGST',
+                    'tax_rate' => $rate/2,
+                    'parent_id' => $gstRoot->id,
+                    'is_system' => true,
+                    'status' => 1,
+                ]
+            );
+
+            // SGST (Child)
+            $this->updateOrCreateWithTrashed(
+                Tax::class,
+                [
+                    'plant_id' => $plant->id,
+                    'tax_name' => "SGST " . ($rate/2) . "%",
+                ], [
+                    'entity_id' => $plant->entity_id,
+                    'tax_type' => 'sales',
+                    'tax_group' => 'SGST',
+                    'tax_rate' => $rate/2,
+                    'parent_id' => $gstRoot->id,
+                    'is_system' => true,
+                    'status' => 1,
+                ]
+            );
+
+            // IGST (Separate Parent)
+            $this->updateOrCreateWithTrashed(
+                Tax::class,
+                [
+                    'plant_id' => $plant->id,
+                    'tax_name' => "IGST $rate%",
+                ], [
+                    'entity_id' => $plant->entity_id,
+                    'tax_type' => 'sales',
+                    'tax_group' => 'IGST',
+                    'tax_rate' => $rate,
+                    'parent_id' => null,
+                    'is_system' => true,
+                    'status' => 1,
+                ]
+            );
+        }
+
+        // --- GST Slabs (Purchase) ---
+        foreach ($slabs as $rate) {
+            if ($rate == 0) {
+                $types = ['Exempt', 'Nil Rated'];
+                foreach ($types as $type) {
+                    $this->updateOrCreateWithTrashed(
+                        Tax::class,
+                        [
+                            'plant_id' => $plant->id,
+                            'tax_name' => "GST $rate% ($type) (Purchase)",
+                        ], [
+                            'entity_id' => $plant->entity_id,
+                            'tax_type' => 'purchase',
+                            'tax_group' => 'GST',
+                            'tax_rate' => $rate,
+                            'parent_id' => null,
+                            'is_system' => true,
+                            'status' => 1,
+                        ]
+                    );
+                }
                 continue;
             }
 
-            $gstRoot = Tax::updateOrCreate([
-                'plant_id' => $plant->id,
-                'tax_name' => "GST $rate% (Sales)",
-            ], [
-                'entity_id' => $plant->entity_id,
-                'tax_type' => 'sales',
-                'tax_group' => 'GST',
-                'tax_rate' => $rate,
-                'is_system' => true,
-                'status' => 1,
-            ]);
+            $rootPurchase = $this->updateOrCreateWithTrashed(
+                Tax::class,
+                [
+                    'plant_id' => $plant->id,
+                    'tax_name' => "GST $rate% (Purchase)",
+                ], [
+                    'entity_id' => $plant->entity_id,
+                    'tax_type' => 'purchase',
+                    'tax_group' => 'GST',
+                    'tax_rate' => $rate,
+                    'parent_id' => null,
+                    'is_system' => true,
+                    'status' => 1,
+                ]
+            );
 
-            Tax::updateOrCreate([
-                'plant_id' => $plant->id,
-                'tax_name' => "CGST " . ($rate/2) . "%",
-            ], [
-                'entity_id' => $plant->entity_id,
-                'tax_type' => 'sales',
-                'tax_group' => 'CGST',
-                'tax_rate' => $rate/2,
-                'parent_id' => $gstRoot->id,
-                'is_system' => true,
-                'status' => 1,
-            ]);
+            $this->updateOrCreateWithTrashed(
+                Tax::class,
+                [
+                    'plant_id' => $plant->id,
+                    'tax_name' => "CGST " . ($rate/2) . "% (Purchase)",
+                ], [
+                    'entity_id' => $plant->entity_id,
+                    'tax_type' => 'purchase',
+                    'tax_group' => 'CGST',
+                    'tax_rate' => $rate/2,
+                    'parent_id' => $rootPurchase->id,
+                    'is_system' => true,
+                    'status' => 1,
+                ]
+            );
 
-            Tax::updateOrCreate([
-                'plant_id' => $plant->id,
-                'tax_name' => "SGST " . ($rate/2) . "%",
-            ], [
-                'entity_id' => $plant->entity_id,
-                'tax_type' => 'sales',
-                'tax_group' => 'SGST',
-                'tax_rate' => $rate/2,
-                'parent_id' => $gstRoot->id,
-                'is_system' => true,
-                'status' => 1,
-            ]);
+            $this->updateOrCreateWithTrashed(
+                Tax::class,
+                [
+                    'plant_id' => $plant->id,
+                    'tax_name' => "SGST " . ($rate/2) . "% (Purchase)",
+                ], [
+                    'entity_id' => $plant->entity_id,
+                    'tax_type' => 'purchase',
+                    'tax_group' => 'SGST',
+                    'tax_rate' => $rate/2,
+                    'parent_id' => $rootPurchase->id,
+                    'is_system' => true,
+                    'status' => 1,
+                ]
+            );
 
-            Tax::updateOrCreate([
-                'plant_id' => $plant->id,
-                'tax_name' => "IGST $rate%",
-            ], [
-                'entity_id' => $plant->entity_id,
-                'tax_type' => 'sales',
-                'tax_group' => 'IGST',
-                'tax_rate' => $rate,
-                'is_system' => true,
-                'status' => 1,
-            ]);
+            // IGST Purchase (Separate Parent)
+            $this->updateOrCreateWithTrashed(
+                Tax::class,
+                [
+                    'plant_id' => $plant->id,
+                    'tax_name' => "IGST $rate% (Purchase)",
+                ], [
+                    'entity_id' => $plant->entity_id,
+                    'tax_type' => 'purchase',
+                    'tax_group' => 'IGST',
+                    'tax_rate' => $rate,
+                    'parent_id' => null,
+                    'is_system' => true,
+                    'status' => 1,
+                ]
+            );
         }
+
+        // --- TDS Slabs ---
+        $tdsSlabs = [
+            ['name' => 'Rent', 'rate' => 10.00],
+            ['name' => 'Contractor', 'rate' => 1.00],
+            ['name' => 'Professional', 'rate' => 2.00],
+            ['name' => 'Purchase of Goods (194Q)', 'rate' => 0.10],
+        ];
+
+        foreach ($tdsSlabs as $tds) {
+            $this->updateOrCreateWithTrashed(
+                Tax::class,
+                [
+                    'plant_id' => $plant->id,
+                    'tax_name' => "TDS {$tds['rate']}% ({$tds['name']})",
+                ], [
+                    'entity_id' => $plant->entity_id,
+                    'tax_type' => 'purchase',
+                    'tax_group' => 'TDS',
+                    'tax_rate' => $tds['rate'],
+                    'parent_id' => null,
+                    'is_system' => true,
+                    'status' => 1,
+                ]
+            );
+        }
+
+        // --- TCS Slabs ---
+        $tcsSlabs = [
+            ['name' => 'Sale of Goods (206C 1H)', 'rate' => 0.10],
+            ['name' => 'Scrap', 'rate' => 1.00],
+        ];
+
+        foreach ($tcsSlabs as $tcs) {
+            $this->updateOrCreateWithTrashed(
+                Tax::class,
+                [
+                    'plant_id' => $plant->id,
+                    'tax_name' => "TCS {$tcs['rate']}% ({$tcs['name']})",
+                ], [
+                    'entity_id' => $plant->entity_id,
+                    'tax_type' => 'sales',
+                    'tax_group' => 'TCS',
+                    'tax_rate' => $tcs['rate'],
+                    'parent_id' => null,
+                    'is_system' => true,
+                    'status' => 1,
+                ]
+            );
+        }
+
+        // --- CESS ---
+        $this->updateOrCreateWithTrashed(
+            Tax::class,
+            [
+                'plant_id' => $plant->id,
+                'tax_name' => "Compensation Cess 1%",
+            ], [
+                'entity_id' => $plant->entity_id,
+                'tax_type' => 'sales',
+                'tax_group' => 'CESS',
+                'tax_rate' => 1.00,
+                'parent_id' => null,
+                'is_system' => true,
+                'status' => 1,
+            ]
+        );
     }
 
     private function seedAccountDefaultSettings(Plant $plant)
@@ -399,6 +616,7 @@ class PlantInitializationService
                 'shipping_account'  => 'Freight & Forwarding',
                 'round_off_account' => 'Round Off Account',
                 'adjustment_account'=> 'Adjustment Account',
+                'tds_receivable'    => 'TDS Receivable',
             ],
             'Purchase' => [
                 'purchase_account'  => 'Purchase Account',
@@ -407,6 +625,7 @@ class PlantInitializationService
                 'igst_input'        => 'Input IGST',
                 'shipping_account'  => 'Freight & Forwarding',
                 'round_off_account' => 'Round Off Account',
+                'tds_payable'       => 'TDS Payable',
             ],
             'Payment' => [
                 'cash_account'      => 'Cash in Hand',
@@ -416,7 +635,7 @@ class PlantInitializationService
             'Receipt' => [
                 'cash_account'      => 'Cash in Hand',
                 'bank_account'      => 'Main Bank Account',
-                'discount_received' => 'Indirect Income',
+                'discount_received' => 'Discount Received',
             ],
             'Patron' => [
                 'debit_ledger'      => 'Sundry Debtors',
@@ -434,7 +653,8 @@ class PlantInitializationService
                     ->first();
 
                 if ($ledger) {
-                    AccountDefaultSetting::updateOrCreate(
+                    $this->updateOrCreateWithTrashed(
+                        AccountDefaultSetting::class,
                         [
                             'plant_id'    => $plant->id,
                             'module_id'   => $module->id,
@@ -459,15 +679,18 @@ class PlantInitializationService
         $bagUnit = ProductUnit::where('unit_code', 'BAG')->first() ?? ProductUnit::create(['unit_name' => 'BAGS', 'unit_code' => 'BAG', 'is_system' => true, 'status' => 1]);
         $nosUnit = ProductUnit::where('unit_code', 'NOS')->first() ?? ProductUnit::create(['unit_name' => 'NUMBERS', 'unit_code' => 'NOS', 'is_system' => true, 'status' => 1]);
 
-        $rmcCategory = ProductCategory::updateOrCreate([
-            'plant_id' => $plant->id,
-            'name' => 'READY MIX CONCRETE',
-        ], [
-            'entity_id' => $plant->entity_id,
-            'code' => 'RMC',
-            'is_system' => true,
-            'status' => 1,
-        ]);
+        $rmcCategory = $this->updateOrCreateWithTrashed(
+            ProductCategory::class,
+            [
+                'plant_id' => $plant->id,
+                'name' => 'READY MIX CONCRETE',
+            ], [
+                'entity_id' => $plant->entity_id,
+                'code' => 'RMC',
+                'is_system' => true,
+                'status' => 1,
+            ]
+        );
 
         $categories = [
             'SAND' => '1',
@@ -481,29 +704,35 @@ class PlantInitializationService
 
         $categoryModels = [];
         foreach ($categories as $name => $code) {
-            $categoryModels[$name] = ProductCategory::updateOrCreate([
-                'plant_id' => $plant->id,
-                'name' => $name,
-            ], [
-                'entity_id' => $plant->entity_id,
-                'code' => $code,
-                'is_system' => true,
-                'status' => 1,
-            ]);
+            $categoryModels[$name] = $this->updateOrCreateWithTrashed(
+                ProductCategory::class,
+                [
+                    'plant_id' => $plant->id,
+                    'name' => $name,
+                ], [
+                    'entity_id' => $plant->entity_id,
+                    'code' => $code,
+                    'is_system' => true,
+                    'status' => 1,
+                ]
+            );
         }
 
-        Product::updateOrCreate([
-            'plant_id' => $plant->id,
-            'title' => 'Concrete',
-        ], [
-            'entity_id' => $plant->entity_id,
-            'category_id' => $rmcCategory->id,
-            'unit_id' => $m3Unit->id,
-            'product_type' =>'Purchase',
-            'code' => 'CONC-001',
-            'is_system' => true,
-            'status' => 1,
-        ]);
+        $this->updateOrCreateWithTrashed(
+            Product::class,
+            [
+                'plant_id' => $plant->id,
+                'title' => 'Concrete',
+            ], [
+                'entity_id' => $plant->entity_id,
+                'category_id' => $rmcCategory->id,
+                'unit_id' => $m3Unit->id,
+                'product_type' =>'Purchase',
+                'code' => 'CONC-001',
+                'is_system' => true,
+                'status' => 1,
+            ]
+        );
 
         $products = [
             ['title' => 'Cement OPC 53 Grade', 'cat' => 'CEMENT', 'code' => 'CMT-001'],
@@ -517,18 +746,21 @@ class PlantInitializationService
         ];
 
         foreach ($products as $p) {
-            Product::updateOrCreate([
-                'plant_id' => $plant->id,
-                'title' => $p['title'],
-            ], [
-                'entity_id' => $plant->entity_id,
-                'category_id' => $categoryModels[$p['cat']]->id,
-                'unit_id' => $kgUnit->id,
-                'code' => $p['code'],
-                  'product_type' =>'Purchase',
-                'is_system' => true,
-                'status' => 1,
-            ]);
+            $this->updateOrCreateWithTrashed(
+                Product::class,
+                [
+                    'plant_id' => $plant->id,
+                    'title' => $p['title'],
+                ], [
+                    'entity_id' => $plant->entity_id,
+                    'category_id' => $categoryModels[$p['cat']]->id,
+                    'unit_id' => $kgUnit->id,
+                    'code' => $p['code'],
+                    'product_type' =>'Purchase',
+                    'is_system' => true,
+                    'status' => 1,
+                ]
+            );
         }
     }
 
@@ -536,12 +768,15 @@ class PlantInitializationService
     {
         $types = ['Truck','Batching Plant', 'Transit Mixer', 'Concrete Pump', 'Loader', 'DG Set'];
         foreach ($types as $type) {
-            MachineType::updateOrCreate([
-                'plant_id' => $plant->id,
-                'name' => $type,
-            ], [
-                'is_system' => true,
-            ]);
+            $this->updateOrCreateWithTrashed(
+                MachineType::class,
+                [
+                    'plant_id' => $plant->id,
+                    'name' => $type,
+                ], [
+                    'is_system' => true,
+                ]
+            );
         }
     }
 
@@ -560,33 +795,39 @@ class PlantInitializationService
         ];
 
         foreach ($grades as $gradeName => $data) {
-            $grade = ConcreteGrade::updateOrCreate([
-                'plant_id' => $plant->id,
-                'name' => $gradeName,
-            ], [
-                'concrete_code' => "STD-$gradeName",
-                'concrete_ratio' => $data['ratio'],
-                'cement_ratio' => $data['cement'],
-                'sand_ratio' => $data['sand'],
-                'aggregate_ratio' => $data['aggregate'],
-                'is_system' => true,
-                'status' => 1,
-                'created_by' => Auth::id() ?? 1,
-            ]);
+            $grade = $this->updateOrCreateWithTrashed(
+                ConcreteGrade::class,
+                [
+                    'plant_id' => $plant->id,
+                    'name' => $gradeName,
+                ], [
+                    'concrete_code' => "STD-$gradeName",
+                    'concrete_ratio' => $data['ratio'],
+                    'cement_ratio' => $data['cement'],
+                    'sand_ratio' => $data['sand'],
+                    'aggregate_ratio' => $data['aggregate'],
+                    'is_system' => true,
+                    'status' => 1,
+                    'created_by' => Auth::id() ?? 1,
+                ]
+            );
 
             // Seed some default items for the grade
             $cement = Product::where('plant_id', $plant->id)->where('title', 'like', '%Cement%')->first();
             if ($cement) {
-                ConcreteGradeItem::updateOrCreate([
-                    'concrete_grade_id' => $grade->id,
-                    'product_id' => $cement->id,
-                    'plant_id' => $plant->id,
-                ], [
-                    'plant_id' => $plant->id,
-                    'quantity' => 300,
-                    'is_system' => true,
-                    'created_by' => Auth::id() ?? 1,
-                ]);
+                $this->updateOrCreateWithTrashed(
+                    ConcreteGradeItem::class,
+                    [
+                        'concrete_grade_id' => $grade->id,
+                        'product_id' => $cement->id,
+                        'plant_id' => $plant->id,
+                    ], [
+                        'plant_id' => $plant->id,
+                        'quantity' => 300,
+                        'is_system' => true,
+                        'created_by' => Auth::id() ?? 1,
+                    ]
+                );
             }
         }
 
@@ -598,72 +839,87 @@ class PlantInitializationService
         }
 
         $concrete_grade = ConcreteGrade::where('plant_id', $plant->id)->first();
-        $mix = MixDesign::updateOrCreate([
-            'concrete_grade_id' => $concrete_grade->id,
-            'plant_id' => $plant->id,
-            'design_name' => 'Default M25 Design',
-        ], [
-            'partner_id' => $patron->id,
-            'design_code' => 'DEF-M25',
-            'design_type' => 'M25',
-            'unit_id' => $m3UnitId,
-            'rate_per_qty' => 4500,
+        $mix = $this->updateOrCreateWithTrashed(
+            MixDesign::class,
+            [
+                'concrete_grade_id' => $concrete_grade->id,
+                'plant_id' => $plant->id,
+                'design_name' => 'Default M25 Design',
+            ], [
+                'partner_id' => $patron->id,
+                'design_code' => 'DEF-M25',
+                'design_type' => 'M25',
+                'unit_id' => $m3UnitId,
+                'rate_per_qty' => 4500,
                 'is_system' => true,
-            'created_by' => Auth::id() ?? 1,
-        ]);
+                'created_by' => Auth::id() ?? 1,
+            ]
+        );
     }
 
     private function seedPatron(Plant $plant)
     {
-        Patron::updateOrCreate([
-            'plant_id' => $plant->id,
-            'legal_name' => 'Default Customer',
-        ], [
-            'entity_id' => $plant->entity_id,
-            'code' => 'CUST-001',
-            'patron_type' => 'Customer', // The request said 'Customer, Vendor, Transport'
-            'is_system' => true,
-            'is_active' => true,
-            'created_by' => Auth::id() ?? 1,
-        ]);
+        $this->updateOrCreateWithTrashed(
+            Patron::class,
+            [
+                'plant_id' => $plant->id,
+                'legal_name' => 'Default Customer',
+            ], [
+                'entity_id' => $plant->entity_id,
+                'code' => 'CUST-001',
+                'patron_type' => 'Customer', // The request said 'Customer, Vendor, Transport'
+                'is_system' => true,
+                'is_active' => true,
+                'created_by' => Auth::id() ?? 1,
+            ]
+        );
 
-        Patron::updateOrCreate([
-            'plant_id' => $plant->id,
-            'legal_name' => 'Default Vendor',
-        ], [
-            'entity_id' => $plant->entity_id,
-            'code' => 'VEND-001',
-            'patron_type' => 'Vendor',
-            'is_system' => true,
-            'is_active' => true,
-            'created_by' => Auth::id() ?? 1,
-        ]);
+        $this->updateOrCreateWithTrashed(
+            Patron::class,
+            [
+                'plant_id' => $plant->id,
+                'legal_name' => 'Default Vendor',
+            ], [
+                'entity_id' => $plant->entity_id,
+                'code' => 'VEND-001',
+                'patron_type' => 'Vendor',
+                'is_system' => true,
+                'is_active' => true,
+                'created_by' => Auth::id() ?? 1,
+            ]
+        );
 
-        Patron::updateOrCreate([
-            'plant_id' => $plant->id,
-            'legal_name' => 'Default Transporter',
-        ], [
-            'entity_id' => $plant->entity_id,
-            'code' => 'TRANS-001',
-            'patron_type' => 'Transport',
-            'is_system' => true,
-            'is_active' => true,
-            'created_by' => Auth::id() ?? 1,
-        ]);
+        $this->updateOrCreateWithTrashed(
+            Patron::class,
+            [
+                'plant_id' => $plant->id,
+                'legal_name' => 'Default Transporter',
+            ], [
+                'entity_id' => $plant->entity_id,
+                'code' => 'TRANS-001',
+                'patron_type' => 'Transport',
+                'is_system' => true,
+                'is_active' => true,
+                'created_by' => Auth::id() ?? 1,
+            ]
+        );
     }
 
     private function seedSite(Plant $plant)
     {
-        Site::updateOrCreate([
-            'plant_id' => $plant->id,
-            'name' => 'Plant Site',
-            'type' => 'loading',
-        ], [
-            'code' => 'PSITE-001',
-            'is_system' => true,
-            'is_active' => true,
-            'created_by' => Auth::id() ?? 1,
-        ]);
+        $this->updateOrCreateWithTrashed(
+            Site::class,
+            [
+                'plant_id' => $plant->id,
+                'name' => 'Plant Site',
+                'type' => 'loading',
+            ], [
+                'code' => 'PSITE-001',
+                'is_system' => true,
+                'is_active' => true,
+                'created_by' => Auth::id() ?? 1,
+            ]
+        );
     }
 
     private function seedDepartments(Plant $plant)
@@ -677,7 +933,8 @@ class PlantInitializationService
         ];
 
         foreach ($departments as $dept) {
-            Department::updateOrCreate(
+            $this->updateOrCreateWithTrashed(
+                Department::class,
                 ['plant_id' => $plant->id, 'code' => $dept['code']],
                 [
                     'name'       => $dept['name'],
@@ -699,7 +956,8 @@ class PlantInitializationService
         ];
 
         foreach ($designations as $desig) {
-            Designation::updateOrCreate(
+            $this->updateOrCreateWithTrashed(
+                Designation::class,
                 ['plant_id' => $plant->id, 'code' => $desig['code']],
                 [
                     'name'       => $desig['name'],
@@ -720,7 +978,8 @@ class PlantInitializationService
         ];
 
         foreach ($leaveTypes as $lt) {
-            LeaveType::updateOrCreate(
+            $this->updateOrCreateWithTrashed(
+                LeaveType::class,
                 ['plant_id' => $plant->id, 'name' => $lt['name']],
                 [
                     'is_paid'           => $lt['is_paid'],
@@ -742,7 +1001,8 @@ class PlantInitializationService
         ];
 
         foreach ($shifts as $shift) {
-            Shift::updateOrCreate(
+            $this->updateOrCreateWithTrashed(
+                Shift::class,
                 ['plant_id' => $plant->id, 'shift_name' => $shift['shift_name']],
                 [
                     'start_time'     => $shift['start_time'],
@@ -760,21 +1020,22 @@ class PlantInitializationService
     {
         $components = [
             // Earnings
-            ['name' => 'Basic Salary',          'type' => 'earning',   'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
-            ['name' => 'House Rent Allowance',  'type' => 'earning',   'calculation_type' => 'percentage',  'default_value' => 40,   'is_taxable' => false, 'is_statutory' => false],
-            ['name' => 'Conveyance Allowance',  'type' => 'earning',   'calculation_type' => 'fixed',       'default_value' => 1600, 'is_taxable' => false, 'is_statutory' => false],
-            ['name' => 'Special Allowance',     'type' => 'earning',   'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
-            ['name' => 'Overtime',              'type' => 'earning',   'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'Basic Salary',          'type' => 'earning',   'calculation_type' => '₹',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'House Rent Allowance',  'type' => 'earning',   'calculation_type' => '%',  'default_value' => 40,   'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Conveyance Allowance',  'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 1600, 'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Special Allowance',     'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'Overtime',              'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
             // Deductions
-            ['name' => 'Provident Fund (PF)',   'type' => 'deduction', 'calculation_type' => 'percentage',  'default_value' => 12,   'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'ESI',                   'type' => 'deduction', 'calculation_type' => 'percentage',  'default_value' => 0.75, 'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'Professional Tax',      'type' => 'deduction', 'calculation_type' => 'fixed',       'default_value' => 200,  'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'TDS',                   'type' => 'deduction', 'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'Advance Deduction',     'type' => 'deduction', 'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Provident Fund (PF)',   'type' => 'deduction', 'calculation_type' => '%',  'default_value' => 12,   'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'ESI',                   'type' => 'deduction', 'calculation_type' => '%',  'default_value' => 0.75, 'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'Professional Tax',      'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 200,  'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'TDS',                   'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'Advance Deduction',     'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => false],
         ];
 
         foreach ($components as $comp) {
-            SalaryComponent::updateOrCreate(
+            $this->updateOrCreateWithTrashed(
+                SalaryComponent::class,
                 ['plant_id' => $plant->id, 'name' => $comp['name']],
                 [
                     'type'             => $comp['type'],
@@ -814,7 +1075,8 @@ class PlantInitializationService
         ];
 
         foreach ($configs as $cfg) {
-            StatutoryConfig::updateOrCreate(
+            $this->updateOrCreateWithTrashed(
+                StatutoryConfig::class,
                 ['plant_id' => $plant->id, 'statute_name' => $cfg['statute_name']],
                 [
                     'effective_from' => $cfg['effective_from'],
@@ -849,13 +1111,16 @@ class PlantInitializationService
                 ?? PrintTemplate::first();
 
             if ($template) {
-                \App\Models\PrintTemplateSetting::updateOrCreate([
-                    'plant_id'   => $plant->id,
-                    'module_key' => $moduleKey,
-                ], [
-                    'entity_id'         => $plant->entity_id,
-                    'print_template_id' => $template->id,
-                ]);
+                $this->updateOrCreateWithTrashed(
+                    \App\Models\PrintTemplateSetting::class,
+                    [
+                        'plant_id'   => $plant->id,
+                        'module_key' => $moduleKey,
+                    ], [
+                        'entity_id'         => $plant->entity_id,
+                        'print_template_id' => $template->id,
+                    ]
+                );
             }
         }
     }
@@ -1026,10 +1291,31 @@ class PlantInitializationService
         ];
 
         foreach ($settings as $s) {
-            CustomSetting::updateOrCreate(
+            $this->updateOrCreateWithTrashed(
+                CustomSetting::class,
                 ['plant_id' => $plant->id, 'module_name' => $s['module_name']],
                 ['settings' => $s['settings']]
             );
         }
+    }
+
+    private function updateOrCreateWithTrashed(string $modelClass, array $attributes, array $values = [])
+    {
+        $query = $modelClass::query()->withoutGlobalScope('plant_id');
+
+        if (in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, class_uses_recursive($modelClass))) {
+            $query->withTrashed();
+        }
+
+        $record = $query->where($attributes)->first();
+        if ($record) {
+            if (method_exists($record, 'trashed') && $record->trashed()) {
+                $record->restore();
+            }
+            $record->update($values);
+        } else {
+            $record = $modelClass::create(array_merge($attributes, $values));
+        }
+        return $record;
     }
 }

@@ -121,7 +121,7 @@ const mergeSelectedPOs = () => {
                     tax_id: item.tax_id,
                     quantity: 0,
                     price_unit: Number(item.unit_price),
-                    discount_type: item.discount_type === 'percentage' ? '%' : '₹',
+                    discount_type: item.discount_type === '%' ? '%' : '₹',
                     discount: Number(item.discount_amount),
                     subtotal: 0,
                     tax_amount: 0,
@@ -546,7 +546,7 @@ const taxOptions = computed(() => props.taxes);
                                                     <BaseInputNumber v-model="item.discount" size="small" class="flex-grow" />
                                                 </div>
                                                 <div v-if="item.discount > 0" class="text-[10px] text-right text-rose-500 font-bold px-1">
-                                                    -{{ (item.discount_type === 'fixed' ? item.discount : (item.quantity * item.price_unit * (item.discount / 100))).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                                    -{{ (item.discount_type === '₹' ? item.discount : (item.quantity * item.price_unit * (item.discount / 100))).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                                                 </div>
                                             </div>
                                         </td>

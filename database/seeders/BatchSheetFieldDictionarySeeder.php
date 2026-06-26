@@ -233,7 +233,7 @@ class BatchSheetFieldDictionarySeeder extends Seeder
             ],
             [
                 'canonical_name' => 'total_difference_percent',
-                'aliases' => ['difference in percentage', 'total mass difference', 'total mass difference in percentage', 'variance', 'deviation'],
+                'aliases' => ['difference in %', 'total mass difference', 'total mass difference in %', 'variance', 'deviation'],
                 'category' => 'aggregate',
                 'data_type' => 'number',
                 'db_column' => null,

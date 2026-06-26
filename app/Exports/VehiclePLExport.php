@@ -92,7 +92,7 @@ class VehiclePLExport
             }
         });
 
-        // Compute overall margin percentage
+        // Compute overall margin %
         $totalMarginPct = $totalRevenue > 0 ? ($totalProfit / $totalRevenue) * 100.0 : 0.0;
 
         // Write Totals Row

@@ -107,6 +107,9 @@ class PlantController extends Controller
                 $plant->contacts()->attach($contact->id);
             }
 
+            // Automatically initialize plant defaults (modules, accounting, taxes, default settings)
+            $this->initService->initialize($plant);
+
             return redirect()->back()->with('success', 'Plant created successfully.');
         });
     }

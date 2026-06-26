@@ -14,13 +14,19 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
+
 class BankReconciliationController extends Controller
 {
+    use AuthorizesModule;
+
+    protected string $module = 'ledgers';
     /**
      * Display the Bank Reconciliation index page.
      */
     public function index()
     {
+        $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
         
         // Fetch all ledgers for the dropdown (user selects their bank ledger)
@@ -46,6 +52,7 @@ class BankReconciliationController extends Controller
      */
     public function upload(Request $request, BankReconciliationService $service)
     {
+        $this->authorizeModule('create');
         $request->validate([
             'bank_ledger_id' => 'required|exists:mm_ledgers,id',
             'statement_file' => 'required|file|mimes:csv,txt|max:5120', // Max 5MB
@@ -74,6 +81,7 @@ class BankReconciliationController extends Controller
      */
     public function getLines(Request $request, BankReconciliationService $service)
     {
+        $this->authorizeModule('show');
         $request->validate([
             'bank_ledger_id' => 'required|exists:mm_ledgers,id',
         ]);
@@ -135,6 +143,7 @@ class BankReconciliationController extends Controller
      */
     public function reconcile(Request $request)
     {
+        $this->authorizeModule('edit');
         $request->validate([
             'statement_line_id' => 'required|exists:mm_bank_statement_lines,id',
             'journal_line_id' => 'required|exists:mm_journal_entry_lines,id',
@@ -185,6 +194,7 @@ class BankReconciliationController extends Controller
      */
     public function unreconcile(Request $request)
     {
+        $this->authorizeModule('edit');
         $request->validate([
             'statement_line_id' => 'required|exists:mm_bank_statement_lines,id',
         ]);
@@ -227,6 +237,7 @@ class BankReconciliationController extends Controller
      */
     public function createVoucher(Request $request)
     {
+        $this->authorizeModule('create');
         $request->validate([
             'statement_line_id' => 'required|exists:mm_bank_statement_lines,id',
             'opposite_ledger_id' => 'required|exists:mm_ledgers,id',

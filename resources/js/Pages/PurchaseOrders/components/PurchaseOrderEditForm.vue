@@ -67,7 +67,7 @@ const vendorOptions = computed(() => props.vendors?.map(v => ({ label: v.legal_n
 // const productOptions = computed(() => props.products?.map(p => ({ label: p.title, value: p.id })) || []);
 const unitOptions = computed(() => props.productUnits?.map(u => ({ label: u.unit_code, value: u.id })) || []);
 const taxOptions = computed(() => props.taxes?.map(t => ({ label: t.tax_name, value: t.id })) || []);
-const discountTypeOptions = [{ label: '%', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }];
+const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: '₹' }];
 
 const stateOptions = [
     { label: 'Draft', value: 'draft' },
@@ -346,7 +346,7 @@ const handleDeleteBill = () => {
                                     <span class="text-[11px] font-semibold text-slate-900 uppercase">Total Payable</span>
                                 </div>
                                 <div class="text-right">
-                                    <span class="text-xs text-slate-400 font-semibold mr-1">{{ currencies?.find(c => c.id === form.currency_id)?.currency_code || '₹' }}</span>
+                                    <span class="text-xs text-slate-400 font-semibold mr-1">₹</span>
                                     <span class="text-lg font-semibold text-slate-900 tracking-tighter">
                                          {{ Number(form.amount_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                                     </span>

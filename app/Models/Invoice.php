@@ -433,7 +433,7 @@ class Invoice extends Model
                     $discountVal = (float) data_get($item, 'discount_amount');
                     $lineSubtotalBeforeDiscount = $qty * $priceUnit;
                     
-                    if ($discountType === 'percentage') {
+                    if ($discountType === '%') {
                         $lineDiscount = ($lineSubtotalBeforeDiscount * $discountVal) / 100;
                     } else {
                         // Scale the fixed discount proportionally if quantity changed from ordered quantity

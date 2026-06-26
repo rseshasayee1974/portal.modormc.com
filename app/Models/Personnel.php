@@ -65,6 +65,7 @@ class Personnel extends Model
         'employee_code',
         'first_name',
         'last_name',
+        // 'full_name' is a MySQL generated column — do NOT include it here
         'email',
         'mobile',
         'date_of_birth',
@@ -176,5 +177,18 @@ class Personnel extends Model
     public function getLabelAttribute(): string
     {
         return trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
+    }
+
+    public function getFullNameAttribute($value): string
+    {
+        return $value ?: trim(($this->first_name ?? '') . ' ' . ($this->last_name ?? ''));
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        // full_name is a MySQL generated column (CONCAT of first_name + last_name).
+        // Do NOT set it manually — MySQL computes it automatically.
     }
 }

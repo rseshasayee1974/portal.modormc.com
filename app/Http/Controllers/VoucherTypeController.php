@@ -8,13 +8,19 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Auth;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
+
 class VoucherTypeController extends Controller
 {
+    use AuthorizesModule;
+
+    protected string $module = 'voucher_types';
     /**
      * Display a listing of global and entity-specific voucher types.
      */
     public function index()
     {
+        $this->authorizeModule('menu');
         $entityId = session('active_entity_id');
         $user = Auth::user();
         $isSuperAdmin = $user->hasRole('Admin') || $user->roles->contains('id', 1);
@@ -38,6 +44,7 @@ class VoucherTypeController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $entityId = session('active_entity_id');
         $user = Auth::user();
         
@@ -84,6 +91,7 @@ class VoucherTypeController extends Controller
      */
     public function update(Request $request, $id)
     {
+        $this->authorizeModule('edit');
         $entityId = session('active_entity_id');
         $user = Auth::user();
         $isSuperAdmin = $user->hasRole('Admin') || $user->roles->contains('id', 1);
@@ -136,6 +144,7 @@ class VoucherTypeController extends Controller
      */
     public function destroy($id)
     {
+        $this->authorizeModule('delete');
         $entityId = session('active_entity_id');
         $voucherType = VoucherType::where('entity_id', $entityId)->findOrFail($id);
         

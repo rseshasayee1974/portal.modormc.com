@@ -9,13 +9,19 @@ use App\Http\Requests\UpdateLedgerRequest;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
+
 class LedgerController extends Controller
 {
+    use AuthorizesModule;
+
+    protected string $module = 'ledgers';
     /**
      * Display a listing of ledgers.
      */
     public function index()
     {
+        $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
         $ledgers = Ledger::with('accountType')
             ->where('plant_id', $plantId)
@@ -35,6 +41,7 @@ class LedgerController extends Controller
      */
     public function store(StoreLedgerRequest $request)
     {
+        $this->authorizeModule('create');
         $plantId = session('active_plant_id');
         $validated = $request->validated();
 
@@ -65,6 +72,7 @@ class LedgerController extends Controller
      */
     public function show($id)
     {
+        $this->authorizeModule('show');
         return response()->json(['ledger' => Ledger::with('accountType')->findOrFail($id)]);
     }
 
@@ -73,6 +81,7 @@ class LedgerController extends Controller
      */
     public function update(UpdateLedgerRequest $request, Ledger $ledger)
     {
+        $this->authorizeModule('edit');
         $validated = $request->validated();
         
         $accountType = AccountsType::with('account')->findOrFail($validated['account_type_id']);
@@ -97,6 +106,7 @@ class LedgerController extends Controller
      */
     public function destroy(Ledger $ledger)
     {
+        $this->authorizeModule('delete');
         $ledger->delete();
 
         return response()->json([
@@ -132,6 +142,7 @@ class LedgerController extends Controller
      */
     public function getNextCode(Request $request)
     {
+        $this->authorizeModule('show');
         $category = $request->query('category');
         $plantId = session('active_plant_id');
 

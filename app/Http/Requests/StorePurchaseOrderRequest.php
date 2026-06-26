@@ -32,7 +32,6 @@ class StorePurchaseOrderRequest extends FormRequest
             'date_planned' => 'nullable|date',
             'delivery_date' => 'nullable|date',
             'due_date' => 'nullable|date',
-            'currency_id' => 'nullable|exists:mm_currencies,id',
             'exchange_rate' => 'nullable|numeric|min:0',
             'amount_untaxed' => 'nullable|numeric|min:0',
             'amount_tax' => 'nullable|numeric|min:0',
@@ -51,7 +50,7 @@ class StorePurchaseOrderRequest extends FormRequest
             'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
             'items.*.product_quantity' => 'required|numeric|gt:0',
             'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.discount_type' => 'nullable|string|in:percentage,fixed',
+            'items.*.discount_type' => 'nullable|string|in:%,₹',
             'items.*.discount_amount' => 'nullable|numeric|min:0',
             'items.*.total_discount' => 'nullable|numeric|min:0',
             'items.*.description' => 'nullable|string',
@@ -62,7 +61,6 @@ class StorePurchaseOrderRequest extends FormRequest
     {
         $this->merge([
             'plant_id' => $this->input('plant_id') ?: session('active_plant_id'),
-            'currency_id' => $this->input('currency_id') ?: 1,
             'exchange_rate' => $this->input('exchange_rate') ?: 1.0,
             'discount_amount' => $this->input('discount_amount') ?: 0,
             'shipping_charges' => $this->input('shipping_charges') ?: 0,

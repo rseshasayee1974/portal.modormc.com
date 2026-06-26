@@ -44,7 +44,6 @@ class PurchaseOrder extends Model
         'receipt_status',
         'journal_status',
         'closed_status',
-        'currency_id',
         'exchange_rate',
         'amount_untaxed',
         'amount_tax',
@@ -100,11 +99,6 @@ class PurchaseOrder extends Model
     public function items()
     {
         return $this->hasMany(PurchaseOrderItem::class, 'order_id');
-    }
-
-    public function currency()
-    {
-        return $this->belongsTo(Currency::class, 'currency_id');
     }
 
     public function creator()

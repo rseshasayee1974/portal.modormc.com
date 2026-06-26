@@ -108,7 +108,7 @@ Purpose:
 - total sales
 - cash sales
 - credit sales
-- percentage split
+- % split
 
 Example response:
 ```json
@@ -118,11 +118,11 @@ Example response:
     "total_sales": 4000,
     "cash_sales": {
       "amount": 1500,
-      "percentage": 37.5
+      "%": 37.5
     },
     "credit_sales": {
       "amount": 2500,
-      "percentage": 62.5
+      "%": 62.5
     }
   }
 }

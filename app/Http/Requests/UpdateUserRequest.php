@@ -72,7 +72,7 @@ class UpdateUserRequest extends FormRequest
                     $entityLevel = $user->entityUsers()->with('role')->get()->min('role.level');
                     $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
                     $userLevel = empty($levels) ? 999 : min($levels);
-                    if ($assignedRole->level >= $userLevel) {
+                    if ($assignedRole->level > $userLevel) {
                         $fail('You cannot assign a role equal to or higher than your own.');
                     }
                 }

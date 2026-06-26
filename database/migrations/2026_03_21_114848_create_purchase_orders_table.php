@@ -41,7 +41,6 @@ return new class extends Migration
             $table->tinyInteger('closed_status')->default(0);
 
             // Financials
-            $table->foreignId('currency_id')->nullable()->constrained('mm_currencies')->nullOnDelete();
             $table->decimal('exchange_rate', 17, 6)->default(1.0);
             
             $table->decimal('amount_untaxed', 17, 2)->default(0);

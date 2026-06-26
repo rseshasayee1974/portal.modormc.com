@@ -9,7 +9,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class LeaveTypeController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'personnel';
+    protected string $module = 'leave_types';
 
     public function index()
     {

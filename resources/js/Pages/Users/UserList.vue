@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3';
 import { debounce } from 'lodash';
 import Swal from 'sweetalert2';
 import { useToast } from 'primevue/usetoast';
+import axios from 'axios';
 
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
@@ -82,6 +83,46 @@ const onPage = (event: any) => fetchUsers({ page: event.page + 1, search: search
 const onUpdated = (userId: number) => {
     closeRow(userId);
     router.reload({ only: ['users'] });
+};
+
+// ── WhatsApp Verification ────────────────────────────────────────────────
+const loadingWhatsapp = ref<Record<number, boolean>>({});
+
+const sendWhatsappVerification = async (user: any) => {
+    if (!user.mobile) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Missing Mobile',
+            detail: 'User does not have a mobile number saved.',
+            life: 3000
+        });
+        return;
+    }
+
+    loadingWhatsapp.value[user.id] = true;
+    try {
+        const response = await axios.get(route('users.whatsapp-verification', user.id));
+        if (response.data && response.data.url) {
+            window.open(response.data.url, '_blank');
+            toast.add({
+                severity: 'success',
+                summary: 'Redirecting',
+                detail: 'Opening WhatsApp chat...',
+                life: 3000
+            });
+        }
+    } catch (error: any) {
+        console.error(error);
+        const message = error.response?.data?.message || 'Failed to generate WhatsApp link.';
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: message,
+            life: 4000
+        });
+    } finally {
+        loadingWhatsapp.value[user.id] = false;
+    }
 };
 </script>
 
@@ -174,9 +215,17 @@ const onUpdated = (userId: number) => {
                 </template>
             </Column>
 
-            <Column header="Actions" style="width: 140px">
+            <Column header="Actions" style="width: 180px">
                 <template #body="slotProps">
                     <div class="flex justify-end gap-1">
+                        <BaseActionButton
+                            v-if="!slotProps.data.email_verified_at"
+                            icon="pi pi-whatsapp" 
+                            severity="success"
+                            tooltip="Send WhatsApp Verification"
+                            :loading="loadingWhatsapp[slotProps.data.id]"
+                            @click="sendWhatsappVerification(slotProps.data)"
+                        />
                         <BaseActionButton
                             icon="pi pi-eye" 
                             severity="secondary"

@@ -6,25 +6,17 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\AuditFields;
-use App\Traits\PlantScoping;
 
 class Department extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
+    use HasFactory, SoftDeletes, AuditFields;
 
     protected $table = 'mm_departments';
 
     protected $fillable = [
-        'plant_id',
         'name',
         'code',
     ];
-
-    public function plant()
-    {
-        return $this->belongsTo(Plant::class, 'plant_id');
-    }
-
 
     public function personnels()
     {

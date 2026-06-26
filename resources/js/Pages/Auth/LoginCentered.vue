@@ -1,60 +1,42 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import Button from 'primevue/button';
-import Checkbox from 'primevue/checkbox';
-import InputText from 'primevue/inputtext';
-import Password from 'primevue/password';
 
 defineProps({
     canResetPassword: Boolean,
     status: String,
 });
 
-const form = reactive({
-    email: '',
-    password: '',
-    remember: true,
-});
-
-const touched = reactive({
-    email: false,
-    password: false,
-});
+const form = reactive({ email: '', password: '', remember: true });
+const touched = reactive({ email: false, password: false });
 
 const serverErrors = ref({});
-const authError = ref('');
-const loading = ref(false);
-const submitted = ref(false);
+const authError    = ref('');
+const loading      = ref(false);
+const submitted    = ref(false);
+const showPwd      = ref(false);
+const emailFocused = ref(false);
+const pwdFocused   = ref(false);
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const clientErrors = computed(() => ({
     email: !form.email
         ? 'Email is required.'
-        : !emailPattern.test(form.email)
-            ? 'Enter a valid email address.'
-            : '',
+        : !emailPattern.test(form.email) ? 'Enter a valid email.' : '',
     password: !form.password ? 'Password is required.' : '',
 }));
 
-const fieldError = (field) => {
-    const error = serverErrors.value[field];
-
-    if (Array.isArray(error) && error.length) {
-        return error[0];
-    }
-
-    if (typeof error === 'string') {
-        return error;
-    }
-
-    return (submitted.value || touched[field]) ? clientErrors.value[field] : '';
+const fieldError = (f) => {
+    const e = serverErrors.value[f];
+    if (Array.isArray(e) && e.length) return e[0];
+    if (typeof e === 'string') return e;
+    return (submitted.value || touched[f]) ? clientErrors.value[f] : '';
 };
 
 const isValid = computed(() => !clientErrors.value.email && !clientErrors.value.password);
 
-const quickFillDemo = () => {
+const quickFill = () => {
     form.email = 'demo@modomines.com';
     form.password = 'password';
     form.remember = true;
@@ -62,227 +44,526 @@ const quickFillDemo = () => {
     authError.value = '';
 };
 
-const submit = async () => {
+const submit = () => {
     submitted.value = true;
     serverErrors.value = {};
     authError.value = '';
-
-    if (!isValid.value || loading.value) {
-        return;
-    }
+    if (!isValid.value || loading.value) return;
 
     router.post(route('login'), {
-        email: form.email,
-        password: form.password,
-        remember: form.remember,
+        email: form.email, password: form.password, remember: form.remember,
     }, {
         preserveScroll: true,
-        onStart: () => {
-            loading.value = true;
-        },
-        onError: (errors) => {
-            serverErrors.value = errors;
-            authError.value = errors.email || errors.password || '';
-        },
-        onFinish: () => {
-            loading.value = false;
-            form.password = '';
-        },
+        onStart:  ()  => { loading.value = true; },
+        onError:  (e) => { serverErrors.value = e; authError.value = e.email || e.password || 'Login failed.'; },
+        onFinish: ()  => { loading.value = false; form.password = ''; },
     });
 };
 
-const submitApi = async () => {
-    submitted.value = true;
-    serverErrors.value = {};
-    authError.value = '';
-
-    if (!isValid.value || loading.value) {
-        return;
-    }
-
-    loading.value = true;
-
-    try {
-        const { data } = await window.axios.post('/api/login', {
-            email: form.email,
-            password: form.password,
-            remember: form.remember,
-        });
-
-        if (data.token) {
-            localStorage.setItem('auth_token', data.token);
-            window.axios.defaults.headers.common.Authorization = `Bearer ${data.token}`;
-        }
-
-        window.location.href = data.redirect_to || '/dashboard';
-    } catch (error) {
-        if (error.response?.status === 422) {
-            serverErrors.value = error.response.data.errors || {};
-            authError.value = error.response.data.message || '';
-            return;
-        }
-
-        if (error.response?.status === 401) {
-            authError.value = error.response.data.message || 'Invalid email or password.';
-            return;
-        }
-
-        authError.value = 'We could not sign you in right now. Please try again.';
-    } finally {
-        loading.value = false;
-    }
-};
+/* ─── Inline style objects (bypass global CSS !important rules) ─── */
+function inputStyle(focused, hasError) {
+    return {
+        display:          'block',
+        width:            '100%',
+        height:           '50px',
+        borderRadius:     '10px',
+        border:           hasError
+            ? '2px solid #f43f5e'
+            : focused
+                ? '2px solid #14b8a6'
+                : '1.5px solid rgba(148,163,184,0.30)',
+        backgroundColor:  '#0f1f35',      /* deep navy — clearly visible */
+        color:            '#f8fafc',      /* bright white */
+        WebkitTextFillColor: '#f8fafc',
+        caretColor:       '#14b8a6',
+        fontSize:         '15px',
+        fontWeight:       '500',
+        paddingLeft:      '48px',
+        paddingRight:     '16px',
+        outline:          'none',
+        boxSizing:        'border-box',
+        boxShadow:        focused
+            ? '0 0 0 4px rgba(20,184,166,0.18), inset 0 2px 6px rgba(0,0,0,0.5)'
+            : 'inset 0 2px 6px rgba(0,0,0,0.4)',
+        transition:       'border 0.2s, box-shadow 0.2s',
+        fontFamily:       'inherit',
+        lineHeight:       'normal',
+        letterSpacing:    '0.01em',
+    };
+}
+function inputPwdStyle(focused, hasError) {
+    return { ...inputStyle(focused, hasError), paddingRight: '48px' };
+}
 </script>
 
 <template>
     <Head title="Log in" />
 
-    <main class="relative min-h-screen w-full overflow-hidden bg-slate-950 flex items-center justify-center px-4 py-16 sm:px-6 lg:px-8">
-        <!-- Full-bleed background visual with dark overlays -->
-        <div class="absolute inset-0 z-0 select-none pointer-events-none">
-            <img 
-                src="/onemodo_truck_login.png" 
-                alt="Industrial Logistics" 
-                class="h-full w-full object-cover opacity-35 grayscale"
-            />
-            <!-- Gradient overlays to ensure readability and depth -->
-            <div class="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/50 to-slate-950/90"></div>
-            <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.15),transparent_60%)]"></div>
-            <div class="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(20,184,166,0.1),transparent_40%)]"></div>
+    <main class="lc-root">
+        <!-- Background -->
+        <div class="lc-bg" aria-hidden="true">
+            <img src="/onemodo_truck_login.png" alt="" class="lc-bg-img" />
+            <div class="lc-bg-dark"></div>
+            <div class="lc-bg-glow-top"></div>
+            <div class="lc-bg-glow-btm"></div>
         </div>
 
-        <!-- Inner Content Area -->
-        <div class="relative z-10 w-full max-w-[440px] flex flex-col items-center">
-            
-            <!-- Header/Branding -->
-            <div class="mb-8 flex flex-col items-center text-center animate-[auth-panel_650ms_cubic-bezier(.16,1,.3,1)_both]">
-                <img 
-                    src="/assets/modormc_logo_v1.png" 
-                    alt="ModoRMC Logo" 
-                    class="h-14 w-auto object-contain opacity-100 mb-6 drop-shadow-[0_2px_8px_rgba(255,255,255,0.15)]"
-                />
-                
-                <div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-teal-300 backdrop-blur-md mb-4">
-                    <span class="size-2 bg-teal-400 rounded-full animate-pulse"></span>
+        <!-- Centre column -->
+        <div class="lc-col">
+
+            <!-- ── Branding ── -->
+            <header class="lc-header">
+                <img src="/assets/modormc_logo_v1.png" alt="ModoRMC" class="lc-logo" />
+                <div class="lc-pill">
+                    <span class="lc-dot"></span>
                     Next-Gen RMC Management
                 </div>
-                
-                <h1 class="text-3xl sm:text-4xl font-black leading-[1.15] tracking-tighter text-white">
-                    Intelligence in every <span class="bg-gradient-to-r from-indigo-400 to-teal-300 bg-clip-text text-transparent italic">mix.</span>
+                <h1 class="lc-h1">
+                    Intelligence in every&nbsp;<span class="lc-gradient">mix.</span>
                 </h1>
-                <p class="mt-3 text-sm text-slate-400 max-w-sm">
-                    Access the ModoRMC enterprise control plane
-                </p>
-            </div>
+                <p class="lc-tagline">Access the ModoRMC enterprise control plane</p>
+            </header>
 
-            <!-- Glassmorphism Login Card -->
-            <div class="w-full rounded-[2rem] border border-white/10 bg-slate-900/60 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-8 animate-[auth-panel_750ms_cubic-bezier(.16,1,.3,1)_both]">
-                <div v-if="status" class="mb-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300" role="status">
-                    {{ status }}
-                </div>
+            <!-- ── Login Card ── -->
+            <section class="lc-card">
 
-                <div v-if="authError" class="mb-5 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300" role="alert">
-                    {{ authError }}
-                </div>
+                <!-- Server / auth status -->
+                <div v-if="status"    class="lc-notice lc-notice--ok">{{ status }}</div>
+                <div v-if="authError" class="lc-notice lc-notice--err">{{ authError }}</div>
 
-                <form class="space-y-5" @submit.prevent="submit" novalidate>
-                    <div>
-                        <label for="email" class="mb-2 block text-xs font-bold text-slate-400 uppercase tracking-wider">Work Email</label>
-                        <div class="group relative">
-                            <div class="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-teal-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                <form @submit.prevent="submit" novalidate>
+
+                    <!-- Email -->
+                    <div class="lc-field" :class="{ 'lc-field--err': fieldError('email') }">
+                        <label for="lc-email" class="lc-label">Work Email</label>
+                        <div class="lc-inp-wrap">
+                            <span class="lc-inp-icon" :class="{ 'lc-inp-icon--on': emailFocused }">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="1.8" width="18" height="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75"/>
                                 </svg>
-                            </div>
-                            <InputText
-                                id="email"
+                            </span>
+                            <input
+                                id="lc-email"
                                 v-model="form.email"
                                 type="email"
+                                style="color:white !important;padding-left:35px !important"
                                 autocomplete="username"
                                 autofocus
-                                :aria-invalid="Boolean(fieldError('email'))"
-                                aria-describedby="email-error"
-                                class="w-full rounded-2xl border !h-11 bg-white/[0.03] backdrop-blur-sm py-4 !pl-12 pr-4 text-[15px] font-medium text-white shadow-sm transition-all duration-300 placeholder:text-slate-500 focus:border-teal-400 focus:bg-slate-950/40 focus:shadow-[0_0_0_4px_rgba(20,184,166,0.15)] focus:ring-0"
-                                :class="fieldError('email') ? 'border-rose-500' : 'border-white/10'"
                                 placeholder="name@company.com"
-                                @blur="touched.email = true"
+                                :style="inputStyle(emailFocused, !!fieldError('email'))"
+                                @focus="emailFocused = true"
+                                @blur="emailFocused = false; touched.email = true"
                                 @input="serverErrors.email = null; authError = ''"
                             />
                         </div>
-                        <p v-if="fieldError('email')" id="email-error" class="mt-2 text-xs font-bold text-rose-400 uppercase tracking-tight">{{ fieldError('email') }}</p>
+                        <p v-if="fieldError('email')" class="lc-err-msg">{{ fieldError('email') }}</p>
                     </div>
 
-                    <div>
-                        <div class="mb-2 flex items-center justify-between">
-                            <label for="password" class="block text-xs font-bold text-slate-400 uppercase tracking-wider">Password</label>
-                            <Link v-if="canResetPassword" :href="route('password.request')" class="text-xs font-bold text-teal-400 uppercase tracking-widest transition hover:text-teal-300 focus:outline-none">
+                    <!-- Password -->
+                    <div class="lc-field lc-field--mt" :class="{ 'lc-field--err': fieldError('password') }">
+                        <div class="lc-label-row">
+                            <label for="lc-password" class="lc-label">Password</label>
+                            <Link v-if="canResetPassword" :href="route('password.request')" class="lc-forgot">
                                 Forgot?
                             </Link>
                         </div>
-                        <div class="group relative">
-                            <div class="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-teal-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                        <div class="lc-inp-wrap">
+                            <span class="lc-inp-icon" :class="{ 'lc-inp-icon--on': pwdFocused }">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="1.8" width="18" height="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
                                 </svg>
-                            </div>
-                            <Password
-                                id="password"
+                            </span>
+                            <input
+                                id="lc-password"
                                 v-model="form.password"
-                                :feedback="false"
-                                toggleMask
+                                :type="showPwd ? 'text' : 'password'"
                                 autocomplete="current-password"
-                                :aria-invalid="Boolean(fieldError('password'))"
-                                aria-describedby="password-error"
-                                class="block w-full"
-                                inputClass="w-full rounded-2xl !h-11 border bg-white/[0.03] backdrop-blur-sm py-4 !pl-12 pr-12 text-[15px] font-medium text-white shadow-sm transition-all duration-300 placeholder:text-slate-500 focus:border-teal-400 focus:bg-slate-950/40 focus:shadow-[0_0_0_4px_rgba(20,184,166,0.15)] focus:ring-0"
-                                :class="fieldError('password') ? '[&_.p-password-input]:border-rose-500' : '[&_.p-password-input]:border-white/10'"
-                                placeholder="Your security key"
-                                @blur="touched.password = true"
+                                placeholder="••••••••"
+                                :style="inputPwdStyle(pwdFocused, !!fieldError('password'))"
+                                @focus="pwdFocused = true"
+                                @blur="pwdFocused = false; touched.password = true"
                                 @input="serverErrors.password = null; authError = ''"
                             />
+                            <button type="button" class="lc-eye"
+                                    :aria-label="showPwd ? 'Hide' : 'Show'"
+                                    @click="showPwd = !showPwd">
+                                <!-- eye open -->
+                                <svg v-if="!showPwd" viewBox="0 0 24 24" fill="none"
+                                     stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                                </svg>
+                                <!-- eye closed -->
+                                <svg v-else viewBox="0 0 24 24" fill="none"
+                                     stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/>
+                                </svg>
+                            </button>
                         </div>
-                        <p v-if="fieldError('password')" id="password-error" class="mt-2 text-xs font-bold text-rose-400 uppercase tracking-tight">{{ fieldError('password') }}</p>
+                        <p v-if="fieldError('password')" class="lc-err-msg">{{ fieldError('password') }}</p>
                     </div>
 
-                    <div class="flex items-center justify-between pt-1">
-                        <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-300 select-none">
-                            <Checkbox v-model="form.remember" inputId="remember" binary aria-label="Remember me" class="border-white/10 bg-white/5" />
+                    <!-- Remember / Demo -->
+                    <div class="lc-row">
+                        <label class="lc-remember">
+                            <input type="checkbox" v-model="form.remember" class="lc-chk" />
                             <span>Keep me signed in</span>
                         </label>
-                        <button type="button" class="rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-400" @click="quickFillDemo">
+                        <button type="button" class="lc-demo-btn" @click="quickFill">
                             Demo login
                         </button>
                     </div>
 
-                    <Button
-                        type="submit"
-                        :disabled="!isValid || loading"
-                        :loading="loading"
-                        label="Secure Login"
-                        aria-label="Secure Login"
-                        class="w-full rounded-2xl border-0 bg-gradient-to-r from-teal-500 to-indigo-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-xl shadow-teal-500/10 hover:shadow-indigo-500/20 transition-all duration-200 hover:-translate-y-0.5 focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:translate-y-0 disabled:opacity-50"
-                    />
-                </form>
-            </div>
+                    <!-- Submit -->
+                    <button type="submit" class="lc-submit" :disabled="!isValid || loading">
+                        <svg v-if="loading" class="lc-spin" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2.5" width="18" height="18">
+                            <path stroke-linecap="round" d="M12 3a9 9 0 1 0 9 9"/>
+                        </svg>
+                        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="2" width="18" height="18">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/>
+                        </svg>
+                        {{ loading ? 'Signing in…' : 'Secure Login' }}
+                    </button>
 
-            <!-- Footer / Support Info -->
-            <p class="mt-8 text-center text-xs text-slate-500">
-                Protected by enterprise-grade encryption. Sanctum secured session.
-            </p>
+                </form>
+            </section>
+
+            <p class="lc-foot">Protected by enterprise-grade encryption &middot; Sanctum session</p>
         </div>
     </main>
 </template>
 
 <style scoped>
-@keyframes auth-panel {
-    from {
-        opacity: 0;
-        transform: translateY(22px);
-    }
+/* ─── Reset & root ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.lc-root {
+    position: relative;
+    min-height: 100svh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1rem 3rem;
+    background: #050d1a;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+}
+
+/* ─── Background ──────────────────────────────────────────── */
+.lc-bg { position: absolute; inset: 0; pointer-events: none; user-select: none; z-index: 0; }
+
+.lc-bg-img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    opacity: 0.22;
+    filter: grayscale(70%) brightness(0.6) blur(1px);
+}
+.lc-bg-dark {
+    position: absolute; inset: 0;
+    background: linear-gradient(160deg, rgba(5,13,26,.92) 0%, rgba(5,13,26,.55) 50%, rgba(5,13,26,.95) 100%);
+}
+.lc-bg-glow-top {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 70% 45% at 50% 0%, rgba(79,70,229,.22) 0%, transparent 70%);
+}
+.lc-bg-glow-btm {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 50% 35% at 15% 100%, rgba(20,184,166,.14) 0%, transparent 60%);
+}
+
+/* ─── Centre column ───────────────────────────────────────── */
+.lc-col {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 460px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    animation: lc-rise 550ms cubic-bezier(.16,1,.3,1) both;
+}
+
+/* ─── Branding header ─────────────────────────────────────── */
+.lc-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+}
+
+.lc-logo {
+    height: 56px;
+    width: auto;
+    object-fit: contain;
+    margin-bottom: 1.25rem;
+    filter: drop-shadow(0 4px 16px rgba(255,255,255,0.10));
+}
+
+.lc-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(20,184,166,0.30);
+    background: rgba(20,184,166,0.08);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .15em;
+    text-transform: uppercase;
+    color: #2dd4bf;
+    margin-bottom: 1.1rem;
+}
+.lc-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #14b8a6;
+    animation: lc-pulse 2.2s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+.lc-h1 {
+    font-size: clamp(1.85rem, 5vw, 2.5rem);
+    font-weight: 900;
+    letter-spacing: -.04em;
+    line-height: 1.08;
+    color: #f8fafc;
+    margin-bottom: .65rem;
+}
+.lc-gradient {
+    font-style: italic;
+    background: linear-gradient(90deg, #818cf8 0%, #22d3ee 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.lc-tagline {
+    font-size: .875rem;
+    color: #64748b;
+    letter-spacing: .01em;
+}
+
+/* ─── Card ────────────────────────────────────────────────── */
+.lc-card {
+    width: 100%;
+    border-radius: 20px;
+    /* Strong contrast card background */
+    background: linear-gradient(145deg, #0d1b2e 0%, #111827 100%);
+    border: 1px solid rgba(255,255,255,0.09);
+    box-shadow:
+        0 0 0 1px rgba(255,255,255,0.04) inset,
+        0 8px 32px rgba(0,0,0,0.5),
+        0 32px 80px rgba(0,0,0,0.45);
+    padding: 2rem 2rem 2.25rem;
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+}
+
+/* ─── Notices ─────────────────────────────────────────────── */
+.lc-notice {
+    margin-bottom: 1rem;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: .875rem;
+    font-weight: 500;
+}
+.lc-notice--ok  { border: 1px solid rgba(16,185,129,.25); background: rgba(16,185,129,.10); color: #6ee7b7; }
+.lc-notice--err { border: 1px solid rgba(244, 63, 94,.30); background: rgba(244,63,94,.08);  color: #fda4af; }
+
+/* ─── Field wrapper ───────────────────────────────────────── */
+.lc-field     { display: flex; flex-direction: column; }
+.lc-field--mt { margin-top: 1.1rem; }
+
+.lc-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: #7c8fa8;
+    margin-bottom: 8px;
+    display: block;
+}
+.lc-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.lc-forgot {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #14b8a6;
+    text-decoration: none;
+    transition: color .15s;
+}
+.lc-forgot:hover { color: #2dd4bf; }
+
+/* ─── Input wrapper (icon + native input) ─────────────────── */
+.lc-inp-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.lc-inp-icon {
+    position: absolute;
+    left: 14px;
+    color: #475569;
+    pointer-events: none;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    transition: color .2s;
+}
+.lc-inp-icon--on { color: #14b8a6; }
+
+/* NOTE: All <input> styles applied via :style binding in <template>
+   to guarantee they override app.css global  background: transparent !important */
+
+.lc-eye {
+    position: absolute;
+    right: 12px;
+    background: none;
+    border: none;
+    padding: 5px;
+    cursor: pointer;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    z-index: 3;
+    transition: color .2s;
+    border-radius: 6px;
+}
+.lc-eye:hover { color: #94a3b8; }
+
+.lc-err-msg {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #fb7185;
+}
+
+/* ─── Remember & Demo row ─────────────────────────────────── */
+.lc-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1.1rem;
+}
+
+.lc-remember {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .875rem;
+    color: #94a3b8;
+    cursor: pointer;
+    user-select: none;
+}
+.lc-chk {
+    width: 16px; height: 16px;
+    accent-color: #14b8a6;
+    cursor: pointer;
+    border-radius: 4px !important;
+}
+.lc-demo-btn {
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.05);
+    font-size: .75rem;
+    font-weight: 600;
+    color: #64748b;
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+}
+.lc-demo-btn:hover {
+    background: rgba(255,255,255,0.10);
+    color: #cbd5e1;
+    border-color: rgba(255,255,255,0.18);
+}
+
+/* ─── Submit button ───────────────────────────────────────── */
+.lc-submit {
+    width: 100%;
+    margin-top: 1.4rem;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #0d9488 0%, #4f46e5 100%);
+    font-size: .9375rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: .025em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    box-shadow:
+        0 4px 20px rgba(13,148,136,.30),
+        0 2px 8px rgba(0,0,0,.35);
+    transition: transform .18s, box-shadow .18s, opacity .18s;
+    position: relative;
+    overflow: hidden;
+}
+.lc-submit::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, transparent 60%);
+    pointer-events: none;
+}
+.lc-submit:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow:
+        0 8px 32px rgba(79,70,229,.40),
+        0 4px 12px rgba(0,0,0,.35);
+}
+.lc-submit:active:not(:disabled) { transform: translateY(0); }
+.lc-submit:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ─── Spinner ─────────────────────────────────────────────── */
+.lc-spin {
+    animation: lc-spin .65s linear infinite;
+    flex-shrink: 0;
+}
+
+/* ─── Footer ──────────────────────────────────────────────── */
+.lc-foot {
+    margin-top: 1.75rem;
+    font-size: .72rem;
+    color: #1e3a5f;
+    letter-spacing: .03em;
+    text-align: center;
+}
+
+/* ─── Animations ──────────────────────────────────────────── */
+@keyframes lc-rise {
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes lc-spin {
+    to { transform: rotate(360deg); }
+}
+@keyframes lc-pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .4; transform: scale(.8); }
 }
 </style>

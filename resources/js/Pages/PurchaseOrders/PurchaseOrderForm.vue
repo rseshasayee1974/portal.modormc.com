@@ -57,7 +57,6 @@ const form = useForm({
     date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : new Date().toISOString().substring(0, 10),
     date_planned: props.purchaseOrder?.date_planned ? props.purchaseOrder.date_planned.substring(0, 10) : null,
     due_date: props.purchaseOrder?.due_date ? props.purchaseOrder.due_date.substring(0, 10) : null,
-    currency_id: props.purchaseOrder?.currency_id || (props.currencies?.[0]?.id || null),
     exchange_rate: props.purchaseOrder?.exchange_rate || 1.0,
     amount_untaxed: props.purchaseOrder?.amount_untaxed || 0,
     amount_tax: props.purchaseOrder?.amount_tax || 0,
@@ -70,6 +69,7 @@ const form = useForm({
     terms_conditions: props.purchaseOrder?.terms_conditions || '',
     items: props.purchaseOrder?.items ? props.purchaseOrder.items.map(i => ({ 
         ...i, 
+        discount_type: i.discount_type || '%',
         total_discount: i.total_discount || 0,
         product_quantity: Number(i.product_quantity),
         unit_price: Number(i.unit_price)
@@ -84,7 +84,7 @@ function createNewItem() {
         tax_id: null,
         product_quantity: 1,
         unit_price: 0,
-        discount_type: 'percentage',
+        discount_type: '%',
         discount_amount: 0,
         total_discount: 0,
         description: '',
@@ -131,7 +131,7 @@ const calculateItemTotals = (index) => {
     
     let discount = 0;
     const discAmount = Number(item.discount_amount) || 0;
-    if (item.discount_type === 'percentage') {
+    if (item.discount_type === '%') {
         discount = (subtotal * discAmount) / 100;
     } else {
         discount = discAmount;
@@ -235,7 +235,7 @@ const vendorOptions = computed(() => props.vendors?.map(v => ({ label: v.legal_n
 // const productOptions = computed(() => props.products?.map(p => ({ label: p.title, value: p.id })) || []);
 const unitOptions = computed(() => props.productUnits?.map(u => ({ label: u.unit_code, value: u.id })) || []);
 const taxOptions = computed(() => props.taxes?.map(t => ({ label: t.tax_name, value: t.id })) || []);
-const discountTypeOptions = [{ label: '%', value: 'percentage' }, { label: 'Fixed', value: 'fixed' }];
+const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: '₹' }];
  console.log(props.products)
 </script>
 
@@ -451,7 +451,7 @@ const discountTypeOptions = [{ label: '%', value: 'percentage' }, { label: 'Fixe
                                         <!-- <span class="text-[11px] text-slate-700 font-semibold uppercase">{{ currencies?.find(c => c.id === form.currency_id)?.currency_name || 'Rupees' }}</span> -->
                                     </div>
                                     <div class="text-right">
-                                        <span class="text-xs text-indigo-700 font-semibold mr-1">{{ currencies?.find(c => c.id === form.currency_id)?.currency_code || '₹' }}</span>
+                                        <span class="text-xs text-indigo-700 font-semibold mr-1">₹</span>
                                         <span class="text-lg font-black text-slate-800 tracking-tighter">
                                              {{ form.amount_total.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                                         </span>

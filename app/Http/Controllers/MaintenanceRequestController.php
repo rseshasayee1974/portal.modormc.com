@@ -15,7 +15,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class MaintenanceRequestController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'machines'; // Shares the machines permission
+    protected string $module = 'maintenance_requests';
 
     public function index()
     {

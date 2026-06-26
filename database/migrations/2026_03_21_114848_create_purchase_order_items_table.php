@@ -31,7 +31,7 @@ return new class extends Migration
 
             $table->string('hsn_code', 100)->nullable();
 
-            $table->string('discount_type', 100)->nullable(); // percentage, fixed
+            $table->string('discount_type', 100)->nullable(); // %, fixed
             $table->decimal('discount_amount', 17, 2)->default(0);
 
             $table->decimal('invoiced_quantity', 17, 2)->default(0);

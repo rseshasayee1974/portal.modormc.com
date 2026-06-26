@@ -11,13 +11,19 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
+use App\Http\Controllers\Concerns\AuthorizesModule;
+
 class ConcreteQualityTestController extends Controller
 {
+    use AuthorizesModule;
+
+    protected string $module = 'concrete_quality_tests';
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
         $activePlantId = session('active_plant_id');
 
         $query = ConcreteQualityTest::with([
@@ -84,6 +90,7 @@ class ConcreteQualityTestController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         if ($request->hasFile('photos') && !is_array($request->file('photos'))) {
             $request->files->set('photos', [$request->file('photos')]);
         }
@@ -162,6 +169,7 @@ class ConcreteQualityTestController extends Controller
      */
     public function update(Request $request, ConcreteQualityTest $concreteQualityTest)
     {
+        $this->authorizeModule('edit');
         if ($request->hasFile('photos') && !is_array($request->file('photos'))) {
             $request->files->set('photos', [$request->file('photos')]);
         }
@@ -253,6 +261,7 @@ class ConcreteQualityTestController extends Controller
      */
     public function destroy(ConcreteQualityTest $concreteQualityTest)
     {
+        $this->authorizeModule('delete');
         try {
             $concreteQualityTest->update(['deleted_by' => auth()->id()]);
             $concreteQualityTest->delete();

@@ -12,7 +12,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class LeaveApplicationController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'personnel';
+    protected string $module = 'leave_applications';
 
     public function index()
     {

@@ -16,7 +16,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class PurchaseOrderInwardController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'purchase_orders'; // Reusing PO permissions for now or could be 'inwards'
+    protected string $module = 'inwards';
 
     public function index()
     {

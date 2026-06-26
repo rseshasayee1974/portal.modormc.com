@@ -54,7 +54,7 @@ class Dispatch extends Model
             'quantity' => $this->delivered_qty,
             'uom_id' => $this->uom_id ?? $this->mixDesign?->unit_id,
             'unit_price' => $this->load_rate,
-            'discount_type' => 'fixed',
+            'discount_type' => '₹',
             'discount_amount' => 0,
             'total_discount' => 0,
             'price_subtotal' => $this->load_untax_amount,

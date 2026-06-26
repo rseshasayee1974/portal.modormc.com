@@ -251,7 +251,7 @@
 </head>
 
 <body>
-    @if(!empty($isPreview))
+    @if (!empty($isPreview))
         <div class="preview-toolbar">
             <a href="{{ route('batches.index') }}">Back to batches</a>
             <a class="primary" href="{{ route('batches.download', $batch->id) }}">Download PDF</a>
@@ -289,10 +289,11 @@
                 <td class="v">: {{ $batch->batch_no }}</td>
                 <td class="k">Recipe Name</td>
                 <td class="v">:
-                    {{ $batch->workOrder?->mixDesign?->concrete_grade?->name ?? $batch->workOrder?->mixDesign?->design_type ?? '-' }}
+                    {{ $batch->workOrder?->mixDesign?->concrete_grade?->name ?? ($batch->workOrder?->mixDesign?->design_type ?? '-') }}
                 </td>
                 <td class="k">Mixer Capacity</td>
-                <td class="v">: {{ number_format((float) ($batch->workOrder?->mixDesign?->rate_per_qty ?? 1.25), 2) }}
+                <td class="v">:
+                    {{ number_format((float) ($batch->workOrder?->mixDesign?->rate_per_qty ?? 1.25), 2) }}
                 </td>
             </tr>
             <tr>
@@ -331,7 +332,7 @@
             </tr>
             <tr>
                 <td class="k">Site</td>
-                <td class="v">: {{ $batch->workOrder?->site?->name ?? $batch->site?->name ?? '-' }}</td>
+                <td class="v">: {{ $batch->workOrder?->site?->name ?? ($batch->site?->name ?? '-') }}</td>
                 <td class="k"></td>
                 <td class="v"></td>
                 <td class="k">With This Load</td>
@@ -349,14 +350,14 @@
         <table class="materials">
             <thead>
                 <tr class="group-head">
-                    @foreach($groupOrder as $groupName)
+                    @foreach ($groupOrder as $groupName)
                         @php $span = max(count($grouped[$groupName] ?? []), 1); @endphp
                         <th colspan="{{ $span }}">{{ $groupName }}</th>
                     @endforeach
                 </tr>
                 <tr class="name-row">
-                    @foreach($groupOrder as $groupName)
-                        @foreach($grouped[$groupName] ?? [] as $entry)
+                    @foreach ($groupOrder as $groupName)
+                        @foreach ($grouped[$groupName] ?? [] as $entry)
                             <th>{{ $entry['short'] }}</th>
                         @endforeach
                     @endforeach
@@ -364,7 +365,7 @@
             </thead>
             <tbody>
                 <tr class="number-row">
-                    @foreach($materials as $entry)
+                    @foreach ($materials as $entry)
                         <td>{{ number_format((float) $entry['target'], 2) }}</td>
                     @endforeach
                 </tr>
@@ -372,12 +373,12 @@
                     <td colspan="{{ $colCount }}">Actual Values in kg</td>
                 </tr>
                 <tr class="number-row">
-                    @foreach($materials as $entry)
+                    @foreach ($materials as $entry)
                         <td>{{ number_format((float) $entry['actual'], 2) }}</td>
                     @endforeach
                 </tr>
                 <tr class="number-row">
-                    @foreach($materials as $entry)
+                    @foreach ($materials as $entry)
                         <td class="{{ (float) $entry['diff_percent'] < 0 ? 'diff-neg' : 'diff-pos' }}">
                             {{ number_format((float) $entry['diff_percent'], 2) }}
                         </td>
@@ -401,14 +402,14 @@
                     <td class="value">{{ number_format((float) $sheet['total_set_weight'], 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="label">Difference in Percentage</td>
+                    <td class="label">Difference in %</td>
                     <td class="value {{ (float) $sheet['total_difference_percent'] < 0 ? 'diff-neg' : 'diff-pos' }}">
                         {{ number_format((float) $sheet['total_difference_percent'], 2) }}</td>
                     <td class="label">Mass of Total Actual Weight in kg</td>
                     <td class="value">{{ number_format((float) $sheet['total_actual_weight'], 2) }}</td>
                 </tr>
                 <tr>
-                    <td class="label" colspan="3">Total Mass Difference in Percentage</td>
+                    <td class="label" colspan="3">Total Mass Difference in %</td>
                     <td class="value {{ (float) $sheet['total_difference_percent'] < 0 ? 'diff-neg' : 'diff-pos' }}">
                         {{ number_format((float) $sheet['total_difference_percent'], 2) }}</td>
                 </tr>

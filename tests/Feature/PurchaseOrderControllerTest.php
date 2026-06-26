@@ -122,7 +122,7 @@ class PurchaseOrderControllerTest extends TestCase
                     'tax_id' => $this->tax->id,
                     'product_quantity' => 10,
                     'unit_price' => 100,
-                    'discount_type' => 'percentage',
+                    'discount_type' => '%',
                     'discount_amount' => 0,
                 ]
             ]
@@ -150,7 +150,7 @@ class PurchaseOrderControllerTest extends TestCase
         $item = PurchaseOrderItem::factory()->create([
             'order_id' => $po->id,
             'plant_id' => $this->plant->id,
-            'discount_type' => 'percentage',
+            'discount_type' => '%',
             'discount_amount' => 0,
         ]);
 
@@ -178,7 +178,7 @@ class PurchaseOrderControllerTest extends TestCase
             'product_uom' => $this->unit->id,
             'product_quantity' => 5,
             'unit_price' => 50,
-            'discount_type' => 'percentage',
+            'discount_type' => '%',
             'discount_amount' => 0,
         ]);
 
@@ -192,7 +192,7 @@ class PurchaseOrderControllerTest extends TestCase
                     'product_uom' => $this->unit->id,
                     'product_quantity' => 8, // updated
                     'unit_price' => 50,
-                    'discount_type' => 'percentage',
+                    'discount_type' => '%',
                     'discount_amount' => 0,
                 ]
             ]
@@ -225,7 +225,7 @@ class PurchaseOrderControllerTest extends TestCase
                     'product_uom' => $this->unit->id,
                     'product_quantity' => 10,
                     'unit_price' => 100,
-                    'discount_type' => 'percentage',
+                    'discount_type' => '%',
                     'discount_amount' => 0,
                 ]
             ]
@@ -276,7 +276,7 @@ class PurchaseOrderControllerTest extends TestCase
             'product_quantity' => 10,
             'received_quantity' => 10,
             'unit_price' => 100,
-            'discount_type' => 'percentage',
+            'discount_type' => '%',
             'discount_amount' => 0,
         ]);
 
@@ -328,7 +328,7 @@ class PurchaseOrderControllerTest extends TestCase
             'product_quantity' => 10,
             'received_quantity' => 10,
             'unit_price' => 100,
-            'discount_type' => 'percentage',
+            'discount_type' => '%',
             'discount_amount' => 0,
         ]);
 
@@ -368,7 +368,7 @@ class PurchaseOrderControllerTest extends TestCase
             'product_quantity' => 10,
             'received_quantity' => 10,
             'unit_price' => 100,
-            'discount_type' => 'percentage',
+            'discount_type' => '%',
             'discount_amount' => 0,
         ]);
 

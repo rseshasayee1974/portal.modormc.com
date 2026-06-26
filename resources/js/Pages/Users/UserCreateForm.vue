@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import FileUpload from 'primevue/fileupload';
@@ -13,7 +13,7 @@ import Password from 'primevue/password';
 
 const props = defineProps<{
     entities: Array<{ label: string; value: number }>;
-    plants: Array<{ label: string; value: number }>;
+    plants: Array<{ label: string; value: number; entity_id: number }>;
     userGroups: Array<{ label: string; value: number }>;
 }>();
 
@@ -22,9 +22,8 @@ const emit = defineEmits<{ (e: 'created'): void }>();
 const toast = useToast();
 type EntityAssignment = { entity_id: number | null; plant_id: number | null; role_id: number | null };
 
-const getDefaultEntityId = () => props.entities[0]?.value ?? null;
 const createDefaultAssignment = (): EntityAssignment => ({
-    entity_id: getDefaultEntityId(),
+    entity_id: null,
     plant_id: null,
     role_id: null,
 });
@@ -49,49 +48,25 @@ const reset = () => {
         entity_users: [createDefaultAssignment()],
         profile_photo: null, processing: false, errors: {},
     };
-    form.value.entity_users.forEach((assignment) => {
-        void applyDefaultPlant(assignment);
-    });
 };
 
 const addEntity    = () => {
     const assignment = createDefaultAssignment();
     form.value.entity_users.push(assignment);
-    void applyDefaultPlant(assignment);
 };
 const removeEntity = (idx: number) => form.value.entity_users.splice(idx, 1);
 const onFileUpload = (event: any) => { form.value.profile_photo = event.files[0]; };
 
-const plantsCache = ref<Record<number, any[]>>({});
-const fetchPlants = async (entityId: number | null) => {
-    if (!entityId) return [];
-    if (plantsCache.value[entityId]) return plantsCache.value[entityId];
-    try {
-        const { data } = await axios.get(route('plants.by-entity'), { params: { entity_id: entityId } });
-        plantsCache.value[entityId] = data;
-        return data;
-    } catch (err) {
-        console.error('Failed to fetch plants:', err);
-        return [];
+const handlePlantChange = (assignment: EntityAssignment) => {
+    if (assignment.plant_id) {
+        const selectedPlant = props.plants.find(p => p.value === assignment.plant_id);
+        if (selectedPlant) {
+            assignment.entity_id = selectedPlant.entity_id;
+        }
+    } else {
+        assignment.entity_id = null;
     }
 };
-
-const applyDefaultPlant = async (assignment: EntityAssignment) => {
-    if (!assignment.entity_id) return;
-    const plants = await fetchPlants(assignment.entity_id);
-    assignment.plant_id = plants[0]?.value ?? null;
-};
-
-const handleEntityChange = (assignment: EntityAssignment) => {
-    assignment.plant_id = null;
-    void applyDefaultPlant(assignment);
-};
-
-onMounted(() => {
-    form.value.entity_users.forEach((assignment) => {
-        void applyDefaultPlant(assignment);
-    });
-});
 
 const validate = () => {
     const errors: any = {};
@@ -103,11 +78,9 @@ const validate = () => {
         errors.email = ['Please enter a valid email address'];
     }
 
-    if (!form.value.mobile) {
-        errors.mobile = ['Mobile number is required'];
-    } else if (!/^\d{10}$/.test(form.value.mobile)) {
-        errors.mobile = ['Mobile number must be exactly 10 digits'];
-    }
+    // if (!/^\d{10}$/.test(form.value.mobile)) {
+    //     errors.mobile = ['Mobile number must be exactly 10 digits'];
+    // }
 
     if (!form.value.password) {
         errors.password = ['Password is required'];
@@ -115,15 +88,15 @@ const validate = () => {
         errors.password = ['Password must be at least 8 characters'];
     }
 
-    const assignments = form.value.entity_users.filter(eu => eu.entity_id || eu.role_id);
+    const assignments = form.value.entity_users.filter(eu => eu.plant_id || eu.role_id);
     if (assignments.length === 0) {
-        toast.add({ severity: 'error', summary: 'Required', detail: 'At least one Entity & Role assignment is mandatory' });
+        toast.add({ severity: 'error', summary: 'Required', detail: 'At least one Plant & Role assignment is mandatory' });
         return false;
     }
 
-    const incomplete = assignments.find(eu => !eu.entity_id || !eu.role_id);
+    const incomplete = assignments.find(eu => !eu.plant_id || !eu.role_id);
     if (incomplete) {
-        toast.add({ severity: 'error', summary: 'Required', detail: 'Both Entity and Role must be selected for each assignment' });
+        toast.add({ severity: 'error', summary: 'Required', detail: 'Both Plant and Role must be selected for each assignment' });
         return false;
     }
 
@@ -196,16 +169,16 @@ const submit = async () => {
 
             <!-- Basic Fields -->
             <div class="col-span-12 md:col-span-3">
-                <BaseInput v-model="form.username" label="Username" :error="form.errors.username" />
+                <BaseInput v-model="form.username" label="Username" :required="true" :error="form.errors.username" />
             </div>
             <div class="col-span-12 md:col-span-3">
-                <BaseInput v-model="form.email" label="Email Address" :error="form.errors.email" />
+                <BaseInput v-model="form.email" label="Email Address" :required="true" :error="form.errors.email" />
             </div>
             <div class="col-span-12 md:col-span-3">
                 <BaseInput v-model="form.mobile" label="Mobile Number" :error="form.errors.mobile" maxlength="10" />
             </div>
             <div class="col-span-12 md:col-span-3">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">Password</label>
+                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">Password <span class="text-red-500">*</span></label>
                 <Password 
                     v-model="form.password" 
                     toggleMask 
@@ -241,7 +214,7 @@ const submit = async () => {
             <!-- Entity Access Section -->
             <div class="col-span-12">
                 <div class="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-gray-700 pb-2">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Entity & Plant Access</span>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Plant Access Roles</span>
                     <BaseActionButton label="Add Assignment" icon="pi pi-plus" severity="primary" tooltip="Add Assignment" @click="addEntity" />
                 </div>
                 <div class="flex flex-col gap-3">
@@ -253,23 +226,19 @@ const submit = async () => {
                         <div class="col-span-1 flex items-center justify-center">
                             <span class="text-xs font-bold text-gray-400">{{ idx + 1 }}</span>
                         </div>
-                        <div class="col-span-11 md:col-span-3">
-                            <label class="text-[10px] font-bold uppercase text-gray-400">Entity</label>
-                            <BaseSelect v-model="assignment.entity_id" :options="entities" optionLabel="label" optionValue="value" placeholder="Entity" filter @update:modelValue="handleEntityChange(assignment)" />
+                        <div class="col-span-11 md:col-span-5">
+                            <label class="text-[10px] font-bold uppercase text-gray-400">Plant <span class="text-red-500">*</span></label>
+                            <BaseSelect v-model="assignment.plant_id" :options="plants" optionLabel="label" optionValue="value" placeholder="Plant" filter @update:modelValue="handlePlantChange(assignment)" />
                         </div>
-                        <div class="col-span-11 md:col-span-3">
-                            <label class="text-[10px] font-bold uppercase text-gray-400">Plant</label>
-                            <BaseSelect v-model="assignment.plant_id" :options="plantsCache[assignment.entity_id as number] || []" optionLabel="label" optionValue="value" placeholder="Plant (Optional)" filter />
-                        </div>
-                        <div class="col-span-11 md:col-span-4">
-                            <label class="text-[10px] font-bold uppercase text-gray-400">Role</label>
+                        <div class="col-span-11 md:col-span-5">
+                            <label class="text-[10px] font-bold uppercase text-gray-400">Role <span class="text-red-500">*</span></label>
                             <BaseSelect v-model="assignment.role_id" :options="userGroups" optionLabel="label" optionValue="value" placeholder="Role" filter />
                         </div>
                         <div class="col-span-1 flex justify-end">
                             <BaseActionButton icon="pi pi-times" severity="danger" tooltip="Remove Assignment" @click="removeEntity(idx)" />
                         </div>
                     </div>
-                    <p v-if="form.entity_users.length === 0" class="text-xs text-gray-400 italic">No entity access assigned yet.</p>
+                    <p v-if="form.entity_users.length === 0" class="text-xs text-gray-400 italic">No plant access assigned yet.</p>
                 </div>
             </div>
 

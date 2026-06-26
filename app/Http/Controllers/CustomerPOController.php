@@ -13,7 +13,7 @@ use Inertia\Inertia;
 class CustomerPOController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'sales_orders'; // keeping module permission scope
+    protected string $module = 'customer_pos';
 
     public function index()
     {

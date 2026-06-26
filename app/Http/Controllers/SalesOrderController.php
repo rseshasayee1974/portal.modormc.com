@@ -15,7 +15,7 @@ class SalesOrderController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'work_orders'; // keeping permission mapping
+    protected string $module = 'sales_orders';
 
     public function __construct(private readonly SalesOrderIndexDataFactory $indexDataFactory)
     {

@@ -65,9 +65,9 @@ class InvoiceItem extends Model
         $gross = (float)$this->quantity * (float)$this->price_unit;
 
         // Discount
-        $discountAmount = ($this->discount_type === '₹' || $this->discount_type === 'fixed')
-            ? (float)$this->discount
-            : round($gross * ((float)$this->discount / 100), 2);
+        $discountAmount = ($this->discount_type === '%')
+            ? round($gross * ((float)$this->discount / 100), 2)
+            : (float)$this->discount;
 
         $subtotal        = $gross - $discountAmount;
         $lineTaxAmount   = round($subtotal * ($taxRate / 100), 2);
