@@ -304,7 +304,7 @@ class PlantInitializationService
                 Accounts::class,
                 ['code' => $groupData['code'], 'is_system' => true],
                 [
-                    'entity_id' => $plant->entity_id,
+                    'plant_id'  => $plant->id,
                     'title'     => $groupTitle,
                     'is_system' => true,
                     'status'    => 1,
@@ -318,7 +318,6 @@ class PlantInitializationService
                     AccountsType::class,
                     ['code' => $subGroupData['code'], 'plant_id' => $plant->id],
                     [
-                        'entity_id'  => $plant->entity_id,
                         'account_id' => $account->id,
                         'title'      => $subGroupTitle,
                         'is_system'  => true,
@@ -333,7 +332,6 @@ class PlantInitializationService
                         Ledger::class,
                         ['code' => $ledgerData['code'], 'plant_id' => $plant->id],
                         [
-                            'entity_id'       => $plant->entity_id,
                             'account_type_id' => $accountType->id,
                             'title'           => $ledgerData['title'],
                             'slug'            => Str::slug($ledgerData['title']),
