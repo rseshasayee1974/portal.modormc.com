@@ -7,6 +7,7 @@ import Swal from 'sweetalert2';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import Button from 'primevue/button';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = withDefaults(defineProps<{
     customerPO?: any;
@@ -30,7 +31,8 @@ const emit = defineEmits<{
     (e: 'saved'): void;
     (e: 'cancel'): void;
 }>();
- 
+
+const { isAdmin } = usePermissions();
 
 const form = useForm({
     quotation_id: props?.customerPO?.quotation_id ?? null,
@@ -100,10 +102,44 @@ const addItem = () => {
 
 const removeItem = (index: number) => {
     if (form.items.length > 1) {
-        form.items.splice(index, 1);
+        const completedQty = getCustomerPOCompletedQty(props.customerPO);
+        if (completedQty > 0 && isAdmin.value) {
+            Swal.fire({
+                title: 'Warning: Sales Orders Exist!',
+                text: `${getDeleteRestrictionReason(props.customerPO)}. Are you sure you want to proceed?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'Yes, remove',
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    form.items.splice(index, 1);
+                }
+            });
+        } else {
+            form.items.splice(index, 1);
+        }
     }
 };
 
+const getCustomerPOCompletedQty = (customerPO: any) => {
+    return customerPO?.sales_orders?.reduce((sum: number, wo: any) => sum + Number(wo.total_qty || 0), 0) || 0;
+};
+
+const canDeleteCustomerPO = (customerPO: any): boolean => {
+    if (!customerPO || !customerPO.id) return true;
+    
+    const completedQty = getCustomerPOCompletedQty(customerPO);
+    
+    return completedQty === 0 || isAdmin.value;
+};
+
+const getDeleteRestrictionReason = (customerPO: any): string => {
+    if (!customerPO) return 'Invalid PO';
+    const completedQty = getCustomerPOCompletedQty(customerPO);
+    if (completedQty === 0) return '';
+    return `Cannot modify — ${completedQty} m³ already allocated to Sales Orders`;
+};
 
 // Filter sites by selected patron
 const filteredSites = computed(() => {
@@ -193,6 +229,26 @@ const submit = () => {
         }
     }
 
+    const completedQty = getCustomerPOCompletedQty(props.customerPO);
+    if (completedQty > 0 && isAdmin.value) {
+        Swal.fire({
+            title: 'Warning: Sales Orders Exist!',
+            text: `${getDeleteRestrictionReason(props.customerPO)}. Are you sure you want to proceed?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f59e0b',
+            confirmButtonText: 'Yes, update',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                performSubmit(customerPOId);
+            }
+        });
+    } else {
+        performSubmit(customerPOId);
+    }
+};
+
+const performSubmit = (customerPOId: any) => {
     form.put(route('customer-po.update', customerPOId), {
         onSuccess: () => {
             Swal.fire({
@@ -376,7 +432,7 @@ const submit = () => {
                                 text
                                 rounded
                                 size="small"
-                                :disabled="form.items.length === 1"
+                                :disabled="form.items.length === 1 || !canDeleteCustomerPO(customerPO)"
                                 @click="removeItem(idx)"
                                 v-tooltip.top="'Remove'"
                             />
@@ -430,7 +486,7 @@ const submit = () => {
 
         <div class="mt-5 flex justify-end gap-2 border-t border-gray-200 pt-4">
             <BaseFormActions
-                :disabled="props.customerPO.has_salesorders"
+                :disabled="props.customerPO.has_salesorders && !isAdmin"
                 mode="update"
                 updateLabel="Update Customer PO"
                 :loading="form.processing"

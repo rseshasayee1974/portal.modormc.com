@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick , computed} from 'vue';
 import { router } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -14,6 +14,7 @@ import Popover from 'primevue/popover';
 import { ShoppingBagIcon, CpuChipIcon } from '@heroicons/vue/24/outline';
 import CustomerPOCreateForm from './components/CustomerPOCreateForm.vue';
 import CustomerPOEditForm from './components/CustomerPOEditForm.vue';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps<{
     customerPOs: any[];
@@ -105,6 +106,8 @@ const getCustomerPOProgressPercent = (customerPO: any) => {
     return Math.min(100, Math.round((completed / total) * 100));
 };
 // --- Delete restriction helpers ---
+const { isAdmin } = usePermissions();
+
 const hasSalesOrders = (customerPO: any) => {
     return getCustomerPOCompletedQty(customerPO) > 0;
 };
@@ -115,8 +118,8 @@ const canDeleteCustomerPO = (customerPO: any): boolean => {
     const completedQty = getCustomerPOCompletedQty(customerPO);
     
     // Rule: allow delete when nothing has been allocated to Sales Orders yet
-    // This works for Draft AND Confirmed — status no longer blocks it
-    return completedQty === 0;
+    // Admin bypass: allow delete but with a warning
+    return completedQty === 0 || isAdmin.value;
 };
 
 const getDeleteRestrictionReason = (customerPO: any): string => {
@@ -139,9 +142,14 @@ const deleteCustomerPO = (customerPO: any) => {
         return;
     }
 
+    const completedQty = getCustomerPOCompletedQty(customerPO);
+    const isWarning = completedQty > 0;
+
     Swal.fire({
-        title: 'Delete Customer PO?',
-        text: `Are you sure you want to delete this Customer PO?`,
+        title: isWarning ? 'Warning: Sales Orders Exist!' : 'Delete Customer PO?',
+        text: isWarning 
+            ? `${getDeleteRestrictionReason(customerPO)}. Are you sure you want to proceed?`
+            : `Are you sure you want to delete this Customer PO?`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',

@@ -24,6 +24,10 @@ export function usePermissions() {
         userRole.value === 'Super Administrator' || userRole.value === 'Saas Owner'
     );
 
+    const isAdmin = computed(() =>
+        ['Administrator', 'Super Administrator', 'Platform Admin', 'Saas Owner'].includes(userRole.value)
+    );
+
     /**
      * Check if the current user has a specific permission.
      * Super Administrators always return true (all permissions granted).
@@ -33,5 +37,5 @@ export function usePermissions() {
         return permissions.value.includes(permission);
     };
 
-    return { can, isSuperAdmin, permissions, userRole };
+    return { can, isSuperAdmin, isAdmin, permissions, userRole };
 }
