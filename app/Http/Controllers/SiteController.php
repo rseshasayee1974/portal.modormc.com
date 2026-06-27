@@ -71,12 +71,12 @@ class SiteController extends Controller
         $this->authorizeModule('create');
         $payload = $request->validated();
         $user = Auth::user();
-        // $isPrivileged = $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Administrator');
+        $isPrivileged = $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Administrator');
 
-        // if (!$isPrivileged) {
+        if (!$isPrivileged) {
             $payload['type'] = 'unloading';
             $payload['plant_id'] = session('active_plant_id');
-        // }
+        }
 
         $site = Site::create(array_merge($payload, [
             'status' => 'Active',

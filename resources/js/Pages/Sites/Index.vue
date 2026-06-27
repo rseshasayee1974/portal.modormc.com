@@ -68,6 +68,23 @@ const populateSiteForm = (form: any, site: any) => {
 // ── Handlers ──────────────────────────────────────────────────────────────
 
 const submitCreate = () => {
+    const isDuplicate = props.sites.some((site: any) => 
+        site.name.toLowerCase() === createForm.name.toLowerCase() && 
+        site.type === createForm.type && 
+        site.plant_id === createForm.plant_id
+    );
+
+    if (isDuplicate) {
+        createForm.setError('name', 'A site with this name already exists for the selected plant and type.');
+        toast.add({
+            severity: 'error',
+            summary: 'Duplicate Site',
+            detail: 'A site with this name already exists for the selected plant and type.',
+            life: 3000
+        });
+        return;
+    }
+
     createForm.post(route('sites.store'), {
         preserveScroll: true,
         onSuccess: () => {
@@ -85,6 +102,24 @@ const submitCreate = () => {
 const submitEdit = () => {
     if (!editingId.value) return;
     
+    const isDuplicate = props.sites.some((site: any) => 
+        site.id !== editingId.value &&
+        site.name.toLowerCase() === editForm.name.toLowerCase() && 
+        site.type === editForm.type && 
+        site.plant_id === editForm.plant_id
+    );
+
+    if (isDuplicate) {
+        editForm.setError('name', 'A site with this name already exists for the selected plant and type.');
+        toast.add({
+            severity: 'error',
+            summary: 'Duplicate Site',
+            detail: 'A site with this name already exists for the selected plant and type.',
+            life: 3000
+        });
+        return;
+    }
+
     editForm.put(route('sites.update', editingId.value), {
         preserveScroll: true,
         onSuccess: () => {

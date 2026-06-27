@@ -448,13 +448,16 @@ const submit = () => {
                                     @add="form.is_new_site = true"
                                 />
                             </div>
-                            <div v-else class="flex flex-col gap-1 w-full relative">
-                                <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">New Site Name</label>
+                            <div v-else class="flex flex-col gap-1 w-full">
+                                <div class="flex justify-between items-center pl-1">
+                                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">New Site Name</label>
+                                    <button type="button" @click="form.is_new_site = false" class="text-[10px] font-bold text-rose-500 hover:underline uppercase">Back</button>
+                                </div>
                                 <div class="flex gap-2 w-full">
                                     <input 
                                         v-model="form.new_site_name" 
                                         type="text" 
-                                        class="flex-1 rounded-lg border-slate-200 text-sm py-2 px-3 focus:ring-4 focus:ring-indigo-100 transition-all" 
+                                        class="flex-1 min-w-0 rounded-lg border-slate-200 text-sm py-2 px-3 focus:ring-4 focus:ring-indigo-100 transition-all" 
                                         placeholder="Enter Site Name..." 
                                     />
                                     <button 
@@ -466,7 +469,6 @@ const submit = () => {
                                         {{ isCreatingSite ? 'SAVING...' : 'SAVE' }}
                                     </button>
                                 </div>
-                                <button type="button" @click="form.is_new_site = false" class="absolute -top-1 -right-0 text-[10px] font-bold text-rose-500 hover:underline uppercase">Back</button>
                             </div>
                         </div>
 

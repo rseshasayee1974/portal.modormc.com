@@ -14,6 +14,27 @@ class UpdateSiteRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation()
+    {
+        $user = auth()->user();
+        $isPrivileged = $user && ($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Administrator'));
+
+        $mergeData = [];
+
+        if (!$this->filled('plant_id') && session()->has('active_plant_id')) {
+            $mergeData['plant_id'] = session('active_plant_id');
+        }
+
+        if (!$isPrivileged) {
+            $mergeData['type'] = 'unloading';
+            $mergeData['plant_id'] = session('active_plant_id');
+        }
+
+        if (!empty($mergeData)) {
+            $this->merge($mergeData);
+        }
+    }
+
     public function rules(): array
     {
         $siteId = $this->route('site')->id ?? $this->site->id; // Handles both model binding and manual ID if needed
@@ -25,8 +46,8 @@ class UpdateSiteRequest extends FormRequest
                 'string',
                 'max:255',
                 \Illuminate\Validation\Rule::unique('mm_sites')->where(fn ($query) => 
-                    $query->where('plant_id', $this->plant_id)
-                          ->where('type', $this->type)
+                    $query->where('plant_id', $this->input('plant_id'))
+                          ->where('type', $this->input('type'))
                           ->whereNull('deleted_at')
                 )->ignore($siteId),
             ],
