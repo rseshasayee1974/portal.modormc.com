@@ -125,7 +125,7 @@ if (!function_exists('PatronsDropdown')) {
             ->select('id', 'legal_name', 'plant_id');
 
         if ($patronTypes !== null) {
-            $query->ofType($patronTypes);
+            $query->where('patron_type','=',$patronTypes);
         }
 
         if ($excludeId !== null) {

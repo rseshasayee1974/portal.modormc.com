@@ -395,7 +395,7 @@ const handleDeleteBill = () => {
                 <div v-else-if="Number(form.invoice_status) === 1" class="flex items-center gap-3">
                     <div class="flex items-center gap-2 text-indigo-600 font-bold uppercase tracking-widest text-[10px] bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100">
                         <i class="pi pi-check-circle"></i>
-                        <span>Bill Generated</span>
+                        <span>Bill: {{ props.purchaseOrder?.bill?.prefix }}{{ props.purchaseOrder?.bill?.invoice_number }}</span>
                     </div>
                     
                     <a 
@@ -435,7 +435,16 @@ const handleDeleteBill = () => {
 
             <!-- Bill Details (if generated) -->
             <div v-if="props.purchaseOrder?.bill && showBillingPanel" class="p-5 bg-white border-t border-slate-100">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bill Number</span>
+                        <div class="flex items-center gap-2">
+                            <i class="pi pi-file text-indigo-500 text-xs"></i>
+                            <span class="text-slate-700 font-bold text-sm">
+                                {{ props.purchaseOrder.bill.prefix }}{{ props.purchaseOrder.bill.invoice_number }}
+                            </span>
+                        </div>
+                    </div>
                     <div class="flex flex-col gap-1">
                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bill Date & Time</span>
                         <div class="flex items-center gap-2">

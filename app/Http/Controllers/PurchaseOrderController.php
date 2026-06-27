@@ -26,10 +26,10 @@ class PurchaseOrderController extends Controller
 
         $purchaseOrders = PurchaseOrder::query()
             ->where('plant_id', $allowedPlantIds)
-            ->with(['vendor'])
+            ->with(['vendor', 'bill'])
             ->latest()
             ->get();
-
+// dd(VendorsDropdown(['Vendor']));
         $ref_no = Financialyear::generatePurchaseOrderRefNo(session('active_plant_id'));
 // dd(toSelectOptions(LedgersDropdown(session('active_plant_id'), 'EXPENSE'), 'title'));
         return Inertia::render('PurchaseOrders/Index', [

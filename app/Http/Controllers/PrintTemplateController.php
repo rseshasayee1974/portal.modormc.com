@@ -164,6 +164,7 @@ class PrintTemplateController extends Controller
         return [
             ['key' => 'invoices',           'name' => 'Invoices',           'templates' => ['standard', 'elite', 'modern', 'compact', 'indian_gst', 'standard_indigo', 'minimalist_lite', 'formal_gst']],
             ['key' => 'purchase_orders',    'name' => 'Purchase Orders',    'templates' => ['standard', 'elite', 'modern', 'spreadsheet', 'tallysheet', 'compact', 'indian_gst']],
+            ['key' => 'purchase_bills',     'name' => 'Purchase Bills',     'templates' => ['standard', 'elite', 'modern', 'compact', 'indian_gst']],
             ['key' => 'quotations',         'name' => 'Quotations',         'templates' => ['standard', 'elite', 'modern', 'compact']],
             ['key' => 'delivery_challans',  'name' => 'Delivery Challans',  'templates' => ['standard', 'elite', 'modern', 'compact', 'spreadsheet', 'delivery_challan_a4']],
             ['key' => 'credit_notes',       'name' => 'Credit Notes',       'templates' => ['standard', 'elite']],

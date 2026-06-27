@@ -36,7 +36,7 @@ class LedgerResolver
                 ->value('ledger_id');
 
             if ($mapped) {
-                return $mapped;
+                return (int) $mapped;
             }
 
             // 2. Fallback: fuzzy ledger name match — always log so ops can fix it
@@ -48,9 +48,10 @@ class LedgerResolver
             if ($fallback) {
                 Log::warning("Accounting: Using fuzzy fallback ledger for key [{$settingKey}] "
                     . "in plant {$plantId}. Configure Account Default Settings to avoid this.");
+                return (int) $fallback;
             }
 
-            return $fallback;
+            return null;
         });
     }
 

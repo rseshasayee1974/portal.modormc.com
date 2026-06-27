@@ -216,6 +216,9 @@ const formatStateLabel = (state) => {
                                         class="text-slate-600 font-semibold text-sm hover:text-slate-800  decoration-2 underline-offset-4"
                                         @click.prevent="toggleEdit(slotProps.data)"
                                     >{{ slotProps.data.po_number }}</a>
+                                    <div v-if="slotProps.data.bill" class="text-[10px] text-indigo-600 font-bold mt-1 bg-indigo-50/50 border border-indigo-100 px-2 py-0.5 rounded w-fit tracking-wider uppercase">
+                                        Bill: {{ slotProps.data.bill.prefix }}{{ slotProps.data.bill.invoice_number }}
+                                    </div>
                                     <!-- <div class="text-xs text-slate-400 mt-1 bg-gray-100 w-fit tracking-wider font-semibold">{{ slotProps.data.ref_no || '--' }}</div> -->
                                 </div>
                             </template>

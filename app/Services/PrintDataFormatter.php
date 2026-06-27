@@ -307,6 +307,12 @@ class PrintDataFormatter
     {
         $invoice->loadMissing(['plant', 'plant.entity', 'partner', 'items.tax', 'items.uom', 'orderTaxes']);
 
+        // For purchase bills, load the originating PO to display the PO number
+        $linkedPO = null;
+        if ($invoice->invoice_type === 'bill' && !empty($invoice->ref_id)) {
+            $linkedPO = \App\Models\PurchaseOrder::find($invoice->ref_id);
+        }
+
         $data = self::base();
         $data['settings'] = self::getCustomSettings($invoice->plant_id, 'invoices');
 
@@ -322,7 +328,7 @@ class PrintDataFormatter
         }
 
         $data['doc_title'] = $docTitle;
-        $data['doc_no']    = $invoice->invoice_number ?? $invoice->id;
+        $data['doc_no']    =  $invoice->prefix . $invoice->invoice_number;
         $data['doc_date']  = $invoice->invoice_date?->format('d/m/Y') ?? now()->format('d/m/Y');
         $data['due_date']  = $invoice->due_date?->format('d/m/Y') ?? 'N/A';
         $data['state']     = strtoupper($invoice->status ?? 'DRAFT');
@@ -600,6 +606,9 @@ class PrintDataFormatter
                 break;
             case 'purchase_orders':
                 $invoiceTitle = 'PURCHASE ORDER';
+                break;
+            case 'purchase_bills':
+                $invoiceTitle = 'PURCHASE BILL';
                 break;
             case 'quotations':
                 $invoiceTitle = 'QUOTATION';

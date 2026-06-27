@@ -79,6 +79,13 @@ class AccountingPostingService
         $totalDebitCents  = 0;
         $totalCreditCents = 0;
 
+        $narrationLabel = null;
+        if ($document instanceof \App\Models\Invoice) {
+            if ($document->invoice_type === 'bill') {
+                $narrationLabel = !empty($document->ref_id) ? 'purchase' : 'manual';
+            }
+        }
+
         foreach ($lines as $line) {
             JournalEntryLine::create([
                 'journal_entry_id' => $journalEntry->id,
@@ -90,6 +97,7 @@ class AccountingPostingService
                 'partner_id'       => $line['partner_id'] ?? null,
                 'tax_id'           => $line['tax_id'] ?? null,
                 'narration_name'   => $line['narration_name'],
+                'narration_label'  => $narrationLabel,
                 'line_narration'   => $line['line_narration'],
                 'created_by'       => $userId,
             ]);

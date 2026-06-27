@@ -213,10 +213,16 @@ trait PostsToAccounting
             $totalDebitActual = 0;
             $totalCreditActual = 0;
 
+            $narrationLabel = null;
+            if ($docType === 'bill') {
+                $narrationLabel = !empty($this->ref_id) ? 'purchase' : 'manual';
+            }
+
             foreach ($lines as $lineData) {
                 $lineData['journal_entry_id'] = $journalEntry->id;
                 $lineData['plant_id']         = $plantId;
                 $lineData['created_by']       = Auth::id() ?? 1;
+                $lineData['narration_label']  = $narrationLabel;
                 
                 JournalEntryLine::create($lineData);
 
