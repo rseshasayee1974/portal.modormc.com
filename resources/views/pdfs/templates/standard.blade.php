@@ -362,6 +362,12 @@
                         <th class="text-center" style="width:50px">Unit</th>
                     @endif
                     <th class="text-right" style="width:80px">{{ $labels['rate'] ?? 'Rate' }}</th>
+                    @if ($pdfSettings['tax_rate'] ?? true)
+                        <th class="text-right" style="width:55px">Tax %</th>
+                    @endif
+                    @if ($pdfSettings['tax_amount'] ?? true)
+                        <th class="text-right" style="width:70px">Tax Amt</th>
+                    @endif
                     <th class="text-right" style="width:80px">{{ $labels['amount'] ?? 'Amount' }}</th>
                 </tr>
             </thead>
@@ -385,6 +391,16 @@
                             <td class="text-center">{{ $item['unit'] }}</td>
                         @endif
                         <td class="text-right">{{ number_format($item['unit_price'], 2) }}</td>
+                        @if ($pdfSettings['tax_rate'] ?? true)
+                            <td class="text-right muted">
+                                {{ $item['tax_rate'] > 0 ? number_format($item['tax_rate'], 0) . '%' : '-' }}
+                            </td>
+                        @endif
+                        @if ($pdfSettings['tax_amount'] ?? true)
+                            <td class="text-right muted">
+                                {{ $item['tax_amount'] > 0 ? number_format($item['tax_amount'], 2) : '-' }}
+                            </td>
+                        @endif
                         <td class="text-right bold">
                             {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($item['total'], 2) }}</td>
                     </tr>
@@ -474,12 +490,12 @@
                             {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['grand_total'], 2) }}
                         </td>
                     </tr>
-                    <tr class="bt-balance-row">
+                    {{-- <tr class="bt-balance-row">
                         <td class="bt-label bold">Balance Due</td>
                         <td class="bt-val bold">
                             {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['grand_total'], 2) }}
                         </td>
-                    </tr>
+                    </tr> --}}
                 </table>
             </div>
         </div>
