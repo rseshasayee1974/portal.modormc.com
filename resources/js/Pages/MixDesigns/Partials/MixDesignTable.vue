@@ -140,7 +140,7 @@ const getDeleteTooltip = (mixDesign) => {
                         <!-- :disabled="slotProps.data.is_used_in_quotations || slotProps.data.is_used_in_batching" -->
                         <!-- v-tooltip.right="getDeleteTooltip(slotProps.data)"                         -->
                         <BaseDeleteButton
-                        v-if="can('concrete-mix-designs.delete')"
+                        v-if="can('MIX_DESIGN.DELETE')"
                             :url="route('mixdesigns.destroy', slotProps.data.id)"
                             title="Delete Mix Design?"/>
                     </div>

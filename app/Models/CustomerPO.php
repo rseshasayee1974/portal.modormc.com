@@ -12,6 +12,9 @@ class CustomerPO extends Model
 {
     use HasFactory, SoftDeletes, AuditFields, TracksModelChanges;
 
+    /** Override auto-derived module name (Str::snake('CustomerPO') produces 'customer_p_o') */
+    public static string $permissionModule = 'customer_po';
+
     protected $table = 'mm_customer_pos';
 
     protected $fillable = [

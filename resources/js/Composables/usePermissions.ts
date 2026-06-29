@@ -34,7 +34,8 @@ export function usePermissions() {
      */
     const can = (permission: string): boolean => {
         if (isSuperAdmin.value) return true;
-        return permissions.value.includes(permission);
+        const normalized = permission.toLowerCase();
+        return permissions.value.some(p => p.toLowerCase() === normalized);
     };
 
     return { can, isSuperAdmin, isAdmin, permissions, userRole };

@@ -348,8 +348,7 @@
                     @if ($batch->workOrder?->plant && $batch->workOrder->plant->addresses->isNotEmpty())
                         @php $plAddr = $batch->workOrder->plant->addresses->first(); @endphp
                         <div class="plant-address">
-                            {{ $plAddr->line_1 ?? '' }}, {{ $plAddr->city ?? '' }}, {{ $plAddr->state ?? '' }} -
-                            {{ $plAddr->pincode ?? '' }}
+                            {{ $plAddr->line_1 ?? '' }}, {{ $plAddr->city ?? '' }}, {{ $plAddr->state->state_name ?? $plAddr->state_code ?? '' }} - {{ $plAddr->zipcode ?? '' }}
                         </div>
                     @endif
                 </td>

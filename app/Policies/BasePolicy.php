@@ -119,7 +119,14 @@ abstract class BasePolicy
             throw new \Exception("Unable to determine model class for policy: " . static::class);
         }
 
-        return Str::kebab(Str::plural(class_basename($class)));
+        // Allow models to explicitly declare their permission module name
+        // e.g. public static string $permissionModule = 'customer_po';
+        $resolvedClass = is_string($class) ? $class : get_class($class);
+        if (class_exists($resolvedClass) && property_exists($resolvedClass, 'permissionModule')) {
+            return $resolvedClass::$permissionModule;
+        }
+
+        return Str::snake(class_basename($class));
     }
 
     protected function samePlant(User $user, Model $model): bool

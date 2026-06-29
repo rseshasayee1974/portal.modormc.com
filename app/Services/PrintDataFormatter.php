@@ -196,7 +196,7 @@ class PrintDataFormatter
     // ─────────────────────────────────────────────────────
     public static function fromPurchaseOrder($order): array
     {
-        $order->loadMissing(['items.product', 'items.uom', 'items.tax', 'vendor', 'plant', 'plant.entity', 'currency']);
+        $order->loadMissing(['items.product', 'items.uom', 'items.tax', 'vendor', 'plant', 'plant.entity', 'plant.addresses', 'currency']);
 
         $data = self::base();
         $data['settings'] = self::getCustomSettings($order->plant_id, 'purchase_orders');
@@ -210,12 +210,13 @@ class PrintDataFormatter
         $data['state']         = strtoupper($order->state ?? 'DRAFT');
 
         // Company (plant as issuer)
+        $plAddr = $order->plant->addresses->first();
         $data['company'] = [
             'name'    => $order->plant->entity->entity_name ?? $order->plant->name,
-            'address' => $order->plant->address,
-            'city'    => $order->plant->city,
-            'state'   => $order->plant->state,
-            'pin'     => $order->plant->pincode,
+            'address' => $plAddr->line_1 ?? '',
+            'city'    => $plAddr->city ?? '',
+            'state'   => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
+            'pin'     => $plAddr->zipcode ?? '',
             'gstin'   => $order->plant->gstin ?? '',
             'phone'   => $order->plant->phone ?? '',
             'email'   => $order->plant->email ?? '',
@@ -235,10 +236,10 @@ class PrintDataFormatter
         // Ship To (Delivery = plant)
         $data['ship_to'] = [
             'name'    => $order->plant->entity->entity_name ?? $order->plant->name,
-            'address' => $order->plant->address,
-            'city'    => $order->plant->city,
-            'state'   => $order->plant->state,
-            'pin'     => $order->plant->pincode,
+            'address' => $plAddr->line_1 ?? '',
+            'city'    => $plAddr->city ?? '',
+            'state'   => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
+            'pin'     => $plAddr->zipcode ?? '',
         ];
 
         // Items
@@ -305,7 +306,7 @@ class PrintDataFormatter
     // ─────────────────────────────────────────────────────
     public static function fromInvoice($invoice): array
     {
-        $invoice->loadMissing(['plant', 'plant.entity', 'partner', 'items.tax', 'items.uom', 'orderTaxes']);
+        $invoice->loadMissing(['plant', 'plant.entity', 'plant.addresses', 'partner', 'items.tax', 'items.uom', 'orderTaxes']);
 
         // For purchase bills, load the originating PO to display the PO number
         $linkedPO = null;
@@ -334,12 +335,13 @@ class PrintDataFormatter
         $data['state']     = strtoupper($invoice->status ?? 'DRAFT');
 
         // Company
+        $plAddr = $invoice->plant->addresses->first();
         $data['company'] = [
             'name'    => $invoice->plant->entity->entity_name ?? $invoice->plant->name ?? 'Company',
-            'address' => $invoice->plant->address ?? '',
-            'city'    => $invoice->plant->city ?? '',
-            'state'   => $invoice->plant->state ?? '',
-            'pin'     => $invoice->plant->pincode ?? '',
+            'address' => $plAddr->line_1 ?? '',
+            'city'    => $plAddr->city ?? '',
+            'state'   => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
+            'pin'     => $plAddr->zipcode ?? '',
             'gstin'   => $invoice->plant->gstin ?? '',
             'phone'   => $invoice->plant->phone ?? '',
             'email'   => $invoice->plant->email ?? '',
@@ -410,7 +412,7 @@ class PrintDataFormatter
     // ─────────────────────────────────────────────────────
     public static function fromQuotation($quotation): array
     {
-        $quotation->loadMissing(['items.mixDesign', 'items.mixDesign.unit', 'patron', 'plant', 'plant.entity', 'tax']);
+        $quotation->loadMissing(['items.mixDesign', 'items.mixDesign.unit', 'patron', 'plant', 'plant.entity', 'plant.addresses', 'tax']);
 
         $data = self::base();
         $data['settings'] = self::getCustomSettings($quotation->plant_id, 'quotations');
@@ -421,12 +423,13 @@ class PrintDataFormatter
         $data['state']     = strtoupper($quotation->status_text ?? 'DRAFT');
 
         // Company
+        $plAddr = $quotation->plant->addresses->first();
         $data['company'] = [
             'name'    => $quotation->plant->entity->entity_name ?? $quotation->plant->name,
-            'address' => $quotation->plant->address,
-            'city'    => $quotation->plant->city,
-            'state'   => $quotation->plant->state,
-            'pin'     => $quotation->plant->pincode,
+            'address' => $plAddr->line_1 ?? '',
+            'city'    => $plAddr->city ?? '',
+            'state'   => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
+            'pin'     => $plAddr->zipcode ?? '',
             'gstin'   => $quotation->plant->gstin ?? '',
             'phone'   => $quotation->plant->phone ?? '',
             'email'   => $quotation->plant->email ?? '',
@@ -712,8 +715,8 @@ class PrintDataFormatter
             'name'    => $plant->name,
             'address' => $plAddr->line_1 ?? '',
             'city'    => $plAddr->city ?? '',
-            'state'   => $plAddr->state ?? '',
-            'pin'     => $plAddr->pincode ?? '',
+            'state'   => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
+            'pin'     => $plAddr->zipcode ?? '',
             'gstin'   => $plant->gstin ?? '',
             'phone'   => $plant->phone ?? '',
             'email'   => $plant->email ?? '',
