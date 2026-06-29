@@ -200,6 +200,43 @@ const submitCreate = () => {
             createForm.clearErrors();
             activeTabCreate.value = 'details';
         },
+        onError: (errs) => {
+            const errorKeys = Object.keys(errs);
+            let targetTab = 'details';
+
+            if (errorKeys.some(k => k.startsWith('contacts.'))) {
+                targetTab = 'contacts';
+            } else if (errorKeys.some(k => k.startsWith('salary_structures.'))) {
+                targetTab = 'salary_structure';
+            } else if (errorKeys.length > 0) {
+                const firstKey = errorKeys[0];
+                const tabMapping: Record<string, string> = {
+                    department_id: 'employment', designation_id: 'employment', reporting_manager_id: 'employment', employment_type: 'employment', joining_date: 'employment', exit_date: 'employment',
+                    pan: 'statutory', aadhaar: 'statutory', uan: 'statutory', esi_number: 'statutory',
+                    bank_account_no: 'finance', bank_ifsc: 'finance', bank_name: 'finance',
+                    email: 'contacts', mobile: 'contacts',
+                    patron_ids: 'patrons'
+                };
+                targetTab = tabMapping[firstKey] || 'details';
+            }
+            
+            activeTabCreate.value = targetTab;
+            
+            setTimeout(() => {
+                const el = document.getElementById('top-form-container');
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: errs[errorKeys[0]],
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 4000
+            });
+        },
         onFinish: () => createForm.transform((d: any) => d),
     });
 };

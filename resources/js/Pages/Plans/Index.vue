@@ -31,7 +31,7 @@ interface Plan {
     price_yearly: number;
     yearly_plan_description: string | null;
     max_users: number;
-    features_json: string[] | null;
+    mm_features_json: string[] | null;
     is_active: number | boolean;
 }
 
@@ -75,7 +75,7 @@ const modalForm = ref({
     price_yearly: 0,
     yearly_plan_description: '',
     max_users: 1,
-    features_json: [] as string[],
+    mm_features_json: [] as string[],
     is_active: true as any,
     processing: false,
     errors: {} as any
@@ -84,7 +84,7 @@ const modalForm = ref({
 const openCreateModal = () => {
     modalMode.value = 'create';
     editingId.value = null;
-    modalForm.value = { plan_type: '', price_monthly: 0, monthly_plan_description: '', price_yearly: 0, yearly_plan_description: '', max_users: 1, features_json: [], is_active: true, processing: false, errors: {} };
+    modalForm.value = { plan_type: '', price_monthly: 0, monthly_plan_description: '', price_yearly: 0, yearly_plan_description: '', max_users: 1, mm_features_json: [], is_active: true, processing: false, errors: {} };
     showModal.value = true;
 };
 
@@ -98,7 +98,7 @@ const openEditModal = (plan: Plan) => {
         price_yearly: Number(plan.price_yearly),
         yearly_plan_description: plan.yearly_plan_description || '',
         max_users: Number(plan.max_users),
-        features_json: plan.features_json || [],
+        mm_features_json: plan.mm_features_json || [],
         is_active: !!plan.is_active,
         processing: false,
         errors: {}
@@ -144,12 +144,12 @@ const submitModal = async () => {
 const newFeature = ref('');
 const addFeature = () => {
     if (newFeature.value.trim()) {
-        modalForm.value.features_json.push(newFeature.value.trim());
+        modalForm.value.mm_features_json.push(newFeature.value.trim());
         newFeature.value = '';
     }
 };
 const removeFeature = (index: number) => {
-    modalForm.value.features_json.splice(index, 1);
+    modalForm.value.mm_features_json.splice(index, 1);
 };
 </script>
 
@@ -239,7 +239,7 @@ const removeFeature = (index: number) => {
                         <Button icon="pi pi-plus" text @click="addFeature" :disabled="modalMode === 'view'" />
                     </div>
                     <div class="flex flex-wrap gap-2 mt-1">
-                        <div v-for="(feat, idx) in modalForm.features_json" :key="idx" class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-md text-xs flex items-center gap-2">
+                        <div v-for="(feat, idx) in modalForm.mm_features_json" :key="idx" class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded-md text-xs flex items-center gap-2">
                             {{ feat }}
                             <i v-if="modalMode !== 'view'" class="pi pi-times cursor-pointer hover:text-red-500" @click="removeFeature(idx)"></i>
                         </div>

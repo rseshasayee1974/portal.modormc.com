@@ -62,10 +62,17 @@ class TermsConditionController extends Controller
         $this->authorizeModule('create');
         $validated = $request->validated();
         
-        TermsCondition::create(array_merge($validated, [
+        $termsCondition = TermsCondition::create(array_merge($validated, [
             'created_by' => Auth::id(),
             'status' => $validated['status'] ?? 'active',
         ]));
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'termsCondition' => $termsCondition,
+                'message' => 'Terms and Condition entry created successfully.'
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Terms and Condition entry created successfully.');
     }
@@ -73,14 +80,21 @@ class TermsConditionController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UpdateTermsConditionRequest $request, TermsCondition $termsCondition)
+    public function update(UpdateTermsConditionRequest $request, TermsCondition $termscondition)
     {
         $this->authorizeModule('edit');
         $validated = $request->validated();
 
-        $termsCondition->update(array_merge($validated, [
+        $termscondition->update(array_merge($validated, [
             'updated_by' => Auth::id(),
         ]));
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'termsCondition' => $termscondition,
+                'message' => 'Terms and Condition entry updated successfully.'
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Terms and Condition entry updated successfully.');
     }
@@ -88,13 +102,19 @@ class TermsConditionController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(TermsCondition $termsCondition)
+    public function destroy(TermsCondition $termscondition)
     {
         $this->authorizeModule('delete');
         // Tracker deletion fields
-        $termsCondition->deleted_by = Auth::id();
-        $termsCondition->save();
-        $termsCondition->delete();
+        $termscondition->deleted_by = Auth::id();
+        $termscondition->save();
+        $termscondition->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json([
+                'message' => 'Terms and Condition entry deleted successfully.'
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Terms and Condition entry deleted successfully.');
     }

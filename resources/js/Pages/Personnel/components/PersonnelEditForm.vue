@@ -13,6 +13,7 @@ import {
     BanknotesIcon
 } from '@heroicons/vue/24/outline';
 import BaseCard from '@/Components/Base/BaseCard.vue';
+import Swal from 'sweetalert2';
 
 // PrimeVue
 import Tabs from 'primevue/tabs';
@@ -80,7 +81,9 @@ const formatDateStr = (val: any): string | null => {
     return `${yyyy}-${mm}-${dd}`;
 };
 
-const form = useForm({
+const formCache: Record<number, any> = {};
+
+const getInitialData = () => ({
     employee_code: props.personnel.employee_code || '',
     first_name: props.personnel.first_name || '',
     last_name: props.personnel.last_name || '',
@@ -114,6 +117,20 @@ const form = useForm({
         effective_from: parseDate(s.effective_from),
         effective_to: parseDate(s.effective_to),
     })),
+});
+
+const form = useForm(formCache[props.personnel.id] || getInitialData());
+
+import { watch, onBeforeUnmount } from 'vue';
+
+watch(() => form.data(), (newVal) => {
+    formCache[props.personnel.id] = newVal;
+}, { deep: true });
+
+onBeforeUnmount(() => {
+    if (!form.hasErrors) {
+        // Option to clear if we don't need it, but keeping it helps.
+    }
 });
 
 const addContact = () => {
@@ -199,7 +216,47 @@ const submit = () => {
     };
     form.transform(() => payload).put(route('personnel.update', props.personnel.id), {
         onSuccess: () => {
+            delete formCache[props.personnel.id];
             emit('success');
+        },
+        onError: (errs) => {
+            const errorKeys = Object.keys(errs);
+            let targetTab = 'details';
+
+            if (errorKeys.some(k => k.startsWith('contacts.'))) {
+                targetTab = 'contacts';
+            } else if (errorKeys.some(k => k.startsWith('salary_structures.'))) {
+                targetTab = 'salary_structure';
+            } else if (errorKeys.length > 0) {
+                const firstKey = errorKeys[0];
+                const tabMapping: Record<string, string> = {
+                    department_id: 'employment', designation_id: 'employment', reporting_manager_id: 'employment', employment_type: 'employment', joining_date: 'employment', exit_date: 'employment',
+                    pan: 'statutory', aadhaar: 'statutory', uan: 'statutory', esi_number: 'statutory',
+                    bank_account_no: 'finance', bank_ifsc: 'finance', bank_name: 'finance',
+                    email: 'contacts', mobile: 'contacts',
+                    patron_ids: 'patrons'
+                };
+                targetTab = tabMapping[firstKey] || 'details';
+            }
+            
+            emit('update:activeTab', targetTab);
+            
+            setTimeout(() => {
+                const invalidElements = document.getElementsByClassName('p-invalid');
+                if (invalidElements.length > 0) {
+                    invalidElements[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 100);
+
+            Swal.fire({
+                icon: 'error',
+                title: 'Validation Error',
+                text: errs[errorKeys[0]],
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 4000
+            });
         },
         onFinish: () => form.transform((d: any) => d),
     });

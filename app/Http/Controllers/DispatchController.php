@@ -58,7 +58,7 @@ class DispatchController extends Controller
         $this->authorizeModule('create');
         $validated = $request->validated();
 
-         DB::transaction(function () use ($validated) {
+        return DB::transaction(function () use ($validated) {
             // try {
                 // 1. Prepare Dispatch Data (Flattened financials are now at top level)
                 $dispatchData = collect($validated)->except(['weights', 'financials', 'status', 'payment', 'batch_size'])->toArray();
@@ -102,7 +102,7 @@ Log::info($dispatch);
                 $dispatch->status()->updateOrCreate(['dispatch_id' => $dispatch->id], $statusData);
 
                 // 5. Process Immediate Payment if provided
-                if ($dispatch->payment_mode === 'cash' && !empty($validated['payment']) && (float)($validated['payment']['amount'] ?? 0) > 0) {
+                if (strtolower($dispatch->payment_mode) === 'cash'|| 'Cash' || 'CASH' && !empty($validated['payment']) && (float)($validated['payment']['amount'] ?? 0) > 0) {
                     $paymentData = $validated['payment'];
                     $paymentData['dispatch_id'] = $dispatch->id;
                     $paymentData['payment_type'] = 'partial';
@@ -137,8 +137,13 @@ Log::info($dispatch);
         if($dispatch->dispatch_status !== 'Draft'){
             abort(403, 'Access Denied: This dispatch is already invoiced.');
         }
-        if ($user && $user->hasRole('Trip Operator')) {
-            $isDataPresented = (float)$dispatch->load_rate > 0 || 
+
+
+$wanted = 'trip operator'; // strtolower(trim('Trip Operator'))
+if ($user && collect($user->getRoleNames())
+        ->map(fn($r) => strtolower(trim($r)))
+        ->contains($wanted)) {           
+        $isDataPresented = (float)$dispatch->load_rate > 0 || 
                                $dispatch->dispatch_status !== 'Draft' || 
                                ($dispatch->status()->first() && $dispatch->status()->first()->invoice_status == 1) ||
                                $dispatch->payments()->exists();
@@ -189,7 +194,7 @@ Log::info($dispatch);
             }
 
             // 5. Update Payment
-            if ($dispatch->payment_mode === 'cash' && !empty($validated['payment']) && (float)($validated['payment']['amount'] ?? 0) > 0) {
+            if (strtolower($dispatch->payment_mode) === 'cash' && !empty($validated['payment']) && (float)($validated['payment']['amount'] ?? 0) > 0) {
                  $paymentData = $validated['payment'];
                  $paymentData['dispatch_id'] = $dispatch->id;
                  $paymentData['payment_type'] = 'partial';
@@ -200,7 +205,7 @@ Log::info($dispatch);
                     ['dispatch_id' => $dispatch->id],
                     $paymentData
                  );
-            } elseif ($dispatch->payment_mode === 'credit') {
+            } elseif (strtolower($dispatch->payment_mode) === 'credit') {
                 // Remove any payments if switched to credit
                 $dispatch->payments()->delete();
             }

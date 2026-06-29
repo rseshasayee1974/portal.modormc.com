@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { ref, watch, computed } from 'vue';
+import { router, useForm } from '@inertiajs/vue3';
 import { debounce } from 'lodash';
-import axios from 'axios';
 import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
@@ -24,58 +23,49 @@ const toast = useToast();
 const searchQuery = ref(props.filters.search || '');
 const showModal = ref(false);
 const modalMode = ref<'create' | 'edit'>('create');
-const formErrors = ref<Record<string, string[]>>({});
 
-const modalForm = ref({
+const form = useForm({
     id: null as number | null,
     name: '',
     guard_name: 'web',
-    processing: false,
 });
-
-const resetForm = () => {
-    modalForm.value = { id: null, name: '', guard_name: 'web', processing: false };
-    formErrors.value = {};
-};
 
 const openCreateModal = () => {
     modalMode.value = 'create';
-    resetForm();
+    form.reset();
+    form.clearErrors();
     showModal.value = true;
 };
 
 const openEditModal = (permission: any) => {
     modalMode.value = 'edit';
-    resetForm();
-    modalForm.value.id = permission.id;
-    modalForm.value.name = permission.name;
-    modalForm.value.guard_name = permission.guard_name || 'web';
+    form.reset();
+    form.clearErrors();
+    form.id = permission.id;
+    form.name = permission.name;
+    form.guard_name = permission.guard_name || 'web';
     showModal.value = true;
 };
 
 const closeModal = () => { showModal.value = false; };
 
-const submitModal = async () => {
-    modalForm.value.processing = true;
-    formErrors.value = {};
-
-    const payload = { ...modalForm.value };
-    const targetUrl = modalMode.value === 'edit' ? `/settings/permissions/${payload.id}` : '/settings/permissions';
-    const method = modalMode.value === 'edit' ? 'put' : 'post';
-
-    try {
-        await axios[method](targetUrl, payload);
-        toast.add({ severity: 'success', summary: 'Success', detail: `Permission ${modalMode.value === 'edit' ? 'updated' : 'created'}` });
-        closeModal();
-        router.reload({ only: ['permissions'] });
-    } catch (error: any) {
-        if (error.response?.status === 422) {
-            formErrors.value = error.response.data.errors;
-        } else {
-            toast.add({ severity: 'error', summary: 'Error', detail: 'An unexpected error occurred' });
-        }
-    } finally {
-        modalForm.value.processing = false;
+const submitModal = () => {
+    form.name = form.name.toUpperCase();
+    
+    if (modalMode.value === 'edit') {
+        form.put(`/settings/permissions/${form.id}`, {
+            onSuccess: () => {
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Permission updated' });
+                closeModal();
+            }
+        });
+    } else {
+        form.post('/settings/permissions', {
+            onSuccess: () => {
+                toast.add({ severity: 'success', summary: 'Success', detail: 'Permission created' });
+                closeModal();
+            }
+        });
     }
 };
 
@@ -99,12 +89,14 @@ const confirmDelete = (id: number) => {
 };
 
 const onPage = (event: any) => {
-    router.get('/settings/permissions', { page: event.page + 1, search: searchQuery.value }, { preserveState: true });
+    router.get('/settings/permissions', { page: event.page + 1, search: searchQuery.value }, { preserveState: true, preserveScroll: true });
 };
 
 const handleSearch = debounce(() => {
-    router.get('/settings/permissions', { search: searchQuery.value }, { preserveState: true, replace: true });
+    router.get('/settings/permissions', { search: searchQuery.value }, { preserveState: true, replace: true, preserveScroll: true });
 }, 300);
+
+const firstRecord = computed(() => (props.permissions.current_page - 1) * props.permissions.per_page);
 </script>
 
 <template>
@@ -123,6 +115,7 @@ const handleSearch = debounce(() => {
                     :paginator="true"
                     :totalRecords="permissions.total"
                     :rows="permissions.per_page"
+                    :first="firstRecord"
                     @page="onPage($event)"
                 >
                     <template #header>
@@ -137,12 +130,12 @@ const handleSearch = debounce(() => {
                     
                     <Column header="S.No" style="width: 70px">
                         <template #body="slotProps">
-                            <span class="text-gray-400 font-bold">{{ slotProps.index + 1 }}</span>
+                            <span class="text-gray-400 font-bold">{{ slotProps.index + 1 + firstRecord }}</span>
                         </template>
                     </Column>
                     <Column field="name" header="Access Key" sortable>
                         <template #body="slotProps">
-                            <code class="bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-[11px] font-mono select-all">{{ slotProps.data.name }}</code>
+                            <code class="bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-[11px] font-mono select-all uppercase">{{ slotProps.data.name }}</code>
                         </template>
                     </Column>
                     <Column field="guard_name" header="Guard" style="width: 100px">
@@ -166,18 +159,19 @@ const handleSearch = debounce(() => {
             <div class="flex flex-col gap-4 py-2">
                 <div class="flex flex-col gap-1">
                     <label class="text-xs font-semibold uppercase text-gray-500">Access Key</label>
-                    <BaseInput v-model="modalForm.name" fluid placeholder="e.g. users.create" />
-                    <small v-if="formErrors.name" class="text-red-500 text-xs">{{ formErrors.name[0] }}</small>
+                    <BaseInput v-model="form.name" fluid placeholder="e.g. USERS.CREATE" style="text-transform: uppercase;" />
+                    <small v-if="form.errors.name" class="text-red-500 text-xs">{{ form.errors.name }}</small>
                 </div>
                 <div class="flex flex-col gap-1">
                     <label class="text-xs font-semibold uppercase text-gray-500">Guard Name</label>
-                    <BaseInput v-model="modalForm.guard_name" fluid />
+                    <BaseInput v-model="form.guard_name" fluid />
+                    <small v-if="form.errors.guard_name" class="text-red-500 text-xs">{{ form.errors.guard_name }}</small>
                 </div>
             </div>
             <template #footer>
                 <div class="flex gap-2 justify-end mt-4">
                     <BaseButton label="Cancel" text severity="secondary" @click="closeModal" />
-                    <BaseButton label="Save Permission" :loading="modalForm.processing" @click="submitModal" severity="primary" />
+                    <BaseButton label="Save Permission" :loading="form.processing" @click="submitModal" severity="primary" />
                 </div>
             </template>
         </Dialog>

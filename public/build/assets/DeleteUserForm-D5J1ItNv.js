@@ -1,1 +1,0 @@
-import{G as t,j as o,k as s,l as e}from"./vue-B6AlE5n7.js";import{_ as m}from"./ActionSection-UkjPbN7T.js";import"./vendor-C52i-CJG.js";import"./axios-CACZDMKj.js";import"./apexcharts-BqElZgNz.js";import"./app-0bPzvf-u.js";const f={__name:"DeleteUserForm",setup(p){return t({password:""}),(a,r)=>(e(),o(m,null,{content:s(()=>[...r[0]||(r[0]=[])]),_:1}))}};export{f as default};

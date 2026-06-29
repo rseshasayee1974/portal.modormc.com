@@ -139,6 +139,25 @@ watch(() => form.customer_po_id, (newVal) => {
 });
 
 const submit = () => {
+     form.clearErrors('scheduled_end');
+    if (form.scheduled_start && form.scheduled_end) {
+        const startDate = new Date(form.scheduled_start);
+        startDate.setSeconds(0, 0);
+        const start = startDate.getTime();
+
+        const endDate = new Date(form.scheduled_end);
+        endDate.setSeconds(0, 0);
+        const end = endDate.getTime();
+        
+        if (start === end) {
+            form.setError('scheduled_end', 'Start and end time cannot be exactly the same.');
+            return;
+        }
+        if (start > end) {
+            form.setError('scheduled_end', 'End time cannot be before the start time.');
+            return;
+        }
+    }
     form.transform((data) => ({
         ...data,
         scheduled_start: data.scheduled_start ? data.scheduled_start.toISOString() : null,

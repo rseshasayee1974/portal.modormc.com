@@ -41,7 +41,7 @@ class Plan extends Model
 		'price_monthly' => 'float',
 		'price_yearly' => 'float',
 		'max_users' => 'int',
-		'features_json' => 'json',
+		'mm_features_json' => 'json',
 		'is_active' => 'int'
 	];
 
@@ -52,7 +52,7 @@ class Plan extends Model
 		'price_yearly',
 		'yearly_plan_description',
 		'max_users',
-		'features_json',
+		'mm_features_json',
 		'is_active'
 	];
 

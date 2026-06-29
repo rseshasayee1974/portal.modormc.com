@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DispatchStoreRequest extends FormRequest
 {
@@ -27,7 +28,7 @@ class DispatchStoreRequest extends FormRequest
             'unload_site_id' => 'nullable|exists:mm_sites,id',
             'driver_id' => 'nullable|exists:mm_personnels,id',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
-            'payment_mode' => 'required|in:cash,credit',
+            'payment_mode' => ['required', Rule::in(['cash', 'credit', 'CASH', 'CREDIT', 'Cash', 'Credit'])],
             'prefix' => 'nullable|string',
             'dispatch_no' => 'nullable|numeric|min:1',
             'dispatch_reference' => 'nullable|string',

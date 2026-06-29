@@ -47,18 +47,18 @@ class InvoiceStatusController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, InvoiceStatus $invoiceStatus)
+    public function update(Request $request, InvoiceStatus $invoicestatus)
     {
         $this->authorizeModule('edit');
         $validated = $request->validate([
-            'status_name' => 'required|string|max:100|unique:mm_invoice_statuses,status_name,' . $invoiceStatus->id,
+            'status_name' => 'required|string|max:100|unique:mm_invoice_statuses,status_name,' . $invoicestatus->id,
         ]);
 
-        $invoiceStatus->update($validated);
+        $invoicestatus->update($validated);
 
         if ($request->wantsJson()) {
             return response()->json([
-                'invoiceStatus' => $invoiceStatus,
+                'invoiceStatus' => $invoicestatus,
                 'message' => 'Invoice Status updated successfully.'
             ]);
         }
@@ -69,10 +69,10 @@ class InvoiceStatusController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(InvoiceStatus $invoiceStatus)
+    public function destroy(InvoiceStatus $invoicestatus)
     {
         $this->authorizeModule('delete');
-        $invoiceStatus->delete();
+        $invoicestatus->delete();
 
         if (request()->wantsJson()) {
             return response()->json([

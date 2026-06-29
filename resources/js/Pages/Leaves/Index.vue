@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { useForm, usePage, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Swal from 'sweetalert2';
 import { ClipboardDocumentCheckIcon, CogIcon, PlusIcon } from '@heroicons/vue/24/outline';
@@ -145,9 +145,8 @@ const deleteApp = (id: number) => {
 };
 
 const approveLeave = (id: number, status: string) => {
-    appForm.post(route('leave-applications.approve', id), {
-        data: { status },
-        onSuccess: () => Swal.fire('Status Updated', `Leave application status set to ${status}.`, 'success')
+    router.post(route('leave-applications.approve', id), { status }, {
+        preserveScroll: true,
     });
 };
 
@@ -189,8 +188,8 @@ const deleteType = (id: number) => {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            typeForm.delete(route('leave-types.destroy', id), {
-                onSuccess: () => Swal.fire('Deleted!', 'Leave type has been deleted.', 'success')
+            router.delete(route('leave-types.destroy', id), {
+                preserveScroll: true,
             });
         }
     });

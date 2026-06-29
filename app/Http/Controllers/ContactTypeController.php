@@ -47,18 +47,18 @@ class ContactTypeController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, ContactType $contactType)
+    public function update(Request $request, ContactType $contacttype)
     {
         $this->authorizeModule('edit');
         $validated = $request->validate([
-            'type' => 'required|string|max:100|unique:mm_contact_types,type,' . $contactType->id,
+            'type' => 'required|string|max:100|unique:mm_contact_types,type,' . $contacttype->id,
         ]);
 
-        $contactType->update($validated);
+        $contacttype->update($validated);
 
         if ($request->wantsJson()) {
             return response()->json([
-                'contactType' => $contactType,
+                'contactType' => $contacttype,
                 'message' => 'Contact Type updated successfully.'
             ]);
         }
@@ -69,10 +69,10 @@ class ContactTypeController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(ContactType $contactType)
+    public function destroy(ContactType $contacttype)
     {
         $this->authorizeModule('delete');
-        $contactType->delete();
+        $contacttype->delete();
 
         if (request()->wantsJson()) {
             return response()->json([

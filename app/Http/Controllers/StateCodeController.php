@@ -51,7 +51,7 @@ class StateCodeController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, StateCode $stateCode)
+    public function update(Request $request, StateCode $statecode)
     {
         $this->authorizeModule('edit');
         $validated = $request->validate([
@@ -60,11 +60,11 @@ class StateCodeController extends Controller
             'state_name' => 'required|string|max:100'
         ]);
 
-        $stateCode->update($validated);
+        $statecode->update($validated);
 
         if ($request->wantsJson()) {
             return response()->json([
-                'stateCode' => $stateCode,
+                'stateCode' => $statecode,
                 'message' => 'State Code updated successfully.'
             ]);
         }
@@ -75,10 +75,10 @@ class StateCodeController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(StateCode $stateCode)
+    public function destroy(StateCode $statecode)
     {
         $this->authorizeModule('delete');
-        $stateCode->delete();
+        $statecode->delete();
 
         if (request()->wantsJson()) {
             return response()->json([

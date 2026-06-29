@@ -768,6 +768,17 @@ if (!function_exists('ConcretePumpDropdown')) {
 // Utility helper for Select Options
 // ─────────────────────────────────────────────────────────────────────────────
 
+if (!function_exists('PaymentMethodsDropdown')) {
+    function PaymentMethodsDropdown()
+    {
+        return App\Models\PaymentMethod::where('is_active', true)
+            ->whereNull('deleted_at')
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+    }
+}
+
 if (!function_exists('toSelectOptions')) {
     /**
      * Map a collection to a format suitable for generic Select/Dropdown components.

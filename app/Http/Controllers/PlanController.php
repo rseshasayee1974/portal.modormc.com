@@ -36,7 +36,7 @@ class PlanController extends Controller
             'price_yearly' => 'required|numeric|min:0',
             'yearly_plan_description' => 'nullable|string',
             'max_users' => 'required|integer|min:1',
-            'features_json' => 'nullable|array',
+            'mm_features_json' => 'nullable|array',
             'is_active' => 'sometimes|boolean'
         ]);
 
@@ -70,7 +70,7 @@ class PlanController extends Controller
             'price_yearly' => 'required|numeric|min:0',
             'yearly_plan_description' => 'nullable|string',
             'max_users' => 'required|integer|min:1',
-            'features_json' => 'nullable|array',
+            'mm_features_json' => 'nullable|array',
             'is_active' => 'sometimes|boolean'
         ]);
 
@@ -147,7 +147,7 @@ class PlanController extends Controller
             'MAX_USERS' => (string) ($validated['max_users'] ?? 0),
         ];
 
-        foreach ($validated['features_json'] ?? [] as $item) {
+        foreach ($validated['mm_features_json'] ?? [] as $item) {
             $raw = trim((string) $item);
 
             if ($raw === '') {

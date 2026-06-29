@@ -47,18 +47,18 @@ class EntityTypeController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, EntityType $entityType)
+    public function update(Request $request, EntityType $entitytype)
     {
         $this->authorizeModule('edit');
         $validated = $request->validate([
-            'type' => 'required|string|max:100|unique:mm_entity_types,type,' . $entityType->id,
+            'type' => 'required|string|max:100|unique:mm_entity_types,type,' . $entitytype->id,
         ]);
 
-        $entityType->update($validated);
+        $entitytype->update($validated);
 
         if ($request->wantsJson()) {
             return response()->json([
-                'entityType' => $entityType,
+                'entityType' => $entitytype,
                 'message' => 'Entity Type updated successfully.'
             ]);
         }
@@ -69,10 +69,10 @@ class EntityTypeController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(EntityType $entityType)
+    public function destroy(EntityType $entitytype)
     {
         $this->authorizeModule('delete');
-        $entityType->delete();
+        $entitytype->delete();
 
         if (request()->wantsJson()) {
             return response()->json([

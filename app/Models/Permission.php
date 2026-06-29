@@ -47,4 +47,9 @@ class Permission extends SpatiePermission
             }
         });
     }
+
+    public function setNameAttribute($value)
+    {
+        $this->attributes['name'] = strtoupper($value);
+    }
 }

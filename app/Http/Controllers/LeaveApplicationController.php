@@ -7,6 +7,7 @@ use App\Models\LeaveType;
 use App\Models\Personnel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Validation\Rule;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class LeaveApplicationController extends Controller
@@ -105,7 +106,8 @@ class LeaveApplicationController extends Controller
         $this->authorizeModule('edit');
 
         $request->validate([
-            'status' => 'required|in:approved,rejected,cancelled'
+            // 'status' => 'required|in:approved,rejected,cancelled,APPROVED,REJECTED,CANCELLED,Approved,Rejected,Cancelled'
+            'status' => ['required', Rule::in(['approved', 'rejected', 'cancelled','APPROVED','REJECTED','CANCELLED','Approved','Rejected','Cancelled'])]
         ]);
 
         $leaveApplication->update([

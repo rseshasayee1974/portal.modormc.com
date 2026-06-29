@@ -47,18 +47,18 @@ class SubscriptionStatusController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, SubscriptionStatus $subscriptionStatus)
+    public function update(Request $request, SubscriptionStatus $subscriptionstatus)
     {
         $this->authorizeModule('edit');
         $validated = $request->validate([
-            'status_name' => 'required|string|max:100|unique:mm_subscription_statuses,status_name,' . $subscriptionStatus->id,
+            'status_name' => 'required|string|max:100|unique:mm_subscription_statuses,status_name,' . $subscriptionstatus->id,
         ]);
 
-        $subscriptionStatus->update($validated);
+        $subscriptionstatus->update($validated);
 
         if ($request->wantsJson()) {
             return response()->json([
-                'subscriptionStatus' => $subscriptionStatus,
+                'subscriptionStatus' => $subscriptionstatus,
                 'message' => 'Subscription Status updated successfully.'
             ]);
         }
@@ -69,10 +69,10 @@ class SubscriptionStatusController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(SubscriptionStatus $subscriptionStatus)
+    public function destroy(SubscriptionStatus $subscriptionstatus)
     {
         $this->authorizeModule('delete');
-        $subscriptionStatus->delete();
+        $subscriptionstatus->delete();
 
         if (request()->wantsJson()) {
             return response()->json([

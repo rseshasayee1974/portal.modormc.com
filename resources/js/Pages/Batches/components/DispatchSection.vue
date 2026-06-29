@@ -349,7 +349,6 @@ const selectedUom = computed(() => {
 });
 
 const submit = () => {
-    emit('tripSaved');
     // console.log('DispatchSection: submit called, form.id is:', form.id);
     if (form.id) {
         form.put(route('dispatches.update', form.id), {

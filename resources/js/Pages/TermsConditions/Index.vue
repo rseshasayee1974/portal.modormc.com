@@ -30,6 +30,9 @@ const page  = usePage();
 
 onMounted(() => store.setTermsConditions(props.termsConditions?.data || []));
 
+watch(() => props.termsConditions, (newVal) => {
+    store.setTermsConditions(newVal?.data || []);
+}, { deep: true });
 // ── UI state ───────────────────────────────────────────────────────────────
 const showModal = ref(false);
 const modalMode = ref<'create' | 'edit'>('create');
@@ -107,7 +110,7 @@ const submitForm = async () => {
     form.value.errors = {};
     try {
         if (modalMode.value === 'edit') {
-            await axios.put(route('termsconditions.update', editingId.value), form.value);
+            await axios.put(route('termsconditions.update', { termscondition: editingId.value }), form.value);
             toast.add({ severity: 'success', summary: 'Success', detail: 'Terms updated' });
         } else {
             await axios.post(route('termsconditions.store'), form.value);
@@ -133,7 +136,7 @@ const deleteTerms = (id: number) => {
     }).then(async res => {
         if (res.isConfirmed) {
             try {
-                await axios.delete(route('termsconditions.destroy', id));
+                await axios.delete(route('termsconditions.destroy', { termscondition: id }));
                 toast.add({ severity: 'success', summary: 'Deleted', detail: 'Terms removed' });
                 fetchTerms();
             } catch { toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to delete' }); }
