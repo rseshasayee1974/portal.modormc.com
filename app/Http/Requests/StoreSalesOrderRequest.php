@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreSalesOrderRequest extends FormRequest
 {
@@ -29,7 +30,15 @@ class StoreSalesOrderRequest extends FormRequest
     {
         return [
             'prefix' => ['nullable', 'string', 'max:50'],
-            'order_no' => ['nullable', 'string', 'max:100', 'unique:mm_sales_orders,order_no'],
+            'order_no' => [
+                'nullable', 
+                'string', 
+                'max:100', 
+                Rule::unique('mm_sales_orders', 'order_no')->where(function ($query) {
+                    return $query->where('plant_id', $this->input('plant_id', session('active_plant_id')))
+                                 ->where('prefix', $this->input('prefix'));
+                })
+            ],
             'plant_id' => ['nullable', 'integer', 'exists:mm_plants,id'],
             'customer_id' => ['required', 'integer', 'exists:mm_patrons,id'],
             'site_id' => ['required', 'integer', 'exists:mm_sites,id'],

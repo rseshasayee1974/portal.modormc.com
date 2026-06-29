@@ -189,11 +189,7 @@ class PermissionSeeder extends Seeder
         $tripOperatorRole = Role::where('code', 'TRIP_OPERATOR')->first();
         if ($tripOperatorRole) {
             $tripOperatorPermissions = array_filter($allPermissionNames, function($p) {
-<<<<<<< HEAD
-                return Str::startsWith($p, ['TRIP', 'SALES_ORDER', 'MACHINE', 'PERSONNEL', 'SITE', 'PATRON'])
-=======
-                return Str::startsWith($p, ['TRIP', 'CUSTOMER_PO', 'MACHINE', 'PERSONNEL', 'SITE', 'PATRON'])
->>>>>>> 344061bb331e907ba0957b5bb1c965d316f4e9f9
+                return Str::startsWith($p, ['TRIP', 'CUSTOMER_PO','SALES_ORDER', 'MACHINE', 'PERSONNEL', 'SITE', 'PATRON'])
                        || Str::contains($p, 'DASHBOARD.VIEW');
             });
             $tripOperatorRole->syncPermissions($tripOperatorPermissions);
