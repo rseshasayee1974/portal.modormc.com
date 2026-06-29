@@ -843,7 +843,7 @@ function toneClasses(tone) {
                             </div>
                         </article>
 
-                        <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
+                        <!-- <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
                             <div class="flex items-center justify-between gap-3">
                                 <div>
                                     <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Stock Pressure</p>
@@ -891,11 +891,11 @@ function toneClasses(tone) {
                                     </div>
                                 </template>
                             </div>
-                        </article>
+                        </article> -->
                     </div>
                 </section>
 
-                <section class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.3fr),minmax(0,0.7fr)]">
+                <!-- <section class="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.3fr),minmax(0,0.7fr)]">
                     <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
                         <div class="flex items-center justify-between gap-3">
                             <div>
@@ -976,7 +976,7 @@ function toneClasses(tone) {
                             </template>
                         </div>
                     </article>
-                </section>
+                </section> -->
             </div>
         </div>
     </AppLayout>
