@@ -68,6 +68,14 @@ class Role extends SpatieRole
                 throw new \Exception("System roles cannot be deleted.");
             }
         });
+
+        static::saved(function () {
+            \App\Models\EntityUser::clearGlobalRolesCache();
+        });
+
+        static::deleted(function () {
+            \App\Models\EntityUser::clearGlobalRolesCache();
+        });
     }
 
     /**

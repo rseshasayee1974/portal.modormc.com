@@ -6,7 +6,12 @@ use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
+use App\Models\Entity;
 use App\Models\EntityUser;
+use App\Models\Plant;
 use App\Services\PlantContextService;
 
 class SetEntityContext
@@ -26,135 +31,209 @@ class SetEntityContext
             return $next($request);
         }
 
-        if (Auth::check()) {
-            $user           = Auth::user();
+        if (!Auth::check()) {
+            return $next($request);
+        }
 
-            // Use PlantContextService — resolves session → user default → null.
-            // This is the single call that re-hydrates the session if it was lost.
-            /** @var PlantContextService $ctx */
-            $ctx            = app(PlantContextService::class);
-            $activeEntityId = $ctx->entityId();
-            $activePlantId  = $ctx->plantId();
+        $user         = Auth::user();
+        $isSuperAdmin = $user->isSystemAdmin(); // Cache — avoids repeated role-relation lookups
 
-            // --- Auto Setup Session if missing ---
-            if (!$activeEntityId || !session()->has('active_plant_id')) {
-                // 1. Check for user-defined defaults
-                if ($user->default_entity_id && $user->default_plant_id) {
-                    $activeEntityId = $user->default_entity_id;
-                    $activePlantId  = $user->default_plant_id;
-                } 
-                // 2. Check for "Only One Choice" scenario
-                else {
-                    $isSuperAdmin = $user->isSystemAdmin();
-                    
-                    // Count entities
-                    if ($isSuperAdmin) {
-                        $entities = \App\Models\Entity::all();
-                    } else {
-                        $entities = EntityUser::where('user_id', $user->id)
-                            ->groupBy('entity_id')
-                            ->get(['entity_id']);
-                    }
+        /** @var PlantContextService $ctx */
+        $ctx            = app(PlantContextService::class);
+        $activeEntityId = $ctx->entityId();
+        $activePlantId  = $ctx->plantId();
 
-                    if ($entities->count() === 1) {
-                        $singleEntityId = $isSuperAdmin ? $entities->first()->id : $entities->first()->entity_id;
-                        
-                        // Count plants for this entity
-                        $plantsQuery = \App\Models\Plant::where('entity_id', $singleEntityId)->where('is_active', true);
-                        if (!$isSuperAdmin) {
-                            $assignments = EntityUser::where('user_id', $user->id)
-                                ->where('entity_id', $singleEntityId)
-                                ->get(['plant_id']);
-                            
-                            $hasGlobalAccess = $assignments->contains(fn($a) => is_null($a->plant_id));
-                            if (!$hasGlobalAccess) {
-                                $plantsQuery->whereIn('id', $assignments->pluck('plant_id'));
-                            }
-                        }
-                        
-                        $plants = $plantsQuery->get();
-                        if ($plants->count() === 1) {
-                            $activeEntityId = $singleEntityId;
-                            $activePlantId  = $plants->first()->id;
-                        }
-                    }
-                }
+        // --- Auto Setup Session if missing ---
+        if (!$activeEntityId || !$activePlantId) {
+            [$activeEntityId, $activePlantId] = $this->resolveDefaultContext($user, $isSuperAdmin);
 
-                if ($activeEntityId && $activePlantId) {
-                    session([
-                        'active_entity_id' => $activeEntityId,
-                        'active_plant_id'  => $activePlantId,
-                    ]);
-                }
+            if ($activeEntityId && $activePlantId) {
+                session([
+                    'active_entity_id' => $activeEntityId,
+                    'active_plant_id'  => $activePlantId,
+                ]);
             }
-            // -------------------------------------
+        }
 
-            if ($activeEntityId) {
-                // Check if the entity is suspended (except for system admins)
-                $entityObj = \App\Models\Entity::find($activeEntityId);
-                if ($entityObj && $entityObj->is_suspended != 0 && !$user->isSystemAdmin()) {
+        // --- Apply entity/plant context ---
+        if ($activeEntityId) {
+            // Check if the entity is suspended (non-admins only)
+            if (!$isSuperAdmin) {
+                $isSuspended = Entity::where('id', $activeEntityId)
+                    ->where('is_suspended', '!=', 0)
+                    ->exists();
+
+                if ($isSuspended) {
                     session()->forget(['active_entity_id', 'active_plant_id']);
                     return redirect()->route('entity-context.index');
                 }
+            }
 
-                // Check if the active plant is inactive (is_active !== 1) (except for system admins)
-                if ($activePlantId) {
-                    $plantObj = \App\Models\Plant::find($activePlantId);
-                    if ($plantObj && $plantObj->is_active !== 1 && !$user->isSystemAdmin()) {
-                        session()->forget('active_plant_id');
-                        return redirect()->route('entity-context.index');
-                    }
+            // Check if the active plant is inactive (non-admins only)
+            if ($activePlantId && !$isSuperAdmin) {
+                $isInactive = Plant::where('id', $activePlantId)
+                    ->where('is_active', '!=', 1)
+                    ->exists();
+
+                if ($isInactive) {
+                    session()->forget('active_plant_id');
+                    return redirect()->route('entity-context.index');
                 }
+            }
 
-                // Build the query for this user + entity
-                $query = EntityUser::with(['entity', 'role', 'plant'])
-                    ->where('user_id', $user->id)
-                    ->where('entity_id', $activeEntityId);
-
-                // Narrow to plant if one is active
-                if ($activePlantId) {
-                    $query->where('plant_id', $activePlantId);
-                }
-
-                $entityUser = $query->first();
-
-                if ($entityUser && $entityUser->role) {
-                    // Dynamically sync the Spatie role — non-persistent, request-scoped only
-                    $user->syncRoles([$entityUser->role->name]);
-                } else if ($user->isSystemAdmin()) {
-                    // Keep System Administrator role
-                } else {
-                    // No matching row — clear all roles for safety
-                    $user->syncRoles([]);
-                }
-            } else {
-                // No entity set — clear all roles (unless system admin)
-                if (!$user->isSystemAdmin()) {
-                    $user->syncRoles([]);
-                }
+            // Resolve entity-user role assignment for this request
+            $this->assignRequestRole($user, $activeEntityId, $activePlantId, $isSuperAdmin);
+        } else {
+            // No entity set — clear all roles (unless system admin)
+            if (!$isSuperAdmin) {
+                $this->clearUserRoles($user);
             }
         }
 
         // --- FINAL SECURITY CHECK ---
-        // If after the above attempts we still don't have an active_plant_id,
-        // it means the session is invalid or the user has no access.
-        // Redirect them to the selection page instead of logging out.
-        if (Auth::check() && !session()->has('active_plant_id')) {
-            if ($request->routeIs('entity-context.*')) {
-                return $next($request);
-            }
+        // If we still don't have an active_plant_id, redirect to selection page.
+        if (!session()->has('active_plant_id')) {
             return redirect()->route('entity-context.index');
         }
 
         // Track last_visit_page for full Inertia page visits (GET requests only)
-        if (Auth::check() && $request->header('X-Inertia') && $request->isMethod('GET')) {
-            $user = Auth::user();
-            $currentUrl = $request->path();
-            if ($user->last_visit_page !== $currentUrl) {
-                $user->forceFill(['last_visit_page' => $currentUrl])->saveQuietly();
+        $this->trackLastVisitPage($request, $user);
+
+        return $next($request);
+    }
+
+    /**
+     * Resolve default entity+plant when session is empty.
+     *
+     * Priority: user-saved defaults → single-choice auto-select → null.
+     *
+     * @return array{0: int|null, 1: int|null}
+     */
+    private function resolveDefaultContext($user, bool $isSuperAdmin): array
+    {
+        // 1. Check for user-defined defaults
+        if ($user->default_entity_id && $user->default_plant_id) {
+            return [$user->default_entity_id, $user->default_plant_id];
+        }
+
+        // 2. Check for "Only One Choice" auto-select scenario
+        if ($isSuperAdmin) {
+            $entities = Entity::select('id')->limit(2)->get();
+        } else {
+            $entities = EntityUser::where('user_id', $user->id)
+                ->select('entity_id')
+                ->groupBy('entity_id')
+                ->limit(2)
+                ->get();
+        }
+
+        if ($entities->count() !== 1) {
+            return [null, null];
+        }
+
+        $singleEntityId = $isSuperAdmin
+            ? $entities->first()->id
+            : $entities->first()->entity_id;
+
+        // Count plants for this single entity
+        $plantsQuery = Plant::where('entity_id', $singleEntityId)
+            ->where('is_active', true)
+            ->select('id');
+
+        if (!$isSuperAdmin) {
+            $assignments = EntityUser::where('user_id', $user->id)
+                ->where('entity_id', $singleEntityId)
+                ->pluck('plant_id');
+
+            $hasGlobalAccess = $assignments->contains(null);
+            if (!$hasGlobalAccess) {
+                $plantsQuery->whereIn('id', $assignments->filter());
             }
         }
 
-        return $next($request);
+        $plants = $plantsQuery->limit(2)->get();
+
+        if ($plants->count() === 1) {
+            return [$singleEntityId, $plants->first()->id];
+        }
+
+        return [null, null];
+    }
+
+    /**
+     * Assign the contextual Spatie role for this request lifecycle only.
+     * Caches the role assignment and loaded permissions to avoid DB queries
+     * on every request, unless the role or permission models or user-role mapping changes.
+     */
+    private function assignRequestRole($user, int $entityId, ?int $plantId, bool $isSuperAdmin): void
+    {
+        $userId = $user->id;
+        $userVersion = EntityUser::getContextVersion($userId);
+        $globalVersion = EntityUser::getGlobalRolesVersion();
+
+        $cacheKey = "role_ctx_{$userId}_{$entityId}_" . ($plantId ?? 0) . "_{$userVersion}_{$globalVersion}";
+
+        $role = Cache::remember($cacheKey, now()->addDay(), function () use ($userId, $entityId, $plantId) {
+            $entityUser = EntityUser::with(['role.permissions'])
+                ->where('user_id', $userId)
+                ->where('entity_id', $entityId)
+                ->when($plantId, fn($q) => $q->where('plant_id', $plantId))
+                ->first();
+
+            return $entityUser && $entityUser->role ? $entityUser->role : null;
+        });
+
+        if ($role) {
+            // Request-scoped role assignment only (NO DB writes)
+            $user->unsetRelation('roles');
+            $user->setRelation('roles', collect([$role]));
+        } elseif (!$isSuperAdmin) {
+            // No role for this entity/plant — clear roles
+            $this->clearUserRoles($user);
+        }
+        // Super admins keep their existing System Administrator role
+    }
+
+    /**
+     * Clear all in-memory roles from the user model.
+     */
+    private function clearUserRoles($user): void
+    {
+        $user->unsetRelation('roles');
+        $user->setRelation('roles', collect());
+    }
+
+    /**
+     * Track last visited page for Inertia GET requests.
+     * Uses a direct DB update to avoid model event overhead and
+     * is wrapped in try-catch to prevent race condition failures
+     * from blocking the request.
+     */
+    private function trackLastVisitPage(Request $request, $user): void
+    {
+        if (!$request->header('X-Inertia') || !$request->isMethod('GET')) {
+            return;
+        }
+
+        $currentUrl = $request->path();
+        if ($user->last_visit_page === $currentUrl) {
+            return;
+        }
+
+        try {
+            DB::table('mm_users')
+                ->where('id', $user->id)
+                ->update(['last_visit_page' => $currentUrl]);
+
+            // Keep in-memory model in sync
+            $user->last_visit_page = $currentUrl;
+        } catch (\Throwable $e) {
+            // Non-critical — log and continue. Don't let a race condition
+            // on this cosmetic field break the entire request.
+            Log::warning('Failed to update last_visit_page', [
+                'user_id' => $user->id,
+                'error'   => $e->getMessage(),
+            ]);
+        }
     }
 }

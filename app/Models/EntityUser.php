@@ -55,6 +55,43 @@ class EntityUser extends Model
 		'deleted_by'
 	];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saved(function ($entityUser) {
+            self::clearContextCache($entityUser->user_id);
+        });
+
+        static::deleted(function ($entityUser) {
+            self::clearContextCache($entityUser->user_id);
+        });
+    }
+
+    public static function getContextVersion(int $userId): string
+    {
+        return \Illuminate\Support\Facades\Cache::rememberForever("user_context_version_{$userId}", function () {
+            return (string) now()->timestamp;
+        });
+    }
+
+    public static function clearContextCache(int $userId): void
+    {
+        \Illuminate\Support\Facades\Cache::forget("user_context_version_{$userId}");
+    }
+
+    public static function getGlobalRolesVersion(): string
+    {
+        return \Illuminate\Support\Facades\Cache::rememberForever("global_roles_version", function () {
+            return (string) now()->timestamp;
+        });
+    }
+
+    public static function clearGlobalRolesCache(): void
+    {
+        \Illuminate\Support\Facades\Cache::forget("global_roles_version");
+    }
+
 	public function entity()
 	{
 		return $this->belongsTo(Entity::class, 'entity_id');

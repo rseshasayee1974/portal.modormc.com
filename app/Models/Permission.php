@@ -46,6 +46,14 @@ class Permission extends SpatiePermission
                 throw new \Exception("System permissions cannot be deleted.");
             }
         });
+
+        static::saved(function () {
+            \App\Models\EntityUser::clearGlobalRolesCache();
+        });
+
+        static::deleted(function () {
+            \App\Models\EntityUser::clearGlobalRolesCache();
+        });
     }
 
     public function setNameAttribute($value)
