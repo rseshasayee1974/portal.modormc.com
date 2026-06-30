@@ -186,7 +186,7 @@ class PayslipController extends Controller
                     ->where(function($q) use ($startDate, $endDate) {
                         $q->whereBetween('from_date', [$startDate->toDateString(), $endDate->toDateString()])
                           ->orWhereBetween('to_date', [$startDate->toDateString(), $endDate->toDateString()])
-                          ->or(function($sq) use ($startDate, $endDate) {
+                          ->orWhere(function($sq) use ($startDate, $endDate) {
                               $sq->where('from_date', '<=', $startDate->toDateString())
                                  ->where('to_date', '>=', $endDate->toDateString());
                           });

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
-import { useForm, usePage } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Swal from 'sweetalert2';
 import { BanknotesIcon, CogIcon, CalendarIcon, PlusIcon, SparklesIcon } from '@heroicons/vue/24/outline';
@@ -234,8 +234,11 @@ const deleteComp = (id: number) => {
 
 // Generation
 const submitGenerate = () => {
-    genForm.post(route('payslips.generate'), {
-        onSuccess: () => Swal.fire('Success', 'Draft payslips generated successfully.', 'success')
+    router.post(route('payslips.generate'), {
+        preserveScroll: true,
+        preserveState: true,
+        // message: 'Generating payslips...',
+        // onSuccess: () => Swal.fire('Success', 'Draft payslips generated successfully.', 'success')
     });
 };
 
@@ -250,8 +253,8 @@ const deletePayslip = (id: number) => {
         confirmButtonText: 'Yes, delete it!'
     }).then((result) => {
         if (result.isConfirmed) {
-            genForm.delete(route('payslips.destroy', id), {
-                onSuccess: () => Swal.fire('Deleted!', 'Payslip has been deleted.', 'success')
+            router.delete(route('payslips.destroy', id), {
+                // onSuccess: () => Swal.fire('Deleted!', 'Payslip has been deleted.', 'success')
             });
         }
     });
