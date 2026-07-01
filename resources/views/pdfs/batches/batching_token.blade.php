@@ -337,7 +337,7 @@
         </tr>
     </table>
 
-    {{-- @if ($batch->materials->count() > 0)
+    @if ($batch->materials->count() > 0)
         <div class="divider"></div>
         <div style="font-weight: 800; text-align: center; margin-bottom: 4px; font-size: 11px; color: #475569; letter-spacing: 0.05em;">TARGET MATERIALS</div>
         <table class="materials-table">
@@ -356,7 +356,7 @@
                 @endforeach
             </tbody>
         </table>
-    @endif --}}
+    @endif
 
     <div class="footer">
         <div>Batching Token - v1</div>
