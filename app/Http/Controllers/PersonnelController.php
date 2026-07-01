@@ -33,11 +33,9 @@ class PersonnelController extends Controller
                 ->where('status', true)
                 ->orderBy('legal_name', 'asc')
                 ->get(['id', 'legal_name']),
-            'departments' => Department::where('plant_id', $activePlantId)
-                ->orderBy('name', 'asc')
+            'departments' => Department::orderBy('name', 'asc')
                 ->get(['id', 'name', 'code']),
-            'designations' => Designation::where('plant_id', $activePlantId)
-                ->orderBy('name', 'asc')
+            'designations' => Designation::orderBy('name', 'asc')
                 ->get(['id', 'name', 'code']),
             'managers' => Personnel::where('plant_id', $activePlantId)
                 ->where('status', 'active')

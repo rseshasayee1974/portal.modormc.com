@@ -30,6 +30,8 @@ class SalesOrderIndexDataFactory
                 ->toArray() : [],
             'statuses' => SalesOrder::statusOptions(),
             'concretePumpOptions' => ConcretePumpDropdown(),
+                        'salesExecutives' => SalesExecutivesDropdown(),
+
             'activePlantId' => $activePlantId,
             'nextReference' => $activePlantId ? SalesOrder::generateOrderNo($activePlantId, 'SO')['full_number'] : null,
             'products' => \Inertia\Inertia::lazy(fn() => $activePlantId ? ProductsDropdown('Purchase')->toArray() : []),

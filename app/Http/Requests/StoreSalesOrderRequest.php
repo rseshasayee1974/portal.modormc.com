@@ -40,6 +40,7 @@ class StoreSalesOrderRequest extends FormRequest
                 })
             ],
             'plant_id' => ['nullable', 'integer', 'exists:mm_plants,id'],
+            'sales_executive_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
             'customer_id' => ['required', 'integer', 'exists:mm_patrons,id'],
             'site_id' => ['required', 'integer', 'exists:mm_sites,id'],
             'mix_design_id' => ['required', 'integer', 'exists:mm_mix_designs,id'],

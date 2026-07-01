@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<{
     customerPOs?: any[];
     statuses?: { label: string; value: number }[];
     concretePumpOptions?: any[];
+    salesExecutives?: any[];
 }>(), {
     salesOrder: () => ({}),
     customers: () => [],
@@ -25,6 +26,7 @@ const props = withDefaults(defineProps<{
     customerPOs: () => [],
     statuses: () => [],
     concretePumpOptions: () => [],
+    salesExecutives: () => [],
 });
 
 // Intercept and strictly allow only Scheduled (1), In Progress (2), and Cancelled (4)
@@ -62,10 +64,13 @@ const emit = defineEmits<{
     (e: 'cancel'): void;
 }>();
 
+const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
+
 const form = useForm({
     prefix: props.salesOrder?.prefix ?? 'SO',
     order_no: props.salesOrder?.order_no ?? '',
     plant_id: props.salesOrder?.plant_id ?? null,
+    sales_executive_id: props.salesOrder?.sales_executive_id ?? null,
     customer_id: props.salesOrder?.customer_id ?? null,
     site_id: props.salesOrder?.site_id ?? null,
     mix_design_id: props.salesOrder?.mix_design_id ?? null,
@@ -101,6 +106,7 @@ watch(() => form.customer_po_id, (newVal) => {
             form.customer_id = salesOrder.patron_id;
             form.site_id = salesOrder.site_id;
             form.concrete_pump = salesOrder.concrete_pump;
+            form.sales_executive_id = salesOrder.sales_executive_id;
             
             const firstItem = salesOrder.quotation?.items?.[0];
             if (firstItem) {
@@ -114,6 +120,7 @@ watch(() => form.customer_po_id, (newVal) => {
         form.concrete_pump = null;
         form.mix_design_id = null;
         form.total_qty = 0;
+        form.sales_executive_id = null;
     }
 });
 
@@ -248,6 +255,19 @@ const isOverdue = computed(() => {
             readonly
             disabled
             :minFractionDigits="3"
+        />
+    </div>
+
+    <div class="col-span-1">
+        <BaseSelect
+            v-model="form.sales_executive_id"
+            :options="salesExecutiveOptions"
+            optionLabel="label"
+            optionValue="value"
+            filter
+            label="Sales Executive"
+            placeholder="Select Sales Executive"
+            :error="form.errors.sales_executive_id"
         />
     </div>
 

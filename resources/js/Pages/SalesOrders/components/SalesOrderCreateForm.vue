@@ -24,6 +24,7 @@ const props = withDefaults(defineProps<{
     products?: any[];
     units?: any[];
     designTypes?: any[];
+    salesExecutives?: any[];
 }>(), {
     customers: () => [],
     sites: () => [],
@@ -36,6 +37,7 @@ const props = withDefaults(defineProps<{
     products: () => [],
     units: () => [],
     designTypes: () => [],
+    salesExecutives: () => [],
 });
 
 const showMixDesignModal = ref(false);
@@ -85,6 +87,8 @@ const mixDetailBadges = computed(() => {
     ];
 });
 
+const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
+
 const customerPOOptions = computed(() => {
     return [
         { label: 'None (Direct Sales Order)', value: null },
@@ -104,6 +108,8 @@ const form = useForm({
     prefix: 'SO',
     order_no: '',
     plant_id: props.activePlantId,
+        sales_executive_id: null as number | null,
+
     customer_id: null as number | null,
     site_id: null as number | null,
     mix_design_id: null as number | null,
@@ -123,7 +129,8 @@ watch(() => form.customer_po_id, (newVal) => {
         if (customerPO) {
             form.customer_id = customerPO.patron_id;
             form.site_id = customerPO.site_id;
-            
+            form.sales_executive_id = customerPO.sales_executive_id;
+
             const firstItem = customerPO.quotation?.items?.[0];
             if (firstItem) {
                 form.mix_design_id = firstItem.mix_design_id;
@@ -135,6 +142,8 @@ watch(() => form.customer_po_id, (newVal) => {
         form.site_id = null;
         form.mix_design_id = null;
         form.total_qty = 0;
+        form.sales_executive_id = null;
+
     }
 });
 
@@ -264,6 +273,19 @@ const handleMixCreated = () => {
         />
     </div>
 
+     <!-- Sales Executive -->
+    <div>
+        <BaseSelect
+            v-model="form.sales_executive_id"
+            :options="salesExecutiveOptions"
+            optionLabel="label"
+            optionValue="value"
+            filter
+            label="Sales Executive"
+            placeholder="Select Sales Executive"
+            :error="form.errors.sales_executive_id"
+        />
+    </div>
     <div>
         <div class="flex items-center justify-between mb-1">
             <label class="block text-[10px] font-bold uppercase tracking-widest text-gray-400">

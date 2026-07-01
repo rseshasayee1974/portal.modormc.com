@@ -120,7 +120,7 @@ class InventoryValuationService
 
         // 4. Fetch Stock Exhaust adjustments
         $stockExhausts = StockExhaustLine::whereHas('stockExhaust', function($q) use ($plantId) {
-                $q->where('plant_id', $plantId)->whereNull('deleted_at');
+                $q->where('plant_id', $plantId);
             })
             ->where('product_id', $productId)
             ->where('quantity_issued', '>', 0)

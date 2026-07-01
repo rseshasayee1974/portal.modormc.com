@@ -5,15 +5,15 @@
     <title>Sales Register Report</title>
     <style>
         @page {
-            margin: 20px;
+            margin: 15px;
         }
         body {
             font-family: 'DejaVu Sans', sans-serif;
-            font-size: 8pt;
+            font-size: 7.5pt;
             color: #1e293b;
             margin: 0;
             padding: 0;
-            line-height: 1.2;
+            line-height: 1.1;
         }
         .title-container {
             border-bottom: 2px solid #1d2d3e;
@@ -21,13 +21,13 @@
             margin-bottom: 10px;
         }
         .report-title {
-            font-size: 12pt;
+            font-size: 11pt;
             font-weight: bold;
             color: #1d2d3e;
             margin: 0;
         }
         .filter-info {
-            font-size: 8pt;
+            font-size: 7.5pt;
             color: #475569;
             margin-top: 3px;
         }
@@ -40,17 +40,18 @@
             background-color: #f2f4f7;
             color: #1d2d3e;
             border: 1px solid #cbd5e1;
-            padding: 5px 3px;
-            font-size: 7pt;
+            padding: 4px 2px;
+            font-size: 5.5pt;
             font-weight: bold;
             text-align: center;
             text-transform: uppercase;
         }
         table.data-table td {
-            padding: 4px 5px;
+            padding: 3px 2px;
             border: 1px solid #cbd5e1;
-            font-size: 7.5pt;
+            font-size: 6pt;
             vertical-align: middle;
+            word-wrap: break-word;
         }
         .total-row {
             background-color: #e2e8f0;
@@ -66,8 +67,9 @@
     <div class="title-container">
         <h2 class="report-title">Sales Register Report</h2>
         <div class="filter-info">
-            <strong>Period:</strong> {{ \Carbon\Carbon::parse($filters['from_date'])->format('d-m-Y') }} to {{ \Carbon\Carbon::parse($filters['to_date'])->format('d-m-Y') }} 
+            <strong>Period:</strong> {{ \Carbon\Carbon::parse($filters['from_date'] ?? $filters['start_date'] ?? $filters['start'] ?? now())->format('d-m-Y') }} to {{ \Carbon\Carbon::parse($filters['to_date'] ?? $filters['end_date'] ?? $filters['end'] ?? now())->format('d-m-Y') }} 
             &nbsp;|&nbsp; <strong>Generated At:</strong> {{ $generated_at }}
+            &nbsp;|&nbsp; <strong>All amounts in INR (₹)</strong>
         </div>
     </div>
 
@@ -110,21 +112,21 @@
                     $sumNet += $item['net_amount'];
                 @endphp
                 <tr>
-                    <td class="text-center font-bold">{{ $item['invoice_no'] }}</td>
+                    <td class="text-center font-bold" style="white-space: nowrap;">{{ $item['invoice_no'] }}</td>
                     <td class="text-center" style="white-space: nowrap;">{{ \Carbon\Carbon::parse($item['invoice_date'])->format('d-m-Y') }}</td>
                     <td>{{ $item['customer_name'] }}</td>
-                    <td class="text-center">{{ $item['gst_number'] ?: 'N/A' }}</td>
+                    <td class="text-center" style="white-space: nowrap;">{{ $item['gst_number'] ?: 'N/A' }}</td>
                     <td>{{ $item['product_name'] }}</td>
                     <td class="text-right">{{ number_format($item['qty'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($item['rate'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($item['taxable_amount'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($item['cgst'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($item['sgst'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($item['igst'], 2) }}</td>
+                    <td class="text-right">{{ number_format($item['rate'], 2) }}</td>
+                    <td class="text-right">{{ number_format($item['taxable_amount'], 2) }}</td>
+                    <td class="text-right">{{ number_format($item['cgst'], 2) }}</td>
+                    <td class="text-right">{{ number_format($item['sgst'], 2) }}</td>
+                    <td class="text-right">{{ number_format($item['igst'], 2) }}</td>
                     @foreach($tax_columns as $col)
-                        <td class="text-right">₹{{ number_format($item['taxes'][$col['key']] ?? 0, 2) }}</td>
+                        <td class="text-right">{{ number_format($item['taxes'][$col['key']] ?? 0, 2) }}</td>
                     @endforeach
-                    <td class="text-right font-bold">₹{{ number_format($item['net_amount'], 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($item['net_amount'], 2) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -137,17 +139,17 @@
                     <td colspan="5" class="text-center font-bold">TOTAL</td>
                     <td class="text-right font-bold">{{ number_format($sumQty, 2) }}</td>
                     <td></td>
-                    <td class="text-right font-bold">₹{{ number_format($sumTaxable, 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($sumCgst, 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($sumSgst, 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($sumIgst, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($sumTaxable, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($sumCgst, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($sumSgst, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($sumIgst, 2) }}</td>
                     @foreach($tax_columns as $col)
                         @php
                             $colSum = collect($items)->sum(fn($it) => $it['taxes'][$col['key']] ?? 0);
                         @endphp
-                        <td class="text-right font-bold">₹{{ number_format($colSum, 2) }}</td>
+                        <td class="text-right font-bold">{{ number_format($colSum, 2) }}</td>
                     @endforeach
-                    <td class="text-right font-bold">₹{{ number_format($sumNet, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($sumNet, 2) }}</td>
                 </tr>
             @endif
         </tbody>

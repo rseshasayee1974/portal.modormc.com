@@ -6,10 +6,13 @@
     <style>
         @page {
             margin: 35px;
+            @if(isset($landscape) && $landscape)
+                size: A4 landscape;
+            @endif
         }
         body {
             font-family: 'DejaVu Sans', sans-serif;
-            font-size: 9.5pt;
+            font-size: {{ (isset($landscape) && $landscape) ? '7.5pt' : '9.5pt' }};
             color: #1e293b;
             margin: 0;
             padding: 0;
@@ -46,13 +49,13 @@
         
         /* Address styling */
         .address-box {
-            font-size: 8.5pt;
+            font-size: {{ (isset($landscape) && $landscape) ? '7.5pt' : '8.5pt' }};
             color: #334155;
         }
         .address-title {
             font-weight: bold;
             color: #64748b;
-            font-size: 8.5pt;
+            font-size: {{ (isset($landscape) && $landscape) ? '7.5pt' : '8.5pt' }};
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 3px;
@@ -60,7 +63,7 @@
         }
         .address-name {
             font-weight: bold;
-            font-size: 11pt;
+            font-size: {{ (isset($landscape) && $landscape) ? '9.5pt' : '11pt' }};
             color: #0f172a;
             margin-bottom: 2px;
             display: block;
@@ -73,7 +76,7 @@
             margin-bottom: 20px;
         }
         .statement-title {
-            font-size: 13pt;
+            font-size: {{ (isset($landscape) && $landscape) ? '11pt' : '13pt' }};
             font-weight: bold;
             color: #1e1b4b;
             margin: 0;
@@ -90,16 +93,16 @@
             background-color: #e2e8f0;
             color: #0f172a;
             border: 1px solid #94a3b8;
-            padding: 9px 6px;
-            font-size: 8.5pt;
+            padding: {{ (isset($landscape) && $landscape) ? '5px 4px' : '9px 6px' }};
+            font-size: {{ (isset($landscape) && $landscape) ? '7pt' : '8.5pt' }};
             font-weight: bold;
             text-align: center;
             text-transform: uppercase;
         }
         table.data-table td {
-            padding: 8px 10px;
+            padding: {{ (isset($landscape) && $landscape) ? '5px 6px' : '8px 10px' }};
             border: 1px solid #cbd5e1;
-            font-size: 9pt;
+            font-size: {{ (isset($landscape) && $landscape) ? '7pt' : '9pt' }};
             vertical-align: middle;
         }
         

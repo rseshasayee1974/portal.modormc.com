@@ -21,7 +21,7 @@ class PayrollPersonnelReportService implements ReportServiceInterface
         return [
             'transactions' => $personnel->map(fn($p) => [
                 'name'          => trim(($p->first_name ?? '') . ' ' . ($p->last_name ?? '')),
-                'employee_type' => $p->employee_type ?? 'N/A',
+                'employee_type' => $p->employment_type ?? 'N/A',
                 'joining_date'  => $p->joining_date ? Carbon::parse($p->joining_date)->toDateString() : 'N/A',
                 'status'        => $p->status ? 'Active' : 'Inactive',
                 'email'         => $p->user->email ?? 'N/A',

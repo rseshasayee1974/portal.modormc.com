@@ -74,7 +74,7 @@
     <div class="title-container">
         <h2 class="report-title">Vehicle Wise Profit & Loss Report</h2>
         <div class="filter-info">
-            <strong>Period:</strong> {{ \Carbon\Carbon::parse($filters['from_date'])->format('d-m-Y') }} to {{ \Carbon\Carbon::parse($filters['to_date'])->format('d-m-Y') }} 
+            <strong>Period:</strong> {{ \Carbon\Carbon::parse($filters['from_date'] ?? $filters['start_date'] ?? $filters['start'] ?? now())->format('d-m-Y') }} to {{ \Carbon\Carbon::parse($filters['to_date'] ?? $filters['end_date'] ?? $filters['end'] ?? now())->format('d-m-Y') }} 
             &nbsp;|&nbsp; <strong>Generated At:</strong> {{ $generated_at }}
         </div>
     </div>

@@ -16,14 +16,14 @@ class ProductionBatchReportService implements ReportServiceInterface
         $end     = $params['end'];
 
         $batches = Batch::where('plant_id', $plantId)
-            ->with(['operator', 'workOrder.mixDesign', 'materials.product'])
+            ->with(['operator', 'salesOrder.mixDesign', 'materials.product'])
             ->whereBetween('start_time', [$start . ' 00:00:00', $end . ' 23:59:59'])
             ->get();
 
         $materialSummary = [];
         foreach ($batches as $batch) {
             foreach ($batch->materials as $mat) {
-                $matName = $mat->material_name ?: ($mat->product->title ?? 'Unknown Material');
+                $matName = $mat->material_name ?: ($mat->product?->title ?? 'Unknown Material');
                 if (!isset($materialSummary[$matName])) {
                     $materialSummary[$matName] = [
                         'material_name' => $matName,
@@ -38,12 +38,12 @@ class ProductionBatchReportService implements ReportServiceInterface
 
         return [
             'transactions'     => $batches->map(fn($b) => [
-                'date'       => $b->start_time->toDateString(),
-                'batch_no'   => $b->batch_no,
-                'work_order' => $b->workOrder->wo_number ?? 'N/A',
-                'mix_design' => $b->workOrder->mixDesign->design_name ?? 'N/A',
+                'date'       => $b->start_time?->toDateString() ?? 'N/A',
+                'batch_no'   => 'B'.$b->batch_no,
+                'sales_order' => $b->salesOrder ? ($b->salesOrder->prefix . $b->salesOrder->order_no) : 'N/A',
+                'mix_design' => $b->salesOrder?->mixDesign?->design_name ?? 'N/A',
                 'batch_size' => (float)$b->batch_size,
-                'operator'   => $b->operator->first_name ?? 'N/A',
+                'operator'   => $b->operator?->full_name ?? 'N/A',
                 'status'     => Batch::statusLabel($b->status),
             ])->values(),
             'material_summary' => array_values($materialSummary),

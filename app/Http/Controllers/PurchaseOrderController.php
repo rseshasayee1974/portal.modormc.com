@@ -163,7 +163,7 @@ class PurchaseOrderController extends Controller
         if ($existingBill || (int)$purchase_order->invoice_status === 1) {
             // If invoice_status is 1 but record is missing, it might have been deleted,
             // but we should still be cautious. If the record exists, we definitely block.
-            dd($existingBill);
+            // dd($existingBill);
             if ($existingBill) {
                 return redirect()->back()->with('error', 'A bill (' . $existingBill->invoice_number . ') has already been generated for this Purchase Order.');
             }

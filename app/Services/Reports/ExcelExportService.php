@@ -281,7 +281,7 @@ class ExcelExportService
     /**
      * Generate standard report spreadsheet from type, start, end and normalized data.
      */
-    public function generateExcelReport(string $type, string $start, string $end, array $data): Spreadsheet
+    public function generateExcelReport(string $type, ?string $start, ?string $end, array $data): Spreadsheet
     {
         $title = strtoupper(str_replace('_', ' ', $type)) . " REPORT";
         $period = "Period: $start to $end";
@@ -441,12 +441,12 @@ class ExcelExportService
                     ];
                 }
             } elseif ($type === 'production_batch') {
-                $headersList = ['Start Date', 'Batch No', 'Work Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'];
+                $headersList = ['Start Date', 'Batch No', 'Sales Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'];
                 foreach (($data['transactions'] ?? []) as $row) {
                     $rows[] = [
                         $row['date'] ?? '',
                         $row['batch_no'] ?? '',
-                        $row['work_order'] ?? '',
+                        $row['sales_order'] ?? '',
                         $row['mix_design'] ?? '',
                         $row['batch_size'] ?? 0,
                         $row['operator'] ?? '',

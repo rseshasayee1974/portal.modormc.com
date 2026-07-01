@@ -24,7 +24,7 @@ class InventoryStockReportService implements ReportServiceInterface
             'transactions' => $stocks->map(fn($s) => [
                 'date'         => $s->date->toDateString(),
                 'product_name' => $s->product->title ?? 'N/A',
-                'uom'          => $s->uom->name ?? 'N/A',
+                'uom'          => $s->uom->unit_code ?? 'N/A',
                 'opening_qty'  => (float)$s->opening_quantity,
                 'quantity'     => (float)$s->quantity,
                 'status'       => $s->status ? 'Active' : 'Inactive',

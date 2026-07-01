@@ -57,7 +57,7 @@ const getModuleIcon = (id) => {
         case 'machines': return TruckIcon;
         case 'payroll': return UsersIcon;
         case 'compliance': return DocumentTextIcon;
-        default: return DocumentTextIcon;
+        // default: return DocumentTextIcon;
     }
 };
 
@@ -98,8 +98,8 @@ const modules = [
         name: 'Fleet & Machinery',
         reports: [
             { id: 'machines_list', name: 'Machine Fleet Inventory', description: 'Active fleet list, mixer capacities and vehicle specs' },
-            { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
-            { id: 'vehicle_pl', name: 'Vehicle Wise Profit & Loss', description: 'Vehicle financial breakdown: revenue, trip costs, fuel/maintenance, total costs, net profit, and profit margin %' },
+            // { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
+            // { id: 'vehicle_pl', name: 'Vehicle Wise Profit & Loss', description: 'Vehicle financial breakdown: revenue, trip costs, fuel/maintenance, total costs, net profit, and profit margin %' },
         ]
     },
     {
@@ -109,7 +109,7 @@ const modules = [
             { id: 'payroll_personnel', name: 'Personnel Directory', description: 'Employee master data, contact details and designations' },
         ]
     },
-    {
+ {/*  {
         id: 'compliance',
         name: 'Taxation & Compliance',
         reports: [
@@ -119,6 +119,7 @@ const modules = [
             { id: 'esi_pf_challan', name: 'ESI/PF Challan Generation', description: 'Monthly Employee State Insurance and Provident Fund statutory challan calculations' }
         ]
     }
+         */} 
 ];
 
 const selectedModuleId = ref('accounting');
@@ -194,7 +195,13 @@ const checkExportStatus = (key) => {
             if (data.status === 'completed') {
                 clearInterval(pollingInterval.value);
                 pollingInterval.value = null;
-                window.open(data.url, '_blank');
+                // Use a hidden anchor to trigger download (window.open gets popup-blocked from async callbacks)
+                const link = document.createElement('a');
+                link.href = data.url;
+                link.download = data.filename || 'report';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
                 exportProgress.value = null;
             } else if (data.status === 'failed') {
                 clearInterval(pollingInterval.value);
@@ -205,7 +212,7 @@ const checkExportStatus = (key) => {
         } catch (error) {
             console.error('Error polling export status:', error);
         }
-    }, 3000);
+    }, 500);
 };
 
 const activeModule = computed(() => {
@@ -245,6 +252,11 @@ watch(reportType, () => {
         pollingInterval.value = null;
     }
     exportProgress.value = null;
+    generateReport();
+});
+
+onMounted(() => {
+    generateReport();
 });
 
 const generateReport = async () => {

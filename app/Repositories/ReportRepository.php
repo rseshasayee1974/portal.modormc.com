@@ -26,7 +26,7 @@ class ReportRepository
             ->select([
                 'mm_invoice_items.id',
                 'mm_invoice_items.invoice_id',
-                'mm_invoice_items.mix_design_id',
+                'mm_invoice_items.item_id as mix_design_id',
                 'mm_invoice_items.uom_id',
                 'mm_invoice_items.item_name',
                 'mm_invoice_items.quantity',
@@ -109,7 +109,7 @@ class ReportRepository
 
         // Filter: Product (mix_design_id)
         if (!empty($filters['product_id'])) {
-            $query->where('mm_invoice_items.mix_design_id', $filters['product_id']);
+            $query->where('mm_invoice_items.item_id', $filters['product_id']);
         }
 
         // Filter: Salesman (created_by mapping)

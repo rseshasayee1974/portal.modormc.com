@@ -52,7 +52,7 @@ const props = defineProps({
                         <th class="py-3 px-4 text-center" width="5%">#</th>
                         <th class="py-3 px-4 text-center" width="12%">Start Date</th>
                         <th class="py-3 px-4 text-center" width="12%">Batch No</th>
-                        <th class="py-3 px-4 text-center" width="12%">Work Order</th>
+                        <th class="py-3 px-4 text-center" width="12%">Sales Order</th>
                         <th class="py-3 px-4" width="25%">Mix Design</th>
                         <th class="py-3 px-4 text-right" width="12%">Batch Size</th>
                         <th class="py-3 px-4" width="12%">Operator</th>
@@ -64,10 +64,10 @@ const props = defineProps({
                         <td class="py-3 px-4 text-center text-slate-400">{{ idx + 1 }}</td>
                         <td class="py-3 px-4 text-center text-slate-500">{{ row.date }}</td>
                         <td class="py-3 px-4 text-center font-bold text-slate-700">{{ row.batch_no }}</td>
-                        <td class="py-3 px-4 text-center font-bold text-[#0064d2]">{{ row.work_order }}</td>
+                        <td class="py-3 px-4 text-center font-bold text-[#0064d2]">{{ row.sales_order }}</td>
                         <td class="py-3 px-4 text-slate-800">{{ row.mix_design }}</td>
                         <td class="py-3 px-4 text-right font-black text-[#1d2d3e] bg-slate-50/55">{{ row.batch_size }} m³</td>
-                        <td class="py-3 px-4 text-slate-600">{{ row.operator }}</td>
+                        <td class="py-3 px-4 text-slate-600 capitalize">{{ row.operator }}</td>
                         <td class="py-3 px-4 text-center">
                             <span class="px-2 py-0.5 rounded text-[9px] font-bold bg-[#e2f0d9] text-[#385723] border border-[#c5e0b4]">
                                 {{ row.status }}

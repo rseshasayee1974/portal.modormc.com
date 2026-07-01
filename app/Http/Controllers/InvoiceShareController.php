@@ -358,8 +358,8 @@ class InvoiceShareController extends Controller
             ];
         } elseif (str_contains(strtolower($type), 'production_batch')) {
             $extraParams = [
-                'headers'    => ['Start Date', 'Batch No', 'Work Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'],
-                'fields'     => ['date', 'batch_no', 'work_order', 'mix_design', 'batch_size', 'operator', 'status'],
+                'headers'    => ['Start Date', 'Batch No', 'Sales Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'],
+                'fields'     => ['date', 'batch_no', 'sales_order', 'mix_design', 'batch_size', 'operator', 'status'],
                 'alignments' => ['center', 'center', 'center', 'left', 'right', 'left', 'center'],
                 'totals'     => ['batch_size' => $data['total_batch_size'] ?? 0]
             ];

@@ -167,19 +167,7 @@ const submit = () => {
 <!-- Form Body -->
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5 p-5">
 
-    <!-- Sales Executive -->
-    <div>
-        <BaseSelect
-            v-model="form.sales_executive_id"
-            :options="salesExecutiveOptions"
-            optionLabel="label"
-            optionValue="value"
-            filter
-            label="Sales Executive"
-            placeholder="Select Sales Executive"
-            :error="form.errors.sales_executive_id"
-        />
-    </div>
+   
 
     <!-- Concrete Type -->
     <div>
@@ -214,6 +202,19 @@ const submit = () => {
         >
             Locked to quotation customer
         </p>
+    </div>
+     <!-- Sales Executive -->
+    <div>
+        <BaseSelect
+            v-model="form.sales_executive_id"
+            :options="salesExecutiveOptions"
+            optionLabel="label"
+            optionValue="value"
+            filter
+            label="Sales Executive"
+            placeholder="Select Sales Executive"
+            :error="form.errors.sales_executive_id"
+        />
     </div>
 
     <!-- Loading Site -->

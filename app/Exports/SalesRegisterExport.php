@@ -115,7 +115,7 @@ class SalesRegisterExport
         // Write headers
         $colIndex = 1;
         foreach ($headers as $header) {
-            $sheet->setCellValueByColumnAndRow($colIndex, 1, $header);
+            $this->setCell($sheet, $colIndex, 1, $header);
             $colIndex++;
         }
 
@@ -178,27 +178,27 @@ class SalesRegisterExport
                 $invoiceNo = $invoice ? (($invoice->prefix ?? '') . ($invoice->invoice_number ?? '')) : '';
                 
                 $colIdx = 1;
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $invoiceNo);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $invoice ? $invoice->invoice_date->toDateString() : '');
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $partner ? $partner->legal_name : 'N/A');
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $partner ? $partner->gstin : '');
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $item->item_name ?? 'N/A');
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$item->quantity);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$item->price_unit);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$item->subtotal);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$cgst);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$sgst);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$igst);
+                $this->setCell($sheet, $colIdx++, $rowNum, $invoiceNo);
+                $this->setCell($sheet, $colIdx++, $rowNum, $invoice ? $invoice->invoice_date->toDateString() : '');
+                $this->setCell($sheet, $colIdx++, $rowNum, $partner ? $partner->legal_name : 'N/A');
+                $this->setCell($sheet, $colIdx++, $rowNum, $partner ? $partner->gstin : '');
+                $this->setCell($sheet, $colIdx++, $rowNum, $item->item_name ?? 'N/A');
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$item->quantity);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$item->price_unit);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$item->subtotal);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$cgst);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$sgst);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$igst);
 
                 // Write dynamic columns
                 foreach ($taxColumns as $col) {
                     $val = (float)($rowTaxes[$col['key']] ?? 0);
-                    $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $val);
+                    $this->setCell($sheet, $colIdx++, $rowNum, $val);
                     $dynamicTotals[$col['key']] = ($dynamicTotals[$col['key']] ?? 0) + $val;
                 }
 
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$item->line_total);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $paymentStatus);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$item->line_total);
+                $this->setCell($sheet, $colIdx++, $rowNum, $paymentStatus);
 
                 // Accumulate totals
                 $totalQty += (float)$item->quantity;
@@ -214,19 +214,19 @@ class SalesRegisterExport
 
         // Write Totals Row
         $colIdx = 1;
-        $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, 'TOTAL');
-        $sheet->setCellValueByColumnAndRow(6, $rowNum, $totalQty);
-        $sheet->setCellValueByColumnAndRow(8, $rowNum, $totalTaxable);
-        $sheet->setCellValueByColumnAndRow(9, $rowNum, $totalCgst);
-        $sheet->setCellValueByColumnAndRow(10, $rowNum, $totalSgst);
-        $sheet->setCellValueByColumnAndRow(11, $rowNum, $totalIgst);
+        $this->setCell($sheet, $colIdx++, $rowNum, 'TOTAL');
+        $this->setCell($sheet, 6, $rowNum, $totalQty);
+        $this->setCell($sheet, 8, $rowNum, $totalTaxable);
+        $this->setCell($sheet, 9, $rowNum, $totalCgst);
+        $this->setCell($sheet, 10, $rowNum, $totalSgst);
+        $this->setCell($sheet, 11, $rowNum, $totalIgst);
 
         $colIdx = 12;
         foreach ($taxColumns as $col) {
-            $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)($dynamicTotals[$col['key']] ?? 0));
+            $this->setCell($sheet, $colIdx++, $rowNum, (float)($dynamicTotals[$col['key']] ?? 0));
         }
 
-        $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $totalNet);
+        $this->setCell($sheet, $colIdx++, $rowNum, $totalNet);
 
         // Styling the total row
         $sheet->getStyle("A{$rowNum}:{$lastHeaderLetter}{$rowNum}")->getFont()->setBold(true);
@@ -240,6 +240,12 @@ class SalesRegisterExport
         // Save
         $writer = new Xlsx($spreadsheet);
         $writer->save($filePath);
-        $spreadsheet->disconnectCells();
+        $spreadsheet->disconnectWorksheets();
+    }
+
+    private function setCell($sheet, int $colIndex, int $rowIndex, $value): void
+    {
+        $cellAddress = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex) . $rowIndex;
+        $sheet->setCellValue($cellAddress, $value);
     }
 }

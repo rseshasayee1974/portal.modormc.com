@@ -5,6 +5,7 @@ import Button from 'primevue/button';
 import Tag from 'primevue/tag';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import SiteRowEditPanel from './SiteRowEditPanel.vue';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps<{
     sites: any[];
@@ -26,6 +27,8 @@ const emit = defineEmits<{
     'submitEdit': [];
     'cancelEdit': [];
 }>();
+
+const { isAdmin } = usePermissions();
 
 const filters = ref({
     global: { value: props.searchQuery ?? null, matchMode: 'contains' },
@@ -110,7 +113,7 @@ watch(() => props.searchQuery, (newVal) => {
             <template #body="slotProps">
                 <div class="flex justify-end gap-1">
                     <Button 
-                        v-if="!slotProps.data.is_in_use"
+                        v-if="isAdmin || !slotProps.data.is_in_use"
                         icon="pi pi-trash" 
                         text 
                         rounded 
