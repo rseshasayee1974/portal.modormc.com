@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/ApplicationMark-BsO4B49n.js
-import{_ as o}from"./app-ilDajR4f.js";import{p as n,q as e,l as r}from"./vue-BI2IQHQ5.js";const s={},a={class:"flex items-center justify-center font-black tracking-tighter text-white"};function c(i,t){return r(),n("div",a,[...t[0]||(t[0]=[e("div",{class:"bg-gradient-to-br from-indigo-500 to-teal-400 p-2 rounded-xl shadow-lg"},[e("span",{class:"text-2xl leading-none"},"O")],-1)])])}const f=o(s,[["render",c]]);export{f as A};
-========
-import{_ as o}from"./app-BknQb0Hb.js";import{p as n,q as e,l as r}from"./vue-B_rVdpYr.js";const s={},a={class:"flex items-center justify-center font-black tracking-tighter text-white"};function c(i,t){return r(),n("div",a,[...t[0]||(t[0]=[e("div",{class:"bg-gradient-to-br from-indigo-500 to-teal-400 p-2 rounded-xl shadow-lg"},[e("span",{class:"text-2xl leading-none"},"O")],-1)])])}const f=o(s,[["render",c]]);export{f as A};
->>>>>>>> 33d737f1d3cca4718d4bc2b852c3c9a78f726555:public/build/assets/ApplicationMark-BPjHukpf.js
