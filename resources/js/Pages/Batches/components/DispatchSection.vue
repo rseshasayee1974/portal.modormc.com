@@ -469,8 +469,8 @@ const handleDeleteInvoice = () => {
 </script>
 
 <template>
-    <div  class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="bg-slate-50/50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+    <div  class="bg-white  border border-slate-200 shadow-sm overflow-hidden">
+        <div class="bg-slate-50/50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="rounded-lg bg-indigo-600 p-2 text-white shadow-md shadow-indigo-100">
                     <PaperAirplaneIcon class="h-5 w-5" />
@@ -522,11 +522,11 @@ const handleDeleteInvoice = () => {
                 <div class="sticky top-6">
                     <div class="bg-white   shadow-amber-900/5 border border-amber-200/50 overflow-hidden">
                         <!-- Receipt Header -->
-                        <div class="bg-amber-50/50 px-6 py-4 border-b border-amber-100 text-center">
+                        <div class="bg-amber-50/50 px-4 py-3 border-b border-amber-100 text-center">
                             <span class="text-[15px] font-black uppercase tracking-[0.2em] text-slate-800">Receipt Summary</span>
                         </div>
 
-                        <div class="p-6 space-y-6">
+                        <div class="p-4 space-y-4">
                             <!-- Receipt # -->
                             <div class="flex items-center justify-between">
                                 <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Batch Number</span>
@@ -552,7 +552,7 @@ const handleDeleteInvoice = () => {
                             </div>
 
                             <!-- Amount Breakdown -->
-                            <div class="space-y-3">
+                            <div class="space-y-4">
                                 <div class="flex items-center justify-between">
                                     <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Gross Amount</span>
                                     <span class="text-xs font-black text-slate-700">₹ {{ form.financials.load_untax_amount.toLocaleString(undefined, {minimumFractionDigits: 2}) }}</span>
@@ -590,7 +590,7 @@ const handleDeleteInvoice = () => {
                             </div>
 
                             <!-- Total -->
-                            <div class="bg-slate-50 -mx-6 px-6 py-4 border-t border-b border-slate-100 flex items-center justify-between">
+                            <div class="bg-slate-50 -mx-4 px-4 py-3 border-t border-b border-slate-100 flex items-center justify-between">
                                 <span class="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">Total Amount</span>
                                 <span class="text-xl font-black text-slate-900 tracking-tighter">₹ {{ form.financials.load_total_amount.toLocaleString(undefined, {minimumFractionDigits: 0}) }}</span>
                             </div>

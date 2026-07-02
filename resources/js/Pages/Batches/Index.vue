@@ -13,6 +13,8 @@ import { useInvoiceActions } from './useInvoiceActions';
 import BatchCreateForm from './components/BatchCreateForm.vue';
 import BatchEditForm from './components/BatchEditForm.vue';
 import DispatchSection from './components/DispatchSection.vue';
+import TabView from 'primevue/tabview';
+import TabPanel from 'primevue/tabpanel';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -809,7 +811,7 @@ const shareBatchEmail = () => {
                         </Column>
 
                         <template #expansion="slotProps">
-                            <div class="p-4 bg-slate-50/50 border-y border-slate-100 relative min-h-[100px] space-y-6">
+                            <div class=" bg-slate-50/50 border-y border-slate-100 relative min-h-[100px] ">
                                 <div v-if="isLoadingBatch[slotProps.data.id]" class="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
                                     <div class="flex flex-col items-center gap-2">
                                         <i class="pi pi-spinner animate-spin text-indigo-600 text-2xl"></i>
@@ -817,76 +819,65 @@ const shareBatchEmail = () => {
                                     </div>
                                 </div>
                                 
-                                <!-- 1. Batch Production Form -->
-                                <div v-if="!hideBatchForm" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                    
-                                    <BatchEditForm
-                                        :batch="detailedBatches[slotProps.data.id]"
-                                        :salesOrders="salesOrders"
-                                        :trucks="trucks"
-                                        :transporters="transporters"
-                                        :drivers="drivers"
-                                        :sales_executives="sales_executives"
-                                        :products="products"
-                                        :uoms="uoms"
-                                        :statuses="statuses"
-                                        :loading_sites="loading_sites"
-                                        :concretePumpOptions="concretePumpOptions"
-                                        :onSaved="handleBatchSaved"
-                                        @cancel="collapseExpandedRows()"
-                                    />
-                                </div>
+                                <!-- Unified Tabbed Layout for Batch Edit & Dispatch -->
+                                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                    <TabView>
+                                        <TabPanel>
+                                            <template #header>
+                                                <div class="flex items-center gap-2 py-1">
+                                                    <CubeIcon class="w-4 h-4 text-indigo-500" />
+                                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-700">1. Production & Materials</span>
+                                                </div>
+                                            </template>
+                                            <div class=" bg-slate-50/20">
+                                                <BatchEditForm
+                                                    v-if="!hideBatchForm"
+                                                    :batch="detailedBatches[slotProps.data.id]"
+                                                    :salesOrders="salesOrders"
+                                                    :trucks="trucks"
+                                                    :transporters="transporters"
+                                                    :drivers="drivers"
+                                                    :sales_executives="sales_executives"
+                                                    :products="products"
+                                                    :uoms="uoms"
+                                                    :statuses="statuses"
+                                                    :loading_sites="loading_sites"
+                                                    :concretePumpOptions="concretePumpOptions"
+                                                    :onSaved="handleBatchSaved"
+                                                    @cancel="collapseExpandedRows()"
+                                                />
+                                            </div>
+                                        </TabPanel>
 
-                                <!-- 2. Dispatch History (Only if exists) -->
-                                <!-- <div v-if="(detailedBatches[slotProps.data.id] || slotProps.data).dispatches?.length" class="p-4 bg-white rounded-xl border border-slate-100 shadow-sm">
-                                    <div class="flex items-center gap-2 mb-4">
-                                        <div class="p-2 bg-indigo-50 rounded-lg text-indigo-600">
-                                            <PaperAirplaneIcon class="w-4 h-4" />
-                                        </div>
-                                        <h4 class="text-xs font-black uppercase tracking-widest text-slate-800">Batch Dispatch History</h4>
-                                    </div>
-                                    <div class="overflow-x-auto">
-                                        <table class="w-full text-left border-collapse">
-                                            <thead>
-                                                <tr class="border-b border-slate-50 bg-slate-50/50">
-                                                    <th class="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Dispatch #</th>
-                                                    <th class="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Ref #</th>
-                                                    <th class="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Truck</th>
-                                                    <th class="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Qty</th>
-                                                    <th class="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y divide-slate-50">
-                                                <tr v-for="d in (detailedBatches[slotProps.data.id] || slotProps.data).dispatches" :key="d.id" class="hover:bg-slate-50/50 transition-colors">
-                                                    <td class="px-4 py-3 text-xs font-black text-indigo-600">{{ d.prefix }}{{ d.dispatch_no }}</td>
-                                                    <td class="px-4 py-3 text-xs font-bold text-slate-600">{{ d.dispatch_reference || '---' }}</td>
-                                                    <td class="px-4 py-3 text-xs font-semibold text-slate-700">{{ d.truck?.registration || '---' }}</td>
-                                                    <td class="px-4 py-3 text-xs font-black text-slate-800">{{ d.delivered_qty }} m³</td>
-                                                    <td class="px-4 py-3">
-                                                        <Tag :value="d.dispatch_status" :severity="d.dispatch_status === 'Delivered' ? 'success' : 'warn'" rounded class="!text-[9px] !font-black !px-2" />
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div> -->
-
-                                <!-- 3. Dispatch Generation/Edit Form -->
-                                <div v-if="slotProps.data.status === 3 || slotProps.data.status === 4"  class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                                    <DispatchSection 
-                                        :batch="detailedBatches[slotProps.data.id] || slotProps.data" 
-                                        :salesOrder="(detailedBatches[slotProps.data.id] || slotProps.data).sales_order"
-                                        :dispatch="(detailedBatches[slotProps.data.id] || slotProps.data).dispatches?.[0]"
-                                        :dropdownData="dropdownData"
-                                        :drivers="drivers"
-                                        :sales_executives="sales_executives"
-                                        :settings="batchingSettings"
-                                        :onSaved="handleBatchSaved"
-                                        @tripSaved="handleBatchSaved"
-                                        @generateInvoice="handleInvoiceGenerated"
-                                        @deleteInvoice="handleInvoiceGenerated"
-                                        @cancel="collapseExpandedRows()"
-                                    />
+                                        <TabPanel :disabled="slotProps.data.status !== 3 && slotProps.data.status !== 4">
+                                            <template #header>
+                                                <div class="flex items-center gap-2 py-1">
+                                                    <PaperAirplaneIcon class="w-4 h-4 text-indigo-500" />
+                                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-700">2. Dispatch & Invoicing</span>
+                                                </div>
+                                            </template>
+                                            <div class=" bg-slate-50/20">
+                                                <DispatchSection 
+                                                    v-if="slotProps.data.status === 3 || slotProps.data.status === 4"
+                                                    :batch="detailedBatches[slotProps.data.id] || slotProps.data" 
+                                                    :salesOrder="(detailedBatches[slotProps.data.id] || slotProps.data).sales_order"
+                                                    :dispatch="(detailedBatches[slotProps.data.id] || slotProps.data).dispatches?.[0]"
+                                                    :dropdownData="dropdownData"
+                                                    :drivers="drivers"
+                                                    :sales_executives="sales_executives"
+                                                    :settings="batchingSettings"
+                                                    :onSaved="handleBatchSaved"
+                                                    @tripSaved="handleBatchSaved"
+                                                    @generateInvoice="handleInvoiceGenerated"
+                                                    @deleteInvoice="handleInvoiceGenerated"
+                                                    @cancel="collapseExpandedRows()"
+                                                />
+                                                <div v-else class="text-center py-8 text-slate-400 font-medium">
+                                                    Dispatch details will be available once the batch is dispatched.
+                                                </div>
+                                            </div>
+                                        </TabPanel>
+                                    </TabView>
                                 </div>
                             </div>
                         </template>

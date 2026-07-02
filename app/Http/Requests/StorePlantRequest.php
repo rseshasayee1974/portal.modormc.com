@@ -25,6 +25,7 @@ class StorePlantRequest extends FormRequest
             'entity_id' => ['required', 'exists:mm_entities,id'],
             'code' => ['required', 'string', 'max:255', 'unique:mm_plants,code'],
             'name' => ['required', 'string', 'max:255'],
+            'mixer_capacity' => ['nullable', 'numeric', 'min:0'],
             'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             'email_address' => ['required', 'email:rfc,dns', 'max:255'],
             'mobile_number' => ['nullable', 'string', 'max:20'],

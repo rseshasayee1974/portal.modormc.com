@@ -10,7 +10,10 @@
     @include('pdfs.partials._common_styles')
     <style>
         body { font-size: 9.5px; }
-        .inv-root { border: 1px solid #cbd5e1; width: 100%; min-height: 297mm; }
+        .inv-root { border: 1px solid #cbd5e1; width: 100%; }
+        @media screen {
+            .inv-root { min-height: 297mm; }
+        }
         .compact-header { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 5px 8px; }
         .ch-left  { display: table-cell; vertical-align: middle; }
         .ch-right { display: table-cell; vertical-align: middle; text-align: right; }
@@ -119,9 +122,9 @@
             @foreach($data['totals']['tax_lines'] as $tl) 
                 @php
                     $showTax = true;
-                    if($tl['label'] === 'CGST' && !($pdfSettings['cgst'] ?? true)) $showTax = false;
-                    if($tl['label'] === 'SGST' && !($pdfSettings['sgst'] ?? true)) $showTax = false;
-                    if($tl['label'] === 'IGST' && !($pdfSettings['igst'] ?? true)) $showTax = false;
+                    if(str_contains($tl['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) $showTax = false;
+                    if(str_contains($tl['label'], 'SGST') && !($pdfSettings['sgst'] ?? true)) $showTax = false;
+                    if(str_contains($tl['label'], 'IGST') && !($pdfSettings['igst'] ?? true)) $showTax = false;
                 @endphp
                 @if($showTax) <tr><td class="tc-label">{{ $tl['label'] }}</td><td class="tc-val">{{ number_format($tl['amount'], 2) }}</td></tr> @endif
             @endforeach

@@ -152,20 +152,33 @@ const salesOrderDetails = computed(() => {
 });
 
 watch(() => form.sales_order_id, (newVal) => {
-    if (newVal && selectedSalesOrder.value?.mix_design?.items) {
-        form.materials = selectedSalesOrder.value.mix_design.items.map((item: any) => ({
-            product_id: item.product_id,
-            material_name: item.product?.title || 'Material',
-            target_qty: Number(item.cross_quantity || item.quantity || 0) * form.batch_size,
-            actual_qty: 0,
-            uom_id: item.uom_id || item.product?.unit_id,
-        }));
+    if (newVal && selectedSalesOrder.value) {
+        // Calculate remaining qty and assign to batch_size (capped at 6)
+        const remaining = Number((Number(selectedSalesOrder.value.total_qty) - Number(selectedSalesOrder.value.produced_qty)).toFixed(3));
+        form.batch_size = remaining > 6 ? 6 : (remaining > 0 ? remaining : 1);
+        
+        // Assign sales executive
+        form.sales_executive_id = selectedSalesOrder.value.sales_executive_id || null;
+
+        if (selectedSalesOrder.value.mix_design?.items) {
+            form.materials = selectedSalesOrder.value.mix_design.items.map((item: any) => ({
+                product_id: item.product_id,
+                material_name: item.product?.title || 'Material',
+                target_qty: Number(item.cross_quantity || item.quantity || 0) * form.batch_size,
+                actual_qty: 0,
+                uom_id: item.uom_id || item.product?.unit_id,
+            }));
+        } else {
+            form.materials = [blankMaterial()];
+        }
         form.batch_no = props.nextBatchNo;
         form.concrete_pump = selectedSalesOrder.value.concrete_pump;
     } else {
         form.materials = [blankMaterial()];
         form.batch_no = props.nextBatchNo;
         form.concrete_pump = null;
+        form.sales_executive_id = null;
+        form.batch_size = 1;
     }
 });
 
@@ -402,229 +415,156 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="no-print rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div class="border-b border-slate-100 px-4 py-3">
-            <div class="flex items-start justify-between gap-2.5">
-                <div class="flex items-start gap-2.5">
-                    <div class="rounded-lg bg-cyan-50 p-1.5 text-cyan-600">
-                        <PlusCircleIcon class="h-4 w-4" />
+    <div class="no-print rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-100/50 overflow-hidden">
+        <!-- Premium Header Banner -->
+        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-6 py-5 text-white">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="rounded-xl bg-white/10 p-2.5 backdrop-blur-md ring-1 ring-white/20">
+                        <PlusCircleIcon class="h-6 w-6 text-indigo-300 animate-pulse" />
                     </div>
-                    <div class="flex flex-col">
-                        <h2 class="text-sm font-bold uppercase tracking-wide text-slate-700">Create Batch</h2>
-                        <p class="mt-1 text-xs text-slate-400">Plan batch and define target vs actual material usage.</p>
+                    <div>
+                        <h2 class="text-base font-bold uppercase tracking-wider text-white">Plan & Create Batch</h2>
+                        <p class="mt-0.5 text-xs text-slate-300">Set logistics, weights, and live target batch quantities.</p>
                     </div>
                 </div>
 
-                <div v-if="nextBatchNoDisplay" class="flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-1.5 border border-indigo-100">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Batch Number</span>
-                    <span class="text-sm font-black text-indigo-700">#{{ nextBatchNoDisplay }}</span>
+                <div v-if="nextBatchNoDisplay" class="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-2 backdrop-blur-md border border-white/10 self-start sm:self-center">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-300">Batch Number</span>
+                    <span class="text-base font-black text-indigo-300">#{{ nextBatchNoDisplay }}</span>
                 </div>
-                
             </div>
         </div>        
-        <div class="p-5">
-            <div class="grid grid-cols-12 gap-8">
-                <!-- Left Column: Selection & Reference Details -->
-                <div class="col-span-12 md:col-span-3">
-                    <div class="sticky top-4 space-y-6">
-                        <div class="rounded-xl bg-slate-50 p-4 border border-slate-200/60 shadow-sm">
-                            <BaseSelect 
-                                v-model="form.sales_order_id" 
-                                :options="salesOrders" 
-                                optionLabel="full_number" 
-                                optionValue="id" 
-                                filter 
-                                label="Select Sales Order" 
-                                required
-                                :error="form.errors.sales_order_id" 
-                            />
-                        </div>
-
-                        <!-- Sales Order Details Card -->
-                        <div v-if="salesOrderDetails.length" class="rounded-xl border border-indigo-100 bg-white p-4 shadow-sm overflow-hidden relative">
-                            <div class="absolute top-0 right-0 p-2 opacity-10">
-                                <InformationCircleIcon class="w-12 h-12 text-indigo-500" />
-                            </div>
-                            <h3 class="mb-4 text-[10px] font-bold uppercase tracking-widest text-indigo-500 border-b border-indigo-50 pb-2">Reference Details</h3>
-                            <div class="space-y-4">
-                                <div v-for="detail in salesOrderDetails" :key="detail.label" class="flex flex-col">
-                                    <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ detail.label }}</span>
-                                    <span class="text-xs font-semibold text-slate-700 leading-tight">{{ detail.value }}</span>
-                                </div>
-                            </div>
-                            <div class="col-span-12 md:col-span-3 mt-4">
-                                <BaseSelect v-model="form.site_id" :options="loading_sites" :disabled="true" optionLabel="name" optionValue="id" filter label="Loading Site" />
-                            </div>
-                        </div>
+        
+        <div class="p-6 space-y-6">
+            <!-- Section 1: Sales Order Link & Reference Info -->
+            <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 shadow-sm">
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div class="flex flex-col justify-center">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center gap-2">
+                            <span class="h-2 w-2 rounded-full bg-indigo-600"></span>
+                            Sales Order Link
+                        </h3>
+                        <BaseSelect 
+                            v-model="form.sales_order_id" 
+                            :options="salesOrders" 
+                            optionLabel="full_number" 
+                            optionValue="id" 
+                            filter 
+                            label="Select Sales Order" 
+                            required
+                            :error="form.errors.sales_order_id" 
+                        />
                     </div>
-                </div>
-
-                <!-- Right Column: Batch Configuration & Materials -->
-                <div class="col-span-12 md:col-span-9 space-y-6">
-                    <!-- Batch Core Config Row -->
-                    <div class="rounded-xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-                        <div class="flex items-center gap-2 border-b border-slate-50 bg-slate-50/50 px-4 py-2.5">
-                            <div class="rounded-md bg-indigo-100 p-1 text-indigo-600">
-                                <ClockIcon class="h-4 w-4" />
+                    
+                    <div v-if="salesOrderDetails.length" class="lg:col-span-3 border-t lg:border-t-0 lg:border-l border-slate-200/60 lg:pl-6 pt-4 lg:pt-0">
+                        <h3 class="mb-3 text-[10px] font-bold uppercase tracking-widest text-indigo-600 flex items-center justify-between">
+                            <span>Reference Details</span>
+                            <span class="rounded bg-indigo-100 px-2 py-0.5 text-[9px] font-bold text-indigo-700">Live</span>
+                        </h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div v-for="detail in salesOrderDetails" :key="detail.label" class="flex flex-col">
+                                <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{{ detail.label }}</span>
+                                <span class="text-xs font-bold text-slate-800 mt-0.5 leading-tight">{{ detail.value }}</span>
                             </div>
-                            <h3 class="text-[11px] font-bold uppercase tracking-wider text-slate-600">Execution Parameters</h3>
-                        </div>
-                        <div class="grid grid-cols-12 gap-5 p-5">
-                            <div class="col-span-12 md:col-span-3">
-                                <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Assign Truck" required :error="form.errors.truck_id" />
-                            </div>
-                            <div class="col-span-12 md:col-span-3">
-                                <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear />
-                            </div>
-                            <div class="col-span-12 md:col-span-3">
-                                <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label" optionValue="id" filter label="Driver" showClear />
-                            </div>
-                            <div class="col-span-12 md:col-span-3">
-                                <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear />
-                            </div>
-                            <div class="col-span-12 md:col-span-3">
-                                <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :minFractionDigits="1" :maxFractionDigits="1" :max="9.9" required :error="form.errors.batch_size" />
-                            </div>
-                            <div class="col-span-12 md:col-span-3">
-                                <div class="flex items-end">
-                                    <div class="flex-1">
-                                        <BaseInputNumber v-model="form.empty_weight_truck" :disabled="customSettings?.batching?.manual_weight === 0" label="Empty Weight" :required="customSettings?.batching?.manual_weight === 1" :error="form.errors.empty_weight_truck" />
-                                    </div>
-                                    <button @click="handleWeightCapture" type="button" v-if="customSettings?.batching?.manual_weight === 0" 
-                                        :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
-                                        :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
-                                        <div class="flex flex-col items-center gap-0.5">
-                                            <ArrowDownTrayIcon class="w-4 h-4" />
-                                            <span v-if="customSettings?.batching?.camera == 1" class="text-[8px] font-bold"> + SNAP</span>
-                                        </div>
-                                    </button>
-                                </div>
-                                <div v-if="form.empty_weight_photo" class="mt-2 relative group">
-                                    <img :src="form.empty_weight_photo" class="w-full h-24 object-cover rounded-lg border border-slate-200" />
-                                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                        <button @click="form.empty_weight_photo = null" type="button" class="text-white text-xs font-bold bg-red-500 px-2 py-1 rounded">Remove</button>
-                                    </div>
-                                </div>
-                                <!-- Test Direct Proxy Link -->
-                                <div v-if="customSettings?.batching?.camera_url || customSettings?.batching?.camera_url_1" class="mt-2 text-[8px] text-slate-400">
-                                    <p>Direct Proxy Test:</p>
-                                    <img :src="'http://127.0.0.1:8089/api/camera?img_url=http://admin:Karur%40321@192.168.1.207/snapshot.JPG' + encodeURIComponent(customSettings.batching.camera_url_1 || customSettings.batching.camera_url)" class="w-20 h-10 border border-dotted border-slate-300" />
-                                </div>
-                            </div>
-                            <!-- <div class="col-span-12 md:col-span-3">
-                                <BaseSelect v-model="form.uom_id" :options="uoms" optionLabel="unit_code" optionValue="id" label="Unit of Measure" filter :error="form.errors.uom_id" />
-                            </div> -->
-                            
-                            
-                            <!-- <div class="col-span-12 md:col-span-3">
-                                <BaseDatePicker v-model="form.start_time" label="Scheduled Start" showTime hourFormat="24" fluid :error="form.errors.start_time" />
-                            </div> -->
-                            <div class="col-span-12 md:col-span-3">
-                                <BaseDatePicker v-model="form.empty_time" label="Empty Time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.empty_time" />
-                            </div>
-                            <div class="col-span-12 md:col-span-3">
-                                <BaseSelect
-                                    v-model="form.concrete_pump"
-                                    :options="concretePumpOptions"
-                                    optionLabel="label"
-                                    optionValue="value"
-                                    label="Concrete Type"
-                                    placeholder="Select Concrete Type"
-                                    :error="form.errors.concrete_pump"
-                                />
-                            </div>
-                           
-                            
-                        </div>
-                    </div>
-
-                    <!-- Target Recipe Visualization -->
-                    <!-- <div v-if="selectedSalesOrder?.mix_design?.items?.length" class="rounded-xl border border-indigo-100 bg-indigo-50/30 p-4">
-                        <div class="mb-3 flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <BeakerIcon class="w-4 h-4 text-indigo-500" />
-                                <h3 class="text-[10px] font-bold uppercase tracking-widest text-indigo-500">Target Recipe ({{ selectedSalesOrder.mix_design?.design_name }})</h3>
-                            </div>
-                            <span class="text-[9px] text-indigo-400 font-medium">Batch Factor: {{ form.batch_size }} m³</span>
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                            <div v-for="item in selectedSalesOrder.mix_design.items" :key="item.id" 
-                                class="flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-sm ring-1 ring-indigo-100/50">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase">{{ item.product?.title || 'Material' }}</span>
-                                <span class="h-4 w-[1px] bg-slate-100"></span>
-                                <span class="text-xs font-black text-indigo-600">
-                                    {{ (Number(item.cross_quantity || item.quantity || 0) * form.batch_size).toFixed(3) }}
-                                    <span class="text-[9px] font-normal text-slate-400 ml-0.5">{{ item.uom?.unit_code || '' }}</span>
+                            <div class="flex flex-col">
+                                <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Loading Site</span>
+                                <span class="text-xs font-bold text-slate-800 mt-0.5 leading-tight">
+                                    {{ loading_sites.find(s => Number(s.id) === Number(form.site_id))?.name || 'Loading Site Not Configured' }}
                                 </span>
                             </div>
                         </div>
-                    </div> -->
+                    </div>
+                </div>
+            </div>
 
-                    <!-- Detailed Materials Table -->
-                    <!-- <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                        <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-4 py-3">
-                            <div class="flex items-center gap-2">
-                                <ListBulletIcon class="w-4 h-4 text-slate-400" />
-                                <h3 class="text-xs font-bold uppercase tracking-wide text-slate-600">Actual Batch Inputs</h3>
+            <!-- Section 2: Logistics, Weights & Execution Parameters -->
+            <div class="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+                <div class="flex items-center gap-2 border-b border-slate-50 bg-slate-50/50 px-5 py-3">
+                    <div class="rounded-lg bg-indigo-50 p-1.5 text-indigo-600 ring-1 ring-indigo-100">
+                        <ClockIcon class="h-4 w-4" />
+                    </div>
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Batch Parameters</h3>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4">
+                    <div>
+                        <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Assign Truck" required :error="form.errors.truck_id" />
+                    </div>
+                    <div>
+                        <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear />
+                    </div>
+                    <div>
+                        <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label" optionValue="id" filter label="Driver" showClear />
+                    </div>
+                    <div>
+                        <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear />
+                    </div>
+                    <div>
+                        <BaseSelect v-model="form.concrete_pump" :options="concretePumpOptions" optionLabel="label" optionValue="value" label="Concrete Type" placeholder="Select Concrete Type" :error="form.errors.concrete_pump" />
+                    </div>
+                    <div>
+                        <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :minFractionDigits="1" :maxFractionDigits="1" :max="9.9" required :error="form.errors.batch_size" />
+                    </div>
+                    <div>
+                        <div class="flex items-end gap-2">
+                            <div class="flex-1">
+                                <BaseInputNumber v-model="form.empty_weight_truck" :disabled="customSettings?.batching?.manual_weight === 0" label="Empty Weight (KGS)" :required="customSettings?.batching?.manual_weight === 1" :error="form.errors.empty_weight_truck" />
                             </div>
-                            <Button label="Add" icon="pi pi-plus" size="small" text rounded class="!text-xs" @click="addMaterial" />
+                            <button @click="handleWeightCapture" type="button" v-if="customSettings?.batching?.manual_weight === 0" 
+                                :class="['p-2.5 rounded-xl transition-all duration-200 border shadow-sm flex items-center justify-center', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
+                                :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
+                                <div class="flex flex-col items-center gap-0.5">
+                                    <ArrowDownTrayIcon class="w-4 h-4 animate-bounce" />
+                                    <span v-if="customSettings?.batching?.camera == 1" class="text-[7px] font-black uppercase tracking-widest">Snap</span>
+                                </div>
+                            </button>
                         </div>
+                        <div v-if="form.empty_weight_photo" class="mt-2 relative group rounded-xl overflow-hidden shadow-inner border border-slate-100">
+                            <img :src="form.empty_weight_photo" class="w-full h-24 object-cover" />
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button @click="form.empty_weight_photo = null" type="button" class="text-white text-xs font-bold bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-all">Remove Snap</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <BaseDatePicker v-model="form.empty_time" label="Empty Time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.empty_time" />
+                    </div>
+                    
+                </div>
+            </div>
 
-                        <div class="overflow-x-auto">
-                            <table class="w-full border-collapse">
-                                <thead>
-                                    <tr class="border-b border-slate-100 bg-slate-50/30">
-                                        <th class="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500 w-[30%]">Product</th>
-                                        <th class="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500 w-[25%]">Material Label</th>
-                                        <th class="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500 w-[20%]">Target Qty</th>
-                                        <th class="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500 w-[15%]">UOM</th>
-                                        <th class="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider text-slate-500 w-[10%]"></th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-50">
-                                    <tr v-for="(item, index) in form.materials" :key="index" class="hover:bg-indigo-50/20 transition-colors">
-                                        <td class="px-2 py-3">
-                                            <BaseSelect
-                                                v-model="item.product_id"
-                                                :options="products"
-                                                optionLabel="title"
-                                                optionValue="id"
-                                                filter
-                                                size="small"
-                                                :fluid="true"
-                                                :error="form.errors[`materials.${index}.product_id`]"
-                                            />
-                                        </td>
-                                        <td class="px-2 py-3">
-                                            <BaseInput v-model="item.material_name" size="small" :fluid="true" />
-                                        </td>
-                                        <td class="px-2 py-3">
-                                            <BaseInputNumber v-model="item.target_qty" :minFractionDigits="3" size="small" :fluid="true" :error="form.errors[`materials.${index}.target_qty`]" />
-                                        </td>
-                                        <td class="px-2 py-3">
-                                            <BaseSelect
-                                                v-model="item.uom_id"
-                                                :options="uoms"
-                                                optionLabel="unit_code"
-                                                optionValue="id"
-                                                size="small"
-                                                :fluid="true"
-                                                :error="form.errors[`materials.${index}.uom_id`]"
-                                            />
-                                        </td>
-                                        <td class="px-2 py-3 text-right">
-                                            <Button icon="pi pi-trash" text rounded severity="danger" class="!h-8 !w-8" @click="removeMaterial(index)" />
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+            <!-- Section 3: Target Recipe Live Yield Visualization -->
+            <div v-if="selectedSalesOrder?.mix_design?.items?.length" class="rounded-2xl border border-indigo-100 bg-indigo-50/10 p-5 shadow-sm transition-all duration-300 hover:shadow-md">
+                <div class="mb-4 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <BeakerIcon class="w-5 h-5 text-indigo-600" />
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-900">Target Recipe Yield ({{ selectedSalesOrder.mix_design?.design_name }})</h3>
+                    </div>
+                    <span class="rounded-lg bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
+                        Batch Factor: {{ form.batch_size }} m³
+                    </span>
+                </div>
+                
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <div v-for="item in selectedSalesOrder.mix_design.items" :key="item.id" 
+                        class="flex items-center justify-between rounded-xl bg-white border border-indigo-100/50 p-3 shadow-sm hover:border-indigo-200 transition-all duration-200">
+                        <div class="flex flex-col">
+                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Material</span>
+                            <span class="text-xs font-bold text-slate-700 mt-0.5">{{ item.product?.title || 'Material' }}</span>
                         </div>
-                    </div> -->
+                        <div class="text-right">
+                            <span class="text-[9px] font-bold text-indigo-400 uppercase tracking-wider">Target Qty</span>
+                            <div class="text-xs font-black text-indigo-700 mt-0.5">
+                                {{ (Number(item.cross_quantity || item.quantity || 0) * form.batch_size).toFixed(3) }}
+                                <span class="text-[9px] font-normal text-slate-400 ml-0.5">{{ item.uom?.unit_code || 'KGS' }}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div v-if="form.errors.materials" class="m-5 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-xs flex flex-col gap-1.5 shadow-sm">
+        <div v-if="form.errors.materials" class="mx-6 mb-6 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-xs flex flex-col gap-1.5 shadow-sm">
             <div class="font-bold flex items-center gap-2 text-rose-700">
                 <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -638,16 +578,22 @@ const submit = () => {
             </ul>
         </div>
 
-        <div class="border-t border-slate-100 bg-slate-50/30 p-4">
-            <div class="flex justify-end">
-                <Button 
-                    label="Create Batch Entry" 
-                    icon="pi pi-check" 
-                    class="!px-8 !py-3 !rounded-xl shadow-lg shadow-indigo-200" 
-                    :loading="form.processing"
-                    @click="submit" 
-                />
-            </div>
+        <!-- Sticky Form Actions Footer -->
+        <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-end gap-3">
+            <!-- <Button 
+                label="Cancel" 
+                severity="secondary" 
+                text
+                class="!px-6 !py-2.5 !rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 hover:!bg-slate-100" 
+                @click="emit('cancel')" 
+            /> -->
+            <Button 
+                label="Add Batch" 
+                icon="pi pi-check" 
+                class="!bg-indigo-600 hover:!bg-indigo-700 !border-indigo-600 !px-8 !py-2.5 !rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-indigo-100" 
+                :loading="form.processing"
+                @click="submit" 
+            />
         </div>
     </div>
 </template>

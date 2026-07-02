@@ -6,6 +6,7 @@ export interface Patron {
     operational_status: string;
     pan_no: string | null;
     gstin: string | null;
+    aadhar_number: string | null;
     status: boolean;
     displayed?: boolean;
     contacts?: any[];

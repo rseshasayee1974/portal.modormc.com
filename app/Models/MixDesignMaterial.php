@@ -11,7 +11,7 @@ class MixDesignMaterial extends Model
 {
     use HasFactory, SoftDeletes, AuditFields;
 
-    protected $table = 'mm_mix_design_materials';
+    protected $table = 'mm_mix_design_items';
 
     protected $fillable = [
         'mix_design_id',

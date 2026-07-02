@@ -209,20 +209,66 @@ class BatchSheetUploadController extends Controller
                     'batch_sheet_path' => $upload->stored_path, // Excel path fallback to original upload
                 ]);
 
-                // 2. Create Batch Materials
+                // 2. Create Batch Materials (Split based on mixer capacity)
+                $batchSize = (float)($header['batch_size'] ?? 1.0);
+                if ($batchSize <= 0) $batchSize = 1.0;
+                
+                $plant = \App\Models\Plant::find($upload->plant_id);
+                $mixerCapacity = (float)($plant?->mixer_capacity ?: 1.25);
+                if ($mixerCapacity <= 0) $mixerCapacity = 1.25;
+
+                $runsCount = (int)ceil($batchSize / $mixerCapacity);
+                if ($runsCount < 1) $runsCount = 1;
+
+                $runSizes = [];
+                $remaining = $batchSize;
+                for ($i = 0; $i < $runsCount; $i++) {
+                    if ($remaining >= $mixerCapacity) {
+                        $runSizes[] = $mixerCapacity;
+                        $remaining -= $mixerCapacity;
+                    } else {
+                        if ($remaining > 0) {
+                            $runSizes[] = $remaining;
+                        }
+                        $remaining = 0;
+                    }
+                }
+                if (empty($runSizes)) {
+                    $runSizes[] = $batchSize;
+                }
+
+                $incomingProductIds = collect($materials)->pluck('product_id')->filter()->unique()->toArray();
+                $products = !empty($incomingProductIds) 
+                    ? Product::query()->whereIn('id', $incomingProductIds)->get(['id', 'title', 'unit_id'])->keyBy('id')
+                    : collect();
+
                 foreach ($materials as $m) {
                     if (empty($m['product_id'])) continue;
 
-                    $target = (float)($m['target_qty'] ?? 0);
-                    $actual = (float)($m['actual_qty'] ?? 0);
+                    $totalTarget = (float)($m['target_qty'] ?? 0);
+                    $totalActual = (float)($m['actual_qty'] ?? 0);
                     
-                    $batch->materials()->create([
-                        'product_id' => $m['product_id'],
-                        'material_name' => $m['material_name'] ?? '',
-                        'target_qty' => $target,
-                        'actual_qty' => $actual,
-                        'deviation_quantity' => $actual - $target,
-                    ]);
+                    $product = $products->get($m['product_id']);
+                    $productTitle = $product?->title ?? 'Material';
+                    $uomId = $product?->unit_id ?? null;
+                    $baseName = $m['material_name'] ?? $productTitle;
+
+                    for ($i = 0; $i < count($runSizes); $i++) {
+                        $runSz = $runSizes[$i];
+                        
+                        $target = $totalTarget * ($runSz / $batchSize);
+                        $actual = $totalActual * ($runSz / $batchSize);
+
+                        $batch->materials()->create([
+                            'plant_id' => $upload->plant_id,
+                            'product_id' => $m['product_id'],
+                            'material_name' => $baseName . ' - Run ' . ($i + 1),
+                            'target_qty' => round($target, 3),
+                            'actual_qty' => round($actual, 3),
+                            'deviation_quantity' => round($actual - $target, 3),
+                            'uom_id' => $uomId,
+                        ]);
+                    }
                 }
 
                 // 3. Create Dispatch Trip Record

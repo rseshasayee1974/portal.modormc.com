@@ -50,6 +50,7 @@ const importTemplateColumns = [
     'operational_status',
     'pan_no',
     'gstin',
+    'aadhar_number',
     'status',
     'displayed',
 ];
@@ -73,6 +74,7 @@ const initialPatronForm = () => ({
     operational_status: 'active',
     pan_no: '',
     gstin: '',
+    aadhar_number: '',
     status: true,
     displayed: true,
     ledger_id: null as number | null,
@@ -141,6 +143,7 @@ const populatePatronForm = (form: any, patron: Patron) => {
     form.operational_status = patron.operational_status;
     form.pan_no = patron.pan_no || '';
     form.gstin = patron.gstin || '';
+    form.aadhar_number = patron.aadhar_number || '';
     form.status = patron.status;
     form.displayed = patron.displayed ?? true;
     form.ledger_id = patron.ledger_id;
@@ -326,6 +329,7 @@ const exportPatrons = () => {
         patron.operational_status || 'active',
         patron.pan_no || '',
         patron.gstin || '',
+        patron.aadhar_number || '',
         patron.status ? 'true' : 'false',
         (patron.displayed ?? true) ? 'true' : 'false',
     ]);
@@ -337,8 +341,8 @@ const exportPatrons = () => {
 const downloadImportTemplate = () => {
     const sampleRows = [
         importTemplateColumns,
-        ['Acme Transit', 'Customer|Transporter', 'active', '', '', 'true', 'true'],
-        ['North Supply Co', 'Vendor|Supplier', 'paused', 'ABCDE1234F', '27ABCDE1234F1Z5', 'true', 'true'],
+        ['Acme Transit', 'Customer|Transporter', 'active', '', '', '', 'true', 'true'],
+        ['North Supply Co', 'Vendor|Supplier', 'paused', 'ABCDE1234F', '27ABCDE1234F1Z5', '123456789012', 'true', 'true'],
     ];
 
     downloadCsv('patron-import-template.csv', sampleRows);
@@ -437,6 +441,7 @@ const parsePatronImportText = (text: string) => {
             operational_status: String(row.operational_status || 'active').trim() || 'active',
             pan_no: String(row.pan_no || '').trim() || null,
             gstin: String(row.gstin || '').trim() || null,
+            aadhar_number: String(row.aadhar_number || '').trim() || null,
             status: normalizeBoolean(row.status, true),
             displayed: normalizeBoolean(row.displayed, true),
         };

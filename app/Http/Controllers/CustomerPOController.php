@@ -27,19 +27,18 @@ class CustomerPOController extends Controller
             ->latest()
             ->get();
 
-        $patrons = \App\Models\Patron::select('id', 'legal_name')->orderBy('legal_name')->get();
-        $sites = \App\Models\Site::select('id', 'name')->orderBy('name')->get();
-        $quotations = Quotation::with(['items:id,quotation_id,mix_design_id,quantity,rate,tax_id,tax_amount,untaxed_amount,amount_total'])
+        $sites = SitesDropdown();
+        $quotations = Quotation::with(['items.mixDesign'])
             ->select('id', 'reference', 'amount_total', 'patron_id', 'site_id', 'is_customer_po')
             ->where('plant_id', $plantId)
             ->where('is_customer_po', 0)
             ->orderBy('reference')
             ->get();
-        $mixDesigns = \App\Models\MixDesign::select('id', 'design_name')->orderBy('design_name')->get();
+        $mixDesigns = MixDesignsDropdown();
 
         return Inertia::render('CustomerPOs/Index', [
             'customerPOs' => $customerPOs, // keep prop name 'salesOrders' for template property compatibility or change to customerPOs if we rename it. Let's keep salesOrders so we don't break frontend props too much
-            'patrons' => $patrons,
+            'patrons' =>  PatronsDropdown(['Customer']),
             'sites' => $sites,
             'quotations' => $quotations,
             'mixDesigns' => $mixDesigns,
@@ -53,6 +52,8 @@ class CustomerPOController extends Controller
         $this->authorizeModule('create');
         
         $validated = $request->validate([
+            'prefix' => 'nullable|string|max:20',
+            'reference' => 'nullable|string|max:100',
             'quotation_id' => 'nullable|exists:mm_quotations,id',
             'patron_id' => 'required|exists:mm_patrons,id',
             'site_id' => 'required|exists:mm_sites,id',
@@ -81,6 +82,16 @@ class CustomerPOController extends Controller
         $user = auth()->user();
         $validated['converted_by_user_id'] = $user->id;
 
+        if (empty($validated['reference'])) {
+            $details = CustomerPO::generateReference($plantId, $validated['prefix'] ?? null);
+            $validated['prefix'] = $details['prefix'];
+            $validated['reference'] = $details['reference'];
+        } else {
+            if (empty($validated['prefix'])) {
+                $validated['prefix'] = 'CPO';
+            }
+        }
+
         $items = [];
         if (!empty($validated['items'])) {
             $items = $validated['items'];
@@ -108,6 +119,8 @@ class CustomerPOController extends Controller
 
             $customerPO = CustomerPO::create([
                 'plant_id' => $plantId,
+                'prefix' => $validated['prefix'],
+                'reference' => $validated['reference'],
                 'quotation_id' => $validated['quotation_id'] ?: null,
                 'patron_id' => $validated['patron_id'],
                 'site_id' => $validated['site_id'],
@@ -169,6 +182,8 @@ class CustomerPOController extends Controller
         $this->authorizeModule('update');
         
         $validated = $request->validate([
+            'prefix' => 'nullable|string|max:20',
+            'reference' => 'nullable|string|max:100',
             'quotation_id' => 'nullable|exists:mm_quotations,id',
             'patron_id' => 'required|exists:mm_patrons,id',
             'site_id' => 'required|exists:mm_sites,id',
@@ -189,6 +204,16 @@ class CustomerPOController extends Controller
         $validated['order_date'] = $formattedDate;
 
         $plantId = $customerPO->plant_id ?: (session('active_plant_id') ?: 1);
+
+        if (empty($validated['reference'])) {
+            $details = CustomerPO::generateReference($plantId, $validated['prefix'] ?? null);
+            $validated['prefix'] = $details['prefix'];
+            $validated['reference'] = $details['reference'];
+        } else {
+            if (empty($validated['prefix'])) {
+                $validated['prefix'] = 'CPO';
+            }
+        }
 
         $items = [];
         if (!empty($validated['items'])) {
@@ -220,6 +245,8 @@ class CustomerPOController extends Controller
             if (empty($validated['quotation_id'])) {
                 $customerPO->update([
                     'quotation_id' => null,
+                    'prefix' => $validated['prefix'],
+                    'reference' => $validated['reference'],
                     'patron_id' => $validated['patron_id'],
                     'site_id' => $validated['site_id'],
                     'sales_executive_id' => $validated['sales_executive_id'] ?? null,
@@ -280,6 +307,8 @@ class CustomerPOController extends Controller
 
                 $customerPO->update([
                     'quotation_id' => $validated['quotation_id'],
+                    'prefix' => $validated['prefix'],
+                    'reference' => $validated['reference'],
                     'patron_id' => $validated['patron_id'],
                     'site_id' => $validated['site_id'],
                     'sales_executive_id' => $validated['sales_executive_id'] ?? ($quotation?->sales_executive_id ?? null),

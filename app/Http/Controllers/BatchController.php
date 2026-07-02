@@ -45,7 +45,8 @@ class BatchController extends Controller
         'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
         'materials.product:id,title',
         'materials.uom:id,unit_code',
-        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty',
+        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id',
+        'salesOrder.plant:id,name,mixer_capacity',
         'salesOrder.customer:id,legal_name',
         'salesOrder.mixDesign:id,design_name,design_code',
         'salesOrder.site:id,name',
@@ -89,6 +90,7 @@ class BatchController extends Controller
 
         $salesOrders = SalesOrder::query()
             ->with([
+                'plant:id,name,mixer_capacity',
                 'customer:id,plant_id,legal_name,code,patron_type,gstin,email,mobile',
                 'site:id,plant_id,name,site_address_1,type',
                 'mixDesign:id,plant_id,partner_id,concrete_grade_id,design_name,design_code,design_type,unit_id,rate_per_qty',
@@ -629,11 +631,20 @@ class BatchController extends Controller
         return redirect()->back()->with('success', 'Batch deleted successfully.');
     }
 
-    public function report(Batch $batch)
+    public function report($batchId)
     {
+        try {
+            $decryptedId = \Illuminate\Support\Facades\Crypt::decryptString($batchId);
+            $batch = Batch::findOrFail($decryptedId);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            if (is_numeric($batchId)) {
+                $batch = Batch::findOrFail($batchId);
+            } else {
+                abort(404, 'Invalid Batch ID');
+            }
+        }
        
         $batch = $this->resolveBatchSheetBatch($batch);
-        
         $sheet = $this->prepareBatchSheetData($batch);
 
         return view('pdfs.batches.batch_sheet', [
@@ -643,8 +654,19 @@ class BatchController extends Controller
         ]);
     }
 
-    public function downloadPdf(Batch $batch)
+    public function downloadPdf($batchId)
     {
+        try {
+            $decryptedId = \Illuminate\Support\Facades\Crypt::decryptString($batchId);
+            $batch = Batch::findOrFail($decryptedId);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            if (is_numeric($batchId)) {
+                $batch = Batch::findOrFail($batchId);
+            } else {
+                abort(404, 'Invalid Batch ID');
+            }
+        }
+
         $batch = $this->resolveBatchSheetBatch($batch);
         $sheet = $this->prepareBatchSheetData($batch);
 
@@ -968,11 +990,11 @@ class BatchController extends Controller
     private function syncMaterials(Batch $batch, array $materials): void
     {
         $plantId = $batch->plant_id ?? session('active_plant_id');
-        $incomingProductIds = collect($materials)->pluck('product_id')->filter()->unique()->toArray();
         
-        // Delete materials that are no longer in the payload
-        $batch->materials()->whereNotIn('product_id', $incomingProductIds)->delete();
+        // Delete existing materials to avoid duplicate product constraints
+        $batch->materials()->delete();
 
+        $incomingProductIds = collect($materials)->pluck('product_id')->filter()->unique()->toArray();
         $productTitles = !empty($incomingProductIds) 
             ? Product::query()->whereIn('id', $incomingProductIds)->pluck('title', 'id') 
             : collect();
@@ -982,20 +1004,16 @@ class BatchController extends Controller
             
             $materialName = $item['material_name'] ?? ($productTitles[$item['product_id']] ?? 'Material');
 
-            $batch->materials()->updateOrCreate(
-                [
-                    'batch_id' => $batch->id,
-                    'product_id' => $item['product_id'],
-                ],
-                [
-                    'plant_id' => $plantId,
-                    'material_name' => $materialName,
-                    'target_qty' => $item['target_qty'],
-                    'actual_qty' => $item['actual_qty'],
-                    'deviation_quantity' => $item['deviation_quantity'] ?? 0,
-                    'uom_id' => $item['uom_id'],
-                ]
-            );
+            $batch->materials()->create([
+                'batch_id' => $batch->id,
+                'plant_id' => $plantId,
+                'product_id' => $item['product_id'],
+                'material_name' => $materialName,
+                'target_qty' => $item['target_qty'],
+                'actual_qty' => $item['actual_qty'],
+                'deviation_quantity' => $item['deviation_quantity'] ?? 0,
+                'uom_id' => $item['uom_id'],
+            ]);
         }
     }
 

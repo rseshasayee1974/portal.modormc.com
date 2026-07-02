@@ -1,5 +1,4 @@
 <script setup>
-import { defineProps, defineEmits } from 'vue';
 import Dialog from 'primevue/dialog';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';

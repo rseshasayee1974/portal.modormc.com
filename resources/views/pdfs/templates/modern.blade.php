@@ -9,7 +9,10 @@
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
-        .inv-root { width: 100%; min-height: 297mm; /* NO border — borderless design */ }
+        .inv-root { width: 100%; /* NO border — borderless design */ }
+        @media screen {
+            .inv-root { min-height: 297mm; }
+        }
 
         .inv-header { display: table; width: 100%; padding: 18px 18px 14px; }
         .header-left  { display: table-cell; vertical-align: top; }
@@ -156,9 +159,9 @@
             @foreach($data['totals']['tax_lines'] as $tl) 
                 @php
                     $showTax = true;
-                    if($tl['label'] === 'CGST' && !($pdfSettings['cgst'] ?? true)) $showTax = false;
-                    if($tl['label'] === 'SGST' && !($pdfSettings['sgst'] ?? true)) $showTax = false;
-                    if($tl['label'] === 'IGST' && !($pdfSettings['igst'] ?? true)) $showTax = false;
+                    if(str_contains($tl['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) $showTax = false;
+                    if(str_contains($tl['label'], 'SGST') && !($pdfSettings['sgst'] ?? true)) $showTax = false;
+                    if(str_contains($tl['label'], 'IGST') && !($pdfSettings['igst'] ?? true)) $showTax = false;
                 @endphp
                 @if($showTax) <tr><td class="bt-label">{{ $tl['label'] }}</td><td class="bt-val">{{ number_format($tl['amount'], 2) }}</td></tr> @endif
             @endforeach

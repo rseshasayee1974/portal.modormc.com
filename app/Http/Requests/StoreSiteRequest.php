@@ -39,6 +39,7 @@ class StoreSiteRequest extends FormRequest
     {
         return [
             'plant_id' => 'required|exists:mm_plants,id',
+            'patron_id' => 'nullable|exists:mm_patrons,id',
             'name' => [
                 'required',
                 'string',

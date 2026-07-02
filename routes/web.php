@@ -199,8 +199,8 @@ Route::middleware([
         Route::resource('salesorders', \App\Http\Controllers\SalesOrderController::class);
         Route::resource('batches', \App\Http\Controllers\BatchController::class);
         Route::post('batches/{batch}/send-email', [\App\Http\Controllers\BatchController::class, 'sendEmail'])->name('batches.send-email');
-        Route::get('batches/{batch}/report', [\App\Http\Controllers\BatchController::class, 'report'])->name('batches.report');
-        Route::get('batches/{batch}/download', [\App\Http\Controllers\BatchController::class, 'downloadPdf'])->name('batches.download');
+        Route::get('batches/{batchId}/report', [\App\Http\Controllers\BatchController::class, 'report'])->name('batches.report');
+        Route::get('batches/{batchId}/download', [\App\Http\Controllers\BatchController::class, 'downloadPdf'])->name('batches.download');
         Route::get('batches/{batch}/token', [\App\Http\Controllers\BatchController::class, 'token'])->name('batches.token');
         Route::get('batches/{batch}/token/download', [\App\Http\Controllers\BatchController::class, 'downloadTokenPdf'])->name('batches.token.download');
         Route::get('batches/{batch}/dispatch-token', [\App\Http\Controllers\BatchController::class, 'dispatchToken'])->name('batches.dispatch-token');

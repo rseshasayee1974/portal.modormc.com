@@ -180,8 +180,8 @@ const submit = () => {
                             <VariableIcon class="w-3.5 h-3.5" />
                             <span>Base Specification</span>
                         </div>
-                        <BaseInput v-model="form.name" label="Grade Name (Mix Identifier)" placeholder="e.g. M25 Supermix" :error="form.errors.name" />
-                        <BaseInput v-model="form.concrete_code" label="Reference Code" placeholder="GRD-V4-25" :error="form.errors.concrete_code" />
+                        <BaseInput v-model="form.name" label="Grade Name (Mix Identifier)" placeholder="e.g. M25" :error="form.errors.name" />
+                        <BaseInput v-model="form.concrete_code" label="HSN Code" placeholder="HSN code" :error="form.errors.concrete_code" />
                         
                         <div class="ratio-input-card mt-6">
                             <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 block">Ratio Estimator (Cement : Sand : Agg)</label>

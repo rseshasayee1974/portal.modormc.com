@@ -26,6 +26,8 @@ const props = withDefaults(defineProps<{
 });
 
 const form = useForm({
+    prefix: 'CPO' as string | null,
+    reference: '' as string | null,
     quotation_id: null as number | null,
     patron_id: null as number | null,
     status: 0 as number | null,
@@ -67,12 +69,60 @@ const removeItem = (index: number) => {
     }
 };
 
-// Filter sites by selected patron
+// Filter sites by selected patron and unloading type
 const filteredSites = computed(() => {
-    return props.sites;
+    return (props.sites || []).filter((s: any) => {
+        const matchesPatron = !form.patron_id || s.patron_id === form.patron_id;
+        const matchesType = s.type === 'unloading';
+        return matchesType && matchesPatron;
+    });
+});
+
+const selectedQuotation = computed(() => {
+    return props.quotations.find(q => Number(q.id) === Number(form.quotation_id));
 });
 
 const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
+
+const mixDesignOptions = computed(() => {
+    return (props.mixDesigns || []).map(p => ({
+        label: p.design_name ? `${p.design_name}${p.design_code ? ` (${p.design_code})` : ''}` : p.title || '',
+        value: p.id
+    }));
+});
+
+const uniqueSelectedMixDesignIds = computed(() => {
+    const ids = new Set<number>();
+    form.items.forEach(item => {
+        if (item.mix_design_id) {
+            ids.add(Number(item.mix_design_id));
+        }
+    });
+    // For quotation-linked, load items from quotation
+    if (form.quotation_id) {
+        const quote = props.quotations.find(q => Number(q.id) === Number(form.quotation_id));
+        if (quote && quote.items) {
+            quote.items.forEach((item: any) => {
+                if (item.mix_design_id) {
+                    ids.add(Number(item.mix_design_id));
+                }
+            });
+        }
+    }
+    return Array.from(ids);
+});
+
+const getMixDesignMaterials = (mixDesignId: number | null) => {
+    if (!mixDesignId) return [];
+    const design = props.mixDesigns.find(md => Number(md.id) === Number(mixDesignId));
+    if (!design || !design.items) return [];
+    return design.items.map((it: any) => ({
+        id: it.id,
+        name: it.product?.title || 'Unknown Material',
+        qty: Number(it.actual_quantity || 0),
+        uom: it.uom?.unit_code || '',
+    }));
+};
 
 // Quotation dropdown options with labels
 const quotationOptions = computed(() => {
@@ -163,39 +213,31 @@ const submit = () => {
             </div>
         </div>
 
-       <!-- Form Body -->
 <!-- Form Body -->
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5 p-5">
 
-    <!-- Sales Executive -->
+    <!-- PO Prefix -->
     <div>
-        <BaseSelect
-            v-model="form.sales_executive_id"
-            :options="salesExecutiveOptions"
-            optionLabel="label"
-            optionValue="value"
-            filter
-            label="Sales Executive"
-            placeholder="Select Sales Executive"
-            :error="form.errors.sales_executive_id"
+        <BaseInput
+            v-model="form.prefix"
+            label="PO Prefix"
+            placeholder="e.g. CPO"
+            :error="form.errors.prefix"
         />
     </div>
 
-    <!-- Concrete Type -->
+    <!-- PO Number / Ref -->
     <div>
-        <BaseSelect
-            v-model="form.concrete_pump"
-            :options="concretePumpOptions"
-            optionLabel="label"
-            optionValue="value"
-            label="Concrete Type"
-            placeholder="Select Concrete Type"
-            :error="form.errors.concrete_pump"
+        <BaseInput
+            v-model="form.reference"
+            label="PO Number / Ref"
+            placeholder="Auto-generated if blank"
+            :error="form.errors.reference"
         />
     </div>
 
     <!-- Customer -->
-    <div>
+   <div>
         <BaseSelect
             v-model="form.patron_id"
             :options="patrons"
@@ -216,7 +258,7 @@ const submit = () => {
         </p>
     </div>
 
-    <!-- Loading Site -->
+    <!-- Unloading Site -->
     <div>
         <BaseSelect
             v-model="form.site_id"
@@ -224,7 +266,7 @@ const submit = () => {
             optionLabel="name"
             optionValue="id"
             filter
-            label="Loading Site"
+            label="Unloading Site"
             placeholder="Select Site"
             :disabled="!!form.quotation_id"
             :error="form.errors.site_id"
@@ -237,7 +279,18 @@ const submit = () => {
             Locked to quotation site
         </p>
     </div>
-
+    <div>
+        <BaseSelect
+            v-model="form.sales_executive_id"
+            :options="salesExecutiveOptions"
+            optionLabel="label"
+            optionValue="value"
+            filter
+            label="Sales Executive"
+            placeholder="Select Sales Executive"
+            :error="form.errors.sales_executive_id"
+        />
+    </div>
     <!-- Order Date -->
     <div>
         <BaseDatePicker
@@ -248,7 +301,18 @@ const submit = () => {
             :error="form.errors.order_date"
         />
     </div>
-
+<!-- Concrete Type -->
+    <div>
+        <BaseSelect
+            v-model="form.concrete_pump"
+            :options="concretePumpOptions"
+            optionLabel="label"
+            optionValue="value"
+            label="Concrete Type"
+            placeholder="Select Concrete Type"
+            :error="form.errors.concrete_pump"
+        />
+    </div>
     <!-- Mix Design Section -->
     <template v-if="!form.quotation_id">
 
@@ -279,9 +343,9 @@ const submit = () => {
         <div class="col-span-12 md:col-span-6">
             <BaseSelect
                 v-model="item.mix_design_id"
-                :options="mixDesigns"
-                optionLabel="design_name"
-                optionValue="id"
+                :options="mixDesignOptions"
+                optionLabel="label"
+                optionValue="value"
                 filter
                 label="Mix Design"
                 placeholder="Select Mix Design"
@@ -339,6 +403,69 @@ const submit = () => {
     </div>
 </div>
     </template>
+    <template v-else>
+        <div class="col-span-full border-t pt-3">
+            <h3 class="text-xs font-bold uppercase tracking-wide text-indigo-800 mb-3">
+                Mix Design Items (Loaded from Quotation)
+            </h3>
+            <div class="overflow-x-auto rounded-xl border border-indigo-50/50 bg-indigo-50/10 p-4">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="border-b border-indigo-100 uppercase tracking-wider text-[10px] font-bold text-indigo-700">
+                            <th class="p-2">Mix Design</th>
+                            <th class="p-2 text-right">Quantity</th>
+                            <th class="p-2 text-right">Rate</th>
+                            <th class="p-2 text-right">Total Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="item in selectedQuotation?.items" :key="item.id" class="border-b border-indigo-50/50 last:border-0 font-medium text-slate-700">
+                            <td class="p-2 text-slate-900 font-semibold font-bold">
+                                {{ props.mixDesigns.find(d => Number(d.id) === Number(item.mix_design_id))?.title || props.mixDesigns.find(d => Number(d.id) === Number(item.mix_design_id))?.design_name || item.mix_design?.design_name || item.mix_design?.title || '-' }}
+                            </td>
+                            <td class="p-2 text-right font-mono">{{ Number(item.quantity).toFixed(3) }} m³</td>
+                            <td class="p-2 text-right font-mono">₹{{ Number(item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                            <td class="p-2 text-right font-mono font-bold text-indigo-900">₹{{ Number(item.amount_total || (item.quantity * item.rate)).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <!-- Recipe Details -->
+    <div v-if="uniqueSelectedMixDesignIds.length" class="col-span-full mt-4 space-y-3">
+        <div 
+            v-for="designId in uniqueSelectedMixDesignIds" 
+            :key="designId"
+            class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 text-left"
+        >
+            <div class="flex items-center justify-between">
+                <label class="text-[10px] font-bold uppercase tracking-[0.1em] text-indigo-500">
+                    Recipe Details
+                </label>
+                <span class="rounded bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
+                    {{ props.mixDesigns.find(d => Number(d.id) === Number(designId))?.title || props.mixDesigns.find(d => Number(d.id) === Number(designId))?.design_name || '-' }}
+                </span>
+            </div>
+            <div class="mt-3 flex flex-wrap gap-2">
+                <div 
+                    v-for="item in getMixDesignMaterials(designId)" 
+                    :key="item.id" 
+                    class="flex items-center gap-2 rounded-md border border-indigo-100 bg-white px-3 py-2"
+                >
+                    <span class="text-xs text-slate-700">{{ item.name }}</span>
+                    <span class="font-semibold text-indigo-600">
+                        {{ item.qty }}
+                        <span class="text-slate-400 text-[10px]">{{ item.uom }}</span>
+                    </span>
+                </div>
+                <div v-if="!getMixDesignMaterials(designId).length" class="text-xs text-slate-400 italic">
+                    No materials configured for this recipe.
+                </div>
+            </div>
+        </div>
+    </div>
 
 </div>
 

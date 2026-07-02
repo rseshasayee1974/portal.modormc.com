@@ -81,7 +81,16 @@ const form = useForm({
 });
 
 const patronOptions = computed(() => props.patrons.map((p) => ({ label: p.legal_name, value: p.id })));
-const siteOptions = computed(() => props.sites.map((s) => ({ label: s.name, value: s.id })));
+const siteOptions = computed(() => {
+    return (props.sites || [])
+        .filter((s: any) => {
+            const isSelected = s.id === form.site_id;
+            const matchesPatron = !form.patron_id || s.patron_id === form.patron_id;
+            const matchesType = s.type === 'unloading';
+            return isSelected || (matchesType && matchesPatron);
+        })
+        .map((s: any) => ({ label: s.name, value: s.id }));
+});
 const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 const unitOptions = computed(() => (props.unitOptions || []).map(u => ({ label: u.unit_code, value: u.id })));
 const mixDesignOptions = computed(() =>
@@ -94,6 +103,28 @@ const taxOptions = computed(() =>
         rate: Number(t.tax_rate ?? t.rate ?? 0),
     }))
 );
+
+const uniqueSelectedMixDesignIds = computed(() => {
+    const ids = new Set<number>();
+    form.items.forEach(item => {
+        if (item.mix_design_id) {
+            ids.add(Number(item.mix_design_id));
+        }
+    });
+    return Array.from(ids);
+});
+
+const getMixDesignMaterials = (mixDesignId: number | null) => {
+    if (!mixDesignId) return [];
+    const design = props.mixDesigns.find(md => Number(md.id) === Number(mixDesignId));
+    if (!design || !design.items) return [];
+    return design.items.map((it: any) => ({
+        id: it.id,
+        name: it.product?.title || 'Unknown Material',
+        qty: Number(it.actual_quantity || 0),
+        uom: it.uom?.unit_code || '',
+    }));
+};
 
 const calculateTotals = () => {
     let totalUntaxed = 0;
@@ -124,6 +155,16 @@ const calculateTotals = () => {
 
 watch(() => [form.items, form.adjustment], calculateTotals, { deep: true, immediate: true });
 
+// Reset site selection if it belongs to a different customer
+watch(() => form.patron_id, (newPatronId) => {
+    if (form.site_id) {
+        const site = props.sites.find(s => s.id === form.site_id);
+        if (site && site.patron_id && site.patron_id !== newPatronId) {
+            form.site_id = null;
+        }
+    }
+});
+
 const formatDate = (date: string | null) => {
     if (!date) return '--';
     const parsed = new Date(date);
@@ -138,16 +179,14 @@ const formatDate = (date: string | null) => {
 };
 
 function createNewItem(): QuotationItemPayload {
-    const defaultUomId = props.unitOptions?.find(u => u.unit_code === 'MTR')?.id 
+    const defaultUomId = props.unitOptions?.find(u => u.unit_code === 'CBM')?.id 
                       || props.unitOptions?.[0]?.id 
                       || null;
-                      
-    const defaultTaxId = props.taxes?.[0]?.id || null;
 
     return {
         id: null,
         mix_design_id: null,
-        tax_id: defaultTaxId,
+        tax_id: null,
         uom_id: defaultUomId,
         quantity: 1,
         rate: 0,
@@ -303,7 +342,7 @@ const sendEmail = () => {
                             <th class="px-3 py-3 text-center" style="width: 150px;">Qty</th>
                             <th class="px-3 py-3 text-center" style="width: 170px;">Rate</th>
                             <th class="px-3 py-3 text-center" style="width: 170px;">Tax</th>
-                            <th class="px-3 py-3 text-right" style="width: 170px;">Line Amount</th>
+                            <th class="px-3 py-3 text-right" style="width: 170px;">Amount</th>
                             <th class="px-1 py-1" style="width: 50px;">
                                 <button v-if="!isLocked" type="button" @click="addItem" class="text-indigo-600 font-bold text-[10px] uppercase hover:text-indigo-700 flex items-center gap-1">
                                                 <PlusIcon class="w-5 h-5 m-2 border-1 shadow-sm  hover:bg-indigo-500 bg-indigo-300 border-gray-400 rounded" />
@@ -365,8 +404,8 @@ const sendEmail = () => {
                                     :disabled="isLocked"
                                 />
                             </td>
-                            <td class="p-2 text-right font-mono font-semibold text-slate-800">
-                                {{ Number(item.amount_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                            <td class="p-2 text-right font-bold text-slate-800 text-sm">
+                                <span>₹ {{ Number(item.amount_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                             </td>
                             <td class="p-2 text-center" v-if="!isLocked">
                                 <button type="button" class="text-slate-300 hover:text-rose-500 transition-colors" @click="removeItem(index)">
@@ -388,6 +427,40 @@ const sendEmail = () => {
                     <div v-if="quotation.modifier" class="flex items-center gap-2">
                         <CalendarIcon class="w-3 h-3" />
                         <span>Last modified by <span class="font-bold text-slate-600">{{ quotation.modifier.username || quotation.modifier.name }}</span> on {{ formatDate(quotation.updated_at) }}</span>
+                    </div>
+                </div>
+
+                <!-- Recipe Details -->
+                <div v-if="uniqueSelectedMixDesignIds.length" class="w-full md:w-1/2 space-y-3 mt-4 self-start">
+                    <div 
+                        v-for="designId in uniqueSelectedMixDesignIds" 
+                        :key="designId"
+                        class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 text-left animate-fade-in"
+                    >
+                        <div class="flex items-center justify-between">
+                            <label class="text-[10px] font-bold uppercase tracking-[0.1em] text-indigo-500">
+                                Recipe Details
+                            </label>
+                            <span class="rounded bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
+                                {{ props.mixDesigns.find(d => Number(d.id) === Number(designId))?.title || props.mixDesigns.find(d => Number(d.id) === Number(designId))?.design_name || '-' }}
+                            </span>
+                        </div>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <div 
+                                v-for="item in getMixDesignMaterials(designId)" 
+                                :key="item.id" 
+                                class="flex items-center gap-2 rounded-md border border-indigo-100 bg-white px-3 py-2"
+                            >
+                                <span class="text-xs text-slate-700">{{ item.name }}</span>
+                                <span class="font-semibold text-indigo-600">
+                                    {{ item.qty }}
+                                    <span class="text-slate-400 text-[10px]">{{ item.uom }}</span>
+                                </span>
+                            </div>
+                            <div v-if="!getMixDesignMaterials(designId).length" class="text-xs text-slate-400 italic">
+                                No materials configured for this recipe.
+                            </div>
+                        </div>
                     </div>
                 </div>
 

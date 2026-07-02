@@ -90,6 +90,7 @@ class UpdatePatronRequest extends FormRequest
             'operational_status' => 'required|string|max:100',
             'pan_no' => 'nullable|string|max:20',
             'gstin' => 'nullable|string|max:20',
+            'aadhar_number' => 'nullable|string|max:20',
             'status' => 'required|boolean',
             'displayed' => 'required|boolean',
 

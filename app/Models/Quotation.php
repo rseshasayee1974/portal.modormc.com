@@ -17,6 +17,7 @@ class Quotation extends Model
 
     protected $appends = [
         'is_in_use',
+        'encrypted_id',
     ];
 
     protected $fillable = [
@@ -215,5 +216,10 @@ class Quotation extends Model
     public function getIsInUseAttribute(): bool
     {
         return $this->items()->exists();
+    }
+
+    public function getEncryptedIdAttribute()
+    {
+        return encrypt($this->id);
     }
 }

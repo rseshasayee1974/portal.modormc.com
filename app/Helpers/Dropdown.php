@@ -207,7 +207,7 @@ if (!function_exists('SitesDropdown')) {
     function SitesDropdown($type = null, $excludeId = null)
     {
         $query = Site::where('plant_id', _activePlantId())
-            ->select('id', 'name', 'code', 'plant_id');
+            ->select('id', 'name', 'code', 'plant_id', 'patron_id', 'type');
 
         if ($type != null) {
             $query->where('type', $type);
@@ -369,6 +369,7 @@ if (!function_exists('MixDesignsDropdown')) {
             ->where('plant_id', _activePlantId())
             ->whereNull('deleted_at')
             ->select('id', 'design_name as title', 'design_code as code', 'rate_per_qty as rate', 'unit_id')
+            ->with(['items.product', 'items.uom'])
             ->orderBy('design_name')
             ->get();
     }

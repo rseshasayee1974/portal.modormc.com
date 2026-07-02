@@ -199,9 +199,7 @@ const convertToSalesOrder = (customerPO: any) => {
             if (!value || parseFloat(value) <= 0) {
                 return 'Please enter a valid quantity greater than 0!';
             }
-            if (parseFloat(value) > 9.99) {
-                return 'Please enter a valid quantity less than 10 or equal to 9.9 m³!';
-            }
+            
             if (remainingQty > 0 && parseFloat(value) > remainingQty) {
                 return 'Quantity cannot be greater than the remaining quantity (' + remainingQty + ' m³)!';
             }
@@ -295,7 +293,7 @@ watch(() => props.customerPOs, () => {
                     showExport
                     showSearch
                     exportFilename="customer-pos-directory"
-                    :globalFilterFields="['patron.legal_name', 'site.name', 'quotation.reference']"
+                    :globalFilterFields="['reference', 'patron.legal_name', 'site.name', 'quotation.reference']"
                 >
                     <template #toolbar>
                         <div class="flex items-center gap-2">
@@ -314,6 +312,12 @@ watch(() => props.customerPOs, () => {
                     <Column field="order_date" header="Date" sortable>
                         <template #body="slotProps">
                             <span class="text-slate-600 dark:text-slate-300 text-sm font-medium">{{ formatDate(slotProps.data.order_date) }}</span>
+                        </template>
+                    </Column>
+
+                    <Column field="reference" header="PO Number" sortable>
+                        <template #body="slotProps">
+                            <span class="text-slate-800 dark:text-slate-100 text-sm font-bold font-mono">{{ slotProps.data.reference || '--' }}</span>
                         </template>
                     </Column>
 
@@ -340,7 +344,17 @@ watch(() => props.customerPOs, () => {
                             <span v-else class="text-slate-400 text-xs font-bold">{{ slotProps.data.site?.name || '' }}</span>
                         </template>
                     </Column>
-                    <Column header="WO Status">
+
+                    <Column header="Mix Designs / Grades">
+                        <template #body="slotProps">
+                            <div class="flex flex-wrap gap-1 max-w-[250px]">
+                                <span v-for="item in slotProps.data.items" :key="item.id" class="text-[10.5px] font-bold bg-indigo-50/70 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 px-2.5 py-0.5 rounded-full border border-indigo-100/70 dark:border-indigo-900/30 whitespace-nowrap">
+                                    {{ item.mix_design?.design_name || item.mix_design?.title || '-' }}
+                                </span>
+                            </div>
+                        </template>
+                    </Column>
+                    <!-- <Column header="WO Status">
                         <template #body="slotProps">
                             <div class="space-y-1 min-w-">
                                 <div class="flex items-center justify-between">
@@ -367,7 +381,7 @@ watch(() => props.customerPOs, () => {
                                 </div>
                             </div>
                         </template>
-                    </Column>
+                    </Column> -->
 
                     <Column field="status" header="Status" sortable>
                         <template #body="slotProps">

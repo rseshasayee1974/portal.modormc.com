@@ -237,7 +237,17 @@ const updateConversion = (quotation: any) => {
                             <template #body="slotProps">
                                 <div>
                                     <div class="font-medium text-md text-slate-800">{{ slotProps.data.patron?.legal_name || '--' }}</div>
-                                    <div class="text-xs bg-gray-100 p-1 rounded-md  w-fit text-slate-500">{{ slotProps.data.site?.name || 'Main Site' }}</div>
+                                    <div class="text-xs bg-gray-100 p-1 rounded-md  w-fit text-slate-500">{{ slotProps.data.site?.name || '-' }}</div>
+                                </div>
+                            </template>
+                        </Column>
+
+                        <Column header="Mix Designs / Grades">
+                            <template #body="slotProps">
+                                <div class="flex flex-wrap gap-1 max-w-[250px]">
+                                    <span v-for="item in slotProps.data.items" :key="item.id" class="text-[10.5px] font-bold bg-indigo-50/70 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-100/70 whitespace-nowrap">
+                                        {{ item.mix_design?.design_name || item.mix_design?.title || '-' }}
+                                    </span>
                                 </div>
                             </template>
                         </Column>
@@ -264,7 +274,7 @@ const updateConversion = (quotation: any) => {
                             <template #body="slotProps">
                                 <div class="flex flex-col gap-1.5">
                                     
-                                    
+                                    <Tag  :value="getStatusLabel(slotProps.data.status)" :severity="getStatusSeverity(slotProps.data.status)" rounded />
                                     <!-- Conversion Dropdown - Only if Approved (2) -->
                                     <div v-if="Number(slotProps.data.status) === 2" class="mt-1">
                                         <Select 
@@ -287,7 +297,7 @@ const updateConversion = (quotation: any) => {
                         <Column header="Actions">
                             <template #body="slotProps">
                                 <div class="flex justify-end gap-2">
-                                    <Tag :value="getStatusLabel(slotProps.data.status)" :severity="getStatusSeverity(slotProps.data.status)" rounded />
+                                    
                                     <BaseButton
                                         icon="pi pi-file-pdf"
                                         severity="info"

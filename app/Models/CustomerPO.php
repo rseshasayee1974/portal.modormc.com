@@ -19,6 +19,8 @@ class CustomerPO extends Model
 
     protected $fillable = [
         'plant_id',
+        'prefix',
+        'reference',
         'quotation_id',
         'patron_id',
         'site_id',
@@ -91,5 +93,38 @@ class CustomerPO extends Model
     public function items()
     {
         return $this->hasMany(CustomerPOItem::class, 'customer_po_id');
+    }
+
+    public static function generateReference($plantId, $customPrefix = null)
+    {
+        $now = now();
+        $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
+        $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
+        
+        if (empty($customPrefix)) {
+            $customPrefix = 'CPO';
+            $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
+            if (!empty($settings['cpo_prefix'])) {
+                $customPrefix = $settings['cpo_prefix'];
+            }
+        }
+        
+        $prefix = "{$customPrefix}-{$fyString}-";
+
+        $latest = self::where('plant_id', $plantId)
+                      ->where('prefix', $prefix)
+                      ->whereNull('deleted_at')
+                      ->orderBy('id', 'desc')
+                      ->value('reference');
+                      
+        $sequence = 1;
+        if ($latest && preg_match('/-(\d{4})$/', $latest, $matches)) {
+            $sequence = ((int) $matches[1]) + 1;
+        }
+
+        return [
+            'prefix' => $prefix,
+            'reference' => sprintf('%s%04d', $prefix, $sequence)
+        ];
     }
 }

@@ -38,6 +38,10 @@ class QuotationItem extends Model
     {
         return $this->belongsTo(MixDesign::class, 'mix_design_id');
     }
+    public function tax()
+    {
+        return $this->belongsTo(Tax::class, 'tax_id');
+    }
     public function getIsInUseAttribute(): bool
     {
         return $this->quotation()->exists();

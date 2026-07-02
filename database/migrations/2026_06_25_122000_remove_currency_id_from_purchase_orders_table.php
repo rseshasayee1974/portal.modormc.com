@@ -8,10 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('mm_purchase_orders', function (Blueprint $table) {
-            $table->dropForeign(['currency_id']);
-            $table->dropColumn('currency_id');
-        });
+        if (Schema::hasColumn('mm_purchase_orders', 'currency_id')) {
+            try {
+                Schema::table('mm_purchase_orders', function (Blueprint $table) {
+                    $table->dropForeign(['currency_id']);
+                });
+            } catch (\Exception $e) {}
+
+            try {
+                Schema::table('mm_purchase_orders', function (Blueprint $table) {
+                    $table->dropColumn('currency_id');
+                });
+            } catch (\Exception $e) {}
+        }
     }
 
     public function down(): void

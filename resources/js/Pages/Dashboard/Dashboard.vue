@@ -99,9 +99,10 @@ const dispatches = ref(props.initialData?.dispatches || []);
 const purchaseOrders = ref(props.initialData?.purchase_orders || []);
 
 const feedTabs = [
-    { key: 'dispatches', label: 'Dispatches' },
+    
     { key: 'sales_orders', label: 'Sales Orders' },
-    { key: 'purchase_orders', label: 'Purchases' },
+    { key: 'dispatches', label: 'Dispatches' },
+    // { key: 'purchase_orders', label: 'Purchases' },
 ];
 
 const statusPalette = ['#0f766e', '#c2410c', '#2563eb', '#7c3aed', '#dc2626', '#475569'];
@@ -627,7 +628,7 @@ function toneClasses(tone) {
                             <div class="flex items-start justify-between gap-4">
                                 <div>
                                     <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">{{ card.title }}</p>
-                                    <p class="mt-3 text-3xl font-black tracking-tight text-slate-950">
+                                    <p class="mt-3 text-2xl font-black tracking-tight text-slate-950">
                                         {{ ['dispatch_quantity'].includes(card.key) ? formatNumber(card.value, 3) : formatCurrency(card.value) }}
                                     </p>
                                     <p class="mt-2 text-sm font-medium text-slate-500">{{ card.meta }}</p>
@@ -716,7 +717,7 @@ function toneClasses(tone) {
                             </div>
                         </article>
 
-                        <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
+                        <!-- <article class="rounded-[32px] bg-[#f0f3f6] p-6 shadow-[-8px_-8px_16px_#ffffff,8px_8px_16px_#d1d9e6] transition-all duration-300 hover:-translate-y-1 hover:shadow-[-10px_-10px_20px_#ffffff,10px_10px_20px_#cbd5e1]">
                             <div class="flex items-center justify-between gap-3">
                                 <div>
                                     <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Accounting Pulse</p>
@@ -744,7 +745,7 @@ function toneClasses(tone) {
                                     </div>
                                 </div>
                             </div>
-                        </article>
+                        </article> -->
                     </div>
                 </section>
 
@@ -753,7 +754,7 @@ function toneClasses(tone) {
                         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Operations Feed</p>
-                                <h3 class="mt-2 text-2xl font-black tracking-tight text-slate-950">Live flow across dispatch, production, and purchase</h3>
+                                <h3 class="mt-2 text-2xl font-black tracking-tight text-slate-950">Live Flow </h3>
                             </div>
                             <div class="inline-flex rounded-2xl bg-[#f0f3f6] p-1 shadow-[inset_-4px_-4px_8px_#ffffff,inset_4px_4px_8px_#d1d9e6]">
                                 <button

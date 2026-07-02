@@ -170,11 +170,17 @@ const toggleFooterSuspension = async () => {
 };
 
 // --- Session Idle Timeout Logic ---
-const IDLE_WARN_TIME = 10 * 60 * 1000; // 10 minutes warning
-const IDLE_LOGOUT_TIME = 15 * 60 * 1000; // 15 minutes logout
+const IDLE_WARN_TIME = 18 * 60 * 1000; // 18 minutes warning
+const IDLE_LOGOUT_TIME = 20 * 60 * 1000; // 20 minutes logout
 const CHECK_INTERVAL = 1000; // 1 second
 
-const lastActivity = ref(Date.now());
+// Initialize last activity timestamp and sync to localStorage
+const getStoredLastActivity = () => {
+    const stored = localStorage.getItem('portal_last_activity');
+    return stored ? parseInt(stored, 10) : Date.now();
+};
+
+const lastActivity = ref(getStoredLastActivity());
 const showTimeoutModal = ref(false);
 const remainingTime = ref(0);
 let idleInterval = null;
@@ -182,10 +188,13 @@ let heartbeatInterval = null;
 
 const resetTimer = () => {
     const now = Date.now();
+    const currentActivity = getStoredLastActivity();
     // Throttle activity updates to once every 2 seconds
-    if (now - lastActivity.value < 2000) return;
+    if (now - currentActivity < 2000) return;
     
+    localStorage.setItem('portal_last_activity', now.toString());
     lastActivity.value = now;
+    
     if (showTimeoutModal.value) {
         showTimeoutModal.value = false;
         pingSession();
@@ -202,7 +211,10 @@ const pingSession = async () => {
 
 const checkIdleTime = () => {
     const now = Date.now();
-    const idleDuration = now - lastActivity.value;
+    const currentActivity = getStoredLastActivity();
+    lastActivity.value = currentActivity; // Keep local ref in sync
+    
+    const idleDuration = now - currentActivity;
 
     if (idleDuration >= IDLE_LOGOUT_TIME) {
         logout();
@@ -217,16 +229,22 @@ const checkIdleTime = () => {
 };
 
 onMounted(() => {
+    // Sync starting activity on mount
+    localStorage.setItem('portal_last_activity', Date.now().toString());
+
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
     events.forEach(event => window.addEventListener(event, resetTimer));
 
     idleInterval = setInterval(checkIdleTime, CHECK_INTERVAL);
     
-    // Send a heartbeat to the server every 4 minutes if the user is active
+    // Send a heartbeat to the server every 4 minutes if the user is active in ANY tab
     heartbeatInterval = setInterval(() => {
-        const idleDuration = Date.now() - lastActivity.value;
+        const idleDuration = Date.now() - getStoredLastActivity();
         if (idleDuration < 5 * 60 * 1000) {
-            pingSession();
+            // Only ping from the visible/focused tab to avoid duplicate heartbeat spam
+            if (document.visibilityState === 'visible') {
+                pingSession();
+            }
         }
     }, 4 * 60 * 1000);
 });

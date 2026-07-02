@@ -95,7 +95,7 @@ const form = useForm({
     order_id: null as number | null,
     received_date: new Date().toISOString().substring(0, 10),
     inward_no: '',
-    truck_id: props.vehicles?.length > 0 ? props.vehicles[0].value : null,
+    truck_id: null as number | null,
     truck_loaded: null as number | null,
     items: [] as any[]
 });

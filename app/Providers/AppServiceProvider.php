@@ -138,5 +138,81 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Event::subscribe(ModelAuditSubscriber::class);      
+
+        // Register custom ZeptoMail HTTP API mail driver to bypass port blocks on production
+        \Illuminate\Support\Facades\Mail::extend('zeptomail_api', function (array $config = []) {
+            return new class extends \Symfony\Component\Mailer\Transport\AbstractTransport {
+                protected function doSend(\Symfony\Component\Mailer\SentMessage $message): void
+                {
+                    $email = \Symfony\Component\Mime\MessageConverter::toEmail($message->getOriginalMessage());
+                    
+                    $token = config('mail.mailers.zeptomail_api.token'); 
+                    $fromAddress = config('mail.from.address', 'noreply@modormc.com');
+                    $fromName = config('mail.from.name', 'ModoRmc');
+
+                    $to = [];
+                    foreach ($email->getTo() as $address) {
+                        $to[] = [
+                            'email_address' => [
+                                'address' => $address->getAddress(),
+                                'name' => $address->getName() ?: null,
+                            ]
+                        ];
+                    }
+
+                    $cc = [];
+                    foreach ($email->getCc() as $address) {
+                        $cc[] = [
+                            'email_address' => [
+                                'address' => $address->getAddress(),
+                                'name' => $address->getName() ?: null,
+                            ]
+                        ];
+                    }
+
+                    $bcc = [];
+                    foreach ($email->getBcc() as $address) {
+                        $bcc[] = [
+                            'email_address' => [
+                                'address' => $address->getAddress(),
+                                'name' => $address->getName() ?: null,
+                            ]
+                        ];
+                    }
+
+                    $payload = [
+                        'from' => [
+                            'address' => $fromAddress,
+                            'name' => $fromName,
+                        ],
+                        'to' => $to,
+                        'subject' => $email->getSubject(),
+                        'htmlbody' => $email->getHtmlBody() ?: $email->getTextBody(),
+                    ];
+
+                    if (!empty($cc)) {
+                        $payload['cc'] = $cc;
+                    }
+                    if (!empty($bcc)) {
+                        $payload['bcc'] = $bcc;
+                    }
+
+                    $response = \Illuminate\Support\Facades\Http::withHeaders([
+                        'Authorization' => 'Zoho-enczapikey ' . $token,
+                        'Content-Type' => 'application/json',
+                        'Accept' => 'application/json',
+                    ])->post('https://api.zeptomail.com/v1.1/email', $payload);
+
+                    if (!$response->successful()) {
+                        throw new \Exception('ZeptoMail API send failed: ' . $response->body());
+                    }
+                }
+
+                public function __toString(): string
+                {
+                    return 'zeptomail_api';
+                }
+            };
+        });
     }
 }

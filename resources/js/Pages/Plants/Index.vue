@@ -32,6 +32,7 @@ const blankForm = () => ({
     entity_id: props.entities?.[0]?.id ?? null,
     code: '',
     name: '',
+    mixer_capacity: null as number | null,
     email_address: '',
     mobile_number: '',
     plant_type: '',
@@ -84,6 +85,7 @@ const populatePlantForm = (form: any, plant: any) => {
     form.entity_id = plant.entity_id;
     form.code = plant.code;
     form.name = plant.name;
+    form.mixer_capacity = plant.mixer_capacity != null ? Number(plant.mixer_capacity) : null;
     form.email_address = plant.email_address || '';
     form.mobile_number = plant.mobile_number || '';
     form.plant_type = plant.plant_type || '';

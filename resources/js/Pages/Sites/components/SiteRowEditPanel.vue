@@ -10,6 +10,7 @@ const props = defineProps<{
     isPrivileged: boolean;
     errors?: any;
     processing?: boolean;
+    patrons: any[];
 }>();
 
 const emit = defineEmits(['submit', 'cancel']);
@@ -37,6 +38,7 @@ const emit = defineEmits(['submit', 'cancel']);
                     :site-types="siteTypes"
                     :is-privileged="isPrivileged"
                     :errors="errors"
+                    :patrons="patrons"
                 />
 
                 <div class="pt-4">

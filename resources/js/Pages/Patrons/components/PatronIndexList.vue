@@ -146,7 +146,11 @@ const onRowClick = (event: any) => {
                         <span class="text-[9px] font-black bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-1.5 py-0.5 rounded uppercase">PAN</span>
                         <span class="text-xs font-mono font-bold text-slate-600 dark:text-slate-400">{{ slotProps.data.pan_no }}</span>
                     </div>
-                    <span v-if="!slotProps.data.gstin && !slotProps.data.pan_no" class="text-slate-300 dark:text-slate-700 text-xs">-</span>
+                    <div v-if="slotProps.data.aadhar_number" class="flex items-center gap-1.5">
+                        <span class="text-[9px] font-black bg-purple-50 dark:bg-purple-900/20 text-purple-600 px-1.5 py-0.5 rounded uppercase">AADHAR</span>
+                        <span class="text-xs font-mono font-bold text-slate-600 dark:text-slate-400">{{ slotProps.data.aadhar_number }}</span>
+                    </div>
+                    <span v-if="!slotProps.data.gstin && !slotProps.data.pan_no && !slotProps.data.aadhar_number" class="text-slate-300 dark:text-slate-700 text-xs">-</span>
                 </div>
             </template>
         </Column>

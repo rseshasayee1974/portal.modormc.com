@@ -16,6 +16,7 @@ const props = defineProps<{
     plants: any[];
     siteTypes: string[];
     isPrivileged: boolean;
+    patrons: any[];
 }>();
 
 const toast = useToast();
@@ -26,6 +27,7 @@ const expandedRows = ref<Record<number, boolean>>({});
 
 const blankForm = () => ({
     plant_id: props.plants?.[0]?.id || null,
+    patron_id: null as number | null,
     name: '',
     site_address_1: '',
     zipcode: '',
@@ -54,6 +56,7 @@ const resetEditForm = () => {
 
 const populateSiteForm = (form: any, site: any) => {
     form.plant_id = site.plant_id;
+    form.patron_id = site.patron_id || null;
     form.name = site.name;
     form.site_address_1 = site.site_address_1 || '';
     form.zipcode = site.zipcode || '';
@@ -235,6 +238,7 @@ watch(() => createForm.name, (newName) => {
                     :plants="plants"
                     :site-types="siteTypes"
                     :is-privileged="isPrivileged"
+                    :patrons="patrons"
                     @save="submitCreate"
                     @reset="resetCreateForm"
                 />
@@ -252,6 +256,7 @@ watch(() => createForm.name, (newName) => {
                     :is-privileged="isPrivileged"
                     :errors="editForm.errors"
                     :processing="editForm.processing"
+                    :patrons="patrons"
                     @update:search-query="searchQuery = $event"
                     @update:expanded-rows="handleExpandedRowsUpdate"
                     @delete="deleteSite"

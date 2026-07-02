@@ -76,29 +76,35 @@ class PatronController extends Controller
 
             $patron = Patron::create($validated);
 
-            if (!empty($validated['contact_name'])) {
+            $hasContactData = !empty($validated['contact_name']) || 
+                              !empty($validated['contact_email']) || 
+                              !empty($validated['contact_mobile']) || 
+                              !empty($validated['contact_alt_mobile']);
+
+            $hasAddressData = !empty($validated['address_line_1']);
+
+            if ($hasContactData || $hasAddressData) {
                 $contact = $patron->contacts()->create([
                     'plant_id'        => $plantId,
                     'contact_type_id' => $validated['contact_type_id'] ?? 1,
-                    'name' => $validated['contact_name'],
-                    'email' => $validated['contact_email'],
-                    'mobile' => $validated['contact_mobile'],
+                    'name' => $validated['contact_name'] ?? null,
+                    'email' => $validated['contact_email'] ?? null,
+                    'mobile' => $validated['contact_mobile'] ?? null,
                     'alt_mobile' => $validated['contact_alt_mobile'] ?? null,
                     'is_primary' => $validated['contact_is_primary'] ?? true,
                     'status' => $validated['contact_status'] ?? true,
                 ]);
 
-                if (!empty($validated['address_line_1'])) {
+                if ($hasAddressData) {
                     $contact->addresses()->create([
                         'plant_id'   => $plantId,
-                        'entity_id'  => $entityId,
                         'address_type_id' => $validated['address_type_id'] ?? 1,
                         'line_1' => $validated['address_line_1'],
                         'line_2' => $validated['address_line_2'] ?? null,
-                        'city' => $validated['address_city'],
+                        'city' => $validated['address_city'] ?? null,
                         'state_id' => $validated['address_state_id'] ?? null,
                         'state_code' => $validated['address_state_code'] ?? null,
-                        'zipcode' => $validated['address_zipcode'],
+                        'zipcode' => $validated['address_zipcode'] ?? null,
                         'is_primary' => $validated['address_is_primary'] ?? true,
                         'status' => $validated['address_status'] ?? true,
                     ]);
@@ -143,21 +149,27 @@ class PatronController extends Controller
             // Only pass patron-table columns — not contact/address/bank keys
             $patronData = array_intersect_key($validated, array_flip([
                 'patron_type', 'legal_name', 'ledger_id',
-                'operational_status', 'pan_no', 'gstin',
+                'operational_status', 'pan_no', 'gstin', 'aadhar_number',
                 'status', 'displayed',
             ]));
             $patron->update($patronData);
 
-            // Handle Primary Contact
-            if (!empty($validated['contact_name'])) {
-                $contact = $patron->contacts()->where('is_primary', true)->where('plant_id', $patron->plant_id)->first();
+            // Handle Contact
+            $hasContactData = !empty($validated['contact_name']) || 
+                              !empty($validated['contact_email']) || 
+                              !empty($validated['contact_mobile']) || 
+                              !empty($validated['contact_alt_mobile']);
+
+            $hasAddressData = !empty($validated['address_line_1']);
+
+            if ($hasContactData || $hasAddressData) {
+                $contact = $patron->contacts()->where('is_primary', true)->first() ?? $patron->contacts()->first();
                 $contactData = [
                     'plant_id'        => $patron->plant_id,
-                    'entity_id'       => $patron->entity_id,
                     'contact_type_id' => $validated['contact_type_id'] ?? 1,
-                    'name' => $validated['contact_name'],
-                    'email' => $validated['contact_email'],
-                    'mobile' => $validated['contact_mobile'],
+                    'name' => $validated['contact_name'] ?? null,
+                    'email' => $validated['contact_email'] ?? null,
+                    'mobile' => $validated['contact_mobile'] ?? null,
                     'alt_mobile' => $validated['contact_alt_mobile'] ?? null,
                     'is_primary' => $validated['contact_is_primary'] ?? true,
                     'status' => $validated['contact_status'] ?? true,
@@ -170,18 +182,17 @@ class PatronController extends Controller
                 }
 
                 // Handle Primary Address for this contact
-                if (!empty($validated['address_line_1'])) {
-                    $address = $contact->addresses()->where('is_primary', true)->where('plant_id', $patron->plant_id)->first();
+                if ($hasAddressData) {
+                    $address = $contact->addresses()->where('is_primary', true)->first() ?? $contact->addresses()->first();
                     $addressData = [
                         'plant_id'   => $patron->plant_id,
-                        'entity_id'  => $patron->entity_id,
                         'address_type_id' => $validated['address_type_id'] ?? 1,
                         'line_1' => $validated['address_line_1'],
                         'line_2' => $validated['address_line_2'] ?? null,
-                        'city' => $validated['address_city'],
+                        'city' => $validated['address_city'] ?? null,
                         'state_id' => $validated['address_state_id'] ?? null,
                         'state_code' => $validated['address_state_code'] ?? null,
-                        'zipcode' => $validated['address_zipcode'],
+                        'zipcode' => $validated['address_zipcode'] ?? null,
                         'is_primary' => $validated['address_is_primary'] ?? true,
                         'status' => $validated['address_status'] ?? true,
                     ];
@@ -250,6 +261,7 @@ class PatronController extends Controller
             'patrons.*.operational_status' => 'required|string',
             'patrons.*.pan_no' => 'nullable|string',
             'patrons.*.gstin' => 'nullable|string',
+            'patrons.*.aadhar_number' => 'nullable|string',
             'patrons.*.status' => 'required|boolean',
             'patrons.*.displayed' => 'required|boolean',
         ]);

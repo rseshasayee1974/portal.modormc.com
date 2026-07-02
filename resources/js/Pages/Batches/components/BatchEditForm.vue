@@ -7,9 +7,11 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import Button from 'primevue/button';
+import TabView from 'primevue/tabview';
+import TabPanel from 'primevue/tabpanel';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { CubeIcon, InformationCircleIcon, BeakerIcon, ListBulletIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline';
+import { CubeIcon, InformationCircleIcon, BeakerIcon, ListBulletIcon, ArrowDownTrayIcon, PlusCircleIcon, ClockIcon } from '@heroicons/vue/24/outline';
 import { useWeighbridge } from '@/Composables/useWeighbridge';
 import BatchSheetUploader from './BatchSheetUploader.vue';
 
@@ -18,9 +20,9 @@ interface BatchMaterial {
     product_id: number | null;
     material_name: string;
     target_qty: number;
-    actual_qty: number;
     deviation_quantity?: number;
     uom_id: number | null;
+    runs: number[];
     product?: { title: string };
 }
 
@@ -53,15 +55,12 @@ const emit = defineEmits<{
     (e: 'cancel'): void;
 }>();
 
-
-
 const blankMaterial = (): BatchMaterial => ({
     product_id: null,
     material_name: '',
     target_qty: 0,
-    actual_qty: 0,
-    deviation_quantity: 0,
     uom_id: null,
+    runs: Array(1).fill(0),
 });
 
 const form = useForm({
@@ -85,17 +84,88 @@ const form = useForm({
     empty_time: props.batch?.dispatches?.[0]?.empty_time ? new Date(props.batch.dispatches[0].empty_time) : new Date(),
     load_time: props.batch?.dispatches?.[0]?.load_time ? new Date(props.batch.dispatches[0].load_time) : new Date(),
     materials: (() => {
-        let initialMaterials = props.batch?.materials; 
-        return ((initialMaterials?.length ?? 0) > 0 ? initialMaterials : [blankMaterial()]).map((item: any) => ({
-            id: item.id ?? null,
-            product_id: item.product_id,
-            material_name: item.material_name || item.product?.title || '',
-            target_qty: Number(item.target_qty || 0),
-            actual_qty: Number(item.actual_qty || 0),
-            deviation_quantity: Number(item.deviation_quantity ?? (Number(item.actual_qty || 0) - Number(item.target_qty || 0))),
-            uom_id: item.uom_id ?? null,
-        }));
+        let initialMaterials = props.batch?.materials || [];
+        if (!initialMaterials.length) return [blankMaterial()];
+
+        const grouped: { [key: number]: any } = {};
+        initialMaterials.forEach((item: any) => {
+            if (!item.product_id) return;
+            if (!grouped[item.product_id]) {
+                grouped[item.product_id] = {
+                    product_id: item.product_id,
+                    material_name: item.material_name?.split(' - Run')[0] || item.product?.title || '',
+                    target_qty: 0,
+                    uom_id: item.uom_id ?? null,
+                    rawItems: [],
+                };
+            }
+            grouped[item.product_id].target_qty += Number(item.target_qty || 0);
+            grouped[item.product_id].rawItems.push(item);
+        });
+
+        return Object.values(grouped).map((group: any) => {
+            const size = Number(props.batch?.batch_size ?? 1);
+            const matchingSO = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === props.batch?.sales_order_id);
+            const cap = Number(matchingSO?.plant?.mixer_capacity || 1.25);
+            const runsCount = Math.ceil(size / cap) || 1;
+            
+            const runsArray = Array(runsCount).fill(0);
+            group.rawItems.forEach((item: any) => {
+                const match = String(item.material_name).match(/Run (\d+)/i);
+                if (match) {
+                    const runIdx = parseInt(match[1]) - 1;
+                    if (runIdx >= 0 && runIdx < runsCount) {
+                        runsArray[runIdx] = Number(item.actual_qty || 0);
+                    }
+                } else {
+                    runsArray[0] = Number(item.actual_qty || 0);
+                }
+            });
+
+            return {
+                product_id: group.product_id,
+                material_name: group.material_name,
+                target_qty: Number(group.target_qty.toFixed(3)),
+                uom_id: group.uom_id,
+                runs: runsArray,
+            };
+        });
     })(),
+});
+
+const selectedSalesOrder = computed(() => {
+    if (props.batch?.sales_order && props.batch.sales_order.id === form.sales_order_id) {
+        return props.batch.sales_order;
+    }
+    return props.salesOrders.find(wo => wo.id === form.sales_order_id);
+});
+
+const mixerCapacity = computed(() => {
+    return Number(selectedSalesOrder.value?.plant?.mixer_capacity || props.batch?.sales_order?.plant?.mixer_capacity || 1.25);
+});
+
+const numberOfRuns = computed(() => {
+    const size = Number(form.batch_size || 1);
+    const cap = Number(mixerCapacity.value || 1.25);
+    return Math.ceil(size / cap) || 1;
+});
+
+const runSizes = computed(() => {
+    const size = Number(form.batch_size || 1);
+    const cap = Number(mixerCapacity.value || 1.25);
+    const runs = [];
+    let remaining = size;
+    while (remaining > 0) {
+        if (remaining >= cap) {
+            runs.push(cap);
+            remaining -= cap;
+        } else {
+            runs.push(Number(remaining.toFixed(3)));
+            remaining = 0;
+        }
+    }
+    if (runs.length === 0) runs.push(size);
+    return runs;
 });
 
 console.log('batcjh==',props);
@@ -109,13 +179,6 @@ const isMetricTon = computed(() => {
 
 const isLocked = computed(() => {
     return form.status === 3;
-});
-
-const selectedSalesOrder = computed(() => {
-    if (props.batch?.sales_order && props.batch.sales_order.id === form.sales_order_id) {
-        return props.batch.sales_order;
-    }
-    return props.salesOrders.find(wo => wo.id === form.sales_order_id);
 });
 
 const salesOrderDetails = computed(() => {
@@ -155,16 +218,14 @@ watch(() => [form.empty_weight_truck, form.loaded_weight_truck], ([emptyWt, load
     form.net_weight = (Number(loadedWt) || 0) - (Number(emptyWt) || 0);
 });
 
-const addMaterial = () => form.materials.push(blankMaterial());
+const addMaterial = () => {
+    const mat = blankMaterial();
+    mat.runs = Array(numberOfRuns.value).fill(0);
+    form.materials.push(mat);
+};
 const removeMaterial = (index: number) => {
     if (form.materials.length > 1) form.materials.splice(index, 1);
 };
-
-watch(() => form.materials, (newMaterials) => {
-    newMaterials.forEach(m => {
-        m.deviation_quantity = Number(m.actual_qty || 0) - Number(m.target_qty || 0);
-    });
-}, { deep: true });
 
 // Auto-fill material_name when product_id is selected
 watch(
@@ -203,19 +264,51 @@ const applyBatchToForm = (newBatch: any) => {
     form.start_time = newBatch.start_time ? new Date(newBatch.start_time) : new Date();
     form.end_time = newBatch.end_time ? new Date(newBatch.end_time) : new Date();
     
-    let initialMaterials = newBatch?.materials;
-    // console.log('[BatchEditForm] applyBatchToForm — batch.id:', newBatch?.id, '| materials count:', initialMaterials?.length, '| raw materials:', JSON.stringify(initialMaterials));
+    let initialMaterials = newBatch?.materials || [];
+    if (!initialMaterials.length) {
+        form.materials = [blankMaterial()];
+        return;
+    }
 
-    form.materials = ((initialMaterials?.length ?? 0) > 0 ? initialMaterials : [blankMaterial()]).map((item: any) => ({
-        id: item.id ?? null,
-        product_id: item.product_id,
-        material_name: item.material_name || item.label || item.product?.title || '',
-        target_qty: Number(item.target_qty ?? 0),
-        actual_qty: Number(item.actual_qty ?? 0),
-        deviation_quantity: Number(item.deviation_quantity ?? (Number(item.actual_qty ?? 0) - Number(item.target_qty ?? 0))),
-        uom_id: item.uom_id ?? null,
-    }));
-    // console.log('[BatchEditForm] form.materials set to:', JSON.parse(JSON.stringify(form.materials)));
+    const grouped: { [key: number]: any } = {};
+    initialMaterials.forEach((item: any) => {
+        if (!item.product_id) return;
+        if (!grouped[item.product_id]) {
+            grouped[item.product_id] = {
+                product_id: item.product_id,
+                material_name: item.material_name?.split(' - Run')[0] || item.product?.title || '',
+                target_qty: 0,
+                uom_id: item.uom_id ?? null,
+                rawItems: [],
+            };
+        }
+        grouped[item.product_id].target_qty += Number(item.target_qty || 0);
+        grouped[item.product_id].rawItems.push(item);
+    });
+
+    const runsCount = numberOfRuns.value;
+    form.materials = Object.values(grouped).map((group: any) => {
+        const runsArray = Array(runsCount).fill(0);
+        group.rawItems.forEach((item: any) => {
+            const match = String(item.material_name).match(/Run (\d+)/i);
+            if (match) {
+                const runIdx = parseInt(match[1]) - 1;
+                if (runIdx >= 0 && runIdx < runsCount) {
+                    runsArray[runIdx] = Number(item.actual_qty || 0);
+                }
+            } else {
+                runsArray[0] = Number(item.actual_qty || 0);
+            }
+        });
+
+        return {
+            product_id: group.product_id,
+            material_name: group.material_name,
+            target_qty: Number(group.target_qty.toFixed(3)),
+            uom_id: group.uom_id,
+            runs: runsArray,
+        };
+    });
 };
 
 // Run on mount with whatever data is available at render time
@@ -322,7 +415,7 @@ onUnmounted(() => {
 });
 
 const hasConsumptionData = computed(() => {
-    return form.materials.some(mat => Number(mat.actual_qty) > 0);
+    return form.materials.some(mat => (mat.runs || []).some(runVal => Number(runVal) > 0));
 });
 
 // Check if the upload-based fetch is enabled in custom settings
@@ -361,10 +454,22 @@ const applyMaterialData = (materials: any[]) => {
 
         if (matchIndex !== -1) {
             const val = Number(apiMat.actual ?? apiMat.act ?? 0);
-            if (!usedIndices.has(matchIndex)) {
-                form.materials[matchIndex].actual_qty = val;
+            if (!form.materials[matchIndex].runs) {
+                form.materials[matchIndex].runs = Array(numberOfRuns.value).fill(0);
+            }
+            
+            const runMatch = key.match(/Run (\d+)/i);
+            if (runMatch) {
+                const runIdx = parseInt(runMatch[1]) - 1;
+                if (runIdx >= 0 && runIdx < numberOfRuns.value) {
+                    form.materials[matchIndex].runs[runIdx] = val;
+                }
             } else {
-                form.materials[matchIndex].actual_qty = Number(form.materials[matchIndex].actual_qty || 0) + val;
+                const size = Number(form.batch_size || 1);
+                for (let i = 0; i < numberOfRuns.value; i++) {
+                    const runSz = runSizes.value[i] || 0;
+                    form.materials[matchIndex].runs[i] = Number((val * (runSz / size)).toFixed(3));
+                }
             }
             usedIndices.add(matchIndex);
         }
@@ -407,8 +512,11 @@ const fetchConsumption = async () => {
 
 const copyTargetsToActuals = () => {
     form.materials.forEach((mat) => {
-        mat.actual_qty = Number(mat.target_qty ?? 0);
-        mat.deviation_quantity = 0;
+        const size = Number(form.batch_size || 1);
+        mat.runs = runSizes.value.map((runSz) => {
+            const targetForRun = Number(mat.target_qty ?? 0) * (runSz / size);
+            return Number(targetForRun.toFixed(3));
+        });
     });
     Swal.fire({
         toast: true,
@@ -418,6 +526,11 @@ const copyTargetsToActuals = () => {
         showConfirmButton: false,
         timer: 1500
     });
+};
+
+const getDeviation = (item: any) => {
+    const totalActual = (item.runs || []).reduce((sum: number, val: any) => sum + Number(val || 0), 0);
+    return totalActual - Number(item.target_qty || 0);
 };
 
 const normalizeNumber = (val: any) => {
@@ -431,7 +544,7 @@ watch(() => [
     form.loaded_weight_truck, 
     form.net_weight,
     form.batch_size,
-    ...form.materials.flatMap(m => [m.target_qty, m.actual_qty])
+    ...form.materials.flatMap(m => [m.target_qty, ...(m.runs || [])])
 ], () => {
     form.empty_weight_truck = normalizeNumber(form.empty_weight_truck);
     form.loaded_weight_truck = normalizeNumber(form.loaded_weight_truck);
@@ -440,10 +553,24 @@ watch(() => [
     
     form.materials.forEach(m => {
         m.target_qty = normalizeNumber(m.target_qty);
-        m.actual_qty = normalizeNumber(m.actual_qty);
-        m.deviation_quantity = m.actual_qty - m.target_qty;
+        if (!m.runs) m.runs = Array(numberOfRuns.value).fill(0);
+        m.runs.forEach((r, idx) => {
+            m.runs[idx] = normalizeNumber(r);
+        });
     });
 }, { deep: true });
+
+watch(numberOfRuns, (newVal) => {
+    form.materials.forEach((mat) => {
+        if (!mat.runs) mat.runs = [];
+        if (mat.runs.length < newVal) {
+            const diff = newVal - mat.runs.length;
+            mat.runs.push(...Array(diff).fill(0));
+        } else if (mat.runs.length > newVal) {
+            mat.runs = mat.runs.slice(0, newVal);
+        }
+    });
+}, { immediate: true });
 const submit = () => {
     form.clearErrors();
     let hasErrors = false;
@@ -491,11 +618,27 @@ const submit = () => {
         end_time: formatDateTime(data.end_time),
         empty_time: formatDateTime(data.empty_time),
         load_time: formatDateTime(data.load_time),
-        materials: data.materials.map((item: BatchMaterial) => ({
-            ...item,
-            material_name: item.material_name || props.products.find((p: any) => p.id === item.product_id)?.title || 'Material',
-            deviation_quantity: Number(item.actual_qty || 0) - Number(item.target_qty || 0),
-        })),
+        materials: data.materials.flatMap((mat: any) => {
+            const runsCount = numberOfRuns.value;
+            const pTitle = props.products.find((p: any) => p.id === mat.product_id)?.title || 'Material';
+            const baseName = mat.material_name || pTitle;
+            
+            const list = [];
+            for (let i = 0; i < runsCount; i++) {
+                const actual = Number(mat.runs?.[i] || 0);
+                const runSz = runSizes.value[i] || 0;
+                const target = Number(mat.target_qty || 0) * (runSz / Number(form.batch_size || 1));
+                list.push({
+                    product_id: mat.product_id,
+                    material_name: `${baseName} - Run ${i + 1}`,
+                    target_qty: Number(target.toFixed(3)),
+                    actual_qty: actual,
+                    deviation_quantity: Number((actual - target).toFixed(3)),
+                    uom_id: mat.uom_id
+                });
+            }
+            return list;
+        }),
     })).put(route('batches.update', props.batch?.id), {
         preserveState: true,
         preserveScroll: true,
@@ -527,469 +670,466 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="rounded-xl border border-cyan-200 bg-white shadow-sm overflow-hidden">
-        <div class="border-b border-cyan-100 bg-cyan-50/30 px-2 py-2">
-            <div class="flex items-center justify-between">
+    <div class="rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-100/50 overflow-hidden">
+        <!-- Premium Header Banner -->
+        <div class="bg-gradient-to-r from-slate-900 via-cyan-950 to-slate-900 px-6 py-5 text-white">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
-                    <div class="rounded-lg bg-cyan-100 p-2 text-cyan-600">
-                        <CubeIcon class="h-5 w-5" />
+                    <div class="rounded-xl bg-white/10 p-2.5 backdrop-blur-md ring-1 ring-white/20">
+                        <CubeIcon class="h-6 w-6 text-cyan-300" />
                     </div>
                     <div>
-                        <h3 class="text-sm font-bold uppercase tracking-wide text-cyan-800 ">Edit Batch Details</h3>
-                        <p class="mt-1 text-[10px] text-cyan-600/70 font-medium uppercase tracking-wider">Modify execution parameters</p>
+                        <h2 class="text-base font-bold uppercase tracking-wider text-white">Edit Batch Details</h2>
+                        <p class="mt-0.5 text-xs text-slate-300">Modify execution parameters and perform material reconciliation.</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-2 rounded-lg bg-white px-3 py-1.5 border border-cyan-100 shadow-sm">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-cyan-400">Batch ID</span>
-                    <span class="text-sm font-black text-cyan-700">#{{ batch.batch_no }}</span>
+
+                <div class="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-2 backdrop-blur-md border border-white/10 self-start sm:self-center">
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-300">Batch ID</span>
+                    <span class="text-base font-black text-cyan-300">#{{ batch.batch_no }}</span>
                 </div>
             </div>
         </div>
 
-        <div class="p-1">
-            <div class="grid grid-cols-12 gap-1">
-                <!-- Left Column: Context -->
-                <div class="col-span-12 md:col-span-3">
-                    <div class="space-y-1">
-                       
-                        <div class="col-span-12 md:col-span-3 py-3">
-                            <BaseSelect 
-                                v-model="form.sales_order_id" 
-                                optionLabel="full_number" 
-                                :options="salesOrders"  
-                                optionValue="id" 
-                                filter 
-                                :disabled="true"
-                                label="Sales Order" 
-                                :error="form.errors.sales_order_id" 
-                            />
-                        </div>
-                        <!-- Sales Order Details Hint -->
-                        <div v-if="salesOrderDetails.length" class="rounded-xl border border-cyan-100 bg-white p-4 shadow-sm relative overflow-hidden">
-                            <div class="absolute -top-2 -right-2 opacity-5">
-                                <InformationCircleIcon class="w-16 h-16 text-cyan-600" />
-                            </div>
-                            <h4 class="mb-2 text-[10px] font-bold uppercase tracking-widest text-cyan-500 border-b border-cyan-50 italic">Sales Order Context</h4>
-                            <div class="space-y-2">
-                                <div v-for="detail in salesOrderDetails" :key="detail.label" class="flex flex-col">
-                                    <span class="text-[9px] font-bold uppercase tracking-wider text-slate-400">{{ detail.label }}</span>
-                                    <span class="text-xs font-semibold text-cyan-900 leading-tight">{{ detail.value }}</span>
-                                </div>
-                                <!-- <div class="">
-                                    <BaseSelect v-model="form.status" :options="statuses" :disabled="form.status === 3" optionLabel="label" optionValue="value" label="Current Status" :error="form.errors.status" />
-                                </div> -->
-                                <!-- <div class="col-span-12 md:col-span-3">
-                                    <BaseDatePicker label="Start Time" v-model="form.start_time" showTime hourFormat="24" fluid :disabled="isLocked" />
-                                    <small class="text-red-500">{{ form.errors.start_time }}</small>
-                                </div>
-                                <div class="col-span-12 md:col-span-3">
-                                    <BaseDatePicker label="End Time" v-model="form.end_time" showTime hourFormat="24" fluid :disabled="isLocked" />
-                                    <small class="text-red-500">{{ form.errors.end_time }}</small>
-                                </div> -->
+        <div class="p-6 space-y-6">
+            <!-- Section 1: Sales Order Selection & Reference Card (Unified Full-Width) -->
+            <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 shadow-sm">
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <div class="flex flex-col justify-center">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center gap-2">
+                            <span class="h-2 w-2 rounded-full bg-cyan-600"></span>
+                            Sales Order Context
+                        </h3>
+                        <BaseSelect 
+                            v-model="form.sales_order_id" 
+                            optionLabel="full_number" 
+                            :options="salesOrders"  
+                            optionValue="id" 
+                            filter 
+                            :disabled="true"
+                            label="Sales Order" 
+                            :error="form.errors.sales_order_id" 
+                        />
+                    </div>
+                    
+                    <div v-if="salesOrderDetails.length" class="lg:col-span-3 border-t lg:border-t-0 lg:border-l border-slate-200/60 lg:pl-6 pt-4 lg:pt-0">
+                        <h3 class="mb-3 text-[10px] font-bold uppercase tracking-widest text-cyan-600 flex items-center justify-between">
+                            <span>Reference Details</span>
+                            <span class="rounded bg-cyan-100 px-2 py-0.5 text-[9px] font-bold text-cyan-700">Live</span>
+                        </h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div v-for="detail in salesOrderDetails" :key="detail.label" class="flex flex-col">
+                                <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{{ detail.label }}</span>
+                                <span class="text-xs font-bold text-slate-800 mt-0.5 leading-tight">{{ detail.value }}</span>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Right Column: Fillable Details -->
-                <div class="col-span-12 md:col-span-9 space-y-6">
-                    <!-- Config Grid -->
-                    <div class="grid grid-cols-12 gap-4 rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
-                         
-                        <div class="col-span-12 md:col-span-3">
-                            <div class="flex items-end gap-2">
-                                <div class="flex-1">
-                                    <BaseInputNumber v-model="form.empty_weight_truck" :disabled="isLocked " label="Empty Weight" required :error="form.errors.empty_weight_truck" />
-                                </div>
-                                <!-- <button v-if="customSettings?.batching?.manual_weight" @click="handleWeightCapture('empty')" type="button" 
-                                    :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
-                                    :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
-                                    <div class="flex flex-col items-center gap-0.5">
-                                        <ArrowDownTrayIcon class="w-4 h-4" />
-                                        <span v-if="customSettings?.batching?.camera == 1" class="text-[8px] font-bold"> + SNAP</span>
+            <!-- Section 2: Tabbed Workspace -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <TabView>
+                    <!-- Tab 1: Production Details & Weights -->
+                    <TabPanel>
+                        <template #header>
+                            <div class="flex items-center gap-2 py-1">
+                                <ClockIcon class="w-4 h-4 text-cyan-600" />
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-700">1. Details & Weights</span>
+                            </div>
+                        </template>
+
+                        <div class="p-5 space-y-6">
+                            <!-- Parameters Grid -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-5">
+                                <div>
+                                    <div class="flex items-end gap-2">
+                                        <div class="flex-1">
+                                            <BaseInputNumber v-model="form.empty_weight_truck" :disabled="isLocked" label="Empty Weight" required :error="form.errors.empty_weight_truck" />
+                                        </div>
                                     </div>
-                                </button> -->
-                            </div>
-                            <!-- <div v-if="form.empty_weight_photo" class="mt-2 relative group">
-                                <img :src="form.empty_weight_photo" class="w-full h-16 object-cover rounded-lg border border-slate-200" />
-                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                    <button @click="form.empty_weight_photo = null" type="button" class="text-white text-[8px] font-bold bg-red-500 px-2 py-0.5 rounded">Remove</button>
                                 </div>
-                            </div> -->
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <div class="flex items-end gap-2">
-                                <div class="flex-1">
-                                    <BaseInputNumber v-model="form.loaded_weight_truck" :disabled="isLocked || customSettings?.batching?.manual_weight === 0" label="Full Weight" required :error="form.errors.loaded_weight_truck" />
-                                </div>
-                                <button v-if="!isLocked && !customSettings?.batching?.manual_weight && form.net_weight<=0" @click="handleWeightCapture('loaded')" type="button" 
-                                    :class="['p-2 rounded transition-colors border', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
-                                    :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
-                                    <div class="flex flex-col items-center gap-0.5">
-                                        <ArrowDownTrayIcon class="w-4 h-4" />
-                                        <span v-if="customSettings?.batching?.camera == 1" class="text-[8px] font-bold"> + SNAP</span>
-                                    </div>
-                                </button>
-                            </div>
-                            <div v-if="form.loaded_weight_photo" class="mt-2 relative group">
-                                <img :src="form.loaded_weight_photo" class="w-full h-16 object-cover rounded-lg border border-slate-200" />
-                                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                    <button @click="form.loaded_weight_photo = null" type="button" class="text-white text-[8px] font-bold bg-red-500 px-2 py-0.5 rounded">Remove</button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseInputNumber v-model="form.net_weight" :disabled="isLocked || isMetricTon || customSettings?.batching?.manual_weight === 1" label="Net Weight (kg)" :required="!isMetricTon" :error="form.errors.net_weight" />
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                        <BaseSelect
-                                v-model="form.uom_id"
-                                :options="uoms"
-                                label="UOM"
-                                optionLabel="unit_code"
-                                optionValue="id"
-                                size="small"
-                                :fluid="true"
-                                :error="form.errors.uom_id"
-                                :disabled="isLocked"
-                            />
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Truck Assignment" :error="form.errors.truck_id" :disabled="isLocked" />
-                        </div>
-                        
-                         <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear :error="form.errors.transport_id" :disabled="isLocked" />
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label" optionValue="id" filter label="Driver" showClear :error="form.errors.driver_id" :disabled="isLocked" />
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear :error="form.errors.sales_executive_id" :disabled="isLocked" />
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :minFractionDigits="2" :disabled="true"  :error="form.errors.batch_size" />
-                        </div>
-                        
-                        
-                        
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseDatePicker label="Empty Time" v-model="form.empty_time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.empty_time" :disabled="isLocked" />
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseDatePicker label="Load Time" v-model="form.load_time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.load_time" :disabled="isLocked" />
-                        </div>
-                        <div class="col-span-12 md:col-span-3">
-                            <BaseSelect
-                                v-model="form.concrete_pump"
-                                :options="concretePumpOptions"
-                                label="Concrete Type"
-                                placeholder="Select Concrete Type"
-                                optionLabel="label"
-                                optionValue="value"
-                                :fluid="true"
-                                :error="form.errors.concrete_pump"
-                                :disabled="isLocked"
-                            />
-                        </div>
-                    </div>
-
-                    <!-- Target Recipe Visualization -->
-                    <!-- <div v-if="selectedSalesOrder?.mix_design?.items?.length" class="rounded-xl border border-cyan-100 bg-cyan-50/30 p-4">
-                        <div class="mb-3 flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <BeakerIcon class="w-4 h-4 text-cyan-500" />
-                                <h3 class="text-[10px] font-bold uppercase   text-cyan-500 tracking-[0.1em]">Calculated Targets</h3>
-                            </div>
-                            <span class="text-[9px] text-cyan-400 font-bold uppercase tracking-tighter">Yield: {{ form.batch_size }} m³</span>
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                            <div v-for="item in selectedSalesOrder.mix_design.items" :key="item.id" 
-                                class="flex items-center gap-2 rounded-lg bg-white px-3 py-2 shadow-sm border border-cyan-100/50">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase">{{ item.product?.title || 'Material' }}</span>
-                                <span class="h-4 w-[1px] bg-slate-100"></span>
-                                <span class="text-xs font-black text-cyan-600">
-                                    {{ (Number(item.cross_quantity || item.quantity || 0) * form.batch_size).toFixed(3) }}
-                                    <span class="text-[9px] font-normal text-slate-400 ml-0.5">{{ item.uom?.unit_code || '' }}</span>
-                                </span>
-                            </div>
-                        </div>
-                    </div> -->
-</div>
-<div class="col-span-12 md:col-span-12 space-y-6">
-                    <!-- Detailed Materials Table -->
-                    <div class="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                        <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-3">
-                            <div class="flex items-center gap-2">
-                                <ListBulletIcon class="w-4 h-4 text-slate-400" />
-                                <h3 class="text-xs font-bold uppercase tracking-wide text-slate-600">Input Reconciliation</h3>
-                            </div>
-                             <div class="flex items-center gap-2">
-                                <!-- Upload Batch Sheet button - always visible when batch is active -->
-                                <Button
-                                    v-if="form.status !== 3 && isUploadFetchEnabled"
-                                    :label="sheetUrl || props.batch?.sheet_url ? 'Re-upload Sheet' : 'Upload Batch Sheet'"
-                                    icon="pi pi-upload"
-                                    size="small"
-                                    severity="info"
-                                    outlined
-                                    class="!text-xs"
-                                    :loading="isScanning"
-                                    @click="openUploadZone"
-                                />
-
-                                <Transition name="ocr-fade">
-                                    <div v-if="showUploadZone"
-                                        class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-                                        style="background:rgba(15,23,42,0.55);backdrop-filter:blur(4px)"
-                                        @click.self="closeUploadZone"
-                                    >
-                                        <div class="relative w-full max-w-2xl mx-4 rounded-2xl bg-white shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-                                            <!-- Header -->
-                                            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-cyan-50 to-blue-50">
-                                                <div class="flex items-center gap-3">
-                                                    <div class="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center">
-                                                        <svg class="w-4 h-4 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                                    </div>
-                                                    <div>
-                                                        <p class="text-xs font-bold text-slate-700">Upload Batch Sheet</p>
-                                                        <p class="text-[10px] text-slate-400">AI will extract material weights automatically</p>
-                                                    </div>
-                                                </div>
-                                                <button @click="closeUploadZone" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
-                                                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                                                </button>
+                                <div>
+                                    <div class="flex items-end gap-2">
+                                        <div class="flex-1">
+                                            <BaseInputNumber v-model="form.loaded_weight_truck" :disabled="isLocked || customSettings?.batching?.manual_weight === 0" label="Full Weight" required :error="form.errors.loaded_weight_truck" />
+                                        </div>
+                                        <button v-if="!isLocked && !customSettings?.batching?.manual_weight && form.net_weight<=0" @click="handleWeightCapture('loaded')" type="button" 
+                                            :class="['p-2.5 rounded-xl transition-all duration-200 border shadow-sm flex items-center justify-center', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
+                                            :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
+                                            <div class="flex flex-col items-center gap-0.5">
+                                                <ArrowDownTrayIcon class="w-4 h-4" />
+                                                <span v-if="customSettings?.batching?.camera == 1" class="text-[7px] font-black uppercase tracking-widest">Snap</span>
                                             </div>
+                                        </button>
+                                    </div>
+                                    <div v-if="form.loaded_weight_photo" class="mt-2 relative group rounded-xl overflow-hidden shadow-inner border border-slate-100">
+                                        <img :src="form.loaded_weight_photo" class="w-full h-24 object-cover" />
+                                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <button @click="form.loaded_weight_photo = null" type="button" class="text-white text-xs font-bold bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-lg transition-all">Remove Snap</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <BaseInputNumber v-model="form.net_weight" :disabled="isLocked || isMetricTon || customSettings?.batching?.manual_weight === 1" label="Net Weight (kg)" :required="!isMetricTon" :error="form.errors.net_weight" />
+                                </div>
+                                <div>
+                                    <BaseSelect
+                                        v-model="form.uom_id"
+                                        :options="uoms"
+                                        label="UOM"
+                                        optionLabel="unit_code"
+                                        optionValue="id"
+                                        size="small"
+                                        :fluid="true"
+                                        :error="form.errors.uom_id"
+                                        :disabled="isLocked"
+                                    />
+                                </div>
+                                <div>
+                                    <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Truck Assignment" :error="form.errors.truck_id" :disabled="isLocked" />
+                                </div>
+                                <div>
+                                    <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear :error="form.errors.transport_id" :disabled="isLocked" />
+                                </div>
+                                <div>
+                                    <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label" optionValue="id" filter label="Driver" showClear :error="form.errors.driver_id" :disabled="isLocked" />
+                                </div>
+                                <div>
+                                    <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear :error="form.errors.sales_executive_id" :disabled="isLocked" />
+                                </div>
+                                <div>
+                                    <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :minFractionDigits="2" :disabled="true" :error="form.errors.batch_size" />
+                                </div>
+                                <div>
+                                    <BaseDatePicker label="Empty Time" v-model="form.empty_time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.empty_time" :disabled="isLocked" />
+                                </div>
+                                <div>
+                                    <BaseDatePicker label="Load Time" v-model="form.load_time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.load_time" :disabled="isLocked" />
+                                </div>
+                                <div>
+                                    <BaseSelect
+                                        v-model="form.concrete_pump"
+                                        :options="concretePumpOptions"
+                                        label="Concrete Type"
+                                        placeholder="Select Concrete Type"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        :fluid="true"
+                                        :error="form.errors.concrete_pump"
+                                        :disabled="isLocked"
+                                    />
+                                </div>
+                            </div>
 
-                                            <!-- Drop Zone -->
-                                            <div class="p-5">
-                                                <BatchSheetUploader
-                                                    :batchId="props.batch?.id"
-                                                    @completed="handleUploaderCompleted"
-                                                    @close="closeUploadZone"
-                                                />
+                            <!-- Target Recipe Visualization -->
+                            <div v-if="selectedSalesOrder?.mix_design?.items?.length" class="rounded-2xl border border-cyan-100 bg-cyan-50/10 p-5 shadow-sm">
+                                <div class="mb-4 flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <BeakerIcon class="w-5 h-5 text-cyan-600" />
+                                        <h3 class="text-xs font-bold uppercase tracking-wider text-cyan-900">Calculated Target Yields</h3>
+                                    </div>
+                                    <span class="rounded-lg bg-cyan-100 px-3 py-1 text-xs font-bold text-cyan-700">
+                                        Batch Size: {{ form.batch_size }} m³
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4  gap-3">
+                                    <div v-for="item in selectedSalesOrder.mix_design.items" :key="item.id" 
+                                        class="flex items-center justify-between rounded-xl bg-white border border-cyan-100/50 p-3 shadow-sm hover:border-cyan-200 transition-all duration-200">
+                                        <div class="flex flex-col">
+                                            <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Material</span>
+                                            <span class="text-xs font-bold text-slate-700 mt-0.5">{{ item.product?.title || 'Material' }}</span>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="text-[9px] font-bold text-cyan-400 uppercase tracking-wider">Target Qty</span>
+                                            <div class="text-xs font-black text-cyan-700 mt-0.5">
+                                                {{ (Number(item.cross_quantity || item.quantity || 0) * form.batch_size).toFixed(3) }}
+                                                <span class="text-[9px] font-normal text-slate-400 ml-0.5">{{ item.uom?.unit_code || 'KGS' }}</span>
                                             </div>
                                         </div>
+                                    </div>
                                 </div>
-                                </Transition>
-
-                                <!-- View/Download Batch Sheet button: only if url exists -->
-                                <Button
-                                    v-if="(sheetUrl || props.batch?.sheet_url) && isUploadFetchEnabled"
-                                    label="View Sheet"
-                                    icon="pi pi-eye"
-                                    size="small"
-                                    severity="help"
-                                    outlined
-                                    class="!text-xs"
-                                    @click="viewBatchSheet"
-                                />
-
-                                <!-- Sync Consumption button: always available -->
-                                <Button
-                                    v-if="form.status !== 3 && !isUploadFetchEnabled"
-                                    label="Sync Consumption"
-                                    icon="pi pi-sync"
-                                    size="small"
-                                    severity="secondary"
-                                    outlined
-                                    class="!text-xs"
-                                    :loading="isFetchingConsumption"
-                                    @click="fetchConsumption"
-                                />
-                                
-                                <!-- One-Click Target to Actual button -->
-                                <Button
-                                    v-if="form.status !== 3 && customSettings?.batching?.target_to_actual == 1"
-                                    label="Set Actuals = Targets"
-                                    icon="pi pi-copy"
-                                    size="small"
-                                    severity="success"
-                                    outlined
-                                    class="!text-xs"
-                                    @click="copyTargetsToActuals"
-                                />
-
-                                <Button v-if="form.status !== 3" label="Add" icon="pi pi-plus" size="small" text rounded class="!text-xs !text-cyan-600" @click="addMaterial" />
                             </div>
                         </div>
+                    </TabPanel>
 
-                        <!-- OCR Failure Warning -->
-                        <div v-if="ocrWarning" class="mx-5 m-4 p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-800 text-xs shadow-sm flex items-start gap-3 relative overflow-hidden">
-                            <div class="absolute inset-y-0 left-0 w-1 bg-orange-400"></div>
-                            <div class="mt-0.5 bg-orange-100 rounded-full p-1.5 flex-shrink-0">
-                                <svg class="w-4 h-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
+                    <!-- Tab 2: Material Reconciliation -->
+                    <TabPanel>
+                        <template #header>
+                            <div class="flex items-center gap-2 py-1">
+                                <ListBulletIcon class="w-4 h-4 text-cyan-600" />
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-700">2. Input Reconciliation</span>
                             </div>
-                            <div class="flex-1">
-                                <h4 class="font-bold text-orange-800 text-sm mb-1">Manual Entry Required</h4>
-                                <p class="text-orange-700">{{ ocrWarning }}</p>
-                                <!-- <p class="text-orange-600 mt-2 font-medium italic text-[11px]">You can click "View Sheet" to open the uploaded document side-by-side.</p> -->
-                            </div>
-                            <button @click="ocrWarning = null" class="text-orange-400 hover:text-orange-600 transition-colors p-1 rounded-full hover:bg-orange-100/50">
-                                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        </div>
+                        </template>
 
-                        <div v-if="form.errors.materials" class="m-5 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-xs flex flex-col gap-1.5 shadow-sm">
-                            <div class="font-bold flex items-center gap-2 text-rose-700">
-                                <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                </svg>
-                                Stock Validation Failed
-                            </div>
-                            <ul class="list-disc list-inside mt-1 space-y-1 font-semibold text-rose-600">
-                                <li v-for="err in (Array.isArray(form.errors.materials) ? form.errors.materials : [form.errors.materials])" :key="err">
-                                    {{ err }}
-                                </li>
-                            </ul>
-                        </div>
+                        <div class="p-5 space-y-6">
+                            <!-- Action Control Header bar -->
+                            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                                <div class="flex items-center gap-2">
+                                    <ListBulletIcon class="w-5 h-5 text-slate-400" />
+                                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Raw Batch Reconciliation</h3>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <!-- Upload Batch Sheet button -->
+                                    <Button
+                                        v-if="form.status !== 3 && isUploadFetchEnabled"
+                                        :label="sheetUrl || props.batch?.sheet_url ? 'Re-upload Sheet' : 'Upload Batch Sheet'"
+                                        icon="pi pi-upload"
+                                        size="small"
+                                        severity="info"
+                                        outlined
+                                        class="!text-xs"
+                                        :loading="isScanning"
+                                        @click="openUploadZone"
+                                    />
 
-                        <!-- Materials: Card-per-Material Layout (Batch Report Style) -->
-                        <div class="px-5 pb-5">
-                            <!-- Empty State -->
-                            <div v-if="form.materials.length === 0" class="rounded-xl border-2 border-dashed border-slate-200 py-10 text-center">
-                                <svg class="mx-auto mb-2 h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-                                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">No materials added</p>
-                                <p class="text-[10px] text-slate-300 mt-1">Click "Add" in the header to add a material</p>
-                            </div>
-
-                            <!-- Table Layout -->
-                            <div v-else class="overflow-x-auto border border-slate-300 rounded-lg shadow-sm">
-                                <table class="w-full text-left border-collapse whitespace-nowrap">
-                                    <thead>
-                                        <tr class="bg-black text-white">
-                                            <th class="border-b border-slate-700 px-3 py-2 font-bold uppercase text-[10px]" :colspan="form.materials.length + 1">
-                                                <div class="flex justify-between items-center">
-                                                    <span>Materials Breakdown</span>
+                                    <!-- Upload Dialog -->
+                                    <Transition name="ocr-fade">
+                                        <div v-if="showUploadZone"
+                                            class="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+                                            style="background:rgba(15,23,42,0.55);backdrop-filter:blur(4px)"
+                                            @click.self="closeUploadZone"
+                                        >
+                                            <div class="relative w-full max-w-2xl mx-4 rounded-2xl bg-white shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+                                                <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-cyan-50 to-blue-50">
+                                                    <div class="flex items-center gap-3">
+                                                        <div class="w-8 h-8 rounded-lg bg-cyan-100 flex items-center justify-center">
+                                                            <svg class="w-4 h-4 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                                        </div>
+                                                        <div>
+                                                            <p class="text-xs font-bold text-slate-700">Upload Batch Sheet</p>
+                                                            <p class="text-[10px] text-slate-400">AI will extract material weights automatically</p>
+                                                        </div>
+                                                    </div>
+                                                    <button @click="closeUploadZone" class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors">
+                                                        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                    </button>
                                                 </div>
-                                            </th>
-                                        </tr>
-                                        <tr class="bg-slate-100 text-slate-800">
-                                            <th class="border-r border-b border-slate-300 px-3 py-2 font-bold uppercase w-40 bg-slate-200 text-[10px]">Product</th>
-                                            <th v-for="(item, index) in form.materials" :key="index" class="border-r border-b border-slate-300 px-2 py-1 min-w-[160px]">
-                                                <div class="flex items-center gap-1">
-                                                    <BaseSelect
-                                                        v-model="form.materials[index].product_id"
-                                                        :options="products"
-                                                        optionLabel="title"
-                                                        optionValue="id"
-                                                        filter
+                                                <div class="p-5">
+                                                    <BatchSheetUploader
+                                                        :batchId="props.batch?.id"
+                                                        @completed="handleUploaderCompleted"
+                                                        @close="closeUploadZone"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </Transition>
+
+                                    <!-- View/Download Batch Sheet -->
+                                    <Button
+                                        v-if="(sheetUrl || props.batch?.sheet_url) && isUploadFetchEnabled"
+                                        label="View Sheet"
+                                        icon="pi pi-eye"
+                                        size="small"
+                                        severity="help"
+                                        outlined
+                                        class="!text-xs"
+                                        @click="viewBatchSheet"
+                                    />
+
+                                    <!-- Sync Consumption -->
+                                    <Button
+                                        v-if="form.status !== 3 && !isUploadFetchEnabled"
+                                        label="Sync Consumption"
+                                        icon="pi pi-sync"
+                                        size="small"
+                                        severity="secondary"
+                                        outlined
+                                        class="!text-xs"
+                                        :loading="isFetchingConsumption"
+                                        @click="fetchConsumption"
+                                    />
+                                    
+                                    <!-- One-Click Target to Actual -->
+                                    <Button
+                                        v-if="form.status !== 3 && customSettings?.batching?.target_to_actual == 1"
+                                        label="Set Actuals = Targets"
+                                        icon="pi pi-copy"
+                                        size="small"
+                                        severity="success"
+                                        outlined
+                                        class="!text-xs"
+                                        @click="copyTargetsToActuals"
+                                    />
+
+                                    <Button v-if="form.status !== 3" label="Add Material" icon="pi pi-plus" size="small" outlined severity="info" class="!text-xs" @click="addMaterial" />
+                                </div>
+                            </div>
+
+                            <!-- OCR Failure Warning -->
+                            <div v-if="ocrWarning" class="p-4 rounded-xl bg-orange-50 border border-orange-200 text-orange-800 text-xs shadow-sm flex items-start gap-3 relative overflow-hidden">
+                                <div class="absolute inset-y-0 left-0 w-1 bg-orange-400"></div>
+                                <div class="mt-0.5 bg-orange-100 rounded-full p-1.5 flex-shrink-0">
+                                    <svg class="w-4 h-4 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-bold text-orange-800 text-sm mb-1">Manual Entry Required</h4>
+                                    <p class="text-orange-700">{{ ocrWarning }}</p>
+                                </div>
+                                <button @click="ocrWarning = null" class="text-orange-400 hover:text-orange-600 transition-colors p-1 rounded-full hover:bg-orange-100/50">
+                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            </div>
+
+                            <div v-if="form.errors.materials" class="p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-xs flex flex-col gap-1.5 shadow-sm">
+                                <div class="font-bold flex items-center gap-2 text-rose-700">
+                                    <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                    Stock Validation Failed
+                                </div>
+                                <ul class="list-disc list-inside mt-1 space-y-1 font-semibold text-rose-600">
+                                    <li v-for="err in (Array.isArray(form.errors.materials) ? form.errors.materials : [form.errors.materials])" :key="err">
+                                        {{ err }}
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Materials Table Layout -->
+                            <div>
+                                <div v-if="form.materials.length === 0" class="rounded-2xl border-2 border-dashed border-slate-200 py-12 text-center bg-slate-50/30">
+                                    <svg class="mx-auto mb-2 h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-widest">No materials added</p>
+                                    <p class="text-[10px] text-slate-300 mt-1">Click "Add Material" above to customize ingredients</p>
+                                </div>
+
+                                <div v-else class="overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white">
+                                    <table class="w-full text-left border-collapse whitespace-nowrap">
+                                        <thead>
+                                            <tr class="bg-slate-900 text-white">
+                                                <th class="px-4 py-3 font-bold uppercase text-xs tracking-wider" :colspan="form.materials.length + 1">
+                                                    Materials Breakdown & Tolerances
+                                                </th>
+                                            </tr>
+                                            <tr class="bg-slate-50 text-slate-800 border-b border-slate-200">
+                                                <th class="border-r border-slate-200 px-4 py-3 font-bold uppercase w-48 bg-slate-100 text-[10px] text-slate-500 tracking-wider">Product</th>
+                                                <th v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2 min-w-[180px]">
+                                                    <div class="flex items-center gap-1.5">
+                                                        <BaseSelect
+                                                            v-model="form.materials[index].product_id"
+                                                            :options="products"
+                                                            optionLabel="title"
+                                                            optionValue="id"
+                                                            filter
+                                                            size="small"
+                                                            :fluid="true"
+                                                            :disabled="!!item.id || isLocked"
+                                                            :error="form.errors[`materials.${index}.product_id`]"
+                                                            placeholder="Select Product"
+                                                            class="!text-[10px] w-full"
+                                                        />
+                                                        <Button
+                                                            v-if="!isLocked && form.status !== 3 && !item.id"
+                                                            icon="pi pi-trash" 
+                                                            text rounded severity="danger"
+                                                            class="!h-6 !w-6 !p-0 flex-shrink-0"
+                                                            @click="removeMaterial(index)"
+                                                        />
+                                                    </div>
+                                                    <BaseInput
+                                                        v-model="form.materials[index].material_name"
+                                                        disabled
+                                                        size="small" 
+                                                        :fluid="true"
+                                                        placeholder="Label"
+                                                        class="mt-1.5"
+                                                    />
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            <!-- Target Qty Row -->
+                                            <tr>
+                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider">Target Qty</td>
+                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2">
+                                                    <BaseInputNumber
+                                                        :modelValue="form.materials[index].target_qty"
+                                                        @update:modelValue="form.materials[index].target_qty = Number($event ?? 0)"
+                                                        :disabled="!!item.id || isLocked"
+                                                        :minFractionDigits="3"
                                                         size="small"
                                                         :fluid="true"
-                                                        :disabled="!!item.id || isLocked"
-                                                        :error="form.errors[`materials.${index}.product_id`]"
-                                                        placeholder="Select Product"
-                                                        class="!text-[10px] w-full"
+                                                        :error="form.errors[`materials.${index}.target_qty`]"
+                                                        class="!text-[11px] !font-bold text-center"
                                                     />
-                                                    <Button
-                                                        v-if="!isLocked && form.status !== 3 && !item.id"
-                                                        icon="pi pi-trash" 
-                                                        text rounded severity="danger"
-                                                        class="!h-6 !w-6 !p-0 flex-shrink-0"
-                                                        @click="removeMaterial(index)"
+                                                </td>
+                                            </tr>
+                                            <!-- Recipe Targets Summary -->
+                                            <tr class="bg-slate-50/50">
+                                                <td :colspan="form.materials.length + 1" class="border-r px-4 py-2 text-right text-slate-500 font-bold uppercase text-[9px] tracking-wider">
+                                                    Total Recipe Targets:
+                                                    <span class="ml-1 text-slate-800 font-black text-xs">{{ form.materials.reduce((sum, m) => sum + Number(m.target_qty || 0), 0).toFixed(3) }} KGS</span>
+                                                </td>
+                                            </tr>
+                                            <!-- Runs Rows -->
+                                            <tr v-for="runIdx in numberOfRuns" :key="runIdx">
+                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider">
+                                                    Run {{ runIdx }} Actual
+                                                </td>
+                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2">
+                                                    <BaseInputNumber
+                                                        :modelValue="form.materials[index].runs?.[runIdx - 1]"
+                                                        @update:modelValue="form.materials[index].runs[runIdx - 1] = Number($event ?? 0)"
+                                                        :disabled="isLocked"
+                                                        :minFractionDigits="3"
+                                                        size="small"
+                                                        :fluid="true"
+                                                        class="!text-[11px] !font-bold text-center bg-cyan-50/10 focus:bg-cyan-50/30"
                                                     />
-                                                </div>
-                                                <BaseInput
-                                                    v-model="form.materials[index].material_name"
-                                                    disabled
-                                                    size="small" 
-                                                    :fluid="true"
-                                                    placeholder="Label"
-                                                    class="mt-1"
-                                                />
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <!-- Target Qty -->
-                                        <tr>
-                                            <td class="border-r border-b border-slate-300 px-3 py-2 font-bold bg-slate-50 text-slate-600 uppercase text-[10px]">Target Qty</td>
-                                            <td v-for="(item, index) in form.materials" :key="index" class="border-r border-b border-slate-300 px-2 py-1">
-                                                <BaseInputNumber
-                                                    :modelValue="form.materials[index].target_qty"
-                                                    @update:modelValue="form.materials[index].target_qty = Number($event ?? 0)"
-                                                    :disabled="!!item.id || isLocked"
-                                                    :minFractionDigits="3"
-                                                    size="small"
-                                                    :fluid="true"
-                                                    :error="form.errors[`materials.${index}.target_qty`]"
-                                                    class="!text-[11px] !font-bold text-center"
-                                                />
-                                            </td>
-                                        </tr>
-                                        <!-- Target Summary -->
-                                        <tr class="bg-slate-100">
-                                            <td :colspan="form.materials.length + 1" class="border-r border-b border-slate-300 px-3 py-2 font-bold text-right text-slate-600 uppercase text-[10px]">
-                                                Mass of Recipe Targets in kg :
-                                                <span class="ml-2 text-slate-800 font-black text-sm">{{ form.materials.reduce((sum, m) => sum + Number(m.target_qty || 0), 0).toFixed(3) }}</span>
-                                            </td>
-                                        </tr>
-                                        <!-- Actual Qty -->
-                                        <tr>
-                                            <td class="border-r border-b border-slate-300 px-3 py-2 font-bold bg-slate-50 text-slate-600 uppercase text-[10px]">Actual Qty</td>
-                                            <td v-for="(item, index) in form.materials" :key="index" class="border-r border-b border-slate-300 px-2 py-1">
-                                                <BaseInputNumber
-                                                    :modelValue="form.materials[index].actual_qty"
-                                                    @update:modelValue="form.materials[index].actual_qty = Number($event ?? 0)"
-                                                    :disabled="isLocked"
-                                                    :minFractionDigits="3"
-                                                    size="small"
-                                                    :fluid="true"
-                                                    :error="form.errors[`materials.${index}.actual_qty`]"
-                                                    class="!text-[11px] !font-bold text-center"
-                                                />
-                                            </td>
-                                        </tr>
-                                        <!-- Deviation -->
-                                        <tr>
-                                            <td class="border-r border-b border-slate-300 px-3 py-2 font-bold bg-slate-50 text-slate-600 uppercase text-[10px]">Deviation</td>
-                                            <td v-for="(item, index) in form.materials" :key="index" class="border-r border-b border-slate-300 px-3 py-2 font-bold text-center text-xs"
-                                                :class="item.deviation_quantity > 0 ? 'text-rose-600 bg-rose-50/50' : item.deviation_quantity < 0 ? 'text-emerald-600 bg-emerald-50/50' : 'text-slate-600'">
-                                                {{ item.deviation_quantity > 0 ? '+' : '' }}{{ item.deviation_quantity?.toFixed(3) }}
-                                            </td>
-                                        </tr>
-                                        <!-- Actual Summary -->
-                                        <tr class="bg-slate-100 border-t-2 border-slate-300">
-                                            <td :colspan="form.materials.length + 1" class="border-r border-b border-slate-300 px-3 py-2 font-bold text-right text-slate-600 uppercase text-[10px]">
-                                                Mass of Total Set Weight in kg :
-                                                <span class="ml-2 text-slate-800 font-black text-sm">{{ form.materials.reduce((sum, m) => sum + Number(m.actual_qty || 0), 0).toFixed(3) }}</span>
-                                            </td>
-                                        </tr>
-                                        <!-- Unit -->
-                                        <!-- <tr>
-                                            <td class="border-r border-slate-300 px-3 py-2 font-bold bg-slate-50 text-slate-600 uppercase text-[10px]">Unit</td>
-                                            <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-300 px-2 py-1">
-                                                <BaseSelect
-                                                    v-model="item.uom_id"
-                                                    :options="uoms"
-                                                    optionLabel="unit_code"
-                                                    optionValue="id"
-                                                    size="small"
-                                                    :fluid="true"
-                                                    :disabled="!!item.id || isLocked"
-                                                    :error="form.errors[`materials.${index}.uom_id`]"
-                                                />
-                                            </td>
-                                        </tr> -->
-                                    </tbody>
-                                </table>
+                                                </td>
+                                            </tr>
+                                            <!-- Total Actual Row -->
+                                            <tr class="bg-slate-50/30">
+                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider">Total Actual</td>
+                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2 font-black text-center text-xs text-slate-800">
+                                                    {{ (item.runs || []).reduce((sum, val) => sum + Number(val || 0), 0).toFixed(3) }}
+                                                </td>
+                                            </tr>
+                                            <!-- Deviation Row -->
+                                            <tr>
+                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider">Deviation</td>
+                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2.5 font-black text-center text-xs"
+                                                    :class="getDeviation(item) > 0 ? 'text-rose-600 bg-rose-50/30' : getDeviation(item) < 0 ? 'text-emerald-600 bg-emerald-50/30' : 'text-slate-500 bg-slate-50/10'">
+                                                    {{ getDeviation(item) > 0 ? '+' : '' }}{{ getDeviation(item).toFixed(3) }}
+                                                </td>
+                                            </tr>
+                                            <!-- Actual Set Weight Summary -->
+                                            <tr class="bg-slate-50/50 border-t border-slate-200">
+                                                <td :colspan="form.materials.length + 1" class="border-r px-4 py-2 text-right text-slate-500 font-bold uppercase text-[9px] tracking-wider">
+                                                    Total Set Actual Weight:
+                                                    <span class="ml-1 text-slate-800 font-black text-xs">
+                                                        {{ form.materials.reduce((sum, m) => sum + (m.runs || []).reduce((s, r) => s + Number(r || 0), 0), 0).toFixed(3) }} KGS
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </TabPanel>
+                </TabView>
             </div>
         </div>
 
-        <div class="border-t border-cyan-100 bg-cyan-50/30 p-5" v-if="form.status !== 3">
-            <BaseFormActions 
-                mode="update" 
-                updateLabel="Save Changes" 
-                :loading="form.processing" 
-                @submit="submit" 
-                @cancel="emit('cancel')" 
+        <!-- Update Actions Footer (Sticky) -->
+        <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-end gap-3" v-if="form.status !== 3">
+            <Button 
+                label="Cancel" 
+                severity="secondary" 
+                text
+                class="!px-6 !py-2.5 !rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 hover:!bg-slate-100" 
+                @click="emit('cancel')" 
+            />
+            <Button 
+                label="Save Changes" 
+                icon="pi pi-check" 
+                class="!bg-cyan-600 hover:!bg-cyan-700 !border-cyan-600 !px-8 !py-2.5 !rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-cyan-100" 
+                :loading="form.processing"
+                @click="submit" 
             />
         </div>
     </div>

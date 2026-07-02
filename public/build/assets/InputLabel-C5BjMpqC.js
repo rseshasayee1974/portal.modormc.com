@@ -1,0 +1,1 @@
+import{l as e,p as t,L as o,B as n}from"./vue-BI2IQHQ5.js";const l={class:"block font-medium text-sm text-gray-700 dark:text-gray-300"},r={key:0},c={key:1},p={__name:"InputLabel",props:{value:String},setup(a){return(s,_)=>(e(),t("label",l,[a.value?(e(),t("span",r,o(a.value),1)):(e(),t("span",c,[n(s.$slots,"default")]))]))}};export{p as _};

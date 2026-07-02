@@ -231,6 +231,16 @@ onMounted(() => {
                         inputClass="uppercase tracking-widest font-mono"
                     />
                 </div>
+                <div class="col-span-12 md:col-span-3">
+                    <BaseInput 
+                        label="Aadhar Number" 
+                        v-model="form.aadhar_number" 
+                        placeholder="12-digit number"
+                        :error="form.errors.aadhar_number" 
+                        @update:modelValue="form.aadhar_number = form.aadhar_number?.replace(/[^0-9]/g, '').substring(0, 12)"
+                        inputClass="tracking-widest font-mono"
+                    />
+                </div>
             </div>
         </section>
 
@@ -342,17 +352,16 @@ onMounted(() => {
                 </template>
 
                 <!-- 5. Address line 1 (Only Manual Input) -->
-                <div class="col-span-12 md:col-span-9">
-                    <BaseInput label="Office Address line 1 (Street, Building, Door No.)" v-model="form.address_line_1" placeholder="e.g. No. 12, Gandhi Street" :error="form.errors.address_line_1" />
+                <div class="col-span-12 md:col-span-3">
+                    <BaseInput label="Address line 1" v-model="form.address_line_1" placeholder="e.g. No. 12, Gandhi Street" :error="form.errors.address_line_1" />
                 </div>
 
-                <template v-if="hasDistrictOptions">
-                    <!-- Address Previews (Read Only) -->
+                <!-- <template v-if="hasDistrictOptions">
                     <div class="col-span-12 mt-2">
                         <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-100 pb-1">Formatted Address Preview</h4>
                     </div>
 
-                    <!-- Address Line 2 (Area) -->
+                     
                     <div class="col-span-12 md:col-span-4">
                         <BaseInput 
                             label="Office Address line 2 (Area)" 
@@ -363,7 +372,7 @@ onMounted(() => {
                         />
                     </div>
 
-                    <!-- City (District) -->
+                     
                     <div class="col-span-12 md:col-span-4">
                         <BaseInput 
                             label="City / District" 
@@ -374,7 +383,7 @@ onMounted(() => {
                         />
                     </div>
 
-                    <!-- Zipcode -->
+                    
                     <div class="col-span-12 md:col-span-4">
                         <BaseInput 
                             label="Zipcode" 
@@ -384,7 +393,7 @@ onMounted(() => {
                             inputClass="!w-full !rounded-xl !border-slate-100 bg-slate-50 text-slate-500 font-medium text-sm cursor-not-allowed"
                         />
                     </div>
-                </template>
+                </template> -->
                  <div class="col-span-12 md:col-span-3">
                     <BaseInput label="Primary Contact Person" v-model="form.contact_name" placeholder="Full Name" :error="form.errors.contact_name" />
                 </div>
@@ -398,7 +407,7 @@ onMounted(() => {
         </section>
 
         <!-- ── Section: Banking Infrastructure ── -->
-        <section>
+        <!-- <section>
             <div class="flex items-center justify-between mb-6">
                 <div class="flex items-center gap-2">
                     <div class="w-1.5 h-6 bg-amber-500 rounded-full"></div>
@@ -461,6 +470,6 @@ onMounted(() => {
                     />
                 </div>
             </div>
-        </section>
+        </section> -->
     </div>
 </template>

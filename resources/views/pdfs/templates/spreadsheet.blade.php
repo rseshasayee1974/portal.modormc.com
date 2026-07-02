@@ -5,7 +5,10 @@
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
-        .inv-root { border: 4px solid #111; width: 100%; min-height: 297mm; }
+        .inv-root { border: 4px solid #111; width: 100%; }
+        @media screen {
+            .inv-root { min-height: 297mm; }
+        }
         .title-bar { display: table; width: 100%; border-bottom: 2px solid #111; background: #111; color: #fff; padding: 10px 14px; }
         .title-left  { display: table-cell; vertical-align: middle; font-size: 14px; font-weight: 700; }
         .title-right { display: table-cell; vertical-align: middle; text-align: right; font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.03em; }

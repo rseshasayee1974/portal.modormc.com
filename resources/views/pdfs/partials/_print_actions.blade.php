@@ -1,3 +1,4 @@
+@if (request()->route('action') !== 'download' && !($is_pdf ?? false))
 {{-- Floating Print Button for Browser View --}}
 <div class="print-actions no-print">
     <button onclick="window.print()" class="btn-print-trigger">
@@ -40,3 +41,4 @@
         box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.4);
     }
 </style>
+@endif

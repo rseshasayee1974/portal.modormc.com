@@ -25,7 +25,7 @@ class SiteController extends Controller
 
         $query = Site::query()
             ->where('plant_id', $plantId)
-            ->with('plant');
+            ->with(['plant', 'patron']);
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -58,11 +58,12 @@ class SiteController extends Controller
         }
 
         return Inertia::render('Sites/Index', [
-            'sites' => $sites,
-            'filters' => $request->only(['search', 'type', 'sort_field', 'sort_direction', 'per_page']),
-            'plants' => $plants,
-            'siteTypes' => ['loading', 'unloading'],
-            'isPrivileged' => $isPrivileged
+            'sites'             => $sites,
+            'filters'           => $request->only(['search', 'type', 'sort_field', 'sort_direction', 'per_page']),
+            'plants'               => $plants,
+            'siteTypes'         => ['loading', 'unloading'],
+            'isPrivileged'      => $isPrivileged,
+            'patrons'           => PatronsDropdown(['Customer']),
         ]);
     }
 

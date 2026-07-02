@@ -159,7 +159,7 @@ const MyPreset = definePreset(Aura, {
     }
 });
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'ModoRmc';
 
 createInertiaApp({
     title: (title) => `${title} - ${appName}`,
@@ -194,7 +194,18 @@ createInertiaApp({
 });
 
 router.on('invalid', (event) => {
-    const url = event.detail.response?.request?.responseURL || event.detail.response?.config?.url;
+    const response = event.detail.response;
+    if (response && [401, 419].includes(response.status)) {
+        event.preventDefault();
+        if (window.location.pathname === '/login') {
+            window.location.reload();
+        } else {
+            window.location.href = '/login';
+        }
+        return;
+    }
+
+    const url = response?.request?.responseURL || response?.config?.url;
     if (url && (url.includes('/token') || url.includes('/dispatch-token') || url.includes('/delivery-token')) && !url.includes('/download')) {
         event.preventDefault();
         window.dispatchEvent(new CustomEvent('show-batch-token', { detail: { url } }));

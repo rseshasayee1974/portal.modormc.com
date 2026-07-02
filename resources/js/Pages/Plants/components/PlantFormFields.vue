@@ -1,5 +1,6 @@
 <script setup lang="ts"> 
 import BaseInput from '@/Components/Base/BaseInput.vue';
+import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import ToggleSwitch from 'primevue/toggleswitch';
 import { BuildingOffice2Icon, MapPinIcon, PhoneIcon, LinkIcon } from '@heroicons/vue/24/outline';
@@ -210,7 +211,7 @@ onMounted(() => {
         <div class="form-content">
             <!-- TAB: General -->
             <div v-show="activeTab === 'basic'" class="grid grid-cols-1 md:grid-cols-12 gap-5 animate-in fade-in slide-in-from-top-1 duration-300">
-                <div class="col-span-12 md:col-span-3 flex flex-col gap-1.5">
+                <div class="col-span-12 md:col-span-2 flex flex-col gap-1.5">
                     <BaseSelect
                         v-model="form.entity_id"
                         label="Legal Entity"
@@ -226,7 +227,7 @@ onMounted(() => {
                     <small v-if="errors?.entity_id" class="p-error px-1">{{ errors.entity_id[0] }}</small>
                 </div>
 
-                <div class="col-span-12 md:col-span-3">
+                <div class="col-span-12 md:col-span-2">
                     <BaseInput 
                         v-model="form.code" 
                         label="Plant Code"
@@ -237,7 +238,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-3">
+                <div class="col-span-12 md:col-span-2">
                     <BaseInput 
                         v-model="form.name" 
                         label="Plant Name"
@@ -248,7 +249,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-3">
+                <div class="col-span-12 md:col-span-2">
                     <BaseInput 
                         v-model="form.email_address" 
                         label="Admin Email"
@@ -261,7 +262,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-3">
+                <div class="col-span-12 md:col-span-2">
                     <BaseInput 
                         v-model="form.mobile_number" 
                         label="Admin Mobile"
@@ -271,7 +272,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-3">
+                <div class="col-span-12 md:col-span-2">
                     <BaseInput 
                         v-model="form.gstin" 
                         label="GSTIN"
@@ -280,7 +281,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-3">
+                <div class="col-span-12 md:col-span-2">
                     <BaseInput 
                         v-model="form.plant_type" 
                         label="Plant Type"
@@ -290,7 +291,17 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-3">
+                <div class="col-span-12 md:col-span-2">
+                    <BaseInputNumber 
+                        v-model="form.mixer_capacity" 
+                        label="Mixer Capacity (m³)"
+                        placeholder="e.g. 1.25" 
+                        :minFractionDigits="2"
+                        :error="errors?.mixer_capacity"
+                    />
+                </div>
+
+                <div class="col-span-12 md:col-span-2">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Plant Logo</label>
                     <div class="mt-1 flex items-center gap-3">
                         <div v-if="logoPreview" class="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center">
@@ -308,7 +319,7 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <div class="md:col-span-3 flex flex-col gap-1.5">
+                <div class="md:col-span-2 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Main Unit</label>
                     <div class="flex items-center gap-3 h-11 px-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
                         <ToggleSwitch v-model="form.is_main" />
@@ -316,7 +327,7 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <div class="md:col-span-3 flex flex-col gap-1.5">
+                <div class="md:col-span-2 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Active</label>
                     <div class="flex items-center gap-3 h-11 px-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
                         <ToggleSwitch v-model="form.is_active" />
@@ -328,7 +339,7 @@ onMounted(() => {
             <!-- TAB: Location -->
             <div v-show="activeTab === 'location'" class="grid grid-cols-1 md:grid-cols-12 gap-5 animate-in fade-in slide-in-from-top-1 duration-300">
                 <!-- Address Type -->
-                <div class="md:col-span-3 flex flex-col gap-1.5">
+                <div class="md:col-span-2 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Address Type</label>
                     <BaseSelect
                         v-model="form.address.address_type_id"
@@ -343,7 +354,7 @@ onMounted(() => {
                 </div>
 
                 <!-- 1. State (First Select) -->
-                <div class="md:col-span-3 flex flex-col gap-1.5">
+                <div class="md:col-span-2 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">State</label>
                     <BaseSelect
                         v-model="form.address.state_id"
@@ -358,7 +369,7 @@ onMounted(() => {
                 </div>
 
                 <!-- 2. District / City -->
-                <div class="md:col-span-3 flex flex-col gap-1.5">
+                <div class="md:col-span-2 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">City / District</label>
                     <!-- Dropdown mode: when API returned district data -->
                     <BaseSelect
@@ -385,7 +396,7 @@ onMounted(() => {
                 </div>
 
                 <!-- 3. Zipcode / Pincode -->
-                <div class="md:col-span-3 flex flex-col gap-1.5">
+                <div class="md:col-span-2 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Zipcode / Pincode</label>
                     <!-- Dropdown mode -->
                     <BaseSelect
@@ -412,7 +423,7 @@ onMounted(() => {
                 </div>
 
                 <!-- 4. Area / Locality -->
-                <div class="md:col-span-3 flex flex-col gap-1.5">
+                <div class="md:col-span-2 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Area / Locality</label>
                     <!-- Dropdown mode -->
                     <BaseSelect
@@ -438,7 +449,7 @@ onMounted(() => {
                 </div>
 
                 <!-- 5. Address Line 1 -->
-                <div class="md:col-span-12">
+                <div class="md:col-span-4">
                     <BaseInput 
                         v-model="form.address.line_1" 
                         label="Address Line 1 (Street, Building, Door No.)"
@@ -449,7 +460,7 @@ onMounted(() => {
                 </div>
 
                 <!-- Latitude & Longitude -->
-                <div class="md:col-span-6">
+                <div class="md:col-span-4">
                     <BaseInput 
                         v-model="form.latitude" 
                         label="Latitude"
@@ -458,7 +469,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="md:col-span-6">
+                <div class="md:col-span-4">
                     <BaseInput 
                         v-model="form.longitude" 
                         label="Longitude"
@@ -470,7 +481,7 @@ onMounted(() => {
 
             <!-- TAB: Contact -->
             <div v-show="activeTab === 'contact'" class="grid grid-cols-1 md:grid-cols-12 gap-5 animate-in fade-in slide-in-from-top-1 duration-300">
-                <div class="md:col-span-3">
+                <div class="md:col-span-2">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Contact Type</label>
                     <BaseSelect
                         v-model="form.contact.contact_type_id"
@@ -481,7 +492,7 @@ onMounted(() => {
                         class="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>
-                <div class="md:col-span-3">
+                <div class="md:col-span-2">
                     <BaseInput 
                         v-model="form.contact.name" 
                         label="Contact Person Name"
@@ -491,7 +502,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="md:col-span-3">
+                <div class="md:col-span-2">
                     <BaseInput 
                         v-model="form.contact.email" 
                         label="Email ID"
@@ -502,7 +513,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="md:col-span-3">
+                <div class="md:col-span-2">
                     <BaseInput 
                         v-model="form.contact.mobile" 
                         label="Mobile Number"
@@ -512,7 +523,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="md:col-span-3">
+                <div class="md:col-span-2">
                     <BaseInput 
                         v-model="form.contact.alt_mobile" 
                         label="Alt. Mobile"
@@ -521,7 +532,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="md:col-span-3">
+                <div class="md:col-span-2">
                     <BaseInput 
                         v-model="form.contact.landline" 
                         label="Landline"
@@ -573,7 +584,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-3">
+                <div class="col-span-12 md:col-span-2">
                     <BaseInput 
                         v-model="form.scheduler_client_id" 
                         label="Client ID"
@@ -583,7 +594,7 @@ onMounted(() => {
                     />
                 </div>
 
-                <div class="col-span-12 md:col-span-3">
+                <div class="col-span-12 md:col-span-2">
                     <BaseInput 
                         v-model="form.scheduler_client_secret" 
                         label="Client Secret"

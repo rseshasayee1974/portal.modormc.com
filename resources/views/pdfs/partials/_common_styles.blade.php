@@ -4,9 +4,6 @@
     /* ═══ RESET & BASE ═══ */
     @page { 
         margin: 15mm; 
-        @bottom-right {
-            content: "Page " counter(page) " of " counter(pages);
-        }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -90,4 +87,13 @@
             border: 1px solid #cbd5e1 !important;
         }
     }
+    
+    @if ($is_pdf ?? false)
+    .inv-root {
+        min-height: 0 !important;
+        height: auto !important;
+        border: none !important;
+        display: block !important;
+    }
+    @endif
 </style>

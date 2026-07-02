@@ -102,6 +102,11 @@ const onRowClick = (event: any) => {
                             :value="slotProps.data.plant_type" 
                             class="!bg-indigo-50 !text-indigo-600 !text-[9px] !font-black !uppercase !px-2 !py-0.5 !rounded-md"
                         />
+                        <Tag 
+                            v-if="slotProps.data.mixer_capacity"
+                            :value="`Mixer: ${slotProps.data.mixer_capacity} m³`" 
+                            class="!bg-emerald-50 !text-emerald-700 !text-[9px] !font-black !uppercase !px-2 !py-0.5 !rounded-md"
+                        />
                         <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-tighter">{{ slotProps.data.entity?.legal_name }}</span>
                     </div>
                 </div>

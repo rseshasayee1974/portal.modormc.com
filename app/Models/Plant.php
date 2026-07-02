@@ -15,6 +15,7 @@ class Plant extends Model
         'entity_id',
         'code',
         'name',
+        'mixer_capacity',
         'logo_path',
         'email_address',
         'mobile_number',
@@ -48,6 +49,7 @@ class Plant extends Model
         'is_active' => 'int',
         'is_initialized' => 'boolean',
         'last_heartbeat_at' => 'datetime',
+        'mixer_capacity' => 'float',
     ];
 
     public function entity()

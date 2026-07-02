@@ -7,6 +7,7 @@ const props = defineProps<{
     plants: any[];
     siteTypes: string[];
     isPrivileged: boolean;
+    patrons: any[];
 }>();
 
 const emit = defineEmits(['save', 'reset']);
@@ -32,6 +33,7 @@ const emit = defineEmits(['save', 'reset']);
             :site-types="siteTypes"
             :is-privileged="isPrivileged"
             :errors="form.errors"
+            :patrons="patrons"
         />
 
         <div class="mt-2 ">

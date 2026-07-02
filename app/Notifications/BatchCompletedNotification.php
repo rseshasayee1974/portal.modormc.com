@@ -60,11 +60,11 @@ class BatchCompletedNotification extends Notification implements ShouldQueue
             ->line('Customer: ' . ($batch->workOrder->customer->legal_name ?? 'N/A'))
             ->line('Site: ' . ($batch->workOrder->site->name ?? 'N/A'))
             ->line('Batch Size: ' . $batch->batch_size . ' m³')
-            ->action('View Online Report', route('batches.report', $batch->id))
+            ->action('View Online Report', route('batches.report', \Illuminate\Support\Facades\Crypt::encryptString($batch->id)))
             ->attachData($pdf->output(), $filename, [
                 'mime' => 'application/pdf',
             ])
             ->line('The detailed batching report has been attached to this email as a PDF.')
-            ->line('Thank you for choosing onemodo.com!');
+            ->line('Thank you for choosing !');
     }
 }

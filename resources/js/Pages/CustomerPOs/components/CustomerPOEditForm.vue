@@ -35,6 +35,8 @@ const emit = defineEmits<{
 const { isAdmin } = usePermissions();
 
 const form = useForm({
+    prefix: props.customerPO?.prefix ?? 'CPO',
+    reference: props.customerPO?.reference ?? '',
     quotation_id: props?.customerPO?.quotation_id ?? null,
     patron_id: props.customerPO?.patron_id ?? null,
     site_id: props.customerPO?.site_id ?? null,
@@ -142,11 +144,55 @@ const getDeleteRestrictionReason = (customerPO: any): string => {
 };
 
 // Filter sites by selected patron
+// Filter sites by selected patron and unloading type
 const filteredSites = computed(() => {
-    return props.sites;
+    return (props.sites || []).filter((s: any) => {
+        const matchesPatron = !form.patron_id || s.patron_id === form.patron_id;
+        const matchesType = s.type === 'unloading';
+        return matchesType && matchesPatron;
+    });
 });
 
 const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
+
+const mixDesignOptions = computed(() => {
+    return (props.mixDesigns || []).map(p => ({
+        label: p.design_name ? `${p.design_name}${p.design_code ? ` (${p.design_code})` : ''}` : p.title || '',
+        value: p.id
+    }));
+});
+
+const uniqueSelectedMixDesignIds = computed(() => {
+    const ids = new Set<number>();
+    
+    // Check form items list
+    if (form.items && form.items.length) {
+        form.items.forEach(item => {
+            if (item.mix_design_id) {
+                ids.add(Number(item.mix_design_id));
+            }
+        });
+    }
+    
+    // Check form single item
+    if (form.mix_design_id) {
+        ids.add(Number(form.mix_design_id));
+    }
+    
+    return Array.from(ids);
+});
+
+const getMixDesignMaterials = (mixDesignId: number | null) => {
+    if (!mixDesignId) return [];
+    const design = props.mixDesigns.find(md => Number(md.id) === Number(mixDesignId));
+    if (!design || !design.items) return [];
+    return design.items.map((it: any) => ({
+        id: it.id,
+        name: it.product?.title || 'Unknown Material',
+        qty: Number(it.actual_quantity || 0),
+        uom: it.uom?.unit_code || '',
+    }));
+};
 
 // Quotation dropdown options with labels
 const quotationOptions = computed(() => {
@@ -200,7 +246,7 @@ const submit = () => {
             form.setError('site_id', 'Site is required.');
             hasError = true;
         }
-
+        
         form.items.forEach((item, idx) => {
             if (!item.mix_design_id) {
                 form.setError(`items.${idx}.mix_design_id` as any, 'Mix Design is required.');
@@ -270,11 +316,27 @@ const performSubmit = (customerPOId: any) => {
         <div class="mb-4 flex items-center justify-between">
             <h3 class="text-xs font-bold uppercase tracking-wide text-indigo-800">Edit Customer PO</h3>
             <span class="font-mono text-xs font-bold text-amber-600">
-                REF # : {{ customerPO.quotation?.reference || 'Direct Sales Order' }}
+                REF # : {{ customerPO.reference || 'Auto-generated' }}
             </span>
         </div>
 
         <div class="grid grid-cols-12 md:grid-cols-5 gap-x-4 gap-y-3">
+            <div class="col-span-12 md:col-span-1">
+                <BaseInput
+                    v-model="form.prefix"
+                    label="PO Prefix"
+                    placeholder="e.g. CPO"
+                    :error="form.errors.prefix"
+                />
+            </div>
+            <div class="col-span-12 md:col-span-1">
+                <BaseInput
+                    v-model="form.reference"
+                    label="PO Number / Ref"
+                    placeholder="Auto-generated if blank"
+                    :error="form.errors.reference"
+                />
+            </div>
             <div class="col-span-12 md:col-span-1">
                 <BaseSelect
                     v-model="form.sales_executive_id"
@@ -320,7 +382,7 @@ const performSubmit = (customerPOId: any) => {
                     optionLabel="name"
                     optionValue="id"
                     filter
-                    label="Site"
+                    label="Unloading Site"
                     placeholder="Select Site"
                     :disabled="!!form.quotation_id"
                     :error="form.errors.site_id"
@@ -380,9 +442,9 @@ const performSubmit = (customerPOId: any) => {
                         <div class="col-span-12 md:col-span-5">
                             <BaseSelect
                                 v-model="item.mix_design_id"
-                                :options="mixDesigns"
-                                optionLabel="design_name"
-                                optionValue="id"
+                                :options="mixDesignOptions"
+                                optionLabel="label"
+                                optionValue="value"
                                 filter
                                 label="Mix Design"
                                 placeholder="Select Mix Design"
@@ -450,9 +512,9 @@ const performSubmit = (customerPOId: any) => {
                 <div class="col-span-12 md:col-span-2">
                     <BaseSelect
                         v-model="form.mix_design_id"
-                        :options="mixDesigns"
-                        optionLabel="design_name"
-                        optionValue="id"
+                        :options="mixDesignOptions"
+                        optionLabel="label"
+                        optionValue="value"
                         filter
                         label="Mix Design"
                         placeholder="Select Mix Design"
@@ -482,6 +544,71 @@ const performSubmit = (customerPOId: any) => {
                     />
                 </div>
             </template>
+
+            <!-- Quotation-linked Customer PO with multiple items -->
+            <template v-else>
+                <div class="col-span-12 md:col-span-5 mt-2 border-t border-gray-200 pt-4">
+                    <span class="text-xs font-bold uppercase tracking-wide text-indigo-800">Mix Design Items (Loaded from Quotation)</span>
+                </div>
+                
+                <div class="col-span-12 md:col-span-5">
+                    <div class="overflow-x-auto rounded-xl border border-indigo-50/50 bg-indigo-50/10 p-4">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="border-b border-indigo-100 uppercase tracking-wider text-[10px] font-bold text-indigo-700">
+                                    <th class="p-2">Mix Design</th>
+                                    <th class="p-2 text-right">Quantity</th>
+                                    <th class="p-2 text-right">Rate</th>
+                                    <th class="p-2 text-right">Total Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="item in form.items" :key="item.id" class="border-b border-indigo-50/50 last:border-0 font-medium text-slate-700">
+                                    <td class="p-2 text-slate-900 font-semibold font-bold">
+                                        {{ mixDesigns.find(d => Number(d.id) === Number(item.mix_design_id))?.title || mixDesigns.find(d => Number(d.id) === Number(item.mix_design_id))?.design_name || '-' }}
+                                    </td>
+                                    <td class="p-2 text-right font-mono">{{ Number(item.quantity).toFixed(3) }} m³</td>
+                                    <td class="p-2 text-right font-mono">₹{{ Number(item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                                    <td class="p-2 text-right font-mono font-bold text-indigo-900">₹{{ Number(item.quantity * item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </template>
+            <!-- Recipe Details -->
+            <div v-if="uniqueSelectedMixDesignIds.length" class="col-span-12 md:col-span-5 mt-4 space-y-3">
+                <div 
+                    v-for="designId in uniqueSelectedMixDesignIds" 
+                    :key="designId"
+                    class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 text-left"
+                >
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold uppercase tracking-[0.1em] text-indigo-500">
+                            Recipe Details
+                        </label>
+                        <span class="rounded bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
+                            {{ props.mixDesigns.find(d => Number(d.id) === Number(designId))?.title || props.mixDesigns.find(d => Number(d.id) === Number(designId))?.design_name || '-' }}
+                        </span>
+                    </div>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <div 
+                            v-for="item in getMixDesignMaterials(designId)" 
+                            :key="item.id" 
+                            class="flex items-center gap-2 rounded-md border border-indigo-100 bg-white px-3 py-2"
+                        >
+                            <span class="text-xs text-slate-700">{{ item.name }}</span>
+                            <span class="font-semibold text-indigo-600">
+                                {{ item.qty }}
+                                <span class="text-slate-400 text-[10px]">{{ item.uom }}</span>
+                            </span>
+                        </div>
+                        <div v-if="!getMixDesignMaterials(designId).length" class="text-xs text-slate-400 italic">
+                            No materials configured for this recipe.
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="mt-5 flex justify-end gap-2 border-t border-gray-200 pt-4">

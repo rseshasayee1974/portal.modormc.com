@@ -83,6 +83,7 @@ class Site extends Model
     protected $table = 'mm_sites';
     protected $fillable = [
         'plant_id',
+        'patron_id',
         'name',
         'site_address_1',
         'zipcode',
@@ -119,5 +120,10 @@ class Site extends Model
     public function plant()
     {
         return $this->belongsTo(Plant::class);
+    }
+
+    public function patron()
+    {
+        return $this->belongsTo(Patron::class, 'patron_id');
     }
 }

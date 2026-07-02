@@ -933,7 +933,7 @@ class PlantInitializationService
         foreach ($departments as $dept) {
             $this->updateOrCreateWithTrashed(
                 Department::class,
-                ['plant_id' => $plant->id, 'code' => $dept['code']],
+                ['code' => $dept['code']],
                 [
                     'name'       => $dept['name'],
                     'created_by' => Auth::id() ?? 1,
@@ -956,7 +956,7 @@ class PlantInitializationService
         foreach ($designations as $desig) {
             $this->updateOrCreateWithTrashed(
                 Designation::class,
-                ['plant_id' => $plant->id, 'code' => $desig['code']],
+                ['code' => $desig['code']],
                 [
                     'name'       => $desig['name'],
                     'created_by' => Auth::id() ?? 1,

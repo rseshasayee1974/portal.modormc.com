@@ -49,6 +49,15 @@ const props = defineProps<{
 // console.log(props.taxes);
 const isOpen = ref(true);
 
+const getDefaultValidityDate = (quoteDateStr: string) => {
+    if (!quoteDateStr) return null;
+    const date = new Date(quoteDateStr);
+    date.setUTCDate(date.getUTCDate() + 5);
+    return date.toISOString().substring(0, 10);
+};
+
+const initialQuoteDate = new Date().toISOString().substring(0, 10);
+
 const form = useForm({
     patron_id: null as number | null,
     site_id: null as number | null,
@@ -56,8 +65,8 @@ const form = useForm({
     concrete_pump: 'pump' as string | null,
     new_site_name: '' as string,
     is_new_site: false,
-    quote_date: new Date().toISOString().substring(0, 10),
-    validity_date: null as string | null,
+    quote_date: initialQuoteDate,
+    validity_date: getDefaultValidityDate(initialQuoteDate),
     status: 0,
     adjustment: 0,
     // Header totals
@@ -68,8 +77,14 @@ const form = useForm({
     items: [createNewItem()] as QuotationItemPayload[],
 });
 
+watch(() => form.quote_date, (newVal) => {
+    if (newVal) {
+        form.validity_date = getDefaultValidityDate(newVal);
+    }
+});
+
 function createNewItem(): QuotationItemPayload {
-    const defaultUomId = props.unitOptions?.find(u => u.unit_code === 'MTR')?.id 
+    const defaultUomId = props.unitOptions?.find(u => u.unit_code === 'CBM')?.id 
                       || props.unitOptions?.[0]?.id 
                       || null;
                       
@@ -79,10 +94,10 @@ function createNewItem(): QuotationItemPayload {
         id: null,
         mix_design_id: null,
         quantity: 1,
-        tax_id: defaultTaxId,
+        tax_id: null,
         uom_id: defaultUomId, 
         rate: 0,
-        // tax_amount: 0,
+        tax_amount: 0,
         untaxed_amount: 0,
         amount_total: 0
     };
@@ -90,7 +105,16 @@ function createNewItem(): QuotationItemPayload {
 
 // Options Computeds
 const patronOptions = computed(() => props.patrons.map(p => ({ label: p.legal_name, value: p.id })));
-const siteOptions = computed(() => props.sites.map(s => ({ label: s.name, value: s.id })));
+const siteOptions = computed(() => {
+    return (props.sites || [])
+        .filter((s: any) => {
+            const isSelected = s.id === form.site_id;
+            const matchesPatron = !form.patron_id || s.patron_id === form.patron_id;
+            const matchesType = s.type === 'unloading';
+            return isSelected || (matchesType && matchesPatron);
+        })
+        .map((s: any) => ({ label: s.name, value: s.id }));
+});
 const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 const mixDesignOptions = computed(() => props.mixDesigns.map(p => ({ 
     label: `${p.title}${p.code ? ` (${p.code})` : ''}`, 
@@ -99,6 +123,28 @@ const mixDesignOptions = computed(() => props.mixDesigns.map(p => ({
 })));
 const unitOptions = computed(() => (props.unitOptions || []).map(u => ({ label: u.unit_code, value: u.id })));
 const taxOptions = computed(() => props.taxes?.map(t => ({ label: t.tax_name, value: t.id })) || []);
+
+const uniqueSelectedMixDesignIds = computed(() => {
+    const ids = new Set<number>();
+    form.items.forEach(item => {
+        if (item.mix_design_id) {
+            ids.add(Number(item.mix_design_id));
+        }
+    });
+    return Array.from(ids);
+});
+
+const getMixDesignMaterials = (mixDesignId: number | null) => {
+    if (!mixDesignId) return [];
+    const design = props.mixDesigns.find(md => Number(md.id) === Number(mixDesignId));
+    if (!design || !design.items) return [];
+    return design.items.map((it: any) => ({
+        id: it.id,
+        name: it.product?.title || 'Unknown Material',
+        qty: Number(it.actual_quantity || 0),
+        uom: it.uom?.unit_code || '',
+    }));
+};
 
 const siteSuggestions = ref<any[]>([]);
 const searchSites = (event: any) => {
@@ -128,7 +174,7 @@ const calculateTotals = () => {
 
         // Update Item Internal State (for SQL Insertion)
         item.untaxed_amount = Number(untaxed.toFixed(2));
-        // item.tax_amount = Number(lineTax.toFixed(2));
+        item.tax_amount = Number(lineTax.toFixed(2));
         item.amount_total = Number((untaxed + lineTax).toFixed(2));
 
         totalUntaxed += untaxed;
@@ -136,13 +182,23 @@ const calculateTotals = () => {
     });
 
     form.amount_untaxed = Number(totalUntaxed.toFixed(2));
-    // form.tax_amount = Number(totalTax.toFixed(2)); // Both fields as per SQL
+    form.tax_amount = Number(totalTax.toFixed(2)); // Both fields as per SQL
     form.amount_tax = Number(totalTax.toFixed(2));
     form.amount_total = Number((totalUntaxed + totalTax + Number(form.adjustment || 0)).toFixed(2));
 };
 
 // Deep watch for any changes in items or adjustment
 watch(() => [form.items, form.adjustment], calculateTotals, { deep: true, immediate: true });
+
+// Reset site selection if it belongs to a different customer
+watch(() => form.patron_id, (newPatronId) => {
+    if (form.site_id) {
+        const site = props.sites.find(s => s.id === form.site_id);
+        if (site && site.patron_id && site.patron_id !== newPatronId) {
+            form.site_id = null;
+        }
+    }
+});
 
 const onMixDesignChange = (index: number) => {
     const item = form.items[index];
@@ -312,13 +368,6 @@ const submit = () => {
             hasErrors = true;
         }
 
-        if (!item.tax_id) {
-            form.setError(
-                `items.${index}.tax_id`,
-                'Tax is required.'
-            );
-            hasErrors = true;
-        }
     });
 
     if (form.items.length === 0) {
@@ -429,7 +478,7 @@ const submit = () => {
                             required 
                             placeholder="Select Customer" 
                             filter
-                                                        :error="form.errors.patron_id"
+                            :error="form.errors.patron_id"
 
                         />
                         
@@ -440,11 +489,10 @@ const submit = () => {
                                     :options="siteOptions" 
                                     optionLabel="label" 
                                     optionValue="value" 
-                                    label="Project Site" 
-                                    placeholder="Select Project Site" 
-                                    addLabel="Create New Site"
-                                                                :error="form.errors.site_id"
-
+                                    label="Unloading Site" 
+                                    placeholder="Select Unloading Site" 
+                                    addLabel="Create New Site" required
+                                    :error="form.errors.site_id"
                                     @add="form.is_new_site = true"
                                 />
                             </div>
@@ -476,7 +524,7 @@ const submit = () => {
                             v-model="form.sales_executive_id" 
                             :options="salesExecutiveOptions" 
                             optionLabel="label" 
-                            optionValue="value" 
+                            optionValue="value" required
                             label="Sales Executive" 
                             placeholder="Select Sales Executive" 
                             filter
@@ -583,6 +631,40 @@ const submit = () => {
                         <div class="space-y-4">
                             <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Internal Notes / Terms</label>
                             <textarea placeholder="Specify any additional conditions..." class="w-full h-32 rounded-2xl border-slate-200 text-sm focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 transition-all p-4" />
+                            
+                            <!-- Recipe Details -->
+                            <div v-if="uniqueSelectedMixDesignIds.length" class="space-y-3 mt-4">
+                                <div 
+                                    v-for="designId in uniqueSelectedMixDesignIds" 
+                                    :key="designId"
+                                    class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 text-left"
+                                >
+                                    <div class="flex items-center justify-between">
+                                        <label class="text-[10px] font-bold uppercase tracking-[0.1em] text-indigo-500">
+                                            Recipe Details
+                                        </label>
+                                        <span class="rounded bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
+                                            {{ props.mixDesigns.find(d => Number(d.id) === Number(designId))?.title || props.mixDesigns.find(d => Number(d.id) === Number(designId))?.design_name || '-' }}
+                                        </span>
+                                    </div>
+                                    <div class="mt-3 flex flex-wrap gap-2">
+                                        <div 
+                                            v-for="item in getMixDesignMaterials(designId)" 
+                                            :key="item.id" 
+                                            class="flex items-center gap-2 rounded-md border border-indigo-100 bg-white px-3 py-2"
+                                        >
+                                            <span class="text-xs text-slate-700">{{ item.name }}</span>
+                                            <span class="font-semibold text-indigo-600">
+                                                {{ item.qty }}
+                                                <span class="text-slate-400 text-[10px]">{{ item.uom }}</span>
+                                            </span>
+                                        </div>
+                                        <div v-if="!getMixDesignMaterials(designId).length" class="text-xs text-slate-400 italic">
+                                            No materials configured for this recipe.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="bg-indigo-50/30 rounded-md p-8 border border-indigo-100/50 shadow-inner">

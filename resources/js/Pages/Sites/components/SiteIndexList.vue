@@ -17,6 +17,7 @@ const props = defineProps<{
     isPrivileged: boolean;
     errors?: any;
     processing?: boolean;
+    patrons: any[];
 }>();
 
 const emit = defineEmits<{
@@ -44,7 +45,7 @@ watch(() => props.searchQuery, (newVal) => {
     <BaseDataTable
         :value="sites"
         v-model:filters="filters"
-        :globalFilterFields="['name', 'code', 'type']"
+        :globalFilterFields="['name', 'code', 'type', 'patron.legal_name']"
         showSearch
         showSerial
         heading="Sites"
@@ -78,6 +79,15 @@ watch(() => props.searchQuery, (newVal) => {
                         />
                     </div>
                 </div>
+            </template>
+        </Column>
+
+        <Column header="Customer / Patron" sortable field="patron.legal_name">
+            <template #body="slotProps">
+                <span v-if="slotProps.data.patron?.legal_name" class="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    {{ slotProps.data.patron.legal_name }}
+                </span>
+                <span v-else class="text-slate-300 dark:text-slate-700 text-xs italic">-</span>
             </template>
         </Column>
 
@@ -140,6 +150,7 @@ watch(() => props.searchQuery, (newVal) => {
                 :is-privileged="isPrivileged"
                 :errors="errors"
                 :processing="processing"
+                :patrons="patrons"
                 @submit="$emit('submitEdit')"
                 @cancel="$emit('cancelEdit')"
             />

@@ -79,7 +79,7 @@ class QuotationController extends Controller
     {
         return redirect()->route('print.document', [
             'module' => 'quotations',
-            'id'     => $quotation->id,
+            'id'     => encrypt($quotation->id),
             'action' => 'download'
         ]);
     }
@@ -88,7 +88,7 @@ class QuotationController extends Controller
     {
         return redirect()->route('print.document', [
             'module' => 'quotations',
-            'id'     => $quotation->id,
+            'id'     => encrypt($quotation->id),
             'action' => 'view'
         ]);
     }

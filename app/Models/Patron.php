@@ -106,6 +106,7 @@ class Patron extends Model
         'operational_status',
         'pan_no',
         'gstin',
+        'aadhar_number',
         'status',
         'displayed',
         

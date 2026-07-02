@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Button from 'primevue/button';
+import Message from 'primevue/message';
 import PatronFormFields from './PatronFormFields.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 
@@ -66,9 +67,16 @@ defineEmits<{
             severity="primary"
             @click="$emit('export')" 
         />
+        </div>
     </div>
-</div>
         <form class="flex flex-col gap-8" @submit.prevent="$emit('submit')">
+            <Message v-if="Object.keys(form.errors).length > 0" severity="error" :closable="false">
+                <div class="font-bold">Please correct the following errors before saving:</div>
+                <ul class="mt-1 list-disc pl-4 text-sm font-normal">
+                    <li v-for="(error, field) in form.errors" :key="field">{{ error }}</li>
+                </ul>
+            </Message>
+
             <PatronFormFields
                 :form="form"
                 :patron-types="patronTypes"

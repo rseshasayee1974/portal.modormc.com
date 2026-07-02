@@ -13,9 +13,14 @@
         .inv-root {
             border: 1px solid #cbd5e1;
             width: 100%;
-            min-height: 297mm;
             display: flex;
             flex-direction: column;
+        }
+
+        @media screen {
+            .inv-root {
+                min-height: 297mm;
+            }
         }
 
         /* HEADER */

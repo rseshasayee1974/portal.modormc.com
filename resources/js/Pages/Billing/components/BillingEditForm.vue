@@ -290,11 +290,14 @@ const invoiceTypeOptions = [
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10 px-1">
                 <div class="space-y-4 pt-4">
                     <div class="field-group">
-                        <label class="text-[10px] uppercase font-black text-slate-400 tracking-widest block mb-2 px-1">Bill Remarks / Period Info</label>
+                        <label class="text-[10px] uppercase font-black text-slate-400 tracking-widest block px-1">Bill Remarks / Period Info</label>
                         <Textarea v-model="form.period" rows="4" placeholder="Billing period, reference notes..." class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500" />
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <BaseInput v-model="form.ref_title" label="Reference Title" placeholder="PO Ref, etc." />
+                        <div class="field-group">
+                            <label class="text-[10px] uppercase font-black text-slate-400 tracking-widest block px-1">Reference Title</label>
+                            {{ form.ref_title }}
+                        </div>
                     </div>
                     <div class="flex items-center gap-6">
                     <div class="flex flex-col">
