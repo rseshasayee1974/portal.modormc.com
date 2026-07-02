@@ -211,7 +211,7 @@ class SalesRegisterService
 
         $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        QueueReportExportJob::dispatch('sales', $filters, $statusKey, 'excel');
+        QueueReportExportJob::dispatchSync('sales_register', $filters, $statusKey, 'excel');
 
         return [
             'status'     => true,
@@ -231,7 +231,7 @@ class SalesRegisterService
 
         $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        QueueReportExportJob::dispatch('sales', $filters, $statusKey, 'pdf');
+        QueueReportExportJob::dispatchSync('sales_register', $filters, $statusKey, 'pdf');
 
         return [
             'status'     => true,

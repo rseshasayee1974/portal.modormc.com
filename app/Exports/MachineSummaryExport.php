@@ -47,7 +47,7 @@ class MachineSummaryExport
         // Write headers
         $colIndex = 1;
         foreach ($headers as $header) {
-            $sheet->setCellValueByColumnAndRow($colIndex, 1, $header);
+            $this->setCell($sheet, $colIndex, 1, $header);
             $colIndex++;
         }
 
@@ -75,18 +75,18 @@ class MachineSummaryExport
                 $alertString = implode('; ', $alertMsgs);
 
                 $colIdx = 1;
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['registration']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['vehicle_model']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['vehicle_type']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['make_year']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['capacity']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['owner']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['trips_count']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['total_qty']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['total_weight_tons']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['total_revenue']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['general_expenses']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $alertString);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['registration']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['vehicle_model']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['vehicle_type']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['make_year']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['capacity']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['owner']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['trips_count']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['total_qty']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['total_weight_tons']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['total_revenue']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['general_expenses']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $alertString);
 
                 // Accumulate totals
                 $totalTrips += $mapped['trips_count'];
@@ -100,12 +100,12 @@ class MachineSummaryExport
         });
 
         // Write Totals Row
-        $sheet->setCellValueByColumnAndRow(1, $rowNum, 'TOTAL');
-        $sheet->setCellValueByColumnAndRow(7, $rowNum, $totalTrips);
-        $sheet->setCellValueByColumnAndRow(8, $rowNum, $totalQty);
-        $sheet->setCellValueByColumnAndRow(9, $rowNum, $totalWeight);
-        $sheet->setCellValueByColumnAndRow(10, $rowNum, $totalRevenue);
-        $sheet->setCellValueByColumnAndRow(11, $rowNum, $totalExpenses);
+        $this->setCell($sheet, 1, $rowNum, 'TOTAL');
+        $this->setCell($sheet, 7, $rowNum, $totalTrips);
+        $this->setCell($sheet, 8, $rowNum, $totalQty);
+        $this->setCell($sheet, 9, $rowNum, $totalWeight);
+        $this->setCell($sheet, 10, $rowNum, $totalRevenue);
+        $this->setCell($sheet, 11, $rowNum, $totalExpenses);
 
         // Styling the total row
         $sheet->getStyle("A{$rowNum}:{$lastHeaderLetter}{$rowNum}")->getFont()->setBold(true);
@@ -119,6 +119,12 @@ class MachineSummaryExport
         // Save
         $writer = new Xlsx($spreadsheet);
         $writer->save($filePath);
-        $spreadsheet->disconnectCells();
+        $spreadsheet->disconnectWorksheets();
+    }
+
+    private function setCell($sheet, int $colIndex, int $rowIndex, $value): void
+    {
+        $cellAddress = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex) . $rowIndex;
+        $sheet->setCellValue($cellAddress, $value);
     }
 }

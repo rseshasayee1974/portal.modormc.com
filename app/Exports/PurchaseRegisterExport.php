@@ -25,17 +25,25 @@ class PurchaseRegisterExport
         $subQuery = (clone $this->query)->select('mm_purchase_order_items.id');
 
         $taxes = DB::table('mm_purchase_order_items')
-            ->join('mm_taxes', 'mm_purchase_order_items.tax_id', '=', 'mm_taxes.id')
+            ->leftJoin('mm_taxes', 'mm_purchase_order_items.tax_id', '=', 'mm_taxes.id')
             ->join('mm_purchase_orders', 'mm_purchase_order_items.order_id', '=', 'mm_purchase_orders.id')
             ->join('mm_patrons', 'mm_purchase_orders.vendor_id', '=', 'mm_patrons.id')
             ->whereIn('mm_purchase_order_items.id', $subQuery)
-            ->selectRaw('mm_taxes.tax_name, mm_taxes.tax_rate, mm_taxes.tax_group, mm_patrons.gstin')
+            ->whereNull('mm_purchase_order_items.deleted_at')
+            ->selectRaw('mm_taxes.tax_name, mm_taxes.tax_rate, mm_taxes.tax_group, mm_patrons.gstin, mm_purchase_order_items.price_tax, mm_purchase_order_items.price_subtotal')
             ->distinct()
             ->get();
 
         $keys = [];
         foreach ($taxes as $tax) {
-            $taxRate  = (float) $tax->tax_rate;
+            $taxRate  = $tax->tax_rate !== null ? (float) $tax->tax_rate : 0.0;
+            $priceTax = (float) $tax->price_tax;
+            $subtotal = (float) $tax->price_subtotal;
+
+            if ($taxRate <= 0 && $priceTax > 0 && $subtotal > 0) {
+                $taxRate = round(($priceTax / $subtotal) * 100, 2);
+            }
+
             $taxGroup = strtoupper(trim($tax->tax_group ?? ''));
             if ($taxRate <= 0) continue;
 
@@ -52,14 +60,30 @@ class PurchaseRegisterExport
                     $halfRate = round($taxRate / 2, 2);
                     $keys['CGST_' . number_format($halfRate, 2, '.', '')] = ['type' => 'CGST', 'rate' => $halfRate];
                     $keys['SGST_' . number_format($halfRate, 2, '.', '')] = ['type' => 'SGST', 'rate' => $halfRate];
+                } elseif (str_contains($taxGroup, 'CGST')) {
+                    $keys['CGST_' . number_format($taxRate, 2, '.', '')] = ['type' => 'CGST', 'rate' => $taxRate];
+                } elseif (str_contains($taxGroup, 'SGST') || str_contains($taxGroup, 'UTGST')) {
+                    $type = str_contains($taxGroup, 'UTGST') ? 'UTGST' : 'SGST';
+                    $keys[$type . '_' . number_format($taxRate, 2, '.', '')] = ['type' => $type, 'rate' => $taxRate];
+                } elseif (str_contains($taxGroup, 'IGST')) {
+                    $keys['IGST_' . number_format($taxRate, 2, '.', '')] = ['type' => 'IGST', 'rate' => $taxRate];
                 } else {
-                    $keys[$taxGroup . '_' . number_format($taxRate, 2, '.', '')] = ['type' => $taxGroup, 'rate' => $taxRate];
+                    $halfRate = round($taxRate / 2, 2);
+                    $keys['CGST_' . number_format($halfRate, 2, '.', '')] = ['type' => 'CGST', 'rate' => $halfRate];
+                    $keys['SGST_' . number_format($halfRate, 2, '.', '')] = ['type' => 'SGST', 'rate' => $halfRate];
                 }
             } else {
                 if ($taxGroup === 'GST' || empty($taxGroup)) {
                     $keys['IGST_' . number_format($taxRate, 2, '.', '')] = ['type' => 'IGST', 'rate' => $taxRate];
+                } elseif (str_contains($taxGroup, 'CGST')) {
+                    $keys['CGST_' . number_format($taxRate, 2, '.', '')] = ['type' => 'CGST', 'rate' => $taxRate];
+                } elseif (str_contains($taxGroup, 'SGST') || str_contains($taxGroup, 'UTGST')) {
+                    $type = str_contains($taxGroup, 'UTGST') ? 'UTGST' : 'SGST';
+                    $keys[$type . '_' . number_format($taxRate, 2, '.', '')] = ['type' => $type, 'rate' => $taxRate];
+                } elseif (str_contains($taxGroup, 'IGST')) {
+                    $keys['IGST_' . number_format($taxRate, 2, '.', '')] = ['type' => 'IGST', 'rate' => $taxRate];
                 } else {
-                    $keys[$taxGroup . '_' . number_format($taxRate, 2, '.', '')] = ['type' => $taxGroup, 'rate' => $taxRate];
+                    $keys['IGST_' . number_format($taxRate, 2, '.', '')] = ['type' => 'IGST', 'rate' => $taxRate];
                 }
             }
         }
@@ -132,7 +156,7 @@ class PurchaseRegisterExport
         // Write headers
         $colIndex = 1;
         foreach ($headers as $header) {
-            $sheet->setCellValueByColumnAndRow($colIndex, 1, $header);
+            $this->setCell($sheet, $colIndex, 1, $header);
             $colIndex++;
         }
 
@@ -153,7 +177,7 @@ class PurchaseRegisterExport
         $this->query->chunk(1000, function ($items) use (&$sheet, &$rowNum, $taxColumns, $plantState, &$totalQty, &$totalTaxable, &$totalCgst, &$totalSgst, &$totalIgst, &$totalNet, &$dynamicTotals) {
             foreach ($items as $item) {
                 $order = $item->order;
-                $vendor = $order??->vendor;
+                $vendor = $order?->vendor;
 
                 // Build rate-wise taxes for dynamic columns
                 $rowTaxes = [];
@@ -163,8 +187,12 @@ class PurchaseRegisterExport
 
                 $taxModel = $item->tax;
                 $taxRate  = $taxModel ? (float) $taxModel->tax_rate : 0.0;
-                $taxGroup = $taxModel ? strtoupper(trim($taxModel->tax_group ?? '')) : '';
                 $priceTax = (float) $item->price_tax;
+
+                if ($taxRate <= 0 && $priceTax > 0 && (float) $item->price_subtotal > 0) {
+                    $taxRate = round(($priceTax / (float) $item->price_subtotal) * 100, 2);
+                }
+                $taxGroup = $taxModel ? strtoupper(trim($taxModel->tax_group ?? '')) : '';
 
                 if ($taxRate > 0 && $priceTax > 0) {
                     $isIntra = true;
@@ -186,15 +214,43 @@ class PurchaseRegisterExport
 
                             $rowTaxes['CGST_' . number_format($halfRate, 2, '.', '')] = $halfAmount;
                             $rowTaxes['SGST_' . number_format($halfRate, 2, '.', '')] = $halfAmount;
+                        } elseif (str_contains($taxGroup, 'CGST')) {
+                            $cgst = $priceTax;
+                            $rowTaxes['CGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                        } elseif (str_contains($taxGroup, 'SGST') || str_contains($taxGroup, 'UTGST')) {
+                            $sgst = $priceTax;
+                            $type = str_contains($taxGroup, 'UTGST') ? 'UTGST' : 'SGST';
+                            $rowTaxes[$type . '_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                        } elseif (str_contains($taxGroup, 'IGST')) {
+                            $igst = $priceTax;
+                            $rowTaxes['IGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
                         } else {
-                            $rowTaxes[$taxGroup . '_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                            $halfRate = round($taxRate / 2, 2);
+                            $halfAmount = round($priceTax / 2, 2);
+
+                            $cgst = $halfAmount;
+                            $sgst = $halfAmount;
+
+                            $rowTaxes['CGST_' . number_format($halfRate, 2, '.', '')] = $halfAmount;
+                            $rowTaxes['SGST_' . number_format($halfRate, 2, '.', '')] = $halfAmount;
                         }
                     } else {
                         if ($taxGroup === 'GST' || empty($taxGroup)) {
                             $igst = $priceTax;
                             $rowTaxes['IGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                        } elseif (str_contains($taxGroup, 'CGST')) {
+                            $cgst = $priceTax;
+                            $rowTaxes['CGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                        } elseif (str_contains($taxGroup, 'SGST') || str_contains($taxGroup, 'UTGST')) {
+                            $sgst = $priceTax;
+                            $type = str_contains($taxGroup, 'UTGST') ? 'UTGST' : 'SGST';
+                            $rowTaxes[$type . '_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                        } elseif (str_contains($taxGroup, 'IGST')) {
+                            $igst = $priceTax;
+                            $rowTaxes['IGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
                         } else {
-                            $rowTaxes[$taxGroup . '_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                            $igst = $priceTax;
+                            $rowTaxes['IGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
                         }
                     }
                 }
@@ -203,26 +259,26 @@ class PurchaseRegisterExport
                 $billDate = $order ? ($order->billed_date ? $order->billed_date->toDateString() : ($order->date_order ? $order->date_order->toDateString() : '')) : '';
                 
                 $colIdx = 1;
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $billNo);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $billDate);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $vendor ? $vendor->legal_name : 'N/A');
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $vendor ? $vendor->gstin : '');
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $item->product ? $item->product->title : ($item->description ?? 'N/A'));
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$item->product_quantity);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$item->unit_price);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$item->price_subtotal);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$cgst);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$sgst);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$igst);
+                $this->setCell($sheet, $colIdx++, $rowNum, $billNo);
+                $this->setCell($sheet, $colIdx++, $rowNum, $billDate);
+                $this->setCell($sheet, $colIdx++, $rowNum, $vendor ? $vendor->legal_name : 'N/A');
+                $this->setCell($sheet, $colIdx++, $rowNum, $vendor ? $vendor->gstin : '');
+                $this->setCell($sheet, $colIdx++, $rowNum, $item->product ? $item->product->title : ($item->description ?? 'N/A'));
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$item->product_quantity);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$item->unit_price);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$item->price_subtotal);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$cgst);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$sgst);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$igst);
 
                 // Write dynamic columns
                 foreach ($taxColumns as $col) {
                     $val = (float)($rowTaxes[$col['key']] ?? 0);
-                    $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $val);
+                    $this->setCell($sheet, $colIdx++, $rowNum, $val);
                     $dynamicTotals[$col['key']] = ($dynamicTotals[$col['key']] ?? 0) + $val;
                 }
 
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)$item->price_total);
+                $this->setCell($sheet, $colIdx++, $rowNum, (float)$item->price_total);
 
                 // Accumulate totals
                 $totalQty += (float)$item->product_quantity;
@@ -238,19 +294,19 @@ class PurchaseRegisterExport
 
         // Write Totals Row
         $colIdx = 1;
-        $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, 'TOTAL');
-        $sheet->setCellValueByColumnAndRow(6, $rowNum, $totalQty);
-        $sheet->setCellValueByColumnAndRow(8, $rowNum, $totalTaxable);
-        $sheet->setCellValueByColumnAndRow(9, $rowNum, $totalCgst);
-        $sheet->setCellValueByColumnAndRow(10, $rowNum, $totalSgst);
-        $sheet->setCellValueByColumnAndRow(11, $rowNum, $totalIgst);
+        $this->setCell($sheet, $colIdx++, $rowNum, 'TOTAL');
+        $this->setCell($sheet, 6, $rowNum, $totalQty);
+        $this->setCell($sheet, 8, $rowNum, $totalTaxable);
+        $this->setCell($sheet, 9, $rowNum, $totalCgst);
+        $this->setCell($sheet, 10, $rowNum, $totalSgst);
+        $this->setCell($sheet, 11, $rowNum, $totalIgst);
 
         $colIdx = 12;
         foreach ($taxColumns as $col) {
-            $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, (float)($dynamicTotals[$col['key']] ?? 0));
+            $this->setCell($sheet, $colIdx++, $rowNum, (float)($dynamicTotals[$col['key']] ?? 0));
         }
 
-        $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $totalNet);
+        $this->setCell($sheet, $colIdx++, $rowNum, $totalNet);
 
         // Styling the total row
         $sheet->getStyle("A{$rowNum}:{$lastHeaderLetter}{$rowNum}")->getFont()->setBold(true);
@@ -264,6 +320,13 @@ class PurchaseRegisterExport
         // Save
         $writer = new Xlsx($spreadsheet);
         $writer->save($filePath);
-        $spreadsheet->disconnectCells();
+        $spreadsheet->disconnectWorksheets();
+    }
+
+    private function setCell($sheet, int $colIndex, int $rowIndex, $value): void
+    {
+        $cellAddress = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex) . $rowIndex;
+        $sheet->setCellValue($cellAddress, $value);
     }
 }
+

@@ -41,7 +41,7 @@ class EsiPfChallanReportService implements ReportServiceInterface
             ->whereHas('payrollPeriod', function ($q) use ($start, $end) {
                 $q->whereBetween('from_date', [$start, $end])
                   ->orWhereBetween('to_date', [$start, $end])
-                  ->or(function($sq) use ($start, $end) {
+                  ->orWhere(function($sq) use ($start, $end) {
                       $sq->where('from_date', '<=', $start)
                          ->where('to_date', '>=', $end);
                   });

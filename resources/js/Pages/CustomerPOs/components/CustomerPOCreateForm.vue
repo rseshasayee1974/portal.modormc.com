@@ -216,6 +216,7 @@ const submit = () => {
 <!-- Form Body -->
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5 p-5">
 
+<<<<<<< HEAD
     <!-- PO Prefix -->
     <div>
         <BaseInput
@@ -225,6 +226,9 @@ const submit = () => {
             :error="form.errors.prefix"
         />
     </div>
+=======
+   
+>>>>>>> 33d737f1d3cca4718d4bc2b852c3c9a78f726555
 
     <!-- PO Number / Ref -->
     <div>
@@ -256,6 +260,19 @@ const submit = () => {
         >
             Locked to quotation customer
         </p>
+    </div>
+     <!-- Sales Executive -->
+    <div>
+        <BaseSelect
+            v-model="form.sales_executive_id"
+            :options="salesExecutiveOptions"
+            optionLabel="label"
+            optionValue="value"
+            filter
+            label="Sales Executive"
+            placeholder="Select Sales Executive"
+            :error="form.errors.sales_executive_id"
+        />
     </div>
 
     <!-- Unloading Site -->

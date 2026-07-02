@@ -12,7 +12,7 @@ use App\Services\Reports\PurchaseRegisterService;
 use App\Services\Reports\ReportServiceFactory;
 use Illuminate\Support\Facades\Cache;
 use App\Services\Reports\ExcelExportService;
-
+use Illuminate\Validation\Rule;
 
 class ReportController extends Controller
 {
@@ -26,7 +26,7 @@ class ReportController extends Controller
             'ledgers' => $ledgers,
             'patrons' => $patrons,
             'filters' => [
-                'start_date' => $request->input('start_date', now()->startOfMonth()->toDateString()),
+                'start_date' => $request->input('start_date', now()->subDays(30)->toDateString()),
                 'end_date' => $request->input('end_date', now()->toDateString()),
             ]
         ]);
@@ -47,9 +47,13 @@ class ReportController extends Controller
             return response()->json(['error' => 'Invalid report type'], 400);
         }
 
+        // Parse and format dates to clean YYYY-MM-DD strings to ensure compatibility with all query formats
+        $startFormatted = $start ? \Carbon\Carbon::parse($start)->toDateString() : now()->subDays(30)->toDateString();
+        $endFormatted   = $end ? \Carbon\Carbon::parse($end)->toDateString() : now()->toDateString();
+
         $params = [
-            'start'            => $start,
-            'end'              => $end,
+            'start'            => $startFormatted,
+            'end'              => $endFormatted,
             'id'               => $id,
             'patron_id'        => $patronId,
             'voucher_type'     => strtoupper($type),
@@ -62,7 +66,11 @@ class ReportController extends Controller
             $statusKey = 'report_export_' . \Illuminate\Support\Str::uuid();
             Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
 
-            \App\Jobs\QueueReportExportJob::dispatch($type, $params, $statusKey, $export);
+            try {
+                \App\Jobs\QueueReportExportJob::dispatchSync($type, $params, $statusKey, $export);
+            } catch (\Exception $e) {
+                // Job already updated cache with 'failed' status; return the status_key so frontend can poll and see the error
+            }
 
             return response()->json([
                 'status'     => true,
@@ -126,8 +134,8 @@ class ReportController extends Controller
             ];
         } elseif (str_contains(strtolower($type), 'production_batch')) {
             $extraParams = [
-                'headers'    => ['Start Date', 'Batch No', 'Work Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'],
-                'fields'     => ['date', 'batch_no', 'work_order', 'mix_design', 'batch_size', 'operator', 'status'],
+                'headers'    => ['Start Date', 'Batch No', 'Sales Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'],
+                'fields'     => ['date', 'batch_no', 'sales_order', 'mix_design', 'batch_size', 'operator', 'status'],
                 'alignments' => ['center', 'center', 'center', 'left', 'right', 'left', 'center'],
                 'totals'     => ['batch_size' => $data['total_batch_size'] ?? 0]
             ];
@@ -334,7 +342,8 @@ class ReportController extends Controller
             'report_type'      => 'required|string',
             'report_params'    => 'nullable|array',
             'email_recipients' => 'required|string',
-            'frequency'        => 'required|string|in:daily,weekly,monthly',
+            // 'frequency'        => 'required|string|in:daily,weekly,monthly',
+            'frequency'        => ['required', 'string', Rule::in(['daily','weekly','monthly','DAILY','WEEKLY','MONTHLY','Daily','Weekly','Monthly'])],
             'schedule_time'    => 'required|string',
         ]);
 

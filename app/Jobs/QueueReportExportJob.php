@@ -67,10 +67,10 @@ class QueueReportExportJob implements ShouldQueue
                 session(['active_plant_id' => $plantId]);
             }
 
-            if ($this->type === 'sales') {
+            if ($this->type === 'sales_register') {
                 $service = app(\App\Services\Reports\SalesRegisterService::class);
                 $service->generateAndSaveReport($this->format, $this->filters, $filePath);
-            } elseif ($this->type === 'purchase') {
+            } elseif ($this->type === 'purchase_register') {
                 $service = app(\App\Services\Reports\PurchaseRegisterService::class);
                 $service->generateAndSaveReport($this->format, $this->filters, $filePath);
             } elseif ($this->type === 'machine_summary') {
@@ -101,7 +101,7 @@ class QueueReportExportJob implements ShouldQueue
                     $spreadsheet = $excelService->generateExcelReport($this->type, $params['start'], $params['end'], $data);
                     $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
                     $writer->save($filePath);
-                    $spreadsheet->disconnectCells();
+                    $spreadsheet->disconnectWorksheets();
                 } else {
                     $targetName = $service->targetName($params);
                     $this->generateAndSaveUnifiedPdf($this->type, $targetName, $params, $data, $filePath);
@@ -191,8 +191,8 @@ class QueueReportExportJob implements ShouldQueue
             ];
         } elseif (str_contains(strtolower($type), 'production_batch')) {
             $extraParams = [
-                'headers'    => ['Start Date', 'Batch No', 'Work Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'],
-                'fields'     => ['date', 'batch_no', 'work_order', 'mix_design', 'batch_size', 'operator', 'status'],
+                'headers'    => ['Start Date', 'Batch No', 'Sales Order', 'Mix Design', 'Batch Size (m³)', 'Operator', 'Status'],
+                'fields'     => ['date', 'batch_no', 'sales_order', 'mix_design', 'batch_size', 'operator', 'status'],
                 'alignments' => ['center', 'center', 'center', 'left', 'right', 'left', 'center'],
                 'totals'     => ['batch_size' => $data['total_batch_size'] ?? 0]
             ];
@@ -222,6 +222,11 @@ class QueueReportExportJob implements ShouldQueue
             ];
         }
 
+        $orientation = 'portrait';
+        if (in_array(strtoupper($type), ['SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B'])) {
+            $orientation = 'landscape';
+        }
+
         $pdfData = array_merge([
             'type'          => strtoupper($type),
             'target_name'   => $targetName,
@@ -229,10 +234,11 @@ class QueueReportExportJob implements ShouldQueue
             'end'           => \Carbon\Carbon::parse($params['end'])->format('d-m-Y'),
             'plant'         => $plant,
             'patron'        => $patron,
-            'consolidation' => $params['consolidation'] ?? 'po'
+            'consolidation' => $params['consolidation'] ?? 'po',
+            'landscape'     => ($orientation === 'landscape')
         ], $data, $extraParams);
 
-        $pdf = Pdf::loadView($view, $pdfData)->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView($view, $pdfData)->setPaper('a4', $orientation);
         $pdf->save($filePath);
     }
 }

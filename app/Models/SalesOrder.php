@@ -54,6 +54,7 @@ class SalesOrder extends Model
         'prefix',
         'order_no',
         'plant_id',
+        'sales_executive_id',
         'customer_id',
         'site_id',
         'mix_design_id',
@@ -74,6 +75,7 @@ class SalesOrder extends Model
         'scheduled_end' => 'datetime',
         'total_qty' => 'decimal:3',
         'produced_qty' => 'decimal:3',
+        'sales_executive_id' => 'integer',
     ];
 
     public const STATUS_SCHEDULED = 1;
@@ -84,6 +86,11 @@ class SalesOrder extends Model
     public function plant()
     {
         return $this->belongsTo(Plant::class, 'plant_id');
+    }
+
+    public function salesExecutive()
+    {
+        return $this->belongsTo(Personnel::class, 'sales_executive_id');
     }
 
     public function customer()

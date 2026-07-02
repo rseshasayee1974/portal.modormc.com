@@ -45,7 +45,7 @@ class VehiclePLExport
         // Write headers
         $colIndex = 1;
         foreach ($headers as $header) {
-            $sheet->setCellValueByColumnAndRow($colIndex, 1, $header);
+            $this->setCell($sheet, $colIndex, 1, $header);
             $colIndex++;
         }
 
@@ -68,16 +68,16 @@ class VehiclePLExport
                 $mapped = $this->service->mapVehiclePLRow($item);
 
                 $colIdx = 1;
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['registration']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['vehicle_model']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['trip_revenue']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['trip_cost']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['fuel_expenses']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['maintenance_expenses']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['other_expenses']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['total_cost']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['net_profit']);
-                $sheet->setCellValueByColumnAndRow($colIdx++, $rowNum, $mapped['margin_pct'] . '%');
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['registration']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['vehicle_model']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['trip_revenue']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['trip_cost']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['fuel_expenses']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['maintenance_expenses']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['other_expenses']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['total_cost']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['net_profit']);
+                $this->setCell($sheet, $colIdx++, $rowNum, $mapped['margin_pct'] . '%');
 
                 // Accumulate totals
                 $totalRevenue += $mapped['trip_revenue'];
@@ -96,15 +96,15 @@ class VehiclePLExport
         $totalMarginPct = $totalRevenue > 0 ? ($totalProfit / $totalRevenue) * 100.0 : 0.0;
 
         // Write Totals Row
-        $sheet->setCellValueByColumnAndRow(1, $rowNum, 'TOTAL');
-        $sheet->setCellValueByColumnAndRow(3, $rowNum, $totalRevenue);
-        $sheet->setCellValueByColumnAndRow(4, $rowNum, $totalTripCost);
-        $sheet->setCellValueByColumnAndRow(5, $rowNum, $totalFuel);
-        $sheet->setCellValueByColumnAndRow(6, $rowNum, $totalMaint);
-        $sheet->setCellValueByColumnAndRow(7, $rowNum, $totalOther);
-        $sheet->setCellValueByColumnAndRow(8, $rowNum, $totalCost);
-        $sheet->setCellValueByColumnAndRow(9, $rowNum, $totalProfit);
-        $sheet->setCellValueByColumnAndRow(10, $rowNum, round($totalMarginPct, 2) . '%');
+        $this->setCell($sheet, 1, $rowNum, 'TOTAL');
+        $this->setCell($sheet, 3, $rowNum, $totalRevenue);
+        $this->setCell($sheet, 4, $rowNum, $totalTripCost);
+        $this->setCell($sheet, 5, $rowNum, $totalFuel);
+        $this->setCell($sheet, 6, $rowNum, $totalMaint);
+        $this->setCell($sheet, 7, $rowNum, $totalOther);
+        $this->setCell($sheet, 8, $rowNum, $totalCost);
+        $this->setCell($sheet, 9, $rowNum, $totalProfit);
+        $this->setCell($sheet, 10, $rowNum, round($totalMarginPct, 2) . '%');
 
         // Styling the total row
         $sheet->getStyle("A{$rowNum}:{$lastHeaderLetter}{$rowNum}")->getFont()->setBold(true);
@@ -118,6 +118,13 @@ class VehiclePLExport
         // Save
         $writer = new Xlsx($spreadsheet);
         $writer->save($filePath);
-        $spreadsheet->disconnectCells();
+        $spreadsheet->disconnectWorksheets();
     }
+
+    private function setCell($sheet, int $colIndex, int $rowIndex, $value): void
+    {
+        $cellAddress = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colIndex) . $rowIndex;
+        $sheet->setCellValue($cellAddress, $value);
+    }
+}
 }

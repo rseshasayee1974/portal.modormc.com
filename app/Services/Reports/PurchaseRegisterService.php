@@ -129,25 +129,33 @@ class PurchaseRegisterService
         // Dynamic tax calculation
         $taxModel = $item->tax;
         $taxRate  = $taxModel ? (float) $taxModel->tax_rate : 0.0;
-        $taxGroup = $taxModel ? strtoupper(trim($taxModel->tax_group ?? '')) : '';
         $priceTax = (float) $item->price_tax;
+
+        if ($taxRate <= 0 && $priceTax > 0 && (float) $item->price_subtotal > 0) {
+            $taxRate = round(($priceTax / (float) $item->price_subtotal) * 100, 2);
+        }
+        $taxGroup = $taxModel ? strtoupper(trim($taxModel->tax_group ?? '')) : '';
 
         if ($taxRate > 0 && $priceTax > 0) {
             // Determine Intra vs Inter
             $isIntra = true; // Default
             $plantGstin = $plant ? trim($plant->gstin ?? '') : '';
-            $vendorGstin = $vendor ? trim($vendor->gstin ?? '') : '';
-
-            if (strlen($plantGstin) >= 2 && strlen($vendorGstin) >= 2) {
-                $plantState = substr($plantGstin, 0, 2);
-                $vendorState = substr($vendorGstin, 0, 2);
-                if ($plantState !== $vendorState) {
-                    $isIntra = false;
+            if (empty($plantGstin)) {
+                $plantId = session('active_plant_id');
+                if ($plantId) {
+                    $plantGstin = \Illuminate\Support\Facades\DB::table('mm_plants')->where('id', $plantId)->value('gstin') ?? '';
                 }
+            }
+            $plantState = strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
+
+            $vendorGstin = $vendor ? trim($vendor->gstin ?? '') : '';
+            $vendorState = strlen($vendorGstin) >= 2 ? substr($vendorGstin, 0, 2) : '';
+
+            if ($vendorState !== '' && $plantState !== $vendorState) {
+                $isIntra = false;
             }
 
             if ($isIntra) {
-                // Split tax equally into CGST & SGST (if group is GST or similar)
                 if ($taxGroup === 'GST' || empty($taxGroup)) {
                     $halfRate = round($taxRate / 2, 2);
                     $halfAmount = round($priceTax / 2, 2);
@@ -157,16 +165,43 @@ class PurchaseRegisterService
 
                     $taxes['CGST_' . number_format($halfRate, 2, '.', '')] = $halfAmount;
                     $taxes['SGST_' . number_format($halfRate, 2, '.', '')] = $halfAmount;
-                } else {
-                    $taxes[$taxGroup . '_' . number_format($taxRate, 2, '.', '')] = $priceTax;
-                }
-            } else {
-                // Inter-state: IGST
-                if ($taxGroup === 'GST' || empty($taxGroup)) {
+                } elseif (str_contains($taxGroup, 'CGST')) {
+                    $cgst = $priceTax;
+                    $taxes['CGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                } elseif (str_contains($taxGroup, 'SGST') || str_contains($taxGroup, 'UTGST')) {
+                    $sgst = $priceTax;
+                    $type = str_contains($taxGroup, 'UTGST') ? 'UTGST' : 'SGST';
+                    $taxes[$type . '_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                } elseif (str_contains($taxGroup, 'IGST')) {
                     $igst = $priceTax;
                     $taxes['IGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
                 } else {
-                    $taxes[$taxGroup . '_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                    $halfRate = round($taxRate / 2, 2);
+                    $halfAmount = round($priceTax / 2, 2);
+
+                    $cgst = $halfAmount;
+                    $sgst = $halfAmount;
+
+                    $taxes['CGST_' . number_format($halfRate, 2, '.', '')] = $halfAmount;
+                    $taxes['SGST_' . number_format($halfRate, 2, '.', '')] = $halfAmount;
+                }
+            } else {
+                if ($taxGroup === 'GST' || empty($taxGroup)) {
+                    $igst = $priceTax;
+                    $taxes['IGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                } elseif (str_contains($taxGroup, 'CGST')) {
+                    $cgst = $priceTax;
+                    $taxes['CGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                } elseif (str_contains($taxGroup, 'SGST') || str_contains($taxGroup, 'UTGST')) {
+                    $sgst = $priceTax;
+                    $type = str_contains($taxGroup, 'UTGST') ? 'UTGST' : 'SGST';
+                    $taxes[$type . '_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                } elseif (str_contains($taxGroup, 'IGST')) {
+                    $igst = $priceTax;
+                    $taxes['IGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
+                } else {
+                    $igst = $priceTax;
+                    $taxes['IGST_' . number_format($taxRate, 2, '.', '')] = $priceTax;
                 }
             }
         }
@@ -245,7 +280,7 @@ class PurchaseRegisterService
 
         $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        QueueReportExportJob::dispatch('purchase', $filters, $statusKey, 'excel');
+        QueueReportExportJob::dispatchSync('purchase_register', $filters, $statusKey, 'excel');
 
         return [
             'status'     => true,
@@ -269,7 +304,7 @@ class PurchaseRegisterService
 
         $filters['plant_id'] = $filters['plant_id'] ?? session('active_plant_id');
 
-        QueueReportExportJob::dispatch('purchase', $filters, $statusKey, 'pdf');
+        QueueReportExportJob::dispatchSync('purchase_register', $filters, $statusKey, 'pdf');
 
         return [
             'status'     => true,

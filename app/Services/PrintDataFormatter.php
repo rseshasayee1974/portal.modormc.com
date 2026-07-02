@@ -242,8 +242,34 @@ class PrintDataFormatter
             'pin'     => $plAddr->zipcode ?? '',
         ];
 
+        $plantGstin = $order->plant->gstin ?? '';
+        $vendorGstin = $order->vendor->gstin ?? '';
+        $plantState = strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
+        $vendorState = strlen($vendorGstin) >= 2 ? substr($vendorGstin, 0, 2) : '';
+        $isIntra = true;
+        if (strlen($vendorState) >= 2 && $vendorState !== $plantState) {
+            $isIntra = false;
+        }
+
         // Items
-        $data['items'] = $order->items->map(function ($item, $idx) {
+        $data['items'] = $order->items->map(function ($item, $idx) use ($isIntra) {
+            $taxModel = $item->tax;
+            $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
+            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : '';
+            $taxName  = $taxModel ? ($taxModel->tax_name ?? '') : '';
+            $priceTax = (float)$item->price_tax;
+
+            if ($taxRate <= 0 && $priceTax > 0 && (float)$item->price_subtotal > 0) {
+                $taxRate = round(($priceTax / (float)$item->price_subtotal) * 100, 2);
+                if ($isIntra) {
+                    $taxGroup = 'GST';
+                    $taxName  = 'GST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
+                } else {
+                    $taxGroup = 'IGST';
+                    $taxName  = 'IGST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
+                }
+            }
+
             return [
                 'no'           => $idx + 1,
                 'name'         => $item->product->title,
@@ -253,10 +279,10 @@ class PrintDataFormatter
                 'received_qty' => (float)($item->received_quantity ?? 0),
                 'unit'         => $item->uom->unit_code ?? '',
                 'unit_price'   => (float)$item->unit_price,
-                'tax_name'     => $item->tax?->tax_name ?? '-',
-                'tax_rate'     => (float)($item->tax?->tax_rate ?? 0),
-                'tax_group'    => $item->tax?->tax_group ?? '',
-                'tax_amount'   => (float)($item->price_tax ?? 0),
+                'tax_name'     => $taxName ?: '-',
+                'tax_rate'     => $taxRate,
+                'tax_group'    => $taxGroup,
+                'tax_amount'   => $priceTax,
                 'total'        => (float)$item->price_total,
             ];
         })->toArray();
@@ -264,13 +290,28 @@ class PrintDataFormatter
         // Tax lines summary
         $taxLines = [];
         foreach ($order->items as $item) {
-            if (!$item->tax) continue;
-            $g = $item->tax->tax_group;
+            $taxModel = $item->tax;
+            $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
+            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : '';
+            $priceTax = (float)$item->price_tax;
+
+            if ($priceTax <= 0) continue;
+
+            if ($taxRate <= 0 && (float)$item->price_subtotal > 0) {
+                $taxRate = round(($priceTax / (float)$item->price_subtotal) * 100, 2);
+                $taxGroup = $isIntra ? 'GST' : 'IGST';
+            }
+
+            if (empty($taxGroup)) {
+                $taxGroup = $isIntra ? 'GST' : 'IGST';
+            }
+
+            $g = strtoupper(trim($taxGroup));
             if ($g === 'GST') {
-                $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($item->price_tax / 2);
-                $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($item->price_tax / 2);
+                $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($priceTax / 2);
+                $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($priceTax / 2);
             } else {
-                $taxLines[$g] = ($taxLines[$g] ?? 0) + $item->price_tax;
+                $taxLines[$g] = ($taxLines[$g] ?? 0) + $priceTax;
             }
         }
 
@@ -361,8 +402,34 @@ class PrintDataFormatter
         // Ship To
         $data['ship_to'] = $data['bill_to'];
 
+        $plantGstin = $invoice->plant->gstin ?? '';
+        $partnerGstin = $invoice->partner->gstin ?? '';
+        $plantState = strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
+        $partnerState = strlen($partnerGstin) >= 2 ? substr($partnerGstin, 0, 2) : '';
+        $isIntra = true;
+        if (strlen($partnerState) >= 2 && $partnerState !== $plantState) {
+            $isIntra = false;
+        }
+
         // Items
-        $data['items'] = $invoice->items->map(function ($item, $idx) {
+        $data['items'] = $invoice->items->map(function ($item, $idx) use ($isIntra) {
+            $taxModel = $item->tax;
+            $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
+            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : '';
+            $taxName  = $taxModel ? ($taxModel->tax_name ?? '') : '';
+            $priceTax = (float)$item->line_tax_amount;
+
+            if ($taxRate <= 0 && $priceTax > 0 && (float)$item->subtotal > 0) {
+                $taxRate = round(($priceTax / (float)$item->subtotal) * 100, 2);
+                if ($isIntra) {
+                    $taxGroup = 'GST';
+                    $taxName  = 'GST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
+                } else {
+                    $taxGroup = 'IGST';
+                    $taxName  = 'IGST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
+                }
+            }
+
             return [
                 'no'           => $idx + 1,
                 'name'         => $item->item_name,
@@ -371,10 +438,10 @@ class PrintDataFormatter
                 'qty'          => (float)$item->quantity,
                 'unit'         => $item->uom->unit_code ?? 'm³',
                 'unit_price'   => (float)$item->price_unit,
-                'tax_name'     => $item->tax?->tax_name ?? '-',
-                'tax_rate'     => (float)($item->tax?->tax_rate ?? 0),
-                'tax_group'    => $item->tax?->tax_group ?? '',
-                'tax_amount'   => (float)($item->line_tax_amount ?? 0),
+                'tax_name'     => $taxName ?: '-',
+                'tax_rate'     => $taxRate,
+                'tax_group'    => $taxGroup,
+                'tax_amount'   => $priceTax,
                 'total'        => (float)($item->line_total ?? ($item->quantity * $item->price_unit)),
             ];
         })->toArray();
@@ -455,7 +522,17 @@ class PrintDataFormatter
             'pin'     => $quotation->site->pincode ?? $data['bill_to']['pin'],
         ];
 
+        $plantGstin = $quotation->plant->gstin ?? '';
+        $patronGstin = $quotation->patron->gstin ?? '';
+        $plantState = strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
+        $patronState = strlen($patronGstin) >= 2 ? substr($patronGstin, 0, 2) : '';
+        $isIntra = true;
+        if (strlen($patronState) >= 2 && $patronState !== $plantState) {
+            $isIntra = false;
+        }
+
         // Items
+<<<<<<< HEAD
         $data['items'] = $quotation->items->map(function ($item, $idx) {
             $taxRate = $item->tax?->tax_rate ?? 0;
             $untaxedAmount = (float)($item->untaxed_amount ?? ($item->quantity * $item->rate));
@@ -464,6 +541,25 @@ class PrintDataFormatter
             $taxAmount = (float)$item->tax_amount;
             if ($taxAmount <= 0 && $taxRate > 0) {
                 $taxAmount = ($untaxedAmount * $taxRate) / 100;
+=======
+        $data['items'] = $quotation->items->map(function ($item, $idx) use ($isIntra) {
+            $taxModel = $item->tax;
+            $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
+            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : '';
+            $taxName  = $taxModel ? ($taxModel->tax_name ?? '') : '';
+            $priceTax = (float)$item->tax_amount;
+            $subtotal = (float)($item->quantity * $item->rate);
+
+            if ($taxRate <= 0 && $priceTax > 0 && $subtotal > 0) {
+                $taxRate = round(($priceTax / $subtotal) * 100, 2);
+                if ($isIntra) {
+                    $taxGroup = 'GST';
+                    $taxName  = 'GST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
+                } else {
+                    $taxGroup = 'IGST';
+                    $taxName  = 'IGST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
+                }
+>>>>>>> 33d737f1d3cca4718d4bc2b852c3c9a78f726555
             }
 
             return [
@@ -475,11 +571,19 @@ class PrintDataFormatter
                 'received_qty' => 0,
                 'unit'         => $item->mixDesign->unit->unit_code ?? '',
                 'unit_price'   => (float)$item->rate,
+<<<<<<< HEAD
                 'tax_name'     => $item->tax?->tax_name ?? '-',
                 'tax_rate'     => (float)$taxRate,
                 'tax_group'    => $item->tax?->tax_group ?? '',
                 'tax_amount'   => (float)$taxAmount,
                 'total'        => (float)($item->amount_total ?? ($untaxedAmount + $taxAmount)),
+=======
+                'tax_name'     => $taxName ?: '-',
+                'tax_rate'     => $taxRate,
+                'tax_group'    => $taxGroup,
+                'tax_amount'   => $priceTax,
+                'total'        => (float)($item->amount_total ?? ($item->quantity * $item->rate)),
+>>>>>>> 33d737f1d3cca4718d4bc2b852c3c9a78f726555
             ];
         })->toArray();
 

@@ -16,6 +16,7 @@ use App\Models\PaymentAllocation;
 use App\Models\Invoice;
 use App\Models\PaymentAudit;
 use App\Models\PaymentTransactionAudit;
+use Illuminate\Validation\Rule;
 
 class PaymentController extends Controller
 {
@@ -61,13 +62,15 @@ class PaymentController extends Controller
             ],
             'excess_amount'     => 'nullable|numeric|min:0',
             'use_excess_amount' => 'nullable|boolean',
-            'transaction_type'  => 'required|in:payment,receipt',
+            // 'transaction_type'  => 'required|in:payment,receipt',
+            'transaction_type'  => ['required',Rule::in(['payment','receipt','Payment','Receipt'])],
             'transaction_mode'  => 'nullable|string',
             'reconcile_opening_balance' => 'nullable|boolean',
             'batch_deposit'     => 'nullable|boolean',
             'description'       => 'nullable|string',
             'reference'         => 'nullable|string|max:100',
-            'status'            => 'required|in:pending,paid,failed',
+            // 'status'            => 'required|in:pending,paid,failed',
+            'status'            => ['required',Rule::in(['pending','paid','failed'])],
             'allocations'       => 'nullable|array',
             'allocations.*.invoice_id' => 'required|exists:mm_invoices,id',
             'allocations.*.amount'     => 'required|numeric|min:0.01',

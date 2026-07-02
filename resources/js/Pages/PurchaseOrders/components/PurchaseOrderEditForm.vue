@@ -386,8 +386,8 @@ const handleDeleteBill = () => {
                     v-if="form.state !== 'cancel' && Number(form.invoice_status) !== 1"
                     label="Generate Purchase Bill" 
                     icon="pi pi-file-export" 
-                    severity="info" 
-                    class="!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700 !text-xs !font-bold tracking-widest uppercase shadow-md shadow-indigo-200"
+                    severity="primary" 
+                    variant="filled"
                     size="small" 
                     @click="handleGenerateBill" 
                 />
@@ -528,7 +528,7 @@ const handleDeleteBill = () => {
         <template #footer>
             <div class="flex justify-end gap-3 pt-4 border-t border-slate-50">
                 <BaseButton label="Cancel" variant="text" severity="secondary" @click="showBillDialog = false" class="!text-xs font-bold uppercase tracking-widest" />
-                <BaseButton label="Generate Bill" severity="info" class="!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-700 !px-6 !text-xs font-bold uppercase tracking-widest shadow-lg shadow-indigo-200" @click="executeBillGeneration" />
+                <BaseButton label="Generate Bill" variant="filled" severity="primary" @click="executeBillGeneration" />
             </div>
         </template>
     </Dialog>

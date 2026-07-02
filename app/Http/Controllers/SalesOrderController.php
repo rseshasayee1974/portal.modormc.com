@@ -28,6 +28,7 @@ class SalesOrderController extends Controller
 
         return Inertia::render(
             'SalesOrders/Index',
+            
             $this->indexDataFactory->build($activePlantId !== null ? (int) $activePlantId : null)
         );
     }
