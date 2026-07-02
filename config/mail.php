@@ -54,7 +54,7 @@ return [
             'transport' => 'zeptomail_api',
             'token' => env('ZEPTOMAIL_API_TOKEN'),
         ],
-
+ 
         'ses' => [
             'transport' => 'ses',
         ],
