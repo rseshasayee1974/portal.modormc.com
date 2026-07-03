@@ -56,7 +56,7 @@ class BatchCompletedNotification extends Notification implements ShouldQueue
             ->subject('Batching Complete - Batch #' . $batch->batch_no)
             ->greeting('Industrial Ops Update')
             ->line('The batching process for Order **#' . ($batch->workOrder->order_no ?? 'N/A') . '** has been completed successfully.')
-            ->line('<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0;">
+            ->line(new \Illuminate\Support\HtmlString('<div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0;">
                 <h4 style="margin: 0 0 12px 0; color: #4f46e5; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Production Summary</h4>
                 <table style="width: 100%; border-collapse: collapse; font-size: 14px; font-family: sans-serif;">
                     <tr style="border-bottom: 1px solid #f1f5f9;">
@@ -72,7 +72,7 @@ class BatchCompletedNotification extends Notification implements ShouldQueue
                         <td style="padding: 10px 0; color: #4f46e5; font-weight: 800; font-size: 15px;">' . $batch->batch_size . ' m³</td>
                     </tr>
                 </table>
-            </div>')
+            </div>'))
             ->action('View Online Report', route('batches.report', \Illuminate\Support\Facades\Crypt::encryptString($batch->id)))
             ->attachData($pdf->output(), $filename, [
                 'mime' => 'application/pdf',

@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import type { Ref } from 'vue';
 
-type TokenType = 'batching' | 'dispatch' | 'delivery';
+type TokenType = 'batching' | 'dispatch' | 'delivery' | 'gate-pass';
 type CloseReason = 'print' | 'close' | 'manual';
 
 interface UseBatchTokenPreviewOptions {
@@ -48,12 +48,16 @@ export function useBatchTokenPreview({
             previewWidth.value = '380px';
             previewIframeWidth.value = '340px';
             tokenPreviewUrl.value = route('batches.dispatch-token', id);
-            
         } else if (type === 'delivery') {
             previewTitle.value = 'Delivery Token Preview (A4)';
             previewWidth.value = '850px';
             previewIframeWidth.value = '810px';
             tokenPreviewUrl.value = route('batches.delivery-token', id);
+        } else if (type === 'gate-pass') {
+            previewTitle.value = 'Gate Pass Preview';
+            previewWidth.value = '380px';
+            previewIframeWidth.value = '340px';
+            tokenPreviewUrl.value = route('batches.gate-pass', id);
         } else {
             previewTitle.value = 'Batching Token Preview';
             previewWidth.value = '380px';
@@ -138,7 +142,11 @@ export function useBatchTokenPreview({
 
         tokenPreviewUrl.value = e.detail.url;
 
-        if (e.detail.url.includes('delivery-token')) {
+        if (e.detail.url.includes('gate-pass')) {
+            previewTitle.value = 'Gate Pass Preview';
+            previewWidth.value = '380px';
+            previewIframeWidth.value = '340px';
+        } else if (e.detail.url.includes('delivery-token')) {
             previewTitle.value = 'Delivery Token Preview (A4)';
             previewWidth.value = '850px';
             previewIframeWidth.value = '810px';

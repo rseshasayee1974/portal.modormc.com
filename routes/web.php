@@ -11,17 +11,15 @@ use App\Http\Controllers\PurchaseOrderController;
 | Web Routes
 |--------------------------------------------------------------------------
 */
-
 Route::get('/', function () {
     return redirect()->route('login');
 });
-
 
 Route::get('/register', function () {
     return redirect()->route('login');
 })->name('register');
 
-// OTP Verification — requires auth but NOT full session clearance
+// OTP Verification
 Route::middleware(['auth', config('jetstream.auth_session')])->group(function () {
     Route::get('/verifyotp', [\App\Http\Controllers\OtpController::class, 'show'])->name('otp.show');
     Route::post('/verifyotp', [\App\Http\Controllers\OtpController::class, 'verify'])->name('otp.verify');
@@ -33,8 +31,6 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
-    
-    // 0. Dashboard
     Route::get('/session-ping', function () {
         return response()->json(['status' => 'active']);
     })->name('session.ping');
@@ -197,6 +193,8 @@ Route::middleware([
         Route::post('customer-po/{customerPO}/convert-salesorder', [\App\Http\Controllers\CustomerPOController::class, 'convertToSalesOrder'])->name('customer-po.convert-salesorder');
         Route::post('customer-po/{customerPO}/dispatches', [\App\Http\Controllers\DispatchController::class, 'storeForSalesOrder'])->name('customer-po.dispatches.store');
         Route::resource('salesorders', \App\Http\Controllers\SalesOrderController::class);
+        Route::get('batches/truck-empty-weight', [\App\Http\Controllers\BatchController::class, 'getTruckEmptyWeight'])->name('batches.truck-empty-weight');
+        Route::post('batches/truck-empty-weight', [\App\Http\Controllers\BatchController::class, 'storeTruckEmptyWeight'])->name('batches.store-truck-empty-weight');
         Route::resource('batches', \App\Http\Controllers\BatchController::class);
         Route::post('batches/{batch}/send-email', [\App\Http\Controllers\BatchController::class, 'sendEmail'])->name('batches.send-email');
         Route::get('batches/{batchId}/report', [\App\Http\Controllers\BatchController::class, 'report'])->name('batches.report');
@@ -207,6 +205,8 @@ Route::middleware([
         Route::get('batches/{batch}/dispatch-token/download', [\App\Http\Controllers\BatchController::class, 'downloadDispatchTokenPdf'])->name('batches.dispatch-token.download');
         Route::get('batches/{batch}/delivery-token', [\App\Http\Controllers\BatchController::class, 'deliveryToken'])->name('batches.delivery-token');
         Route::get('batches/{batch}/delivery-token/download', [\App\Http\Controllers\BatchController::class, 'downloadDeliveryTokenPdf'])->name('batches.delivery-token.download');
+        Route::get('batches/{batch}/gate-pass', [\App\Http\Controllers\BatchController::class, 'gatePass'])->name('batches.gate-pass');
+        Route::get('batches/{batch}/gate-pass/download', [\App\Http\Controllers\BatchController::class, 'downloadGatePassPdf'])->name('batches.gate-pass.download');
         Route::post('batches/{batch}/sync', [\App\Http\Controllers\BatchController::class, 'syncToScheduler'])->name('batches.sync');
         Route::post('batches/ocr', [\App\Http\Controllers\Api\BatchOcrController::class, 'process'])->name('batches.ocr');
         Route::prefix('api/batch-sheets')->group(function () {
@@ -356,3 +356,9 @@ Route::get('public/report/{token}', [\App\Http\Controllers\InvoiceShareControlle
 Route::get('public/report/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadReportPDF'])->name('public.report.pdf');
 Route::get('/public/batch/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewBatch'])->name('public.batch.view');
 Route::get('/public/batch/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadBatchPDF'])->name('public.batch.pdf');
+
+// Public Gate Pass Verification (Guest)
+Route::get('/public/gatepass/verify/{batch}/{hash}', [\App\Http\Controllers\BatchController::class, 'publicVerifyGatePass'])->name('public.gatepass.verify');
+Route::post('/public/gatepass/verify/{batch}/{hash}', [\App\Http\Controllers\BatchController::class, 'publicConfirmGatePass'])->name('public.gatepass.confirm');
+
+require __DIR__.'/auth.php';

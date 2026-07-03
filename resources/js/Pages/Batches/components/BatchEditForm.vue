@@ -207,12 +207,21 @@ watch(() => form.batch_size, (newVal) => {
     }
 });
 
-// watch(() => form.truck_id, (newVal, oldVal) => {
-//     // Only reset if it's an actual change by the user, not the initial load of the edit form
-//     if (oldVal !== undefined && oldVal !== null) {
-//         form.empty_weight_truck = 0;
-//     }
-// });
+
+
+
+watch(() => form.truck_id, async (newVal, oldVal) => {
+    if (oldVal !== undefined && oldVal !== null && newVal) {
+        try {
+            const response = await axios.get(route('batches.truck-empty-weight'), {
+                params: { truck_id: newVal }
+            });
+            form.empty_weight_truck = response.data.empty_weight || 0;
+        } catch (err) {
+            console.error('Failed to fetch truck empty weight:', err);
+        }
+    }
+});
 
 watch(() => [form.empty_weight_truck, form.loaded_weight_truck], ([emptyWt, loadedWt]) => {
     form.net_weight = (Number(loadedWt) || 0) - (Number(emptyWt) || 0);

@@ -301,7 +301,8 @@ PHP;
     public function test(Request $request)
     {
         $request->validate([
-            'prompt'       => 'required|string',
+            'prompt'       => 'nullable|string',
+            'image'        => 'nullable|string',
             'agent_class'  => 'nullable|string',
             'instructions' => 'nullable|string',
             'type'         => 'nullable|string',
@@ -310,6 +311,9 @@ PHP;
         ]);
 
         $prompt = $request->input('prompt');
+        if (empty($prompt) && $request->filled('image')) {
+            $prompt = "Analyze this image. If it shows a truck or transit mixer, please identify the truck number / registration plate number and specify if the view is from the front or the back.";
+        }
 
         // Construct System Context for the AI
         $activePlantId = session('active_plant_id') ?: (auth()->user()?->default_plant_id ?: null);
@@ -408,11 +412,19 @@ PHP;
         $fullPrompt = $contextString . "\n\nUser Question/Instruction:\n" . $prompt;
 
         try {
+            $attachments = [];
+            $image = $request->input('image');
+            if (!empty($image) && preg_match('/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/', $image, $matches)) {
+                $mimeType = $matches[1];
+                $base64Data = $matches[2];
+                $attachments[] = \Laravel\Ai\Files\Image::fromBase64($base64Data, $mimeType);
+            }
+
             // Case 1: Testing an existing saved Agent class
             $agentClass = $request->input('agent_class');
             if (!empty($agentClass) && class_exists($agentClass)) {
                 $agent = new $agentClass();
-                $result = $this->promptAgentSafely($agent, $fullPrompt);
+                $result = $this->promptAgentSafely($agent, $fullPrompt, $attachments);
                 $response = $result['response'];
                 $provider = $result['provider'];
                 
@@ -488,7 +500,7 @@ PHP;
                 );
             }
 
-            $result = $this->promptAgentSafely($agent, $fullPrompt);
+            $result = $this->promptAgentSafely($agent, $fullPrompt, $attachments);
             $response = $result['response'];
             $provider = $result['provider'];
 
@@ -526,8 +538,9 @@ PHP;
                 'session_language' => 'nullable|string|max:5',
                 'messages'         => 'required|array|min:1',
                 'messages.*.role'  => 'required|string|in:user,agent,error',
-                'messages.*.text'  => 'required|string',
+                'messages.*.text'  => 'nullable|string',
                 'messages.*.provider' => 'nullable|string',
+                'messages.*.image' => 'nullable|string',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             \Log::error('AgentChatHistory Validation Failed', [
@@ -651,7 +664,7 @@ PHP;
     /**
      * Safely execute agent prompting with automatic provider fallback chain and multi-key rotation.
      */
-    private function promptAgentSafely($agent, string $prompt)
+    private function promptAgentSafely($agent, string $prompt, array $attachments = [])
     {
         $originalDefaultProvider = config('ai.default');
         $chain = config('ai.chain', ['gemini', 'openai']);
@@ -705,7 +718,7 @@ PHP;
                     }
 
                     // Try executing the prompt
-                    $response = $agent->prompt($prompt);
+                    $response = $agent->prompt($prompt, $attachments);
 
                     // Restore all original configs on success
                     config(['ai.default' => $originalDefaultProvider]);

@@ -8,7 +8,8 @@ import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import Button from 'primevue/button';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { PlusCircleIcon, InformationCircleIcon, BeakerIcon, ListBulletIcon, ClockIcon, ArrowDownTrayIcon } from '@heroicons/vue/24/outline';
+import { PlusCircleIcon, InformationCircleIcon, BeakerIcon, ListBulletIcon, ClockIcon, ArrowDownTrayIcon, ScaleIcon, TruckIcon } from '@heroicons/vue/24/outline';
+import Dialog from 'primevue/dialog';
 
 const page = usePage();
 interface BatchMaterial {
@@ -214,8 +215,88 @@ watch(() => form.batch_size, (newVal) => {
     }
 });
 
-watch(() => form.truck_id, () => {
+const showEmptyWeightModal = ref(false);
+const tareForm = ref({
+    truck_id: null as number | null,
+    empty_weight: null as number | null,
+});
+const tareFormErrors = ref({
+    truck_id: '',
+    empty_weight: '',
+});
+const tareSubmitting = ref(false);
+
+const openTareModal = () => {
+    tareForm.value.truck_id = form.truck_id;
+    tareForm.value.empty_weight = null;
+    tareFormErrors.value.truck_id = '';
+    tareFormErrors.value.empty_weight = '';
+    showEmptyWeightModal.value = true;
+};
+
+const saveTareWeight = async () => {
+    tareFormErrors.value.truck_id = '';
+    tareFormErrors.value.empty_weight = '';
+    
+    if (!tareForm.value.truck_id) {
+        tareFormErrors.value.truck_id = 'Truck is required';
+        return;
+    }
+    if (!tareForm.value.empty_weight || tareForm.value.empty_weight <= 0) {
+        tareFormErrors.value.empty_weight = 'Empty weight must be greater than 0';
+        return;
+    }
+
+    tareSubmitting.value = true;
+    try {
+        const response = await axios.post(route('batches.store-truck-empty-weight'), {
+            truck_id: tareForm.value.truck_id,
+            empty_weight: tareForm.value.empty_weight,
+        });
+
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Empty weight registered successfully',
+            timer: 1500,
+            showConfirmButton: false,
+        });
+
+        if (form.truck_id === tareForm.value.truck_id) {
+            form.empty_weight_truck = response.data.empty_weight;
+        }
+
+        showEmptyWeightModal.value = false;
+    } catch (err: any) {
+        console.error('Failed to save tare weight:', err);
+        if (err.response?.data?.errors) {
+            tareFormErrors.value.truck_id = err.response.data.errors.truck_id?.[0] || '';
+            tareFormErrors.value.empty_weight = err.response.data.errors.empty_weight?.[0] || '';
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: err.response?.data?.message || 'Failed to register tare weight.',
+            });
+        }
+    } finally {
+        tareSubmitting.value = false;
+    }
+};
+
+watch(() => form.truck_id, async (newVal) => {
     form.empty_weight_truck = 0;
+    if (newVal) {
+        try {
+            const response = await axios.get(route('batches.truck-empty-weight'), {
+                params: { truck_id: newVal }
+            });
+            form.empty_weight_truck = response.data.empty_weight || 0;
+        } catch (err) {
+            console.error('Failed to fetch truck empty weight:', err);
+        }
+    }
 });
 
 import { useWeighbridge } from '@/Composables/useWeighbridge';
@@ -246,6 +327,13 @@ const handleWeightCapture = () => {
         }
     });
 };
+
+const handleWeightCaptureDialog = () => {
+    captureWeight((w) => {
+        tareForm.value.empty_weight = w;
+    });
+};
+
 
 // console.log('opekrpe',props);
 // console.log('customSettings?.batching?.manual_weight',customSettings?.batching?.manual_weight);
@@ -484,7 +572,16 @@ const submit = () => {
                     <div class="rounded-lg bg-indigo-50 p-1.5 text-indigo-600 ring-1 ring-indigo-100">
                         <ClockIcon class="h-4 w-4" />
                     </div>
+
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Batch Parameters</h3>
+                    <button @click="openTareModal" type="button" 
+                                class="p-2.5 rounded-xl transition-all duration-200 border bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100 flex items-center justify-center" 
+                                title="Register Tare Weight">
+                                <div class="flex flex-col items-center gap-0.5">
+                                    <ScaleIcon class="w-4 h-4 text-indigo-500" />   
+                                    <span class="text-[7px] font-black uppercase tracking-widest text-indigo-600">Register</span>
+                                </div>
+                            </button>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4">
                     <div>
@@ -510,6 +607,7 @@ const submit = () => {
                             <div class="flex-1">
                                 <BaseInputNumber v-model="form.empty_weight_truck" :disabled="customSettings?.batching?.manual_weight === 0" label="Empty Weight (KGS)" :required="customSettings?.batching?.manual_weight === 1" :error="form.errors.empty_weight_truck" />
                             </div>
+                            
                             <button @click="handleWeightCapture" type="button" v-if="customSettings?.batching?.manual_weight === 0" 
                                 :class="['p-2.5 rounded-xl transition-all duration-200 border shadow-sm flex items-center justify-center', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
                                 :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
@@ -580,13 +678,6 @@ const submit = () => {
 
         <!-- Sticky Form Actions Footer -->
         <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-end gap-3">
-            <!-- <Button 
-                label="Cancel" 
-                severity="secondary" 
-                text
-                class="!px-6 !py-2.5 !rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 hover:!bg-slate-100" 
-                @click="emit('cancel')" 
-            /> -->
             <Button 
                 label="Add Batch" 
                 icon="pi pi-check" 
@@ -595,6 +686,92 @@ const submit = () => {
                 @click="submit" 
             />
         </div>
+
+        <Dialog v-model:visible="showEmptyWeightModal" modal :style="{ width: '480px' }" class="p-fluid rounded-3xl overflow-hidden shadow-2xl border-0">
+            <template #header>
+                <div class="flex items-center gap-3">
+                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-2xl ring-4 ring-indigo-50/50">
+                        <ScaleIcon class="w-6 h-6 animate-pulse" />
+                    </div>
+                    <div>
+                        <h3 class="text-base font-black tracking-tight text-slate-800 uppercase">Register Tare Weight</h3>
+                        <p class="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">Save Truck Empty Weight</p>
+                    </div>
+                </div>
+            </template>
+
+            <div class="flex flex-col gap-5 py-2 text-xs">
+               
+
+                <div class="flex flex-col gap-2">
+                    <label class="font-bold text-slate-500 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                        <TruckIcon class="w-4 h-4 text-slate-400" />
+                        Select Truck
+                    </label>
+                    <BaseSelect 
+                        v-model="tareForm.truck_id" 
+                        :options="trucks" 
+                        optionLabel="registration" 
+                        optionValue="id" 
+                        filter 
+                        placeholder="Choose Truck Registration" 
+                        class="!rounded-2xl border-slate-200/80 shadow-sm focus:border-indigo-500 focus:shadow-indigo-500/10 text-sm font-bold"
+                        :error="tareFormErrors.truck_id" 
+                    />
+                    <small v-if="tareFormErrors.truck_id" class="text-red-500 font-bold uppercase tracking-wider mt-1">{{ tareFormErrors.truck_id }}</small>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                    <label class="font-bold text-slate-500 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
+                        <ScaleIcon class="w-4 h-4 text-slate-400" />
+                        Empty Weight (KGS)
+                    </label>
+                    <div class="flex items-end gap-2">
+                        <div class="flex-1">
+                            <BaseInputNumber 
+                                v-model="tareForm.empty_weight" 
+                                placeholder="e.g. 5400" 
+                                class="!rounded-2xl border-slate-200/80 shadow-sm focus:border-indigo-500 text-sm font-bold"
+                                :error="tareFormErrors.empty_weight" 
+                            />
+                        </div>
+                        <button @click="handleWeightCaptureDialog" type="button" v-if="customSettings?.batching?.manual_weight === 1" 
+                            :class="['p-2.5 rounded-xl transition-all duration-200 border shadow-sm flex items-center justify-center h-10', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
+                            :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
+                            <div class="flex flex-col items-center gap-0.5">
+                                <ArrowDownTrayIcon class="w-4 h-4 animate-bounce" />
+                                <span v-if="customSettings?.batching?.camera == 1" class="text-[7px] font-black uppercase tracking-widest">Snap</span>
+                            </div>
+                        </button>
+                    </div>
+                    <small v-if="tareFormErrors.empty_weight" class="text-red-500 font-bold uppercase tracking-wider mt-1">{{ tareFormErrors.empty_weight }}</small>
+                </div>
+            </div>
+
+            <template #footer>
+                <div class="flex gap-3 justify-end pt-4 border-t border-slate-100/80 mt-4">
+                    <Button 
+                        label="Cancel" 
+                        text 
+                        severity="secondary" 
+                        @click="showEmptyWeightModal = false" 
+                        class="!text-[11px] !font-black !uppercase !tracking-widest !rounded-2xl !py-3 !px-6 hover:!bg-slate-50 transition-all duration-200" 
+                    />
+                    <Button 
+                        label="Save Weight" 
+                        :loading="tareSubmitting" 
+                        @click="saveTareWeight" 
+                        class="!bg-gradient-to-r !from-indigo-600 !to-violet-600 hover:!from-indigo-700 hover:!to-violet-700 !border-0 !text-white !text-[11px] !font-black !uppercase !tracking-widest !rounded-2xl !py-3 !px-7 shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/25 transition-all duration-300 transform hover:-translate-y-0.5" 
+                    />
+                </div>
+            </template>
+        </Dialog>
     </div>
 </template>
+
+
+
+
+
+
 

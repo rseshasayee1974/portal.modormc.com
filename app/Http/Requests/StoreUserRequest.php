@@ -37,7 +37,7 @@ class StoreUserRequest extends FormRequest
                 Rule::unique('mm_users', 'email')->where('deleted_at', null),
             ],
             'mobile' => 'nullable|string|max:20',
-            'password' => ['required', 'string', \Illuminate\Validation\Rules\Password::default()],
+            'password' => ['nullable', 'string', \Illuminate\Validation\Rules\Password::default()],
             'is_active' => 'nullable|boolean',
             'is_otp_enabled' => 'nullable|boolean',
             

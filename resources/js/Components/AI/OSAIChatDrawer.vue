@@ -13,6 +13,7 @@ import {
     ArrowPathIcon,
     PaperAirplaneIcon,
     SparklesIcon,
+    PhotoIcon,
 } from '@heroicons/vue/24/outline';
 
 // ── Page / Auth ───────────────────────────────────────────────────────────────
@@ -28,6 +29,42 @@ const currentPrompt          = ref('');
 const isSubmitting           = ref(false);
 const preferredLanguage      = ref('ta');
 const currentChatSessionId   = ref(null);
+
+// Image Upload State
+const imageInputRef = ref(null);
+const selectedImageBase64 = ref('');
+const selectedImageUrl = ref('');
+
+const triggerImageUpload = () => {
+    if (imageInputRef.value) {
+        imageInputRef.value.click();
+    }
+};
+
+const handleImageSelection = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        alert('Please select an image file.');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        selectedImageBase64.value = event.target.result;
+        selectedImageUrl.value = event.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+const clearSelectedImage = () => {
+    selectedImageBase64.value = '';
+    selectedImageUrl.value = '';
+    if (imageInputRef.value) {
+        imageInputRef.value.value = '';
+    }
+};
 
 // Speech Recognition
 const isListening            = ref(false);
@@ -341,18 +378,27 @@ const toggleSpeechRecognition = () => {
 
 // ── Send Prompt ───────────────────────────────────────────────────────────────
 const sendChatPrompt = async () => {
-    if (!currentPrompt.value.trim() || isSubmitting.value) return;
+    if ((!currentPrompt.value.trim() && !selectedImageBase64.value) || isSubmitting.value) return;
     const userText = currentPrompt.value;
-    chatMessages.value.push({ role: 'user', text: userText });
+    const userImage = selectedImageUrl.value;
+    
+    chatMessages.value.push({ role: 'user', text: userText, image: userImage });
+    
+    const payload = {
+        prompt:      userText,
+        agent_class: activeAgent.value.class,
+    };
+    if (selectedImageBase64.value) {
+        payload.image = selectedImageBase64.value;
+    }
+    
     currentPrompt.value = '';
+    clearSelectedImage();
     isSubmitting.value = true;
     saveHistoryToServer();
 
     try {
-        const response = await axios.post(route('settings.agents.test'), {
-            prompt:      userText,
-            agent_class: activeAgent.value.class,
-        });
+        const response = await axios.post(route('settings.agents.test'), payload);
         const data = response.data;
         if (data.success) {
             let reply = data.response;
@@ -676,6 +722,10 @@ const CHART_TYPES = ['bar', 'line', 'area', 'radar', 'pie', 'donut', 'radialBar'
                                 <div class="max-w-[85%] rounded-2xl px-4 py-3.5 text-sm leading-relaxed transition-all duration-300"
                                      :class="[msg.role === 'user' ? 'bg-indigo-200 text-white rounded-br-none shadow-md' : msg.role === 'error' ? 'bg-rose-50 text-rose-700 rounded-bl-none border border-rose-100 shadow-sm' : 'bg-white text-slate-800 border border-slate-100 rounded-bl-none shadow-md']"
                                 >
+                                    <!-- User image attachment if present -->
+                                    <div v-if="msg.image" class="mb-2 max-w-full">
+                                        <img :src="msg.image" class="max-w-full max-h-48 rounded-lg object-contain shadow-sm" />
+                                    </div>
                                     <template v-if="msg.role === 'agent'">
                                         <div v-if="parseMessageContent(msg.text).hasChart" class="w-full">
                                             <div class="whitespace-pre-wrap text-slate-700" v-html="formatMarkdown(parseMessageContent(msg.text).beforeText)"></div>
@@ -757,8 +807,37 @@ const CHART_TYPES = ['bar', 'line', 'area', 'radar', 'pie', 'donut', 'radialBar'
                                 <button type="button" @click="recognitionError = null" class="text-red-400 hover:text-red-650 cursor-pointer"><svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg></button>
                             </div>
 
+                            <!-- Hidden Image File Input -->
+                            <input
+                                ref="imageInputRef"
+                                type="file"
+                                accept="image/*"
+                                class="hidden"
+                                @change="handleImageSelection"
+                            />
+
+                            <!-- Selected Image Preview -->
+                            <div v-if="selectedImageUrl" class="mb-3 relative inline-block">
+                                <img :src="selectedImageUrl" class="h-16 w-auto rounded-lg border border-slate-250 object-cover shadow-sm" />
+                                <button
+                                    type="button"
+                                    @click="clearSelectedImage"
+                                    class="absolute -top-1.5 -right-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-full p-0.5 shadow-md border-none transition cursor-pointer flex items-center justify-center"
+                                >
+                                    <XMarkIcon class="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+
                             <!-- Input row -->
                             <div class="flex gap-3 items-center">
+                                <!-- Attach image button -->
+                                <button type="button" @click="triggerImageUpload" :disabled="isSubmitting"
+                                    :title="preferredLanguage === 'ta' ? 'படம் சேர்க்க' : 'Attach image'"
+                                    class="relative flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl bg-[#f0f3f6] text-slate-500 hover:text-slate-700 shadow-[-4px_-4px_8px_#ffffff,4px_4px_8px_#d1d9e6] hover:-translate-y-0.5 hover:shadow-[-6px_-6px_12px_#ffffff,6px_6px_12px_#d1d9e6] active:shadow-[inset_-2px_-2px_4px_#ffffff,inset_2px_2px_4px_#d1d9e6] active:translate-y-0 transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed border-none"
+                                >
+                                    <PhotoIcon class="w-5 h-5" />
+                                </button>
+
                                 <div class="relative flex-1 flex items-center">
                                     <BaseInput
                                         v-model="currentPrompt"
@@ -901,6 +980,9 @@ const CHART_TYPES = ['bar', 'line', 'area', 'radar', 'pie', 'donut', 'radialBar'
                                                 :class="[msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-none' : msg.role === 'error' ? 'bg-red-50 text-red-700 border border-red-200 rounded-bl-none' : 'bg-white text-slate-700 border border-slate-200 rounded-bl-none']"
                                             >
                                                 <p class="text-[8px] font-black uppercase tracking-widest mb-1 opacity-60">{{ msg.role === 'user' ? 'You' : historyViewSession.agent_name }}</p>
+                                                <div v-if="msg.image" class="mb-2 max-w-full">
+                                                    <img :src="msg.image" class="max-w-full max-h-36 rounded-lg object-contain shadow-sm" />
+                                                </div>
                                                 <div v-if="msg.role === 'agent'">
                                                     <div v-if="parseMessageContent(msg.text).hasChart" class="w-full">
                                                         <div class="whitespace-pre-wrap text-slate-800" v-html="formatMarkdown(parseMessageContent(msg.text).beforeText)"></div>

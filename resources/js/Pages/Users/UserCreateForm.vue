@@ -82,9 +82,7 @@ const validate = () => {
     //     errors.mobile = ['Mobile number must be exactly 10 digits'];
     // }
 
-    if (!form.value.password) {
-        errors.password = ['Password is required'];
-    } else if (form.value.password.length < 8) {
+    if (form.value.password && form.value.password.length < 8) {
         errors.password = ['Password must be at least 8 characters'];
     }
 
@@ -114,7 +112,9 @@ const submit = async () => {
     fd.append('username',       form.value.username);
     fd.append('email',          form.value.email);
     fd.append('mobile',         form.value.mobile);
-    fd.append('password', form.value.password);
+    if (form.value.password) {
+        fd.append('password', form.value.password);
+    }
     fd.append('is_active',      form.value.is_active      ? '1' : '0');
     fd.append('is_otp_enabled', form.value.is_otp_enabled ? '1' : '0');
 
@@ -178,7 +178,7 @@ const submit = async () => {
                 <BaseInput v-model="form.mobile" label="Mobile Number" :error="form.errors.mobile" maxlength="10" />
             </div>
             <div class="col-span-12 md:col-span-3">
-                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">Password <span class="text-red-500">*</span></label>
+                <label class="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">Password (Optional)</label>
                 <Password 
                     v-model="form.password" 
                     toggleMask 
@@ -186,7 +186,7 @@ const submit = async () => {
                     class="w-full" 
                     inputClass="w-full text-sm !bg-white"
                     :class="form.errors.password ? 'p-invalid' : ''"
-                    placeholder="Min. 8 chars, Mixed Case, Symbols"
+                    placeholder="Leave blank to auto-generate & email"
                 />
                 <small v-if="form.errors.password" class="p-error text-[10px]">{{ form.errors.password[0] }}</small>
             </div>

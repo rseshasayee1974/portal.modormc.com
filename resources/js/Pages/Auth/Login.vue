@@ -1,5 +1,5 @@
 <script setup>
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
@@ -24,12 +24,14 @@ const setLayout = (val) => {
 
 const form = reactive({
     email: '',
+    identifier: '',
     password: '',
     remember: true,
 });
 
 const touched = reactive({
     email: false,
+    identifier: false,
     password: false,
 });
 
@@ -38,16 +40,96 @@ const authError = ref('');
 const loading = ref(false);
 const submitted = ref(false);
 
+// OTP-based login state variables
+const loginMode = ref('password'); // 'password' or 'otp'
+const otpStep = ref(1); // 1 = enter identifier, 2 = enter otp
+const otpCode = ref('');
+const otpSending = ref(false);
+const otpMessage = ref('');
+const otpError = ref('');
+
+const otpDigits = ref(['', '', '', '', '', '']);
+
+const resetOtpDigits = () => {
+    otpDigits.value = ['', '', '', '', '', ''];
+    otpCode.value = '';
+    otpError.value = '';
+    otpMessage.value = '';
+};
+
+// Focus helper
+const focusDigitInput = (layoutType, index) => {
+    const prefix = layoutType === 'centered' ? 'otp-centered-' : 'otp-split-';
+    const nextInput = document.getElementById(prefix + index);
+    if (nextInput) {
+        nextInput.focus();
+    }
+};
+
+const handleInput = (e, index, layoutType) => {
+    const val = e.target.value;
+    // Allow only numeric digits
+    if (!/^\d*$/.test(val)) {
+        otpDigits.value[index] = '';
+        return;
+    }
+    
+    // If a digit was entered, move focus to the next box
+    if (val.length === 1) {
+        if (index < 5) {
+            focusDigitInput(layoutType, index + 1);
+        }
+    }
+};
+
+const handleKeyDown = (e, index, layoutType) => {
+    // If Backspace is pressed, move focus to the previous box
+    if (e.key === 'Backspace') {
+        if (!otpDigits.value[index] && index > 0) {
+            otpDigits.value[index - 1] = '';
+            focusDigitInput(layoutType, index - 1);
+        } else {
+            otpDigits.value[index] = '';
+        }
+        e.preventDefault();
+    }
+};
+
+const handlePaste = (e, layoutType) => {
+    e.preventDefault();
+    const pasteData = e.clipboardData.getData('text').trim();
+    if (/^\d{6}$/.test(pasteData)) {
+        for (let i = 0; i < 6; i++) {
+            otpDigits.value[i] = pasteData[i];
+        }
+        // Focus last box
+        focusDigitInput(layoutType, 5);
+    }
+};
+
+watch(otpDigits, (newVal) => {
+    otpCode.value = newVal.join('');
+}, { deep: true });
+
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const clientErrors = computed(() => ({
-    email: !form.email
-        ? 'Email is required.'
-        : !emailPattern.test(form.email)
-            ? 'Enter a valid email address.'
-            : '',
-    password: !form.password ? 'Password is required.' : '',
-}));
+const clientErrors = computed(() => {
+    const isEmail = emailPattern.test(form.identifier);
+    const isMobile = /^\d{10}$/.test(form.identifier);
+    return {
+        email: !form.email
+            ? 'Email is required.'
+            : !emailPattern.test(form.email)
+                ? 'Enter a valid email address.'
+                : '',
+        identifier: !form.identifier
+            ? 'Mobile number or Email is required.'
+            : (!isEmail && !isMobile)
+                ? 'Enter a valid email or 10-digit mobile number.'
+                : '',
+        password: !form.password ? 'Password is required.' : '',
+    };
+});
 
 const fieldError = (field) => {
     const error = serverErrors.value[field];
@@ -63,7 +145,17 @@ const fieldError = (field) => {
     return (submitted.value || touched[field]) ? clientErrors.value[field] : '';
 };
 
-const isValid = computed(() => !clientErrors.value.email && !clientErrors.value.password);
+const isValid = computed(() => {
+    if (loginMode.value === 'password') {
+        return !clientErrors.value.email && !clientErrors.value.password;
+    } else {
+        if (otpStep.value === 1) {
+            return !clientErrors.value.identifier;
+        } else {
+            return !clientErrors.value.identifier && otpCode.value && otpCode.value.length === 6;
+        }
+    }
+});
 
 const quickFillDemo = () => {
     form.email = 'demo@modomines.com';
@@ -102,45 +194,80 @@ const submit = async () => {
     });
 };
 
-const submitApi = async () => {
+const requestOtp = async () => {
+    serverErrors.value = {};
+    authError.value = '';
+    otpError.value = '';
+    otpMessage.value = '';
+
+    if (!form.identifier || clientErrors.value.identifier) {
+        touched.identifier = true;
+        return;
+    }
+
+    otpSending.value = true;
+    try {
+        const response = await window.axios.post(route('login.send-otp'), {
+            identifier: form.identifier
+        });
+        otpMessage.value = response.data.message;
+        otpStep.value = 2;
+    } catch (error) {
+        if (error.response?.status === 422) {
+            serverErrors.value = error.response.data.errors || {};
+            authError.value = error.response.data.message || 'Validation error.';
+        } else {
+            authError.value = 'Failed to send OTP. Please check your mobile or email and try again.';
+        }
+    } finally {
+        otpSending.value = false;
+    }
+};
+
+const handleOtpSubmit = async () => {
     submitted.value = true;
     serverErrors.value = {};
     authError.value = '';
+    otpError.value = '';
 
     if (!isValid.value || loading.value) {
         return;
     }
 
     loading.value = true;
-
     try {
-        const { data } = await window.axios.post('/api/login', {
-            email: form.email,
-            password: form.password,
+        const { data } = await window.axios.post(route('login.verify-otp'), {
+            identifier: form.identifier,
+            otp: otpCode.value,
             remember: form.remember,
         });
 
-        if (data.token) {
-            localStorage.setItem('auth_token', data.token);
-            window.axios.defaults.headers.common.Authorization = `Bearer ${data.token}`;
-        }
-
-        window.location.href = data.redirect_to || '/dashboard';
+        window.location.href = data.redirect || '/dashboard';
     } catch (error) {
         if (error.response?.status === 422) {
-            serverErrors.value = error.response.data.errors || {};
-            authError.value = error.response.data.message || '';
-            return;
+            const errors = error.response.data.errors || {};
+            serverErrors.value = errors;
+            if (errors.otp) {
+                otpError.value = errors.otp[0];
+            }
+            authError.value = error.response.data.message || 'OTP verification failed.';
+        } else {
+            authError.value = 'Invalid OTP or session expired.';
         }
-
-        if (error.response?.status === 401) {
-            authError.value = error.response.data.message || 'Invalid email or password.';
-            return;
-        }
-
-        authError.value = 'We could not sign you in right now. Please try again.';
     } finally {
         loading.value = false;
+    }
+};
+
+const handleSubmit = () => {
+    if (loginMode.value === 'password') {
+        submit();
+    } else {
+        if (otpStep.value === 1) {
+            requestOtp();
+        } else {
+            handleOtpSubmit();
+        }
     }
 };
 </script>
@@ -213,16 +340,42 @@ const submitApi = async () => {
 
                 <!-- Glassmorphism Login Card -->
                 <div class="w-full rounded-[2rem] border border-white/10 bg-slate-900/60 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.6)] backdrop-blur-xl sm:p-8 animate-[auth-panel_750ms_cubic-bezier(.16,1,.3,1)_both]">
+                    
+                    <!-- Mode Switcher -->
+                    <div class="flex border-b border-white/10 mb-6">
+                        <button 
+                            type="button" 
+                            class="flex-1 pb-3 text-sm font-bold transition-all focus:outline-none"
+                            :class="loginMode === 'password' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-slate-400 hover:text-slate-200'"
+                            @click="loginMode = 'password'; otpStep = 1; resetOtpDigits(); authError = '';"
+                        >
+                            Password
+                        </button>
+                        <button 
+                            type="button" 
+                            class="flex-1 pb-3 text-sm font-bold transition-all focus:outline-none"
+                            :class="loginMode === 'otp' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-slate-400 hover:text-slate-200'"
+                            @click="loginMode = 'otp'; otpStep = 1; resetOtpDigits(); authError = '';"
+                        >
+                            OTP Login
+                        </button>
+                    </div>
+
                     <div v-if="status" class="mb-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300" role="status">
                         {{ status }}
+                    </div>
+
+                    <div v-if="otpMessage" class="mb-5 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-300" role="status">
+                        {{ otpMessage }}
                     </div>
 
                     <div v-if="authError" class="mb-5 rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-300" role="alert">
                         {{ authError }}
                     </div>
 
-                    <form class="space-y-5" @submit.prevent="submit" novalidate>
-                        <div>
+                    <form class="space-y-5" @submit.prevent="handleSubmit" novalidate>
+                        <!-- Email Input (Password mode) -->
+                        <div v-if="loginMode === 'password'">
                             <label for="email-centered" class="mb-2 block text-xs font-bold text-slate-400 uppercase tracking-wider">Work Email</label>
                             <div class="group relative">
                                 <div class="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-teal-400">
@@ -248,7 +401,34 @@ const submitApi = async () => {
                             <p v-if="fieldError('email')" id="email-centered-error" class="mt-2 text-xs font-bold text-rose-400 uppercase tracking-tight">{{ fieldError('email') }}</p>
                         </div>
 
-                        <div>
+                        <!-- Mobile or Email Input (OTP mode) -->
+                        <div v-if="loginMode === 'otp'">
+                            <label for="identifier-centered" class="mb-2 block text-xs font-bold text-slate-400 uppercase tracking-wider">Mobile Number or Email</label>
+                            <div class="group relative">
+                                <div class="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-slate-500 transition-colors group-focus-within:text-teal-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                    </svg>
+                                </div>
+                                <InputText
+                                    id="identifier-centered"
+                                    v-model="form.identifier"
+                                    type="text"
+                                    :disabled="otpStep === 2"
+                                    :aria-invalid="Boolean(fieldError('identifier'))"
+                                    aria-describedby="identifier-centered-error"
+                                    class="w-full rounded-2xl border !h-11 bg-white/[0.03] backdrop-blur-sm py-4 !pl-12 pr-4 text-[15px] font-medium text-white shadow-sm transition-all duration-300 placeholder:text-slate-500 focus:border-teal-400 focus:bg-slate-950/40 focus:shadow-[0_0_0_4px_rgba(20,184,166,0.15)] focus:ring-0 disabled:opacity-50"
+                                    :class="fieldError('identifier') ? 'border-rose-500' : 'border-white/10'"
+                                    placeholder="Enter mobile number or work email"
+                                    @blur="touched.identifier = true"
+                                    @input="serverErrors.identifier = null; authError = ''"
+                                />
+                            </div>
+                            <p v-if="fieldError('identifier')" id="identifier-centered-error" class="mt-2 text-xs font-bold text-rose-400 uppercase tracking-tight">{{ fieldError('identifier') }}</p>
+                        </div>
+
+                        <!-- Password Login Fields -->
+                        <div v-if="loginMode === 'password'">
                             <div class="mb-2 flex items-center justify-between">
                                 <label for="password-centered" class="block text-xs font-bold text-slate-400 uppercase tracking-wider">Password</label>
                                 <Link v-if="canResetPassword" :href="route('password.request')" class="text-xs font-bold text-teal-400 uppercase tracking-widest transition hover:text-teal-300 focus:outline-none">
@@ -280,22 +460,77 @@ const submitApi = async () => {
                             <p v-if="fieldError('password')" id="password-centered-error" class="mt-2 text-xs font-bold text-rose-400 uppercase tracking-tight">{{ fieldError('password') }}</p>
                         </div>
 
+                        <!-- OTP Login Fields (Step 2) -->
+                        <div v-if="loginMode === 'otp' && otpStep === 2">
+                            <div class="mb-4 flex items-center justify-between">
+                                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">One-Time Password (OTP)</label>
+                                <button type="button" class="text-xs font-bold text-teal-400 uppercase tracking-widest transition hover:text-teal-300 focus:outline-none" @click="requestOtp">
+                                    Resend OTP
+                                </button>
+                            </div>
+                            
+                            <!-- Box-based OTP Input -->
+                            <div class="flex justify-between gap-2.5 mb-4" @paste="handlePaste($event, 'centered')">
+                                <input
+                                    v-for="(digit, idx) in otpDigits"
+                                    :key="idx"
+                                    :id="'otp-centered-' + idx"
+                                    v-model="otpDigits[idx]"
+                                    type="text"
+                                    maxlength="1"
+                                    pattern="[0-9]*"
+                                    inputmode="numeric"
+                                    class="w-12 h-12 text-center text-xl font-bold text-white bg-white/[0.03] border border-white/10 rounded-xl focus:border-teal-400 focus:bg-slate-950/40 focus:ring-0 transition-all duration-200"
+                                    @input="handleInput($event, idx, 'centered')"
+                                    @keydown="handleKeyDown($event, idx, 'centered')"
+                                />
+                            </div>
+
+                            <p v-if="otpError" class="mt-2 text-xs font-bold text-rose-400 uppercase tracking-tight">{{ otpError }}</p>
+                            <button type="button" class="mt-3 text-xs font-bold text-slate-400 hover:text-slate-200 transition focus:outline-none" @click="otpStep = 1; resetOtpDigits();">
+                                ← Change mobile number
+                            </button>
+                        </div>
+
+                        <!-- Remember Me and Buttons -->
                         <div class="flex items-center justify-between pt-1">
                             <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-300 select-none">
                                 <Checkbox v-model="form.remember" inputId="remember-centered" binary aria-label="Remember me" class="border-white/10 bg-white/5" />
                                 <span>Keep me signed in</span>
                             </label>
-                            <button type="button" class="rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-400" @click="quickFillDemo">
+                            <button v-if="loginMode === 'password'" type="button" class="rounded-full bg-white/5 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-teal-400" @click="quickFillDemo">
                                 Demo login
                             </button>
                         </div>
 
+                        <!-- Submission Buttons -->
                         <Button
+                            v-if="loginMode === 'password'"
                             type="submit"
                             :disabled="!isValid || loading"
                             :loading="loading"
                             label="Secure Login"
                             aria-label="Secure Login"
+                            class="w-full rounded-2xl border-0 bg-gradient-to-r from-teal-500 to-indigo-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-xl shadow-teal-500/10 hover:shadow-indigo-500/20 transition-all duration-200 hover:-translate-y-0.5 focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:translate-y-0 disabled:opacity-50"
+                        />
+
+                        <Button
+                            v-else-if="loginMode === 'otp' && otpStep === 1"
+                            type="submit"
+                            :disabled="!isValid || otpSending"
+                            :loading="otpSending"
+                            label="Send OTP"
+                            aria-label="Send OTP"
+                            class="w-full rounded-2xl border-0 bg-gradient-to-r from-teal-500 to-indigo-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-xl shadow-teal-500/10 hover:shadow-indigo-500/20 transition-all duration-200 hover:-translate-y-0.5 focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:translate-y-0 disabled:opacity-50"
+                        />
+
+                        <Button
+                            v-else-if="loginMode === 'otp' && otpStep === 2"
+                            type="submit"
+                            :disabled="!isValid || loading"
+                            :loading="loading"
+                            label="Verify & Login"
+                            aria-label="Verify & Login"
                             class="w-full rounded-2xl border-0 bg-gradient-to-r from-teal-500 to-indigo-600 px-5 py-3.5 text-[15px] font-semibold text-white shadow-xl shadow-teal-500/10 hover:shadow-indigo-500/20 transition-all duration-200 hover:-translate-y-0.5 focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 focus:ring-offset-slate-950 disabled:translate-y-0 disabled:opacity-50"
                         />
                     </form>
@@ -391,6 +626,27 @@ const submitApi = async () => {
                         </div>
 
                         <div class="rounded-[2rem] border border-white/80 bg-white/95 p-6 shadow-[0_24px_80px_rgba(15,23,42,.14)] ring-1 ring-slate-900/[0.03] backdrop-blur dark:border-white/10 dark:bg-white/[0.06] dark:shadow-black/40 sm:p-8">
+                            
+                            <!-- Mode Switcher -->
+                            <div class="flex border-b border-slate-200 dark:border-white/10 mb-6">
+                                <button 
+                                    type="button" 
+                                    class="flex-1 pb-3 text-sm font-bold transition-all focus:outline-none"
+                                    :class="loginMode === 'password' ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'"
+                                    @click="loginMode = 'password'; otpStep = 1; resetOtpDigits(); authError = '';"
+                                >
+                                    Password
+                                </button>
+                                <button 
+                                    type="button" 
+                                    class="flex-1 pb-3 text-sm font-bold transition-all focus:outline-none"
+                                    :class="loginMode === 'otp' ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'"
+                                    @click="loginMode = 'otp'; otpStep = 1; resetOtpDigits(); authError = '';"
+                                >
+                                    OTP Login
+                                </button>
+                            </div>
+
                             <div class="mb-7">
                                 <p class="text-sm font-semibold text-teal-700 dark:text-teal-300">Welcome back</p>
                                 <h2 class="mt-2 text-3xl font-semibold tracking-[-0.035em] text-slate-950 dark:text-white">
@@ -405,12 +661,17 @@ const submitApi = async () => {
                                 {{ status }}
                             </div>
 
+                            <div v-if="otpMessage" class="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200">
+                                {{ otpMessage }}
+                            </div>
+
                             <div v-if="authError" class="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-400/20 dark:bg-rose-400/10 dark:text-rose-200" role="alert">
                                 {{ authError }}
                             </div>
 
-                            <form class="space-y-5" @submit.prevent="submit" novalidate>
-                                <div>
+                            <form class="space-y-5" @submit.prevent="handleSubmit" novalidate>
+                                <!-- Email Input (Password mode) -->
+                                <div v-if="loginMode === 'password'">
                                     <label for="email" class="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">Work Email</label>
                                     <div class="group relative">
                                         <div class="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-indigo-500">
@@ -436,7 +697,34 @@ const submitApi = async () => {
                                     <p v-if="fieldError('email')" id="email-error" class="mt-2 text-xs font-bold text-rose-600 uppercase tracking-tight">{{ fieldError('email') }}</p>
                                 </div>
 
-                                <div>
+                                <!-- Mobile or Email Input (OTP mode) -->
+                                <div v-if="loginMode === 'otp'">
+                                    <label for="identifier" class="mb-2 block text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">Mobile Number or Email</label>
+                                    <div class="group relative">
+                                        <div class="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-indigo-500">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="size-5">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                            </svg>
+                                        </div>
+                                        <InputText
+                                            id="identifier"
+                                            v-model="form.identifier"
+                                            type="text"
+                                            :disabled="otpStep === 2"
+                                            :aria-invalid="Boolean(fieldError('identifier'))"
+                                            aria-describedby="identifier-error"
+                                            class="w-full rounded-2xl border !h-10 bg-white/40 backdrop-blur-sm py-4 !pl-12 pr-4 text-[15px] font-medium text-slate-900 shadow-sm transition-all duration-300 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:shadow-[0_0_0_4px_rgba(99,102,241,.12)] focus:ring-0 dark:bg-white/[0.05] dark:text-white dark:focus:bg-white/[0.08] disabled:opacity-50"
+                                            :class="fieldError('identifier') ? 'border-rose-400' : 'border-slate-300/50 dark:border-white/10'"
+                                            placeholder="Enter mobile number or work email"
+                                            @blur="touched.identifier = true"
+                                            @input="serverErrors.identifier = null; authError = ''"
+                                        />
+                                    </div>
+                                    <p v-if="fieldError('identifier')" id="identifier-error" class="mt-2 text-xs font-bold text-rose-600 uppercase tracking-tight">{{ fieldError('identifier') }}</p>
+                                </div>
+
+                                <!-- Password Input -->
+                                <div v-if="loginMode === 'password'">
                                     <div class="mb-2 flex items-center justify-between">
                                         <label for="password" class="block text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">Password</label>
                                         <Link v-if="canResetPassword" :href="route('password.request')" class="text-xs font-bold text-indigo-600 uppercase tracking-widest transition hover:text-indigo-500 focus:outline-none">
@@ -468,22 +756,77 @@ const submitApi = async () => {
                                     <p v-if="fieldError('password')" id="password-error" class="mt-2 text-xs font-bold text-rose-600 uppercase tracking-tight">{{ fieldError('password') }}</p>
                                 </div>
 
+                                <!-- OTP Input (Step 2) -->
+                                <div v-if="loginMode === 'otp' && otpStep === 2">
+                                    <div class="mb-4 flex items-center justify-between">
+                                        <label class="block text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wide">One-Time Password (OTP)</label>
+                                        <button type="button" class="text-xs font-bold text-indigo-600 uppercase tracking-widest transition hover:text-indigo-500 focus:outline-none" @click="requestOtp">
+                                            Resend OTP
+                                        </button>
+                                    </div>
+                                    
+                                    <!-- Box-based OTP Input -->
+                                    <div class="flex justify-between gap-2 mb-4" @paste="handlePaste($event, 'split')">
+                                        <input
+                                            v-for="(digit, idx) in otpDigits"
+                                            :key="idx"
+                                            :id="'otp-split-' + idx"
+                                            v-model="otpDigits[idx]"
+                                            type="text"
+                                            maxlength="1"
+                                            pattern="[0-9]*"
+                                            inputmode="numeric"
+                                            class="w-12 h-12 text-center text-xl font-bold text-slate-900 bg-white/40 border border-slate-300/50 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-0 transition-all duration-200 dark:text-white dark:bg-white/[0.05] dark:border-white/10 dark:focus:bg-white/[0.08]"
+                                            @input="handleInput($event, idx, 'split')"
+                                            @keydown="handleKeyDown($event, idx, 'split')"
+                                        />
+                                    </div>
+
+                                    <p v-if="otpError" class="mt-2 text-xs font-bold text-rose-600 uppercase tracking-tight">{{ otpError }}</p>
+                                    <button type="button" class="mt-3 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition focus:outline-none" @click="otpStep = 1; resetOtpDigits();">
+                                        ← Change mobile number
+                                    </button>
+                                </div>
+
+                                <!-- Remember Me and Buttons -->
                                 <div class="flex items-center justify-between pt-1">
                                     <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
                                         <Checkbox v-model="form.remember" inputId="remember" binary aria-label="Remember me" />
                                         <span>Keep me signed in</span>
                                     </label>
-                                    <button type="button" class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15" @click="quickFillDemo">
+                                    <button v-if="loginMode === 'password'" type="button" class="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/15" @click="quickFillDemo">
                                         Demo login
                                     </button>
                                 </div>
 
+                                <!-- Submission Buttons -->
                                 <Button
+                                    v-if="loginMode === 'password'"
                                     type="submit"
                                     :disabled="!isValid || loading"
                                     :loading="loading"
                                     label="Sign in"
                                     aria-label="Sign in"
+                                    class="w-full rounded-2xl border-0 bg-slate-950 px-5 py-3.5 text-[15px] font-semibold text-white shadow-xl shadow-slate-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800 focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 disabled:translate-y-0 disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100 dark:focus:ring-offset-slate-950"
+                                />
+
+                                <Button
+                                    v-else-if="loginMode === 'otp' && otpStep === 1"
+                                    type="submit"
+                                    :disabled="!isValid || otpSending"
+                                    :loading="otpSending"
+                                    label="Send OTP"
+                                    aria-label="Send OTP"
+                                    class="w-full rounded-2xl border-0 bg-slate-950 px-5 py-3.5 text-[15px] font-semibold text-white shadow-xl shadow-slate-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800 focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 disabled:translate-y-0 disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100 dark:focus:ring-offset-slate-950"
+                                />
+
+                                <Button
+                                    v-else-if="loginMode === 'otp' && otpStep === 2"
+                                    type="submit"
+                                    :disabled="!isValid || loading"
+                                    :loading="loading"
+                                    label="Verify & Login"
+                                    aria-label="Verify & Login"
                                     class="w-full rounded-2xl border-0 bg-slate-950 px-5 py-3.5 text-[15px] font-semibold text-white shadow-xl shadow-slate-900/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-slate-800 focus:ring-2 focus:ring-teal-400 focus:ring-offset-2 disabled:translate-y-0 disabled:opacity-50 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100 dark:focus:ring-offset-slate-950"
                                 />
                             </form>

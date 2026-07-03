@@ -964,6 +964,77 @@ class BatchController extends Controller
         return $pdf->download($filename);
     }
 
+    /**
+     * Gate Pass – view (thermal 80mm).
+     */
+    public function gatePass(Batch $batch)
+    {
+        $batch->load([
+            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'workOrder.customer:id,legal_name',
+            'workOrder.site:id,name',
+            'workOrder.plant:id,name,logo_path',
+            'workOrder.plant.addresses',
+            'workOrder.mixDesign:id,design_name,design_code',
+            'workOrder.mixDesign.concrete_grade:id,name',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches.truck:id,registration',
+            'dispatches.driver:id,first_name,last_name',
+            'dispatches.transport:id,legal_name',
+            'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
+            'materials.product:id,title',
+            'operator:id,first_name,last_name',
+        ]);
+
+        $this->ensurePlantScope($batch->workOrder);
+
+        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+
+        return view('pdfs.batches.gate_pass', [
+            'batch'     => $batch,
+            'settings'  => $settings,
+            'isPreview' => true,
+        ]);
+    }
+
+    /**
+     * Gate Pass – PDF download.
+     */
+    public function downloadGatePassPdf(Batch $batch)
+    {
+        $batch->load([
+            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'workOrder.customer:id,legal_name',
+            'workOrder.site:id,name',
+            'workOrder.plant:id,name,logo_path',
+            'workOrder.plant.addresses',
+            'workOrder.mixDesign:id,design_name,design_code',
+            'workOrder.mixDesign.concrete_grade:id,name',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches.truck:id,registration',
+            'dispatches.driver:id,first_name,last_name',
+            'dispatches.transport:id,legal_name',
+            'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
+            'materials.product:id,title',
+            'operator:id,first_name,last_name',
+        ]);
+
+        $this->ensurePlantScope($batch->workOrder);
+
+        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+        $materialsCount = $batch->materials->count();
+        $height = 480 + ($materialsCount * 20);
+
+        $pdf = Pdf::loadView('pdfs.batches.gate_pass', [
+            'batch'     => $batch,
+            'settings'  => $settings,
+            'isPreview' => false,
+        ])->setPaper([0, 0, 226.77, $height], 'portrait');
+
+        $filename = sprintf('gate-pass-B%s.pdf', str_pad($batch->batch_no ?? $batch->id, 4, '0', STR_PAD_LEFT));
+        return $pdf->download($filename);
+    }
+
     private function resolveBatchSheetBatch(Batch $batch): Batch
     {
         $batch->load([
@@ -1259,5 +1330,113 @@ class BatchController extends Controller
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Failed to send batch completed mail: " . $e->getMessage());
         }
+    }
+
+    /**
+     * Get the latest empty weight of a truck.
+     */
+    public function getTruckEmptyWeight(Request $request)
+    {
+        $request->validate([
+            'truck_id' => 'required|exists:mm_machines,id',
+        ]);
+
+        $latestWeight = \App\Models\TruckEmptyWeight::where('truck_id', $request->truck_id)
+            ->where('plant_id', session('active_plant_id'))
+            ->latest('created_at')
+            ->first();
+
+        return response()->json([
+            'empty_weight' => $latestWeight ? (float) $latestWeight->empty_weight : 0.00,
+        ]);
+    }
+
+    /**
+     * Store a new truck empty weight.
+     */
+    public function storeTruckEmptyWeight(Request $request)
+    {
+        $request->validate([
+            'truck_id' => 'required|exists:mm_machines,id',
+            'empty_weight' => 'required|numeric|min:0',
+        ]);
+
+        $weight = \App\Models\TruckEmptyWeight::create([
+            'truck_id' => $request->truck_id,
+            'empty_weight' => $request->empty_weight,
+            'plant_id' => session('active_plant_id'),
+        ]);
+
+        return response()->json([
+            'message' => 'Empty weight registered successfully.',
+            'empty_weight' => (float) $weight->empty_weight,
+        ]);
+    }
+
+    /**
+     * Public Gate Pass Verification View (Guest Access).
+     */
+    public function publicVerifyGatePass(Batch $batch, string $hash)
+    {
+        // Cryptographic verification of URL signature to prevent ID enumeration
+        $expectedHash = md5($batch->id . 'gatepass-secret-salt-2026');
+        if ($hash !== $expectedHash) {
+            abort(404, 'Invalid verification link.');
+        }
+
+        $batch->load([
+            'workOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'workOrder.customer:id,legal_name',
+            'workOrder.site:id,name',
+            'workOrder.plant:id,name,logo_path',
+            'workOrder.plant.addresses',
+            'workOrder.mixDesign:id,design_name,design_code',
+            'workOrder.mixDesign.concrete_grade:id,name',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches.truck:id,registration',
+            'dispatches.driver:id,first_name,last_name',
+            'dispatches.transport:id,legal_name',
+            'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
+            'materials.product:id,title',
+            'operator:id,first_name,last_name',
+        ]);
+
+        $settings = \App\Models\CustomSetting::getForModule($batch->workOrder->plant_id, 'batching');
+
+        return view('gatepass.verify', [
+            'batch'     => $batch,
+            'hash'      => $hash,
+            'settings'  => $settings,
+            'isPreview' => true,
+        ]);
+    }
+
+    /**
+     * Public Gate Pass Confirmation Action (Guest Access).
+     */
+    public function publicConfirmGatePass(Batch $batch, string $hash)
+    {
+        $expectedHash = md5($batch->id . 'gatepass-secret-salt-2026');
+        if ($hash !== $expectedHash) {
+            abort(404, 'Invalid verification link.');
+        }
+
+        if (!$batch->is_verified) {
+            $batch->is_verified = true;
+            $batch->verified_at = now();
+            $batch->save();
+
+            // Optional: Log activity
+            try {
+                activity()
+                    ->performedOn($batch)
+                    ->log('Gate Pass verified via QR scan (public access).');
+            } catch (\Exception $e) {
+                // Ignore log failures if package is not configured
+            }
+        }
+
+        return redirect()->route('public.gatepass.verify', ['batch' => $batch->id, 'hash' => $hash])
+            ->with('success', 'Trip successfully verified.');
     }
 }

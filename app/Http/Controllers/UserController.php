@@ -115,17 +115,30 @@ class UserController extends Controller
      */
     public function store(StoreUserRequest $request)
     {
-        // dd(Auth::user(),session('entity_id'),$request->all());
         $this->authorizeModule('create');
 
         $data = $request->validated();
-// dd($data);
-        // Drop empty-string photo so model doesn't store '' as a path
+
         if (array_key_exists('profile_photo_path', $data) && $data['profile_photo_path'] === '') {
             unset($data['profile_photo_path']);
         }
 
+        // Handle optional password
+        $plainPassword = $data['password'] ?? null;
+        if (empty($plainPassword)) {
+            // Generate a strong random 8-character password
+            $plainPassword = \Illuminate\Support\Str::random(8);
+            $data['password'] = $plainPassword;
+        }
+
         $user = User::saveWithRelations($data);
+
+        // Send email with credentials
+        try {
+            $user->notify(new \App\Notifications\UserCredentialsNotification($plainPassword));
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to send credentials email: ' . $e->getMessage());
+        }
 
         return response()->json(['message' => 'User created successfully.', 'user' => $user]);
     }

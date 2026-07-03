@@ -285,42 +285,14 @@ const mobileMenuOpen = ref(false);
                                 </svg>
                             </button>
                             <Link :href="route('dashboard')" class="flex items-center">
-                                <img
-                                    v-if="$page.props.active_plant?.plant_logo"
-                                    :src="$page.props.active_plant.plant_logo"
-                                    alt="Plant Logo"
-                                    class="w-auto object-contain bg-white/10 rounded-lg p-1"
-                                />
-                                <img
-                                    v-else-if="activeEntity?.entity_logo"
-                                    :src="`/storage/${activeEntity.entity_logo}`"
-                                    alt="Logo"
-                                    class="h-9 w-auto object-contain bg-white/10 rounded-lg p-1"
-                                />
-                                <ApplicationMark v-else class="h-8 w-auto" />
+                                <ApplicationMark class="h-8 w-auto" />
                             </Link>
                         </div>
 
                         <!-- Desktop Logo (visible on md and up) -->
                         <div class="hidden md:flex w-64 shrink-0 items-center mr-2 pl-2">
                             <Link :href="route('dashboard')" class="flex items-center gap-3 group">
-                                <!-- Plant Logo Priority -->
-                                <div v-if="$page.props.active_plant?.plant_logo" class=" flex items-center justify-center rounded-xl p-1.5 transition-all group-hover:bg-white/20">
-                                    <img
-                                        :src="$page.props.active_plant.plant_logo"
-                                        alt="Plant Logo"
-                                        class="h-full w-full object-contain"
-                                    />
-                                </div>
-                                <!-- Entity Logo Fallback -->
-                                <div v-else-if="activeEntity?.entity_logo" class="h-16 w-32 flex items-center justify-center bg-white/10 rounded-xl p-1.5 transition-all group-hover:bg-white/20">
-                                    <img
-                                        :src="`/storage/${activeEntity.entity_logo}`"
-                                        alt="Logo"
-                                        class="h-full w-full object-contain"
-                                    />
-                                </div>
-                                <ApplicationMark v-else class="h-12 w-auto transition-transform group-hover:scale-105" />
+                                <ApplicationMark class="h-12 w-auto transition-transform group-hover:scale-105" />
                             </Link>
                         </div>
 

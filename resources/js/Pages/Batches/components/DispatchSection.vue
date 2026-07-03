@@ -469,25 +469,9 @@ const handleDeleteInvoice = () => {
 </script>
 
 <template>
-    <div  class="bg-white  border border-slate-200 shadow-sm overflow-hidden">
-        <div class="bg-slate-50/50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="rounded-lg bg-indigo-600 p-2 text-white shadow-md shadow-indigo-100">
-                    <PaperAirplaneIcon class="h-5 w-5" />
-                </div>
-                <div>
-                    <h2 class="text-sm font-black text-slate-800 uppercase tracking-tight">Generate Dispatch</h2>
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Batch #{{ batch.batch_no }} &bull; WO #{{ salesOrder.order_no }}</p>
-                </div>
-            </div>
-            
-            <Button label="Initialize Dispatch" icon="pi pi-send" severity="info" size="small" class="!rounded-lg" @click="submit" :loading="form.processing" v-if="false" />
-        </div>
-
-        <div class="grid grid-cols-12" >
-            <!-- Left Side: Forms -->
-            <div class="col-span-12 lg:col-span-8 p-1 border-r border-slate-100 space-y-1">
-           
+    <div class="grid grid-cols-12 gap-6">
+        <!-- Left Side: Forms -->
+        <div class="col-span-12 lg:col-span-8 space-y-2">
             <DispatchWeightsForm 
                 v-model="form" 
                 :uoms="dropdownData.uoms"
@@ -597,16 +581,16 @@ const handleDeleteInvoice = () => {
 
                             <!-- Action Buttons -->
                             <div class="grid grid-cols-2 gap-3 pt-2">
-                                <BaseButton 
+                                <!-- <BaseButton 
                                     label="Cancel" 
                                     variant="outlined" 
                                     severity="contrast" 
                                     class="!py-3 !text-[10px] !border-slate-200 !font-black uppercase tracking-widest"
                                     @click="emit('cancel')"
-                                />
+                                /> -->
                                 
                                 <BaseButton 
-                                    label="Save Trip" 
+                                    label="Save Dispatch" 
                                     variant="filled" 
                                     severity="primary" 
                                     
@@ -633,7 +617,6 @@ const handleDeleteInvoice = () => {
                 </div>
             </div>
         </div>
-    </div>
 </template>
 
 <style scoped>

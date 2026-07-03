@@ -3,7 +3,7 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import { ScaleIcon, BanknotesIcon, TruckIcon } from '@heroicons/vue/24/outline';
+import { ScaleIcon, BanknotesIcon, TruckIcon, PrinterIcon } from '@heroicons/vue/24/outline';
 
 const props = withDefaults(defineProps<{
     modelValue: any; // The whole form object
@@ -104,8 +104,8 @@ const formatTime = (dateVal: any) => {
         </div>
 
         <!-- 1. Logistics & Delivery Section -->
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
-            <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+        <div class="bg-white">
+            <div class="flex items-center gap-2 border-b border-slate-100">
                 <TruckIcon class="h-5 w-5 text-indigo-500" />
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">1. Logistics & Delivery</h3>
             </div>
@@ -125,8 +125,8 @@ const formatTime = (dateVal: any) => {
         </div>
 
         <!-- 2. Pricing & Quantities Section -->
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
-            <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+        <div class="bg-white">
+            <div class="flex items-center gap-2 border-b border-slate-100 pb-1">
                 <ScaleIcon class="h-5 w-5 text-indigo-500" />
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">2. Pricing & Quantities</h3>
             </div>
@@ -135,32 +135,31 @@ const formatTime = (dateVal: any) => {
                 <BaseInputNumber v-model="modelValue.financials.load_rate" label="Load Rate" :minFractionDigits="2" :error="errors['financials.load_rate']" :disabled="isReadOnly" />
                 <BaseSelect v-model="modelValue.financials.load_tax_id" :options="taxes" optionLabel="tax_name" optionValue="id" label="Tax Group" filter showClear :error="errors['financials.load_tax_id']" :disabled="isReadOnly" />
                 <BaseSelect v-model="modelValue.payment_mode" :options="[{label: 'Cash', value: 'cash'}, {label: 'Credit', value: 'credit'}]" optionLabel="label" optionValue="value" label="Payment Mode" :error="errors.payment_mode" :disabled="isReadOnly" />
-                <BaseInput v-model="modelValue.dispatch_reference" label="Site Ref" :error="errors.dispatch_reference" :disabled="isReadOnly" class="col-span-1 sm:col-span-2 md:col-span-4" />
+                <BaseInput v-model="modelValue.dispatch_reference" label="Site Ref" :error="errors.dispatch_reference" :disabled="isReadOnly" class="col-span-1 sm:col-span-2 md:col-span-1" />
             </div>
         </div>
 
         <!-- 3. Financials & Invoice Section -->
-        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-6">
-            <div class="flex items-center gap-2 border-b border-slate-100 pb-3">
+        <div class="bg-white">
+            <div class="flex items-center gap-2 border-b border-slate-100">
                 <BanknotesIcon class="h-5 w-5 text-indigo-500" />
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">3. Financials & Invoice</h3>
             </div>
 
             <!-- Adjustments Grid -->
-            <div>
-                <h4 class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 border-b border-slate-100 pb-1.5">Adjustments</h4>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                    <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" :error="errors['financials.pass_amount']" :disabled="isReadOnly" />
-                    <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" :error="errors['financials.discount_amount']" :disabled="isReadOnly" />
-                    <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" :error="errors['financials.transport_expenses']" :disabled="isReadOnly" />
-                    <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" :error="errors['financials.adjustment_amount']" :disabled="isReadOnly" />
-                    <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" :error="errors['financials.round_off']" :disabled="isReadOnly" class="col-span-1 sm:col-span-2 md:col-span-4" />
-                </div>
+               
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" :error="errors['financials.pass_amount']" :disabled="isReadOnly" />
+                <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" :error="errors['financials.discount_amount']" :disabled="isReadOnly" />
+                <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" :error="errors['financials.transport_expenses']" :disabled="isReadOnly" />
+                <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" :error="errors['financials.adjustment_amount']" :disabled="isReadOnly" />
+                <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" :error="errors['financials.round_off']" :disabled="isReadOnly" class="col-span-1 sm:col-span-2 md:col-span-4" />
             </div>
+            
 
             <!-- Immediate Payment Box -->
-            <div v-show="modelValue.payment_mode === 'cash'" class="p-5 bg-emerald-50/30 border border-emerald-100 rounded-2xl space-y-4">
-                <div class="flex items-center gap-2 border-b border-emerald-100/50 pb-2">
+            <div v-show="modelValue.payment_mode === 'cash'" class="p-2 space-y-2">
+                <div class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-emerald-500">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
                     </svg>
@@ -185,8 +184,8 @@ const formatTime = (dateVal: any) => {
             </div>
 
             <!-- Invoice Section -->
-            <div v-if="modelValue.status.invoice_status != 1" class="p-3 bg-indigo-50/20 border border-indigo-100/50 rounded-2xl space-y-4">
-                <div class="flex items-center gap-2 border-b border-indigo-100/30 pb-2">
+            <div v-if="modelValue.status.invoice_status != 1" class="p-2">
+                <div class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-indigo-500">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                     </svg>
@@ -210,8 +209,8 @@ const formatTime = (dateVal: any) => {
             </div>
 
             <!-- Generated Invoice Information -->
-            <div v-else class="p-3 bg-emerald-50/20 border border-emerald-100/50 rounded-2xl space-y-4">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-emerald-100/30 pb-3">
+            <div v-else class="py-2">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div class="flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-emerald-500">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -239,13 +238,14 @@ const formatTime = (dateVal: any) => {
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-3">
+                <div class="flex justify-end gap-3 py-2">
                     <a 
                         v-if="modelValue.status.invoice?.encrypted_id"
                         :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'view' })" 
                         target="_blank"
                         class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
                     >
+                        <PrinterIcon class="h-4 w-4" />
                         Print Invoice
                     </a>
                     <button 
@@ -262,7 +262,7 @@ const formatTime = (dateVal: any) => {
         </div>
 
         <!-- 6. Dispatch Audit Info -->
-        <div class="px-5 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl flex items-center justify-between">
+        <!-- <div class="px-5 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl flex items-center justify-between">
             <div class="flex items-center gap-6">
                 <div class="flex flex-col">
                     <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Created</span>
@@ -287,6 +287,6 @@ const formatTime = (dateVal: any) => {
                     {{ modelValue.dispatch_status }}
                 </span>
             </div>
-        </div>
+        </div> -->
     </div>
 </template>

@@ -31,6 +31,8 @@ class Batch extends Model
         'created_by',
         'updated_by',
         'deleted_by',
+        'is_verified',
+        'verified_at',
         // 'truck_id',
         // 'transport_id',
         // 'driver_id',
@@ -58,6 +60,8 @@ class Batch extends Model
         'batch_size' => 'decimal:2',
         'start_time' => 'datetime',
         'end_time' => 'datetime',
+        'is_verified' => 'boolean',
+        'verified_at' => 'datetime',
     ];
 
     public const STATUS_PLANNED = 1;

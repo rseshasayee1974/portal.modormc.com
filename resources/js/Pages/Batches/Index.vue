@@ -622,7 +622,6 @@ const shareBatchEmail = () => {
                         </Column>
 
                         
-
                         <Column field="status" header="Status" sortable>
                             <template #body="slotProps">
                                 <div class="flex items-center gap-2">
@@ -632,11 +631,11 @@ const shareBatchEmail = () => {
                                     </template>
                                     <template v-else>
                                         <Tag :value="statusLabel(slotProps.data.status)" :severity="statusSeverity(slotProps.data.status)" rounded />
+                                        <Tag v-if="slotProps.data.is_verified" value="Verified" severity="success" rounded class="!bg-emerald-500/10 !text-emerald-600 !border-emerald-500/20" />
                                     </template>
                                 </div>
                             </template>
                         </Column>
-
                         <Column header="Actions" headerStyle="width: 7rem; text-align: center" bodyStyle="overflow: visible; text-align: center">
                             <template #body="slotProps">
                                 <div v-if="!slotProps.data.is_offline_pending" class="flex items-center justify-center gap-2">
@@ -733,6 +732,14 @@ const shareBatchEmail = () => {
                                                 >
                                                     <i class="pi pi-file mr-2 text-sky-500 font-bold"></i>
                                                     Print Delivery Challan (A4)
+                                                </button>
+                                                <button
+                                                    v-if="slotProps.data.status >= 3"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                                                    @click="viewToken(slotProps.data.id, 'gate-pass'); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-id-card mr-2 text-rose-500 font-bold"></i>
+                                                    Print Gate Pass
                                                 </button>
                                             </div>
 
@@ -989,6 +996,14 @@ const shareBatchEmail = () => {
                     >
                         <i class="pi pi-file mr-2 text-sky-500 font-bold"></i>
                         Print Delivery Challan (A4)
+                    </button>
+                    <button
+                        v-if="activeBatch.status >= 3"
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                        @click="viewToken(activeBatch.id, 'gate-pass'); closeAllMenus();"
+                    >
+                        <i class="pi pi-id-card mr-2 text-rose-500 font-bold"></i>
+                        Print Gate Pass
                     </button>
                 </div>
 
