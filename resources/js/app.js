@@ -167,11 +167,11 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         const pinia = createPinia();
 
-        return createApp({ 
+        return createApp({
             render: () => h('div', [
                 h(App, props),
                 h(GlobalLoader)
-            ]) 
+            ])
         })
             .use(plugin)
             .use(ZiggyVue, window.Ziggy)

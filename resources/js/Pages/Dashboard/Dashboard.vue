@@ -2,9 +2,9 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import VueApexCharts from 'vue3-apexcharts';
+import { computed, onMounted, onUnmounted, ref, watch, defineAsyncComponent } from 'vue';
+const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
 import axios from 'axios';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import {
     ArrowPathIcon,

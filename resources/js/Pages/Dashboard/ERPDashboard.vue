@@ -1,11 +1,11 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, defineAsyncComponent } from 'vue';
+const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
 import axios from 'axios';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
-import VueApexCharts from 'vue3-apexcharts';
 import { 
     BanknotesIcon, 
     ShoppingCartIcon, 

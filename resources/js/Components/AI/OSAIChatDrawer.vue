@@ -1,10 +1,10 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, defineAsyncComponent } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { usePermissions } from '@/Composables/usePermissions';
 import BaseInput from '@/Components/Base/BaseInput.vue';
-import apexchart from 'vue3-apexcharts';
+const apexchart = defineAsyncComponent(() => import('vue3-apexcharts'));
 import {
     CpuChipIcon,
     XMarkIcon,

@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import VueApexCharts from 'vue3-apexcharts';
-import { ref, computed } from 'vue';
+import { ref, computed, defineAsyncComponent } from 'vue';
+const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
 import { router } from '@inertiajs/vue3';
 import axios from 'axios';
 import {
