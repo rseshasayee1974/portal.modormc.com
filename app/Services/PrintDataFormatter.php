@@ -479,7 +479,7 @@ class PrintDataFormatter
     // ─────────────────────────────────────────────────────
     public static function fromQuotation($quotation): array
     {
-        $quotation->loadMissing(['items.mixDesign', 'items.mixDesign.unit', 'items.tax', 'patron', 'plant', 'plant.entity', 'plant.addresses', 'tax']);
+        $quotation->loadMissing(['items.mixDesign', 'items.mixDesign.unit', 'patron', 'plant', 'plant.entity', 'plant.addresses', 'tax']);
 
         $data = self::base();
         $data['settings'] = self::getCustomSettings($quotation->plant_id, 'quotations');
@@ -532,16 +532,6 @@ class PrintDataFormatter
         }
 
         // Items
-<<<<<<< HEAD
-        $data['items'] = $quotation->items->map(function ($item, $idx) {
-            $taxRate = $item->tax?->tax_rate ?? 0;
-            $untaxedAmount = (float)($item->untaxed_amount ?? ($item->quantity * $item->rate));
-            
-            // Recalculate tax amount dynamically if it is null or zero in the DB
-            $taxAmount = (float)$item->tax_amount;
-            if ($taxAmount <= 0 && $taxRate > 0) {
-                $taxAmount = ($untaxedAmount * $taxRate) / 100;
-=======
         $data['items'] = $quotation->items->map(function ($item, $idx) use ($isIntra) {
             $taxModel = $item->tax;
             $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
@@ -559,7 +549,6 @@ class PrintDataFormatter
                     $taxGroup = 'IGST';
                     $taxName  = 'IGST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
                 }
->>>>>>> 33d737f1d3cca4718d4bc2b852c3c9a78f726555
             }
 
             return [
@@ -571,79 +560,22 @@ class PrintDataFormatter
                 'received_qty' => 0,
                 'unit'         => $item->mixDesign->unit->unit_code ?? '',
                 'unit_price'   => (float)$item->rate,
-<<<<<<< HEAD
-                'tax_name'     => $item->tax?->tax_name ?? '-',
-                'tax_rate'     => (float)$taxRate,
-                'tax_group'    => $item->tax?->tax_group ?? '',
-                'tax_amount'   => (float)$taxAmount,
-                'total'        => (float)($item->amount_total ?? ($untaxedAmount + $taxAmount)),
-=======
                 'tax_name'     => $taxName ?: '-',
                 'tax_rate'     => $taxRate,
                 'tax_group'    => $taxGroup,
                 'tax_amount'   => $priceTax,
                 'total'        => (float)($item->amount_total ?? ($item->quantity * $item->rate)),
->>>>>>> 33d737f1d3cca4718d4bc2b852c3c9a78f726555
             ];
         })->toArray();
-
-        // Tax lines summary
-        $taxLines = [];
-        foreach ($quotation->items as $item) {
-            if (!$item->tax) continue;
-            
-            $taxRate = $item->tax->tax_rate ?? 0;
-            $untaxedAmount = (float)($item->untaxed_amount ?? ($item->quantity * $item->rate));
-            $taxAmount = (float)$item->tax_amount;
-            if ($taxAmount <= 0 && $taxRate > 0) {
-                $taxAmount = ($untaxedAmount * $taxRate) / 100;
-            }
-
-            $g = $item->tax->tax_group;
-            if ($g === 'GST') {
-                $halfRate = $taxRate / 2;
-                $labelC = "CGST ({$halfRate}%)";
-                $labelS = "SGST ({$halfRate}%)";
-                $taxLines[$labelC] = ($taxLines[$labelC] ?? 0) + ($taxAmount / 2);
-                $taxLines[$labelS] = ($taxLines[$labelS] ?? 0) + ($taxAmount / 2);
-            } else {
-                $labelG = "{$g} ({$taxRate}%)";
-                $taxLines[$labelG] = ($taxLines[$labelG] ?? 0) + $taxAmount;
-            }
-        }
-
-        if (empty($taxLines) && $quotation->tax) {
-            $g = $quotation->tax->tax_group;
-            $headerTax = (float)($quotation->amount_tax ?? 0);
-            $taxRate = $quotation->tax->tax_rate ?? 0;
-            if ($g === 'GST') {
-                $halfRate = $taxRate / 2;
-                $labelC = "CGST ({$halfRate}%)";
-                $labelS = "SGST ({$halfRate}%)";
-                $taxLines[$labelC] = ($headerTax / 2);
-                $taxLines[$labelS] = ($headerTax / 2);
-            } else {
-                $labelG = "{$g} ({$taxRate}%)";
-                $taxLines[$labelG] = $headerTax;
-            }
-        }
-
-        $totalTaxSum = collect($taxLines)->sum();
-        $grandTotal = (float)$quotation->amount_total;
-        
-        // If the database total was saved without taxes (e.g. older drafts), fix it dynamically
-        if (abs($grandTotal - (float)$quotation->amount_untaxed) < 0.01 && $totalTaxSum > 0) {
-            $grandTotal = (float)$quotation->amount_untaxed + $totalTaxSum + (float)($quotation->adjustment ?? 0);
-        }
 
         $data['totals'] = [
             'sub_total'   => (float)$quotation->amount_untaxed,
             'discount'    => 0,
-            'tax_lines'   => collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray(),
+            'tax_lines'   => $quotation->tax ? [['label' => $quotation->tax->tax_name, 'amount' => (float)$quotation->tax_amount]] : [],
             'shipping'    => 0,
             'adjustment'  => (float)($quotation->adjustment ?? 0),
             'round_off'   => (float)($quotation->round_off ?? 0),
-            'grand_total' => $grandTotal,
+            'grand_total' => (float)$quotation->amount_total,
         ];
 
         $data['meta'] = [
@@ -651,7 +583,7 @@ class PrintDataFormatter
             'currency_symbol' => '₹',
             'notes'           => $quotation->notes ?? '',
             'terms_text'      => $quotation->terms_conditions ?? '',
-            'total_words'     => self::numberToWords($grandTotal, 'INR'),
+            'total_words'     => self::numberToWords($quotation->amount_total, 'INR'),
         ];
 
         return $data;

@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('mm_plants', function (Blueprint $table) {
             $table->id();
             $table->foreignId('entity_id')->constrained('mm_entities')->onDelete('cascade');
+                        $table->float('mixer_capacity')->nullable()->default(null)  ;
+
             $table->string('code')->unique();
             $table->string('name');
             $table->string('gstin')->nullable();

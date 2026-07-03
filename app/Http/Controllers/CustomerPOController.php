@@ -351,6 +351,10 @@ class CustomerPOController extends Controller
         }
 
         DB::transaction(function () use ($customerPO, $validated) {
+            if ((int)$customerPO->status === CustomerPO::STATUS_DRAFT) {
+                $customerPO->update(['status' => CustomerPO::STATUS_CONFIRMED]);
+            }
+
             foreach ($customerPO->items as $item) {
                 $details = SalesOrder::generateOrderNo($customerPO->plant_id, 'SO');
                 SalesOrder::create([

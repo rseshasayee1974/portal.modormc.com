@@ -8,7 +8,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-        --font-base: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        --font-base: 'DejaVu Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         --font-serif: Georgia, 'Times New Roman', serif;
         --color-ink: #1e293b;
         --color-muted: #64748b;
@@ -30,7 +30,7 @@
     }
 
     body {
-        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        font-family: 'DejaVu Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         font-size: 11px;
         color: #1e293b;
         background: #fff;
