@@ -10,26 +10,29 @@ export function useWeighbridgeApi() {
         try {
             const localAxios = axios.create();
             delete localAxios.defaults.headers.common['X-Requested-With'];
-            
+
             const response = await localAxios.get('http://localhost:8089/api/port', {
                 params: { _: new Date().getTime() },
                 headers: { 'Accept': '*/*' }
             });
-            
+
             const w = parseInt(response.data);
+            // console.log('API weighbridge weight:', w);
+            // console.log('type of weight:', typeof w);
             let _s = 0;
             if (!isNaN(w)) {
-                const s = w / 1000;
+                // const s = w / 1000;
+                const s = w / 1000000; // 1000 kg 
                 _s = s > 99 ? 0 : s;
             }
-            
+
             failureCount.value = 0; // Reset on success
             callback(_s);
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Captured: ${_s}`, showConfirmButton: false, timer: 1500 });
         } catch (error: any) {
             console.error('API weighbridge error:', error);
             failureCount.value++;
-            
+
             if (failureCount.value >= 5) {
                 sendFailureAlert(error);
                 failureCount.value = 0; // Reset after sending alert

@@ -5,7 +5,7 @@
     <title>Purchase Order - {{ $order->po_number }}</title>
     <style>
         @page { margin: 15px; }
-        body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 11px; line-height: 1.3; color: #333; margin: 0; padding: 0; }
+        body { font-family: 'DejaVu Sans', 'Helvetica', 'Arial', sans-serif; font-size: 11px; line-height: 1.3; color: #333; margin: 0; padding: 0; }
         
         .premium-border { border: 2px solid #ccc; width: 100%; border-radius: 8px; overflow: hidden; background: white; }
         

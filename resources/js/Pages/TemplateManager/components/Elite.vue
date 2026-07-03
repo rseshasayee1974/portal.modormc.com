@@ -31,39 +31,35 @@ defineProps<{
                 <tr>
                     <td class="details-cell details-left">
                         <table class="kv-table">
-                            <tbody>
-                                <tr>
-                                    <td class="kv-key">Invoice Date</td>
-                                    <td class="kv-sep">:</td>
-                                    <td class="kv-val bold">{{ dummyData.date }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="kv-key">Terms</td>
-                                    <td class="kv-sep">:</td>
-                                    <td class="kv-val bold">Due on Receipt</td>
-                                </tr>
-                                <tr>
-                                    <td class="kv-key">Due Date</td>
-                                    <td class="kv-sep">:</td>
-                                    <td class="kv-val bold">{{ dummyData.due_date }}</td>
-                                </tr>
-                                <tr>
-                                    <td class="kv-key">P.O.#</td>
-                                    <td class="kv-sep">:</td>
-                                    <td class="kv-val bold">SO-17</td>
-                                </tr>
-                            </tbody>
+                            <tr>
+                                <td class="kv-key">Invoice Date</td>
+                                <td class="kv-sep">:</td>
+                                <td class="kv-val bold">{{ dummyData.date }}</td>
+                            </tr>
+                            <tr>
+                                <td class="kv-key">Terms</td>
+                                <td class="kv-sep">:</td>
+                                <td class="kv-val bold">Due on Receipt</td>
+                            </tr>
+                            <tr>
+                                <td class="kv-key">Due Date</td>
+                                <td class="kv-sep">:</td>
+                                <td class="kv-val bold">{{ dummyData.due_date }}</td>
+                            </tr>
+                            <tr>
+                                <td class="kv-key">P.O.#</td>
+                                <td class="kv-sep">:</td>
+                                <td class="kv-val bold">SO-17</td>
+                            </tr>
                         </table>
                     </td>
                     <td class="details-cell details-right no-right-border">
                         <table class="kv-table">
-                            <tbody>
-                                <tr>
-                                    <td class="kv-key">Project Name</td>
-                                    <td class="kv-sep">:</td>
-                                    <td class="kv-val bold">Design project</td>
-                                </tr>
-                            </tbody>
+                            <tr>
+                                <td class="kv-key">Project Name</td>
+                                <td class="kv-sep">:</td>
+                                <td class="kv-val bold">Design project</td>
+                            </tr>
                         </table>
                     </td>
                 </tr>
