@@ -99,9 +99,12 @@ select {
     --tw-shadow: 0 0 #0000 !important;
 }
 
-.p-select-label, .p-inputtext, .p-select-label:disabled, .p-inputtext:disabled {
+.p-select-label,
+.p-inputtext,
+.p-select-label:disabled,
+.p-inputtext:disabled {
     font-weight: 600 !important;
-    color : #000 !important
+    color: #000 !important
 }
 
 .text-md {
@@ -120,6 +123,7 @@ select {
     padding-top: 0.25rem !important;
     padding-bottom: 0.25rem !important;
 }
+
 .p-select-label.p-placeholder {
     color: var(--p-select-placeholder-color) !important;
 }
@@ -328,13 +332,12 @@ select {
     background-image: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
 }
 
-@media (prefers-color-scheme: dark) {
-    .neum {
-        box-shadow: 6px 6px 16px rgba(0, 0, 0, 0.45), -6px -6px 16px rgba(255, 255, 255, 0.08);
-    }
-    .neum:hover {
-        box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.5), -4px -4px 12px rgba(255, 255, 255, 0.1);
-    }
+.dark .neum {
+    box-shadow: 6px 6px 16px rgba(0, 0, 0, 0.45), -6px -6px 16px rgba(255, 255, 255, 0.08);
+}
+
+.dark .neum:hover {
+    box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.5), -4px -4px 12px rgba(255, 255, 255, 0.1);
 }
 
 .create-panel__toggle {
@@ -988,26 +991,46 @@ select {
     .print-only-header {
         display: block !important;
     }
-    
+
     .base-datatable-wrapper {
         border: none !important;
         box-shadow: none !important;
     }
 
-    nav, aside, footer, .no-print, header, button, .p-button, .p-paginator, 
-    .base-datatable-wrapper .p-datatable-header, .p-datatable-filter-row, 
-    .p-datatable-thead th:last-child, .p-datatable-tbody td:last-child, 
-    .p-datatable-column-filter, .p-column-filter, hr, .create-panel,
-    .p-popover, .popover, [role="tooltip"], form, .quotation-card, .create-form {
+    nav,
+    aside,
+    footer,
+    .no-print,
+    header,
+    button,
+    .p-button,
+    .p-paginator,
+    .base-datatable-wrapper .p-datatable-header,
+    .p-datatable-filter-row,
+    .p-datatable-thead th:last-child,
+    .p-datatable-tbody td:last-child,
+    .p-datatable-column-filter,
+    .p-column-filter,
+    hr,
+    .create-panel,
+    .p-popover,
+    .popover,
+    [role="tooltip"],
+    form,
+    .quotation-card,
+    .create-form {
         display: none !important;
     }
 
-    body, .min-h-screen, .bg-gray-100 {
+    body,
+    .min-h-screen,
+    .bg-gray-100 {
         background: white !important;
         color: black !important;
     }
 
-    .max-w-7xl, .container {
+    .max-w-7xl,
+    .container {
         max-width: 100% !important;
         width: 100% !important;
         margin: 0 !important;
@@ -1018,7 +1041,7 @@ select {
         width: 100% !important;
     }
 
-    .p-datatable .p-datatable-thead > tr > th {
+    .p-datatable .p-datatable-thead>tr>th {
         background: #f8fafc !important;
         color: #0f172a !important;
         border-bottom: 2px solid #0f172a !important;
@@ -1028,14 +1051,14 @@ select {
         padding: 12px 8px !important;
     }
 
-    .p-datatable .p-datatable-tbody > tr > td {
+    .p-datatable .p-datatable-tbody>tr>td {
         border-bottom: 1px solid #e2e8f0 !important;
         padding: 8px !important;
         font-size: 10px !important;
         color: #1e293b !important;
     }
 
-    .p-datatable-sm .p-datatable-tbody > tr > td {
+    .p-datatable-sm .p-datatable-tbody>tr>td {
         padding: 6px 8px !important;
     }
 
@@ -1099,4 +1122,3 @@ input.field-input:-webkit-autofill:focus {
     border-color: rgba(255, 255, 255, 0.18) !important;
     transition: background-color 9999s ease-in-out 0s !important;
 }
-
