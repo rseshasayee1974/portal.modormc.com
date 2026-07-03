@@ -83,7 +83,11 @@ return new class extends Migration
             
             try {
                 Schema::table('mm_customer_po_items', function (Blueprint $table) {
+                    
                     $table->foreign('customer_po_id')->references('id')->on('mm_customer_pos')->cascadeOnDelete();
+                    $table->string('prefix', 20)->nullable();
+                    $table->string('reference', 50)->nullable()->index();
+        $table->index('prefix', 'mm_customer_pos_prefix_index');
                 });
             } catch (\Exception $e) {}
         }

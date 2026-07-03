@@ -532,16 +532,6 @@ class PrintDataFormatter
         }
 
         // Items
-<<<<<<< HEAD
-        $data['items'] = $quotation->items->map(function ($item, $idx) {
-            $taxRate = $item->tax?->tax_rate ?? 0;
-            $untaxedAmount = (float)($item->untaxed_amount ?? ($item->quantity * $item->rate));
-            
-            // Recalculate tax amount dynamically if it is null or zero in the DB
-            $taxAmount = (float)$item->tax_amount;
-            if ($taxAmount <= 0 && $taxRate > 0) {
-                $taxAmount = ($untaxedAmount * $taxRate) / 100;
-=======
         $data['items'] = $quotation->items->map(function ($item, $idx) use ($isIntra) {
             $taxModel = $item->tax;
             $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
@@ -559,7 +549,6 @@ class PrintDataFormatter
                     $taxGroup = 'IGST';
                     $taxName  = 'IGST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
                 }
->>>>>>> 33d737f1d3cca4718d4bc2b852c3c9a78f726555
             }
 
             return [
@@ -571,19 +560,11 @@ class PrintDataFormatter
                 'received_qty' => 0,
                 'unit'         => $item->mixDesign->unit->unit_code ?? '',
                 'unit_price'   => (float)$item->rate,
-<<<<<<< HEAD
-                'tax_name'     => $item->tax?->tax_name ?? '-',
-                'tax_rate'     => (float)$taxRate,
-                'tax_group'    => $item->tax?->tax_group ?? '',
-                'tax_amount'   => (float)$taxAmount,
-                'total'        => (float)($item->amount_total ?? ($untaxedAmount + $taxAmount)),
-=======
                 'tax_name'     => $taxName ?: '-',
                 'tax_rate'     => $taxRate,
                 'tax_group'    => $taxGroup,
                 'tax_amount'   => $priceTax,
                 'total'        => (float)($item->amount_total ?? ($item->quantity * $item->rate)),
->>>>>>> 33d737f1d3cca4718d4bc2b852c3c9a78f726555
             ];
         })->toArray();
 

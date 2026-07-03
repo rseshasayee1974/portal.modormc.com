@@ -327,8 +327,8 @@ watch(() => props.customerPOs, () => {
                                 <div class="font-bold text-md text-slate-800 dark:text-slate-100">
                                     {{ slotProps.data.patron?.legal_name || '--' }}
                                 </div>
-                                <span class="text-indigo-600 dark:text-indigo-400 font-semibold font-mono text-xs">
-                                    {{ slotProps.data.quotation?.reference || 'Direct' }}
+                                <span v-if="slotProps.data.quotation?.reference" class="text-indigo-600 dark:text-indigo-400 font-semibold font-mono text-xs">
+                                    {{ slotProps.data.quotation.reference }}
                                 </span>
                             </div>
                         </template>

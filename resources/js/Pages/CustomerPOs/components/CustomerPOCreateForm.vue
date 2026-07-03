@@ -26,8 +26,8 @@ const props = withDefaults(defineProps<{
 });
 
 const form = useForm({
-    prefix: 'CPO' as string | null,
-    reference: '' as string | null,
+    prefix: null as string | null,
+    reference: null as string | null,
     quotation_id: null as number | null,
     patron_id: null as number | null,
     status: 0 as number | null,
@@ -129,7 +129,7 @@ const quotationOptions = computed(() => {
     // Filter out quotations that have an active sales order
     const list = props.quotations.filter((q) => !q.is_customer_po || Number(q.is_customer_po) !== 1);
     return [
-        { label: 'None (Direct Customer PO)', value: null },
+        { label: 'None', value: null },
         ...list.map((q) => {
             const patronName = props.patrons.find((p) => Number(p.id) === Number(q.patron_id))?.legal_name || 'Unknown';
             return {
@@ -216,32 +216,8 @@ const submit = () => {
 <!-- Form Body -->
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-5 p-5">
 
-<<<<<<< HEAD
-    <!-- PO Prefix -->
-    <div>
-        <BaseInput
-            v-model="form.prefix"
-            label="PO Prefix"
-            placeholder="e.g. CPO"
-            :error="form.errors.prefix"
-        />
-    </div>
-=======
-   
->>>>>>> 33d737f1d3cca4718d4bc2b852c3c9a78f726555
-
-    <!-- PO Number / Ref -->
-    <div>
-        <BaseInput
-            v-model="form.reference"
-            label="PO Number / Ref"
-            placeholder="Auto-generated if blank"
-            :error="form.errors.reference"
-        />
-    </div>
-
     <!-- Customer -->
-   <div>
+    <div>
         <BaseSelect
             v-model="form.patron_id"
             :options="patrons"
@@ -261,7 +237,8 @@ const submit = () => {
             Locked to quotation customer
         </p>
     </div>
-     <!-- Sales Executive -->
+
+    <!-- Sales Executive -->
     <div>
         <BaseSelect
             v-model="form.sales_executive_id"
@@ -296,18 +273,7 @@ const submit = () => {
             Locked to quotation site
         </p>
     </div>
-    <div>
-        <BaseSelect
-            v-model="form.sales_executive_id"
-            :options="salesExecutiveOptions"
-            optionLabel="label"
-            optionValue="value"
-            filter
-            label="Sales Executive"
-            placeholder="Select Sales Executive"
-            :error="form.errors.sales_executive_id"
-        />
-    </div>
+
     <!-- Order Date -->
     <div>
         <BaseDatePicker
@@ -318,7 +284,8 @@ const submit = () => {
             :error="form.errors.order_date"
         />
     </div>
-<!-- Concrete Type -->
+
+    <!-- Concrete Type -->
     <div>
         <BaseSelect
             v-model="form.concrete_pump"

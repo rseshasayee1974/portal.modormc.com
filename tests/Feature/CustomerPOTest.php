@@ -164,7 +164,7 @@ class CustomerPOTest extends TestCase
             'patron_id' => $this->patron->id,
             'site_id' => $this->site->id,
             'order_date' => now()->format('Y-m-d'),
-            'status' => CustomerPO::STATUS_CONFIRMED,
+            'status' => CustomerPO::STATUS_DRAFT,
         ]);
 
         $customerPO->items()->create([
@@ -181,6 +181,9 @@ class CustomerPOTest extends TestCase
         ]);
 
         $response->assertStatus(302);
+
+        $customerPO->refresh();
+        $this->assertEquals(CustomerPO::STATUS_CONFIRMED, (int)$customerPO->status);
 
         $salesOrder = SalesOrder::where('customer_po_id', $customerPO->id)->first();
         $this->assertNotNull($salesOrder);
@@ -397,5 +400,53 @@ class CustomerPOTest extends TestCase
             'items.0.quantity',
             'items.0.rate'
         ]);
+    }
+
+    public function test_customer_po_reference_auto_generated_from_db_sequence()
+    {
+        $mixDesign = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id]);
+
+        $response1 = $this->post(route('customer-po.store'), [
+            'quotation_id' => null,
+            'patron_id' => $this->patron->id,
+            'site_id' => $this->site->id,
+            'order_date' => now()->format('Y-m-d'),
+            'items' => [
+                [
+                    'mix_design_id' => $mixDesign->id,
+                    'quantity' => 10,
+                    'rate' => 100
+                ]
+            ]
+        ]);
+        $response1->assertStatus(302);
+
+        $response2 = $this->post(route('customer-po.store'), [
+            'quotation_id' => null,
+            'patron_id' => $this->patron->id,
+            'site_id' => $this->site->id,
+            'order_date' => now()->format('Y-m-d'),
+            'items' => [
+                [
+                    'mix_design_id' => $mixDesign->id,
+                    'quantity' => 20,
+                    'rate' => 200
+                ]
+            ]
+        ]);
+        $response2->assertStatus(302);
+
+        $pos = CustomerPO::orderBy('id', 'asc')->get();
+        $this->assertCount(2, $pos);
+
+        $po1 = $pos[0];
+        $po2 = $pos[1];
+
+        $expectedRef1 = sprintf('%s%04d', $po1->prefix, $po1->id);
+        $expectedRef2 = sprintf('%s%04d', $po2->prefix, $po2->id);
+
+        $this->assertEquals($expectedRef1, $po1->reference);
+        $this->assertEquals($expectedRef2, $po2->reference);
+        $this->assertNotEquals($po1->reference, $po2->reference);
     }
 }
