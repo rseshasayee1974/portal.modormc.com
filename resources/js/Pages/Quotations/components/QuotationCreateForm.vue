@@ -108,10 +108,10 @@ const patronOptions = computed(() => props.patrons.map(p => ({ label: p.legal_na
 const siteOptions = computed(() => {
     return (props.sites || [])
         .filter((s: any) => {
+            if (!s) return false;
             const isSelected = s.id === form.site_id;
-            const matchesPatron = !form.patron_id || s.patron_id === form.patron_id;
-            const matchesType = s.type === 'unloading';
-            return isSelected || (matchesType && matchesPatron);
+            const matchesPatron = !form.patron_id || (Array.isArray(s.patron_id) ? s.patron_id.includes(form.patron_id) : s.patron_id === form.patron_id);
+            return isSelected || matchesPatron;
         })
         .map((s: any) => ({ label: s.name, value: s.id }));
 });

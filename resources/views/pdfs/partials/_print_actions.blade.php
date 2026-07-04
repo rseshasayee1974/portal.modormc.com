@@ -42,3 +42,9 @@
     }
 </style>
 @endif
+
+@if(isset($data['is_duplicate']) && $data['is_duplicate'])
+<div style="position: absolute; top: 40%; left: 50%; z-index: 100; transform: translate(-50%, -50%) rotate(-45deg); opacity: 0.1; font-size: 130px; font-weight: 900; color: #ef4444; letter-spacing: 10px; white-space: nowrap; pointer-events: none; font-family: 'Roboto', sans-serif;">
+    DUPLICATE
+</div>
+@endif

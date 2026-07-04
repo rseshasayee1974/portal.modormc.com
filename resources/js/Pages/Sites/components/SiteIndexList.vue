@@ -87,7 +87,12 @@ watch(() => props.searchQuery, (newVal) => {
 
         <Column header="Customer / Patron" sortable field="patron.legal_name">
             <template #body="slotProps">
-                <span v-if="slotProps.data.patron?.legal_name" class="text-xs font-bold text-slate-700 dark:text-slate-300">
+                <div v-if="slotProps.data.patrons_data && slotProps.data.patrons_data.length > 0" class="flex flex-wrap gap-1 max-w-[200px]">
+                    <span v-for="pat in slotProps.data.patrons_data" :key="pat.id" class="text-[10px] font-bold text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 px-1.5 py-0.5 rounded">
+                        {{ pat.legal_name }}
+                    </span>
+                </div>
+                <span v-else-if="slotProps.data.patron?.legal_name" class="text-[10px] font-bold text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 px-1.5 py-0.5 rounded">
                     {{ slotProps.data.patron.legal_name }}
                 </span>
                 <span v-else class="text-slate-300 dark:text-slate-700 text-xs italic">-</span>

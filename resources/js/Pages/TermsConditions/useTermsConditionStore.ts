@@ -4,6 +4,7 @@ import { ref } from 'vue';
 export interface TermsCondition {
     id: number;
     entity_id: number;
+    plant_id: number;
     order_type: string;
     terms_condition: string;
     status: string;

@@ -164,6 +164,25 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
+        // Determine Tenant-Specific Role and Permissions or user - specific roles of the logged in user
+        $activeRole = null;
+        if ($activeEntity && isset($activeEntity['role_id'])) {
+            $activeRole = \App\Models\Role::with('permissions')->find($activeEntity['role_id']);
+        }
+
+        $tenantRoleName = $activeRole ? $activeRole->name : $user?->getRoleNames()->first();
+        $tenantRoleCode = $activeRole ? $activeRole->code : $user?->getRoleCode()->first();
+        
+        $tenantPermissions = collect();
+        if ($activeRole) {
+            $tenantPermissions = $activeRole->permissions->pluck('name');
+            if ($user) {
+                $tenantPermissions = $tenantPermissions->merge($user->getDirectPermissions()->pluck('name'))->unique()->values();
+            }
+        } else {
+            $tenantPermissions = $user ? $user->getAllPermissions()->pluck('name') : collect();
+        }
+
         return [
             ...parent::share($request),
             'auth' => [
@@ -188,10 +207,10 @@ class HandleInertiaRequests extends Middleware
             'active_plant'     => $activePlant,
             'active_plant_id'  => $activePlantId,
             'user_entities'    => $userEntities,
-            'user_role'        => $user?->getRoleNames()->first(),
-            'user_code'        => $user?->getRoleCode()->first(),
+            'user_role'        => $tenantRoleName,
+            'user_code'        => $tenantRoleCode,
             'app_env'          => app()->environment(),
-            'user_permissions' => $user ? $user->getAllPermissions()->pluck('name') : [],
+            'user_permissions' => $tenantPermissions,
             'menus'            => $menus,
             'custom_settings'  => $customSettings,
             'plants_count'     => $plantsCount,

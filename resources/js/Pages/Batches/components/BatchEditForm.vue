@@ -168,7 +168,7 @@ const runSizes = computed(() => {
     return runs;
 });
 
-console.log('batcjh==',props);
+// console.log('batcjh==',props);
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;

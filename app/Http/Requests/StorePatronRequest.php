@@ -39,10 +39,17 @@ class StorePatronRequest extends FormRequest
             $mergeData['contact_alt_mobile'] = $cleaned;
         }
 
+        
+        // clean identifiers
+        if ($this->has('aadhar_number') && !is_null($this->aadhar_number)) {
+            $mergeData['aadhar_number'] = preg_replace('/[^0-9]/', '', $this->aadhar_number);
+        }
+        if ($this->has('gstin') && !is_null($this->gstin)) {
+            $mergeData['gstin'] = strtoupper(trim($this->gstin));
+        }
         if (!empty($mergeData)) {
             $this->merge($mergeData);
         }
-
         if ($this->has('bank_accounts') && is_array($this->bank_accounts)) {
             $bankAccounts = array_filter($this->bank_accounts, function ($account) {
                 return !empty($account['account_number']) || 
@@ -78,7 +85,7 @@ class StorePatronRequest extends FormRequest
                 'max:100', 
                 \Illuminate\Validation\Rule::unique('mm_patrons')->where(fn($q) => $q->where('plant_id', session('active_plant_id')))
             ],
-            'legal_name' => [
+            'legal_name' => [       
                 'required', 
                 'string', 
                 'max:200', 
@@ -87,8 +94,8 @@ class StorePatronRequest extends FormRequest
             'ledger_id' => 'nullable|exists:mm_ledgers,id',
             'operational_status' => 'required|string|max:100',
             'pan_no' => 'nullable|string|max:20',
-            'gstin' => 'nullable|string|max:20',
-            'aadhar_number' => 'nullable|string|max:20',
+          'gstin' => 'nullable|string|max:20|required_without:aadhar_number',
+        'aadhar_number' => 'nullable|string|max:20|required_without:gstin',
             'status' => 'required|boolean',
             'displayed' => 'required|boolean',
 
@@ -123,6 +130,16 @@ class StorePatronRequest extends FormRequest
             'bank_accounts.*.ifsc_code' => 'required|string|max:20',
             'bank_accounts.*.is_primary' => 'nullable|boolean',
             'bank_accounts.*.status' => 'nullable|boolean',
+        ];
+    }
+    /**
+     * Custom messages for the cross-required rule.
+     */
+    public function messages(): array
+    {
+        return [
+            'gstin.required_without' => 'Please provide either GSTIN or Aadhar Number.',
+            'aadhar_number.required_without' => 'Please provide either Aadhar Number or GSTIN.',
         ];
     }
 }

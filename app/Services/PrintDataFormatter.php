@@ -192,6 +192,30 @@ class PrintDataFormatter
     }
 
     // ─────────────────────────────────────────────────────
+    //  RESOLVE TERMS CONDITION
+    // ─────────────────────────────────────────────────────
+    public static function resolveTermsCondition(array $settings, string $orderType, int $entityId, ?int $plantId = null, ?string $fallbackTerms = null): string
+    {
+        if (empty($settings['pdf']['terms'])) {
+            return '';
+        }
+
+        $query = \App\Models\TermsCondition::where('entity_id', $entityId)
+            ->where('order_type', $orderType)
+            ->where('status', 'active');
+            
+        if ($plantId) {
+            $tc = (clone $query)->where('plant_id', $plantId)->first();
+            if ($tc) return $tc->terms_condition;
+        }
+        
+        $tc = $query->whereNull('plant_id')->first();
+        if ($tc) return $tc->terms_condition;
+        
+        return $fallbackTerms ?? '';
+    }
+
+    // ─────────────────────────────────────────────────────
     //  PURCHASE ORDER
     // ─────────────────────────────────────────────────────
     public static function fromPurchaseOrder($order): array
@@ -332,7 +356,7 @@ class PrintDataFormatter
             'currency_code'   => $order->currency->currency_code ?? 'INR',
             'currency_symbol' => $order->currency->currency_symbol ?? '₹',
             'notes'           => $order->notes ?? '',
-            'terms_text'      => $order->terms_conditions ?? '',
+            'terms_text'      => self::resolveTermsCondition($data['settings'], 'Purchase Order', $order->plant->entity_id ?? 0, $order->plant_id, $order->terms_conditions ?? ''),
             'total_words'     => self::numberToWords($order->amount_total, $order->currency->currency_code ?? 'INR'),
             'site_incharge'   => $order->plant->site_incharge ?? '',
             'contact_no'      => $order->plant->contact_no ?? '',
@@ -465,7 +489,7 @@ class PrintDataFormatter
             'currency_code'   => 'INR',
             'currency_symbol' => '₹',
             'notes'           => '',
-            'terms_text'      => "1. Goods once sold will not be taken back.\n2. Interest @ 18% will be charged if not paid within due date.\n3. All disputes are subject to local jurisdiction.",
+            'terms_text'      => self::resolveTermsCondition($data['settings'], $invoice->invoice_type === 'bill' ? 'Purchase Bill' : 'Tax Invoice', $invoice->plant->entity_id ?? 0, $invoice->plant_id, "1. Goods once sold will not be taken back.\n2. Interest @ 18% will be charged if not paid within due date.\n3. All disputes are subject to local jurisdiction."),
             'total_words'     => self::numberToWords($invoice->total_amount, 'INR'),
             'po_number'       => $invoice->ref_id ?? '',
             'project_name'    => $invoice->ref_title ?? '',
@@ -582,7 +606,7 @@ class PrintDataFormatter
             'currency_code'   => 'INR',
             'currency_symbol' => '₹',
             'notes'           => $quotation->notes ?? '',
-            'terms_text'      => $quotation->terms_conditions ?? '',
+            'terms_text'      => self::resolveTermsCondition($data['settings'], 'Quotation', $quotation->plant->entity_id ?? 0, $quotation->plant_id, $quotation->terms_conditions ?? ''),
             'total_words'     => self::numberToWords($quotation->amount_total, 'INR'),
         ];
 
@@ -913,7 +937,7 @@ class PrintDataFormatter
             'currency_code'   => 'INR',
             'currency_symbol' => '₹',
             'notes'           => $weightNotes,
-            'terms_text'      => $batch->workOrder?->terms_conditions ?? "1. Goods received in good condition.\n2. Any variation in quantity to be reported immediately.",
+            'terms_text'      => self::resolveTermsCondition($data['settings'], 'Delivery Challan', $batch->workOrder->plant->entity_id ?? 0, $batch->workOrder->plant_id, $batch->workOrder?->terms_conditions ?? "1. Goods received in good condition.\n2. Any variation in quantity to be reported immediately."),
             'total_words'     => '',
             'po_number'       => $batch->workOrder?->order_no ?? '-',
             'project_name'    => 'Concrete Grade: ' . ($batch->workOrder?->mixDesign?->concrete_grade?->name ?? '-'),

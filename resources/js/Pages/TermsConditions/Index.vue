@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useTermsConditionStore } from './useTermsConditionStore';
@@ -21,7 +21,8 @@ import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 const props = defineProps({
     termsConditions: Object,
     filters:         Object,
-    entities:        Array as () => any[],
+    entities:        { type: Array as () => any[], default: () => [] },
+    plants:          { type: Array as () => any[], default: () => [] },
 });
 
 const store = useTermsConditionStore();
@@ -59,6 +60,7 @@ watch(() => filters.value.global.value, (newVal) => {
 
 const form = ref({
     entity_id: props.entities?.[0]?.id ?? null as number | null,
+    plant_id: props.plants?.[0]?.id ?? null as number | null,
     order_type: '',
     terms_condition: '',
     status: 'active',
@@ -70,7 +72,23 @@ const typeOptions = [
     { label: 'Customer PO', value: 'Customer PO' },
     { label: 'Quotation', value: 'Quotation' },
     { label: 'Delivery Challan', value: 'Delivery Challan' },
+    { label: 'Tax Invoice', value: 'Tax Invoice' },
+    { label: 'Purchase Bill', value: 'Purchase Bill' },
 ];
+
+const filteredPlants = computed(() => {
+    if (!form.value.entity_id) return [];
+    return props.plants.filter((p: any) => p.entity_id === form.value.entity_id);
+});
+
+watch(() => form.value.entity_id, (newEntityId) => {
+    if (form.value.plant_id) {
+        const plantExists = filteredPlants.value.some((p: any) => p.id === form.value.plant_id);
+        if (!plantExists) {
+            form.value.plant_id = null;
+        }
+    }
+});
 
 const statusOptions = [
     { label: 'Active', value: 'active' },
@@ -82,6 +100,7 @@ const openCreateModal = () => {
     editingId.value = null;
     form.value = {
         entity_id: props.entities?.[0]?.id ?? null,
+        plant_id: null,
         order_type: '',
         terms_condition: '',
         status: 'active',
@@ -95,6 +114,7 @@ const openEditModal = (item: any) => {
     editingId.value = item.id;
     form.value = {
         entity_id: item.entity_id,
+        plant_id: item.plant_id,
         order_type: item.order_type,
         terms_condition: item.terms_condition,
         status: item.status,
@@ -216,8 +236,13 @@ const onSearch = () => {
             <div class="grid grid-cols-2 gap-4 py-4">
                 <div class="flex flex-col gap-2">
                     <label class="text-xs font-semibold uppercase text-gray-500">Legal Entity</label>
-                    <BaseSelect v-model="form.entity_id" :options="props.entities" optionLabel="legal_name" optionValue="id" placeholder="Select Entity" fluid filter />
+                    <BaseSelect v-model="form.entity_id" :options="props.entities || []" optionLabel="legal_name" optionValue="id" placeholder="Select Entity" fluid filter />
                     <small v-if="form.errors.entity_id" class="text-red-500">{{ form.errors.entity_id[0] }}</small>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <label class="text-xs font-semibold uppercase text-gray-500">Plant ID</label>
+                    <BaseSelect v-model="form.plant_id" :options="filteredPlants" optionLabel="name" optionValue="id" placeholder="Select Plant ID" fluid filter />
+                    <small v-if="form.errors.plant_id" class="text-red-500">{{ form.errors.plant_id[0] }}</small>
                 </div>
 
                 <div class="flex flex-col gap-2">

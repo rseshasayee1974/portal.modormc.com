@@ -144,12 +144,11 @@ const getDeleteRestrictionReason = (customerPO: any): string => {
 };
 
 // Filter sites by selected patron
-// Filter sites by selected patron and unloading type
+// Filter sites by selected patron
 const filteredSites = computed(() => {
     return (props.sites || []).filter((s: any) => {
-        const matchesPatron = !form.patron_id || s.patron_id === form.patron_id;
-        const matchesType = s.type === 'unloading';
-        return matchesType && matchesPatron;
+        if (!s) return false;
+        return !form.patron_id || (Array.isArray(s.patron_id) ? s.patron_id.includes(form.patron_id) : s.patron_id === form.patron_id);
     });
 });
 

@@ -23,6 +23,7 @@ class UpdateTermsConditionRequest extends FormRequest
     {
         return [
             'entity_id' => 'required|exists:mm_entities,id',
+            'plant_id' => 'required|exists:mm_plants,id',
             'order_type' => 'required|string|max:255',
             'terms_condition' => 'required|string',
             'status' => 'nullable|string|max:255',

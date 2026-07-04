@@ -21,11 +21,11 @@ export function usePermissions() {
     );
 
     const isSuperAdmin = computed(() =>
-        userRole.value === 'Super Administrator' || userRole.value === 'Saas Owner'
+        ['Super Administrator', 'Saas Owner', 'Super Admin'].includes(userRole.value)
     );
 
     const isAdmin = computed(() =>
-        ['Administrator', 'Super Administrator', 'Platform Admin', 'Saas Owner'].includes(userRole.value)
+        ['Administrator', 'Super Administrator', 'Platform Admin', 'Saas Owner', 'Admin', 'Super Admin'].includes(userRole.value)
     );
 
     /**
@@ -35,6 +35,10 @@ export function usePermissions() {
     const can = (permission: string): boolean => {
         if (isSuperAdmin.value) return true;
         const normalized = permission.toLowerCase();
+        // console.log('normalized', normalized);
+        // console.log('permissions', permissions.value);
+        // console.log('isSuperAdmin', isSuperAdmin.value);
+
         return permissions.value.some(p => p.toLowerCase() === normalized);
     };
 

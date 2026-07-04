@@ -89,8 +89,8 @@ class UpdatePatronRequest extends FormRequest
             'ledger_id' => 'nullable|exists:mm_ledgers,id',
             'operational_status' => 'required|string|max:100',
             'pan_no' => 'nullable|string|max:20',
-            'gstin' => 'nullable|string|max:20',
-            'aadhar_number' => 'nullable|string|max:20',
+            'gstin' => 'nullable|string|max:20|required_without:aadhar_number',
+            'aadhar_number' => 'nullable|string|max:20|required_without:gstin',
             'status' => 'required|boolean',
             'displayed' => 'required|boolean',
 
@@ -125,6 +125,16 @@ class UpdatePatronRequest extends FormRequest
             'bank_accounts.*.ifsc_code' => 'required|string|max:255',
             'bank_accounts.*.is_primary' => 'nullable|boolean',
             'bank_accounts.*.status' => 'nullable|boolean',
+        ];
+    }
+    /**
+     * Custom messages for the cross-required rule.
+     */
+    public function messages(): array
+    {
+        return [
+            'gstin.required_without' => 'Please provide either GSTIN or Aadhar Number.',
+            'aadhar_number.required_without' => 'Please provide either Aadhar Number or GSTIN.',
         ];
     }
 }

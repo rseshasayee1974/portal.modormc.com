@@ -4,6 +4,8 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import ToggleSwitch from 'primevue/toggleswitch';
 import { BuildingOfficeIcon, TagIcon, MapPinIcon } from '@heroicons/vue/24/outline';
 import { ref, computed } from 'vue';
+import MultiSelect from 'primevue/multiselect';
+import BaseField from '@/Components/Base/BaseField.vue';
 
 const props = defineProps<{
     form: any;
@@ -141,20 +143,19 @@ const activeTab = ref<'basic' | 'location'>('basic');
                 </div>
 
                 <div class="col-span-12 md:col-span-3 flex flex-col gap-1.5">
-                    <BaseSelect 
-                        v-model="form.patron_id" 
-                        label="Associated Customer / Patron"
-                        :options="patronOptions" 
-                        optionLabel="label" 
-                        optionValue="value" 
-                        placeholder="Select Customer (Optional)" 
-                        filter
-                        showClear
-                        class="!w-full !rounded-md !border-slate-200 focus:!ring-indigo-100 font-medium text-sm"
-                        :class="{'p-invalid': errors?.patron_id}"
-                        :disabled="readonly"
-                    />
-                    <small v-if="errors?.patron_id" class="p-error px-1 text-[10px]">{{ Array.isArray(errors.patron_id) ? errors.patron_id[0] : errors.patron_id }}</small>
+                    <BaseField label="Associated Customer / Patron" :error="errors?.patron_id">
+                        <MultiSelect 
+                            v-model="form.patron_id" 
+                            :options="patronOptions" 
+                            optionLabel="label" 
+                            optionValue="value" 
+                            placeholder="Select Customer (Optional)" 
+                            display="chip"
+                            class="!w-full !rounded-md !border-slate-200 focus:!ring-indigo-100 font-medium text-sm"
+                            :class="{'p-invalid': errors?.patron_id}"
+                            :disabled="readonly"
+                        />
+                    </BaseField>
                 </div>
 
                 <!-- <div class="col-span-12">

@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\Rule;
 
 class InvoiceShareController extends Controller
 {
@@ -23,7 +24,8 @@ class InvoiceShareController extends Controller
     public function generateLink(Request $request)
     {
         $request->validate([
-            'document_type' => 'required|in:invoice,report,batch',
+            // 'document_type' => 'required|in:invoice,report,batch',
+            'document_type' => Rule::in(['invoice','report','batch','Invoice','Report','Batch','INVOICE','REPORT','BATCH'],'required'),
             'document_id' => 'required_if:document_type,invoice|required_if:document_type,batch|nullable|integer',
             'expiry' => 'required|in:1,7,30,0', // 1 day, 7 days, 30 days, 0 (never)
             'report_params' => 'required_if:document_type,report|array',

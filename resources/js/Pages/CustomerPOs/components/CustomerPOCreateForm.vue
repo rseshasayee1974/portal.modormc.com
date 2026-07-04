@@ -69,12 +69,11 @@ const removeItem = (index: number) => {
     }
 };
 
-// Filter sites by selected patron and unloading type
+// Filter sites by selected patron
 const filteredSites = computed(() => {
     return (props.sites || []).filter((s: any) => {
-        const matchesPatron = !form.patron_id || s.patron_id === form.patron_id;
-        const matchesType = s.type === 'unloading';
-        return matchesType && matchesPatron;
+        if (!s) return false;
+        return !form.patron_id || (Array.isArray(s.patron_id) ? s.patron_id.includes(form.patron_id) : s.patron_id === form.patron_id);
     });
 });
 
@@ -238,19 +237,7 @@ const submit = () => {
         </p>
     </div>
 
-    <!-- Sales Executive -->
-    <div>
-        <BaseSelect
-            v-model="form.sales_executive_id"
-            :options="salesExecutiveOptions"
-            optionLabel="label"
-            optionValue="value"
-            filter
-            label="Sales Executive"
-            placeholder="Select Sales Executive"
-            :error="form.errors.sales_executive_id"
-        />
-    </div>
+    
 
     <!-- Unloading Site -->
     <div>
@@ -272,6 +259,19 @@ const submit = () => {
         >
             Locked to quotation site
         </p>
+    </div>
+    <!-- Sales Executive -->
+    <div>
+        <BaseSelect
+            v-model="form.sales_executive_id"
+            :options="salesExecutiveOptions"
+            optionLabel="label"
+            optionValue="value"
+            filter
+            label="Sales Executive"
+            placeholder="Select Sales Executive"
+            :error="form.errors.sales_executive_id"
+        />
     </div>
 
     <!-- Order Date -->

@@ -16,6 +16,7 @@ import {
 } from '@heroicons/vue/24/outline';
 import InvoiceEditForm from './InvoiceEditForm.vue';
 import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps<{
     invoices: any[];
@@ -27,10 +28,13 @@ const props = defineProps<{
     machines: any[];
 }>();
 
+const { can,isAdmin, isSuperAdmin } = usePermissions();
+
 const expandedRows = ref<Record<number, boolean>>({});
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
 });
+
 
 const getStatusSeverity = (status: string) => {
     switch (status) {
@@ -118,8 +122,23 @@ const onRowExpand = (event: any) => {
     fetchInvoiceDetails(event.data);
 };
 
+const showPreviewModal = ref(false);
+const previewUrl = ref('');
+
 const printInvoice = (data: any) => {
-    window.open(route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'view' }), '_blank');
+    if (typeof data.print_count !== 'undefined') {
+        data.print_count += 1;
+    }
+    previewUrl.value = route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'view' });
+    showPreviewModal.value = true;
+};
+
+const printOriginal = (data: any) => {
+    window.open(route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'download', force: 'original' }), '_blank');
+};
+
+const printDuplicate = (data: any) => {
+    window.open(route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'download', force: 'duplicate' }), '_blank');
 };
 
 const showShareModal = ref(false);
@@ -134,6 +153,9 @@ const openShareInvoice = (invoice: any) => {
     shareLink.value = '';
     showShareModal.value = true;
 };
+
+console.log('invoice ',props.invoices);
+console.table(props.invoices, ['print_count']);
 
 const generateShareLink = async () => {
     if (!selectedShareInvoice.value) return;
@@ -317,10 +339,25 @@ const shareEmail = () => {
             <Column header="Actions" class="text-right">
                 <template #body="slotProps">
                     <div class="flex justify-end gap-1">
+                        <template v-if="isAdmin">
+                            <Button 
+                                icon="pi pi-file" 
+                                text rounded severity="secondary" 
+                                @click.stop="printOriginal(slotProps.data)"
+                                title="Print Original"
+                            />
+                            <Button 
+                                icon="pi pi-copy" 
+                                text rounded severity="secondary" 
+                                @click.stop="printDuplicate(slotProps.data)"
+                                title="Print Duplicate"
+                            />
+                        </template>
                         <Button 
+                            v-else
                             icon="pi pi-print" 
                             text rounded severity="secondary" 
-                            @click.stop="printInvoice(slotProps.data)"
+                            @click.stop="slotProps.data.print_count > 1 ? printDuplicate(slotProps.data) : printInvoice(slotProps.data)"
                             title="Print Invoice"
                         />
                         <Button 
@@ -371,73 +408,73 @@ const shareEmail = () => {
             </template>
         </BaseDataTable>
 
-        <!-- Premium Share Invoice Dialog -->
-        <Dialog v-model:visible="showShareModal" modal header="Share Invoice" :style="{ width: '450px' }" class="premium-dialog">
-            <div class="p-2">
-                <p class="text-xs text-slate-500 mb-4">
-                    Generate a secure, read-only link to share this invoice with your customer.
-                </p>
-
-                <!-- Expiry Options -->
-                <div class="mb-5">
-                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Link Expiry</label>
-                    <div class="grid grid-cols-4 gap-2">
-                        <button 
-                            v-for="opt in [
-                                { label: '1 Day', value: '1' },
-                                { label: '7 Days', value: '7' },
-                                { label: '30 Days', value: '30' },
-                                { label: 'Never', value: '0' }
-                            ]" 
-                            :key="opt.value"
-                            type="button"
-                            @click="shareExpiry = opt.value"
-                            class="px-2 py-2 text-xs font-semibold rounded-lg border text-center transition-all"
-                            :class="[
-                                shareExpiry === opt.value
-                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
-                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                            ]"
-                        >
-                            {{ opt.label }}
-                        </button>
+        <!-- Share Invoice Dialog -->
+        <Dialog v-model:visible="showShareModal" modal header="Share Invoice Link" :style="{ width: '90vw', maxWidth: '500px' }">
+            <div class="space-y-6 pt-4">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center">
+                        <svg class="w-8 h-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                        </svg>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-bold text-slate-800">Share Public Link</h3>
+                        <p class="text-sm text-slate-500 mt-1">Generate a secure link to share this invoice.</p>
                     </div>
                 </div>
 
-                <!-- Action Button or Generated Link Display -->
-                <div v-if="!shareLink" class="mt-6 flex justify-end gap-2">
-                    <Button label="Cancel" icon="pi pi-times" text severity="secondary" @click="showShareModal = false" class="!text-xs font-bold uppercase" />
-                    <Button 
-                        label="Generate Link" 
-                        icon="pi pi-link" 
-                        severity="primary" 
-                        @click="generateShareLink" 
-                        :loading="isGeneratingLink"
-                        class="!text-xs font-bold uppercase bg-indigo-600 hover:bg-indigo-700 text-white border-0" 
-                    />
-                </div>
-
-                <div v-else class="mt-6 space-y-4 animate-in fade-in duration-200">
-                    <!-- Link Textbox -->
+                <div v-if="!shareLink" class="space-y-4">
                     <div>
-                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">Secure Share Link</label>
-                        <div class="flex gap-2">
-                            <input 
-                                type="text" 
-                                readonly 
-                                :value="shareLink" 
-                                class="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-600 dark:text-slate-300 font-mono focus:outline-none"
-                            />
+                        <label class="block text-[11px] font-bold text-slate-700 uppercase mb-2 tracking-wider">Link Expiry</label>
+                        <div class="grid grid-cols-4 gap-2">
                             <button 
-                                @click="copyShareLink"
-                                class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition-all"
+                                v-for="opt in [
+                                    { label: '1 Day', value: '1' },
+                                    { label: '7 Days', value: '7' },
+                                    { label: '30 Days', value: '30' },
+                                    { label: 'Never', value: '0' }
+                                ]" 
+                                :key="opt.value"
+                                type="button"
+                                @click="shareExpiry = opt.value"
+                                class="px-2 py-2 text-xs font-semibold rounded-lg border text-center transition-all"
+                                :class="[
+                                    shareExpiry === opt.value
+                                    ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
+                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                ]"
                             >
-                                <i class="pi pi-copy"></i>
-                                Copy
+                                {{ opt.label }}
                             </button>
                         </div>
                     </div>
+                    <Button 
+                        label="Generate Link" 
+                        icon="pi pi-link" 
+                        class="w-full"
+                        severity="primary"
+                        :loading="isGeneratingLink"
+                        @click="generateShareLink"
+                    />
+                </div>
 
+                <div v-else class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Secure Link Generated</label>
+                        <div class="flex relative">
+                            <input 
+                                type="text" 
+                                :value="shareLink" 
+                                readonly 
+                                class="w-full text-sm border-slate-200 rounded-l-xl bg-slate-50 text-slate-600 focus:ring-0 pr-10"
+                            />
+                            <Button 
+                                icon="pi pi-copy" 
+                                class="rounded-l-none"
+                                @click="copyShareLink"
+                            />
+                        </div>
+                    </div>
                     <!-- Social Share Action Buttons -->
                     <div class="pt-4 border-t border-slate-100 dark:border-slate-700 flex gap-2">
                         <button 
