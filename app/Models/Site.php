@@ -108,6 +108,7 @@ class Site extends Model
         'is_reset' => 'boolean',
         'is_active' => 'boolean',
         'is_system' => 'boolean',
+        'patron_id' => 'array',
     ];
 
     public function getIsInUseAttribute()
@@ -122,8 +123,9 @@ class Site extends Model
         return $this->belongsTo(Plant::class);
     }
 
-    public function patron()
-    {
-        return $this->belongsTo(Patron::class, 'patron_id');
-    }
+    // public function patron() removed because patron_id is now an array (JSON).
+    //   public function patron()
+    // {
+    //     return $this->belongsTo(Patron::class, 'patron_id');
+    // }
 }

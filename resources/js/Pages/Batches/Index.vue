@@ -5,6 +5,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
+import { usePermissions } from '@/Composables/usePermissions';
 import { useWebSocket } from '@/Composables/useWebSocket';
 import { useOfflineBatchSync } from '@/Composables/useOfflineBatchSync';
 import { useBatchActions } from './useBatchActions';
@@ -69,8 +70,9 @@ const filters = ref({
     'sales_order.customer.id': { value: null, matchMode: 'equals' },
 });
 
+const { isAdmin, isSuperAdmin, can } = usePermissions();
 
-console.log('props.drivers',props);
+// console.log('props.drivers',props);
 
 const dateFrom = ref<any>(null);
 const dateTo = ref<any>(null);
@@ -368,6 +370,8 @@ const {
 const {
     generateInvoiceDirect,
     printInvoiceDirect,
+    printOriginalInvoiceDirect,
+    printDuplicateInvoiceDirect,
     downloadInvoiceDirect,
     printEInvoiceDirect,
     deleteInvoiceDirect,
@@ -1017,17 +1021,35 @@ const shareBatchEmail = () => {
                     >
                         <i class="pi pi-plus-circle mr-2 text-emerald-500 font-bold"></i>
                         Generate Invoice
-                    </button>
+                    </button>   
 
                     <!-- If Invoice is generated -->
                     <div v-if="activeBatch.dispatches[0].status?.invoice_status === 1 && activeBatch.dispatches[0].status?.invoice">
-                        <button
-                            class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                            @click="printInvoiceDirect(activeBatch.dispatches[0].status.invoice); closeAllMenus();"
-                        >
-                            <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
-                            Print Invoice
-                        </button>
+                        <template v-if="isAdmin || can('INVOICE.EXPORT')">
+                            <button
+                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                @click="printOriginalInvoiceDirect(activeBatch.dispatches[0].status.invoice); closeAllMenus();"
+                            >
+                                <i class="pi pi-file mr-2 text-indigo-500 font-bold"></i>
+                                Print Original Invoice
+                            </button>
+                            <button
+                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                @click="printDuplicateInvoiceDirect(activeBatch.dispatches[0].status.invoice); closeAllMenus();"
+                            >
+                                <i class="pi pi-copy mr-2 text-indigo-500 font-bold"></i>
+                                Print Duplicate Invoice
+                            </button>
+                        </template>
+                        <template v-else>
+                            <button
+                                class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                @click="printInvoiceDirect(activeBatch.dispatches[0].status.invoice); closeAllMenus();"
+                            >
+                                <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
+                                Print Invoice
+                            </button>
+                        </template>
                         <button
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                             @click="downloadInvoiceDirect(activeBatch.dispatches[0].status.invoice); closeAllMenus();"

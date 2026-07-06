@@ -3,7 +3,8 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import { ScaleIcon, BanknotesIcon, TruckIcon, PrinterIcon } from '@heroicons/vue/24/outline';
+import { ScaleIcon, BanknotesIcon, TruckIcon, PrinterIcon, DocumentDuplicateIcon } from '@heroicons/vue/24/outline';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = withDefaults(defineProps<{
     modelValue: any; // The whole form object
@@ -36,9 +37,14 @@ const props = withDefaults(defineProps<{
 // console.log(props.sales_ledgers)
 const emit = defineEmits(['update:modelValue', 'generateInvoice' , 'deleteInvoice']);
 
+const { can, isAdmin, isSuperAdmin, permissions, userRole } = usePermissions();
+console.log('Current User Role:', userRole.value);
+console.log('Current User Permissions:', permissions.value);
 
-import { watch } from 'vue';
+import { watch, computed } from 'vue';
 import Swal from 'sweetalert2';
+
+const canExportInvoice = computed(() => isAdmin.value );
 
 const handleGenerateInvoice = () => {
     if (!props.modelValue.ledger_id) {
@@ -240,15 +246,39 @@ const formatTime = (dateVal: any) => {
                 </div>
 
                 <div class="flex justify-end gap-3 py-2">
-                    <a 
-                        v-if="modelValue.status.invoice?.encrypted_id"
-                        :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'view' })" 
-                        target="_blank"
-                        class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
-                    >
-                        <PrinterIcon class="h-4 w-4" />
-                        Print Invoice
-                    </a>
+                    <template v-if="modelValue.status.invoice?.encrypted_id">
+                        <template v-if="canExportInvoice">
+                            <a 
+                                :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'download', force: 'original' })" 
+                                target="_blank"
+                                class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
+                            >
+                                <PrinterIcon class="h-4 w-4" />
+                                Print Original
+                            </a>
+                            <a 
+                                :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'download', force: 'duplicate' })" 
+                                target="_blank"
+                                class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
+                            >
+                                <DocumentDuplicateIcon class="h-4 w-4" />
+                                Print Duplicate
+                            </a>
+                        </template>
+                        <a 
+                            v-else
+                            :href="modelValue.status.invoice?.is_duplicate 
+                                ? route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'download', force: 'duplicate' })
+                                : route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'view' })" 
+                            target="_blank"
+                            @click="modelValue.status.invoice.is_duplicate = 1"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
+                        >
+                            <DocumentDuplicateIcon v-if="modelValue.status.invoice?.is_duplicate" class="h-4 w-4" />
+                            <PrinterIcon v-else class="h-4 w-4" />
+                            Print Invoice
+                        </a>
+                    </template>
                     <button 
                         type="button"
                         @click="$emit('deleteInvoice')"

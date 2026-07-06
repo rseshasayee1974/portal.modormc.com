@@ -70,6 +70,15 @@ class SalesOrderController extends Controller
     {
         $this->authorizeModule('edit');
         $this->ensurePlantScope($salesorder);
+        
+        // $user = request()->user();
+        // $isSuperAdmin = $user && method_exists($user, 'hasRole') && $user->hasRole(['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN' , 'ADMIN' ,'ADMINISTRATOR']);
+        // $hasActiveData = $salesorder->batches()->exists() || $salesorder->dispatches()->exists() || $salesorder->status == SalesOrder::STATUS_COMPLETED;
+
+        // if (!$isSuperAdmin && $hasActiveData) {
+        //     return redirect()->back()->with('error', 'Cannot update this sales order because it has associated batches or dispatches. Only Super Admins can force update.');
+        // }
+
         $payload = $request->validated();
         
         $tableColumns = Schema::getColumnListing('mm_sales_orders');
@@ -84,6 +93,10 @@ class SalesOrderController extends Controller
         if ($hasLegacyQtyColumn && !$hasTotalQtyColumn && isset($payload['total_qty'])) {
             $payload['quantity'] = $payload['total_qty'];
         }
+
+        // if ($hasActiveData) {
+        //     unset($payload['customer_id'], $payload['site_id'], $payload['mix_design_id']);
+        // }
 
         $payload = collect($payload)->only($tableColumns)->toArray();
 

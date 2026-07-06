@@ -27,7 +27,7 @@ const expandedRows = ref<Record<number, boolean>>({});
 
 const blankForm = () => ({
     plant_id: props.plants?.[0]?.id || null,
-    patron_id: null as number | null,
+    patron_id: [] as number[],
     name: '',
     site_address_1: '',
     zipcode: '',
@@ -56,7 +56,7 @@ const resetEditForm = () => {
 
 const populateSiteForm = (form: any, site: any) => {
     form.plant_id = site.plant_id;
-    form.patron_id = site.patron_id || null;
+    form.patron_id = Array.isArray(site.patron_id) ? [...site.patron_id] : (site.patron_id ? [site.patron_id] : []);
     form.name = site.name;
     form.site_address_1 = site.site_address_1 || '';
     form.zipcode = site.zipcode || '';

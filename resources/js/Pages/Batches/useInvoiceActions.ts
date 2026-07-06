@@ -8,6 +8,8 @@ import Swal from 'sweetalert2';
  * Handles all invoice-related actions inside the Batches module:
  *  - generateInvoiceDirect  : Show Swal form → POST to create invoice
  *  - printInvoiceDirect     : Open invoice in a new tab (view)
+ *  - printOriginalInvoiceDirect     : Open invoice in a new tab (view original)
+ *  - printDuplicateInvoiceDirect    : Open invoice in a new tab (view duplicate)
  *  - downloadInvoiceDirect  : Open invoice download link in a new tab
  *  - printEInvoiceDirect    : Open e-invoice view in a new tab
  *  - deleteInvoiceDirect    : Confirm + DELETE invoice and reset dispatch billing
@@ -92,6 +94,23 @@ export function useInvoiceActions(props: { sales_ledgers: { label: string; value
             '_blank'
         );
     };
+
+    const printOriginalInvoiceDirect = (invoice: any) => {
+        if (!invoice || !invoice.encrypted_id) return;
+        window.open(
+            route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'download', force: 'original' }),
+            '_blank'
+        );
+    };
+
+    const printDuplicateInvoiceDirect = (invoice: any) => {
+        if (!invoice || !invoice.encrypted_id) return;
+        window.open(
+            route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'download', force: 'duplicate' }),
+            '_blank'
+        );
+    };
+
 
     const downloadInvoiceDirect = (invoice: any) => {
         if (!invoice || !invoice.encrypted_id) return;
@@ -193,6 +212,8 @@ export function useInvoiceActions(props: { sales_ledgers: { label: string; value
     return {
         generateInvoiceDirect,
         printInvoiceDirect,
+        printOriginalInvoiceDirect,
+        printDuplicateInvoiceDirect,
         downloadInvoiceDirect,
         printEInvoiceDirect,
         deleteInvoiceDirect,

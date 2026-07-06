@@ -16,6 +16,7 @@ class TermsCondition extends Model
         'order_type',
         'terms_condition',
         'entity_id',
+        'plant_id',
         'status',
         'created_by',
         'updated_by',
@@ -28,6 +29,10 @@ class TermsCondition extends Model
     public function entity()
     {
         return $this->belongsTo(Entity::class, 'entity_id');
+    }
+    public function plant()
+    {
+        return $this->belongsTo(Plant::class, 'plant_id');
     }
 
     public function creator()

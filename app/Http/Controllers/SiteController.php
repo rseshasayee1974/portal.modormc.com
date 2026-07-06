@@ -25,7 +25,7 @@ class SiteController extends Controller
 
         $query = Site::query()
             ->where('plant_id', $plantId)
-            ->with(['plant', 'patron']);
+            ->with(['plant']);
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -47,6 +47,22 @@ class SiteController extends Controller
 
         $sites = $query->orderBy($sortField, $sortDirection)
                       ->get();
+
+        $allPatronIds = $sites->pluck('patron_id')->flatten()->unique()->filter()->toArray();
+        $patronsMap = \App\Models\Patron::whereIn('id', $allPatronIds)->get()->keyBy('id');
+
+        $sites->each(function($site) use ($patronsMap) {
+            $sitePatronIds = is_array($site->patron_id) ? $site->patron_id : [];
+            $sitePatrons = [];
+            foreach ($sitePatronIds as $pid) {
+                if (isset($patronsMap[$pid])) {
+                    $sitePatrons[] = $patronsMap[$pid];
+                }
+            }
+            $site->patrons_data = $sitePatrons;
+            // Fallback for UI that expects site.patron.legal_name
+            $site->patron = count($sitePatrons) > 0 ? $sitePatrons[0] : null; 
+        });
 
         $user = Auth::user();
         $isPrivileged = $user->hasRole('Saas Owner') || $user->hasRole('Platform Admin');

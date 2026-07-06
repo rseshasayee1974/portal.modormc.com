@@ -42,7 +42,12 @@ const props = withDefaults(defineProps<{
 
 const showMixDesignModal = ref(false);
 const safeCustomers = computed(() => props.customers ?? []);
-const safeSites = computed(() => props.sites ?? []);
+const safeSites = computed(() => {
+    return (props.sites ?? []).filter((s: any) => {
+        if (!s) return false;
+        return !form.customer_id || (Array.isArray(s.patron_id) ? s.patron_id.includes(form.customer_id) : s.patron_id === form.customer_id);
+    });
+});
 const safeMixDesigns = computed(() => props.mixDesigns ?? []);
 const safeStatuses = computed(() => props.statuses ?? []);
 
@@ -144,6 +149,17 @@ watch(() => form.customer_po_id, (newVal) => {
         form.total_qty = 0;
         form.sales_executive_id = null;
 
+    }
+});
+
+watch(() => form.scheduled_start, (newStart) => {
+    if (newStart) {
+        const start = new Date(newStart);
+        if (!form.scheduled_end || new Date(form.scheduled_end) <= start) {
+            const endDate = new Date(start);
+            endDate.setHours(endDate.getHours() + 1);
+            form.scheduled_end = endDate;
+        }
     }
 });
 

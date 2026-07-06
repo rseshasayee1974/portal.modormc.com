@@ -8,6 +8,7 @@ import Swal from 'sweetalert2';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import StatusBadge from '@/Components/Mm/Badge.vue';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = withDefaults(defineProps<{
     salesOrder?: any;
@@ -45,6 +46,34 @@ const filteredStatuses = computed(() => {
     return props.statuses.filter(status => [1, 2, 4].includes(Number(status.value)));
 });
 
+const { can } = usePermissions();
+
+const hasActiveData = computed(() => {
+    return Number(props.salesOrder?.batches_count || 0) > 0 || 
+           Number(props.salesOrder?.dispatches_count || 0) > 0 || 
+           Number(props.salesOrder?.status) === 3;
+});
+
+const isCriticalLocked = computed(() => {
+    return hasActiveData.value; // Nobody can edit these if active data exists to prevent data corruption
+});
+
+const isLocked = computed(() => {
+    // If the user doesn't have the basic UPDATE permission, they are completely locked out
+    if (!can('SALES_ORDER.UPDATE')) {
+        return true;
+    }
+
+    // If they have APPROVE permission, they can bypass the status and active data locks
+    if (can('SALES_ORDER.APPROVE')) {
+        return false;
+    }
+
+    // Normal users (with UPDATE but no APPROVE) are locked if there is active data or if the status is not Scheduled (1) or Cancelled (4)
+    const status = Number(props.salesOrder?.status);
+    return hasActiveData.value || (status !== 1 && status !== 4);
+});
+
 const selectedMixDesign = computed(() => {
     const selectedId = form.mix_design_id !== null ? Number(form.mix_design_id) : null;
     return props.mixDesigns.find((md) => Number(md?.id) === selectedId);
@@ -57,6 +86,13 @@ const selectedMixIngredients = computed(() => {
     if (!mix) return [];
     
     return Array.isArray(mix.ingredients) ? mix.ingredients : [];
+});
+
+const safeSites = computed(() => {
+    return (props.sites || []).filter((s: any) => {
+        if (!s) return false;
+        return !form.customer_id || (Array.isArray(s.patron_id) ? s.patron_id.includes(form.customer_id) : s.patron_id === form.customer_id);
+    });
 });
 
 const emit = defineEmits<{
@@ -121,6 +157,17 @@ watch(() => form.customer_po_id, (newVal) => {
         form.mix_design_id = null;
         form.total_qty = 0;
         form.sales_executive_id = null;
+    }
+});
+
+watch(() => form.scheduled_start, (newStart) => {
+    if (newStart) {
+        const start = new Date(newStart);
+        if (!form.scheduled_end || new Date(form.scheduled_end) <= start) {
+            const endDate = new Date(start);
+            endDate.setHours(endDate.getHours() + 1);
+            form.scheduled_end = endDate;
+        }
     }
 });
 
@@ -198,6 +245,16 @@ const isOverdue = computed(() => {
         </div>
         </div>
 
+        <div v-if="isLocked" class="mb-4 rounded-md bg-amber-50 p-3 text-amber-800 text-xs flex items-start gap-2 border border-amber-200">
+            <i class="pi pi-lock mt-0.5 text-amber-600"></i>
+            <div>
+                <span class="font-bold text-amber-900 block">Order Locked</span>
+                <span v-if="hasActiveData">This sales order has active batches, dispatches, or is completed.</span>
+                <span v-else>This sales order is no longer in a modifiable status.</span>
+                Only users with update permissions can modify it.
+            </div>
+        </div>
+
       <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
     <!-- Row 1 -->
     <!-- <div class="col-span-1">
@@ -221,30 +278,36 @@ const isOverdue = computed(() => {
             filter
             label="Customer"
             :error="form.errors.customer_id"
-            :disabled="!!form.customer_po_id"
+            :disabled="isCriticalLocked || !!form.customer_po_id"
         />
     </div>
 
     <div class="col-span-1">
         <BaseSelect
             v-model="form.site_id"
-            :options="sites"
+            :options="safeSites"
             optionLabel="name"
             optionValue="id"
             filter
             label="Site"
             :error="form.errors.site_id"
-            :disabled="!!form.customer_po_id"
+            :disabled="isCriticalLocked || !!form.customer_po_id"
         />
     </div>
 
     <div class="col-span-1">
         <BaseInputNumber
+            v-if="can('SALES_ORDER.UPDATE')"
             v-model="form.total_qty"
             label="Total Quantity (m³)"
             :error="form.errors.total_qty"
+            :disabled="isLocked"
             :minFractionDigits="3"
         />
+        <div v-else class="flex flex-col gap-1 mt-1">
+            <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Quantity (m³)</span>
+            <span class="font-semibold text-sm">{{ form.total_qty }} m³</span>
+        </div>
     </div>
 
     <div class="col-span-1">
@@ -268,6 +331,7 @@ const isOverdue = computed(() => {
             label="Sales Executive"
             placeholder="Select Sales Executive"
             :error="form.errors.sales_executive_id"
+            :disabled="isLocked"
         />
     </div>
 
@@ -280,6 +344,7 @@ const isOverdue = computed(() => {
             optionValue="value"
             label="Status"
             :error="form.errors.status"
+            :disabled="isLocked"
         />
     </div>
 
@@ -292,6 +357,7 @@ const isOverdue = computed(() => {
             label="Concrete Type"
             placeholder="Select Concrete Type"
             :error="form.errors.concrete_pump"
+            :disabled="isLocked"
         />
     </div>
 
@@ -305,6 +371,7 @@ const isOverdue = computed(() => {
             showTime
             hourFormat="24"
             fluid
+            :disabled="isLocked"
         />
 
         <small class="text-red-500">
@@ -322,6 +389,7 @@ const isOverdue = computed(() => {
             showTime
             hourFormat="24"
             fluid
+            :disabled="isLocked"
         />
 
         <small class="text-red-500">
@@ -338,7 +406,7 @@ const isOverdue = computed(() => {
             filter
             label="Mix Design"
             :error="form.errors.mix_design_id"
-            :disabled="!!form.customer_po_id"
+            :disabled="isCriticalLocked || !!form.customer_po_id"
         />
     </div>
 
@@ -380,8 +448,7 @@ const isOverdue = computed(() => {
         </div>
     </div>
 </div>
-
-        <div v-if="salesOrder?.status === 1 || salesOrder?.status === 4" class="mt-4 border-t border-indigo-100 pt-3">
+        <div v-if="!isLocked" class="mt-4 border-t border-indigo-100 pt-3">
             <BaseFormActions 
                 mode="update" 
                 updateLabel="Update Sales Order" 
