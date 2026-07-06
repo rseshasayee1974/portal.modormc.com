@@ -319,7 +319,7 @@ class PrintDataFormatter
             $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : '';
             $priceTax = (float)$item->price_tax;
 
-            if ($priceTax <= 0) continue;
+            if ($priceTax <= 0 && !$taxModel) continue;
 
             if ($taxRate <= 0 && (float)$item->price_subtotal > 0) {
                 $taxRate = round(($priceTax / (float)$item->price_subtotal) * 100, 2);
@@ -503,7 +503,18 @@ class PrintDataFormatter
     // ─────────────────────────────────────────────────────
     public static function fromQuotation($quotation): array
     {
-        $quotation->loadMissing(['items.mixDesign', 'items.mixDesign.unit', 'patron', 'plant', 'plant.entity', 'plant.addresses', 'tax']);
+        $quotation->loadMissing([
+            'items.mixDesign',
+            'items.mixDesign.items.product',
+            'items.mixDesign.items.uom',
+            'items.mixDesign.unit',
+            'items.tax',
+            'patron',
+            'plant',
+            'plant.entity',
+            'plant.addresses',
+            'tax'
+        ]);
 
         $data = self::base();
         $data['settings'] = self::getCustomSettings($quotation->plant_id, 'quotations');
@@ -575,10 +586,24 @@ class PrintDataFormatter
                 }
             }
 
+            $description = $item->description ?? $item->mixDesign->design_code ?? '';
+            if ($item->mixDesign && $item->mixDesign->items && $item->mixDesign->items->count() > 0) {
+                $materials = $item->mixDesign->items->map(function ($mdItem) {
+                    $prodName = $mdItem->product->title ?? 'Unknown';
+                    $qty = (float)$mdItem->actual_quantity;
+                    $unit = $mdItem->uom->unit_code ?? '';
+                    return trim("{$prodName} ({$qty} {$unit})");
+                })->filter()->implode(', ');
+                
+                if ($materials) {
+                    $description .= $description ? "\nMaterials: {$materials}" : "Materials: {$materials}";
+                }
+            }
+
             return [
                 'no'           => $idx + 1,
                 'name'         => $item->mixDesign->design_name ?? 'N/A',
-                'description'  => $item->description ?? $item->mixDesign->design_code ?? '',
+                'description'  => $description,
                 'hsn'          => $item->mixDesign->hsn_code ?? '-',
                 'qty'          => (float)$item->quantity,
                 'received_qty' => 0,
@@ -592,10 +617,41 @@ class PrintDataFormatter
             ];
         })->toArray();
 
+        $taxLines = [];
+        foreach ($quotation->items as $item) {
+            $taxModel = $item->tax;
+            $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
+            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : '';
+            $priceTax = (float)$item->tax_amount;
+            $subtotal = (float)($item->quantity * $item->rate);
+
+            if ($priceTax <= 0 && !$taxModel) continue;
+
+            if ($taxRate <= 0 && $subtotal > 0) {
+                $taxRate = round(($priceTax / $subtotal) * 100, 2);
+                $taxGroup = $isIntra ? 'GST' : 'IGST';
+            }
+
+            if (empty($taxGroup)) {
+                $taxGroup = $isIntra ? 'GST' : 'IGST';
+            }
+
+            $g = strtoupper(trim($taxGroup));
+            if ($g === 'GST') {
+                $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($priceTax / 2);
+                $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($priceTax / 2);
+            } else {
+                $taxLines[$g] = ($taxLines[$g] ?? 0) + $priceTax;
+            }
+        }
+
+        $computedTaxLines = collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray();
+        $finalTaxLines = $quotation->tax ? [['label' => $quotation->tax->tax_name, 'amount' => (float)$quotation->tax_amount]] : $computedTaxLines;
+
         $data['totals'] = [
             'sub_total'   => (float)$quotation->amount_untaxed,
             'discount'    => 0,
-            'tax_lines'   => $quotation->tax ? [['label' => $quotation->tax->tax_name, 'amount' => (float)$quotation->tax_amount]] : [],
+            'tax_lines'   => $finalTaxLines,
             'shipping'    => 0,
             'adjustment'  => (float)($quotation->adjustment ?? 0),
             'round_off'   => (float)($quotation->round_off ?? 0),

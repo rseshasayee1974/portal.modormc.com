@@ -398,12 +398,12 @@
                         <td class="text-right">{{ number_format($item['unit_price'], 2) }}</td>
                         @if ($pdfSettings['tax_rate'] ?? true)
                             <td class="text-right muted">
-                                {{ $item['tax_rate'] > 0 ? number_format($item['tax_rate'], 0) . '%' : '-' }}
+                                {{ $item['tax_rate'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? number_format($item['tax_rate'], 0) . '%' : '-' }}
                             </td>
                         @endif
                         @if ($pdfSettings['tax_amount'] ?? true)
                             <td class="text-right muted">
-                                {{ $item['tax_amount'] > 0 ? number_format($item['tax_amount'], 2) : '-' }}
+                                {{ $item['tax_amount'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? number_format($item['tax_amount'], 2) : '-' }}
                             </td>
                         @endif
                         <td class="text-right bold">
