@@ -52,25 +52,23 @@ class PrintController extends Controller
                 $forceParam = $request->query('force');
 
                 if ($forceParam === 'original' && $isAdmin) {
-                    $data['is_duplicate'] = false;
+                    $data['is_duplicate'] = 0;
                     $data['doc_title'] = 'ORIGINAL ' . $data['doc_title'];
                 } elseif ($forceParam === 'duplicate' && $isAdmin) {
-                    $data['is_duplicate'] = true;
+                    $data['is_duplicate'] = 1;
                     $data['doc_title'] = 'DUPLICATE ' . $data['doc_title'];
                 } else {
-                    if ($invoice->print_count > 1 && !$isAdmin) {
-                        $data['is_duplicate'] = true;
+                    if ($invoice->is_duplicate == 1 && !$isAdmin) {
+                        $data['is_duplicate'] = 1;
                         $data['doc_title'] = 'DUPLICATE ' . $data['doc_title'];
                     } else {
-                        $data['is_duplicate'] = false;
+                        $data['is_duplicate'] = 0;
                         $data['doc_title'] = 'ORIGINAL ' . $data['doc_title'];
                     }
                 }
 
-                // Increment print counts for invoice
-                $invoice->increment('print_count');
-                if (is_null($invoice->first_printed_at)) {
-                    $invoice->update(['first_printed_at' => now()]);
+                if ($invoice->is_duplicate == 0) {
+                    $invoice->update(['is_duplicate' => 1]);
                 }
             }
         }

@@ -126,8 +126,8 @@ const showPreviewModal = ref(false);
 const previewUrl = ref('');
 
 const printInvoice = (data: any) => {
-    if (typeof data.print_count !== 'undefined') {
-        data.print_count += 1;
+    if (typeof data.is_duplicate !== 'undefined') {
+        data.is_duplicate = 1;
     }
     previewUrl.value = route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'view' });
     showPreviewModal.value = true;
@@ -154,8 +154,8 @@ const openShareInvoice = (invoice: any) => {
     showShareModal.value = true;
 };
 
-console.log('invoice ',props.invoices);
-console.table(props.invoices, ['print_count']);
+// console.log('invoice ',props.invoices);
+// console.table(props.invoices, ['is_duplicate']);
 
 const generateShareLink = async () => {
     if (!selectedShareInvoice.value) return;
@@ -357,7 +357,7 @@ const shareEmail = () => {
                             v-else
                             icon="pi pi-print" 
                             text rounded severity="secondary" 
-                            @click.stop="slotProps.data.print_count > 1 ? printDuplicate(slotProps.data) : printInvoice(slotProps.data)"
+                            @click.stop="slotProps.data.is_duplicate ? printDuplicate(slotProps.data) : printInvoice(slotProps.data)"
                             title="Print Invoice"
                         />
                         <Button 

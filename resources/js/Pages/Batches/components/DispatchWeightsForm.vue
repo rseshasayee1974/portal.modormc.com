@@ -266,14 +266,14 @@ const formatTime = (dateVal: any) => {
                         </template>
                         <a 
                             v-else
-                            :href="modelValue.status.invoice?.print_count > 1 
+                            :href="modelValue.status.invoice?.is_duplicate 
                                 ? route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'download', force: 'duplicate' })
                                 : route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'view' })" 
                             target="_blank"
-                            @click="modelValue.status.invoice.print_count = (modelValue.status.invoice.print_count || 0) + 1"
+                            @click="modelValue.status.invoice.is_duplicate = 1"
                             class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
                         >
-                            <DocumentDuplicateIcon v-if="modelValue.status.invoice?.print_count > 1" class="h-4 w-4" />
+                            <DocumentDuplicateIcon v-if="modelValue.status.invoice?.is_duplicate" class="h-4 w-4" />
                             <PrinterIcon v-else class="h-4 w-4" />
                             Print Invoice
                         </a>
