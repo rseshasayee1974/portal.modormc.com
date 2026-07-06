@@ -433,7 +433,7 @@ class PrintDataFormatter
             return [
                 'no'           => $idx + 1,
                 'name'         => $item->item_name,
-                'description'  => $item->hsn_code ? 'HSN: ' . $item->hsn_code : '',
+                'description'  => '',
                 'hsn'          => $item->hsn_code ?? '-',
                 'qty'          => (float)$item->quantity,
                 'unit'         => $item->uom->unit_code ?? 'm³',

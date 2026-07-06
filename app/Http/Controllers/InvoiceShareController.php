@@ -304,6 +304,7 @@ class InvoiceShareController extends Controller
             'patron_id'        => $params['patron_id'] ?? $params['customer_id'] ?? $params['supplier_id'] ?? null,
             'voucher_type'     => strtoupper($type),
             'valuation_method' => $params['valuation_method'] ?? 'FIFO',
+            'truck_id'         => $params['truck_id'] ?? null,
         ];
 
         $data = $service->generate($reportParams);

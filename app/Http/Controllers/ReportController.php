@@ -21,10 +21,12 @@ class ReportController extends Controller
         $plantId = session('active_plant_id');
         $ledgers = Ledger::where('plant_id', $plantId)->orderBy('title')->get();
         $patrons = Patron::where('plant_id', $plantId)->orderBy('legal_name')->get();
+        $machines = MachinesDropdown();
 
         return Inertia::render('Reports/Index', [
             'ledgers' => $ledgers,
             'patrons' => $patrons,
+            'machines' => $machines,
             'filters' => [
                 'start_date' => $request->input('start_date', now()->subDays(30)->toDateString()),
                 'end_date' => $request->input('end_date', now()->toDateString()),
@@ -60,6 +62,7 @@ class ReportController extends Controller
             'valuation_method' => $request->input('valuation_method', 'FIFO'),
             'consolidation'    => $request->input('consolidation', 'po'),
             'plant_id'         => session('active_plant_id'),
+            'truck_id'         => $request->input('truck_id'),
         ];
 
         if ($export === 'excel' || $export === 'pdf') {

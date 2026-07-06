@@ -40,7 +40,7 @@ class Dispatch extends Model
     public function getAmountUntaxedAttribute() { return $this->load_untax_amount; }
     public function getAmountTaxAttribute() { return $this->load_tax_amount; }
     public function getAmountTotalAttribute() { return $this->load_total_amount; }
-    public function getAdjustmentAttribute() { return $this->adjustment_amount; }
+    public function getAdjustmentAttribute() { return (float)($this->adjustment_amount ?? 0) + (float)($this->pass_amount ?? 0); }
     public function getShippingChargesAttribute() { return $this->transport_expenses; }
     public function getRoundingValueAttribute() { return $this->round_off; }
     public function getRefNoAttribute() { return $this->dispatch_no; }

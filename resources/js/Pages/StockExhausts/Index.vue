@@ -53,11 +53,12 @@ const props = defineProps<{
     vendors: any[];
     products: any[];
     units: any[];
+    ledgers: any[];
 }>();
 
 const page = usePage();
 const editingVoucher = ref<StockExhaust | null>(null);
-const expandedRows = ref<any[]>([]);
+const expandedRows = ref<Record<number, boolean>>({});
 
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
@@ -122,6 +123,7 @@ watch(() => page.props.flash, (flash: any) => {
                     :vendors="vendors"
                     :products="products"
                     :units="units"
+                    :ledgers="ledgers"
                     @cancel="cancelEdit"
                     @success="cancelEdit"
                 />
@@ -132,13 +134,14 @@ watch(() => page.props.flash, (flash: any) => {
                     :vendors="vendors"
                     :products="products"
                     :units="units"
+                    :ledgers="ledgers"
                 />
 
                 <!-- ── DataTable Section ── -->
                 <BaseDataTable
                     :value="stockExhausts"
                     v-model:filters="filters"
-                    :globalFilterFields="['name', 'bill_number', 'partner.legal_name']"
+                    :globalFilterFields="['reference_number', 'name', 'bill_number', 'partner.legal_name', 'ledger.title', 'ledger.code']"
                     showSearch
                     showSerial
                     heading="Stock Exhaust Ledger"
@@ -148,17 +151,25 @@ watch(() => page.props.flash, (flash: any) => {
                     dataKey="id"
                     class="stock-exhaust-table text-xs"
                 >
-                    <!-- Row Expansion Trigger -->
-                    <Column expander style="width: 3rem" />
+
+
+                    <!-- Reference Number -->
+                    <Column header="Reference No" sortable field="reference_number">
+                        <template #body="slotProps">
+                            <span class="font-bold text-indigo-600 dark:text-indigo-400 font-mono">
+                                {{ slotProps.data.reference_number || '—' }}
+                            </span>
+                        </template>
+                    </Column>
 
                     <!-- Name -->
-                    <Column header="Voucher Description" sortable field="name">
+                    <!-- <Column header="Voucher Description" sortable field="name">
                         <template #body="slotProps">
                             <span class="font-bold text-slate-700 dark:text-slate-200">
                                 {{ slotProps.data.name }}
                             </span>
                         </template>
-                    </Column>
+                    </Column> -->
 
                     <!-- Partner -->
                     <Column header="Partner / Vendor" sortable field="partner.legal_name">
@@ -182,7 +193,16 @@ watch(() => page.props.flash, (flash: any) => {
                     <Column header="Billed Date">
                         <template #body="slotProps">
                             <span class="text-xs font-mono text-slate-500">
-                                {{ new Date(slotProps.data.billed_date).toLocaleDateString() }}
+                                {{ slotProps.data.billed_date ? new Date(slotProps.data.billed_date).toLocaleDateString() : '—' }}
+                            </span>
+                        </template>
+                    </Column>
+
+                    <!-- Ledger Account -->
+                    <Column header="Ledger Account" sortable field="ledger.title">
+                        <template #body="slotProps">
+                            <span class="text-xs text-slate-600 font-semibold font-mono">
+                                {{ slotProps.data.ledger ? (slotProps.data.ledger.code ? slotProps.data.ledger.code + ' - ' : '') + slotProps.data.ledger.title : '—' }}
                             </span>
                         </template>
                     </Column>

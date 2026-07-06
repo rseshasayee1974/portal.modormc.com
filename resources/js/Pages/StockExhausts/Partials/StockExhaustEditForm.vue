@@ -15,6 +15,7 @@ const props = defineProps<{
     products: any[];
     units: any[];
     voucher: any;
+    ledgers: any[];
 }>();
 
 const emit = defineEmits<{
@@ -60,6 +61,7 @@ const form = useForm({
     invoice_status: 0,
     status: 1,
     issued_date: null as any,
+    ledger_id: null as number | null,
     lines: [] as Line[]
 });
 
@@ -73,6 +75,7 @@ watch(() => props.voucher, (val) => {
         form.invoice_status = val.invoice_status;
         form.status = val.status;
         form.issued_date = val.issued_date ? new Date(val.issued_date) : null;
+        form.ledger_id = val.ledger_id;
         form.lines = val.lines.map((l: any) => {
             const selectedProd = props.products.find(p => p.value === l.product_id);
             return {
@@ -133,12 +136,11 @@ const runFrontendValidation = (): boolean => {
             errs.product_id = 'Product is required.';
             valid = false;
         }
-        if (line.quantity_issued === null || line.quantity_issued === undefined || String(line.quantity_issued).trim() === '') {
-            errs.quantity_issued = 'Quantity is required.';
-            valid = false;
-        } else if (Number(line.quantity_issued) <= 0) {
-            errs.quantity_issued = 'Quantity must be greater than 0.';
-            valid = false;
+        if (line.quantity_issued !== null && line.quantity_issued !== undefined && String(line.quantity_issued).trim() !== '') {
+            if (Number(line.quantity_issued) <= 0) {
+                errs.quantity_issued = 'Quantity must be greater than 0.';
+                valid = false;
+            }
         }
         return errs;
     });
@@ -237,7 +239,10 @@ const submitForm = () => {
         }
     }
 
-    form.put(route('stock-exhausts.update', props.voucher.id), {
+    form.transform((data) => ({
+        ...data,
+        lines: data.lines.filter(l => l.product_id !== null)
+    })).put(route('stock-exhausts.update', props.voucher.id), {
         onSuccess: () => {
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Voucher modified', showConfirmButton: false, timer: 1500 });
             emit('success');
@@ -266,10 +271,13 @@ const submitForm = () => {
             <form @submit.prevent="submitForm" class="flex flex-col gap-6">
                 <!-- Header Info -->
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
-                    <div class="col-span-12 md:col-span-4 field-group">
+                    <div class="col-span-12 md:col-span-3 field-group">
+                        <BaseInput :modelValue="voucher.reference_number || '—'" label="Reference No" disabled class="!bg-slate-50 font-mono" />
+                    </div>
+                    <div class="col-span-12 md:col-span-3 field-group">
                         <BaseInput v-model="form.name" label="Voucher Label *" placeholder="E.g. Exhaust Tyre replacements, General Spare parts" :error="form.errors.name" />
                     </div>
-                    <div class="col-span-12 md:col-span-4 field-group">
+                    <div class="col-span-12 md:col-span-3 field-group">
                         <label class="field-label">Partner / Transporter *</label>
                         <BaseSelect
                             v-model="form.partner_id"
@@ -282,7 +290,7 @@ const submitForm = () => {
                         />
                         <p v-if="localErrors.partner_id" class="mt-1 text-[10px] font-bold text-red-500">{{ localErrors.partner_id }}</p>
                     </div>
-                    <div class="col-span-12 md:col-span-4 field-group">
+                    <div class="col-span-12 md:col-span-3 field-group">
                         <BaseInput v-model="form.bill_number" label="Bill Number" placeholder="Bill reference" />
                     </div>
 
@@ -307,6 +315,10 @@ const submitForm = () => {
                     <div class="col-span-6 md:col-span-3 field-group">
                         <label class="field-label">Invoice Billing Status</label>
                         <BaseSelect v-model="form.invoice_status" :options="invoiceStatuses" optionLabel="label" optionValue="value" />
+                    </div>
+                    <div class="col-span-12 md:col-span-6 field-group">
+                        <label class="field-label">Ledger Account (Expenses/Purchases)</label>
+                        <BaseSelect v-model="form.ledger_id" :options="ledgers" optionLabel="label" optionValue="value" filter placeholder="Select Ledger Account" :error="form.errors.ledger_id" />
                     </div>
                 </div>
 

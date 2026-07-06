@@ -735,7 +735,7 @@ const submit = () => {
                                 :error="tareFormErrors.empty_weight" 
                             />
                         </div>
-                        <button @click="handleWeightCaptureDialog" type="button" v-if="customSettings?.batching?.manual_weight === 1" 
+                        <button @click="handleWeightCaptureDialog" type="button" v-if="customSettings?.batching?.manual_weight === 0" 
                             :class="['p-2.5 rounded-xl transition-all duration-200 border shadow-sm flex items-center justify-center h-10', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
                             :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
                             <div class="flex flex-col items-center gap-0.5">

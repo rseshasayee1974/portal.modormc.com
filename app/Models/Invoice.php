@@ -546,6 +546,9 @@ class Invoice extends Model implements Postable
                 $invoice->items()->create($itemData);
             }
 
+            // Refresh the invoice model to load the recalculated totals from DB
+            $invoice->refresh();
+
             // 3. Sync Tax Splits (Generates mm_order_taxes records)
             $invoice->syncTaxSplits();
 

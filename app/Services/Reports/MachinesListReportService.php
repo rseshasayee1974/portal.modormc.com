@@ -13,9 +13,22 @@ class MachinesListReportService implements ReportServiceInterface
     {
         $plantId = $this->ctx->requirePlantId();
 
-        $machines = Machine::where('plant_id', $plantId)
-            ->with(['owner'])
-            ->get();
+        $query = Machine::where('plant_id', $plantId)
+            ->with(['owner']);
+
+        if (!empty($params['truck_id'])) {
+            $query->where('id', $params['truck_id']);
+        }
+
+        if (!empty($params['start'])) {
+            $query->whereDate('created_at', '>=', $params['start']);
+        }
+
+        if (!empty($params['end'])) {
+            $query->whereDate('created_at', '<=', $params['end']);
+        }
+
+        $machines = $query->get();
 
         return [
             'transactions' => $machines->map(fn($m) => [

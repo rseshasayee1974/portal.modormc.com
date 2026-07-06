@@ -92,6 +92,7 @@ class QueueReportExportJob implements ShouldQueue
                     'voucher_type'     => strtoupper($this->type),
                     'valuation_method' => $this->filters['valuation_method'] ?? 'FIFO',
                     'consolidation'    => $this->filters['consolidation'] ?? 'po',
+                    'truck_id'         => $this->filters['truck_id'] ?? null,
                 ];
 
                 $data = $service->generate($params);

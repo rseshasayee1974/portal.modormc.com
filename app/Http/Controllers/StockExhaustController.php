@@ -8,6 +8,7 @@ use App\Models\Machine;
 use App\Models\Patron;
 use App\Models\Product;
 use App\Models\Quantity;
+use App\Models\Ledger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -26,6 +27,7 @@ class StockExhaustController extends Controller
 
         $stockExhausts = StockExhaust::with([
             'partner',
+            'ledger',
             'lines.vehicle',
             'lines.product'
         ])
@@ -47,6 +49,16 @@ class StockExhaustController extends Controller
             ->whereNull('mm_products.deleted_at')
             ->get(['mm_products.id', 'mm_products.title', 'mm_products.unit_id', 'stock_levels.stock_qty']);
 
+        $ledgers = Ledger::where('plant_id', $plantId)
+            ->where('status', 1)
+            ->orderBy('title', 'asc')
+            ->get()
+            ->map(fn($l) => [
+                'label' => ($l->code ? $l->code . ' - ' : '') . $l->title,
+                'value' => $l->id,
+            ])
+            ->toArray();
+
         return Inertia::render('StockExhausts/Index', [
             'stockExhausts' => $stockExhausts,
             'machines' => MachinesDropdown()->toArray(),
@@ -59,13 +71,13 @@ class StockExhaustController extends Controller
                 'stock_qty' => (float)$p->stock_qty,
             ])->toArray(),
             'units'   => Productunit(),
+            'ledgers' => $ledgers,
         ]);
     }
 
     public function store(Request $request)
     {
         $this->authorizeModule('create');
-
         $validated = $request->validate([
             'partner_id' => 'required|exists:mm_patrons,id',
             'bill_number' => 'nullable|string|max:150',
@@ -73,14 +85,17 @@ class StockExhaustController extends Controller
             'invoice_status' => 'nullable|integer',
             'status' => 'nullable|integer',
             'issued_date' => 'nullable|date',
+            'prefix' => 'nullable|string|max:20',
+            'reference_number' => 'nullable|string|max:100',
+            'ledger_id' => 'nullable|exists:mm_ledgers,id',
             
             // Lines
             'lines' => 'required|array|min:1',
             'lines.*.issue_date' => 'nullable|date',
-            'lines.*.quantity_issued' => 'required|numeric',
+            'lines.*.quantity_issued' => 'nullable|numeric',
             'lines.*.no_items_issued' => 'nullable|numeric',
-            'lines.*.units' => 'nullable|string|max:255',
-            'lines.*.product_id' => 'required|exists:mm_products,id',
+            'lines.*.units' => 'nullable',
+            'lines.*.product_id' => 'nullable|exists:mm_products,id',
             'lines.*.issued_to' => 'nullable|string|max:255',
             'lines.*.vehicle_no' => 'nullable|exists:mm_machines,id',
             'lines.*.changed_km' => 'nullable|numeric',
@@ -96,12 +111,16 @@ class StockExhaustController extends Controller
             $stockExhaust = StockExhaust::create($headerData);
 
             foreach ($validated['lines'] as $line) {
+                if (empty($line['product_id'])) {
+                    continue;
+                }
                 $line['stock_id'] = $stockExhaust->id;
                 StockExhaustLine::create($line);
             }
 
             // Deduct issued quantities from stock
-            $this->adjustStock($validated['lines'], $validated['issued_date'], $plantId);
+            $activeLines = collect($validated['lines'])->filter(fn($l) => !empty($l['product_id']))->toArray();
+            $this->adjustStock($activeLines, $validated['issued_date'], $plantId);
         });
 
         return redirect()->back()->with('success', 'Stock exhaust voucher registered successfully.');
@@ -119,14 +138,17 @@ class StockExhaustController extends Controller
             'invoice_status' => 'nullable|integer',
             'status' => 'nullable|integer',
             'issued_date' => 'nullable|date',
+            'prefix' => 'nullable|string|max:20',
+            'reference_number' => 'nullable|string|max:100',
+            'ledger_id' => 'nullable|exists:mm_ledgers,id',
             
             // Lines
             'lines' => 'required|array|min:1',
             'lines.*.issue_date' => 'nullable|date',
-            'lines.*.quantity_issued' => 'required|numeric',
+            'lines.*.quantity_issued' => 'nullable|numeric',
             'lines.*.no_items_issued' => 'nullable|numeric',
-            'lines.*.units' => 'nullable|string|max:255',
-            'lines.*.product_id' => 'required|exists:mm_products,id',
+            'lines.*.units' => 'nullable',
+            'lines.*.product_id' => 'nullable|exists:mm_products,id',
             'lines.*.issued_to' => 'nullable|string|max:255',
             'lines.*.vehicle_no' => 'nullable|exists:mm_machines,id',
             'lines.*.changed_km' => 'nullable|numeric',
@@ -149,12 +171,16 @@ class StockExhaustController extends Controller
             $stockExhaust->lines()->delete();
 
             foreach ($validated['lines'] as $line) {
+                if (empty($line['product_id'])) {
+                    continue;
+                }
                 $line['stock_id'] = $stockExhaust->id;
                 StockExhaustLine::create($line);
             }
 
             // 4. Deduct stock for new lines
-            $this->adjustStock($validated['lines'], $validated['issued_date'], $plantId);
+            $activeLines = collect($validated['lines'])->filter(fn($l) => !empty($l['product_id']))->toArray();
+            $this->adjustStock($activeLines, $validated['issued_date'], $plantId);
         });
 
         return redirect()->back()->with('success', 'Stock exhaust voucher updated successfully.');

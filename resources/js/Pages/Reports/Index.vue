@@ -46,6 +46,7 @@ import {
 const props = defineProps({
     ledgers: Array,
     patrons: Array,
+    machines: Array,
     filters: Object,
 });
 
@@ -126,6 +127,7 @@ const selectedModuleId = ref('accounting');
 const reportType = ref('ledger'); 
 const selectedId = ref(null); 
 const patronId = ref(null);
+const truckId = ref(null);
 const startDate = ref(props.filters.start_date);
 const endDate = ref(props.filters.end_date);
 
@@ -231,6 +233,7 @@ watch(selectedModuleId, (newModuleId) => {
         reportData.value = null;
         selectedId.value = null;
         patronId.value = null;
+        truckId.value = null;
         gstType.value = null;
         paymentStatus.value = null;
         currentPage.value = 1;
@@ -246,6 +249,7 @@ watch(reportType, () => {
     reportData.value = null;
     gstType.value = null;
     paymentStatus.value = null;
+    truckId.value = null;
     currentPage.value = 1;
     if (pollingInterval.value) {
         clearInterval(pollingInterval.value);
@@ -272,6 +276,7 @@ const generateReport = async () => {
             start_date: startDate.value,
             end_date: endDate.value,
             valuation_method: valuationMethod.value,
+            truck_id: truckId.value,
             export: 'view'
         };
 
@@ -345,6 +350,7 @@ const exportPdf = () => {
         start_date: startDate.value,
         end_date: endDate.value,
         valuation_method: valuationMethod.value,
+        truck_id: truckId.value,
         export: 'pdf'
     });
 
@@ -389,6 +395,7 @@ const exportExcel = () => {
         start_date: startDate.value,
         end_date: endDate.value,
         valuation_method: valuationMethod.value,
+        truck_id: truckId.value,
         export: 'excel'
     });
 
@@ -478,6 +485,7 @@ const currentReportParams = computed(() => {
         gst_type: gstType.value,
         payment_status: paymentStatus.value,
         valuation_method: valuationMethod.value,
+        truck_id: truckId.value,
     };
 });
 
@@ -515,6 +523,7 @@ const generateShareLink = async () => {
                 valuation_method: valuationMethod.value,
                 gst_type: gstType.value,
                 payment_status: paymentStatus.value,
+                truck_id: truckId.value,
             }
         });
         
@@ -659,7 +668,7 @@ const shareEmail = () => {
                                 <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ activeModule.name }}</span>
                                 <h3 class="text-sm font-bold text-[#1d2d3e] mt-0.5">{{ activeReport.name }}</h3>
                             </div>
-                            <span v-if="['machines_list', 'payroll_personnel'].includes(reportType)" class="text-[10px] px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-500 font-semibold">
+                            <span v-if="['payroll_personnel'].includes(reportType)" class="text-[10px] px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-500 font-semibold">
                                 Live Database Scoped
                             </span>
                         </div>
@@ -734,8 +743,22 @@ const shareEmail = () => {
                                     />
                                 </div>
 
+                                <!-- Truck Dropdown -->
+                                <div v-if="reportType === 'machines_list'" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Truck / Vehicle</span>
+                                    <BaseSelect 
+                                        v-model="truckId"
+                                        :options="props.machines"
+                                        optionLabel="registration"
+                                        optionValue="id"
+                                        placeholder="All Trucks"
+                                        filter
+                                        showClear
+                                    />
+                                </div>
+
                                 <!-- Date Range -->
-                                <div v-if="!['machines_list', 'payroll_personnel'].includes(reportType)" class="lg:col-span-2 grid grid-cols-2 gap-4">
+                                <div v-if="reportType !== 'payroll_personnel'" class="lg:col-span-2 grid grid-cols-2 gap-4">
                                     <div>
                                         <span class="text-[11px] font-bold text-slate-500 block mb-1">From Date</span>
                                         <BaseDatePicker v-model="startDate" fluid />

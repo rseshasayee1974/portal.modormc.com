@@ -306,7 +306,7 @@ const displayUnits = computed(() => {
 
 
 
-watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount], () => {
+watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses], () => {
     const units = isMetricTon.value ? netWeight.value : Number(form.batch_size || 0);
     form.delivered_qty = units;
     form.financials.load_units = units;
@@ -323,7 +323,8 @@ watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load
         - Number(form.financials.discount_amount || 0) 
         + Number(form.financials.pass_amount || 0) 
         + Number(form.financials.round_off || 0) 
-        + Number(form.financials.adjustment_amount || 0);
+        + Number(form.financials.adjustment_amount || 0)
+        + Number(form.financials.transport_expenses || 0);
 
     form.financials.load_untax_amount = untaxAmount;
     form.financials.load_tax_amount = taxAmountVal;

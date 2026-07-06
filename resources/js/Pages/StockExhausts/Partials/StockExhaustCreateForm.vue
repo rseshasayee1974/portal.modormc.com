@@ -15,6 +15,7 @@ const props = defineProps<{
     vendors: any[];
     products: any[];
     units: any[];
+    ledgers: any[];
 }>();
 
 const emit = defineEmits<{
@@ -59,6 +60,7 @@ const form = useForm({
     invoice_status: 0,
     status: 1,
     issued_date: null as any,
+    ledger_id: null as number | null,
     lines: Array.from({ length: 5 }, () => ({
         product_id: null,
         issue_date: new Date(),
@@ -125,12 +127,11 @@ const runFrontendValidation = (): boolean => {
             errs.product_id = 'Product is required.';
             valid = false;
         }
-        if (line.quantity_issued === null || line.quantity_issued === undefined || String(line.quantity_issued).trim() === '') {
-            errs.quantity_issued = 'Quantity is required.';
-            valid = false;
-        } else if (Number(line.quantity_issued) <= 0) {
-            errs.quantity_issued = 'Quantity must be greater than 0.';
-            valid = false;
+        if (line.quantity_issued !== null && line.quantity_issued !== undefined && String(line.quantity_issued).trim() !== '') {
+            if (Number(line.quantity_issued) <= 0) {
+                errs.quantity_issued = 'Quantity must be greater than 0.';
+                valid = false;
+            }
         }
         return errs;
     });
@@ -232,7 +233,10 @@ const submitForm = () => {
     if (!form.name) {
         form.name = 'Stock Exhaust - ' + new Date().toISOString().slice(0, 10);
     }
-    form.post(route('stock-exhausts.store'), {
+    form.transform((data) => ({
+        ...data,
+        lines: data.lines.filter(l => l.product_id !== null)
+    })).post(route('stock-exhausts.store'), {
         onSuccess: () => {
             form.reset();
             localErrors.partner_id = '';
@@ -266,9 +270,6 @@ const submitForm = () => {
             <form @submit.prevent="submitForm" class="flex flex-col gap-6">
                 <!-- Header Info -->
                 <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
-                    <!-- <div class="col-span-12 md:col-span-4 field-group">
-                        <BaseInput v-model="form.name" label="Voucher Label *" placeholder="E.g. Exhaust Tyre replacements, General Spare parts" :error="form.errors.name" />
-                    </div> -->
                     <div class="col-span-12 md:col-span-3 field-group">
                         <label class="field-label required">Partner</label>
                         <BaseSelect
@@ -283,11 +284,7 @@ const submitForm = () => {
                         <p v-if="localErrors.partner_id" class="mt-1 text-[10px] font-bold text-red-500">{{ localErrors.partner_id }}</p>
                     </div>
 
-                    <!-- <div class="col-span-6 md:col-span-3 field-group">
-                        <label class="field-label required">Billed Date</label>
-                        <BaseDatePicker v-model="form.billed_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
-                    </div> -->
-                    <div class="col-span-6 md:col-span-3 field-group">
+                    <div class="col-span-12 md:col-span-3 field-group">
                         <label class="field-label required">Issued Date</label>
                         <BaseDatePicker
                             v-model="form.issued_date"
@@ -297,30 +294,35 @@ const submitForm = () => {
                         />
                         <p v-if="localErrors.issued_date" class="mt-1 text-[10px] font-bold text-red-500">{{ localErrors.issued_date }}</p>
                     </div>
-                     <!-- <div class="col-span-12 md:col-span-3 field-group">
-                        <BaseInput v-model="form.bill_number" label="Bill Number" placeholder="Bill reference" />
-                    </div> -->
-                    <!-- <div class="col-span-6 md:col-span-3 field-group">
+
+                    <div class="col-span-12 md:col-span-3 field-group">
+                        <BaseInput v-model="form.bill_number" label="Bill Number" placeholder="Bill reference" :error="form.errors.bill_number" />
+                    </div>
+
+                    <div class="col-span-12 md:col-span-3 field-group">
+                        <label class="field-label">Billed Date</label>
+                        <BaseDatePicker v-model="form.billed_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
+                    </div>
+
+                    <div class="col-span-12 md:col-span-3 field-group">
                         <label class="field-label">Voucher Status</label>
                         <BaseSelect v-model="form.status" :options="voucherStatuses" optionLabel="label" optionValue="value" />
                     </div>
-                    <div class="col-span-6 md:col-span-3 field-group">
+
+                    <div class="col-span-12 md:col-span-3 field-group">
                         <label class="field-label">Invoice Billing Status</label>
                         <BaseSelect v-model="form.invoice_status" :options="invoiceStatuses" optionLabel="label" optionValue="value" />
-                    </div> -->
+                    </div>
+
+                    <div class="col-span-12 md:col-span-6 field-group">
+                        <label class="field-label">Ledger Account (Expenses/Purchases)</label>
+                        <BaseSelect v-model="form.ledger_id" :options="ledgers" optionLabel="label" optionValue="value" filter placeholder="Select Ledger Account" :error="form.errors.ledger_id" />
+                    </div>
                 </div>
 
                 <!-- Lines Form Section -->
                 <div class="">
-                    <div class="flex justify-between items-center mb-4">
-                        <div>
-                            <h3 class="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Issued Items (Lines)</h3>
-                            <p v-if="localErrors.lines" class="mt-1 text-[10px] font-bold text-red-500">{{ localErrors.lines }}</p>
-                        </div>
-                        <button type="button" @click="addLine" class="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">
-                            <PlusIcon class="w-3.5 h-3.5" /> Add Row
-                        </button>
-                    </div>
+                    
 
                     <div v-if="form.lines.length === 0" class="py-12 border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center bg-slate-50/20">
                         <WrenchScrewdriverIcon class="w-8 h-8 text-slate-200 dark:text-slate-700 mb-2" />
@@ -330,13 +332,17 @@ const submitForm = () => {
                     <div v-else class="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-xl">
                         <table class="w-full text-left border-collapse min-w-full">
                             <thead class="bg-slate-50 dark:bg-slate-900/50">
-                                <tr class="text-[9px] font-black uppercase text-slate-400 tracking-wider border-b border-slate-100 dark:border-slate-800">
-                                    <th class="py-3 px-3 w-[150px]">Product *</th>
-                                    <th class="py-3 px-3 w-[100px]">Qty Issued</th>
-                                    <th class="py-3 px-3 w-[70px]">Units *</th>
+                                <tr class="text-[11px] font-black uppercase text-slate-900 tracking-wider border-b border-slate-100 dark:border-slate-800">
+                                    <th class="py-2 px-2 w-[150px]">Product *</th>
+                                    <th class="py-2 px-2 w-[100px]">Qty Issued</th>
+                                    <th class="py-2 px-2 w-[70px]">Units *</th>
                                     <!-- <th class="py-3 px-3 w-[130px]">Changed KM *</th> -->
-                                    <th class="py-3 px-3 w-[200px]">Notes</th>
-                                    <th class="py-3 px-3 w-[60px] text-right">Action</th>
+                                    <th class="py-2 px-2 w-[200px]">Notes</th>
+                                    <th class="py-2 px-2 w-[60px] text-right">
+                                        <button type="button" @click="addLine" class="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors">
+                                            <PlusIcon class="w-3.5 h-3.5" /> Add Row
+                                        </button>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>

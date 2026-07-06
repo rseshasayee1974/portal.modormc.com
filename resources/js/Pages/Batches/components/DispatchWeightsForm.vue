@@ -153,7 +153,7 @@ const formatTime = (dateVal: any) => {
                 <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" :error="errors['financials.discount_amount']" :disabled="isReadOnly" />
                 <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" :error="errors['financials.transport_expenses']" :disabled="isReadOnly" />
                 <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" :error="errors['financials.adjustment_amount']" :disabled="isReadOnly" />
-                <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" :error="errors['financials.round_off']" :disabled="isReadOnly" class="col-span-1 sm:col-span-2 md:col-span-4" />
+                <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" :error="errors['financials.round_off']" :disabled="isReadOnly"   />
             </div>
             
 
@@ -193,18 +193,19 @@ const formatTime = (dateVal: any) => {
                         <h4 class="text-[11px] font-black uppercase tracking-widest text-indigo-700">Invoice Generation</h4>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
                     <BaseSelect v-model="modelValue.ledger_id" :options="sales_ledgers" optionLabel="label" optionValue="value" label="Sales Ledger" filter placeholder="Select Sales Account" :error="errors.ledger_id" />
                     <BaseDatePicker v-model="modelValue.invoice_date" label="Invoice Date" :error="errors.invoice_date" />
-                </div>
-                <div class="flex justify-end pt-2">
+                
+                <div class="flex justify-end pt-2 col-span-2">
                     <button 
                         type="button"
                         @click="handleGenerateInvoice"
                         class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm text-white text-[11px] font-black uppercase tracking-widest rounded-xl"
                     >
-                        Confirm & Generate Invoice
+                        Generate Invoice
                     </button>
+                </div>
                 </div>
             </div>
 

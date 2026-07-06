@@ -25,6 +25,9 @@ class StockExhaust extends Model
         'status',
         'issued_date',
         'plant_id',
+        'prefix',
+        'reference_number',
+        'ledger_id',
         'created_by',
         'modified_by'
     ];
@@ -47,6 +50,12 @@ class StockExhaust extends Model
                 $model->created_by = Auth::id();
                 $model->modified_by = Auth::id();
             }
+
+            if (empty($model->reference_number)) {
+                $ref = self::generateReference($model->plant_id, $model->prefix);
+                $model->prefix = $ref['prefix'];
+                $model->reference_number = $ref['reference_number'];
+            }
         });
 
         static::updating(function ($model) {
@@ -54,6 +63,34 @@ class StockExhaust extends Model
                 $model->modified_by = Auth::id();
             }
         });
+    }
+
+    public static function generateReference($plantId, $customPrefix = null)
+    {
+        $now = now();
+        $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
+        $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
+        
+        if (empty($customPrefix)) {
+            $customPrefix = 'SE';
+        }
+        
+        $prefix = "{$customPrefix}-{$fyString}-";
+
+        $latest = self::where('plant_id', $plantId)
+                      ->where('prefix', $prefix)
+                      ->orderBy('id', 'desc')
+                      ->value('reference_number');
+                      
+        $sequence = 1;
+        if ($latest && preg_match('/-(\d{4})$/', $latest, $matches)) {
+            $sequence = ((int) $matches[1]) + 1;
+        }
+
+        return [
+            'prefix' => $prefix,
+            'reference_number' => sprintf('%s%04d', $prefix, $sequence)
+        ];
     }
 
     public function partner()
@@ -64,6 +101,11 @@ class StockExhaust extends Model
     public function plant()
     {
         return $this->belongsTo(Plant::class, 'plant_id');
+    }
+
+    public function ledger()
+    {
+        return $this->belongsTo(Ledger::class, 'ledger_id');
     }
 
     public function lines()
