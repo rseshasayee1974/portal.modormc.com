@@ -106,18 +106,27 @@ class QuotationController extends Controller
             if ($isSalesOrder === 1) {
                 $user = auth()->user();
 
+                $existingPO = \App\Models\CustomerPO::where('quotation_id', $quotation->id)->first();
+                $poData = [
+                    'plant_id' => $quotation->plant_id,
+                    'patron_id' => $quotation->patron_id,
+                    'site_id' => $quotation->site_id,
+                    'sales_executive_id' => $quotation->sales_executive_id,
+                    'concrete_pump' => $quotation->concrete_pump,
+                    'order_date' => $existingPO ? $existingPO->order_date : now()->toDateString(),
+                    'status' => \App\Models\CustomerPO::STATUS_CONFIRMED,
+                    'converted_by_user_id' => $user->id,
+                ];
+
+                if (!$existingPO) {
+                    $details = \App\Models\CustomerPO::generateReference($quotation->plant_id);
+                    $poData['prefix'] = $details['prefix'];
+                    $poData['reference'] = $details['reference'];
+                }
+
                 $customerPO = \App\Models\CustomerPO::updateOrCreate(
                     ['quotation_id' => $quotation->id],
-                    [
-                        'plant_id' => $quotation->plant_id,
-                        'patron_id' => $quotation->patron_id,
-                        'site_id' => $quotation->site_id,
-                        'sales_executive_id' => $quotation->sales_executive_id,
-                        'concrete_pump' => $quotation->concrete_pump,
-                        'order_date' => now()->toDateString(),
-                        'status' => \App\Models\CustomerPO::STATUS_CONFIRMED,
-                        'converted_by_user_id' => $user->id,
-                    ]
+                    $poData
                 );
 
                 // Clear any existing items in the customer PO to avoid duplicates/orphans
