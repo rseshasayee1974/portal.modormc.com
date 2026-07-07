@@ -155,7 +155,7 @@
         }
         .net-pay-val {
             font-size: 18px;
-            font-weight: 900;
+            font-weight: 700;
             color: #6d28d9;
         }
         .net-pay-words {
@@ -273,20 +273,20 @@
                 <thead>
                     <tr>
                         <th class="text-left">Earnings Description</th>
-                        <th class="text-right" style="width: 100px;">Amount (₹)</th>
+                        <th class="text-right" style="width: 100px;">Amount (&#8377;)</th>
                     </tr>
                 </thead>
                 <tbody>
                     @for($i = 0; $i < $maxRows; $i++)
                         @php $item = $earnings->get($i); @endphp
                         <tr>
-                            <td>{{ $item ? $item->component_name : '&nbsp;' }}</td>
+                            <td>{!! $item ? e($item->component_name) : '&nbsp;' !!}</td>
                             <td class="text-right bold">{{ $item ? number_format($item->amount, 2) : '' }}</td>
                         </tr>
                     @endfor
                     <tr class="total-row">
                         <td>Total Earnings (Gross)</td>
-                        <td class="text-right bold">₹{{ number_format($payslip->total_earnings, 2) }}</td>
+                        <td class="text-right bold">&#8377;{{ number_format($payslip->total_earnings, 2) }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -298,20 +298,20 @@
                 <thead>
                     <tr>
                         <th class="text-left">Deductions Description</th>
-                        <th class="text-right" style="width: 100px;">Amount (₹)</th>
+                        <th class="text-right" style="width: 100px;">Amount (&#8377;)</th>
                     </tr>
                 </thead>
                 <tbody>
                     @for($i = 0; $i < $maxRows; $i++)
                         @php $item = $deductions->get($i); @endphp
                         <tr>
-                            <td>{{ $item ? $item->component_name : '&nbsp;' }}</td>
+                            <td>{!! $item ? e($item->component_name) : '&nbsp;' !!}</td>
                             <td class="text-right bold text-red">{{ $item ? number_format($item->amount, 2) : '' }}</td>
                         </tr>
                     @endfor
                     <tr class="total-row">
                         <td>Total Deductions</td>
-                        <td class="text-right bold text-red">₹{{ number_format($payslip->total_deductions, 2) }}</td>
+                        <td class="text-right bold text-red">&#8377;{{ number_format($payslip->total_deductions, 2) }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -327,7 +327,7 @@
             </div>
         </div>
         <div class="banner-right">
-            <div class="net-pay-val">₹{{ number_format($payslip->net_salary, 2) }}</div>
+            <div class="net-pay-val">&#8377;{{ number_format($payslip->net_salary, 2) }}</div>
         </div>
     </div>
 

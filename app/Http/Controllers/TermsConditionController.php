@@ -26,15 +26,13 @@ class TermsConditionController extends Controller
     $this->authorizeModule('menu');
     $user = Auth::user();
 
-    $allowedEntityIds = $user->hasRole('Super Administrator')
-        ? Entity::pluck('id')->toArray()
-        : $user->entityUsers()->pluck('entity_id')->toArray();
+    $allowedEntityIds = $user->entityUsers()->pluck('entity_id')->toArray();
 
     $allowedPlantIds = Plant::whereIn('entity_id', $allowedEntityIds)->pluck('id')->toArray();
 
     $query = TermsCondition::query()
         ->whereIn('plant_id', $allowedPlantIds)
-        ->with(['plant:id,name']);
+        ->with(['plant:id,name', 'entity:id,legal_name']);
 
     if ($request->filled('search')) {
         $query->where(function ($q) use ($request) {
@@ -56,14 +54,20 @@ class TermsConditionController extends Controller
         ->paginate(10)->withQueryString();
 
     $plants = Plant::whereIn('id', $allowedPlantIds)
-        ->select('id', 'name')
+        ->select('id', 'name', 'entity_id')
         ->orderBy('name')
+        ->get();
+
+    $entities = Entity::whereIn('id', $allowedEntityIds)
+        ->select('id', 'legal_name')
+        ->orderBy('legal_name')
         ->get();
 
     return Inertia::render('TermsConditions/Index', [
         'termsConditions' => $termsConditions,
         'filters' => $request->only(['search', 'sort_field', 'sort_direction', 'plant_id']),
         'plants' => $plants,
+        'entities' => $entities,
     ]);
 }
 

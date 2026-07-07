@@ -206,6 +206,7 @@ const onSearch = () => {
                 </template>
 
                 <Column field="entity.legal_name" header="Entity" sortable></Column>
+                <Column field="plant.name" header="Plant" sortable></Column>
                 <Column field="order_type" header="Type" sortable>
                     <template #body="slotProps">
                         <Tag :value="slotProps.data.order_type" severity="info"  />
