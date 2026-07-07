@@ -197,6 +197,12 @@
                 <div class="tot-lbl final-amount">Net Payable Amount ({{ $order->currency->currency_code }}):</div>
                 <div class="tot-val final-amount">{{ number_format($order->amount_total, 2) }}</div>
             </div>
+            <div class="tot-row" style="background: #fdfdfd;">
+                <div class="tot-lbl" style="border-right: none; text-align: left; padding-right: 10px; width: 20%; border-bottom: none; color: #555;">Amount in Words:</div>
+                <div class="tot-val" style="text-align: left; font-weight: 700; font-style: italic; white-space: normal; width: 80%; border-bottom: none; font-size: 11px;">
+                    {{ \App\Services\PrintDataFormatter::numberToWords($order->amount_total, $order->currency->currency_code ?? 'INR') }}
+                </div>
+            </div>
         </div>
     </div>
 

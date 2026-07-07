@@ -109,6 +109,10 @@ const customerPOOptions = computed(() => {
     ];
 });
 
+const defaultStart = new Date();
+const defaultEnd = new Date(defaultStart);
+defaultEnd.setHours(defaultEnd.getHours() + 1);
+
 const form = useForm({
     prefix: 'SO',
     order_no: '',
@@ -123,8 +127,8 @@ const form = useForm({
     produced_qty: 0,
     status: 1,
     concrete_pump: 'pump' as string | null,
-    scheduled_start: null as Date | null,
-    scheduled_end: null as Date | null,
+    scheduled_start: defaultStart as Date | null,
+    scheduled_end: defaultEnd as Date | null,
 });
 
 // Watch sales order selection to auto-fill patron, site, mix design, and total quantity
@@ -183,10 +187,17 @@ const submit = () => {
             return;
         }
     }
+    const formatLocalTime = (date: Date | any) => {
+        if (!date) return null;
+        const d = new Date(date);
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    };
+
     form.transform((data) => ({
         ...data,
-        scheduled_start: data.scheduled_start ? data.scheduled_start.toISOString() : null,
-        scheduled_end: data.scheduled_end ? data.scheduled_end.toISOString() : null,
+        scheduled_start: formatLocalTime(data.scheduled_start),
+        scheduled_end: formatLocalTime(data.scheduled_end),
         order_no: data.order_no || null,
     })).post(route('salesorders.store'), {
         onSuccess: () => {

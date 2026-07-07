@@ -50,9 +50,13 @@ const onRowExpand = (event: { data: ProductUnit }) => {
     const unit = event.data;
     expandedRows.value   = { [unit.id]: true };   // only one open
     editingUnitId.value  = unit.id;
-    editForm.unit_name   = unit.unit_name;
-    editForm.unit_code   = unit.unit_code ?? '';
-    editForm.unit_type   = unit.unit_type;
+    
+    editForm.defaults({
+        unit_name: unit.unit_name,
+        unit_code: unit.unit_code ?? '',
+        unit_type: unit.unit_type,
+    });
+    editForm.reset();
     editForm.clearErrors();
 };
 
@@ -152,24 +156,32 @@ const deleteUnit = (unit: ProductUnit) => {
             <Column header="Actions" style="width: 80px" class="text-right">
                 <template #body="{ data }">
                     <div class="flex justify-end gap-2">
-                    <Button
-                        icon="pi pi-trash"
-                        severity="danger"
+                        <Button
+                            icon="pi pi-pencil"
+                            severity="info"
                             variant="text"
                             rounded
                             class="!w-8 !h-8"
-                        @click.stop="deleteUnit(data)"
-                    />
+                            @click.stop="onRowExpand({ data })"
+                        />
+                        <Button
+                            icon="pi pi-trash"
+                            severity="danger"
+                            variant="text"
+                            rounded
+                            class="!w-8 !h-8"
+                            @click.stop="deleteUnit(data)"
+                        />
                     </div>
                 </template>
             </Column>
 
             <!-- ── Inline Edit Expansion ── -->
             <template #expansion="{ data }">
-                <div class="mm-expansion-panel">
-                    <div class="mm-expansion-label">
+                <div class="expansion-panel">
+                    <div class="expansion-label">
                         <i class="pi pi-pen-to-square text-indigo-500"></i>
-                        <span class="mm-expansion-title">Update Unit Configuration</span>
+                        <span class="expansion-title">Update Unit Configuration</span>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4 max-w-4xl bg-white p-6 rounded-sm border border-slate-100 shadow-sm">

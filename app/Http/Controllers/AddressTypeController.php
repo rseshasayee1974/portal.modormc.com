@@ -29,12 +29,19 @@ class AddressTypeController extends Controller
             'type' => 'required|string|max:100|unique:mm_address_types,type',
         ]);
 
-        $addressType = AddressType::create($validated);
+        $addresstype = AddressType::create($validated);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'addressType' => $addresstype,
+                'message' => 'Address Type created successfully.'
+            ]);
+        }
 
         return redirect()->route('addresstypes.index')->with('success', 'Address Type created successfully.');
     }
 
-    /**
+    /**s
      * Display a listing of the resource.
      */
     public function index()
@@ -48,34 +55,41 @@ class AddressTypeController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(AddressType $addressType)
+    public function show(AddressType $addresstype)
     {
         return Inertia::render('AddressTypes/Show', [
-            'addressType' => $addressType
+            'addresstype' => $addresstype
         ]);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(AddressType $addressType)
+    public function edit(AddressType $addresstype)
     {
         return Inertia::render('AddressTypes/Edit', [
-            'addressType' => $addressType
+            'addresstype' => $addresstype
         ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, AddressType $addressType)
+    public function update(Request $request, AddressType $addresstype)
     {
         $this->authorizeModule('edit');
         $validated = $request->validate([
-            'type' => 'required|string|max:100|unique:mm_address_types,type,' . $addressType->id,
+            'type' => 'required|string|max:100|unique:mm_address_types,type,' . $addresstype->id,
         ]);
 
-        $addressType->update($validated);
+        $addresstype->update($validated);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'addressType' => $addresstype,
+                'message' => 'Address Type updated successfully.'
+            ]);
+        }
 
         return redirect()->route('addresstypes.index')->with('success', 'Address Type updated successfully.');
     }
@@ -83,10 +97,16 @@ class AddressTypeController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(AddressType $addressType)
+    public function destroy(AddressType $addresstype)
     {
         $this->authorizeModule('delete');
-        $addressType->delete();
+        $addresstype->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json([
+                'message' => 'Address Type deleted successfully.'
+            ]);
+        }
 
         return redirect()->route('addresstypes.index')->with('success', 'Address Type deleted successfully.');
     }

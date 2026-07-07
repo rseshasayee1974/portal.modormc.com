@@ -291,7 +291,7 @@ class PrintDataFormatter
 
             return [
                 'no'           => $idx + 1,
-                'name'         => $item->product->title,
+                'name'         => $item->product->title ?? '',
                 'description'  => $item->description ?? '',
                 'hsn'          => $item->product->hsn_code ?? '-',
                 'qty'          => (float)$item->product_quantity,
@@ -669,8 +669,8 @@ class PrintDataFormatter
      */
     public static function numberToWords($number, $currency = 'INR')
     {
-        $no = round($number);
-        $point = round($number - $no, 2) * 100;
+        $no = (int)$number;
+$point = (int)round(($number - $no) * 100);
         $hundred = null;
         $digits_1 = strlen($no);
         $i = 0;
@@ -699,16 +699,25 @@ class PrintDataFormatter
                 $str [] = ($number < 21) ? $words[$number] .
                     " " . $digits[$counter] . $plural . " " . $hundred
                     :
-                    $words[floor($number / 10) * 10]
+                    $words[(int)(floor($number / 10) * 10)]
                     . " " . $words[$number % 10] . " "
                     . $digits[$counter] . $plural . " " . $hundred;
             } else $str[] = null;
         }
         $str = array_reverse($str);
         $result = implode('', $str);
-        $points = ($point) ?
-            "and " . $words[$point / 10] . " " .
-            $words[$point = $point % 10] . " Paise" : '';
+        $points = '';
+
+if ($point > 0) {
+    if ($point < 21) {
+        $points = 'and ' . $words[$point] . ' Paise';
+    } else {
+        $points = 'and ' .
+            $words[(int)(floor($point / 10) * 10)] . ' ' .
+            $words[$point % 10] .
+            ' Paise';
+    }
+}
         
         $currency_label = $currency === 'INR' ? 'Rupees ' : $currency . ' ';
         return $currency_label . $result . " " . $points . " Only";

@@ -47,32 +47,31 @@ class BankAccountTypeController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, BankAccountType $bankAccountType)
+    public function update(Request $request, BankAccountType $bankaccounttype)
     {
         $this->authorizeModule('edit');
         $validated = $request->validate([
-            'type' => 'required|string|max:100|unique:mm_bank_account_types,type,' . $bankAccountType->id,
+            'type' => 'required|string|max:100|unique:mm_bank_account_types,type,' . $bankaccounttype->id,
         ]);
 
-        $bankAccountType->update($validated);
+        $bankaccounttype->update($validated);
 
         if ($request->wantsJson()) {
             return response()->json([
-                'bankAccountType' => $bankAccountType,
+                'bankAccountType' => $bankaccounttype,
                 'message' => 'Bank Account Type updated successfully.'
             ]);
         }
-
         return redirect()->route('bankaccounttypes.index')->with('success', 'Bank Account Type updated successfully.');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(BankAccountType $bankAccountType)
+    public function destroy(BankAccountType $bankaccounttype)
     {
         $this->authorizeModule('delete');
-        $bankAccountType->delete();
+        $bankaccounttype->delete();
 
         if (request()->wantsJson()) {
             return response()->json([

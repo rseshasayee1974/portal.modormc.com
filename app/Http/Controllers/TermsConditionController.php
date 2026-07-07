@@ -30,9 +30,11 @@ class TermsConditionController extends Controller
         ? Entity::pluck('id')->toArray()
         : $user->entityUsers()->pluck('entity_id')->toArray();
 
+    $allowedPlantIds = Plant::whereIn('entity_id', $allowedEntityIds)->pluck('id')->toArray();
+
     $query = TermsCondition::query()
-        ->whereIn('entity_id', $allowedEntityIds)
-        ->with(['entity:id,legal_name']);
+        ->whereIn('plant_id', $allowedPlantIds)
+        ->with(['plant:id,name']);
 
     if ($request->filled('search')) {
         $query->where(function ($q) use ($request) {
@@ -41,10 +43,10 @@ class TermsConditionController extends Controller
         });
     }
 
-    // filter terms by entity if user picked one
-    $entityId = $request->input('entity_id');
-    if ($entityId) {
-        $query->where('entity_id', $entityId);
+    // filter terms by plant if user picked one
+    $plantId = $request->input('plant_id');
+    if ($plantId) {
+        $query->where('plant_id', $plantId);
     }
 
     $sortField = $request->input('sort_field', 'id');
@@ -53,31 +55,15 @@ class TermsConditionController extends Controller
     $termsConditions = $query->orderBy($sortField, $sortDirection)
         ->paginate(10)->withQueryString();
 
-    $entities = Entity::whereIn('id', $allowedEntityIds)
-        ->select('id', 'legal_name')
-        ->orderBy('legal_name')
+    $plants = Plant::whereIn('id', $allowedPlantIds)
+        ->select('id', 'name')
+        ->orderBy('name')
         ->get();
 
-    // --- plants for THAT particular entity ---
-    $plantsQuery = Plant::whereIn('entity_id', $allowedEntityIds)
-        ->select('id', 'name', 'entity_id'); // keep entity_id!
-
-    if ($entityId && in_array((int)$entityId, $allowedEntityIds)) {
-        $plantsQuery->where('entity_id', $entityId); // only this entity
-    }
-
-    $plants = $plantsQuery->orderBy('name')->get();
-// return json_encode([
-//         'termsConditions' => $termsConditions,
-//         'filters' => $request->only(['search', 'sort_field', 'sort_direction', 'entity_id']),
-//         'entities' => $entities,
-//         'plants' => $plants, // now: [{id:1,name:"Parker LLC Plant",entity_id:1}, ...]
-//     ]);
     return Inertia::render('TermsConditions/Index', [
         'termsConditions' => $termsConditions,
-        'filters' => $request->only(['search', 'sort_field', 'sort_direction', 'entity_id']),
-        'entities' => $entities,
-        'plants' => $plants, // now: [{id:1,name:"Parker LLC Plant",entity_id:1}, ...]
+        'filters' => $request->only(['search', 'sort_field', 'sort_direction', 'plant_id']),
+        'plants' => $plants,
     ]);
 }
 
@@ -89,6 +75,9 @@ class TermsConditionController extends Controller
         $this->authorizeModule('create');
         $validated = $request->validated();
         
+        $plant = Plant::findOrFail($validated['plant_id']);
+        $validated['entity_id'] = $plant->entity_id;
+
         $termsCondition = TermsCondition::create(array_merge($validated, [
             'created_by' => Auth::id(),
             'status' => $validated['status'] ?? 'active',
@@ -111,6 +100,9 @@ class TermsConditionController extends Controller
     {
         $this->authorizeModule('edit');
         $validated = $request->validated();
+
+        $plant = Plant::findOrFail($validated['plant_id']);
+        $validated['entity_id'] = $plant->entity_id;
 
         $termscondition->update(array_merge($validated, [
             'updated_by' => Auth::id(),

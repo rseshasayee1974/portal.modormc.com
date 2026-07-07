@@ -234,11 +234,9 @@ const deleteComp = (id: number) => {
 
 // Generation
 const submitGenerate = () => {
-    router.post(route('payslips.generate'), {
+    genForm.post(route('payslips.generate'), {
         preserveScroll: true,
         preserveState: true,
-        // message: 'Generating payslips...',
-        // onSuccess: () => Swal.fire('Success', 'Draft payslips generated successfully.', 'success')
     });
 };
 

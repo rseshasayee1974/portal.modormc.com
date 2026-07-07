@@ -102,6 +102,10 @@ const emit = defineEmits<{
 
 const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 
+const defaultStart = new Date();
+const defaultEnd = new Date(defaultStart);
+defaultEnd.setHours(defaultEnd.getHours() + 1);
+
 const form = useForm({
     prefix: props.salesOrder?.prefix ?? 'SO',
     order_no: props.salesOrder?.order_no ?? '',
@@ -115,8 +119,8 @@ const form = useForm({
     produced_qty: Number(props.salesOrder?.produced_qty ?? 0),
     status: Number(props.salesOrder?.status ?? 1),
     concrete_pump: props.salesOrder?.concrete_pump ?? null,
-    scheduled_start: props.salesOrder?.scheduled_start ? new Date(props.salesOrder.scheduled_start) : null,
-    scheduled_end: props.salesOrder?.scheduled_end ? new Date(props.salesOrder.scheduled_end) : null,
+    scheduled_start: props.salesOrder?.scheduled_start ? new Date(props.salesOrder.scheduled_start) : defaultStart,
+    scheduled_end: props.salesOrder?.scheduled_end ? new Date(props.salesOrder.scheduled_end) : defaultEnd,
 });
 
 const customerPOOptions = computed(() => {
@@ -206,10 +210,17 @@ const submit = () => {
         }
     }
 
+    const formatLocalTime = (date: Date | any) => {
+        if (!date) return null;
+        const d = new Date(date);
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    };
+
     form.transform((data) => ({
         ...data,
-        scheduled_start: data.scheduled_start ? data.scheduled_start.toISOString() : null,
-        scheduled_end: data.scheduled_end ? data.scheduled_end.toISOString() : null,
+        scheduled_start: formatLocalTime(data.scheduled_start),
+        scheduled_end: formatLocalTime(data.scheduled_end),
     })).put(route('salesorders.update', { salesorder: salesOrderId }), {
         onSuccess: () => {
             Swal.fire({
