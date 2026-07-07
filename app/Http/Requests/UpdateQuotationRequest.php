@@ -46,7 +46,7 @@ class UpdateQuotationRequest extends FormRequest
             'patron_id' => 'required|exists:mm_patrons,id',
             'site_id' => 'nullable|exists:mm_sites,id',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
-            'concrete_pump' => 'nullable|string',
+            'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
             'quote_date' => 'required|date',
             'validity_date' => 'nullable|date',
             'amount_untaxed' => 'nullable|numeric',

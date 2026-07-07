@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<{
     mixDesigns?: any[];
     salesExecutives?: any[];
     concretePumpOptions?: any[];
+    taxes?: any[];
 }>(), {
     customerPO: () => ({}),
     quotations: () => [],   
@@ -25,6 +26,7 @@ const props = withDefaults(defineProps<{
     mixDesigns: () => [],
     salesExecutives: () => [],
     concretePumpOptions: () => [],
+    taxes: () => [],
 });
 
 const emit = defineEmits<{
@@ -41,13 +43,15 @@ const form = useForm({
     patron_id: props.customerPO?.patron_id ?? null,
     site_id: props.customerPO?.site_id ?? null,
     sales_executive_id: props.customerPO?.sales_executive_id ?? null,
-    concrete_pump: props.customerPO?.concrete_pump ?? null,
+    concrete_pump: props.customerPO?.concrete_pump !== null ? (isNaN(Number(props.customerPO.concrete_pump)) ? props.customerPO.concrete_pump : Number(props.customerPO.concrete_pump)) : null,
     order_date: props.customerPO?.order_date ?? '',
     status: props.customerPO?.status ?? 1,
-    items: [] as Array<{ mix_design_id: number | null, quantity: number | null, rate: number | null }>,
+    items: [] as Array<{ mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null }>,
     mix_design_id: null as number | null,
     quantity: null as number | null,
     rate: null as number | null,
+    tax_id: null as number | null,
+    tax_amount: null as number | null,
 });
 
 // Pre-fill items from sales order or quotation items
@@ -56,10 +60,12 @@ form.items = itemsList.map((item: any) => ({
     mix_design_id: item.mix_design_id,
     quantity: Number(item.quantity),
     rate: Number(item.rate),
+    tax_id: item.tax_id ?? null,
+    tax_amount: item.tax_amount !== null ? Number(item.tax_amount) : 0,
 }));
 
 if (form.items.length === 0 && !form.quotation_id) {
-    form.items.push({ mix_design_id: null, quantity: null, rate: null });
+    form.items.push({ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0 });
 }
 
 if (itemsList.length === 1) {
@@ -67,6 +73,8 @@ if (itemsList.length === 1) {
     form.mix_design_id = item.mix_design_id;
     form.quantity = Number(item.quantity);
     form.rate = Number(item.rate);
+    form.tax_id = item.tax_id ?? null;
+    form.tax_amount = item.tax_amount !== null ? Number(item.tax_amount) : 0;
 }
 
 // Watch quotation selection to auto-fill patron, site, and sales executive
@@ -82,24 +90,30 @@ watch(() => form.quotation_id, (newVal) => {
                 mix_design_id: item.mix_design_id,
                 quantity: Number(item.quantity),
                 rate: Number(item.rate),
+                tax_id: item.tax_id ?? null,
+                tax_amount: Number(item.tax_amount ?? 0),
             }));
             if (quoteItems.length === 1) {
                 form.mix_design_id = quoteItems[0].mix_design_id;
                 form.quantity = Number(quoteItems[0].quantity);
                 form.rate = Number(quoteItems[0].rate);
+                form.tax_id = quoteItems[0].tax_id ?? null;
+                form.tax_amount = Number(quoteItems[0].tax_amount ?? 0);
             }
         }
     } else {
-        form.items = [{ mix_design_id: null, quantity: null, rate: null }];
+        form.items = [{ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0 }];
         form.mix_design_id = null;
         form.quantity = null;
         form.rate = null;
+        form.tax_id = null;
+        form.tax_amount = null;
         form.sales_executive_id = null;
     }
 });
 
 const addItem = () => {
-    form.items.push({ mix_design_id: null, quantity: null, rate: null });
+    form.items.push({ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0 });
 };
 
 const removeItem = (index: number) => {
@@ -144,7 +158,6 @@ const getDeleteRestrictionReason = (customerPO: any): string => {
 };
 
 // Filter sites by selected patron
-// Filter sites by selected patron
 const filteredSites = computed(() => {
     return (props.sites || []).filter((s: any) => {
         if (!s) return false;
@@ -160,6 +173,37 @@ const mixDesignOptions = computed(() => {
         value: p.id
     }));
 });
+
+const taxOptions = computed(() => (props.taxes || []).map(t => ({
+    label: t.tax_name ? `${t.tax_name} (${t.tax_rate}%)` : `Tax (${t.tax_rate}%)`,
+    value: t.id
+})));
+
+// Watch form items to dynamically update tax_amount
+watch(() => form.items, (newItems) => {
+    if (newItems) {
+        newItems.forEach(item => {
+            const qty = Number(item.quantity || 0);
+            const rate = Number(item.rate || 0);
+            const untaxed = qty * rate;
+            const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
+            const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
+            item.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
+        });
+    }
+}, { deep: true, immediate: true });
+
+// Watch single item fields to dynamically update tax_amount
+watch(() => [form.quantity, form.rate, form.tax_id], () => {
+    if (form.quantity !== null && form.rate !== null) {
+        const qty = Number(form.quantity || 0);
+        const rate = Number(form.rate || 0);
+        const untaxed = qty * rate;
+        const tax = props.taxes?.find(t => Number(t.id) === Number(form.tax_id));
+        const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
+        form.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
+    }
+}, { deep: true, immediate: true });
 
 const uniqueSelectedMixDesignIds = computed(() => {
     const ids = new Set<number>();
@@ -438,7 +482,7 @@ const performSubmit = (customerPOId: any) => {
                         class="grid grid-cols-12 gap-3 items-start pb-3"
                     >
                         <!-- Mix Design -->
-                        <div class="col-span-12 md:col-span-5">
+                        <div class="col-span-12 md:col-span-3">
                             <BaseSelect
                                 v-model="item.mix_design_id"
                                 :options="mixDesignOptions"
@@ -452,7 +496,7 @@ const performSubmit = (customerPOId: any) => {
                         </div>
                     
                         <!-- Quantity -->
-                        <div class="col-span-4 md:col-span-2">
+                        <div class="col-span-6 md:col-span-2">
                             <BaseInput
                                 type="number"
                                 step="0.001"
@@ -465,7 +509,7 @@ const performSubmit = (customerPOId: any) => {
                         </div>
                     
                         <!-- Rate -->
-                        <div class="col-span-4 md:col-span-2">
+                        <div class="col-span-6 md:col-span-2">
                             <BaseInput
                                 type="number"
                                 step="0.01"
@@ -476,17 +520,39 @@ const performSubmit = (customerPOId: any) => {
                                 :error="form.errors[`items.${idx}.rate`]"
                             />
                         </div>
+
+                        <!-- Tax -->
+                        <div class="col-span-6 md:col-span-2">
+                            <BaseSelect
+                                v-model="item.tax_id"
+                                :options="taxOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                label="Tax"
+                                placeholder="None"
+                                clearable
+                                :error="form.errors[`items.${idx}.tax_id`]"
+                            />
+                        </div>
+
+                        <!-- Tax Amount -->
+                        <div class="col-span-6 md:col-span-1">
+                            <label class="block text-xs font-medium text-gray-700">Tax Amt</label>
+                            <div class="h-8 flex items-center px-2 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md">
+                                ₹{{ Number(item.tax_amount || 0).toFixed(2) }}
+                            </div>
+                        </div>
                     
                         <!-- Amount -->
-                        <div class="col-span-3 md:col-span-2">
+                        <div class="col-span-10 md:col-span-1">
                             <label class="block text-xs font-medium text-gray-700">Amount</label>
-                            <div class="h-8 flex items-center text-sm font-semibold text-indigo-700">
-                                ₹{{ ((Number(item.quantity) || 0) * (Number(item.rate) || 0)).toFixed(2) }}
+                            <div class="h-8 flex items-center px-2 text-xs font-semibold text-indigo-700 bg-indigo-50 rounded-md">
+                                ₹{{ ((Number(item.quantity || 0) * Number(item.rate || 0)) + Number(item.tax_amount || 0)).toFixed(2) }}
                             </div>
                         </div>
                     
                         <!-- Delete -->
-                        <div class="col-span-1 flex justify-end pt-6">
+                        <div class="col-span-2 md:col-span-1 flex justify-end pt-6">
                             <Button
                                 icon="pi pi-trash"
                                 severity="danger"
@@ -508,39 +574,76 @@ const performSubmit = (customerPOId: any) => {
                     <span class="text-xs font-bold uppercase tracking-wide text-indigo-800">Item Details</span>
                 </div>
 
-                <div class="col-span-12 md:col-span-2">
-                    <BaseSelect
-                        v-model="form.mix_design_id"
-                        :options="mixDesignOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        filter
-                        label="Mix Design"
-                        placeholder="Select Mix Design"
-                        :error="form.errors.mix_design_id"
-                    />
-                </div>
+                <div class="col-span-12 md:col-span-5">
+                    <div class="grid grid-cols-12 gap-3 items-start pb-3">
+                        <!-- Mix Design -->
+                        <div class="col-span-12 md:col-span-3">
+                            <BaseSelect
+                                v-model="form.mix_design_id"
+                                :options="mixDesignOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                filter
+                                label="Mix Design"
+                                placeholder="Select Mix Design"
+                                :error="form.errors.mix_design_id"
+                            />
+                        </div>
 
-                <div class="col-span-12 md:col-span-1">
-                    <BaseInput
-                        type="number"
-                        step="0.001"
-                        v-model="form.quantity"
-                        label="Qty (m³)"
-                        placeholder="0.000"
-                        :error="form.errors.quantity"
-                    />
-                </div>
+                        <!-- Quantity -->
+                        <div class="col-span-6 md:col-span-2">
+                            <BaseInput
+                                type="number"
+                                step="0.001"
+                                v-model="form.quantity"
+                                label="Qty (m³)"
+                                placeholder="0.000"
+                                :error="form.errors.quantity"
+                            />
+                        </div>
 
-                <div class="col-span-12 md:col-span-1">
-                    <BaseInput
-                        type="number"
-                        step="0.01"
-                        v-model="form.rate"
-                        label="Rate (₹)"
-                        placeholder="0.00"
-                        :error="form.errors.rate"
-                    />
+                        <!-- Rate -->
+                        <div class="col-span-6 md:col-span-2">
+                            <BaseInput
+                                type="number"
+                                step="0.01"
+                                v-model="form.rate"
+                                label="Rate (₹)"
+                                placeholder="0.00"
+                                :error="form.errors.rate"
+                            />
+                        </div>
+
+                        <!-- Tax -->
+                        <div class="col-span-6 md:col-span-2">
+                            <BaseSelect
+                                v-model="form.tax_id"
+                                :options="taxOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                label="Tax"
+                                placeholder="None"
+                                clearable
+                                :error="form.errors.tax_id"
+                            />
+                        </div>
+
+                        <!-- Tax Amount -->
+                        <div class="col-span-6 md:col-span-1">
+                            <label class="block text-xs font-medium text-gray-700">Tax Amt</label>
+                            <div class="h-8 flex items-center px-2 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md">
+                                ₹{{ Number(form.tax_amount || 0).toFixed(2) }}
+                            </div>
+                        </div>
+
+                        <!-- Total Amount -->
+                        <div class="col-span-12 md:col-span-2">
+                            <label class="block text-xs font-medium text-gray-700">Total Amount</label>
+                            <div class="h-8 flex items-center px-3 text-sm font-semibold text-indigo-700 bg-indigo-50 rounded-md">
+                                ₹{{ ((Number(form.quantity || 0) * Number(form.rate || 0)) + Number(form.tax_amount || 0)).toFixed(2) }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </template>
 

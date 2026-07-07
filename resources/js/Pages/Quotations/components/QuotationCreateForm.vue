@@ -44,7 +44,7 @@ const props = defineProps<{
     units?: { id: number; name: string }[]; // Falling back if missing
     instant_customer: number | boolean;
     salesExecutives?: { id: number; label: string; value: number }[];
-    concretePumpOptions?: { label: string; value: string }[];
+    concretePumpOptions?: { label: string; value: number }[];
 }>();
 // console.log(props.taxes);
 const isOpen = ref(true);

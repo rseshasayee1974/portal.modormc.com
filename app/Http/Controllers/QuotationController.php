@@ -23,7 +23,7 @@ class QuotationController extends Controller
         $plantId = session('active_plant_id');
 
         return Inertia::render('Quotations/Index', [
-            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'customerPOs', 'creator', 'modifier','salesExecutive'])
+            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'customerPOs', 'creator', 'modifier','salesExecutive', 'concretePump'])
                 ->where('plant_id', $plantId)
                 ->latest()
                 ->get(),
@@ -34,7 +34,6 @@ class QuotationController extends Controller
             'taxes'    => TaxesDropdown('Sales', ['GST', 'IGST']),
             'vehicles' => MachinesDropdown(),
             'drivers'  => PersonnelDropdown(),
-            'salesExecutives' => SalesExecutivesDropdown(),
             'unitOptions' => Productunit(),
             'concretePumpOptions' => ConcretePumpDropdown(),
             'instant_customer' => CustomSetting::getForModule(session('active_entity_id'), 'quotation')['instant_customer'] ?? 0,

@@ -95,6 +95,11 @@ class Machine extends Model
         return $this->belongsTo(Patron::class, 'owner_id');
     }
 
+     public function machineType()
+    {
+        return $this->belongsTo(MachineType::class, 'vehicle_type', 'name');
+    }
+
     public function documents()
     {
         return $this->hasMany(MachineDocument::class, 'machine_id');

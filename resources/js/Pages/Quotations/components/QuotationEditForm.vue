@@ -38,7 +38,7 @@ const props = defineProps<{
     taxes: { id: number; title?: string; tax_name?: string; rate?: number; tax_rate?: number }[];
     unitOptions?: { id: number; unit_code: string }[];
     salesExecutives?: { id: number; label: string; value: number }[];
-    concretePumpOptions?: { label: string; value: string }[];
+    concretePumpOptions?: { label: string; value: number }[];
 }>();
 
 const emit = defineEmits<{
@@ -53,12 +53,24 @@ const statusOptions = [
     { label: 'Accepted', value: 2 },
     { label: 'Rejected', value: 3 },
 ];
+// console.log(props.quotation.concrete_pump,'dsa');
+// Resolve legacy string values ('pump','manual','boom') to machine IDs
+const resolveConcretePump = (raw: any) => {
+    if (raw === null || raw === undefined || raw === '') return null;
+    const asNum = Number(raw);
+    if (!isNaN(asNum) && asNum > 0) return asNum; // already a machine ID
+    // Legacy string: find matching option by label substring
+    const match = (props.concretePumpOptions || []).find(
+        (o: any) => String(o.label).toLowerCase().includes(String(raw).toLowerCase())
+    );
+    return match ? match.value : null;
+};
 
 const form = useForm({
     patron_id: props.quotation.patron_id ?? null,
     site_id: props.quotation.site_id ?? null,
     sales_executive_id: props.quotation.sales_executive_id ?? null,
-    concrete_pump: props.quotation.concrete_pump ?? null,
+    concrete_pump: resolveConcretePump(props.quotation.concrete_pump),
     quote_date: props.quotation.quote_date ? String(props.quotation.quote_date).substring(0, 10) : new Date().toISOString().substring(0, 10),
     validity_date: props.quotation.validity_date ? String(props.quotation.validity_date).substring(0, 10) : null,
     status: Number(props.quotation.status ?? 0),
@@ -91,6 +103,10 @@ const siteOptions = computed(() => {
         })
         .map((s: any) => ({ label: s.name, value: s.id }));
 });
+
+const concretePumpOptions = computed(() =>
+    (props.concretePumpOptions || []).map((s: any) => ({ label: s.label, value: s.value }))
+);
 const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 const unitOptions = computed(() => (props.unitOptions || []).map(u => ({ label: u.unit_code, value: u.id })));
 const mixDesignOptions = computed(() =>
@@ -293,7 +309,7 @@ const sendEmail = () => {
 
     <BaseSelect
         v-model="form.concrete_pump"
-        :options="concretePumpOptions || []"
+        :options="concretePumpOptions"
         optionLabel="label"
         optionValue="value"
         label="Concrete Type"

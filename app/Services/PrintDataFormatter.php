@@ -587,11 +587,12 @@ class PrintDataFormatter
                     $prodName = $mdItem->product->title ?? 'Unknown';
                     $qty = (float)$mdItem->actual_quantity;
                     $unit = $mdItem->uom->unit_code ?? '';
-                    return trim("{$prodName} ({$qty} {$unit})");
-                })->filter()->implode(', ');
+                    $formattedQty = $qty == floor($qty) ? (int)$qty : number_format($qty, 2);
+                    return trim("• {$prodName} ({$formattedQty} {$unit})");
+                })->filter()->implode("\n");
                 
                 if ($materials) {
-                    $description .= $description ? "\nMaterials: {$materials}" : "Materials: {$materials}";
+                    $description .= $description ? "\n\nRecipe Details:\n{$materials}" : "Recipe Details:\n{$materials}";
                 }
             }
 

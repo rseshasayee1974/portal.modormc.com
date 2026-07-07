@@ -29,7 +29,7 @@ class CustomerPOController extends Controller
 
         $sites = SitesDropdown();
         $quotations = Quotation::with(['items.mixDesign'])
-            ->select('id', 'reference', 'amount_total', 'patron_id', 'site_id', 'is_customer_po')
+            ->select('id', 'reference', 'amount_total', 'patron_id', 'site_id', 'is_customer_po', 'concrete_pump', 'sales_executive_id')
             ->where('plant_id', $plantId)
             ->where('is_customer_po', 0)
             ->orderBy('reference')
@@ -42,6 +42,7 @@ class CustomerPOController extends Controller
             'sites' => $sites,
             'quotations' => $quotations,
             'mixDesigns' => $mixDesigns,
+            'taxes' => TaxesDropdown('sales',['GST','IGST']),
             'salesExecutives' => SalesExecutivesDropdown(),
             'concretePumpOptions' => ConcretePumpDropdown(),
         ]);
@@ -63,10 +64,14 @@ class CustomerPOController extends Controller
             'mix_design_id' => 'nullable|exists:mm_mix_designs,id',
             'quantity' => 'nullable|numeric|min:0.001',
             'rate' => 'nullable|numeric|min:0',
+            'tax_id' => 'nullable|exists:mm_taxes,id',
+            'tax_amount' => 'nullable|numeric|min:0',
             'items' => 'nullable|array',
             'items.*.mix_design_id' => 'required_without:quotation_id|exists:mm_mix_designs,id',
             'items.*.quantity' => 'required_without:quotation_id|numeric|min:0.001',
             'items.*.rate' => 'required_without:quotation_id|numeric|min:0',
+            'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
+            'items.*.tax_amount' => 'nullable|numeric|min:0',
         ]);
 
         $formattedDate = \Carbon\Carbon::parse($validated['order_date'])->format('Y-m-d');
@@ -100,6 +105,8 @@ class CustomerPOController extends Controller
                 'mix_design_id' => $validated['mix_design_id'],
                 'quantity' => $validated['quantity'],
                 'rate' => $validated['rate'],
+                'tax_id' => $validated['tax_id'] ?? null,
+                'tax_amount' => $validated['tax_amount'] ?? 0,
             ]];
         }
 
@@ -133,14 +140,20 @@ class CustomerPOController extends Controller
 
             if (empty($validated['quotation_id'])) {
                 foreach ($items as $item) {
+                    $qty = (float)($item['quantity'] ?? 0);
+                    $rate = (float)($item['rate'] ?? 0);
+                    $taxAmount = (float)($item['tax_amount'] ?? 0);
+                    $untaxedAmount = $qty * $rate;
+                    $amountTotal = $untaxedAmount + $taxAmount;
+
                     $customerPO->items()->create([
                         'mix_design_id' => $item['mix_design_id'],
-                        'quantity' => $item['quantity'],
-                        'rate' => $item['rate'],
-                        'tax_id' => null,
-                        'tax_amount' => 0,
-                        'untaxed_amount' => $item['quantity'] * $item['rate'],
-                        'amount_total' => $item['quantity'] * $item['rate'],
+                        'quantity' => $qty,
+                        'rate' => $rate,
+                        'tax_id' => $item['tax_id'] ?? null,
+                        'tax_amount' => $taxAmount,
+                        'untaxed_amount' => $untaxedAmount,
+                        'amount_total' => $amountTotal,
                     ]);
                 }
             } else {
@@ -194,10 +207,14 @@ class CustomerPOController extends Controller
             'mix_design_id' => 'nullable|exists:mm_mix_designs,id',
             'quantity' => 'nullable|numeric|min:0.001',
             'rate' => 'nullable|numeric|min:0',
+            'tax_id' => 'nullable|exists:mm_taxes,id',
+            'tax_amount' => 'nullable|numeric|min:0',
             'items' => 'nullable|array',
             'items.*.mix_design_id' => 'required_without:quotation_id|exists:mm_mix_designs,id',
             'items.*.quantity' => 'required_without:quotation_id|numeric|min:0.001',
             'items.*.rate' => 'required_without:quotation_id|numeric|min:0',
+            'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
+            'items.*.tax_amount' => 'nullable|numeric|min:0',
         ]);
 
         $formattedDate = \Carbon\Carbon::parse($validated['order_date'])->format('Y-m-d');
@@ -223,6 +240,8 @@ class CustomerPOController extends Controller
                 'mix_design_id' => $validated['mix_design_id'],
                 'quantity' => $validated['quantity'],
                 'rate' => $validated['rate'],
+                'tax_id' => $validated['tax_id'] ?? null,
+                'tax_amount' => $validated['tax_amount'] ?? 0,
             ]];
         }
 
@@ -257,14 +276,20 @@ class CustomerPOController extends Controller
 
                 $customerPO->items()->delete();
                 foreach ($items as $item) {
+                    $qty = (float)($item['quantity'] ?? 0);
+                    $rate = (float)($item['rate'] ?? 0);
+                    $taxAmount = (float)($item['tax_amount'] ?? 0);
+                    $untaxedAmount = $qty * $rate;
+                    $amountTotal = $untaxedAmount + $taxAmount;
+
                     $customerPO->items()->create([
                         'mix_design_id' => $item['mix_design_id'],
-                        'quantity' => $item['quantity'] ?? 0,
-                        'rate' => $item['rate'] ?? 0,
-                        'tax_id' => null,
-                        'tax_amount' => 0,
-                        'untaxed_amount' => ($item['quantity'] ?? 0) * ($item['rate'] ?? 0),
-                        'amount_total' => ($item['quantity'] ?? 0) * ($item['rate'] ?? 0),
+                        'quantity' => $qty,
+                        'rate' => $rate,
+                        'tax_id' => $item['tax_id'] ?? null,
+                        'tax_amount' => $taxAmount,
+                        'untaxed_amount' => $untaxedAmount,
+                        'amount_total' => $amountTotal,
                     ]);
                 }
             } else {
@@ -284,22 +309,26 @@ class CustomerPOController extends Controller
 
                 if ($request->has('mix_design_id') && $validated['mix_design_id']) {
                     $item = $quotation->items()->first();
+                    $taxAmount = (float)($request->input('tax_amount') ?? 0);
                     if ($item) {
                         $item->update([
                             'mix_design_id' => $validated['mix_design_id'],
                             'quantity' => $validated['quantity'],
                             'rate' => $validated['rate'],
+                            'tax_id' => $request->input('tax_id'),
+                            'tax_amount' => $taxAmount,
                             'untaxed_amount' => $validated['quantity'] * $validated['rate'],
-                            'amount_total' => $validated['quantity'] * $validated['rate'],
+                            'amount_total' => ($validated['quantity'] * $validated['rate']) + $taxAmount,
                         ]);
                     } else {
                         $quotation->items()->create([
                             'mix_design_id' => $validated['mix_design_id'],
                             'quantity' => $validated['quantity'],
                             'rate' => $validated['rate'],
-                            'tax_amount' => 0,
+                            'tax_id' => $request->input('tax_id'),
+                            'tax_amount' => $taxAmount,
                             'untaxed_amount' => $validated['quantity'] * $validated['rate'],
-                            'amount_total' => $validated['quantity'] * $validated['rate'],
+                            'amount_total' => ($validated['quantity'] * $validated['rate']) + $taxAmount,
                         ]);
                     }
                     $quotation->updateTotals();

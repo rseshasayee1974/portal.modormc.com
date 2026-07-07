@@ -55,7 +55,7 @@
 
     /* ═══ ITEMS TABLE SHARED ═══ */
     .item-name { font-weight: 700; color: #1e293b; }
-    .item-sub  { font-size: 9px; color: #888; margin-top: 1px; }
+    .item-sub  { font-size: 9px; color: #888; margin-top: 1px; white-space: pre-wrap; }
 
     .badge-done    { color: #10b981; font-weight: 700; }
     .badge-pending { color: #f59e0b; font-weight: 700; }

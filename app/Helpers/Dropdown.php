@@ -49,7 +49,7 @@ use App\Models\MixDesign;
 use App\Models\ExpenseType;
 use App\Models\PaymentMethod;
 use App\Services\PlantContextService;
-
+use App\Models\MachineType;
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helper — single source of truth for the active plant ID in this file.
 // Falls back to user->default_plant_id when the session is unavailable.
@@ -353,7 +353,7 @@ if (!function_exists('ProductsDropdown')) {
         }
 
         return $query->whereNull('deleted_at')
-            ->orderBy('title')
+            ->orderBy('title')->where('status', true)
             ->get(['id', 'title', 'code', 'unit_id', 'sales_price', 'purchase_price'])
             ->makeHidden(['can_delete', 'can_update', 'is_in_use']);
     }
@@ -746,21 +746,14 @@ if (!function_exists('ConcretePumpDropdown')) {
      */
     function ConcretePumpDropdown()
     {
-        $types = \App\Models\MachineType::whereNull('deleted_at')
-            ->whereIn(\DB::raw('lower(name)'), ['manual', 'pump'])
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
-        if ($types->isEmpty()) {
-            return [
-                ['label' => 'Manual', 'value' => 'manual'],
-                ['label' => 'Pump', 'value' => 'pump'],
-            ];
-        }
+        $types = Machine::whereHas('machineType', function($q) {
+            $q->where('name', 'LIKE', 'Pump%');
+        })->where('plant_id', _activePlantId())->whereNull('deleted_at')
+        ->get();
 
         return $types->map(fn($type) => [
-            'label' => $type->name,
-            'value' => strtolower($type->name),
+            'label' => $type->registration,
+            'value' => $type->id,
         ])->toArray();
     }
 }

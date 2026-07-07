@@ -173,6 +173,11 @@ class Quotation extends Model
         return $this->hasMany(CustomerPO::class, 'quotation_id');
     }
 
+    public function concretePump()
+    {
+        return $this->belongsTo(Machine::class, 'concrete_pump');
+    }
+
     // Business Logic
     public static function generateReference($plantId)
     {

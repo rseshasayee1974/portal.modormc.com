@@ -449,4 +449,48 @@ class CustomerPOTest extends TestCase
         $this->assertEquals($expectedRef2, $po2->reference);
         $this->assertNotEquals($po1->reference, $po2->reference);
     }
+
+    public function test_direct_customer_po_creation_with_taxes()
+    {
+        $mixDesign = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id]);
+        $tax = \App\Models\Tax::create([
+            'plant_id' => $this->plant->id,
+            'tax_name' => 'GST 18%',
+            'tax_rate' => 18,
+            'tax_group' => 'GST',
+            'tax_type' => 'Sales',
+            'status' => 1,
+        ]);
+
+        $response = $this->post(route('customer-po.store'), [
+            'quotation_id' => null,
+            'patron_id' => $this->patron->id,
+            'site_id' => $this->site->id,
+            'order_date' => now()->format('Y-m-d'),
+            'items' => [
+                [
+                    'mix_design_id' => $mixDesign->id,
+                    'quantity' => 10,
+                    'rate' => 100,
+                    'tax_id' => $tax->id,
+                    'tax_amount' => 180,
+                ]
+            ]
+        ]);
+
+        $response->assertStatus(302);
+
+        $customerPO = CustomerPO::whereNull('quotation_id')->first();
+        $this->assertNotNull($customerPO);
+        $this->assertCount(1, $customerPO->items);
+
+        $item = $customerPO->items->first();
+        $this->assertEquals($mixDesign->id, $item->mix_design_id);
+        $this->assertEquals(10, $item->quantity);
+        $this->assertEquals(100, $item->rate);
+        $this->assertEquals($tax->id, $item->tax_id);
+        $this->assertEquals(180, $item->tax_amount);
+        $this->assertEquals(1000, $item->untaxed_amount);
+        $this->assertEquals(1180, $item->amount_total);
+    }
 }
