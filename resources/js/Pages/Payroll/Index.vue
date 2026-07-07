@@ -234,11 +234,9 @@ const deleteComp = (id: number) => {
 
 // Generation
 const submitGenerate = () => {
-    router.post(route('payslips.generate'), {
+    genForm.post(route('payslips.generate'), {
         preserveScroll: true,
         preserveState: true,
-        // message: 'Generating payslips...',
-        // onSuccess: () => Swal.fire('Success', 'Draft payslips generated successfully.', 'success')
     });
 };
 
@@ -342,7 +340,7 @@ const getStatusSeverity = (status: string) => {
                                     </div>
                                     <div>
                                         <!-- Statutory Compliance Downloads -->
-                                        <BaseCard class="text-sm">
+                                        <!-- <BaseCard class="text-sm">
                                             <template #header>
                                                 <div class="flex items-center gap-2">
                                                     <CogIcon class="w-5 h-5 text-indigo-500" />
@@ -373,7 +371,7 @@ const getStatusSeverity = (status: string) => {
                                                     />
                                                 </div>
                                             </div>
-                                        </BaseCard>
+                                        </BaseCard> -->
                                     </div>
                                 </div>
 

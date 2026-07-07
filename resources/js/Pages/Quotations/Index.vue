@@ -29,6 +29,8 @@ const props = defineProps<{
     concretePumpOptions?: any[];
 }>();
 
+// console.log('quotations', props.quotations);
+
 const stateOptions = [
     { label: 'All Statuses', value: null },
     { label: 'Draft', value: 0 },
@@ -139,6 +141,12 @@ const toggleExpand = (row: any) => {
         expandedRows.value = { [id]: true };
     }
 };
+
+const hasActiveSalesOrders = (quotation: any) => {
+    const pos = quotation.customer_p_os || quotation.customerPOs || [];
+    return pos.some((po: any) => po.has_salesorders);
+};
+
 
 const conversionOptions = [
     { label: 'None', value: 0 },
@@ -282,6 +290,7 @@ const updateConversion = (quotation: any) => {
                                             :options="conversionOptions"
                                             optionLabel="label"
                                             optionValue="value"
+                                            :disabled="hasActiveSalesOrders(slotProps.data)"
                                             @change="updateConversion(slotProps.data)"
                                             class="!text-[9px] !h-7 !w-24 font-bold uppercase"
                                             :pt="{

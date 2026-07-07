@@ -405,10 +405,8 @@
         <div class="totals-left">
             <div class="tow-label">Total in Words</div>
             <div class="tow-value">
-                {{ $order->currency->currency_name ?? 'Indian Rupee' }} —
                 @php
-                    // Simple number-to-words (a helper or just display the amount)
-                    echo number_format($order->amount_total, 2) . ' ' . ($order->currency->currency_code ?? 'INR') . ' Only';
+                    echo \App\Services\PrintDataFormatter::numberToWords($order->amount_total, $order->currency->currency_code ?? 'INR');
                 @endphp
             </div>
         </div>

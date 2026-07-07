@@ -22,8 +22,7 @@ class StoreTermsConditionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'entity_id' => 'required|exists:mm_entities,id',
-            'plant_id' => 'nullable|exists:mm_plants,id',
+            'plant_id' => 'required|exists:mm_plants,id',
             'order_type' => 'required|string|max:255',
             'terms_condition' => 'required|string',
             'status' => 'nullable|string|max:255',

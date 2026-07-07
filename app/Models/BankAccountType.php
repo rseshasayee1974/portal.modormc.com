@@ -26,6 +26,6 @@ class BankAccountType extends Model
 	public $timestamps = false;
 
 	protected $fillable = [
-		'type'
+		'type',
 	];
 }
