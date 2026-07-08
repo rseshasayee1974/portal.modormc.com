@@ -344,16 +344,13 @@ const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 
         // 1. Refresh row data so both localBatches and detailedBatches are up-to-date
         await refreshBatchRow(batchId);
         
-<<<<<<< HEAD
         // 2. Wait one tick for Vue to flush the reactive updates before showing the modal
         // await nextTick();
         
         // 3. Automatically open print preview
         // viewToken(batchId, type);
-=======
         // 2. Wait one tick for Vue to flush the reactive updates
         await nextTick();
->>>>>>> 3a31397ae4e1e5039bff8694e2dae055252a54f8
     }
 };
 
