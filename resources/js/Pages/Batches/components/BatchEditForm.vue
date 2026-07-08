@@ -780,7 +780,7 @@ const submit = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <BaseInputNumber v-model="form.net_weight" :disabled="isLocked || isMetricTon || customSettings?.batching?.manual_weight === 1" label="Net Weight (kg)" :required="!isMetricTon" :error="form.errors.net_weight" />
+                                    <BaseInputNumber v-model="form.net_weight" :disabled="isLocked || isMetricTon || customSettings?.batching?.manual_weight === 1" label="Net Weight (MT)" :required="!isMetricTon" :error="form.errors.net_weight" />
                                 </div>
                                 <div>
                                     <BaseSelect

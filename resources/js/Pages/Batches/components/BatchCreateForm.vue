@@ -616,7 +616,7 @@ const submit = () => {
                     <div>
                         <div class="flex items-end gap-2">
                             <div class="flex-1">
-                                <BaseInputNumber v-model="form.empty_weight_truck" :disabled="customSettings?.batching?.manual_weight === 0" label="Empty Weight (KGS)" :required="customSettings?.batching?.manual_weight === 1" :error="form.errors.empty_weight_truck" />
+                                <BaseInputNumber v-model="form.empty_weight_truck" :disabled="customSettings?.batching?.manual_weight === 0" label="Empty Weight (MT)" :required="customSettings?.batching?.manual_weight === 1" :error="form.errors.empty_weight_truck" />
                             </div>
                             
                             <button @click="handleWeightCapture" type="button" v-if="customSettings?.batching?.manual_weight === 0" 
@@ -735,7 +735,7 @@ const submit = () => {
                 <div class="flex flex-col gap-2">
                     <label class="font-bold text-slate-500 uppercase tracking-wider text-[10px] flex items-center gap-1.5">
                         <ScaleIcon class="w-4 h-4 text-slate-400" />
-                        Empty Weight (KGS)
+                        Empty Weight (MT)
                     </label>
                     <div class="flex items-end gap-2">
                         <div class="flex-1">
