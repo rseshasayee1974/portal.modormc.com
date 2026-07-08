@@ -194,18 +194,35 @@ class PrintDataFormatter
     // ─────────────────────────────────────────────────────
     //  RESOLVE TERMS CONDITION
     // ─────────────────────────────────────────────────────
-    public static function resolveTermsCondition(array $settings, string $orderType, int $plantId, ?string $fallbackTerms = null): string
+    public static function resolveTermsCondition(array $settings, $orderType, int $plantId, ?string $fallbackTerms = null): string
     {
         if (empty($settings['pdf']['terms'])) {
             return '';
         }
 
-        $tc = \App\Models\TermsCondition::where('plant_id', $plantId)
-            ->where('order_type', $orderType)
-            ->where('status', 'active')
-            ->first();
-            
-        if ($tc) return $tc->terms_condition;
+        if (!empty($settings['pdf']['terms_text'])) {
+            return (string) $settings['pdf']['terms_text'];
+        }
+
+        $orderTypes = is_array($orderType) ? $orderType : [$orderType];
+
+        foreach ($orderTypes as $type) {
+            $tc = \App\Models\TermsCondition::where('plant_id', $plantId)
+                ->where('order_type', $type)
+                ->where('status', 'active')
+                ->first();
+                
+            if ($tc) return $tc->terms_condition;
+        }
+        
+        foreach ($orderTypes as $type) {
+            $tc = \App\Models\TermsCondition::where('plant_id', 0)
+                ->where('order_type', $type)
+                ->where('status', 'active')
+                ->first();
+                
+            if ($tc) return $tc->terms_condition;
+        }
         
         return $fallbackTerms ?? '';
     }
@@ -383,6 +400,8 @@ class PrintDataFormatter
         if (!empty($invoice->invoice_label)) {
             if (strtolower($invoice->invoice_label) === 'manual') {
                 $docTitle = 'MANUAL BILLING';
+            } elseif (strtolower($invoice->invoice_label) === 'dispatch') {
+                $docTitle = $defaultTitle; // explicitly bypass settings for dispatch and use default title
             } else {
                 $docTitle = strtoupper($invoice->invoice_label);
             }
@@ -397,33 +416,58 @@ class PrintDataFormatter
         // Company
         $plAddr = $invoice->plant->addresses->first();
         $data['company'] = [
-            'name'           => $invoice->plant->entity->entity_name ?? $invoice->plant->name ?? 'Company',
-            'address'        => $plAddr->line_1 ?? '',
-            'city'           => $plAddr->city ?? '',
-            'state'          => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
-            'pin'            => $plAddr->zipcode ?? '',
-            'gstin'          => $invoice->plant->gstin ?? '',
-            'phone'          => $invoice->plant->phone ?? '',
-            'email'          => $invoice->plant->email ?? '',
-            'seal_sign_path' => $invoice->plant->seal_sign_path ?? '',
+            'name'    => $invoice->plant->entity->entity_name ?? $invoice->plant->name ?? 'Company',
+            'address' => $plAddr->line_1 ?? '',
+            'city'    => $plAddr->city ?? '',
+            'state'   => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
+            'pin'     => $plAddr->zipcode ?? '',
+            'gstin'   => $invoice->plant->gstin ?? '',
+            'phone'   => $invoice->plant->phone ?? '',
+            'email'   => $invoice->plant->email ?? '',
         ];
 
+        // Try to get partner from invoice
+        $partner = $invoice->partner;
+
+        // If it's a Dispatch Invoice, try to pull the real customer and site!
+        if (strtolower($invoice->invoice_label ?? '') === 'dispatch' && !empty($invoice->ref_id)) {
+            $dispatch = \App\Models\Dispatch::with(['salesOrder.customer', 'salesOrder.site', 'unloadSite'])->find($invoice->ref_id);
+            if ($dispatch && $dispatch->salesOrder && (!$partner || empty($partner->legal_name))) {
+                $partner = $dispatch->salesOrder->customer;
+            }
+        }
+
         // Bill To
+        $partnerAddr = $partner ? $partner->addresses()->first() : null;
         $data['bill_to'] = [
-            'name'    => $invoice->partner->legal_name ?? $invoice->partner->name ?? 'N/A',
-            'address' => $invoice->partner->address_line1 ?? '',
-            'city'    => $invoice->partner->city ?? '',
-            'state'   => $invoice->partner->state ?? '',
-            'pin'     => $invoice->partner->pincode ?? '',
-            'gstin'   => $invoice->partner->gstin ?? '',
-            'phone'   => $invoice->partner->phone ?? '',
+            'name'    => $partner?->legal_name ?: ($partner?->name ?: 'N/A'),
+            'address' => $partnerAddr?->line_1 ?: ($partner?->address_line1 ?? ''),
+            'city'    => $partnerAddr?->city ?: ($partner?->city ?? ''),
+            'state'   => $partnerAddr?->state?->state_name ?: ($partnerAddr?->state_code ?: ($partner?->state ?? '')),
+            'pin'     => $partnerAddr?->zipcode ?: ($partner?->pincode ?? ''),
+            'gstin'   => $partner?->gstin ?? '',
+            'phone'   => $partner?->phone ?? '',
         ];
 
         // Ship To
         $data['ship_to'] = $data['bill_to'];
 
+        // If Dispatch, use unloadSite / Site
+        if (isset($dispatch)) {
+            $site = $dispatch->workOrder?->site ?? $dispatch->unloadSite;
+            if ($site) {
+                $data['ship_to'] = [
+                    'name'    => $site->name ?: $data['bill_to']['name'],
+                    'address' => $site->site_address_1 ?: $data['bill_to']['address'],
+                    'city'    => $site->city ?: $data['bill_to']['city'],
+                    'state'   => $site->state ?: $data['bill_to']['state'],
+                    'pin'     => $site->zipcode ?: $data['bill_to']['pin'],
+                ];
+            }
+        }
+
         $plantGstin = $invoice->plant->gstin ?? '';
-        $partnerGstin = $invoice->partner->gstin ?? '';
+        $partnerGstin = $partner?->gstin ?? '';
         $plantState = strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
         $partnerState = strlen($partnerGstin) >= 2 ? substr($partnerGstin, 0, 2) : '';
         $isIntra = true;
@@ -481,11 +525,13 @@ class PrintDataFormatter
             'grand_total' => (float)$invoice->total_amount,
         ];
 
+        $orderTypeForTerms = $invoice->invoice_type === 'bill' ? 'Purchase Bill' : [($invoice->invoice_label ?? 'Tax Invoice'), 'Tax Invoice'];
+
         $data['meta'] = [
             'currency_code'   => 'INR',
             'currency_symbol' => '₹',
             'notes'           => '',
-            'terms_text'      => self::resolveTermsCondition($data['settings'], $invoice->invoice_type === 'bill' ? 'Purchase Bill' : 'Tax Invoice', $invoice->plant_id, "1. Goods once sold will not be taken back.\n2. Interest @ 18% will be charged if not paid within due date.\n3. All disputes are subject to local jurisdiction."),
+            'terms_text'      => self::resolveTermsCondition($data['settings'], $orderTypeForTerms, $invoice->plant_id, "1. Goods once sold will not be taken back.\n2. Interest @ 18% will be charged if not paid within due date.\n3. All disputes are subject to local jurisdiction."),
             'total_words'     => self::numberToWords($invoice->total_amount, 'INR'),
             'po_number'       => $invoice->ref_id ?? '',
             'project_name'    => $invoice->ref_title ?? '',
@@ -504,6 +550,7 @@ class PrintDataFormatter
             'items.mixDesign.items.product',
             'items.mixDesign.items.uom',
             'items.mixDesign.unit',
+            'items.uom',
             'items.tax',
             'patron',
             'plant',
@@ -611,8 +658,8 @@ class PrintDataFormatter
                 'hsn'          => $item->mixDesign->hsn_code ?? '-',
                 'qty'          => (float)$item->quantity,
                 'received_qty' => 0,
-                'unit'         => $item->mixDesign->unit->unit_code ?? '',
-                'unit_price'   => $unitPrice,
+                'unit'         => $item->uom->unit_code ?? $item->mixDesign->unit->unit_code ?? '',
+                'unit_price'   => (float)$item->rate,
                 'tax_name'     => $taxName ?: '-',
                 'tax_rate'     => $taxRate,
                 'tax_group'    => $taxGroup,

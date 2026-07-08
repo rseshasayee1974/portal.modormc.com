@@ -16,9 +16,9 @@ class PrintTemplateController extends Controller
         // $this->authorize('viewAny', PrintTemplate::class); // Enable if policy exists
         
         $templates = PrintTemplate::all();
-        $settings = PrintTemplateSetting::where('plant_id', session('active_plant_id'))
+        $settings = PrintTemplateSetting::where('plant_id', session('active_plant_id') ?: null)
             ->get()
-            ->keyBy('module_key');
+            ->keyBy(fn ($setting) => strtolower($setting->module_key));
 
         return Inertia::render('TemplateManager/Index', [
             'templates' => $templates,
@@ -34,10 +34,11 @@ class PrintTemplateController extends Controller
             'print_template_id' => 'required|exists:mm_print_templates,id',
         ]);
 
-        $plantId = session('active_plant_id');
+        $plantId = session('active_plant_id') ?: null;
+        $entityId = session('active_entity_id') ?: null;
 
         // Capture old assignment before overwriting
-        $existing = PrintTemplateSetting::where('module_key', $request->module_key)
+        $existing = PrintTemplateSetting::where('module_key', strtolower($request->module_key))
             ->where('plant_id', $plantId)
             ->first();
 
@@ -50,10 +51,11 @@ class PrintTemplateController extends Controller
 
         PrintTemplateSetting::updateOrCreate(
             [
-                'module_key' => $request->module_key,
+                'module_key' => strtolower($request->module_key),
                 'plant_id'   => $plantId,
             ],
             [
+                'entity_id'         => $entityId,
                 'print_template_id' => $request->print_template_id,
             ]
         );

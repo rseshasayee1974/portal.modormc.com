@@ -21,11 +21,11 @@ export function usePermissions() {
     );
 
     const isSuperAdmin = computed(() =>
-        ['Super Administrator', 'Saas Owner', 'Super Admin'].includes(userRole.value)
+        ['Super Administrator', 'Platform Admin', 'Saas Owner', 'Super Admin'].includes(userRole.value)
     );
 
     const isAdmin = computed(() =>
-        ['Administrator', 'Super Administrator', 'Platform Admin', 'Saas Owner', 'Admin', 'Super Admin'].includes(userRole.value)
+        ['Administrator', 'Admin'].includes(userRole.value)
     );
 
     /**

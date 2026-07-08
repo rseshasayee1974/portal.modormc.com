@@ -19,7 +19,7 @@
 
         .preview-toolbar {
             max-width: 1000px;
-            margin: 0 auto 12px auto;
+            margin: 5px auto 12px auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -262,24 +262,30 @@
         <table class="top-row">
             <tr>
                 <td class="logo-cell">
-                    <div class="logo-box">Schwing Stetter</div>
+                    @if ($batch->salesOrder?->plant?->logo_path)
+                        @php
+                            $logoUrl = !empty($isPreview)
+                                ? asset('storage/' . str_replace(['public/', 'storage/', '/storage/'], '', $batch->salesOrder->plant->logo_path))
+                                : public_path('storage/' . str_replace(['public/', 'storage/', '/storage/'], '', $batch->salesOrder->plant->logo_path));
+                        @endphp
+                        <img src="{{ $logoUrl }}" style="max-height: 55px; max-width: 180px; object-fit: contain;" />
+                    @endif
                 </td>
                 <td class="title-cell">
                     <div class="company-title">
-                        {{ strtoupper($batch->workOrder?->plant?->entity?->legal_name ?? 'V J MIX CONCRETE INDIA PVT LTD') }}
+                        {{ strtoupper($batch->salesOrder?->plant?->entity?->legal_name ?? '') }}
                     </div>
                     <div class="report-title">BATCH SHEET REPORT</div>
                 </td>
                 <td class="logo-cell" style="text-align:right;">
-                    <div class="logo-box">Schwing Stetter</div>
                 </td>
             </tr>
         </table>
 
         <table class="meta-strip">
             <tr>
-                <td>Plant Type : {{ $batch->workOrder?->plant?->plant_type ?? 'M1.5' }}</td>
-                <td>Plant Sl.No : {{ $batch->workOrder?->plant?->code ?? '121' }}</td>
+                <td>Plant Type : {{ $batch->salesOrder?->plant?->plant_type ?? 'M1.5' }}</td>
+                <td>Plant Sl.No : {{ $batch->salesOrder?->plant?->code ?? '121' }}</td>
             </tr>
         </table>
 
@@ -289,18 +295,18 @@
                 <td class="v">: {{ $batch->batch_no }}</td>
                 <td class="k">Recipe Name</td>
                 <td class="v">:
-                    {{ $batch->workOrder?->mixDesign?->concrete_grade?->name ?? ($batch->workOrder?->mixDesign?->design_type ?? '-') }}
+                    {{ $batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->design_type ?? '-') }}
                 </td>
                 <td class="k">Mixer Capacity</td>
                 <td class="v">:
-                    {{ number_format((float) ($batch->workOrder?->mixDesign?->rate_per_qty ?? 1.25), 2) }}
+                    {{ number_format((float) ($batch->salesOrder?->mixDesign?->rate_per_qty ?? 1.25), 2) }}
                 </td>
             </tr>
             <tr>
                 <td class="k">Batch Date</td>
                 <td class="v">: {{ optional($batch->load_time ?? $batch->created_at)->format('d-m-Y') }}</td>
                 <td class="k">Recipe Code</td>
-                <td class="v">: {{ $batch->workOrder?->mixDesign?->design_code ?? '-' }}</td>
+                <td class="v">: {{ $batch->salesOrder?->mixDesign?->design_code ?? '-' }}</td>
                 <td class="k">Batch Size</td>
                 <td class="v">: {{ number_format((float) $batch->batch_size, 4) }}</td>
             </tr>
@@ -310,7 +316,7 @@
                 <td class="k">Truck No</td>
                 <td class="v">: {{ $batch->dispatches->first()?->truck?->registration ?? '-' }}</td>
                 <td class="k">Production Qty</td>
-                <td class="v">: {{ number_format((float) ($batch->workOrder?->produced_qty ?? 0), 2) }}</td>
+                <td class="v">: {{ number_format((float) ($batch->salesOrder?->produced_qty ?? 0), 2) }}</td>
             </tr>
             <tr>
                 <td class="k">Batch End Time</td>
@@ -320,19 +326,19 @@
                     {{ trim(($batch->dispatches->first()?->driver?->first_name ?? '') . ' ' . ($batch->dispatches->first()?->driver?->last_name ?? '')) ?: '-' }}
                 </td>
                 <td class="k">Order No</td>
-                <td class="v">: {{ $batch->workOrder?->order_no ?? '-' }}</td>
+                <td class="v">: {{ $batch->salesOrder?->order_no ?? '-' }}</td>
             </tr>
             <tr>
                 <td class="k">Customer</td>
-                <td class="v">: {{ $batch->workOrder?->customer?->legal_name ?? '-' }}</td>
+                <td class="v">: {{ $batch->salesOrder?->customer?->legal_name ?? '-' }}</td>
                 <td class="k">Adj / Manual Qty</td>
                 <td class="v">: 0.00</td>
                 <td class="k">Ordered Qty</td>
-                <td class="v">: {{ number_format((float) ($batch->workOrder?->total_qty ?? 0), 2) }}</td>
+                <td class="v">: {{ number_format((float) ($batch->salesOrder?->total_qty ?? 0), 2) }}</td>
             </tr>
             <tr>
                 <td class="k">Site</td>
-                <td class="v">: {{ $batch->workOrder?->site?->name ?? ($batch->site?->name ?? '-') }}</td>
+                <td class="v">: {{ $batch->salesOrder?->site?->name ?? ($batch->site?->name ?? '-') }}</td>
                 <td class="k"></td>
                 <td class="v"></td>
                 <td class="k">With This Load</td>

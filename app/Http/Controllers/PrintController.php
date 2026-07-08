@@ -53,17 +53,13 @@ class PrintController extends Controller
 
                 if ($forceParam === 'original' && $isAdmin) {
                     $data['is_duplicate'] = 0;
-                    $data['doc_title'] = 'ORIGINAL ' . $data['doc_title'];
                 } elseif ($forceParam === 'duplicate' && $isAdmin) {
                     $data['is_duplicate'] = 1;
-                    $data['doc_title'] = 'DUPLICATE ' . $data['doc_title'];
                 } else {
                     if ($invoice->is_duplicate == 1 && !$isAdmin) {
                         $data['is_duplicate'] = 1;
-                        $data['doc_title'] = 'DUPLICATE ' . $data['doc_title'];
                     } else {
                         $data['is_duplicate'] = 0;
-                        $data['doc_title'] = 'ORIGINAL ' . $data['doc_title'];
                     }
                 }
 
@@ -141,7 +137,14 @@ class PrintController extends Controller
                 $model = \App\Models\Invoice::where('id', $realId)
                     ->where('plant_id', $activePlantId)
                     ->first();
-                return $model ? PrintDataFormatter::fromInvoice($model) : null;
+                if ($model) {
+                    $data = PrintDataFormatter::fromInvoice($model);
+                    $moduleKey = $model->invoice_type === 'bill' ? 'purchase_bills' : 'invoices';
+                    $defaultSettings = PrintDataFormatter::getDefaultSettings($moduleKey);
+                    $data['doc_title'] = $defaultSettings['pdf']['labels']['invoice_title'];
+                    return $data;
+                }
+                return null;
 
             case 'billings':
                 $model = \App\Models\Invoice::where('id', $realId)

@@ -68,6 +68,10 @@ class Dispatch extends Model
     /**
      * Relationships
      */
+    public function salesOrder(): BelongsTo
+    {
+        return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+    }
     public function workOrder(): BelongsTo
     {
         return $this->belongsTo(SalesOrder::class, 'sales_order_id');

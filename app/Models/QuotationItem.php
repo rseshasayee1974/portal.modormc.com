@@ -46,4 +46,9 @@ class QuotationItem extends Model
     {
         return $this->quotation()->exists();
     }
+
+    public function uom()
+    {
+        return $this->belongsTo(ProductUnit::class, 'uom_id');
+    }
 }

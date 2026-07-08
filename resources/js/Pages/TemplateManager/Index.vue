@@ -11,12 +11,15 @@ import {
 } from '@heroicons/vue/24/outline';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const props = defineProps<{
     templates: any[];
     settings: Record<string, any>;
     modules: any[];
 }>();
+
+const { isSuperAdmin } = usePermissions();
 
 const activeTab = ref('modules'); // 'modules' or 'library'
 
@@ -75,6 +78,7 @@ const getSelectedTemplateName = (moduleKey: string) => {
                     </div>
                 </button>
                 <button 
+                    v-if="isSuperAdmin"
                     @click="activeTab = 'library'"
                     :class="['px-6 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all', activeTab === 'library' ? 'bg-white text-indigo-600 shadow-sm shadow-indigo-100' : 'text-slate-500 hover:bg-slate-200/50']"
                 >
@@ -100,7 +104,7 @@ const getSelectedTemplateName = (moduleKey: string) => {
                             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-4 px-1">Select Active Design:</p>
                             <div class="grid grid-cols-1 gap-2">
                                 <button 
-                                    v-for="template in templates" 
+                                    v-for="template in templates.filter(t => module.templates.includes(t.key))" 
                                     :key="template.id"
                                     @click="selectTemplateForModule(module.key, template.id)"
                                     :class="['template-option', getSelectedTemplateId(module.key) === template.id ? 'template-option--active' : '']"

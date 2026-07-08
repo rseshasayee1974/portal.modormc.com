@@ -116,7 +116,7 @@ const print = () => {
                     <img src="/images/logo.png" alt="Logo" class="max-h-full max-w-full grayscale" onerror="this.style.display='none'"/>
                 </div>
                 <div class="text-center flex-1 mx-8">
-                    <h1 class="text-2xl font-black uppercase tracking-tight">{{ $page.props.auth.user.active_entity?.legal_name || 'V J MIX CONCRETE INDIA PVT LTD' }}</h1>
+                    <h1 class="text-2xl font-black uppercase tracking-tight">{{ $page.props.auth.user.active_entity?.legal_name || '' }}</h1>
                     <h2 class="text-lg font-bold uppercase tracking-[0.3em] mt-1 border-t border-black inline-block px-8">Batch Sheet Report</h2>
                 </div>
                 <div class="w-16 h-16 bg-gray-100 flex items-center justify-center rounded border border-gray-200">
