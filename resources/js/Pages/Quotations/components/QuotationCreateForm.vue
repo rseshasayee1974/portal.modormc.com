@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
+import { useForm, router, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import { 
     ShoppingCartIcon, 
@@ -49,10 +49,14 @@ const props = defineProps<{
 // console.log(props.taxes);
 const isOpen = ref(true);
 
+const page = usePage();
+const customSettings = page.props.custom_settings as any;
+
 const getDefaultValidityDate = (quoteDateStr: string) => {
     if (!quoteDateStr) return null;
+    const days = Number(customSettings?.batching?.quote_validity ?? 5);
     const date = new Date(quoteDateStr);
-    date.setUTCDate(date.getUTCDate() + 5);
+    date.setUTCDate(date.getUTCDate() + (isNaN(days) || days <= 0 ? 5 : days));
     return date.toISOString().substring(0, 10);
 };
 
@@ -68,7 +72,7 @@ const form = useForm({
     is_tax_inclusive: false,
     quote_date: initialQuoteDate,
     validity_date: getDefaultValidityDate(initialQuoteDate),
-    status: 0,
+    status: 1,
     adjustment: 0,
     // Header totals
     amount_untaxed: 0,

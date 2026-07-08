@@ -198,6 +198,17 @@ watch(() => props.loading_sites, (sites) => {
     }
 }, { immediate: true });
 
+// Auto-select default transporter from batching custom settings
+watch(() => props.transporters, (transporters) => {
+    if (form.transport_id) return; // don't override if already selected
+    const defaultName: string = customSettings?.batching?.default_transport?.trim()?.toLowerCase();
+    if (!defaultName || !transporters?.length) return;
+    const match = transporters.find((t: any) =>
+        (t.legal_name ?? t.name ?? '').trim().toLowerCase() === defaultName
+    );
+    if (match) form.transport_id = match.id;
+}, { immediate: true });
+
 watch(() => form.batch_size, (newVal) => {
     if (newVal !== null && newVal !== undefined) {
         if (newVal > 9.9) {

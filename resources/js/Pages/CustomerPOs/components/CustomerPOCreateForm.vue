@@ -36,6 +36,7 @@ const form = useForm({
     site_id: null as number | null,
     sales_executive_id: null as number | null,
     concrete_pump: null as number | null,
+    is_tax_inclusive: false,
     order_date: new Date().toISOString().split('T')[0],
     items: [
         { mix_design_id: null as number | null, quantity: null as number | null, rate: null as number | null, tax_id: null as number | null, tax_amount: 0 }
@@ -51,12 +52,14 @@ watch(() => form.quotation_id, (newVal) => {
             form.site_id = quote.site_id;
             form.sales_executive_id = quote.sales_executive_id;
             form.concrete_pump = quote.concrete_pump !== null ? (isNaN(Number(quote.concrete_pump)) ? quote.concrete_pump : Number(quote.concrete_pump)) : null;
+            form.is_tax_inclusive = quote.is_tax_inclusive ? true : false;
         }
     } else {
         form.patron_id = null;
         form.site_id = null;
         form.sales_executive_id = null;
         form.concrete_pump = null;
+        form.is_tax_inclusive = false;
         form.items = [{ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0 }];
     }
 });
@@ -97,16 +100,22 @@ const taxOptions = computed(() => (props.taxes || []).map(t => ({
     value: t.id
 })));
 
-// Watch form items to dynamically update tax_amount
-watch(() => form.items, (newItems) => {
+// Watch form items and is_tax_inclusive status to dynamically update tax_amount
+watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) => {
     if (newItems) {
-        newItems.forEach(item => {
+        (newItems as any).forEach((item: any) => {
             const qty = Number(item.quantity || 0);
             const rate = Number(item.rate || 0);
-            const untaxed = qty * rate;
             const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
             const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
-            item.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
+
+            if (isTaxInclusive) {
+                const total = qty * rate;
+                item.tax_amount = Number((total - (total / (1 + taxRate / 100))).toFixed(2));
+            } else {
+                const untaxed = qty * rate;
+                item.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
+            }
         });
     }
 }, { deep: true, immediate: true });
@@ -130,6 +139,57 @@ const uniqueSelectedMixDesignIds = computed(() => {
         }
     }
     return Array.from(ids);
+});
+
+const calculatedTotals = computed(() => {
+    let subtotal = 0;
+    let taxAmount = 0;
+
+    if (form.quotation_id && selectedQuotation.value) {
+        // Quotation-linked PO items
+        (selectedQuotation.value.items || []).forEach((item: any) => {
+            const qty = Number(item.quantity || 0);
+            const rate = Number(item.rate || 0);
+            const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
+            const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
+
+            if (form.is_tax_inclusive) {
+                const total = qty * rate;
+                const lineTax = total - (total / (1 + taxRate / 100));
+                taxAmount += lineTax;
+                subtotal += (total - lineTax);
+            } else {
+                const lineUntaxed = qty * rate;
+                subtotal += lineUntaxed;
+                taxAmount += (lineUntaxed * taxRate) / 100;
+            }
+        });
+    } else {
+        // Direct PO items
+        (form.items || []).forEach((item: any) => {
+            const qty = Number(item.quantity || 0);
+            const rate = Number(item.rate || 0);
+            const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
+            const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
+
+            if (form.is_tax_inclusive) {
+                const total = qty * rate;
+                const lineTax = total - (total / (1 + taxRate / 100));
+                taxAmount += lineTax;
+                subtotal += (total - lineTax);
+            } else {
+                const lineUntaxed = qty * rate;
+                subtotal += lineUntaxed;
+                taxAmount += (lineUntaxed * taxRate) / 100;
+            }
+        });
+    }
+
+    return {
+        subtotal: Number(subtotal.toFixed(2)),
+        tax: Number(taxAmount.toFixed(2)),
+        total: Number((subtotal + taxAmount).toFixed(2))
+    };
 });
 
 const getMixDesignMaterials = (mixDesignId: number | null) => {
@@ -323,9 +383,13 @@ const submit = () => {
 
         <div class="col-span-full border-t pt-3">
             <div class="flex items-center justify-between">
-
-                <h3 class="text-sm font-semibold">
+                <h3 class="text-sm font-semibold flex items-center gap-4">
                     Mix Design Items
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
+                        <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_create" class="peer hidden" />
+                        <label for="is_tax_inclusive_po_create" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
+                    </div>
                 </h3>
 
                 <BaseButton
@@ -432,9 +496,16 @@ const submit = () => {
     </template>
     <template v-else>
         <div class="col-span-full border-t pt-3">
-            <h3 class="text-xs font-bold uppercase tracking-wide text-indigo-800 mb-3">
-                Mix Design Items (Loaded from Quotation)
-            </h3>
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs font-bold uppercase tracking-wide text-indigo-800 flex items-center gap-4">
+                    Mix Design Items (Loaded from Quotation)
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
+                        <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_create_2" :disabled="!!form.quotation_id" class="peer hidden" />
+                        <label for="is_tax_inclusive_po_create_2" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
+                    </div>
+                </h3>
+            </div>
             <div class="overflow-x-auto rounded-xl border border-indigo-50/50 bg-indigo-50/10 p-4">
                 <table class="w-full text-left border-collapse text-xs">
                     <thead>
@@ -490,6 +561,30 @@ const submit = () => {
                 <div v-if="!getMixDesignMaterials(designId).length" class="text-xs text-slate-400 italic">
                     No materials configured for this recipe.
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Totals & Summary Block -->
+    <div class="col-span-full flex flex-col md:flex-row justify-between items-end gap-8 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+        <!-- Spacer on the left -->
+        <div class="hidden md:block flex-1"></div>
+
+        <!-- Totals Card -->
+        <div class="w-full md:w-96 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-4 space-y-3 shadow-sm">
+            <div class="flex justify-between items-center text-[12px] font-medium text-slate-600 dark:text-slate-400">
+                <span>Subtotal (Untaxed)</span>
+                <span class="font-bold">₹ {{ calculatedTotals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+            </div>
+            <div class="flex justify-between items-center text-[12px] font-medium text-slate-600 dark:text-slate-400 mb-2">
+                <span>Total Taxes (+)</span>
+                <span class="font-bold">₹ {{ calculatedTotals.tax.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+            </div>
+            <div class="flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-3">
+                <span class="text-[13px] font-semibold text-indigo-600 dark:text-indigo-400 tracking-[0.15em]">Grand Total</span>
+                <span class="text-lg font-black text-slate-900 dark:text-white tracking-tighter">
+                    ₹ {{ calculatedTotals.total.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                </span>
             </div>
         </div>
     </div>

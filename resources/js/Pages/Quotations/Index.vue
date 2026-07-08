@@ -14,6 +14,8 @@ import QuotationEditForm from './components/QuotationEditForm.vue';
 import BaseExpansionPanel from '@/Components/Base/BaseExpansionPanel.vue';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
+import Button from 'primevue/button';
+import Popover from 'primevue/popover';
 import { ListBulletIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps<{
@@ -131,6 +133,43 @@ const deleteQuotation = (quotation: any) => {
 
 const collapseExpandedRows = () => {
     expandedRows.value = {};
+};
+
+const actionPopover = ref<InstanceType<typeof Popover> | null>(null);
+const activeActionRow = ref<any>(null);
+
+const openActions = (event: Event, row: any) => {
+    activeActionRow.value = row;
+    actionPopover.value?.toggle(event);
+};
+
+const printQuote = () => {
+    const row = activeActionRow.value;
+    if (!row) return;
+    printQuotation(row, 'report');
+    actionPopover.value?.hide();
+};
+
+const downloadQuotePDF = () => {
+    const row = activeActionRow.value;
+    if (!row) return;
+    printQuotation(row, 'download');
+    actionPopover.value?.hide();
+};
+
+const handleDeleteQuote = () => {
+    const row = activeActionRow.value;
+    if (!row) return;
+    deleteQuotation(row);
+    actionPopover.value?.hide();
+};
+
+const convertToCustomerPO = (val: number) => {
+    const row = activeActionRow.value;
+    if (!row) return;
+    row.is_customer_po = val;
+    updateConversion(row);
+    actionPopover.value?.hide();
 };
 
 const toggleExpand = (row: any) => {
@@ -280,66 +319,32 @@ const updateConversion = (quotation: any) => {
 
                         <Column field="status" header="Status">
                             <template #body="slotProps">
-                                <div class="flex flex-col gap-1.5">
-                                    
-                                    <Tag  :value="getStatusLabel(slotProps.data.status)" :severity="getStatusSeverity(slotProps.data.status)" rounded />
-                                    <!-- Conversion Dropdown - Only if Approved (2) -->
-                                    <div v-if="Number(slotProps.data.status) === 2" class="mt-1">
-                                        <Select 
-                                            v-model="slotProps.data.is_customer_po"
-                                            :options="conversionOptions"
-                                            optionLabel="label"
-                                            optionValue="value"
-                                            :disabled="hasActiveSalesOrders(slotProps.data)"
-                                            @change="updateConversion(slotProps.data)"
-                                            class="!text-[9px] !h-7 !w-24 font-bold uppercase"
-                                            :pt="{
-                                                label: { class: '!p-1 !px-2' },
-                                                dropdown: { class: '!w-6' }
-                                            }"
-                                        />
-                                    </div>
+                                <div class="flex flex-col gap-1 items-start">
+                                    <Tag :value="getStatusLabel(slotProps.data.status)" :severity="getStatusSeverity(slotProps.data.status)" rounded />
+                                    <!-- Conversion Badge - Only if status is Approved (2) and converted/rejected -->
+                                    <template v-if="Number(slotProps.data.status) === 2">
+                                        <span v-if="slotProps.data.is_customer_po === 1" class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100/50 px-2 py-0.5 rounded-full mt-1">
+                                            Converted to PO
+                                        </span>
+                                        <span v-else-if="slotProps.data.is_customer_po === -1" class="inline-flex items-center gap-1 text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-100/50 px-2 py-0.5 rounded-full mt-1">
+                                            Rejected (Conversion)
+                                        </span>
+                                    </template>
                                 </div>
                             </template>
                         </Column>
 
-                        <Column header="Actions">
+                        <Column header="Actions" style="width: 60px">
                             <template #body="slotProps">
-                                <div class="flex justify-end gap-2">
-                                    
-                                    <BaseButton
-                                        icon="pi pi-file-pdf"
-                                        severity="info"
-                                        variant="text"
+                                <div class="flex justify-end">
+                                    <!-- Popover trigger -->
+                                    <Button
+                                        icon="pi pi-ellipsis-v"
+                                        text
                                         rounded
-                                        @click.stop="printQuotation(slotProps.data, 'download')"
-                                        title="Download PDF"
-                                    />
-                                    <BaseButton
-                                        icon="pi pi-print"
                                         severity="secondary"
-                                        variant="text"
-                                        rounded
-                                        @click.stop="printQuotation(slotProps.data, 'report')"
-                                        title="Print Receipt"
-                                    />
-                                    
-                                    <!-- <BaseButton
-                                        icon="pi pi-pencil"
-                                        :severity="[2, 3].includes(Number(slotProps.data.status)) ? 'secondary' : 'warn'"
-                                        variant="text"
-                                        rounded
-                                        @click.stop="toggleExpand(slotProps.data)"
-                                        :title="[2, 3].includes(Number(slotProps.data.status)) ? 'View Locked' : 'Edit'"
-                                    /> -->
-                                    <BaseButton
-                                        icon="pi pi-trash"
-                                        severity="danger"
-                                        variant="text"
-                                        rounded
-                                        @click.stop="deleteQuotation(slotProps.data)"
-                                        :disabled="[2, 3].includes(Number(slotProps.data.status))"
-                                        class="disabled:opacity-30"
+                                        v-tooltip.top="'More Actions'"
+                                        @click.stop="openActions($event, slotProps.data)"
                                     />
                                 </div>
                             </template>
@@ -361,6 +366,72 @@ const updateConversion = (quotation: any) => {
                             </BaseExpansionPanel>
                         </template>
                     </BaseDataTable>
+
+                    <!-- Actions Popover -->
+                    <Popover ref="actionPopover" class="z-50">
+                        <div class="flex flex-col gap-1 p-1 min-w-[200px]">
+                            <button
+                                @click="printQuote"
+                                class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors w-full text-left"
+                            >
+                                <i class="pi pi-print text-indigo-500"></i>
+                                View / Print Quote
+                            </button>
+                            <button
+                                @click="downloadQuotePDF"
+                                class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors w-full text-left"
+                            >
+                                <i class="pi pi-file-pdf text-emerald-500"></i>
+                                Download PDF
+                            </button>
+
+                            <!-- Conversion Options (only if Approved/Accepted: status = 2) -->
+                            <template v-if="Number(activeActionRow?.status) === 2">
+                                <hr class="border-slate-100 my-1" />
+                                <span class="text-[10px] uppercase font-bold text-slate-400 px-3 py-1 block">Conversion Options</span>
+                                
+                                <button
+                                    v-if="activeActionRow?.is_customer_po !== 1"
+                                    @click="convertToCustomerPO(1)"
+                                    :disabled="hasActiveSalesOrders(activeActionRow)"
+                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 transition-colors w-full text-left disabled:opacity-50"
+                                >
+                                    <i class="pi pi-check text-indigo-500"></i>
+                                    Convert to Customer PO
+                                </button>
+                                <button
+                                    v-if="activeActionRow?.is_customer_po !== -1"
+                                    @click="convertToCustomerPO(-1)"
+                                    :disabled="hasActiveSalesOrders(activeActionRow)"
+                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 transition-colors w-full text-left disabled:opacity-50"
+                                >
+                                    <i class="pi pi-times text-rose-500"></i>
+                                    Reject Conversion
+                                </button>
+                                <button
+                                    v-if="activeActionRow?.is_customer_po !== 0"
+                                    @click="convertToCustomerPO(0)"
+                                    :disabled="hasActiveSalesOrders(activeActionRow)"
+                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-700 transition-colors w-full text-left disabled:opacity-50"
+                                >
+                                    <i class="pi pi-undo text-slate-500"></i>
+                                    Reset Conversion
+                                </button>
+                            </template>
+
+                            <!-- Delete Option (only if NOT Approved or Rejected: status != 2 and status != 3) -->
+                            <template v-if="![2, 3].includes(Number(activeActionRow?.status))">
+                                <hr class="border-slate-100 my-1" />
+                                <button
+                                    @click="handleDeleteQuote"
+                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors w-full text-left"
+                                >
+                                    <i class="pi pi-trash text-red-500"></i>
+                                    Delete Quotation
+                                </button>
+                            </template>
+                        </div>
+                    </Popover>
                 </div>
             </div>
         </div>

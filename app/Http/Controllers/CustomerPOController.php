@@ -60,6 +60,7 @@ class CustomerPOController extends Controller
             'site_id' => 'required|exists:mm_sites,id',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
             'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
+            'is_tax_inclusive' => 'nullable|boolean',
             'order_date' => 'required|date',
             'mix_design_id' => 'nullable|exists:mm_mix_designs,id',
             'quantity' => 'nullable|numeric|min:0.001',
@@ -124,6 +125,8 @@ class CustomerPOController extends Controller
                 ]);
             }
 
+            $isTaxInclusive = (bool)($validated['is_tax_inclusive'] ?? ($quote?->is_tax_inclusive ?? false));
+
             $customerPO = CustomerPO::create([
                 'plant_id' => $plantId,
                 'prefix' => $validated['prefix'],
@@ -133,6 +136,7 @@ class CustomerPOController extends Controller
                 'site_id' => $validated['site_id'],
                 'sales_executive_id' => $validated['sales_executive_id'] ?? ($quote?->sales_executive_id ?? null),
                 'concrete_pump' => $validated['concrete_pump'] ?? ($quote?->concrete_pump ?? null),
+                'is_tax_inclusive' => $isTaxInclusive,
                 'order_date' => $validated['order_date'],
                 'status' => $validated['status'],
                 'converted_by_user_id' => $validated['converted_by_user_id'],
@@ -142,18 +146,31 @@ class CustomerPOController extends Controller
                 foreach ($items as $item) {
                     $qty = (float)($item['quantity'] ?? 0);
                     $rate = (float)($item['rate'] ?? 0);
-                    $taxAmount = (float)($item['tax_amount'] ?? 0);
-                    $untaxedAmount = $qty * $rate;
-                    $amountTotal = $untaxedAmount + $taxAmount;
+                    
+                    $taxId = $item['tax_id'] ?? null;
+                    if ($isTaxInclusive) {
+                        $amountTotal = $qty * $rate;
+                        $taxRate = 0.0;
+                        if ($taxId) {
+                            $taxModel = \App\Models\Tax::find($taxId);
+                            $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
+                        }
+                        $taxAmount = $amountTotal - ($amountTotal / (1 + $taxRate / 100));
+                        $untaxedAmount = $amountTotal - $taxAmount;
+                    } else {
+                        $taxAmount = (float)($item['tax_amount'] ?? 0);
+                        $untaxedAmount = $qty * $rate;
+                        $amountTotal = $untaxedAmount + $taxAmount;
+                    }
 
                     $customerPO->items()->create([
                         'mix_design_id' => $item['mix_design_id'],
                         'quantity' => $qty,
                         'rate' => $rate,
-                        'tax_id' => $item['tax_id'] ?? null,
-                        'tax_amount' => $taxAmount,
-                        'untaxed_amount' => $untaxedAmount,
-                        'amount_total' => $amountTotal,
+                        'tax_id' => $taxId,
+                        'tax_amount' => round($taxAmount, 2),
+                        'untaxed_amount' => round($untaxedAmount, 2),
+                        'amount_total' => round($amountTotal, 2),
                     ]);
                 }
             } else {
@@ -202,6 +219,7 @@ class CustomerPOController extends Controller
             'site_id' => 'required|exists:mm_sites,id',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
             'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
+            'is_tax_inclusive' => 'nullable|boolean',
             'order_date' => 'required|date',
             'status' => 'required|integer|in:0,1,2,3',
             'mix_design_id' => 'nullable|exists:mm_mix_designs,id',
@@ -261,6 +279,8 @@ class CustomerPOController extends Controller
                 }
             }
 
+            $isTaxInclusive = (bool)($validated['is_tax_inclusive'] ?? false);
+
             if (empty($validated['quotation_id'])) {
                 $customerPO->update([
                     'quotation_id' => null,
@@ -270,6 +290,7 @@ class CustomerPOController extends Controller
                     'site_id' => $validated['site_id'],
                     'sales_executive_id' => $validated['sales_executive_id'] ?? null,
                     'concrete_pump' => $validated['concrete_pump'] ?? null,
+                    'is_tax_inclusive' => $isTaxInclusive,
                     'order_date' => $validated['order_date'],
                     'status' => $validated['status'],
                 ]);
@@ -278,18 +299,31 @@ class CustomerPOController extends Controller
                 foreach ($items as $item) {
                     $qty = (float)($item['quantity'] ?? 0);
                     $rate = (float)($item['rate'] ?? 0);
-                    $taxAmount = (float)($item['tax_amount'] ?? 0);
-                    $untaxedAmount = $qty * $rate;
-                    $amountTotal = $untaxedAmount + $taxAmount;
+                    
+                    $taxId = $item['tax_id'] ?? null;
+                    if ($isTaxInclusive) {
+                        $amountTotal = $qty * $rate;
+                        $taxRate = 0.0;
+                        if ($taxId) {
+                            $taxModel = \App\Models\Tax::find($taxId);
+                            $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
+                        }
+                        $taxAmount = $amountTotal - ($amountTotal / (1 + $taxRate / 100));
+                        $untaxedAmount = $amountTotal - $taxAmount;
+                    } else {
+                        $taxAmount = (float)($item['tax_amount'] ?? 0);
+                        $untaxedAmount = $qty * $rate;
+                        $amountTotal = $untaxedAmount + $taxAmount;
+                    }
 
                     $customerPO->items()->create([
                         'mix_design_id' => $item['mix_design_id'],
                         'quantity' => $qty,
                         'rate' => $rate,
-                        'tax_id' => $item['tax_id'] ?? null,
-                        'tax_amount' => $taxAmount,
-                        'untaxed_amount' => $untaxedAmount,
-                        'amount_total' => $amountTotal,
+                        'tax_id' => $taxId,
+                        'tax_amount' => round($taxAmount, 2),
+                        'untaxed_amount' => round($untaxedAmount, 2),
+                        'amount_total' => round($amountTotal, 2),
                     ]);
                 }
             } else {
@@ -303,6 +337,7 @@ class CustomerPOController extends Controller
                     'patron_id' => $validated['patron_id'],
                     'site_id' => $validated['site_id'],
                     'sales_executive_id' => $validated['sales_executive_id'] ?? $quotation->sales_executive_id,
+                    'is_tax_inclusive' => $isTaxInclusive,
                     'quote_date' => $validated['order_date'],
                     'validity_date' => $validated['order_date'],
                 ]);
@@ -310,25 +345,47 @@ class CustomerPOController extends Controller
                 if ($request->has('mix_design_id') && $validated['mix_design_id']) {
                     $item = $quotation->items()->first();
                     $taxAmount = (float)($request->input('tax_amount') ?? 0);
+                    $qty = (float)$validated['quantity'];
+                    $rate = (float)$validated['rate'];
+                    $taxId = $request->input('tax_id');
+                    
+                    if ($isTaxInclusive) {
+                        $amountTotal = $qty * $rate;
+                        $taxRate = 0.0;
+                        if ($taxId) {
+                            $taxModel = \App\Models\Tax::find($taxId);
+                            $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
+                        }
+                        $taxAmount = $amountTotal - ($amountTotal / (1 + $taxRate / 100));
+                        $untaxedAmount = $amountTotal - $taxAmount;
+                    } else {
+                        $untaxedAmount = $qty * $rate;
+                        $amountTotal = $untaxedAmount + $taxAmount;
+                    }
+
+                    $untaxedAmount = round($untaxedAmount, 2);
+                    $taxAmount = round($taxAmount, 2);
+                    $amountTotal = round($amountTotal, 2);
+
                     if ($item) {
                         $item->update([
                             'mix_design_id' => $validated['mix_design_id'],
-                            'quantity' => $validated['quantity'],
-                            'rate' => $validated['rate'],
-                            'tax_id' => $request->input('tax_id'),
+                            'quantity' => $qty,
+                            'rate' => $rate,
+                            'tax_id' => $taxId,
                             'tax_amount' => $taxAmount,
-                            'untaxed_amount' => $validated['quantity'] * $validated['rate'],
-                            'amount_total' => ($validated['quantity'] * $validated['rate']) + $taxAmount,
+                            'untaxed_amount' => $untaxedAmount,
+                            'amount_total' => $amountTotal,
                         ]);
                     } else {
                         $quotation->items()->create([
                             'mix_design_id' => $validated['mix_design_id'],
-                            'quantity' => $validated['quantity'],
-                            'rate' => $validated['rate'],
-                            'tax_id' => $request->input('tax_id'),
+                            'quantity' => $qty,
+                            'rate' => $rate,
+                            'tax_id' => $taxId,
                             'tax_amount' => $taxAmount,
-                            'untaxed_amount' => $validated['quantity'] * $validated['rate'],
-                            'amount_total' => ($validated['quantity'] * $validated['rate']) + $taxAmount,
+                            'untaxed_amount' => $untaxedAmount,
+                            'amount_total' => $amountTotal,
                         ]);
                     }
                     $quotation->updateTotals();
@@ -342,6 +399,7 @@ class CustomerPOController extends Controller
                     'site_id' => $validated['site_id'],
                     'sales_executive_id' => $validated['sales_executive_id'] ?? ($quotation?->sales_executive_id ?? null),
                     'concrete_pump' => $validated['concrete_pump'] ?? ($quotation?->concrete_pump ?? null),
+                    'is_tax_inclusive' => $isTaxInclusive,
                     'order_date' => $validated['order_date'],
                     'status' => $validated['status'],
                 ]);

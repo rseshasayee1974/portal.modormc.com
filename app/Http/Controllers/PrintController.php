@@ -172,6 +172,18 @@ class PrintController extends Controller
                     ->first();
                 return $model ? PrintDataFormatter::fromQuotation($model) : null;
 
+            case 'customer_pos':
+                $model = \App\Models\CustomerPO::where('id', $realId)
+                    ->where('plant_id', $activePlantId)
+                    ->first();
+                return $model ? PrintDataFormatter::fromCustomerPO($model) : null;
+
+            case 'sales_orders':
+                $model = \App\Models\SalesOrder::where('id', $realId)
+                    ->where('plant_id', $activePlantId)
+                    ->first();
+                return $model ? PrintDataFormatter::fromSalesOrder($model) : null;
+
             case 'delivery_challans':
                 $model = \App\Models\Batch::where('id', $realId)
                     ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))

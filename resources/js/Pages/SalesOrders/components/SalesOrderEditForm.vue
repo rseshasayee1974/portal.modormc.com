@@ -36,6 +36,7 @@ const filteredStatuses = computed(() => {
     const backupStatuses = [
         { label: 'Scheduled', value: 1 },
         { label: 'In Progress', value: 2 },
+         { label: 'Completed', value: 2 },
         { label: 'Cancelled', value: 4 }
     ];
 
@@ -118,8 +119,6 @@ const emit = defineEmits<{
 const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 
 const defaultStart = new Date();
-const defaultEnd = new Date(defaultStart);
-defaultEnd.setHours(defaultEnd.getHours() + 1);
 
 const form = useForm({
     prefix: props.salesOrder?.prefix ?? 'SO',
@@ -135,7 +134,7 @@ const form = useForm({
     status: Number(props.salesOrder?.status ?? 1),
     concrete_pump: props.salesOrder?.concrete_pump ? Number(props.salesOrder.concrete_pump) : null,
     scheduled_start: props.salesOrder?.scheduled_start ? new Date(props.salesOrder.scheduled_start) : defaultStart,
-    scheduled_end: props.salesOrder?.scheduled_end ? new Date(props.salesOrder.scheduled_end) : defaultEnd,
+    scheduled_end: props.salesOrder?.scheduled_end ? new Date(props.salesOrder.scheduled_end) : null,
 });
 
 const isLoading = ref(true);
@@ -162,7 +161,7 @@ onMounted(async () => {
                 status: Number(fullData.status ?? 1),
                 concrete_pump: fullData.concrete_pump ? Number(fullData.concrete_pump) : null,
                 scheduled_start: fullData.scheduled_start ? new Date(fullData.scheduled_start) : defaultStart,
-                scheduled_end: fullData.scheduled_end ? new Date(fullData.scheduled_end) : defaultEnd,
+                scheduled_end: fullData.scheduled_end ? new Date(fullData.scheduled_end) : null,
             });
             form.defaults(form.data());
         }
@@ -217,7 +216,7 @@ watch(() => form.customer_po_id, (newVal) => {
 watch(() => form.scheduled_start, (newStart) => {
     if (newStart) {
         const start = new Date(newStart);
-        if (!form.scheduled_end || new Date(form.scheduled_end) <= start) {
+        if (form.scheduled_end && new Date(form.scheduled_end) <= start) {
             const endDate = new Date(start);
             endDate.setHours(endDate.getHours() + 1);
             form.scheduled_end = endDate;
@@ -473,6 +472,8 @@ const isOverdue = computed(() => {
             :disabled="isCriticalLocked || !!form.customer_po_id"
         />
     </div>
+
+
 
     <!-- Recipe Details -->
     <div

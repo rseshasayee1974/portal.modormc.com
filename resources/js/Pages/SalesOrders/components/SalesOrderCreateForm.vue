@@ -61,6 +61,7 @@ const filteredStatuses = computed(() => {
     const backupStatuses = [
         { label: 'Scheduled', value: 1 },
         { label: 'In Progress', value: 2 },
+         { label: 'Completed', value: 3 },
         { label: 'Cancelled', value: 4 }
     ];
     
@@ -110,8 +111,6 @@ const customerPOOptions = computed(() => {
 });
 
 const defaultStart = new Date();
-const defaultEnd = new Date(defaultStart);
-defaultEnd.setHours(defaultEnd.getHours() + 1);
 
 const form = useForm({
     prefix: 'SO',
@@ -128,7 +127,7 @@ const form = useForm({
     status: 1,
     concrete_pump: null as number | null,
     scheduled_start: defaultStart as Date | null,
-    scheduled_end: defaultEnd as Date | null,
+    scheduled_end: null as Date | null,
 });
 
 // Watch sales order selection to auto-fill patron, site, mix design, and total quantity
@@ -139,7 +138,6 @@ watch(() => form.customer_po_id, (newVal) => {
             form.customer_id = customerPO.patron_id;
             form.site_id = customerPO.site_id;
             form.sales_executive_id = customerPO.sales_executive_id;
-
             const firstItem = customerPO.quotation?.items?.[0];
             if (firstItem) {
                 form.mix_design_id = firstItem.mix_design_id;
@@ -152,14 +150,13 @@ watch(() => form.customer_po_id, (newVal) => {
         form.mix_design_id = null;
         form.total_qty = 0;
         form.sales_executive_id = null;
-
     }
 });
 
 watch(() => form.scheduled_start, (newStart) => {
     if (newStart) {
         const start = new Date(newStart);
-        if (!form.scheduled_end || new Date(form.scheduled_end) <= start) {
+        if (form.scheduled_end && new Date(form.scheduled_end) <= start) {
             const endDate = new Date(start);
             endDate.setHours(endDate.getHours() + 1);
             form.scheduled_end = endDate;
@@ -418,8 +415,7 @@ const handleMixCreated = () => {
         </small>
     </div>
 
-    <!-- Empty cell to complete 5 columns -->
-    <div></div>
+
 
     <!-- Mix Design Details -->
     <div

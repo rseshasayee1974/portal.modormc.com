@@ -8,6 +8,7 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import Button from 'primevue/button';
+import Popover from 'primevue/popover';
 import Swal from 'sweetalert2';
 import SalesOrderEditForm from './SalesOrderEditForm.vue';
 import { ClipboardDocumentListIcon } from '@heroicons/vue/24/outline';
@@ -79,6 +80,28 @@ const destroy = (row: any) => {
 
 const onSaved = () => {
     expandedRows.value = {};
+};
+
+const actionPopover = ref<InstanceType<typeof Popover> | null>(null);
+const activeActionRow = ref<any>(null);
+
+const openActions = (event: Event, row: any) => {
+    activeActionRow.value = row;
+    actionPopover.value?.toggle(event);
+};
+
+const printSO = () => {
+    const id = activeActionRow.value?.id;
+    if (!id) return;
+    window.open(route('print.document', { module: 'sales_orders', id, action: 'view' }), '_blank');
+    actionPopover.value?.hide();
+};
+
+const downloadSOPDF = () => {
+    const id = activeActionRow.value?.id;
+    if (!id) return;
+    window.open(route('print.document', { module: 'sales_orders', id, action: 'download' }), '_blank');
+    actionPopover.value?.hide();
 };
 </script>
 
@@ -157,21 +180,54 @@ const onSaved = () => {
                 </template>
             </Column>
 
-            <Column header="Actions" style="width: 80px" v-if="can('SALES_ORDER.DELETE')">
+            <Column header="Actions" style="width: 60px">
                 <template #body="{ data }">
                     <div class="flex justify-end">
-                        <Button 
-                            icon="pi pi-trash" 
-                            text 
-                            rounded 
-                            severity="danger" 
-                            @click="destroy(data)"
-                            :disabled="!isSuperAdmin && (data.batches_count > 0 || data.dispatches_count > 0 || data.status === 3)"
-                            v-tooltip.top="(!isSuperAdmin && (data.batches_count > 0 || data.dispatches_count > 0 || data.status === 3)) ? 'Cannot delete: active batches or dispatches exist' : 'Delete Sales Order'"
+                        <!-- Print actions popover trigger -->
+                        <Button
+                            icon="pi pi-ellipsis-v"
+                            text
+                            rounded
+                            severity="secondary"
+                            v-tooltip.top="'More Actions'"
+                            @click="openActions($event, data)"
                         />
                     </div>
                 </template>
             </Column>
+
+            <!-- Actions Popover -->
+            <Popover ref="actionPopover" class="z-50">
+                <div class="flex flex-col gap-1 p-1 min-w-[180px]">
+                    <button
+                        @click="printSO"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors w-full text-left"
+                    >
+                        <i class="pi pi-eye text-indigo-500"></i>
+                        View / Print SO
+                    </button>
+                    <button
+                        @click="downloadSOPDF"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition-colors w-full text-left"
+                    >
+                        <i class="pi pi-download text-emerald-500"></i>
+                        Download PDF
+                    </button>
+
+                    <!-- Delete Option -->
+                    <template v-if="can('SALES_ORDER.DELETE')">
+                        <hr class="border-slate-100 my-1" />
+                        <button
+                            @click="() => { destroy(activeActionRow); actionPopover?.hide(); }"
+                            :disabled="!isSuperAdmin && (activeActionRow?.batches_count > 0 || activeActionRow?.dispatches_count > 0 || activeActionRow?.status === 3)"
+                            class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors w-full text-left disabled:opacity-50"
+                        >
+                            <i class="pi pi-trash text-red-500"></i>
+                            Delete Sales Order
+                        </button>
+                    </template>
+                </div>
+            </Popover>
 
             <template #expansion="{ data }">
                 <div class="p-3">

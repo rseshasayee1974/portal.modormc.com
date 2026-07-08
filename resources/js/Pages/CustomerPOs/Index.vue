@@ -57,6 +57,9 @@ const formatDate = (date: string | null) => {
     return parsed.toLocaleDateString('en-IN');
 };
 
+const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(Number(value || 0));
+
 const getStatusLabel = (status: number) => {
     switch (Number(status)) {
         case 0:
@@ -226,6 +229,10 @@ const convertToSalesOrder = (customerPO: any) => {
     });
 };
 
+const printCustomerPO = (po: any, action: string = 'view') => {
+    window.open(route('print.document', { module: 'customer_pos', id: po.id, action }), '_blank');
+};
+
 const activeCustomerPO = ref<any>(null);
 const actionMenu = ref();
 
@@ -317,7 +324,7 @@ watch(() => props.customerPOs, () => {
                         </template>
                     </Column>
 
-                    <Column field="reference" header="PO Number" sortable>
+                    <Column field="reference" header="Ref #" sortable>
                         <template #body="slotProps">
                             <span class="text-slate-800 dark:text-slate-100 text-sm font-bold font-mono">{{ slotProps.data.reference || '--' }}</span>
                         </template>
@@ -336,7 +343,7 @@ watch(() => props.customerPOs, () => {
                         </template>
                     </Column>
 
-                    <Column field="quotation.reference" header="Loading Site" sortable>
+                    <!-- <Column field="quotation.reference" header="Loading Site" sortable>
                         <template #body="slotProps">
                             <div v-if="slotProps.data.quotation" class="flex flex-col gap-0.5">
                                 <div class="text-slate-400 text-xs font-bold">
@@ -345,7 +352,7 @@ watch(() => props.customerPOs, () => {
                             </div>
                             <span v-else class="text-slate-400 text-xs font-bold">{{ slotProps.data.site?.name || '' }}</span>
                         </template>
-                    </Column>
+                    </Column> -->
 
                     <Column header="Mix Designs / Grades">
                         <template #body="slotProps">
@@ -354,6 +361,24 @@ watch(() => props.customerPOs, () => {
                                     {{ item.mix_design?.design_name || item.mix_design?.title || '-' }}
                                 </span>
                             </div>
+                        </template>
+                    </Column>
+
+                    <!-- <Column field="amount_untaxed" header="Untaxed Amt" sortable>
+                        <template #body="slotProps">
+                            <span class="text-slate-600 dark:text-slate-300 text-sm font-mono">{{ formatCurrency(slotProps.data.amount_untaxed) }}</span>
+                        </template>
+                    </Column>
+
+                    <Column field="amount_tax" header="Tax Amt" sortable>
+                        <template #body="slotProps">
+                            <span class="text-slate-600 dark:text-slate-300 text-sm font-mono">{{ formatCurrency(slotProps.data.amount_tax) }}</span>
+                        </template>
+                    </Column> -->
+
+                    <Column field="amount_total" header="Total Amt" sortable>
+                        <template #body="slotProps">
+                            <span class="font-bold text-indigo-700 dark:text-indigo-400 text-sm font-mono">{{ formatCurrency(slotProps.data.amount_total) }}</span>
                         </template>
                     </Column>
                     <!-- <Column header="WO Status">
@@ -445,6 +470,24 @@ watch(() => props.customerPOs, () => {
                         <i class="pi pi-check-circle mr-2 text-emerald-500 font-bold"></i>
                         Fully Allocated
                     </div>
+                </div>
+
+                <!-- Group 2: Print/Download PDF -->
+                <div class="py-1">
+                    <button
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        @click="printCustomerPO(activeCustomerPO, 'view'); closeAllMenus();"
+                    >
+                        <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
+                        Print PO
+                    </button>
+                    <button
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        @click="printCustomerPO(activeCustomerPO, 'download'); closeAllMenus();"
+                    >
+                        <i class="pi pi-file-pdf mr-2 text-indigo-500 font-bold"></i>
+                        Download PDF
+                    </button>
                 </div>
 
                 <!-- Group 3: Delete Customer PO -->

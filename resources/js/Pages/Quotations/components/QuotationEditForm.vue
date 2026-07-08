@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
-import { router, useForm } from '@inertiajs/vue3';
+import { router, useForm, usePage } from '@inertiajs/vue3';
 import Swal from 'sweetalert2';
 import { 
     ShoppingCartIcon, 
@@ -44,6 +44,17 @@ const props = defineProps<{
 const emit = defineEmits<{
     (e: 'updated'): void;
 }>();
+
+const page = usePage();
+const customSettings = page.props.custom_settings as any;
+
+const getDefaultValidityDate = (quoteDateStr: string): string | null => {
+    if (!quoteDateStr) return null;
+    const days = Number(customSettings?.batching?.quote_validity ?? 5);
+    const date = new Date(quoteDateStr);
+    date.setUTCDate(date.getUTCDate() + (isNaN(days) || days <= 0 ? 5 : days));
+    return date.toISOString().substring(0, 10);
+};
 
 const isLocked = computed(() => [2, 3].includes(Number(props.quotation.status)));
 
@@ -91,6 +102,13 @@ const form = useForm({
         untaxed_amount: Number(item.untaxed_amount || 0),
         amount_total: Number(item.amount_total || 0),
     })) as QuotationItemPayload[],
+});
+
+// Auto-update validity_date when quote_date changes
+watch(() => form.quote_date, (newVal) => {
+    if (newVal) {
+        form.validity_date = getDefaultValidityDate(newVal);
+    }
 });
 
 const patronOptions = computed(() => props.patrons.map((p) => ({ label: p.legal_name, value: p.id })));
@@ -460,19 +478,10 @@ const sendEmail = () => {
             </div>
 
             <div class="flex flex-col md:flex-row justify-between items-end gap-8">
-                <div class="text-[10px] text-slate-400 space-y-1">
-                    <div v-if="quotation.creator" class="flex items-center gap-2">
-                        <UserIcon class="w-3 h-3" />
-                        <span>Created by <span class="font-bold text-slate-600">{{ quotation.creator.username || quotation.creator.name }}</span> on {{ formatDate(quotation.created_at) }}</span>
-                    </div>
-                    <div v-if="quotation.modifier" class="flex items-center gap-2">
-                        <CalendarIcon class="w-3 h-3" />
-                        <span>Last modified by <span class="font-bold text-slate-600">{{ quotation.modifier.username || quotation.modifier.name }}</span> on {{ formatDate(quotation.updated_at) }}</span>
-                    </div>
-                </div>
+                
 
                 <!-- Recipe Details -->
-                <div v-if="uniqueSelectedMixDesignIds.length" class="w-full md:w-1/2 space-y-3 mt-4 self-start">
+                <div v-if="uniqueSelectedMixDesignIds.length" class="w-full space-y-3 mt-4 self-start">
                     <div 
                         v-for="designId in uniqueSelectedMixDesignIds" 
                         :key="designId"
@@ -532,12 +541,22 @@ const sendEmail = () => {
             </div>
 
             <div class="flex justify-end" v-if="!isLocked">
+                <div class="text-[10px] text-slate-400 space-y-1">
+                    <div v-if="quotation.creator" class="flex items-center gap-2">
+                        <UserIcon class="w-3 h-3" />
+                        <span>Created by <span class="font-bold text-slate-600">{{ quotation.creator.username || quotation.creator.name }}</span> on {{ formatDate(quotation.created_at) }}</span>
+                    </div>
+                    <div v-if="quotation.modifier" class="flex items-center gap-2">
+                        <CalendarIcon class="w-3 h-3" />
+                        <span>Last modified by <span class="font-bold text-slate-600">{{ quotation.modifier.username || quotation.modifier.name }}</span> on {{ formatDate(quotation.updated_at) }}</span>
+                    </div>
+                </div>
                 <div class="flex items-center gap-3">
                     <BaseButton
                         label="Send Email"
                         icon="pi pi-envelope"
                         severity="info"
-                        class="!bg-sky-600 hover:!bg-sky-700 !border-sky-600 !px-6 !h-10 text-xs font-bold uppercase tracking-wide shadow-md"
+                        class="!bg-sky-600 hover:!bg-sky-700 !border-sky-600 !px-6 !h-10 text-xs font-bold !text-white uppercase tracking-wide shadow-md"
                         @click="sendEmail"
                         :disabled="form.processing"
                     />

@@ -493,4 +493,80 @@ class CustomerPOTest extends TestCase
         $this->assertEquals(1000, $item->untaxed_amount);
         $this->assertEquals(1180, $item->amount_total);
     }
+
+    public function test_direct_customer_po_creation_tax_inclusive()
+    {
+        $mixDesign = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id]);
+        $tax = \App\Models\Tax::create([
+            'plant_id' => $this->plant->id,
+            'tax_name' => 'GST 18%',
+            'tax_rate' => 18,
+            'tax_group' => 'GST',
+            'tax_type' => 'Sales',
+            'status' => 1,
+        ]);
+
+        $response = $this->post(route('customer-po.store'), [
+            'quotation_id' => null,
+            'patron_id' => $this->patron->id,
+            'site_id' => $this->site->id,
+            'order_date' => now()->format('Y-m-d'),
+            'is_tax_inclusive' => true,
+            'items' => [
+                [
+                    'mix_design_id' => $mixDesign->id,
+                    'quantity' => 10,
+                    'rate' => 100, // Total = 10 * 100 = 1000 (Tax Inclusive)
+                    'tax_id' => $tax->id,
+                ]
+            ]
+        ]);
+
+        $response->assertStatus(302);
+
+        $customerPO = CustomerPO::where('is_tax_inclusive', true)->first();
+        $this->assertNotNull($customerPO);
+        $this->assertCount(1, $customerPO->items);
+
+        $item = $customerPO->items->first();
+        $this->assertEquals($mixDesign->id, $item->mix_design_id);
+        $this->assertEquals(10, $item->quantity);
+        $this->assertEquals(100, $item->rate);
+        $this->assertEquals($tax->id, $item->tax_id);
+        
+        // Calculations verification:
+        // Total = 1000.00
+        // Tax = 1000 - (1000 / 1.18) = 152.54
+        // Untaxed = 1000 - 152.54 = 847.46
+        $this->assertEquals(152.54, $item->tax_amount);
+        $this->assertEquals(847.46, $item->untaxed_amount);
+        $this->assertEquals(1000.00, $item->amount_total);
+    }
+
+    public function test_can_print_customer_po()
+    {
+        $customerPO = CustomerPO::factory()->create([
+            'plant_id' => $this->plant->id,
+            'patron_id' => $this->patron->id,
+            'site_id' => $this->site->id,
+        ]);
+        
+        $mixDesign = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id]);
+        $customerPO->items()->create([
+            'mix_design_id' => $mixDesign->id,
+            'quantity' => 10,
+            'rate' => 100,
+            'tax_amount' => 0,
+            'untaxed_amount' => 1000,
+            'amount_total' => 1000,
+        ]);
+
+        $response = $this->get(route('print.document', [
+            'module' => 'customer_pos',
+            'id' => $customerPO->id,
+            'action' => 'view'
+        ]));
+
+        $response->assertStatus(200);
+    }
 }

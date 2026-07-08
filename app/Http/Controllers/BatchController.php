@@ -106,10 +106,6 @@ class BatchController extends Controller
             ->withCount('batches')
             ->where('plant_id', $activePlantId)
             ->whereIn('status', [SalesOrder::STATUS_IN_PROGRESS])
-            ->where(function ($query) {
-                $query->whereNull('scheduled_end')
-                ->orWhere('scheduled_end', '>=', date('Y-m-d', strtotime(now()) ) );              // to display the sales orders which are active as per scheduled end date
-            })
             ->orderBy('order_no')
             ->get();
 
@@ -263,11 +259,9 @@ class BatchController extends Controller
                 $batchingSettings = \App\Models\CustomSetting::getForModule($activePlantId, 'batching');
                 $withStock = filter_var($batchingSettings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN);
 
-                if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                if ($withStock && in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
                     $this->checkStock($batch, $materialsData);
-                    if ($withStock) {
-                        $this->adjustStock($batch, $materialsData);
-                    }
+                    $this->adjustStock($batch, $materialsData);
                 }
                 
                 $salesOrder->refreshProduction();

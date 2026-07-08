@@ -26,6 +26,7 @@ class CustomerPO extends Model
         'site_id',
         'sales_executive_id',
         'concrete_pump',
+        'is_tax_inclusive',
         'order_date',
         'status',
         'converted_by_user_id',
@@ -37,13 +38,29 @@ class CustomerPO extends Model
     protected $casts = [
         'order_date' => 'date',
         'sales_executive_id' => 'integer',
+        'is_tax_inclusive' => 'boolean',
     ];
 
-    protected $appends = ['has_salesorders'];
+    protected $appends = ['has_salesorders', 'amount_untaxed', 'amount_tax', 'amount_total'];
 
     public function getHasSalesordersAttribute()
     {
         return $this->salesOrders()->exists();
+    }
+
+    public function getAmountUntaxedAttribute()
+    {
+        return round((float)$this->items->sum('untaxed_amount'), 2);
+    }
+
+    public function getAmountTaxAttribute()
+    {
+        return round((float)$this->items->sum('tax_amount'), 2);
+    }
+
+    public function getAmountTotalAttribute()
+    {
+        return round((float)$this->items->sum('amount_total'), 2);
     }
 
     const STATUS_DRAFT = 0;

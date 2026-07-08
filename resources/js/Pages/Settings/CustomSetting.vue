@@ -51,6 +51,8 @@ const form = useForm({
         so_prefix:         props.batchingSettings?.so_prefix    || 'SO',
         quote_prefix:      props.batchingSettings?.quote_prefix || 'QT',
         target_to_actual:  props.batchingSettings?.target_to_actual == 1,
+        default_transport: props.batchingSettings?.default_transport || '',
+        quote_validity:    props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
         custom_params:     props.batchingSettings?.custom_params || [],
     }
 });
@@ -83,6 +85,8 @@ const settingRows = computed(() => [
     { section: 'Batch Sheet', key: 'sheet_upload',       label: 'Upload Batch Sheet',             value: form.settings.sheet_upload,        type: 'bool' },
     { section: 'Batch Sheet', key: 'hide_batch_form',    label: 'Hide Add & Edit Batch Forms',    value: form.settings.hide_batch_form,     type: 'bool' },
     { section: 'Batch Sheet', key: 'target_to_actual',   label: 'One-Click Target to Actual',     value: form.settings.target_to_actual,    type: 'bool' },
+    { section: 'Defaults',    key: 'default_transport',  label: 'Default Transporter Name',        value: form.settings.default_transport,   type: 'text' },
+    { section: 'Defaults',    key: 'quote_validity',     label: 'Quotation Validity (Days)',       value: form.settings.quote_validity,      type: 'text' },
     // Appearance
     { section: 'Appearance',  key: 'loader_gif',         label: 'Custom Global Loader (GIF URL)', value: form.settings.loader_gif,          type: 'text' },
     // Document Prefixes
@@ -112,6 +116,7 @@ const submit = () => {
         sheet_upload:       form.settings.sheet_upload       ? 1 : 0,
         hide_batch_form:    form.settings.hide_batch_form    ? 1 : 0,
         target_to_actual:   form.settings.target_to_actual   ? 1 : 0,
+        quote_validity:     form.settings.quote_validity     ? parseInt(form.settings.quote_validity as any, 10) : 15,
     };
 
     form.transform((data) => ({ ...data, settings: payload }))
@@ -374,6 +379,33 @@ const deleteModule = (id: number) => {
                                     <InputSwitch v-if="p.type === 'bool'" v-model="p.value" />
                                     <Button icon="pi pi-trash" severity="danger" text rounded @click="removeParameter(form.settings.custom_params.indexOf(p))" />
                                 </div>
+                            </div>
+
+                            <!-- Default Transporter -->
+                            <div class="p-4 bg-orange-50 rounded-xl border border-orange-100">
+                                <h4 class="font-bold text-orange-700 text-sm">Default Transporter <code class="text-[9px] text-orange-400 ml-1 font-normal">[default_transport]</code></h4>
+                                <p class="text-xs text-orange-500 mt-0.5 mb-2">Enter the exact transporter name. The batch create form will auto-select this transporter on load.</p>
+                                <InputText
+                                    v-model="form.settings.default_transport"
+                                    placeholder="e.g. ABC Logistics Pvt Ltd"
+                                    class="w-full text-sm max-w-md"
+                                />
+                                <p v-if="form.settings.default_transport" class="text-[10px] text-orange-600 mt-1 font-semibold">
+                                    ✓ Auto-selecting: {{ form.settings.default_transport }}
+                                </p>
+                            </div>
+
+                            <!-- Quotation Validity Offset -->
+                            <div class="p-4 bg-blue-50 rounded-xl border border-blue-100">
+                                <h4 class="font-bold text-blue-700 text-sm">Quotation Validity Offset (Days) <code class="text-[9px] text-blue-400 ml-1 font-normal">[quote_validity]</code></h4>
+                                <p class="text-xs text-blue-500 mt-0.5 mb-2">Enter the number of days a quotation is valid. When creating or editing a quotation, the validity date will be automatically set to Quote Date + this number of days.</p>
+                                <InputText
+                                    v-model="form.settings.quote_validity"
+                                    type="number"
+                                    placeholder="e.g. 15"
+                                    class="w-full text-sm max-w-xs"
+                                    min="1"
+                                />
                             </div>
                         </div>
                     </div>
