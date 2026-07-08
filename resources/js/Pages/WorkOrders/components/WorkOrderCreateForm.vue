@@ -113,7 +113,7 @@ const form = useForm({
     total_qty: 0,
     produced_qty: 0,
     status: 1,
-    concrete_pump: 'pump' as string | null,
+    concrete_pump: null as number | null,
     scheduled_start: null as Date | null,
     scheduled_end: null as Date | null,
 });

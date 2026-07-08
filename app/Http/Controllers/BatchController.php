@@ -98,7 +98,10 @@ class BatchController extends Controller
                 'mixDesign.items:id,plant_id,mix_design_id,product_id,uom_id,rate,actual_quantity,cross_quantity,variation_quantity',
                 'mixDesign.items.product:id,plant_id,category_id,unit_id,is_service,purchase_tax_id,sale_tax_id,purchase_price,sales_price,title,material_code,product_type,conversion_quantity,code,hsn_code',
                 'mixDesign.items.uom:id,unit_code',
-                'mixDesign.concrete_grade:id,name,concrete_ratio'
+                'mixDesign.concrete_grade:id,name,concrete_ratio',
+                'customerPO.patron',
+                'customerPO.site',
+                'customerPO.quotation.items.mixDesign'
             ])
             ->withCount('batches')
             ->where('plant_id', $activePlantId)
@@ -113,6 +116,20 @@ class BatchController extends Controller
         $salesOrders->each(function ($so) {
             $so->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
             
+            if ($so->customer_po_id && $so->customerPO) {
+                $po = $so->customerPO;
+                $so->customer_id = $so->customer_id ?? $po->patron_id;
+                $so->site_id = $so->site_id ?? $po->site_id;
+                $so->concrete_pump = $so->concrete_pump ?? $po->concrete_pump;
+                $so->sales_executive_id = $so->sales_executive_id ?? $po->sales_executive_id;
+                
+                if ($po->quotation && $po->quotation->items && $po->quotation->items->isNotEmpty()) {
+                    $firstItem = $po->quotation->items->first();
+                    $so->mix_design_id = $so->mix_design_id ?? $firstItem->mix_design_id;
+                    $so->total_qty = $so->total_qty ?? $firstItem->quantity;
+                }
+            }
+
             if ($so->mixDesign) {
                 $so->mixDesign->makeHidden([
                     'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
@@ -240,13 +257,17 @@ class BatchController extends Controller
                     'created_by',
                     'updated_by',
                 ]));
-                
                 $batch = Batch::create($batchData);
                 $this->syncMaterials($batch, $materialsData);
                 
+                $batchingSettings = \App\Models\CustomSetting::getForModule($activePlantId, 'batching');
+                $withStock = filter_var($batchingSettings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN);
+
                 if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
                     $this->checkStock($batch, $materialsData);
-                    $this->adjustStock($batch, $materialsData);
+                    if ($withStock) {
+                        $this->adjustStock($batch, $materialsData);
+                    }
                 }
                 
                 $salesOrder->refreshProduction();
@@ -464,6 +485,9 @@ class BatchController extends Controller
             'salesOrder.mixDesign.items.uom',
             'salesOrder.mixDesign.concrete_grade',
             'salesOrder.site',
+            'salesOrder.customerPO.patron',
+            'salesOrder.customerPO.site',
+            'salesOrder.customerPO.quotation.items.mixDesign',
             'materials',
             'materials.product:id,title', 
             'materials.uom:id,unit_name,unit_code',
@@ -475,6 +499,20 @@ class BatchController extends Controller
             'dispatches.creator:id,email',
             'dispatches.modifier:id,email'
         ]);
+
+        if ($batch->salesOrder && $batch->salesOrder->customer_po_id && $batch->salesOrder->customerPO) {
+            $po = $batch->salesOrder->customerPO;
+            $batch->salesOrder->customer_id = $batch->salesOrder->customer_id ?? $po->patron_id;
+            $batch->salesOrder->site_id = $batch->salesOrder->site_id ?? $po->site_id;
+            $batch->salesOrder->concrete_pump = $batch->salesOrder->concrete_pump ?? $po->concrete_pump;
+            $batch->salesOrder->sales_executive_id = $batch->salesOrder->sales_executive_id ?? $po->sales_executive_id;
+            
+            if ($po->quotation && $po->quotation->items && $po->quotation->items->isNotEmpty()) {
+                $firstItem = $po->quotation->items->first();
+                $batch->salesOrder->mix_design_id = $batch->salesOrder->mix_design_id ?? $firstItem->mix_design_id;
+                $batch->salesOrder->total_qty = $batch->salesOrder->total_qty ?? $firstItem->quantity;
+            }
+        }
 
         // if ($batch->salesOrder?->mixDesign) {
         //     $batch->salesOrder->mixDesign->makeHidden(['is_used_in_quotations', 'is_used_in_batching']);
@@ -522,13 +560,16 @@ class BatchController extends Controller
                     $payload['status'] = $newStatus;
                 }
 
-                if (in_array($newStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                $batchingSettings = \App\Models\CustomSetting::getForModule($batch->plant_id, 'batching');
+                $withStock = filter_var($batchingSettings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN);
+
+                if ($withStock && in_array($newStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
                     $wasDeducted = in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED]);
                     $this->checkStock($batch, $materials, $oldMaterials, $wasDeducted);
                 }
 
                 // Revert old consumption only if it was previously deducted
-                if (in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+                if ($withStock && in_array($oldStatus, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
                     $this->adjustStock($batch, $oldMaterials, true);
                 }
 
@@ -547,7 +588,7 @@ class BatchController extends Controller
             $this->syncMaterials($batch, $materials);
             
             // 2. Apply new consumption only if now dispatched/completed
-            if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+            if ($withStock && in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
                 $this->adjustStock($batch, $materials);
             }
             $batch->salesOrder->refreshProduction();
@@ -603,8 +644,11 @@ class BatchController extends Controller
         DB::transaction(function () use ($batch) {
             $materials = $batch->materials()->get()->toArray();
             
+            $batchingSettings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id ?? session('active_plant_id'), 'batching');
+            $withStock = filter_var($batchingSettings['with_inventory'] ?? true, FILTER_VALIDATE_BOOLEAN);
+
             // Revert stock only if it was previously deducted
-            if (in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
+            if ($withStock && in_array($batch->status, [Batch::STATUS_DISPATCHED, Batch::STATUS_COMPLETED])) {
                 $this->adjustStock($batch, $materials, true);
             }
 

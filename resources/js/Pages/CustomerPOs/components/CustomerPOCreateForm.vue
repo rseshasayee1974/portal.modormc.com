@@ -35,7 +35,7 @@ const form = useForm({
     status: 0 as number | null,
     site_id: null as number | null,
     sales_executive_id: null as number | null,
-    concrete_pump: 'pump' as string | null,
+    concrete_pump: null as number | null,
     order_date: new Date().toISOString().split('T')[0],
     items: [
         { mix_design_id: null as number | null, quantity: null as number | null, rate: null as number | null, tax_id: null as number | null, tax_amount: 0 }

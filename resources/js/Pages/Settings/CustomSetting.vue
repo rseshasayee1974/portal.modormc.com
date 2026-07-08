@@ -37,6 +37,7 @@ const form = useForm({
     settings: {
         newweight:         props.batchingSettings?.newweight == 1,
         manual_weight:     props.batchingSettings?.manual_weight == 1,
+        with_inventory:        props.batchingSettings?.with_inventory !== undefined ? (props.batchingSettings?.with_inventory == 1 || props.batchingSettings?.with_inventory === true || props.batchingSettings?.with_inventory === "true") : true,
         InvoiceInMetricTon:props.batchingSettings?.InvoiceInMetricTon == 1,
         camera:            props.batchingSettings?.camera == 1,
         camera_url:        props.batchingSettings?.camera_url  || '',
@@ -72,6 +73,7 @@ const settingRows = computed(() => [
     { section: 'Weighbridge', key: 'newweight',          label: 'Local API Proxy (V2)',            value: form.settings.newweight,           type: 'bool' },
     { section: 'Weighbridge', key: 'manual_weight',      label: 'Manual Weight Entry',             value: form.settings.manual_weight,        type: 'bool' },
     { section: 'Weighbridge', key: 'InvoiceInMetricTon', label: 'Invoice In Metric Ton',           value: form.settings.InvoiceInMetricTon,   type: 'bool' },
+    { section: 'Weighbridge', key: 'with_inventory',         label: 'Stock Deduction',                 value: form.settings.with_inventory,           type: 'bool' },
     // Camera
     { section: 'Camera',      key: 'camera',             label: 'Enable Snapshots',               value: form.settings.camera,              type: 'bool' },
     { section: 'Camera',      key: 'camera_url',         label: 'Default Camera URL',              value: form.settings.camera_url,          type: 'text' },
@@ -104,6 +106,7 @@ const submit = () => {
         ...form.settings,
         newweight:          form.settings.newweight          ? 1 : 0,
         manual_weight:      form.settings.manual_weight      ? 1 : 0,
+        with_inventory:         form.settings.with_inventory         ? 1 : 0,
         InvoiceInMetricTon: form.settings.InvoiceInMetricTon ? 1 : 0,
         camera:             form.settings.camera             ? 1 : 0,
         sheet_upload:       form.settings.sheet_upload       ? 1 : 0,
@@ -350,6 +353,14 @@ const deleteModule = (id: number) => {
                                     <p class="text-xs text-indigo-500 mt-0.5">Calculate invoice based on Batch Size (m³) instead of Net Weight</p>
                                 </div>
                                 <InputSwitch v-model="form.settings.InvoiceInMetricTon" />
+                            </div>
+
+                            <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                                <div>
+                                    <h4 class="font-bold text-emerald-700 text-sm">Stock Deduction <code class="text-[9px] text-emerald-400 ml-1 font-normal">[with_inventory]</code></h4>
+                                    <p class="text-xs text-emerald-500 mt-0.5">Deduct raw material inventory automatically during batch processing</p>
+                                </div>
+                                <InputSwitch v-model="form.settings.with_inventory" />
                             </div>
 
                             <!-- Dynamic Batching Params -->

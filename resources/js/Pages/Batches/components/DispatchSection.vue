@@ -76,19 +76,19 @@ const form = useForm({
     dispatch_reference: props.dispatch?.dispatch_reference || '',
     dispatch_time: props.dispatch?.dispatch_time ? new Date(props.dispatch.dispatch_time) : new Date(),
     delivered_qty: props.dispatch?.delivered_qty || props.batch?.batch_size || 0,
-    truck_id: props.dispatch?.truck_id || props.batch?.truck_id,
-    transport_id: props.dispatch?.transport_id || props.batch?.transport_id,
-    customer_id: props.dispatch?.customer_id || props.batch?.customer_id,
-    mixdesign_id: props.dispatch?.mixdesign_id || props.batch?.mix_design_id,
-    uom_id: props.dispatch?.uom_id || props.batch?.uom_id || null,
-    load_site_id: props.dispatch?.load_site_id || props.batch?.load_site_id,
-    unload_site_id: props.dispatch?.unload_site_id || props.batch?.unload_site_id,
-    driver_id: props.dispatch?.driver_id || props.batch?.driver_id,
-    sales_executive_id: props.dispatch?.sales_executive_id || props.batch?.sales_executive_id,
+    truck_id: (props.dispatch?.truck_id || props.batch?.truck_id) ? Number(props.dispatch?.truck_id || props.batch?.truck_id) : null,
+    transport_id: (props.dispatch?.transport_id || props.batch?.transport_id) ? Number(props.dispatch?.transport_id || props.batch?.transport_id) : null,
+    customer_id: (props.dispatch?.customer_id || props.batch?.customer_id) ? Number(props.dispatch?.customer_id || props.batch?.customer_id) : null,
+    mixdesign_id: (props.dispatch?.mixdesign_id || props.batch?.mix_design_id) ? Number(props.dispatch?.mixdesign_id || props.batch?.mix_design_id) : null,
+    uom_id: (props.dispatch?.uom_id || props.batch?.uom_id) ? Number(props.dispatch?.uom_id || props.batch?.uom_id) : null,
+    load_site_id: (props.dispatch?.load_site_id || props.batch?.load_site_id) ? Number(props.dispatch?.load_site_id || props.batch?.load_site_id) : null,
+    unload_site_id: (props.dispatch?.unload_site_id || props.batch?.unload_site_id) ? Number(props.dispatch?.unload_site_id || props.batch?.unload_site_id) : null,
+    driver_id: (props.dispatch?.driver_id || props.batch?.driver_id) ? Number(props.dispatch?.driver_id || props.batch?.driver_id) : null,
+    sales_executive_id: (props.dispatch?.sales_executive_id || props.batch?.sales_executive_id) ? Number(props.dispatch?.sales_executive_id || props.batch?.sales_executive_id) : null,
     payment_mode: props.dispatch?.payment_mode || 'credit',
     dispatch_status: props.dispatch?.dispatch_status || 'Draft',
     generate_invoice: false,
-    ledger_id: props.dispatch?.ledger_id || props.dispatch?.status?.invoice?.account_id || null,
+    ledger_id: (props.dispatch?.ledger_id || props.dispatch?.status?.invoice?.account_id) ? Number(props.dispatch?.ledger_id || props.dispatch?.status?.invoice?.account_id) : null,
     invoice_date: props.dispatch?.invoice_date ? new Date(props.dispatch.invoice_date) : (props.dispatch?.status?.invoice_date ? new Date(props.dispatch.status.invoice_date) : new Date()),
     created_at: props.dispatch?.created_at || null,
     updated_at: props.dispatch?.updated_at || null,
@@ -110,7 +110,7 @@ const form = useForm({
     financials: {
         load_units: props.dispatch?.load_units || (props.batch?.loaded_weight_truck ? Number((Number(props.batch.loaded_weight_truck) - Number(props.batch.empty_weight_truck || 0)).toFixed(3)) : (props.batch?.batch_size || 0)),
         load_rate: props.dispatch?.load_rate || 0,
-        load_tax_id: props.dispatch?.load_tax_id || null,
+        load_tax_id: props.dispatch?.load_tax_id ? Number(props.dispatch.load_tax_id) : null,
         load_uom_id: props.dispatch?.load_uom_id || props.batch?.uom_id,
         unload_units: props.dispatch?.unload_units || props.batch?.batch_size || 0,
         unload_rate: props.dispatch?.unload_rate || 0,
@@ -150,7 +150,7 @@ const form = useForm({
         note: props.dispatch?.status?.note || '',
     },
     payment: {
-        payment_method_id: props.dispatch?.payments?.[0]?.payment_method_id || null,
+        payment_method_id: props.dispatch?.payments?.[0]?.payment_method_id ? Number(props.dispatch.payments[0].payment_method_id) : null,
         amount: props.dispatch?.payments?.[0]?.amount || 0,
         collected_by: props.dispatch?.payments?.[0]?.collected_by || '',
         reference: props.dispatch?.payments?.[0]?.reference || ''
@@ -179,16 +179,15 @@ watch(() => props.batch, (newBatch) => {
         form.batch_id = newBatch.id;
         form.batch_size = newBatch.batch_size || 0;
         form.delivered_qty = newBatch.batch_size || 0;
-        form.truck_id = newBatch.truck_id || form.truck_id;
-        form.transport_id = newBatch.transport_id || form.transport_id;
-        form.customer_id = newBatch.customer_id || form.customer_id;
-        form.mixdesign_id = newBatch.mix_design_id || form.mixdesign_id;
-        form.uom_id = newBatch.uom_id || form.uom_id;
-        form.load_site_id = newBatch.load_site_id || form.load_site_id;
-        form.unload_site_id = newBatch.unload_site_id || form.unload_site_id;
-        form.driver_id = newBatch.driver_id || form.driver_id;
-        form.sales_executive_id = newBatch.sales_executive_id || form.sales_executive_id;
-
+        form.truck_id = newBatch.truck_id ? Number(newBatch.truck_id) : form.truck_id;
+        form.transport_id = newBatch.transport_id ? Number(newBatch.transport_id) : form.transport_id;
+        form.customer_id = newBatch.customer_id ? Number(newBatch.customer_id) : form.customer_id;
+        form.mixdesign_id = newBatch.mix_design_id ? Number(newBatch.mix_design_id) : form.mixdesign_id;
+        form.uom_id = newBatch.uom_id ? Number(newBatch.uom_id) : form.uom_id;
+        form.load_site_id = newBatch.load_site_id ? Number(newBatch.load_site_id) : form.load_site_id;
+        form.unload_site_id = newBatch.unload_site_id ? Number(newBatch.unload_site_id) : form.unload_site_id;
+        form.driver_id = newBatch.driver_id ? Number(newBatch.driver_id) : form.driver_id;
+        form.sales_executive_id = newBatch.sales_executive_id ? Number(newBatch.sales_executive_id) : form.sales_executive_id;
         form.weights.empty_weight_truck = newBatch.empty_weight_truck || 0;
         form.weights.loaded_weight_truck = newBatch.loaded_weight_truck || 0;
         form.weights.empty_weight_time_load = newBatch.empty_time ? new Date(newBatch.empty_time) : null;
