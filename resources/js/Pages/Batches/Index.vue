@@ -89,7 +89,8 @@ const blinkingBatchId  = ref<number | null>(null);
 // Fallback REST polling via Inertia reload
 const fetchBatchesFallback = () => {
     router.reload({
-        preserveScroll: true
+        preserveScroll: true,
+        preserveState: true
     });
 };
 
@@ -321,22 +322,24 @@ const handlePreviewClose = async (batchId: number | null) => {
 const handleBatchCreated = () => {
     router.reload({ 
         only: ['batches', 'nextBatchNo', 'salesOrders'],
-        preserveScroll: true 
+        preserveScroll: true,
+        preserveState: true
     })
 }
 const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => {
-    router.reload();
+    router.reload({
+        only: ['batches', 'nextBatchNo', 'salesOrders'],
+        preserveScroll: true,
+        preserveState: true
+    });
     if (payload) {
         const { batchId, type } = payload;
         
         // 1. Refresh row data so both localBatches and detailedBatches are up-to-date
         await refreshBatchRow(batchId);
         
-        // 2. Wait one tick for Vue to flush the reactive updates before showing the modal
+        // 2. Wait one tick for Vue to flush the reactive updates
         await nextTick();
-        
-        // 3. Automatically open print preview
-        viewToken(batchId, type);
     }
 };
 
@@ -361,7 +364,8 @@ const {
         if (reason === 'print' || reason === 'manual') {
             router.reload({ 
                 only: ['batches', 'nextBatchNo'], 
-                preserveScroll: true 
+                preserveScroll: true,
+                preserveState: true
             })
         }
     }
@@ -385,21 +389,8 @@ const customSettings = page.props.custom_settings as any;
 const hideBatchForm  = computed(() => !!customSettings?.batching?.hide_batch_form);
 
 // ── Flash Watchers (auto-show token on create/dispatch) ───────────────────────
-const lastShownBatchId = ref<number | null>(null);
-watch(() => page.props.flash?.new_batch_id, (newVal) => {
-    if (newVal && Number(newVal) !== lastShownBatchId.value) {
-        lastShownBatchId.value = Number(newVal);
-        viewToken(Number(newVal));
-    }
-}, { immediate: true });
-
-const lastDispatchedBatchId = ref<number | null>(null);
-watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
-    if (newVal && Number(newVal) !== lastDispatchedBatchId.value) {
-        lastDispatchedBatchId.value = Number(newVal);
-        viewToken(Number(newVal), 'dispatch');
-    }
-}, { immediate: true });
+// Auto-opening print preview on create/dispatch is disabled as per user request.
+// Users can open it manually via the Actions menu.
 
 // Share Batch Report States
 const showShareBatchModal = ref(false);
@@ -416,7 +407,11 @@ const openShareBatch = (batch: any) => {
 };
 
 const handleInvoiceGenerated = () => {
-router.reload({ only: ['batches', 'nextBatchNo'] });
+    router.reload({ 
+        only: ['batches', 'nextBatchNo'],
+        preserveScroll: true,
+        preserveState: true
+    });
 };
 
 

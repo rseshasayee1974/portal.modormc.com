@@ -62,7 +62,7 @@ const form = useForm({
     patron_id: null as number | null,
     site_id: null as number | null,
     sales_executive_id: null as number | null,
-    concrete_pump: 'pump' as string | null,
+    concrete_pump: null as number | null,
     new_site_name: '' as string,
     is_new_site: false,
     quote_date: initialQuoteDate,

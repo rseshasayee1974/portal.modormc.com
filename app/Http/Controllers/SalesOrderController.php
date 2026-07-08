@@ -66,6 +66,40 @@ class SalesOrderController extends Controller
         return redirect()->back()->with('success', 'Sales Order created successfully.');
     }
 
+    public function show(SalesOrder $salesorder)
+    {
+        $this->authorizeModule('menu');
+        $this->ensurePlantScope($salesorder);
+        
+        $salesorder->load([
+            'customer', 
+            'site', 
+            'mixDesign.items.product', 
+            'mixDesign.items.uom', 
+            'mixDesign.concrete_grade',
+            'customerPO.patron',
+            'customerPO.site',
+            'customerPO.quotation.items.mixDesign'
+        ]);
+
+        if ($salesorder->customer_po_id && $salesorder->customerPO) {
+            $po = $salesorder->customerPO;
+            
+            $salesorder->customer_id = $salesorder->customer_id ?? $po->patron_id;
+            $salesorder->site_id = $salesorder->site_id ?? $po->site_id;
+            $salesorder->concrete_pump = $salesorder->concrete_pump ?? $po->concrete_pump;
+            $salesorder->sales_executive_id = $salesorder->sales_executive_id ?? $po->sales_executive_id;
+            
+            if ($po->quotation && $po->quotation->items && $po->quotation->items->isNotEmpty()) {
+                $firstItem = $po->quotation->items->first();
+                $salesorder->mix_design_id = $salesorder->mix_design_id ?? $firstItem->mix_design_id;
+                $salesorder->total_qty = $salesorder->total_qty ?? $firstItem->quantity;
+            }
+        }
+
+        return response()->json($salesorder);
+    }
+
     public function update(UpdateSalesOrderRequest $request, SalesOrder $salesorder)
     {
         $this->authorizeModule('edit');

@@ -70,7 +70,7 @@ const form = useForm({
     transport_id: null as number | null,
     driver_id: null as number | null,
     sales_executive_id: null as number | null,
-    concrete_pump: 'pump' as string | null,
+    concrete_pump: null as number | null,
     empty_weight_truck: 0,
     uom_id: null as number | null,
     site_id: null as number | null,
@@ -159,7 +159,7 @@ watch(() => form.sales_order_id, (newVal) => {
         form.batch_size = remaining > 6 ? 6 : (remaining > 0 ? remaining : 1);
         
         // Assign sales executive
-        form.sales_executive_id = selectedSalesOrder.value.sales_executive_id || null;
+        form.sales_executive_id = selectedSalesOrder.value.sales_executive_id ? Number(selectedSalesOrder.value.sales_executive_id) : null;
 
         if (selectedSalesOrder.value.mix_design?.items) {
             form.materials = selectedSalesOrder.value.mix_design.items.map((item: any) => ({
@@ -173,7 +173,7 @@ watch(() => form.sales_order_id, (newVal) => {
             form.materials = [blankMaterial()];
         }
         form.batch_no = props.nextBatchNo;
-        form.concrete_pump = selectedSalesOrder.value.concrete_pump;
+        form.concrete_pump = selectedSalesOrder.value.concrete_pump ? Number(selectedSalesOrder.value.concrete_pump) : null;
     } else {
         form.materials = [blankMaterial()];
         form.batch_no = props.nextBatchNo;

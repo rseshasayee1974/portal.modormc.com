@@ -59,4 +59,12 @@ class CustomSetting extends Model
             ->where($moduleNameColumn, $moduleName)
             ->first()?->settings ?? [];
     }
+
+
+    // with stock deduction in batch processing
+    // Checked = true = Stock is deducted
+    // Unchecked = false = Stock is bypassed
+
+    // Select 'Enable' (1) = Stock is deducted
+    // Select 'Disable' (0) = Stock is bypassed
 }

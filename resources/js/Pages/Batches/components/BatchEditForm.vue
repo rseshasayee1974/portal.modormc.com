@@ -67,17 +67,17 @@ const form = useForm({
     sales_order_id: props.batch?.sales_order_id ?? null,
     batch_no: props.batch?.batch_no ?? null,
     batch_size: Number(props.batch?.batch_size ?? 1),
-    truck_id: props.batch?.dispatches?.[0]?.truck_id ?? null,
-    transport_id: props.batch?.dispatches?.[0]?.transport_id ?? null,
-    driver_id: props.batch?.dispatches?.[0]?.driver_id ?? null,
-    sales_executive_id: props.batch?.dispatches?.[0]?.sales_executive_id ?? null,
-    concrete_pump: props.batch?.dispatches?.[0]?.concrete_pump ?? null,
+    truck_id: props.batch?.dispatches?.[0]?.truck_id ? Number(props.batch.dispatches[0].truck_id) : null,
+    transport_id: props.batch?.dispatches?.[0]?.transport_id ? Number(props.batch.dispatches[0].transport_id) : null,
+    driver_id: props.batch?.dispatches?.[0]?.driver_id ? Number(props.batch.dispatches[0].driver_id) : null,
+    sales_executive_id: props.batch?.dispatches?.[0]?.sales_executive_id ? Number(props.batch.dispatches[0].sales_executive_id) : null,
+    concrete_pump: props.batch?.dispatches?.[0]?.concrete_pump ? Number(props.batch.dispatches[0].concrete_pump) : null,
     empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? 0),
     loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? 0),
         
     loaded_weight_photo: null as string | null,
     net_weight: Number(props.batch?.dispatches?.[0]?.net_weight ?? 0),
-    uom_id: props.batch?.uom_id ?? props.uoms?.find((u: any) => String(u.unit_code).toUpperCase() === 'CBM')?.id ?? null,
+    uom_id: props.batch?.uom_id ? Number(props.batch.uom_id) : (props.uoms?.find((u: any) => String(u.unit_code).toUpperCase() === 'CBM')?.id ?? null),
     status: Number(props.batch?.status ?? 1),
     start_time: props.batch?.start_time ? new Date(props.batch.start_time) : new Date(),
     end_time: props.batch?.end_time ? new Date(props.batch.end_time) : new Date(),
@@ -257,18 +257,18 @@ const applyBatchToForm = (newBatch: any) => {
     form.batch_size = Number(newBatch.batch_size ?? 1);
     
     const dispatch = newBatch.dispatches?.[0];
-    form.truck_id = dispatch?.truck_id ?? null;
-    form.transport_id = dispatch?.transport_id ?? null;
-    form.driver_id = dispatch?.driver_id ?? null;
-    form.sales_executive_id = dispatch?.sales_executive_id ?? null;
-    form.concrete_pump = dispatch?.concrete_pump ?? null;
+    form.truck_id = dispatch?.truck_id ? Number(dispatch.truck_id) : null;
+    form.transport_id = dispatch?.transport_id ? Number(dispatch.transport_id) : null;
+    form.driver_id = dispatch?.driver_id ? Number(dispatch.driver_id) : null;
+    form.sales_executive_id = dispatch?.sales_executive_id ? Number(dispatch.sales_executive_id) : null;
+    form.concrete_pump = dispatch?.concrete_pump ? Number(dispatch.concrete_pump) : null;
     form.empty_weight_truck = Number(dispatch?.empty_weight_truck ?? 0);
     form.loaded_weight_truck = Number(dispatch?.loaded_weight_truck ?? 0);
     form.net_weight = Number(dispatch?.net_weight ?? 0);
     form.empty_time = dispatch?.empty_time ? new Date(dispatch.empty_time) : new Date();
     form.load_time = dispatch?.load_time ? new Date(dispatch.load_time) : new Date();
     
-    form.uom_id = newBatch.uom_id ?? props.uoms?.find((u: any) => String(u.unit_code).toUpperCase() === 'CBM')?.id ?? null;
+    form.uom_id = newBatch.uom_id ? Number(newBatch.uom_id) : (props.uoms?.find((u: any) => String(u.unit_code).toUpperCase() === 'CBM')?.id ?? null);
     form.status = Number(newBatch.status ?? 1);
     form.start_time = newBatch.start_time ? new Date(newBatch.start_time) : new Date();
     form.end_time = newBatch.end_time ? new Date(newBatch.end_time) : new Date();

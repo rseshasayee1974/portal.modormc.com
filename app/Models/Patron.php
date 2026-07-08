@@ -19,6 +19,11 @@ class Patron extends Model
     
     protected static function booted()
     {
+// ONLY ACTIVE CUSTOMERS TO BE DISPLAYED GLOBALLY NO OTHER STATUS WILL BE DISPLAYED
+        static::addGlobalScope('active_operational_status', function (\Illuminate\Database\Eloquent\Builder $builder) {
+            $builder->where('mm_patrons.operational_status', 'active');
+        });
+
         static::creating(function ($patron) {
             if (!$patron->code) {
                 $patron->code = self::generateCode($patron->plant_id, $patron->patron_type);

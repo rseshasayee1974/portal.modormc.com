@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { computed, watch } from 'vue';
+import { computed, watch, onMounted, ref } from 'vue';
+import axios from 'axios';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -91,7 +92,21 @@ const selectedMixIngredients = computed(() => {
 const safeSites = computed(() => {
     return (props.sites || []).filter((s: any) => {
         if (!s) return false;
-        return !form.customer_id || (Array.isArray(s.patron_id) ? s.patron_id.includes(form.customer_id) : s.patron_id === form.customer_id);
+        if (!form.customer_id) return true;
+        
+        let patronIds = s.patron_id;
+        if (typeof patronIds === 'string') {
+            try {
+                const parsed = JSON.parse(patronIds);
+                if (Array.isArray(parsed)) patronIds = parsed;
+            } catch (e) {}
+        }
+        
+        const custId = Number(form.customer_id);
+        if (Array.isArray(patronIds)) {
+            return patronIds.map(Number).includes(custId);
+        }
+        return Number(patronIds) === custId;
     });
 });
 
@@ -109,18 +124,53 @@ defaultEnd.setHours(defaultEnd.getHours() + 1);
 const form = useForm({
     prefix: props.salesOrder?.prefix ?? 'SO',
     order_no: props.salesOrder?.order_no ?? '',
-    plant_id: props.salesOrder?.plant_id ?? null,
-    sales_executive_id: props.salesOrder?.sales_executive_id ?? null,
-    customer_id: props.salesOrder?.customer_id ?? null,
-    site_id: props.salesOrder?.site_id ?? null,
-    mix_design_id: props.salesOrder?.mix_design_id ?? null,
-    customer_po_id: props.salesOrder?.customer_po_id ?? null,
+    plant_id: props.salesOrder?.plant_id ? Number(props.salesOrder.plant_id) : null,
+    sales_executive_id: props.salesOrder?.sales_executive_id ? Number(props.salesOrder.sales_executive_id) : null,
+    customer_id: props.salesOrder?.customer_id ? Number(props.salesOrder.customer_id) : null,
+    site_id: props.salesOrder?.site_id ? Number(props.salesOrder.site_id) : null,
+    mix_design_id: props.salesOrder?.mix_design_id ? Number(props.salesOrder.mix_design_id) : null,
+    customer_po_id: props.salesOrder?.customer_po_id ? Number(props.salesOrder.customer_po_id) : null,
     total_qty: Number(props.salesOrder?.total_qty ?? 0),
     produced_qty: Number(props.salesOrder?.produced_qty ?? 0),
     status: Number(props.salesOrder?.status ?? 1),
-    concrete_pump: props.salesOrder?.concrete_pump ?? null,
+    concrete_pump: props.salesOrder?.concrete_pump ? Number(props.salesOrder.concrete_pump) : null,
     scheduled_start: props.salesOrder?.scheduled_start ? new Date(props.salesOrder.scheduled_start) : defaultStart,
     scheduled_end: props.salesOrder?.scheduled_end ? new Date(props.salesOrder.scheduled_end) : defaultEnd,
+});
+
+const isLoading = ref(true);
+
+onMounted(async () => {
+    try {
+        const id = props.salesOrder?.id ?? props.salesOrder?.work_order_id;
+        if (id) {
+            const response = await axios.get(route('salesorders.show', id));
+            const fullData = response.data;
+            
+            // Update form with complete data
+            Object.assign(form, {
+                prefix: fullData.prefix ?? 'SO',
+                order_no: fullData.order_no ?? '',
+                plant_id: fullData.plant_id ? Number(fullData.plant_id) : null,
+                sales_executive_id: fullData.sales_executive_id ? Number(fullData.sales_executive_id) : null,
+                customer_id: fullData.customer_id ? Number(fullData.customer_id) : null,
+                site_id: fullData.site_id ? Number(fullData.site_id) : null,
+                mix_design_id: fullData.mix_design_id ? Number(fullData.mix_design_id) : null,
+                customer_po_id: fullData.customer_po_id ? Number(fullData.customer_po_id) : null,
+                total_qty: Number(fullData.total_qty ?? 0),
+                produced_qty: Number(fullData.produced_qty ?? 0),
+                status: Number(fullData.status ?? 1),
+                concrete_pump: fullData.concrete_pump ? Number(fullData.concrete_pump) : null,
+                scheduled_start: fullData.scheduled_start ? new Date(fullData.scheduled_start) : defaultStart,
+                scheduled_end: fullData.scheduled_end ? new Date(fullData.scheduled_end) : defaultEnd,
+            });
+            form.defaults(form.data());
+        }
+    } catch (e) {
+        console.error('Failed to load full sales order data', e);
+    } finally {
+        isLoading.value = false;
+    }
 });
 
 const customerPOOptions = computed(() => {
@@ -243,7 +293,10 @@ const isOverdue = computed(() => {
 </script>
 
 <template>
-    <div class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-4">
+    <div class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-4 relative">
+        <div v-if="isLoading" class="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-sm rounded-lg">
+            <i class="pi pi-spinner pi-spin text-3xl text-indigo-500"></i>
+        </div>
         <div class="mb-3 flex items-center justify-between">
             <h3 class="text-xs font-bold uppercase tracking-wide text-indigo-800">Edit Sales Order</h3>
             
