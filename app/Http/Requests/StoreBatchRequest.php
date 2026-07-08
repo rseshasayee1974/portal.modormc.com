@@ -39,10 +39,7 @@ class StoreBatchRequest extends FormRequest
             'uom_id' => ['nullable', 'integer', 'exists:mm_product_units,id'],
             'site_id' => ['nullable', 'integer', 'exists:mm_sites,id'],
             'status' => ['nullable', 'integer', 'in:1,2,3,4,5'],
-<<<<<<< HEAD
             'concrete_pump' => ['nullable'],
-=======
->>>>>>> 21158b8bdd5fd931f1fb72426da82b12daa6e0e7
             'concrete_pump' => ['nullable', 'integer', 'exists:mm_machines,id'],
             'materials' => ['nullable', 'array'],
             'materials.*.product_id' => ['required', 'integer', 'exists:mm_products,id'],

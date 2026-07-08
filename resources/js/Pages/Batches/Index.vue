@@ -350,11 +350,7 @@ const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 
         // 3. Automatically open print preview
         // viewToken(batchId, type);
         // 2. Wait one tick for Vue to flush the reactive updates
-<<<<<<< HEAD
-                await nextTick();    
-=======
         await nextTick();
->>>>>>> 21158b8bdd5fd931f1fb72426da82b12daa6e0e7
     }
 };
 
@@ -403,27 +399,14 @@ const page           = usePage();
 const customSettings = page.props.custom_settings as any;
 const hideBatchForm  = computed(() => !!customSettings?.batching?.hide_batch_form);
 
-// ── Flash Watchers (auto-show token on create/dispatch) ───────────────────────
-<<<<<<< HEAD
-const lastShownBatchId = ref<number | null>(null);
-watch(() => page.props.flash?.new_batch_id, (newVal) => {
-    if (newVal && Number(newVal) !== lastShownBatchId.value) {
-        lastShownBatchId.value = Number(newVal);
-        viewToken(Number(newVal));
-    }
-}, { immediate: true });
-
-// const lastDispatchedBatchId = ref<number | null>(null);
-// watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
-//     if (newVal && Number(newVal) !== lastDispatchedBatchId.value) {
-//         lastDispatchedBatchId.value = Number(newVal);
-//         viewToken(Number(newVal), 'dispatch');
+// const lastShownBatchId = ref<number | null>(null);
+// watch(() => page.props.flash?.new_batch_id, (newVal) => {
+//     if (newVal && Number(newVal) !== lastShownBatchId.value) {
+//         lastShownBatchId.value = Number(newVal);
+//         viewToken(Number(newVal));
 //     }
 // }, { immediate: true });
-=======
-// Auto-opening print preview on create/dispatch is disabled as per user request.
-// Users can open it manually via the Actions menu.
->>>>>>> 21158b8bdd5fd931f1fb72426da82b12daa6e0e7
+
 
 // Share Batch Report States
 const showShareBatchModal = ref(false);
