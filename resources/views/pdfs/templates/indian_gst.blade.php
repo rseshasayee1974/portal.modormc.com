@@ -119,46 +119,62 @@
             @endif
         </div>
     </div>
-
+    
     {{-- ITEMS TABLE --}}
     <table class="items-table">
         <thead>
             <tr>
-                <th style="width:30px">#</th>
-                <th style="text-align:left">Description</th>
-                @if($pdfSettings['hsn_code'] ?? true) <th style="width:60px">HSN</th> @endif
-                <th style="width:50px">Qty</th>
-                <th style="width:70px">Rate</th>
-                <th style="width:80px">Taxable</th>
-                <th style="width:120px">Tax Split</th>
-                <th style="width:80px">Total</th>
+                <th class="text-center" style="width:28px">#</th>
+                <th class="text-left">Item &amp; Description</th>
+                @if ($pdfSettings['qty'] ?? true)
+                    <th class="text-right" style="width:55px">Qty</th>
+                @endif
+                @if ($pdfSettings['unit'] ?? true)
+                    <th class="text-center" style="width:50px">Unit</th>
+                @endif
+                <th class="text-right" style="width:80px">{{ $labels['rate'] ?? 'Rate' }}</th>
+                @if ($pdfSettings['tax_rate'] ?? true)
+                    <th class="text-right" style="width:55px">Tax %</th>
+                @endif
+                @if ($pdfSettings['tax_amount'] ?? true)
+                    <th class="text-right" style="width:70px">Tax Amt</th>
+                @endif
+                <th class="text-right" style="width:80px">{{ $labels['amount'] ?? 'Amount' }}</th>
             </tr>
         </thead>
         <tbody>
-            @foreach($data['items'] as $item)
-            @php
-                $taxableVal = $item['unit_price'] * $item['qty'];
-            @endphp
-            <tr>
-                <td class="text-center">{{ $item['no'] }}</td>
-                <td>
-                    <div class="item-name">{{ $item['name'] }}</div>
-                    @if(($pdfSettings['description'] ?? true) && $item['description']) <div class="item-sub">{{ $item['description'] }}</div> @endif
-                </td>
-                @if($pdfSettings['hsn_code'] ?? true) <td class="text-center">{{ $item['hsn'] }}</td> @endif
-                <td class="text-center">{{ number_format($item['qty'], 2) }} <span style="font-size:8px; color:#999">{{ $item['unit'] }}</span></td>
-                <td class="text-right">{{ number_format($item['unit_price'], 2) }}</td>
-                <td class="text-right">{{ number_format($taxableVal, 2) }}</td>
-                <td style="padding: 0;">
-                    <table style="width:100%; height:100%; border-collapse:collapse;">
-                        <tr>
-                            <td style="border:none; padding: 4px; font-size:8px; width:50%; border-right:1px solid #eee">CGST: {{ number_format($item['tax_amount']/2, 2) }}</td>
-                            <td style="border:none; padding: 4px; font-size:8px; width:50%">SGST: {{ number_format($item['tax_amount']/2, 2) }}</td>
-                        </tr>
-                    </table>
-                </td>
-                <td class="text-right bold">{{ number_format($item['total'], 2) }}</td>
-            </tr>
+            @foreach ($data['items'] as $item)
+                <tr>
+                    <td class="text-center">{{ $item['no'] }}</td>
+                    <td>
+                        <div class="item-name">{{ $item['name'] }}</div>
+                        @if (($pdfSettings['description'] ?? true) && $item['description'])
+                            <div class="item-sub">{{ $item['description'] }}</div>
+                        @endif
+                        @if (($pdfSettings['hsn_code'] ?? true) && ($item['hsn'] ?? false))
+                            <div class="small muted">HSN: {{ $item['hsn'] }}</div>
+                        @endif
+                    </td>
+                    @if ($pdfSettings['qty'] ?? true)
+                        <td class="text-right bold">{{ number_format($item['qty'], 2) }}</td>
+                    @endif
+                    @if ($pdfSettings['unit'] ?? true)
+                        <td class="text-center">{{ $item['unit'] }}</td>
+                    @endif
+                    <td class="text-right">{{ number_format($item['unit_price'], 2) }}</td>
+                    @if ($pdfSettings['tax_rate'] ?? true)
+                        <td class="text-right muted">
+                            {{ $item['tax_rate'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? number_format($item['tax_rate'], 0) . '%' : '-' }}
+                        </td>
+                    @endif
+                    @if ($pdfSettings['tax_amount'] ?? true)
+                        <td class="text-right muted">
+                            {{ $item['tax_amount'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? number_format($item['tax_amount'], 2) : '-' }}
+                        </td>
+                    @endif
+                    <td class="text-right bold">
+                        {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($item['total'], 2) }}</td>
+                </tr>
             @endforeach
         </tbody>
     </table>
@@ -180,21 +196,58 @@
         </div>
         <div class="gt-right">
             <table class="gst-summary">
-                <thead><tr><th>Tax Breakup</th><th>Rate</th><th>Amount</th></tr></thead>
                 <tbody>
-                    @foreach($data['totals']['tax_lines'] as $tax)
                     <tr>
-                        <td>{{ $tax['label'] }}</td>
-                        <td class="text-center">---</td>
-                        <td class="text-right">{{ number_format($tax['amount'], 2) }}</td>
+                        <td style="font-weight:bold; color:#64748b;">Sub Total</td>
+                        <td class="text-right">{{ number_format($data['totals']['sub_total'], 2) }}</td>
                     </tr>
-                    @endforeach
-                    @if($data['totals']['shipping'] > 0)
+                    @if (($pdfSettings['discount'] ?? true) && $data['totals']['discount'] > 0)
                     <tr>
-                        <td>Shipping/Freight</td>
-                        <td class="text-center">---</td>
+                        <td style="font-weight:bold; color:#ef4444;">Discount (-)</td>
+                        <td class="text-right" style="color:#ef4444;">{{ number_format($data['totals']['discount'], 2) }}</td>
+                    </tr>
+                    @endif
+                    @foreach($data['totals']['tax_lines'] as $tax)
+                        @php
+                            $showTax = true;
+                            if (str_contains($tax['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) {
+                                $showTax = false;
+                            }
+                            if (str_contains($tax['label'], 'SGST') && !($pdfSettings['sgst'] ?? true)) {
+                                $showTax = false;
+                            }
+                            if (str_contains($tax['label'], 'IGST') && !($pdfSettings['igst'] ?? true)) {
+                                $showTax = false;
+                            }
+                        @endphp
+                        @if ($showTax)
+                        <tr>
+                            <td style="color:#64748b;">{{ $tax['label'] }}</td>
+                            <td class="text-right">{{ number_format($tax['amount'], 2) }}</td>
+                        </tr>
+                        @endif
+                    @endforeach
+                    @if(($pdfSettings['shipping'] ?? true) && $data['totals']['shipping'] > 0)
+                    <tr>
+                        <td style="color:#64748b;">Shipping/Freight</td>
                         <td class="text-right">{{ number_format($data['totals']['shipping'], 2) }}</td>
                     </tr>
+                    @endif
+                    @if (($pdfSettings['adjustment'] ?? true) && ($data['totals']['adjustment'] ?? 0) != 0)
+                        <tr>
+                            <td style="color:#64748b;">Adjustment</td>
+                            <td class="text-right">
+                                {{ $data['totals']['adjustment'] > 0 ? '+' : '' }}{{ number_format($data['totals']['adjustment'], 2) }}
+                            </td>
+                        </tr>
+                    @endif
+                    @if (($pdfSettings['round_off'] ?? true) && ($data['totals']['round_off'] ?? 0) != 0)
+                        <tr>
+                            <td style="color:#64748b;">Round Off</td>
+                            <td class="text-right">
+                                {{ $data['totals']['round_off'] > 0 ? '+' : '' }}{{ number_format($data['totals']['round_off'], 2) }}
+                            </td>
+                        </tr>
                     @endif
                 </tbody>
             </table>

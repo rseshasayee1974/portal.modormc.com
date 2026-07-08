@@ -21,55 +21,76 @@ class TermsConditionController extends Controller
     /**
      * Display a listing of the resource.
      */
- public function index(Request $request)
-{
-    $this->authorizeModule('menu');
-    $user = Auth::user();
 
-    $allowedEntityIds = $user->entityUsers()->pluck('entity_id')->toArray();
+    public function index(Request $request)
+    {
+        $this->authorizeModule('menu');
+        $user = Auth::user();
 
-    $allowedPlantIds = Plant::whereIn('entity_id', $allowedEntityIds)->pluck('id')->toArray();
+        $activePlantId = session('active_plant_id');
+        $activeEntityId = session('active_entity_id');
 
-    $query = TermsCondition::query()
-        ->whereIn('plant_id', $allowedPlantIds)
-        ->with(['plant:id,name', 'entity:id,legal_name']);
+        $entityUsers = $user->entityUsers;
+        $allowedEntityIds = $entityUsers->pluck('entity_id')->unique()->toArray();
+        
+        $allowedPlantIds = [];
+        foreach ($entityUsers as $eu) {
+            if ($eu->plant_id) {
+                $allowedPlantIds[] = $eu->plant_id;
+            } else {
+                $entityPlants = Plant::where('entity_id', $eu->entity_id)->pluck('id')->toArray();
+                $allowedPlantIds = array_merge($allowedPlantIds, $entityPlants);
+            }
+        }
+        $allowedPlantIds = array_unique($allowedPlantIds);
 
-    if ($request->filled('search')) {
-        $query->where(function ($q) use ($request) {
-            $q->where('order_type', 'like', '%' . $request->search . '%')
-              ->orWhere('terms_condition', 'like', '%' . $request->search . '%');
-        });
-    }
+        $query = TermsCondition::query()
+            ->with(['plant:id,name', 'entity:id,legal_name']);
+
+        if ($activePlantId) {
+            $query->where('plant_id', $activePlantId);
+        } else {
+            $query->whereIn('plant_id', $allowedPlantIds);
+        }
+
+        if ($request->filled('search')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('order_type', 'like', '%' . $request->search . '%')
+                  ->orWhere('terms_condition', 'like', '%' . $request->search . '%');
+            });
+        }
 
     // filter terms by plant if user picked one
-    $plantId = $request->input('plant_id');
-    if ($plantId) {
-        $query->where('plant_id', $plantId);
+        $plantId = $request->input('plant_id');
+        if ($plantId) {
+            $query->where('plant_id', $plantId);
+        }
+
+        $sortField = $request->input('sort_field', 'id');
+        $sortDirection = $request->input('sort_direction', 'desc');
+
+        $termsConditions = $query->orderBy($sortField, $sortDirection)
+            ->paginate(10)->withQueryString();
+
+        $plants = Plant::whereIn('id', $allowedPlantIds)
+            ->select('id', 'name', 'entity_id')
+            ->orderBy('name')
+            ->get();
+
+        $entities = Entity::whereIn('id', $allowedEntityIds)
+            ->select('id', 'legal_name')
+            ->orderBy('legal_name')
+            ->get();
+
+        return Inertia::render('TermsConditions/Index', [
+            'termsConditions' => $termsConditions,
+            'filters' => $request->only(['search', 'sort_field', 'sort_direction', 'plant_id']),
+            'plants' => $plants,
+            'entities' => $entities,
+            'active_plant_id' => $activePlantId ? (int) $activePlantId : null,
+            'active_entity_id' => $activeEntityId ? (int) $activeEntityId : null,
+        ]);
     }
-
-    $sortField = $request->input('sort_field', 'id');
-    $sortDirection = $request->input('sort_direction', 'desc');
-
-    $termsConditions = $query->orderBy($sortField, $sortDirection)
-        ->paginate(10)->withQueryString();
-
-    $plants = Plant::whereIn('id', $allowedPlantIds)
-        ->select('id', 'name', 'entity_id')
-        ->orderBy('name')
-        ->get();
-
-    $entities = Entity::whereIn('id', $allowedEntityIds)
-        ->select('id', 'legal_name')
-        ->orderBy('legal_name')
-        ->get();
-
-    return Inertia::render('TermsConditions/Index', [
-        'termsConditions' => $termsConditions,
-        'filters' => $request->only(['search', 'sort_field', 'sort_direction', 'plant_id']),
-        'plants' => $plants,
-        'entities' => $entities,
-    ]);
-}
 
     /**
      * Store a newly created resource in storage.

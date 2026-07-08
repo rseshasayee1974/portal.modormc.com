@@ -23,6 +23,8 @@ const props = defineProps({
     filters:         Object,
     entities:        { type: Array as () => any[], default: () => [] },
     plants:          { type: Array as () => any[], default: () => [] },
+    active_entity_id: Number,
+    active_plant_id: Number,
 });
 
 const store = useTermsConditionStore();
@@ -59,8 +61,8 @@ watch(() => filters.value.global.value, (newVal) => {
 });
 
 const form = ref({
-    entity_id: props.entities?.[0]?.id ?? null as number | null,
-    plant_id: props.plants?.[0]?.id ?? null as number | null,
+    entity_id: props.active_entity_id ?? props.entities?.[0]?.id ?? null as number | null,
+    plant_id: props.active_plant_id ?? props.plants?.[0]?.id ?? null as number | null,
     order_type: '',
     terms_condition: '',
     status: 'active',
@@ -76,19 +78,7 @@ const typeOptions = [
     { label: 'Purchase Bill', value: 'Purchase Bill' },
 ];
 
-const filteredPlants = computed(() => {
-    if (!form.value.entity_id) return [];
-    return props.plants.filter((p: any) => p.entity_id === form.value.entity_id);
-});
 
-watch(() => form.value.entity_id, (newEntityId) => {
-    if (form.value.plant_id) {
-        const plantExists = filteredPlants.value.some((p: any) => p.id === form.value.plant_id);
-        if (!plantExists) {
-            form.value.plant_id = null;
-        }
-    }
-});
 
 const statusOptions = [
     { label: 'Active', value: 'active' },
@@ -99,8 +89,8 @@ const openCreateModal = () => {
     modalMode.value = 'create';
     editingId.value = null;
     form.value = {
-        entity_id: props.entities?.[0]?.id ?? null,
-        plant_id: null,
+        entity_id: props.active_entity_id ?? props.entities?.[0]?.id ?? null,
+        plant_id: props.active_plant_id ?? props.plants?.[0]?.id ?? null,
         order_type: '',
         terms_condition: '',
         status: 'active',
@@ -235,16 +225,7 @@ const onSearch = () => {
 
         <Dialog v-model:visible="showModal" modal :header="modalMode.toUpperCase() + ' TERMS & CONDITIONS'" :style="{ width: '800px' }">
             <div class="grid grid-cols-2 gap-4 py-4">
-                <div class="flex flex-col gap-2">
-                    <label class="text-xs font-semibold uppercase text-gray-500">Legal Entity</label>
-                    <BaseSelect v-model="form.entity_id" :options="props.entities || []" optionLabel="legal_name" optionValue="id" placeholder="Select Entity" fluid filter />
-                    <small v-if="form.errors.entity_id" class="text-red-500">{{ form.errors.entity_id[0] }}</small>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <label class="text-xs font-semibold uppercase text-gray-500">Plant ID</label>
-                    <BaseSelect v-model="form.plant_id" :options="filteredPlants" optionLabel="name" optionValue="id" placeholder="Select Plant ID" fluid filter />
-                    <small v-if="form.errors.plant_id" class="text-red-500">{{ form.errors.plant_id[0] }}</small>
-                </div>
+
 
                 <div class="flex flex-col gap-2">
                     <label class="text-xs font-semibold uppercase text-gray-500">Order Type</label>
