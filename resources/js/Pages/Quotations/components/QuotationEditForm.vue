@@ -71,6 +71,7 @@ const form = useForm({
     site_id: props.quotation.site_id ?? null,
     sales_executive_id: props.quotation.sales_executive_id ?? null,
     concrete_pump: resolveConcretePump(props.quotation.concrete_pump),
+    is_tax_inclusive: props.quotation.is_tax_inclusive ? true : false,
     quote_date: props.quotation.quote_date ? String(props.quotation.quote_date).substring(0, 10) : new Date().toISOString().substring(0, 10),
     validity_date: props.quotation.validity_date ? String(props.quotation.validity_date).substring(0, 10) : null,
     status: Number(props.quotation.status ?? 0),
@@ -149,15 +150,27 @@ const calculateTotals = () => {
     form.items.forEach(item => {
         const rate = Number(item.rate || 0);
         const qty = Number(item.quantity || 0);
-        const untaxed = rate * qty;
         
         const tax = props.taxes.find(t => t.id === item.tax_id);
         const taxRate = tax ? Number(tax.tax_rate ?? tax.rate ?? 0) : 0;
-        const lineTax = (untaxed * taxRate) / 100;
+
+        let untaxed = 0;
+        let lineTax = 0;
+        let lineTotal = 0;
+
+        if (form.is_tax_inclusive) {
+            lineTotal = rate * qty;
+            lineTax = lineTotal - (lineTotal / (1 + taxRate / 100));
+            untaxed = lineTotal - lineTax;
+        } else {
+            untaxed = rate * qty;
+            lineTax = (untaxed * taxRate) / 100;
+            lineTotal = untaxed + lineTax;
+        }
 
         item.untaxed_amount = Number(untaxed.toFixed(2));
         item.tax_amount = Number(lineTax.toFixed(2));
-        item.amount_total = Number((untaxed + lineTax).toFixed(2));
+        item.amount_total = Number(lineTotal.toFixed(2));
 
         totalUntaxed += untaxed;
         totalTax += lineTax;
@@ -169,7 +182,7 @@ const calculateTotals = () => {
     form.amount_total = Number((totalUntaxed + totalTax + Number(form.adjustment || 0)).toFixed(2));
 };
 
-watch(() => [form.items, form.adjustment], calculateTotals, { deep: true, immediate: true });
+watch(() => [form.items, form.adjustment, form.is_tax_inclusive], calculateTotals, { deep: true, immediate: true });
 
 // Reset site selection if it belongs to a different customer
 watch(() => form.patron_id, (newPatronId) => {
@@ -347,6 +360,18 @@ const sendEmail = () => {
                 <i class="pi pi-lock"></i>
                 <span v-if="Number(props.quotation.status) === 2">This quotation has been <strong>Accepted</strong> and can no longer be modified.</span>
                 <span v-else>This quotation has been <strong>Rejected</strong> and can no longer be modified.</span>
+            </div>
+
+            <div class="flex justify-between items-center mb-4 mt-6">
+                <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                    <CalculatorIcon class="w-3.5 h-3.5" />
+                    Line Items
+                </h3>
+                <div class="flex items-center gap-3 bg-slate-50 border border-slate-200/50 rounded-xl px-4 py-1.5 shadow-sm">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
+                    <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_edit" :disabled="isLocked" class="peer hidden" />
+                    <label for="is_tax_inclusive_edit" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
+                </div>
             </div>
 
             <div class="overflow-x-auto overflow-hidden rounded-md border border-slate-100 bg-white">

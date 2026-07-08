@@ -270,7 +270,29 @@
 
     @if($pdfSettings['signature'] ?? true)
     <div style="min-height:80px;padding:10px 18px;border-top:1px solid #ccc;text-align:right;">
-        <div style="margin-top:50px;"><span style="display:inline-block;width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:#64748b">Authorized Signatory<br><span style="font-size:9px">For {{ $data['company']['name'] }}</span></span></div>
+        <div style="margin-top:20px; display: inline-block; text-align: center; position: relative;">
+            @if (!empty($data['company']['seal_sign_path']))
+                @php
+                    $sealPath = ltrim(
+                        str_replace(
+                            ['public/', 'storage/', '/storage/'],
+                            '',
+                            $data['company']['seal_sign_path'],
+                        ),
+                        '/',
+                    );
+                    $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                        ? asset('storage/' . $sealPath)
+                        : public_path('storage/' . $sealPath);
+                @endphp
+                <div style="margin-bottom: -15px; text-align: center;">
+                    <img src="{{ $sealUrl }}" style="max-height: 45px; max-width: 120px; object-fit: contain;" />
+                </div>
+            @else
+                <div style="height: 30px;"></div>
+            @endif
+            <span style="display:inline-block;width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:#64748b">Authorized Signatory<br><span style="font-size:9px">For {{ $data['company']['name'] }}</span></span>
+        </div>
     </div>
     @endif
 

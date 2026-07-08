@@ -681,7 +681,7 @@ const submit = () => {
 <template>
     <div class="rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-100/50 overflow-hidden">
         <!-- Premium Header Banner -->
-        <div class="bg-gradient-to-r from-slate-900 via-cyan-950 to-slate-900 px-6 py-5 text-white">
+        <!-- <div class="bg-gradient-to-r from-slate-900 via-cyan-950 to-slate-900 px-6 py-5 text-white">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
                     <div class="rounded-xl bg-white/10 p-2.5 backdrop-blur-md ring-1 ring-white/20">
@@ -698,7 +698,7 @@ const submit = () => {
                     <span class="text-base font-black text-cyan-300">#{{ batch.batch_no }}</span>
                 </div>
             </div>
-        </div>
+        </div> -->
 
         <div class="p-6 space-y-6">
             <!-- Section 1: Sales Order Selection & Reference Card (Unified Full-Width) -->
@@ -1005,9 +1005,9 @@ const submit = () => {
                                     <p class="text-[10px] text-slate-300 mt-1">Click "Add Material" above to customize ingredients</p>
                                 </div>
 
-                                <div v-else class="overflow-x-auto border border-slate-200 rounded-xl shadow-sm bg-white">
+                                <div v-else class="overflow-auto max-h-[420px] border border-slate-200 rounded-xl shadow-sm bg-white">
                                     <table class="w-full text-left border-collapse whitespace-nowrap">
-                                        <thead>
+                                        <thead class="sticky top-0 z-10">
                                             <tr class="bg-slate-900 text-white">
                                                 <th class="px-4 py-3 font-bold uppercase text-xs tracking-wider" :colspan="form.materials.length + 1">
                                                     Materials Breakdown & Tolerances

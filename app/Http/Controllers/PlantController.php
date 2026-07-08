@@ -87,6 +87,21 @@ class PlantController extends Controller
                 $plant->update(['logo_path' => $path]);
             }
 
+            // Handle Seal & Signature Upload
+            if ($request->hasFile('seal_sign')) {
+                $entity = Entity::find($validated['entity_id']);
+                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
+                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
+                
+                $path = $request->file('seal_sign')->storeAs(
+                    "plants/{$entitySlug}/{$plantSlug}",
+                    "seal_sign_" . time() . "." . $request->file('seal_sign')->getClientOriginalExtension(),
+                    'public'
+                );
+                
+                $plant->update(['seal_sign_path' => $path]);
+            }
+
             // Handle Address
             if (!empty($validated['address']['line_1'])) {
                 $addressData = $validated['address'];
@@ -144,6 +159,26 @@ class PlantController extends Controller
                 );
                 
                 $plant->update(['logo_path' => $path]);
+            }
+
+            // Handle Seal & Signature Upload
+            if ($request->hasFile('seal_sign')) {
+                // Delete old seal_sign if exists
+                if ($plant->seal_sign_path) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($plant->seal_sign_path);
+                }
+
+                $entity = Entity::find($plant->entity_id);
+                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
+                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
+                
+                $path = $request->file('seal_sign')->storeAs(
+                    "plants/{$entitySlug}/{$plantSlug}",
+                    "seal_sign_" . time() . "." . $request->file('seal_sign')->getClientOriginalExtension(),
+                    'public'
+                );
+                
+                $plant->update(['seal_sign_path' => $path]);
             }
 
             // Handle Address

@@ -290,7 +290,7 @@
                 <div class="inv-title">{{ $data['doc_title'] }}</div>
                 <div class="inv-ref">
                     @if ($pdfSettings['invoice_number'] ?? true)
-                        {{ str_contains($data['doc_title'], 'INVOICE') ? 'Invoice#' : ($data['doc_title'] === 'PURCHASE ORDER' ? 'PO#' : 'Ref#') }}
+                        {{ str_contains($data['doc_title'], 'INVOICE') ? 'Invoice#' : ($data['doc_title'] === 'PURCHASE ORDER' ? 'PO # : ' : 'Ref # : ') }}
                         <strong>{{ $data['doc_no'] }}</strong>
                     @endif
                 </div>
@@ -517,7 +517,25 @@
         @if ($pdfSettings['signature'] ?? true)
             <div class="sig-section" style="min-height:80px">
                 <div class="sig-left"></div>
-                <div class="sig-right" style="padding-bottom:10px">
+                <div class="sig-right" style="padding-bottom:10px; position: relative;">
+                    @if (!empty($data['company']['seal_sign_path']))
+                        @php
+                            $sealPath = ltrim(
+                                str_replace(
+                                    ['public/', 'storage/', '/storage/'],
+                                    '',
+                                    $data['company']['seal_sign_path'],
+                                ),
+                                '/',
+                            );
+                            $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                                ? asset('storage/' . $sealPath)
+                                : public_path('storage/' . $sealPath);
+                        @endphp
+                        <div style="margin-bottom: -15px; text-align: center;">
+                            <img src="{{ $sealUrl }}" style="margin-left:150px;max-height: 100px; max-width: 120px; object-fit: contain;" />
+                        </div>
+                    @endif
                     <div class="sig-line">Authorized Signatory<br><span class="small muted">For
                             {{ $data['company']['name'] }}</span></div>
                 </div>

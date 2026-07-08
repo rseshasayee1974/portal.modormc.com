@@ -143,6 +143,11 @@ class Dispatch extends Model
         return $this->hasOne(DispatchStatus::class, 'dispatch_id');
     }
 
+    public function loadTax(): BelongsTo
+    {
+        return $this->belongsTo(Tax::class, 'load_tax_id');
+    }
+
     public function payments()
     {
         return $this->hasMany(DispatchPayment::class, 'dispatch_id');

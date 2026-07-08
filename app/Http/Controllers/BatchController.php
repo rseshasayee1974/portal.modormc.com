@@ -42,6 +42,7 @@ class BatchController extends Controller
         'dispatches.transport', 
         'dispatches.driver',
         'dispatches.salesExecutive',
+        'dispatches.status.invoice',
         'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
         'materials.product:id,title',
         'materials.uom:id,unit_code',
@@ -844,9 +845,12 @@ class BatchController extends Controller
         // Query 3 – plant addresses (hasMany on a nested model — isolated to prevent row duplication)
         $batch->salesOrder?->plant?->load('addresses');
 
-        // Note: materials are NOT loaded — the materials section is commented out in the blade view.
-        // Re-add this load if materials are re-enabled in the view:
-        // $batch->load(['materials:id,batch_id,product_id,material_name,target_qty,uom_id', 'materials.product:id,title', 'materials.uom:id,unit_code']);
+        // Query 4 – materials for the batching token (target qty + per-CBM rate)
+        $batch->load([
+            'materials:id,batch_id,product_id,material_name,target_qty,uom_id',
+            'materials.product:id,title',
+            'materials.uom:id,unit_code',
+        ]);
     }
 
     public function dispatchToken(Batch $batch)
@@ -929,17 +933,18 @@ class BatchController extends Controller
             'salesOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
             'salesOrder.customer:id,legal_name',
             'salesOrder.site:id,name',
-            'salesOrder.plant:id,entity_id,name,logo_path',
+            'salesOrder.plant:id,entity_id,name,logo_path,seal_sign_path',
             'salesOrder.plant.entity:id,legal_name',
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,transport_expenses,adjustment_amount,round_off,load_tax_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
             'dispatches.transport:id,legal_name',
             'dispatches.loadSite:id,name',
+            'dispatches.loadTax',
             'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
             'materials.product:id,title',
             'materials.uom:id,unit_code',
@@ -948,20 +953,12 @@ class BatchController extends Controller
 
         $this->ensurePlantScope($batch->salesOrder);
 
-        $templateKey = \App\Services\PrintDataFormatter::resolveTemplateKey('delivery_challans', $batch->salesOrder->plant_id);
-        $view = \App\Services\PrintDataFormatter::resolveView($templateKey);
-
-        if ($templateKey === 'delivery_challan_a4') {
-            $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
-            return view($view, [
-                'batch' => $batch,
-                'isPreview' => true,
-                'settings' => $settings,
-            ]);
-        }
-
-        $data = \App\Services\PrintDataFormatter::fromDeliveryChallan($batch);
-        return view($view, ['data' => $data]);
+        $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
+        return view('pdfs.batches.delivery_token', [
+            'batch' => $batch,
+            'isPreview' => true,
+            'settings' => $settings,
+        ]);
     }
 
     public function downloadDeliveryTokenPdf(Batch $batch)
@@ -970,17 +967,18 @@ class BatchController extends Controller
             'salesOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
             'salesOrder.customer:id,legal_name',
             'salesOrder.site:id,name',
-            'salesOrder.plant:id,entity_id,name,logo_path',
+            'salesOrder.plant:id,entity_id,name,logo_path,seal_sign_path',
             'salesOrder.plant.entity:id,legal_name',
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,transport_expenses,adjustment_amount,round_off,load_tax_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
             'dispatches.transport:id,legal_name',
             'dispatches.loadSite:id,name',
+            'dispatches.loadTax',
             'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
             'materials.product:id,title',
             'materials.uom:id,unit_code',
@@ -989,20 +987,12 @@ class BatchController extends Controller
 
         $this->ensurePlantScope($batch->salesOrder);
 
-        $templateKey = \App\Services\PrintDataFormatter::resolveTemplateKey('delivery_challans', $batch->salesOrder->plant_id);
-        $view = \App\Services\PrintDataFormatter::resolveView($templateKey);
-
-        if ($templateKey === 'delivery_challan_a4') {
-            $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
-            $pdf = Pdf::loadView($view, [
-                'batch' => $batch,
-                'isPreview' => false,
-                'settings' => $settings,
-            ])->setPaper('a4', 'portrait');
-        } else {
-            $data = \App\Services\PrintDataFormatter::fromDeliveryChallan($batch);
-            $pdf = Pdf::loadView($view, ['data' => $data])->setPaper('a4', 'portrait');
-        }
+        $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
+        $pdf = Pdf::loadView('pdfs.batches.delivery_token', [
+            'batch' => $batch,
+            'isPreview' => false,
+            'settings' => $settings,
+        ])->setPaper('a4', 'portrait');
 
         $filename = sprintf('delivery-token-%s.pdf', $batch->batch_no ?? $batch->id);
         return $pdf->download($filename);
@@ -1124,8 +1114,8 @@ class BatchController extends Controller
                 'plant_id' => $plantId,
                 'product_id' => $item['product_id'],
                 'material_name' => $materialName,
-                'target_qty' => $item['target_qty'],
-                'actual_qty' => $item['actual_qty'],
+                'target_qty' => $item['target_qty'] ?? 0,
+                'actual_qty' => $item['actual_qty'] ?? 0,
                 'deviation_quantity' => $item['deviation_quantity'] ?? 0,
                 'uom_id' => $item['uom_id'],
             ]);

@@ -224,7 +224,8 @@
         @if ($batch->workOrder?->plant && $batch->workOrder->plant->addresses->isNotEmpty())
             @php $plAddr = $batch->workOrder->plant->addresses->first(); @endphp
             <div class="company-address">
-                {{ $plAddr->line_1 ?? '' }}, {{ $plAddr->city ?? '' }}, {{ $plAddr->state->state_name ?? $plAddr->state_code ?? '' }} - {{ $plAddr->zipcode ?? '' }}
+                {{ $plAddr->line_1 ?? '' }}, {{ $plAddr->city ?? '' }},
+                {{ $plAddr->state->state_name ?? ($plAddr->state_code ?? '') }} - {{ $plAddr->zipcode ?? '' }}
             </div>
         @endif
         <div class="token-title">DISPATCH TOKEN</div>
@@ -298,13 +299,15 @@
                 $dispatchDate = $dispatchInstance->dispatch_time ?? $dispatchInstance->created_at;
                 $dateString = $dispatchDate ? $dispatchDate->toDateString() : date('Y-m-d');
                 $tripsDoneCount = \App\Models\Dispatch::where('truck_id', $dispatchInstance->truck_id)
-                    ->where(function($q) use ($unloadSiteId) {
-                        $q->where('unload_site_id', $unloadSiteId)
-                          ->orWhere(fn($sq) => $sq->whereNull('unload_site_id')->whereHas('workOrder', fn($ssq) => $ssq->where('site_id', $unloadSiteId)));
+                    ->where(function ($q) use ($unloadSiteId) {
+                        $q->where('unload_site_id', $unloadSiteId)->orWhere(
+                            fn($sq) => $sq
+                                ->whereNull('unload_site_id')
+                                ->whereHas('workOrder', fn($ssq) => $ssq->where('site_id', $unloadSiteId)),
+                        );
                     })
-                    ->where(function($q) use ($dateString) {
-                        $q->whereDate('dispatch_time', $dateString)
-                          ->orWhereDate('created_at', $dateString);
+                    ->where(function ($q) use ($dateString) {
+                        $q->whereDate('dispatch_time', $dateString)->orWhereDate('created_at', $dateString);
                     })
                     ->where('id', '<', $dispatchInstance->id)
                     ->count();
@@ -339,14 +342,14 @@
     @php
         $isMetricTon = !empty($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
         $dispatch = $batch->dispatches->first();
-        
+
         $emptyWeight = (float) ($dispatch?->empty_weight_truck ?? 0);
         $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
-        $netWeight = (float) ($dispatch?->net_weight ?? ($loadedWeight - $emptyWeight));
-        
+        $netWeight = (float) ($dispatch?->net_weight ?? $loadedWeight - $emptyWeight);
+
         $unitLabel = $isMetricTon ? ' MTR' : ' KGS';
         $decimals = $isMetricTon ? 3 : 0;
-        
+
         $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel;
         $loadedWeightStr = number_format($loadedWeight, $decimals) . $unitLabel;
         $netWeightStr = number_format($netWeight, $decimals) . $unitLabel;
@@ -381,7 +384,9 @@
 
     @if ($batch->materials->count() > 0)
         <div class="divider"></div>
-        <div style="font-weight: bold; text-align: center; margin-bottom: 4px; font-size: 10px; color: #000000 !important; letter-spacing: 0.05em;">DISPATCHED MATERIALS</div>
+        <div
+            style="font-weight: bold; text-align: center; margin-bottom: 4px; font-size: 10px; color: #000000 !important; letter-spacing: 0.05em;">
+            DISPATCHED MATERIALS</div>
         <table class="materials-table">
             <thead>
                 <tr>
@@ -392,21 +397,38 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($batch->materials as $mat)
+                @php
+                    $groupedMaterials = $batch->materials->groupBy(function($mat) {
+                        return $mat->product_id ?? $mat->material_name;
+                    })->map(function($group) {
+                        $first = $group->first();
+                        $target = $group->sum('target_qty');
+                        $actual = $group->sum('actual_qty');
+                        $deviation = $group->sum('deviation_quantity');
+                        return (object)[
+                            'material_name' => $first->material_name ?: ($first->product->title ?? 'Material'),
+                            'target_qty' => $target,
+                            'actual_qty' => $actual,
+                            'deviation_quantity' => $deviation,
+                        ];
+                    });
+                @endphp
+                @foreach ($groupedMaterials as $mat)
                     @php
                         $target = (float) $mat->target_qty;
                         $actual = (float) $mat->actual_qty;
-                        $deviationVal = (float) $mat->deviation_quantity;
+                        $deviationVal = $actual - $target;
                         $devPercent = 0;
                         if ($target > 0) {
                             $devPercent = ($deviationVal / $target) * 100;
                         }
                     @endphp
                     <tr>
-                        <td>{{ $mat->material_name ?: $mat->product->title ?? 'Material' }}</td>
+                        <td>{{ $mat->material_name }}</td>
                         <td class="text-right font-mono">{{ number_format($target, 0) }}</td>
                         <td class="text-right font-mono">{{ number_format($actual, 0) }}</td>
-                        <td class="text-right font-mono">{{ ($devPercent > 0 ? '+' : '') . number_format($devPercent, 1) }}%</td>
+                        <td class="text-right font-mono">
+                            {{ ($devPercent > 0 ? '+' : '') . number_format($devPercent, 1) }}%</td>
                     </tr>
                 @endforeach
             </tbody>

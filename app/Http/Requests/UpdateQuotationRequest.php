@@ -44,6 +44,7 @@ class UpdateQuotationRequest extends FormRequest
                 \Illuminate\Validation\Rule::unique('mm_quotations', 'reference')->ignore($quotationId),
             ],
             'patron_id' => 'required|exists:mm_patrons,id',
+            'is_tax_inclusive' => 'nullable|boolean',
             'site_id' => 'nullable|exists:mm_sites,id',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
             'concrete_pump' => 'nullable|integer|exists:mm_machines,id',

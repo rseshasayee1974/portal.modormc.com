@@ -51,6 +51,8 @@ const blankForm = () => ({
     ewaybill_client_id: '',
     ewaybill_secret: '',
     logo: null as File | null,
+    seal_sign_path: null as string | null,
+    seal_sign: null as File | null,
     address: {
         address_type_id: props.addressTypes?.[0]?.id ?? null,
         line_1: '', line_2: '', city: '',
@@ -105,6 +107,8 @@ const populatePlantForm = (form: any, plant: any) => {
     form.ewaybill_secret = plant.ewaybill_secret || '';
     form.logo_path = plant.logo_path || null;
     form.logo = null;
+    form.seal_sign_path = plant.seal_sign_path || null;
+    form.seal_sign = null;
     
     form.address = {
         address_type_id: address.address_type_id || (props.addressTypes?.[0]?.id ?? null),

@@ -35,6 +35,20 @@ const logoPreview = computed(() => {
     return null;
 });
 
+const sealPreview = computed(() => {
+    if (props.form.seal_sign && props.form.seal_sign instanceof File) {
+        try {
+            return URL.createObjectURL(props.form.seal_sign);
+        } catch (e) {
+            return null;
+        }
+    }
+    if (props.form.seal_sign_path) {
+        return `/storage/${props.form.seal_sign_path}`;
+    }
+    return null;
+});
+
 // --- Dynamic Address Lookup Logic ---
 const districts = ref<string[]>([]);
 const allLocations = ref<any[]>([]);
@@ -314,6 +328,24 @@ onMounted(() => {
                             type="file" 
                             accept="image/*" 
                             @change="(e: any) => form.logo = e.target.files[0]"
+                            class="text-[10px] text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                        />
+                    </div>
+                </div>
+
+                <div class="col-span-12 md:col-span-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Seal & Signature</label>
+                    <div class="mt-1 flex items-center gap-3">
+                        <div v-if="sealPreview" class="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center">
+                            <img 
+                                :src="sealPreview" 
+                                class="w-full h-full object-contain"
+                            />
+                        </div>
+                        <input 
+                            type="file" 
+                            accept="image/*" 
+                            @change="(e: any) => form.seal_sign = e.target.files[0]"
                             class="text-[10px] text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
                         />
                     </div>
