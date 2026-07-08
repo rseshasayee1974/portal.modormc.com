@@ -37,6 +37,7 @@ class StoreQuotationRequest extends FormRequest
         return [
             'reference' => 'nullable|string|max:100|unique:mm_quotations,reference',
             'patron_id' => 'required|exists:mm_patrons,id',
+            'is_tax_inclusive' => 'nullable|boolean',
             'site_id' => 'nullable|required_without:new_site_name|exists:mm_sites,id',
             'new_site_name' => 'nullable|string|max:255',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',

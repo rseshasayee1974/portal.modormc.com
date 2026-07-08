@@ -397,14 +397,15 @@ class PrintDataFormatter
         // Company
         $plAddr = $invoice->plant->addresses->first();
         $data['company'] = [
-            'name'    => $invoice->plant->entity->entity_name ?? $invoice->plant->name ?? 'Company',
-            'address' => $plAddr->line_1 ?? '',
-            'city'    => $plAddr->city ?? '',
-            'state'   => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
-            'pin'     => $plAddr->zipcode ?? '',
-            'gstin'   => $invoice->plant->gstin ?? '',
-            'phone'   => $invoice->plant->phone ?? '',
-            'email'   => $invoice->plant->email ?? '',
+            'name'           => $invoice->plant->entity->entity_name ?? $invoice->plant->name ?? 'Company',
+            'address'        => $plAddr->line_1 ?? '',
+            'city'           => $plAddr->city ?? '',
+            'state'          => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
+            'pin'            => $plAddr->zipcode ?? '',
+            'gstin'          => $invoice->plant->gstin ?? '',
+            'phone'          => $invoice->plant->phone ?? '',
+            'email'          => $invoice->plant->email ?? '',
+            'seal_sign_path' => $invoice->plant->seal_sign_path ?? '',
         ];
 
         // Bill To
@@ -518,18 +519,21 @@ class PrintDataFormatter
         $data['doc_date']  = $quotation->quote_date?->format('d/m/Y') ?? now()->format('d/m/Y');
         $data['due_date']  = $quotation->validity_date?->format('d/m/Y') ?? 'N/A';
         $data['state']     = strtoupper($quotation->status_text ?? 'DRAFT');
+        $isTaxInclusive    = (bool)($quotation->is_tax_inclusive ?? false);
+        $data['is_tax_inclusive'] = $isTaxInclusive;
 
         // Company
         $plAddr = $quotation->plant->addresses->first();
         $data['company'] = [
-            'name'    => $quotation->plant->entity->entity_name ?? $quotation->plant->name,
-            'address' => $plAddr->line_1 ?? '',
-            'city'    => $plAddr->city ?? '',
-            'state'   => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
-            'pin'     => $plAddr->zipcode ?? '',
-            'gstin'   => $quotation->plant->gstin ?? '',
-            'phone'   => $quotation->plant->phone ?? '',
-            'email'   => $quotation->plant->email ?? '',
+            'name'           => $quotation->plant->entity->entity_name ?? $quotation->plant->name,
+            'address'        => $plAddr->line_1 ?? '',
+            'city'           => $plAddr->city ?? '',
+            'state'          => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
+            'pin'            => $plAddr->zipcode ?? '',
+            'gstin'          => $quotation->plant->gstin ?? '',
+            'phone'          => $quotation->plant->phone ?? '',
+            'email'          => $quotation->plant->email ?? '',
+            'seal_sign_path' => $quotation->plant->seal_sign_path ?? '',
         ];
 
         // Bill To (Patron)
@@ -562,13 +566,13 @@ class PrintDataFormatter
         }
 
         // Items
-        $data['items'] = $quotation->items->map(function ($item, $idx) use ($isIntra) {
+        $data['items'] = $quotation->items->map(function ($item, $idx) use ($isIntra, $isTaxInclusive) {
             $taxModel = $item->tax;
             $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
             $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : '';
             $taxName  = $taxModel ? ($taxModel->tax_name ?? '') : '';
             $priceTax = (float)$item->tax_amount;
-            $subtotal = (float)($item->quantity * $item->rate);
+            $subtotal = (float)($item->untaxed_amount ?? ($item->quantity * $item->rate));
 
             if ($taxRate <= 0 && $priceTax > 0 && $subtotal > 0) {
                 $taxRate = round(($priceTax / $subtotal) * 100, 2);
@@ -596,6 +600,10 @@ class PrintDataFormatter
                 }
             }
 
+            $unitPrice = $isTaxInclusive
+                ? (float)($item->quantity > 0 ? ($subtotal / $item->quantity) : $item->rate)
+                : (float)$item->rate;
+
             return [
                 'no'           => $idx + 1,
                 'name'         => $item->mixDesign->design_name ?? 'N/A',
@@ -604,7 +612,7 @@ class PrintDataFormatter
                 'qty'          => (float)$item->quantity,
                 'received_qty' => 0,
                 'unit'         => $item->mixDesign->unit->unit_code ?? '',
-                'unit_price'   => (float)$item->rate,
+                'unit_price'   => $unitPrice,
                 'tax_name'     => $taxName ?: '-',
                 'tax_rate'     => $taxRate,
                 'tax_group'    => $taxGroup,
@@ -870,6 +878,7 @@ if ($point > 0) {
             'dispatches.truck',
             'dispatches.driver',
             'dispatches.transport',
+            'dispatches.loadTax',
             'materials.product',
             'materials.uom',
             'operator'
@@ -923,11 +932,60 @@ if ($point > 0) {
             'pin'     => $site->zipcode ?? $data['bill_to']['pin'],
         ];
 
-        // Items (Batch Materials)
-        $data['items'] = $batch->materials->map(function ($item, $idx) {
+        // Group target materials to prevent split-up mixer details
+        $groupedMaterials = $batch->materials->groupBy(function($mat) {
+            return $mat->product_id ?? $mat->material_name;
+        })->map(function($group) {
+            $first = $group->first();
+            $target = $group->sum('target_qty');
+            $actual = $group->sum('actual_qty');
+            $deviation = $group->sum('deviation_quantity');
+            return (object)[
+                'material_name' => $first->material_name ?: ($first->product->title ?? 'Material'),
+                'uom_code' => $first->uom->unit_code ?? 'kg',
+                'hsn_code' => $first->product->hsn_code ?? '-',
+                'target_qty' => $target,
+                'actual_qty' => $actual,
+                'deviation_quantity' => $deviation,
+            ];
+        });
+
+        $itemsList = [];
+
+        // 1. Prepend Concrete Mix Design as primary line item with pricing
+        if ($dispatch) {
+            $mixDesign = $batch->salesOrder->mixDesign;
+            $mixDesignName = $mixDesign?->design_name ?? ($mixDesign?->concrete_grade?->name ?? 'Concrete Mix');
+            $qty = (float)($dispatch->delivered_qty ?: $batch->batch_size);
+            $rate = (float)($dispatch->load_rate ?? 0);
+            $subTotal = (float)($dispatch->load_untax_amount ?? ($qty * $rate));
+            $taxAmount = (float)($dispatch->load_tax_amount ?? 0);
+            $totalAmount = (float)($dispatch->load_total_amount ?? ($subTotal + $taxAmount));
+            $taxRate = $dispatch->loadTax?->rate ?? 0;
+            $taxName = $dispatch->loadTax?->name ?? '-';
+
+            $itemsList[] = [
+                'no'           => 1,
+                'name'         => $mixDesignName,
+                'description'  => "Concrete Mix Design - " . ($mixDesign?->design_code ?? ''),
+                'hsn'          => '3824',
+                'qty'          => $qty,
+                'received_qty' => $qty,
+                'unit'         => $dispatch->uom?->unit_code ?? 'CBM',
+                'unit_price'   => $rate,
+                'tax_name'     => $taxName,
+                'tax_rate'     => $taxRate,
+                'tax_amount'   => $taxAmount,
+                'total'        => $totalAmount,
+            ];
+        }
+
+        // 2. Add target materials underneath as zero-pricing items
+        $sno = count($itemsList) + 1;
+        foreach ($groupedMaterials->values() as $item) {
             $target = (float) $item->target_qty;
             $actual = (float) $item->actual_qty;
-            $deviationVal = (float) $item->deviation_quantity;
+            $deviationVal = $actual - $target;
             $devPercent = 0;
             if ($target > 0) {
                 $devPercent = ($deviationVal / $target) * 100;
@@ -937,38 +995,49 @@ if ($point > 0) {
             $desc = sprintf(
                 "Target: %s %s | Actual: %s %s | Dev: %s%s%%",
                 number_format($target, 2),
-                $item->uom?->unit_code ?? 'kg',
+                $item->uom_code,
                 number_format($actual, 2),
-                $item->uom?->unit_code ?? 'kg',
+                $item->uom_code,
                 $devSign,
                 number_format($devPercent, 2)
             );
 
-            return [
-                'no'           => $idx + 1,
-                'name'         => $item->material_name ?: ($item->product->title ?? 'Material'),
+            $itemsList[] = [
+                'no'           => $sno++,
+                'name'         => $item->material_name,
                 'description'  => $desc,
-                'hsn'          => $item->product->hsn_code ?? '-',
+                'hsn'          => $item->hsn_code,
                 'qty'          => $actual ?: $target,
                 'received_qty' => $actual,
-                'unit'         => $item->uom?->unit_code ?? 'kg',
+                'unit'         => $item->uom_code,
                 'unit_price'   => 0.00,
                 'tax_name'     => '-',
                 'tax_rate'     => 0.00,
                 'tax_amount'   => 0.00,
                 'total'        => 0.00,
             ];
-        })->toArray();
+        }
 
-        // Totals (set to 0 since Delivery Challan is non-financial)
+        $data['items'] = $itemsList;
+
+        // Totals from Dispatch Table
+        $taxLines = [];
+        if ($dispatch && $dispatch->load_tax_amount > 0) {
+            $taxLines[] = [
+                'name'   => $dispatch->loadTax?->name ?? 'GST',
+                'rate'   => $dispatch->loadTax?->rate ?? 18,
+                'amount' => (float)$dispatch->load_tax_amount,
+            ];
+        }
+
         $data['totals'] = [
-            'sub_total'   => 0.00,
-            'discount'    => 0.00,
-            'tax_lines'   => [],
-            'shipping'    => 0.00,
-            'adjustment'  => 0.00,
-            'round_off'   => 0.00,
-            'grand_total' => 0.00,
+            'sub_total'   => (float)($dispatch?->load_untax_amount ?? 0),
+            'discount'    => (float)($dispatch?->discount_amount ?? 0),
+            'tax_lines'   => $taxLines,
+            'shipping'    => (float)($dispatch?->transport_expenses ?? 0),
+            'adjustment'  => (float)($dispatch?->adjustment_amount ?? 0),
+            'round_off'   => (float)($dispatch?->round_off ?? 0),
+            'grand_total' => (float)($dispatch?->load_total_amount ?? 0),
         ];
 
         // Metadata & Weights

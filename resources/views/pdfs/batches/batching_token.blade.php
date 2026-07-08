@@ -223,7 +223,8 @@
         @if ($batch->workOrder?->plant && $batch->workOrder->plant->addresses->isNotEmpty())
             @php $plAddr = $batch->workOrder->plant->addresses->first(); @endphp
             <div class="company-address">
-                {{ $plAddr->line_1 ?? '' }}, {{ $plAddr->city ?? '' }}, {{ $plAddr->state->state_name ?? $plAddr->state_code ?? '' }} - {{ $plAddr->zipcode ?? '' }}
+                {{ $plAddr->line_1 ?? '' }}, {{ $plAddr->city ?? '' }},
+                {{ $plAddr->state->state_name ?? ($plAddr->state_code ?? '') }} - {{ $plAddr->zipcode ?? '' }}
             </div>
         @endif
         <div class="token-title">BATCHING TOKEN</div>
@@ -339,7 +340,9 @@
 
     @if ($batch->materials->count() > 0)
         <div class="divider"></div>
-        <div style="font-weight: 800; text-align: center; margin-bottom: 4px; font-size: 11px; color: #475569; letter-spacing: 0.05em;">TARGET MATERIALS</div>
+        <div
+            style="font-weight: 800; text-align: center; margin-bottom: 4px; font-size: 11px; color: #475569; letter-spacing: 0.05em;">
+            TARGET MATERIALS</div>
         <table class="materials-table">
             <thead>
                 <tr>
@@ -348,9 +351,21 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($batch->materials as $mat)
+                @php
+                    $groupedMaterials = $batch->materials->groupBy(function($mat) {
+                        return $mat->product_id ?? $mat->material_name;
+                    })->map(function($group) {
+                        $first = $group->first();
+                        $target = $group->sum('target_qty');
+                        return (object)[
+                            'material_name' => $first->material_name ?: ($first->product->title ?? 'Material'),
+                            'target_qty' => $target,
+                        ];
+                    });
+                @endphp
+                @foreach ($groupedMaterials as $mat)
                     <tr>
-                        <td>{{ $mat->material_name ?: $mat->product->title ?? 'Material' }}</td>
+                        <td>{{ $mat->material_name }}</td>
                         <td class="text-right font-mono">{{ number_format((float) $mat->target_qty, 2) }}</td>
                     </tr>
                 @endforeach

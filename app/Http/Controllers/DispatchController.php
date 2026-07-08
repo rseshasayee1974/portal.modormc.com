@@ -102,10 +102,11 @@ Log::info($dispatch);
                 $dispatch->status()->updateOrCreate(['dispatch_id' => $dispatch->id], $statusData);
 
                 // 5. Process Immediate Payment if provided
-                if (strtolower($dispatch->payment_mode) === 'cash'|| 'Cash' || 'CASH' && !empty($validated['payment']) && (float)($validated['payment']['amount'] ?? 0) > 0) {
+                if (in_array(strtolower($dispatch->payment_mode), ['cash']) && !empty($validated['payment']['payment_method_id'])) {
                     $paymentData = $validated['payment'];
                     $paymentData['dispatch_id'] = $dispatch->id;
-                    $paymentData['payment_type'] = 'partial';
+                    $paymentData['amount'] = $dispatch->load_total_amount;
+                    $paymentData['payment_type'] = 'full';
                     $paymentData['is_active'] = true;
                     DispatchPayment::create($paymentData);
                 }
@@ -194,19 +195,19 @@ if ($user && collect($user->getRoleNames())
             }
 
             // 5. Update Payment
-            if (strtolower($dispatch->payment_mode) === 'cash' && !empty($validated['payment']) && (float)($validated['payment']['amount'] ?? 0) > 0) {
+            if (in_array(strtolower($dispatch->payment_mode), ['cash']) && !empty($validated['payment']['payment_method_id'])) {
                  $paymentData = $validated['payment'];
                  $paymentData['dispatch_id'] = $dispatch->id;
-                 $paymentData['payment_type'] = 'partial';
+                 $paymentData['amount'] = $dispatch->load_total_amount;
+                 $paymentData['payment_type'] = 'full';
                  $paymentData['is_active'] = true;
                  
-                 // For now, updateOrCreate first payment (simpler logic for initial dev)
                  $dispatch->payments()->updateOrCreate(
                     ['dispatch_id' => $dispatch->id],
                     $paymentData
                  );
-            } elseif (strtolower($dispatch->payment_mode) === 'credit') {
-                // Remove any payments if switched to credit
+            } else {
+                // Remove any payments if switched to credit or payment method cleared
                 $dispatch->payments()->delete();
             }
 

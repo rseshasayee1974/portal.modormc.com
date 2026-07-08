@@ -22,6 +22,7 @@ class QuotationFactory extends Factory
             'amount_untaxed' => 1000,
             'amount_tax' => 180,
             'amount_total' => 1180,
+            'is_tax_inclusive' => false,
             'status' => Quotation::STATUS_DRAFT,
         ];
     }

@@ -214,7 +214,25 @@
             E. &amp; O.E.<br>
             <span style="font-size:8px">This is a computer generated document.</span>
         </div>
-        <div class="sig-right">
+        <div class="sig-right" style="position: relative;">
+            @if (!empty($data['company']['seal_sign_path']))
+                @php
+                    $sealPath = ltrim(
+                        str_replace(
+                            ['public/', 'storage/', '/storage/'],
+                            '',
+                            $data['company']['seal_sign_path'],
+                        ),
+                        '/',
+                    );
+                    $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                        ? asset('storage/' . $sealPath)
+                        : public_path('storage/' . $sealPath);
+                @endphp
+                <div style="margin-bottom: -20px; text-align: center;">
+                    <img src="{{ $sealUrl }}" style="margin-left:150px;max-height: 100px; max-width: 120px; object-fit: contain;" />
+                </div>
+            @endif
             <div class="sig-line">
                 Authorized Signatory<br>
                 <span style="font-size:9px; font-weight:normal">For {{ $data['company']['name'] }}</span>

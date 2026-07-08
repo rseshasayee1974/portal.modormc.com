@@ -3,7 +3,7 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import { ScaleIcon, BanknotesIcon, TruckIcon, PrinterIcon, DocumentDuplicateIcon } from '@heroicons/vue/24/outline';
+import { ScaleIcon, BanknotesIcon, TruckIcon, PrinterIcon, DocumentDuplicateIcon, TrashIcon  } from '@heroicons/vue/24/outline';
 import { usePermissions } from '@/Composables/usePermissions';
 
 const props = withDefaults(defineProps<{
@@ -185,7 +185,7 @@ const formatTime = (dateVal: any) => {
                         :error="errors['payment.payment_method_id']"
                         :disabled="isReadOnly"
                     />
-                    <BaseInputNumber v-model="modelValue.payment.amount" label="Amount" :minFractionDigits="2" :error="errors['payment.amount']" :disabled="isReadOnly" />
+                    <!-- <BaseInputNumber v-model="modelValue.payment.amount" label="Amount" :minFractionDigits="2" :error="errors['payment.amount']" :disabled="isReadOnly" /> -->
                 </div>
             </div>
 
@@ -216,55 +216,54 @@ const formatTime = (dateVal: any) => {
             </div>
 
             <!-- Generated Invoice Information -->
-            <div v-else class="py-2">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-emerald-500">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+            <div v-else class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-3 px-4 bg-slate-50 border border-slate-100 rounded-xl mt-4">
+                <div class="flex flex-wrap items-center gap-6 w-full md:w-auto">
+                    <!-- Left: Status Badge -->
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-4 w-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                            </svg>
+                        </div>
                         <div>
-                            <h4 class="text-[11px] font-black uppercase tracking-widest text-emerald-700">Invoice Linked</h4>
-                            <p class="text-[9px] font-bold text-emerald-800 uppercase">Billing Processed Successfully</p>
+                            <h4 class="text-[10px] font-black uppercase tracking-widest text-emerald-700 leading-none">Invoice Linked</h4>
+                            <span class="text-[9px] text-emerald-600 font-semibold uppercase tracking-wider mt-0.5 block">Billing Processed</span>
                         </div>
                     </div>
-                    <div class="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-700">
+                    
+                    <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
+
+                    <!-- Middle: Details -->
+                    <div class="flex flex-wrap items-center gap-5 text-[11px] font-semibold text-slate-700">
                         <div>
-                            <span class="text-[9px] block text-slate-400 uppercase">Invoice #</span>
-                            <span>{{ modelValue.status.invoice_number }}</span>
+                            <span class="text-[9px] block text-slate-400 font-bold uppercase tracking-wider">Invoice #</span>
+                            <span class="font-extrabold text-slate-800">{{ modelValue.status.invoice?.prefix || '' }}{{ modelValue.status.invoice?.invoice_no }}</span>
                         </div>
-                        <div class="h-6 w-px bg-slate-200"></div>
+                        <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
                         <div>
-                            <span class="text-[9px] block text-slate-400 uppercase">Date</span>
-                            <span>{{ formatDate(modelValue.status.invoice_date) }} {{ formatTime(modelValue.status.invoice_date) }}</span>
+                            <span class="text-[9px] block text-slate-400 font-bold uppercase tracking-wider">Date</span>
+                            <span class="text-slate-600 font-medium">{{ formatDate(modelValue.status.invoice_date) }} {{ formatTime(modelValue.status.invoice_date) }}</span>
                         </div>
-                        <div class="h-6 w-px bg-slate-200"></div>
+                        <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
                         <div>
-                            <span class="text-[9px] block text-slate-400 uppercase">Creator</span>
-                            <span class="text-indigo-600 uppercase">{{ modelValue.status.invoice?.creator?.email || modelValue.status.invoice?.creator?.username || 'System' }}</span>
+                            <span class="text-[9px] block text-slate-400 font-bold uppercase tracking-wider">Creator</span>
+                            <span class="text-indigo-600 font-bold uppercase">{{ modelValue.status.invoice?.creator?.email || modelValue.status.invoice?.creator?.username || 'System' }}</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-3 py-2">
+                <!-- Right: Actions -->
+                <div class="flex items-center gap-2.5 w-full md:w-auto justify-end">
                     <template v-if="modelValue.status.invoice?.encrypted_id">
-                        <template v-if="canExportInvoice">
-                            <a 
-                                :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'download', force: 'original' })" 
-                                target="_blank"
-                                class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
-                            >
-                                <PrinterIcon class="h-4 w-4" />
-                                Print Original
-                            </a>
-                            <a 
-                                :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'download', force: 'duplicate' })" 
-                                target="_blank"
-                                class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
-                            >
-                                <DocumentDuplicateIcon class="h-4 w-4" />
-                                Print Duplicate
-                            </a>
-                        </template>
+                        <a 
+                            v-if="canExportInvoice"
+                            :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'download', force: 'original' })" 
+                            target="_blank"
+                            class="inline-flex items-center gap-2 px-3 py-1.5 text-green-500 border border-green-500 text-[10px] font-bold uppercase tracking-wider rounded-md hover:bg-green-50 transition-colors shadow-sm"
+                        >
+                            <PrinterIcon class="h-4 w-4" />
+                            Print 
+                        </a>
                         <a 
                             v-else
                             :href="modelValue.status.invoice?.is_duplicate 
@@ -272,22 +271,22 @@ const formatTime = (dateVal: any) => {
                                 : route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'view' })" 
                             target="_blank"
                             @click="modelValue.status.invoice.is_duplicate = 1"
-                            class="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
+                            class="inline-flex items-center gap-2 px-3 py-1.5 text-green-500 border border-green-500 text-[10px] font-bold uppercase tracking-wider rounded-md hover:bg-green-50 transition-colors shadow-sm"
                         >
                             <DocumentDuplicateIcon v-if="modelValue.status.invoice?.is_duplicate" class="h-4 w-4" />
                             <PrinterIcon v-else class="h-4 w-4" />
-                            Print Invoice
+                            Print
                         </a>
                     </template>
-                    <button 
-                        type="button"
+                    <a 
                         @click="$emit('deleteInvoice')"
                         :disabled="isReadOnly"
-                        :class="[isReadOnly ? 'opacity-50 cursor-not-allowed' : '']"
-                        class="inline-flex items-center gap-2 px-4 py-2 bg-rose-50 text-rose-600 border border-rose-100 text-[11px] font-black uppercase tracking-widest rounded-xl hover:bg-rose-100 transition-colors shadow-sm"
+                        :class="[isReadOnly ? 'opacity-50 cursor-not-allowed' : 'hover:bg-red-600 cursor-pointer']"
+                        class="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors shadow-sm"
                     >
+                        <TrashIcon class="h-4 w-4" />
                         Delete Invoice
-                    </button>
+                    </a>
                 </div>
             </div>
         </div>

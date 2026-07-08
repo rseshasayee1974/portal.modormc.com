@@ -270,7 +270,13 @@ const getRowClass = (data: any) => {
 // activeMenuId + toggleMenu + closeAllMenus defined first (needed by useBatchTokenPreview)
 const activeMenuId = ref<number | null>(null);
 const actionMenu = ref();
-const activeBatch = ref<any>(null);
+const activeBatchId = ref<number | null>(null);
+// Always read from localBatches so it reflects the latest refreshed data
+const activeBatch = computed(() =>
+    activeBatchId.value !== null
+        ? localBatches.value.find((b: any) => b.id === activeBatchId.value) ?? null
+        : null
+);
 
 const toggleMenu = (event: Event, id: number) => {
     event.stopPropagation();
@@ -279,7 +285,7 @@ const toggleMenu = (event: Event, id: number) => {
 
 const toggleActionMenu = (event: Event, batch: any) => {
     event.stopPropagation();
-    activeBatch.value = batch;
+    activeBatchId.value = batch.id;
     if (actionMenu.value) {
         actionMenu.value.toggle(event);
     }
@@ -333,10 +339,10 @@ const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 
         await refreshBatchRow(batchId);
         
         // 2. Wait one tick for Vue to flush the reactive updates before showing the modal
-        await nextTick();
+        // await nextTick();
         
         // 3. Automatically open print preview
-        viewToken(batchId, type);
+        // viewToken(batchId, type);
     }
 };
 
@@ -377,7 +383,7 @@ const {
     deleteInvoiceDirect,
     sendWhatsAppDirect,
     sendBatchEmailDirect,
-} = useInvoiceActions(props);
+} = useInvoiceActions(props, refreshBatchRow);
 
 // ── Page Settings ────────────────────────────────────────────────────────────
 const page           = usePage();
@@ -393,13 +399,13 @@ watch(() => page.props.flash?.new_batch_id, (newVal) => {
     }
 }, { immediate: true });
 
-const lastDispatchedBatchId = ref<number | null>(null);
-watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
-    if (newVal && Number(newVal) !== lastDispatchedBatchId.value) {
-        lastDispatchedBatchId.value = Number(newVal);
-        viewToken(Number(newVal), 'dispatch');
-    }
-}, { immediate: true });
+// const lastDispatchedBatchId = ref<number | null>(null);
+// watch(() => page.props.flash?.dispatched_batch_id, (newVal) => {
+//     if (newVal && Number(newVal) !== lastDispatchedBatchId.value) {
+//         lastDispatchedBatchId.value = Number(newVal);
+//         viewToken(Number(newVal), 'dispatch');
+//     }
+// }, { immediate: true });
 
 // Share Batch Report States
 const showShareBatchModal = ref(false);
@@ -831,7 +837,7 @@ const shareBatchEmail = () => {
                                 </div>
                                 
                                 <!-- Unified Tabbed Layout for Batch Edit & Dispatch -->
-                                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div class="relative bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                                     <TabView>
                                         <TabPanel>
                                             <template #header>
@@ -889,6 +895,7 @@ const shareBatchEmail = () => {
                                             </div>
                                         </TabPanel>
                                     </TabView>
+                                    <span class="absolute top-0 right-0 z-10 px-3 py-2 text-[11px] font-black text-slate-600 tracking-widest select-none pointer-events-none">Batch # : {{ slotProps.data.batch_no }}</span>
                                 </div>
                             </div>
                         </template>
@@ -1020,7 +1027,7 @@ const shareBatchEmail = () => {
                         @click="generateInvoiceDirect(activeBatch.dispatches[0]); closeAllMenus();"
                     >
                         <i class="pi pi-plus-circle mr-2 text-emerald-500 font-bold"></i>
-                        Generate Invoice
+                        Generate Invoice 
                     </button>   
 
                     <!-- If Invoice is generated -->

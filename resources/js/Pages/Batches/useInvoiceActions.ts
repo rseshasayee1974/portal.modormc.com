@@ -15,7 +15,10 @@ import Swal from 'sweetalert2';
  *  - deleteInvoiceDirect    : Confirm + DELETE invoice and reset dispatch billing
  *  - sendWhatsAppDirect     : Fetch WhatsApp URL and open it
  */
-export function useInvoiceActions(props: { sales_ledgers: { label: string; value: any }[] }) {
+export function useInvoiceActions(
+    props: { sales_ledgers: { label: string; value: any }[] },
+    onInvoiceChange?: (batchId: number) => void
+) {
 
     // ── Generate Invoice ─────────────────────────────────────────────────────
     const generateInvoiceDirect = (dispatch: any) => {
@@ -79,6 +82,7 @@ export function useInvoiceActions(props: { sales_ledgers: { label: string; value
                                 showConfirmButton: false,
                                 timer: 2000,
                             });
+                            if (onInvoiceChange) onInvoiceChange(dispatch.batch_id);
                         },
                     }
                 );
@@ -98,7 +102,7 @@ export function useInvoiceActions(props: { sales_ledgers: { label: string; value
     const printOriginalInvoiceDirect = (invoice: any) => {
         if (!invoice || !invoice.encrypted_id) return;
         window.open(
-            route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'download', force: 'original' }),
+            route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'view', force: 'original' }),
             '_blank'
         );
     };
@@ -106,7 +110,7 @@ export function useInvoiceActions(props: { sales_ledgers: { label: string; value
     const printDuplicateInvoiceDirect = (invoice: any) => {
         if (!invoice || !invoice.encrypted_id) return;
         window.open(
-            route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'download', force: 'duplicate' }),
+            route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'view', force: 'duplicate' }),
             '_blank'
         );
     };
@@ -152,6 +156,7 @@ export function useInvoiceActions(props: { sales_ledgers: { label: string; value
                             showConfirmButton: false,
                             timer: 2000,
                         });
+                        if (onInvoiceChange) onInvoiceChange(dispatch.batch_id);
                     },
                 });
             }

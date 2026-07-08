@@ -65,6 +65,7 @@ const form = useForm({
     concrete_pump: 'pump' as string | null,
     new_site_name: '' as string,
     is_new_site: false,
+    is_tax_inclusive: false,
     quote_date: initialQuoteDate,
     validity_date: getDefaultValidityDate(initialQuoteDate),
     status: 0,
@@ -165,17 +166,29 @@ const calculateTotals = () => {
     form.items.forEach(item => {
         const rate = Number(item.rate || 0);
         const qty = Number(item.quantity || 0);
-        const untaxed = rate * qty;
         
         // Find line tax rate
         const tax = props.taxes.find(t => t.id === item.tax_id);
-        const taxRate = tax ? Number(tax.tax_rate) : 0;
-        const lineTax = (untaxed * taxRate) / 100;
+        const taxRate = tax ? Number(tax.tax_rate ?? tax.rate ?? 0) : 0;
+
+        let untaxed = 0;
+        let lineTax = 0;
+        let lineTotal = 0;
+
+        if (form.is_tax_inclusive) {
+            lineTotal = rate * qty;
+            lineTax = lineTotal - (lineTotal / (1 + taxRate / 100));
+            untaxed = lineTotal - lineTax;
+        } else {
+            untaxed = rate * qty;
+            lineTax = (untaxed * taxRate) / 100;
+            lineTotal = untaxed + lineTax;
+        }
 
         // Update Item Internal State (for SQL Insertion)
         item.untaxed_amount = Number(untaxed.toFixed(2));
         item.tax_amount = Number(lineTax.toFixed(2));
-        item.amount_total = Number((untaxed + lineTax).toFixed(2));
+        item.amount_total = Number(lineTotal.toFixed(2));
 
         totalUntaxed += untaxed;
         totalTax += lineTax;
@@ -187,8 +200,8 @@ const calculateTotals = () => {
     form.amount_total = Number((totalUntaxed + totalTax + Number(form.adjustment || 0)).toFixed(2));
 };
 
-// Deep watch for any changes in items or adjustment
-watch(() => [form.items, form.adjustment], calculateTotals, { deep: true, immediate: true });
+// Deep watch for any changes in items, adjustment, or tax-inclusive status
+watch(() => [form.items, form.adjustment, form.is_tax_inclusive], calculateTotals, { deep: true, immediate: true });
 
 // Reset site selection if it belongs to a different customer
 watch(() => form.patron_id, (newPatronId) => {
@@ -559,7 +572,11 @@ const submit = () => {
                                 <CalculatorIcon class="w-3.5 h-3.5" />
                                 Line Items
                             </h3>
-                            
+                            <div class="flex items-center gap-3 bg-slate-50 border border-slate-200/50 rounded-xl px-4 py-1.5 shadow-sm">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
+                                <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_create" class="peer hidden" />
+                                <label for="is_tax_inclusive_create" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
+                            </div>
                         </div>
 
                         <div class="rounded-md border border-slate-200 shadow-sm overflow-hidden">

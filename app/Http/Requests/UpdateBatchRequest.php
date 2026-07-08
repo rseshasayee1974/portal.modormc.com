@@ -50,7 +50,7 @@ class UpdateBatchRequest extends FormRequest
             'uom_id' => ['nullable', 'integer', 'exists:mm_product_units,id'],
             'site_id' => ['nullable', 'integer', 'exists:mm_sites,id'],
             'status' => ['required', 'integer', 'in:1,2,3,4,5'],
-            'concrete_pump' => ['nullable', 'string'],
+            'concrete_pump' => ['nullable'],
             'materials' => ['nullable', 'array'],
             'materials.*.id' => ['nullable', 'integer', 'exists:mm_batch_materials,id'],
             'materials.*.product_id' => ['required', 'integer', 'exists:mm_products,id'],

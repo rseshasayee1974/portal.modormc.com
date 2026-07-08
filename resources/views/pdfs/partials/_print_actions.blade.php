@@ -41,6 +41,14 @@
         box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.4);
     }
 </style>
+
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(() => {
+            window.print();
+        }, 300);
+    });
+</script>
 @endif
 
 @if(isset($data['is_duplicate']) && $data['is_duplicate'])

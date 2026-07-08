@@ -28,6 +28,7 @@ class Quotation extends Model
         'site_id',
         'sales_executive_id',
         'concrete_pump',
+        'is_tax_inclusive',
         'quote_date',
         'validity_date',
         'tax_id',
@@ -46,6 +47,7 @@ class Quotation extends Model
     protected $casts = [
         'is_customer_po' => 'integer',
         'sales_executive_id' => 'integer',
+        'is_tax_inclusive' => 'boolean',
         'amount_untaxed' => 'decimal:2',
         'amount_tax' => 'decimal:2',
         'adjustment' => 'decimal:2',
