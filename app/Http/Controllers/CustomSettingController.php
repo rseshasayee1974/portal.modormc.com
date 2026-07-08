@@ -43,10 +43,15 @@ class CustomSettingController extends Controller
         $module = $validated['module'];
 
         // Create with default settings if not exists
-        CustomSetting::firstOrCreate(
+        $customSetting = CustomSetting::firstOrCreate(
             ['plant_id' => $plantId, 'module_name' => $module],
             ['module_id' => 0, 'settings' => []]
         );
+
+        app(\App\Services\Audit\AuditLogger::class)->log('CREATE', $customSetting, [
+            'description' => "Initialized custom settings for module [{$module}]",
+            'new_values' => ['settings' => []],
+        ]);
 
         return redirect()->back()->with('success', 'Module settings initialized successfully.');
     }
@@ -66,13 +71,27 @@ class CustomSettingController extends Controller
             ->first();
 
         if ($customSetting) {
+            $oldSettings = $customSetting->settings;
             $customSetting->update(['settings' => $settings]);
+
+            app(\App\Services\Audit\AuditLogger::class)->log('UPDATE', $customSetting, [
+                'description' => "Updated custom settings for module [{$module}]",
+                'old_values' => ['settings' => $oldSettings],
+                'new_values' => ['settings' => $settings],
+                'changed_fields' => ['settings'],
+            ]);
         } else {
-            CustomSetting::create([
+            $customSetting = CustomSetting::create([
                 'plant_id' => $plantId,
                 'module_name' => $module,
                 'settings' => $settings,
                 'module_id' => 0 // Providing a default for the ID field
+            ]);
+
+            app(\App\Services\Audit\AuditLogger::class)->log('CREATE', $customSetting, [
+                'description' => "Created custom settings for module [{$module}]",
+                'new_values' => ['settings' => $settings],
+                'changed_fields' => ['settings'],
             ]);
         }
 
@@ -86,7 +105,14 @@ class CustomSettingController extends Controller
             abort(403, 'Unauthorized.');
         }
 
+        $oldSettings = $customsetting->settings;
+        $module = $customsetting->module_name;
         $customsetting->delete();
+
+        app(\App\Services\Audit\AuditLogger::class)->log('DELETE', $customsetting, [
+            'description' => "Deleted custom settings for module [{$module}]",
+            'old_values' => ['settings' => $oldSettings],
+        ]);
 
         return redirect()->back()->with('success', 'Module settings deleted successfully.');
     }

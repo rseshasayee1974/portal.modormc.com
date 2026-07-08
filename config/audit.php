@@ -5,6 +5,7 @@ return [
 
     'ignored_models' => [
         App\Models\ActivityLog::class,
+        App\Models\CustomSetting::class,
     ],
 
     'ignored_routes' => [
