@@ -12,8 +12,9 @@ import Column from 'primevue/column';
 import Button from 'primevue/button';
 import Dialog from 'primevue/dialog';
 import BaseInput from '@/Components/Base/BaseInput.vue';
-import Textarea from 'primevue/textarea';
+import Editor from 'primevue/editor';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import 'quill/dist/quill.snow.css';
 import Tag from 'primevue/tag';
 import { useToast } from 'primevue/usetoast';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
@@ -21,9 +22,7 @@ import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 const props = defineProps({
     termsConditions: Object,
     filters:         Object,
-    entities:        { type: Array as () => any[], default: () => [] },
     plants:          { type: Array as () => any[], default: () => [] },
-    active_entity_id: Number,
     active_plant_id: Number,
 });
 
@@ -61,7 +60,6 @@ watch(() => filters.value.global.value, (newVal) => {
 });
 
 const form = ref({
-    entity_id: props.active_entity_id ?? props.entities?.[0]?.id ?? null as number | null,
     plant_id: props.active_plant_id ?? props.plants?.[0]?.id ?? null as number | null,
     order_type: '',
     terms_condition: '',
@@ -89,7 +87,6 @@ const openCreateModal = () => {
     modalMode.value = 'create';
     editingId.value = null;
     form.value = {
-        entity_id: props.active_entity_id ?? props.entities?.[0]?.id ?? null,
         plant_id: props.active_plant_id ?? props.plants?.[0]?.id ?? null,
         order_type: '',
         terms_condition: '',
@@ -103,7 +100,6 @@ const openEditModal = (item: any) => {
     modalMode.value = 'edit';
     editingId.value = item.id;
     form.value = {
-        entity_id: item.entity_id,
         plant_id: item.plant_id,
         order_type: item.order_type,
         terms_condition: item.terms_condition,
@@ -188,14 +184,13 @@ const onSearch = () => {
                 :first="(currentPage - 1) * props.termsConditions.per_page"
                 showSearch
                 showSerial
-                heading="Contractual Clauses"
+                heading="Terms & Conditions"
                 headingIcon="DocumentTextIcon"
             >
                 <template #toolbar>
                     <Button label="New Terms" icon="pi pi-plus"  @click="openCreateModal" />
                 </template>
 
-                <Column field="entity.legal_name" header="Entity" sortable></Column>
                 <Column field="plant.name" header="Plant" sortable></Column>
                 <Column field="order_type" header="Type" sortable>
                     <template #body="slotProps">
@@ -204,7 +199,7 @@ const onSearch = () => {
                 </Column>
                 <Column field="terms_condition" header="Terms Preview">
                     <template #body="slotProps">
-                        <div class="line-clamp-1 opacity-70">{{ slotProps.data.terms_condition }}</div>
+                        <div class="line-clamp-1 opacity-70">{{ slotProps.data.terms_condition ? slotProps.data.terms_condition.replace(/<[^>]*>/g, '') : '' }}</div>
                     </template>
                 </Column>
                 <Column field="status" header="Status" sortable style="width: 100px">
@@ -240,7 +235,7 @@ const onSearch = () => {
 
                 <div class="flex flex-col gap-2 col-span-2">
                     <label class="text-xs font-semibold uppercase text-gray-500">Terms & Conditions Content</label>
-                    <Textarea v-model="form.terms_condition" rows="12" fluid placeholder="Enter the full text for these terms..." />
+                    <Editor v-model="form.terms_condition" editorStyle="height: 320px" placeholder="Enter the full text for these terms..." />
                     <small v-if="form.errors.terms_condition" class="text-red-500">{{ form.errors.terms_condition[0] }}</small>
                 </div>
             </div>

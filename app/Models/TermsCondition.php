@@ -15,7 +15,6 @@ class TermsCondition extends Model
     protected $fillable = [
         'order_type',
         'terms_condition',
-        'entity_id',
         'plant_id',
         'status',
         'created_by',
@@ -25,11 +24,6 @@ class TermsCondition extends Model
 
     protected $casts = [
     ];
-
-    public function entity()
-    {
-        return $this->belongsTo(Entity::class, 'entity_id');
-    }
     public function plant()
     {
         return $this->belongsTo(Plant::class, 'plant_id');

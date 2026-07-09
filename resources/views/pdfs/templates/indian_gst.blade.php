@@ -190,7 +190,7 @@
             @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? ''))
             <div class="terms-box">
                 <div class="terms-hdr">Terms &amp; Conditions</div>
-                <div style="line-height:1.5">{!! nl2br(e($data['meta']['terms_text'])) !!}</div>
+                <div style="line-height:1.5">{!! $data['meta']['terms_text'] !!}</div>
             </div>
             @endif
         </div>

@@ -265,7 +265,7 @@
     <div class="bottom-section"><div class="section-label">Notes</div><div>{{ $data['meta']['notes'] }}</div></div>
     @endif
     @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? false))
-    <div class="bottom-section"><div class="section-label">Terms &amp; Conditions</div><div style="font-size:10px;">{!! nl2br(e($data['meta']['terms_text'])) !!}</div></div>
+    <div class="bottom-section"><div class="section-label">Terms &amp; Conditions</div><div style="font-size:10px;">{!! $data['meta']['terms_text'] !!}</div></div>
     @endif
 
     @if($pdfSettings['signature'] ?? true)

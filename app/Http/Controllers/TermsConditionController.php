@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\TermsCondition;
 use App\Http\Requests\StoreTermsConditionRequest;
 use App\Http\Requests\UpdateTermsConditionRequest;
-use App\Models\Entity;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -28,10 +27,8 @@ class TermsConditionController extends Controller
         $user = Auth::user();
 
         $activePlantId = session('active_plant_id');
-        $activeEntityId = session('active_entity_id');
 
         $entityUsers = $user->entityUsers;
-        $allowedEntityIds = $entityUsers->pluck('entity_id')->unique()->toArray();
         
         $allowedPlantIds = [];
         foreach ($entityUsers as $eu) {
@@ -45,7 +42,7 @@ class TermsConditionController extends Controller
         $allowedPlantIds = array_unique($allowedPlantIds);
 
         $query = TermsCondition::query()
-            ->with(['plant:id,name', 'entity:id,legal_name']);
+            ->with(['plant:id,name']);
 
         if ($activePlantId) {
             $query->where('plant_id', $activePlantId);
@@ -77,18 +74,11 @@ class TermsConditionController extends Controller
             ->orderBy('name')
             ->get();
 
-        $entities = Entity::whereIn('id', $allowedEntityIds)
-            ->select('id', 'legal_name')
-            ->orderBy('legal_name')
-            ->get();
-
         return Inertia::render('TermsConditions/Index', [
             'termsConditions' => $termsConditions,
             'filters' => $request->only(['search', 'sort_field', 'sort_direction', 'plant_id']),
             'plants' => $plants,
-            'entities' => $entities,
             'active_plant_id' => $activePlantId ? (int) $activePlantId : null,
-            'active_entity_id' => $activeEntityId ? (int) $activeEntityId : null,
         ]);
     }
 
@@ -100,9 +90,6 @@ class TermsConditionController extends Controller
         $this->authorizeModule('create');
         $validated = $request->validated();
         
-        $plant = Plant::findOrFail($validated['plant_id']);
-        $validated['entity_id'] = $plant->entity_id;
-
         $termsCondition = TermsCondition::create(array_merge($validated, [
             'created_by' => Auth::id(),
             'status' => $validated['status'] ?? 'active',
@@ -125,9 +112,6 @@ class TermsConditionController extends Controller
     {
         $this->authorizeModule('edit');
         $validated = $request->validated();
-
-        $plant = Plant::findOrFail($validated['plant_id']);
-        $validated['entity_id'] = $plant->entity_id;
 
         $termscondition->update(array_merge($validated, [
             'updated_by' => Auth::id(),

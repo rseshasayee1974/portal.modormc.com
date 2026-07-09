@@ -509,7 +509,7 @@
         @if (($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? false))
             <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;font-size:11px">
                 <div class="small muted" style="margin-bottom:2px">Terms &amp; Conditions</div>
-                <div style="font-size:10px;color:#94a3b8">{!! nl2br(e($data['meta']['terms_text'])) !!}</div>
+                <div style="font-size:10px;color:#94a3b8">{!! $data['meta']['terms_text'] !!}</div>
             </div>
         @endif
 
