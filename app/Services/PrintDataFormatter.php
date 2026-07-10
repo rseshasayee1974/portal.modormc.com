@@ -224,10 +224,44 @@ class PrintDataFormatter
             'gstin' => $invoice->plant->gstin ?? '', 'phone' => $invoice->plant->phone ?? '', 'email' => $invoice->plant->email ?? '',
         ];
         $partner = $invoice->partner;
-        if (strtolower($invoice->invoice_label ?? '') === 'dispatch' && !empty($invoice->ref_id)) {
-            $dispatch = \App\Models\Dispatch::with(['salesOrder.customer', 'salesOrder.site', 'unloadSite'])->find($invoice->ref_id);
-            if ($dispatch && $dispatch->salesOrder && (!$partner || empty($partner->legal_name))) $partner = $dispatch->salesOrder->customer;
+        $dispatch = \App\Models\Dispatch::whereHas('status', function ($q) use ($invoice) {
+            $q->where('invoice_id', $invoice->id);
+        })->with(['salesOrder.customer', 'salesOrder.site', 'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site'])->first();
+
+        if (!$dispatch && !empty($invoice->ref_id)) {
+            $refIds = explode(',', $invoice->ref_id);
+            $firstRefId = trim($refIds[0] ?? '');
+            if (is_numeric($firstRefId)) {
+                $dispatch = \App\Models\Dispatch::with(['salesOrder.customer', 'salesOrder.site', 'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site'])->find($firstRefId);
+            }
         }
+
+        if ($dispatch) {
+            if (!$partner || empty($partner->name)) {
+                $partner = $dispatch->customer ?: ($dispatch->salesOrder?->customer ?: ($dispatch->customerPO?->patron ?: null));
+            }
+        }
+
+        $customerPO = null;
+        if (!$partner || empty($partner->name)) {
+            if (!empty($invoice->ref_id) && is_numeric($invoice->ref_id)) {
+                $customerPO = \App\Models\CustomerPO::with(['patron', 'site'])->find($invoice->ref_id);
+                if ($customerPO) {
+                    $partner = $customerPO->patron;
+                }
+            }
+        }
+
+        $salesOrder = null;
+        if (!$partner || empty($partner->name)) {
+            if (!empty($invoice->ref_id) && is_numeric($invoice->ref_id)) {
+                $salesOrder = \App\Models\SalesOrder::with(['customer', 'site'])->find($invoice->ref_id);
+                if ($salesOrder) {
+                    $partner = $salesOrder->customer;
+                }
+            }
+        }
+
         $partnerAddr = $partner ? $partner->addresses()->first() : null;
         $data['bill_to'] = [
             'name' => $partner?->legal_name ?: ($partner?->name ?: 'N/A'),
@@ -237,14 +271,34 @@ class PrintDataFormatter
             'pin' => $partnerAddr?->zipcode ?: ($partner?->pincode ?? ''), 'gstin' => $partner?->gstin ?? '', 'phone' => $partner?->phone ?? '',
         ];
         $data['ship_to'] = $data['bill_to'];
-        if (isset($dispatch)) {
-            $site = $dispatch->workOrder?->site ?? $dispatch->unloadSite;
-            if ($site) {
-                $data['ship_to'] = [
-                    'name' => $site->name ?: $data['bill_to']['name'], 'address' => $site->site_address_1 ?: $data['bill_to']['address'],
-                    'city' => $site->city ?: $data['bill_to']['city'], 'state' => $site->state ?: $data['bill_to']['state'], 'pin' => $site->zipcode ?: $data['bill_to']['pin'],
-                ];
+
+        $site = null;
+        if ($dispatch) {
+            $site = $dispatch->unloadSite ?: ($dispatch->salesOrder?->site ?: ($dispatch->customerPO?->site ?: null));
+        }
+        if (!$site && $customerPO) {
+            $site = $customerPO->site;
+        }
+        if (!$site && $salesOrder) {
+            $site = $salesOrder->site;
+        }
+        if (!$site && !empty($invoice->ref_id) && is_numeric($invoice->ref_id)) {
+            $customerPO = $customerPO ?: \App\Models\CustomerPO::with(['site'])->find($invoice->ref_id);
+            if ($customerPO) {
+                $site = $customerPO->site;
+            } else {
+                $salesOrder = $salesOrder ?: \App\Models\SalesOrder::with(['site'])->find($invoice->ref_id);
+                if ($salesOrder) {
+                    $site = $salesOrder->site;
+                }
             }
+        }
+
+        if ($site) {
+            $data['ship_to'] = [
+                'name' => $site->name ?: $data['bill_to']['name'], 'address' => $site->site_address_1 ?: ($site->address ?: $data['bill_to']['address']),
+                'city' => $site->city ?: $data['bill_to']['city'], 'state' => $site->state ?: $data['bill_to']['state'], 'pin' => $site->zipcode ?: ($site->pincode ?: $data['bill_to']['pin']),
+            ];
         }
         $plantGstin = $invoice->plant->gstin ?? ''; $partnerGstin = $partner?->gstin ?? '';
         $plantState = strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';

@@ -81,7 +81,7 @@ const form = useForm({
     patron_id: props.quotation.patron_id ?? null,
     site_id: props.quotation.site_id ?? null,
     sales_executive_id: props.quotation.sales_executive_id ?? null,
-    concrete_pump: resolveConcretePump(props.quotation.concrete_pump),
+    concrete_pump: resolveConcretePump(props?.quotation?.concrete_pump?.id),
     is_tax_inclusive: props.quotation.is_tax_inclusive ? true : false,
     quote_date: props.quotation.quote_date ? String(props.quotation.quote_date).substring(0, 10) : new Date().toISOString().substring(0, 10),
     validity_date: props.quotation.validity_date ? String(props.quotation.validity_date).substring(0, 10) : null,
@@ -163,7 +163,7 @@ const getMixDesignMaterials = (mixDesignId: number | null) => {
 };
 
 
-console.log('quote',props.quotation);
+console.log('quote',props);
 
 const calculateTotals = () => {
     let totalUntaxed = 0;
