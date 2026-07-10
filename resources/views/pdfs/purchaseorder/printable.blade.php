@@ -484,7 +484,7 @@
     ════════════════════════════════════════ -->
     <div class="bottom-section">
         <div class="section-label">Terms &amp; Conditions</div>
-        <div class="section-text" style="font-size:10px;">
+        <div class="section-text terms-text-content" style="font-size:10px;text-align:justify;white-space:normal !important;word-break:break-word;">
             {!! $order->terms_conditions ?? 'Standard business terms apply. Goods must be delivered in perfect condition. Payment within 30 days of invoice.' !!}
         </div>
     </div>

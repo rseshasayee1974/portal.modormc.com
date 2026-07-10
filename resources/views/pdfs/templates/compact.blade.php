@@ -218,7 +218,7 @@
     </div>
 
     @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? ''))
-    <div style="padding:5px 8px;font-size:8.5px;border-top:1px solid #ccc;color:#666;">{!! $data['meta']['terms_text'] !!}</div>
+    <div class="terms-text-content" style="padding:5px 8px;font-size:8.5px;border-top:1px solid #ccc;color:#666;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $data['meta']['terms_text'] !!}</div>
     @endif
 
     @if($pdfSettings['signature'] ?? true)

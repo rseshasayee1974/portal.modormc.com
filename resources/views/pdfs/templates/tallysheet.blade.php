@@ -107,7 +107,7 @@
     </div>
 
     @if($data['meta']['terms_text'] ?? '')
-    <div style="padding:8px 12px;font-size:10px;border-top:1px solid #ccc;"><strong>Terms &amp; Conditions:</strong> {!! $data['meta']['terms_text'] !!}</div>
+    <div class="terms-text-content" style="padding:8px 12px;font-size:10px;border-top:1px solid #ccc;text-align:justify;white-space:normal !important;word-break:break-word;"><strong>Terms &amp; Conditions:</strong> {!! $data['meta']['terms_text'] !!}</div>
     @endif
 
     <div class="sig-row" style="margin-top:auto">

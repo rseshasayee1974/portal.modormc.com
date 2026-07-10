@@ -197,11 +197,11 @@ const onSearch = () => {
                         <Tag :value="slotProps.data.order_type" severity="info"  />
                     </template>
                 </Column>
-                <Column field="terms_condition" header="Terms Preview">
+                <!-- <Column field="terms_condition" header="Terms Preview">
                     <template #body="slotProps">
                         <div class="line-clamp-1 opacity-70">{{ slotProps.data.terms_condition ? slotProps.data.terms_condition.replace(/<[^>]*>/g, '') : '' }}</div>
                     </template>
-                </Column>
+                </Column> -->
                 <Column field="status" header="Status" sortable style="width: 100px">
                     <template #body="slotProps">
                         <Tag :value="slotProps.data.status.toUpperCase()" :severity="slotProps.data.status === 'active' ? 'success' : 'secondary'" rounded />

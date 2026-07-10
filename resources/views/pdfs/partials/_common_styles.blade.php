@@ -29,6 +29,11 @@
         --size-title: 24px;
     }
 
+    html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100%;
+    }
     body {
         font-family: 'DejaVu Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         font-size: 11px;
@@ -96,4 +101,36 @@
         display: block !important;
     }
     @endif
+
+    /* Terms text formatting overrides (for Quill rich text editor output) */
+    .terms-text-content {
+        width: 100% !important;
+        min-width: 0 !important;
+        display: block !important;
+    }
+    .terms-text-content,
+    .terms-text-content p,
+    .terms-text-content span,
+    .terms-text-content li,
+    .terms-text-content ol,
+    .terms-text-content ul,
+    .terms-text-content pre,
+    .terms-text-content div {
+        white-space: normal !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+    }
+    .terms-text-content p {
+        margin: 0 0 4px 0 !important;
+        padding: 0 !important;
+        line-height: 1.4 !important;
+    }
+    .terms-text-content ol, .terms-text-content ul {
+        margin: 0 0 4px 18px !important;
+        padding: 0 !important;
+    }
+    .terms-text-content li {
+        margin-bottom: 2px !important;
+        padding: 0 !important;
+    }
 </style>

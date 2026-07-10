@@ -211,7 +211,7 @@
         <div style="display: table; width: 100%;">
             <div style="display: table-cell; width: 65%; vertical-align: top; padding-right: 30px;">
                 <div style="font-weight: 900; text-decoration: underline; font-size: 11px; margin-bottom: 8px; color: #2c3e50;">TERMS & CONDITIONS:</div>
-                <div style="font-size: 9.5px; color: #444; text-align: justify;">
+                <div class="terms-text-content" style="font-size: 9.5px; color: #444; text-align: justify; white-space: normal !important; word-break: break-word;">
                     {!! $order->terms_conditions ?? "Standard ERP procurement terms apply. Please check quality before delivery." !!}
                 </div>
             </div>

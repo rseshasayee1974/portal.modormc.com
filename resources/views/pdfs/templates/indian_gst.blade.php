@@ -190,7 +190,7 @@
             @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? ''))
             <div class="terms-box">
                 <div class="terms-hdr">Terms &amp; Conditions</div>
-                <div style="line-height:1.5">{!! $data['meta']['terms_text'] !!}</div>
+                <div class="terms-text-content" style="line-height:1.5;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $data['meta']['terms_text'] !!}</div>
             </div>
             @endif
         </div>

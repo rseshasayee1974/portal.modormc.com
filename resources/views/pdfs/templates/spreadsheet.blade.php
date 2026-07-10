@@ -180,7 +180,7 @@
         </table>
     </div>
     @if($data['meta']['terms_text'] ?? false)
-    <div style="padding:8px 12px;font-size:10px;border-top:1px solid #ccc;"><strong>Terms:</strong> {!! $data['meta']['terms_text'] !!}</div>
+    <div class="terms-text-content" style="padding:8px 12px;font-size:10px;border-top:1px solid #ccc;text-align:justify;white-space:normal !important;word-break:break-word;"><strong>Terms:</strong> {!! $data['meta']['terms_text'] !!}</div>
     @endif
     <div style="text-align:right;padding:8px 14px;border-top:1px solid #ccc;font-size:10px;min-height:60px;color:#aaa">Authorized Signatory — {{ $data['company']['name'] }}</div>
     @include('pdfs.partials._footer')
