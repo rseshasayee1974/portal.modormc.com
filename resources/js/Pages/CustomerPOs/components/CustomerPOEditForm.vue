@@ -46,6 +46,7 @@ const form = useForm({
     is_tax_inclusive: props.customerPO?.is_tax_inclusive ? true : false,
     order_date: props.customerPO?.order_date ?? '',
     status: props.customerPO?.status ?? 1,
+    notes: props.customerPO?.notes ?? '',
     items: [] as Array<{ mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null }>,
     mix_design_id: null as number | null,
     quantity: null as number | null,
@@ -801,9 +802,12 @@ const performSubmit = (customerPOId: any) => {
             </div>
 
             <!-- Totals & Summary Block -->
-            <div class="col-span-12 md:col-span-5 flex flex-col md:flex-row justify-between items-end gap-8 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
-                <!-- Spacer on the left -->
-                <div class="hidden md:block flex-1"></div>
+            <div class="col-span-12 md:col-span-5 flex flex-col md:flex-row justify-between items-start gap-8 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
+                <!-- Notes / Terms on the left -->
+                <div class="w-full md:flex-1 space-y-2">
+                    <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Internal Notes / Terms</label>
+                    <textarea v-model="form.notes" placeholder="Specify any additional conditions..." class="w-full h-32 rounded-2xl border-slate-200 text-sm focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 transition-all p-4" />
+                </div>
 
                 <!-- Totals Card -->
                 <div class="w-full md:w-96 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl p-4 space-y-3 shadow-sm">

@@ -24,6 +24,7 @@ class CustomerPO extends Model
         'quotation_id',
         'patron_id',
         'site_id',
+        'notes',
         'sales_executive_id',
         'concrete_pump',
         'is_tax_inclusive',
