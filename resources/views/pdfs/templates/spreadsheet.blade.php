@@ -9,11 +9,13 @@
         @media screen {
             .inv-root { min-height: 297mm; }
         }
-        .title-bar { display: table; width: 100%; border-bottom: 2px solid #111; background: #111; color: #fff; padding: 10px 14px; }
-        .title-left  { display: table-cell; vertical-align: middle; font-size: 14px; font-weight: 700; }
-        .title-right { display: table-cell; vertical-align: middle; text-align: right; font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.03em; }
-        .doc-ref     { display: table; width: 100%; padding: 5px 14px; background: #f5f5f5; border-bottom: 1px solid #ccc; }
-        .dr-cell     { display: table-cell; padding: 3px 8px; font-size: 10px; border-right: 1px solid #ccc; }
+        .title-bar { display: table; width: 100%; border-bottom: 2px solid #111; background: #111; color: #fff; }
+        .title-left  { display: table-cell; vertical-align: middle; font-size: 14px; font-weight: 700; padding: 10px 0 10px 14px; }
+        .title-right { display: table-cell; vertical-align: middle; text-align: right; font-size: 22px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.03em; padding: 10px 14px 10px 0; }
+        .doc-ref     { display: table; width: 100%; background: #f5f5f5; border-bottom: 1px solid #ccc; }
+        .dr-cell     { display: table-cell; padding: 8px 8px; font-size: 10px; border-right: 1px solid #ccc; }
+        .dr-cell:first-child { padding-left: 14px; }
+        .dr-cell:last-child { padding-right: 14px; }
         .dr-cell:last-child { border-right: none; }
         .dr-key      { color: #888; display: block; font-size: 9px; text-transform: uppercase; }
         .dr-val      { font-weight: 700; font-size: 11px; }
@@ -42,7 +44,7 @@
         <div class="title-right">{{ $data['doc_title'] }}<br><span style="font-size:11px;font-weight:400;opacity:0.7">{{ $data['doc_no'] }}</span></div>
     </div>
     <div class="doc-ref">
-        @foreach(['Date' => $data['doc_date'], 'Delivery' => $data['delivery_date'], 'Due Date' => $data['due_date'], 'PO#' => ($data['meta']['po_number'] ?? ''), 'Status' => $data['state']] as $k=>$v)
+        @foreach(['Date' => $data['doc_date'], 'Delivery' => $data['delivery_date'], 'Due Date' => ($data['due_date'] !== 'N/A' ? $data['due_date'] : ''), 'PO#' => ($data['meta']['po_number'] ?? ''), 'Status' => $data['state']] as $k=>$v)
             @if($v) <div class="dr-cell"><span class="dr-key">{{ $k }}</span><span class="dr-val">{{ $v }}</span></div> @endif
         @endforeach
     </div>

@@ -53,6 +53,7 @@ class UpdateQuotationRequest extends FormRequest
             'amount_untaxed' => 'nullable|numeric',
             'tax_amount' => 'nullable|numeric',
             'amount_tax' => 'nullable|numeric',
+            'notes' => 'nullable|string',
             'amount_total' => 'nullable|numeric',
             'adjustment' => 'nullable|numeric',
             'status' => 'required|integer',

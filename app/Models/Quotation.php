@@ -25,6 +25,7 @@ class Quotation extends Model
         'prefix',
         'reference',
         'patron_id',
+        'notes',
         'site_id',
         'sales_executive_id',
         'concrete_pump',

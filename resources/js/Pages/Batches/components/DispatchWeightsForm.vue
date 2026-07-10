@@ -74,7 +74,7 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
         props.modelValue.payment.payment_method_id = null;
     }
 });
-
+console.log(props)
 const isValidDate = (dateVal: any) => {
     if (!dateVal) return false;
     const d = new Date(dateVal);
@@ -237,7 +237,8 @@ const formatTime = (dateVal: any) => {
                     <div class="flex flex-wrap items-center gap-5 text-[11px] font-semibold text-slate-700">
                         <div>
                             <span class="text-[9px] block text-slate-400 font-bold uppercase tracking-wider">Invoice #</span>
-                            <span class="font-extrabold text-slate-800">{{ modelValue.status.invoice?.prefix || '' }}{{ modelValue.status.invoice?.invoice_no }}</span>
+                            <!-- <span class="font-extrabold text-slate-800">{{ modelValue.status.invoice?.prefix || '' }}{{ modelValue.status.invoice?.invoice_number }}</span> -->
+                            <span class="font-extrabold text-slate-800">{{ modelValue.status.invoice?.full_number }}</span>
                         </div>
                         <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
                         <div>

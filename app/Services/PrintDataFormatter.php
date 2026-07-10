@@ -743,7 +743,7 @@ class PrintDataFormatter
         $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? 'CUSTOMER PO';
         $data['doc_no']    = $customerPO->reference ?? $customerPO->id;
         $data['doc_date']  = $customerPO->order_date?->format('d/m/Y') ?? now()->format('d/m/Y');
-        $data['due_date']  = 'N/A';
+        $data['due_date']  = $customerPO->due_date?->format('d/m/Y') ?? '';
         
         $statusText = 'DRAFT';
         if ($customerPO->status == 1) $statusText = 'CONFIRMED';
@@ -919,6 +919,8 @@ class PrintDataFormatter
             'mixDesign.unit',
             'mixDesign.items.product',
             'mixDesign.items.uom',
+            'customerPO.items.mixDesign',
+            'customerPO.items.tax',
             'customerPO.quotation.items.mixDesign',
             'customerPO.quotation.items.tax',
             'customerPO.quotation.items.mixDesign.items.product',
@@ -932,8 +934,8 @@ class PrintDataFormatter
         $data['doc_title']  = $data['settings']['pdf']['labels']['invoice_title'] ?? 'SALES ORDER';
         $data['doc_no']     = ($salesOrder->prefix ?? '') . ($salesOrder->order_no ?? $salesOrder->id);
         $data['doc_date']   = $salesOrder->created_at ? $salesOrder->created_at->format('d/m/Y') : now()->format('d/m/Y');
-        $data['due_date']   = $salesOrder->scheduled_end ? \Carbon\Carbon::parse($salesOrder->scheduled_end)->format('d/m/Y') : 'N/A';
-        $data['delivery_date'] = $salesOrder->scheduled_start ? \Carbon\Carbon::parse($salesOrder->scheduled_start)->format('d/m/Y') : 'N/A';
+        $data['due_date']   = $salesOrder->scheduled_end ? \Carbon\Carbon::parse($salesOrder->scheduled_end)->format('d/m/Y') : '';
+        // $data['delivery_date'] = $salesOrder->scheduled_start ? \Carbon\Carbon::parse($salesOrder->scheduled_start)->format('d/m/Y') : '';
 
         $statusMap = [1 => 'SCHEDULED', 2 => 'IN PROGRESS', 3 => 'COMPLETED', 4 => 'CANCELLED'];
         $data['state'] = $statusMap[$salesOrder->status] ?? 'DRAFT';
@@ -1080,35 +1082,123 @@ class PrintDataFormatter
                 'grand_total' => (float)$grandTotal,
             ];
         } else {
-            // Fallback: single mix design line item (no quotation)
+            // Fallback: single mix design line item
             $mixDesign = $salesOrder->mixDesign;
-            $rate = (float)($mixDesign?->rate_per_qty ?? 0);
             $qty  = (float)($salesOrder->total_qty ?? 0);
+
+            // Try to find the matching Customer PO item to get the correct rate and tax
+            $poItem = null;
+            if ($salesOrder->customerPO) {
+                $poItem = $salesOrder->customerPO->items
+                    ->where('mix_design_id', $salesOrder->mix_design_id)
+                    ->first();
+            }
+
+            $rate = $poItem ? (float)$poItem->rate : (float)($mixDesign?->rate_per_qty ?? 0);
+            
+            // Get tax details
+            $taxModel = $poItem?->tax;
+            $taxRate  = 0.0;
+            $taxGroup = '';
+            $taxName  = '-';
+            $priceTax = 0.0;
+
+            if ($taxModel) {
+                $taxRate  = (float)$taxModel->tax_rate;
+                $taxGroup = $taxModel->tax_group ?? '';
+                $taxName  = $taxModel->tax_name ?? '';
+            }
+
+            // Calculate untaxed amount, price tax, and total based on tax inclusivity
+            $subtotal = $qty * $rate;
+            if ($isTaxInclusive) {
+                $total = $subtotal;
+                $untaxedAmt = $total / (1 + ($taxRate / 100));
+                $priceTax = $total - $untaxedAmt;
+                $unitPrice = $qty > 0 ? ($untaxedAmt / $qty) : $rate;
+            } else {
+                $untaxedAmt = $subtotal;
+                $priceTax = $untaxedAmt * ($taxRate / 100);
+                $total = $untaxedAmt + $priceTax;
+                $unitPrice = $rate;
+            }
+
+            if ($taxRate <= 0 && $poItem) {
+                // If taxRate was not found/zero but the matching item has tax_amount and untaxed_amount,
+                // we can calculate the effective tax rate from the matching item.
+                $itemTaxAmount = (float)$poItem->tax_amount;
+                $itemUntaxedAmount = (float)($poItem->untaxed_amount ?? ($poItem->quantity * $poItem->rate));
+                if ($itemTaxAmount > 0 && $itemUntaxedAmount > 0) {
+                    $taxRate = round(($itemTaxAmount / $itemUntaxedAmount) * 100, 2);
+                    $taxGroup = $isIntra ? 'GST' : 'IGST';
+                    $taxName  = $taxGroup . ' ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
+                    
+                    // Re-calculate based on this resolved tax rate
+                    if ($isTaxInclusive) {
+                        $untaxedAmt = $total / (1 + ($taxRate / 100));
+                        $priceTax = $total - $untaxedAmt;
+                        $unitPrice = $qty > 0 ? ($untaxedAmt / $qty) : $rate;
+                    } else {
+                        $priceTax = $untaxedAmt * ($taxRate / 100);
+                        $total = $untaxedAmt + $priceTax;
+                    }
+                }
+            }
+
+            $description = $mixDesign?->design_code ?? '';
+            if ($mixDesign && $mixDesign->items?->count() > 0) {
+                $materials = $mixDesign->items->map(function ($mdItem) {
+                    $prodName = $mdItem->product?->title ?? 'Unknown';
+                    $qtyVal = (float)$mdItem->actual_quantity;
+                    $unit = $mdItem->uom?->unit_code ?? '';
+                    $formattedQty = $qtyVal == floor($qtyVal) ? (int)$qtyVal : number_format($qtyVal, 2);
+                    return "• {$prodName} ({$formattedQty} {$unit})";
+                })->filter()->implode("\n");
+                if ($materials) {
+                    $description .= $description ? "\n\nRecipe Details:\n{$materials}" : "Recipe Details:\n{$materials}";
+                }
+            }
 
             $data['items'] = $mixDesign ? [[
                 'no'          => 1,
                 'name'        => $mixDesign->design_name ?? 'Concrete Mix',
-                'description' => $mixDesign->design_code ?? '',
+                'description' => $description,
                 'hsn'         => $mixDesign->hsn_code ?? '-',
                 'qty'         => $qty,
                 'received_qty'=> (float)($salesOrder->produced_qty ?? 0),
                 'unit'        => $mixDesign->unit?->unit_code ?? 'm³',
-                'unit_price'  => $rate,
-                'tax_name'    => '-',
-                'tax_rate'    => 0,
-                'tax_group'   => '',
-                'tax_amount'  => 0,
-                'total'       => $qty * $rate,
+                'unit_price'  => $unitPrice,
+                'tax_name'    => $taxName ?: '-',
+                'tax_rate'    => $taxRate,
+                'tax_group'   => $taxGroup,
+                'tax_amount'  => $priceTax,
+                'total'       => $total,
             ]] : [];
 
+            // Tax summary lines
+            $taxLines = [];
+            if ($priceTax > 0 || $taxModel) {
+                $g = strtoupper(trim($taxGroup ?: ($isIntra ? 'GST' : 'IGST')));
+                if ($g === 'GST') {
+                    $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($priceTax / 2);
+                    $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($priceTax / 2);
+                } else {
+                    $taxLines[$g] = ($taxLines[$g] ?? 0) + $priceTax;
+                }
+            }
+
+            $computedTaxLines = collect($taxLines)
+                ->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])
+                ->values()->toArray();
+
             $data['totals'] = [
-                'sub_total'   => $qty * $rate,
+                'sub_total'   => (float)$untaxedAmt,
                 'discount'    => 0,
-                'tax_lines'   => [],
+                'tax_lines'   => $computedTaxLines,
                 'shipping'    => 0,
                 'adjustment'  => 0,
                 'round_off'   => 0,
-                'grand_total' => $qty * $rate,
+                'grand_total' => (float)$total,
             ];
         }
 
@@ -1118,7 +1208,7 @@ class PrintDataFormatter
             'notes'           => $salesOrder->terms_conditions ?? '',
             'terms_text'      => self::resolveTermsCondition($data['settings'], 'Sales Order', $salesOrder->plant_id, ''),
             'total_words'     => self::numberToWords($data['totals']['grand_total'], 'INR'),
-            'po_number'       => $salesOrder->customerPO?->reference ?? '-',
+            'po_number'       => '',
             'project_name'    => $salesOrder->site?->name ?? '',
         ];
 
@@ -1257,6 +1347,9 @@ if ($point > 0) {
                 break;
             case 'customer_pos':
                 $invoiceTitle = 'CUSTOMER PO';
+                break;
+            case 'sales_orders':
+                $invoiceTitle = 'SALES ORDER';
                 break;
             case 'delivery_challans':
                 $invoiceTitle = 'DELIVERY CHALLAN';

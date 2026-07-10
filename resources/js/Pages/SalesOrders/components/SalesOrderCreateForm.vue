@@ -175,14 +175,19 @@ const submit = () => {
         endDate.setSeconds(0, 0);
         const end = endDate.getTime();
         
-        if (start === end) {
-            form.setError('scheduled_end', 'Start and end time cannot be exactly the same.');
-            return;
-        }
+        // if (start === end) {
+        //     form.setError('scheduled_end', 'Start and end time cannot be exactly the same.');
+        //     return;
+        // }
         if (start > end) {
             form.setError('scheduled_end', 'End time cannot be before the start time.');
             return;
         }
+    }
+    if (!form.scheduled_end && form.scheduled_start) {
+        const endDate = new Date(form.scheduled_start);
+        endDate.setHours(endDate.getHours() + 1);
+        form.scheduled_end = endDate;
     }
     const formatLocalTime = (date: Date | any) => {
         if (!date) return null;

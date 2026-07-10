@@ -90,12 +90,22 @@ const selectedMixIngredients = computed(() => {
     return Array.isArray(mix.ingredients) ? mix.ingredients : [];
 });
 
+const isInitializing = ref(true);
+
 const safeSites = computed(() => {
     return (props.sites || []).filter((s: any) => {
         if (!s) return false;
-        if (!form.customer_id) return true;
+        if (Number(s.id) === Number(form.site_id)) return true; // Always include currently selected site
         
         let patronIds = s.patron_id;
+        
+        // If site has no specific patron assigned, it may be available to all
+        if (patronIds === null || patronIds === undefined || patronIds === '') {
+            return true;
+        }
+
+        if (!form.customer_id) return true;
+        
         if (typeof patronIds === 'string') {
             try {
                 const parsed = JSON.parse(patronIds);
@@ -105,6 +115,7 @@ const safeSites = computed(() => {
         
         const custId = Number(form.customer_id);
         if (Array.isArray(patronIds)) {
+            if (patronIds.length === 0) return true;
             return patronIds.map(Number).includes(custId);
         }
         return Number(patronIds) === custId;
@@ -147,28 +158,30 @@ onMounted(async () => {
             const fullData = response.data;
             
             // Update form with complete data
-            Object.assign(form, {
-                prefix: fullData.prefix ?? 'SO',
-                order_no: fullData.order_no ?? '',
-                plant_id: fullData.plant_id ? Number(fullData.plant_id) : null,
-                sales_executive_id: fullData.sales_executive_id ? Number(fullData.sales_executive_id) : null,
-                customer_id: fullData.customer_id ? Number(fullData.customer_id) : null,
-                site_id: fullData.site_id ? Number(fullData.site_id) : null,
-                mix_design_id: fullData.mix_design_id ? Number(fullData.mix_design_id) : null,
-                customer_po_id: fullData.customer_po_id ? Number(fullData.customer_po_id) : null,
-                total_qty: Number(fullData.total_qty ?? 0),
-                produced_qty: Number(fullData.produced_qty ?? 0),
-                status: Number(fullData.status ?? 1),
-                concrete_pump: fullData.concrete_pump ? Number(fullData.concrete_pump) : null,
-                scheduled_start: fullData.scheduled_start ? new Date(fullData.scheduled_start) : defaultStart,
-                scheduled_end: fullData.scheduled_end ? new Date(fullData.scheduled_end) : null,
-            });
+            form.prefix = fullData.prefix ?? 'SO';
+            form.order_no = fullData.order_no ?? '';
+            form.plant_id = fullData.plant_id ? Number(fullData.plant_id) : null;
+            form.sales_executive_id = fullData.sales_executive_id ? Number(fullData.sales_executive_id) : null;
+            form.customer_id = fullData.customer_id ? Number(fullData.customer_id) : null;
+            form.site_id = fullData.site_id ? Number(fullData.site_id) : null;
+            form.mix_design_id = fullData.mix_design_id ? Number(fullData.mix_design_id) : null;
+            form.customer_po_id = fullData.customer_po_id ? Number(fullData.customer_po_id) : null;
+            form.total_qty = Number(fullData.total_qty ?? 0);
+            form.produced_qty = Number(fullData.produced_qty ?? 0);
+            form.status = Number(fullData.status ?? 1);
+            form.concrete_pump = fullData.concrete_pump ? Number(fullData.concrete_pump) : null;
+            form.scheduled_start = fullData.scheduled_start ? new Date(fullData.scheduled_start) : defaultStart;
+            form.scheduled_end = fullData.scheduled_end ? new Date(fullData.scheduled_end) : null;
+
             form.defaults(form.data());
         }
     } catch (e) {
         console.error('Failed to load full sales order data', e);
     } finally {
-        isLoading.value = false;
+        setTimeout(() => {
+            isLoading.value = false;
+            isInitializing.value = false;
+        }, 50);
     }
 });
 
@@ -189,6 +202,8 @@ const customerPOOptions = computed(() => {
 
 // Watch sales order selection to auto-fill patron, site, mix design, and total quantity
 watch(() => form.customer_po_id, (newVal) => {
+    if (isInitializing.value) return;
+
     if (newVal) {
         const salesOrder = props.customerPOs.find((so) => Number(so.id) === Number(newVal));
         if (salesOrder) {
@@ -223,6 +238,8 @@ watch(() => form.scheduled_start, (newStart) => {
         }
     }
 });
+
+console.log('fdlmf',form);
 
 const submit = () => {
     const salesOrderId = props.salesOrder?.id ?? props.salesOrder?.work_order_id ?? null;

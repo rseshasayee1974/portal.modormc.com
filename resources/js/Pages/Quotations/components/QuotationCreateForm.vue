@@ -29,6 +29,7 @@ interface QuotationItemPayload {
     tax_id: number | null;
     rate: number;
     uom_id: number | null, // Added
+    notes: null | string;
     // Calculated fields strictly for the new schema
     // tax_amount: number;
     untaxed_amount: number;
@@ -72,6 +73,7 @@ const form = useForm({
     is_tax_inclusive: false,
     quote_date: initialQuoteDate,
     validity_date: getDefaultValidityDate(initialQuoteDate),
+    notes: '' as string,
     status: 1,
     adjustment: 0,
     // Header totals
@@ -103,6 +105,7 @@ function createNewItem(): QuotationItemPayload {
         uom_id: defaultUomId, 
         rate: 0,
         tax_amount: 0,
+        notes: '',
         untaxed_amount: 0,
         amount_total: 0
     };
@@ -651,7 +654,7 @@ const submit = () => {
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div class="space-y-4">
                             <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Internal Notes / Terms</label>
-                            <textarea placeholder="Specify any additional conditions..." class="w-full h-32 rounded-2xl border-slate-200 text-sm focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 transition-all p-4" />
+                            <textarea v-model="form.notes" placeholder="Specify any additional conditions..." class="w-full h-32 rounded-2xl border-slate-200 text-sm focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 transition-all p-4" />
                             
                             <!-- Recipe Details -->
                             <div v-if="uniqueSelectedMixDesignIds.length" class="space-y-3 mt-4">

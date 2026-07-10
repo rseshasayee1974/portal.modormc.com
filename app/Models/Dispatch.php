@@ -47,12 +47,18 @@ class Dispatch extends Model
 
     public function getItemsAttribute()
     {
+        $designName = $this->mixDesign?->design_name;
+        if (empty($designName) && $this->salesOrder) {
+            $designName = $this->salesOrder->items->first()?->mixDesign?->design_name;
+        }
+        $designName = $designName ?? 'Concrete';
+
         return collect([(object)[
-            'mix_design_id' => $this->mixdesign_id,
+            'mix_design_id' => $this->mixdesign_id ?? $this->saslesOrder?->items->first()?->mix_design_id,
             'product_id' => null, 
-            'description' => "RMC Dispatch: " . ($this->mixDesign?->design_name ?? 'Concrete'),
+            'description' => "RMC Dispatch: " . $designName,
             'quantity' => $this->delivered_qty,
-            'uom_id' => $this->uom_id ?? $this->mixDesign?->unit_id,
+            'uom_id' => $this->uom_id ?? $this->mixDesign?->unit_id ?? $this->salesOrder?->items->first()?->mixDesign?->unit_id,
             'unit_price' => $this->load_rate,
             'discount_type' => '₹',
             'discount_amount' => 0,
@@ -61,7 +67,7 @@ class Dispatch extends Model
             'price_tax' => $this->load_tax_amount,
             'price_total' => $this->load_total_amount,
             'tax_id' => $this->load_tax_id,
-            'product' => (object)['title' => $this->mixDesign?->design_name, 'hsn_code' => '3824'],
+            'product' => (object)['title' => $designName, 'hsn_code' => '3824'],
         ]]);
     }
 

@@ -101,7 +101,7 @@ class PrintController extends Controller
         }
 
         // 4. Download PDF
-        $pdf = Pdf::loadView($view, ['data' => $data, 'is_pdf' => true]);
+        $pdf = Pdf::loadView($view, ['data' => $data, 'is_pdf' => true])->setPaper('a4', 'portrait');
         
         // Sanitize filename to avoid slashes which break download headers
         $safeDocNo = str_replace(['/', '\\'], '-', $data['doc_no']);

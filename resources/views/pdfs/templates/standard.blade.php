@@ -28,18 +28,19 @@
             display: table;
             width: 100%;
             border-bottom: 1px solid #cbd5e1;
-            padding: 10px 14px;
         }
 
         .header-left {
             display: table-cell;
             vertical-align: top;
+            padding: 10px 14px;
         }
 
         .header-right {
             display: table-cell;
             vertical-align: top;
             text-align: right;
+            padding: 10px 14px;
         }
 
         .co-name {
@@ -234,7 +235,6 @@
         .sig-section {
             display: table;
             width: 100%;
-            padding: 8px 12px;
             border-bottom: 1px solid #cbd5e1;
         }
 
@@ -243,6 +243,7 @@
             vertical-align: bottom;
             font-size: 11px;
             width: 60%;
+            padding: 8px 12px;
         }
 
         .sig-right {
@@ -250,6 +251,7 @@
             vertical-align: bottom;
             text-align: right;
             width: 40%;
+            padding: 8px 12px;
         }
 
         .sig-line {
@@ -307,7 +309,7 @@
                             if ($pdfSettings['date'] ?? true) {
                                 $infoLines['Date'] = $data['doc_date'];
                             }
-                            if ($pdfSettings['due_date'] ?? true) {
+                            if (($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') {
                                 $infoLines['Due Date'] = $data['due_date'];
                             }
                             $infoLines['Delivery'] = $data['delivery_date'];

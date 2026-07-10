@@ -3,7 +3,8 @@
 <style>
     /* ═══ RESET & BASE ═══ */
     @page { 
-        margin: 15mm; 
+        size: a4 portrait;
+        margin: 10mm; 
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -69,12 +70,11 @@
     .powered-footer {
         display: table;
         width: 100%;
-        padding: 5px 12px;
         border-top: 1px solid #ccc;
         font-size: 9px;
     }
-    .powered-footer .pf-left  { display: table-cell; color: #999; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: middle; }
-    .powered-footer .pf-right { display: table-cell; text-align: right; color: #888; font-size: 10px; vertical-align: middle; }
+    .powered-footer .pf-left  { display: table-cell; color: #999; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: middle;}
+    .powered-footer .pf-right { display: table-cell; text-align: right; color: #888; font-size: 10px; vertical-align: middle; padding: 5px 12px; }
     .powered-footer .pf-brand { font-weight: 700; color: #555; font-size: 10px; }
 
     /* Centered A4 preview styling for browser/screen view */
@@ -93,12 +93,38 @@
         }
     }
     
+    @media print {
+        body {
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #fff !important;
+        }
+        .inv-root {
+            min-height: 0 !important;
+            height: auto !important;
+            border: none !important;
+            display: block !important;
+            width: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+        }
+    }
+    
     @if ($is_pdf ?? false)
+    body {
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #fff !important;
+    }
     .inv-root {
         min-height: 0 !important;
         height: auto !important;
         border: none !important;
         display: block !important;
+        width: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     @endif
 

@@ -21,7 +21,7 @@ class SalesOrderIndexDataFactory
             'salesOrders' => $this->buildWorkOrdersQuery($activePlantId, $schema)->get()->toArray(),
             'plants' => $activePlantId ? Plant::query()->where('id', $activePlantId)->get(['id', 'name'])->toArray() : [],
             'customers' => $activePlantId ? PatronsDropdown(['Customer'])->toArray() : [],
-            'sites' => $activePlantId ? SitesDropdown('Unloading')->toArray() : [],
+            'sites' => $activePlantId ? SitesDropdown()->toArray() : [],
             'mixDesigns' => $activePlantId ? $this->loadMixDesigns($activePlantId, $schema)->toArray() : [],
             'customerPOs' => $activePlantId ? CustomerPO::with(['patron:id,legal_name', 'site:id,name', 'quotation.items.mixDesign'])
                 ->where('plant_id', $activePlantId)

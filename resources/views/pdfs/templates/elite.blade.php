@@ -14,9 +14,9 @@
             .inv-root { min-height: 297mm; }
         }
 
-        .inv-header { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 10px 14px; }
-        .header-left  { display: table-cell; vertical-align: top; }
-        .header-right { display: table-cell; vertical-align: top; text-align: right; }
+        .inv-header { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; }
+        .header-left  { display: table-cell; vertical-align: top; padding: 10px 14px; }
+        .header-right { display: table-cell; vertical-align: top; text-align: right; padding: 10px 14px; }
         .co-name   { font-size: 15px; font-weight: 700; }
         .co-detail { font-size: 10px; color: #64748b; line-height: 1.45; }
         .inv-title { font-size: 24px; font-weight: 900; line-height: 1.1; }
@@ -92,7 +92,7 @@
                 <table class="kv-table">
                     @php
                         $kv1 = ['Date' => $data['doc_date']];
-                        if($pdfSettings['due_date'] ?? true) $kv1['Due Date'] = $data['due_date'];
+                        if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') $kv1['Due Date'] = $data['due_date'];
                         $kv1['Delivery'] = $data['delivery_date'];
                         $kv1['PO#'] = $data['meta']['po_number'] ?? '';
                     @endphp

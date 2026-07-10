@@ -700,12 +700,12 @@ const submit = () => {
             </div>
         </div> -->
 
-        <div class="p-6 space-y-6">
+        <div >
             <!-- Section 1: Sales Order Selection & Reference Card (Unified Full-Width) -->
             <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 shadow-sm">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     <div class="flex flex-col justify-center">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center gap-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mbfv-3 flex items-center gap-2">
                             <span class="h-2 w-2 rounded-full bg-cyan-600"></span>
                             Sales Order Context
                         </h3>
@@ -1005,17 +1005,20 @@ const submit = () => {
                                     <p class="text-[10px] text-slate-300 mt-1">Click "Add Material" above to customize ingredients</p>
                                 </div>
 
-                                <div v-else class="overflow-auto max-h-[420px] border border-slate-200 rounded-xl shadow-sm bg-white">
-                                    <table class="w-full text-left border-collapse whitespace-nowrap">
-                                        <thead class="sticky top-0 z-10">
+                                <div v-else class="grid grid-cols-1">
+                                    <div class="overflow-auto max-h-[620px] min-w-0 border border-slate-200 rounded-xl shadow-sm bg-white">
+                                        <table class="w-full text-left border-collapse whitespace-nowrap">
+                                        <thead class="sticky top-0 z-20">
                                             <tr class="bg-slate-900 text-white">
-                                                <th class="px-4 py-3 font-bold uppercase text-xs tracking-wider" :colspan="form.materials.length + 1">
-                                                    Materials Breakdown & Tolerances
+                                                <th class="p-0" :colspan="form.materials.length + 1">
+                                                    <div class="px-4 py-3 font-bold uppercase text-xs tracking-wider sticky left-0 w-max">
+                                                        Materials Breakdown & Tolerances
+                                                    </div>
                                                 </th>
                                             </tr>
                                             <tr class="bg-slate-50 text-slate-800 border-b border-slate-200">
-                                                <th class="border-r border-slate-200 px-4 py-3 font-bold uppercase w-48 bg-slate-100 text-[10px] text-slate-500 tracking-wider">Product</th>
-                                                <th v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2 min-w-[180px]">
+                                                <th class="border-r border-slate-200 px-4 py-3 font-bold uppercase w-48 bg-slate-100 text-[10px] text-slate-500 tracking-wider sticky left-0 z-30 shadow-[1px_0_0_0_#e2e8f0]">Product</th>
+                                                <th v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2 min-w-[180px] bg-slate-50">
                                                     <div class="flex items-center gap-1.5">
                                                         <BaseSelect
                                                             v-model="form.materials[index].product_id"
@@ -1052,8 +1055,8 @@ const submit = () => {
                                         <tbody class="divide-y divide-slate-100">
                                             <!-- Target Qty Row -->
                                             <tr>
-                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider">Target Qty</td>
-                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2">
+                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider sticky left-0 z-10 shadow-[1px_0_0_0_#e2e8f0]">Target Qty</td>
+                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2 bg-white">
                                                     <BaseInputNumber
                                                         :modelValue="form.materials[index].target_qty"
                                                         @update:modelValue="form.materials[index].target_qty = Number($event ?? 0)"
@@ -1068,17 +1071,19 @@ const submit = () => {
                                             </tr>
                                             <!-- Recipe Targets Summary -->
                                             <tr class="bg-slate-50/50">
-                                                <td :colspan="form.materials.length + 1" class="border-r px-4 py-2 text-right text-slate-500 font-bold uppercase text-[9px] tracking-wider">
-                                                    Total Recipe Targets:
-                                                    <span class="ml-1 text-slate-800 font-black text-xs">{{ form.materials.reduce((sum, m) => sum + Number(m.target_qty || 0), 0).toFixed(3) }} KGS</span>
+                                                <td :colspan="form.materials.length + 1" class="p-0 border-r bg-slate-100">
+                                                    <div class="px-4 py-2 text-left text-slate-500 font-bold uppercase text-[9px] tracking-wider sticky left-0 w-max">
+                                                        Total Recipe Targets:
+                                                        <span class="ml-1 text-slate-800 font-black text-xs">{{ form.materials.reduce((sum, m) => sum + Number(m.target_qty || 0), 0).toFixed(3) }} KGS</span>
+                                                    </div>
                                                 </td>
                                             </tr>
                                             <!-- Runs Rows -->
                                             <tr v-for="runIdx in numberOfRuns" :key="runIdx">
-                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider">
+                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider sticky left-0 z-10 shadow-[1px_0_0_0_#e2e8f0]">
                                                     Run {{ runIdx }} Actual
                                                 </td>
-                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2">
+                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2 bg-white">
                                                     <BaseInputNumber
                                                         :modelValue="form.materials[index].runs?.[runIdx - 1]"
                                                         @update:modelValue="form.materials[index].runs[runIdx - 1] = Number($event ?? 0)"
@@ -1092,30 +1097,33 @@ const submit = () => {
                                             </tr>
                                             <!-- Total Actual Row -->
                                             <tr class="bg-slate-50/30">
-                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider">Total Actual</td>
-                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2 font-black text-center text-xs text-slate-800">
+                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider sticky left-0 z-10 shadow-[1px_0_0_0_#e2e8f0]">Total Actual</td>
+                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2 font-black text-center text-xs text-slate-800 bg-white">
                                                     {{ (item.runs || []).reduce((sum, val) => sum + Number(val || 0), 0).toFixed(3) }}
                                                 </td>
                                             </tr>
                                             <!-- Deviation Row -->
                                             <tr>
-                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider">Deviation</td>
-                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2.5 font-black text-center text-xs"
-                                                    :class="getDeviation(item) > 0 ? 'text-rose-600 bg-rose-50/30' : getDeviation(item) < 0 ? 'text-emerald-600 bg-emerald-50/30' : 'text-slate-500 bg-slate-50/10'">
+                                                <td class="border-r border-slate-200 px-4 py-2.5 font-bold bg-slate-50 text-slate-600 uppercase text-[10px] tracking-wider sticky left-0 z-10 shadow-[1px_0_0_0_#e2e8f0]">Deviation</td>
+                                                <td v-for="(item, index) in form.materials" :key="index" class="border-r border-slate-200 px-3 py-2.5 font-black text-center text-xs bg-white"
+                                                    :class="getDeviation(item) > 0 ? '!text-rose-600 !bg-rose-50/30' : getDeviation(item) < 0 ? '!text-emerald-600 !bg-emerald-50/30' : '!text-slate-500 !bg-slate-50/10'">
                                                     {{ getDeviation(item) > 0 ? '+' : '' }}{{ getDeviation(item).toFixed(3) }}
                                                 </td>
                                             </tr>
                                             <!-- Actual Set Weight Summary -->
                                             <tr class="bg-slate-50/50 border-t border-slate-200">
-                                                <td :colspan="form.materials.length + 1" class="border-r px-4 py-2 text-right text-slate-500 font-bold uppercase text-[9px] tracking-wider">
-                                                    Total Set Actual Weight:
-                                                    <span class="ml-1 text-slate-800 font-black text-xs">
-                                                        {{ form.materials.reduce((sum, m) => sum + (m.runs || []).reduce((s, r) => s + Number(r || 0), 0), 0).toFixed(3) }} KGS
-                                                    </span>
+                                                <td :colspan="form.materials.length + 1" class="p-0 border-r bg-slate-100">
+                                                    <div class="px-4 py-2 text-left text-slate-500 font-bold uppercase text-[9px] tracking-wider sticky left-0 w-max">
+                                                        Total Set Actual Weight:
+                                                        <span class="ml-1 text-slate-800 font-black text-xs">
+                                                            {{ form.materials.reduce((sum, m) => sum + (m.runs || []).reduce((s, r) => s + Number(r || 0), 0), 0).toFixed(3) }} KGS
+                                                        </span>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         </tbody>
                                     </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>

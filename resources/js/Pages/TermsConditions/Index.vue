@@ -71,6 +71,7 @@ const typeOptions = [
     { label: 'Purchase Order', value: 'Purchase Order' },
     { label: 'Customer PO', value: 'Customer PO' },
     { label: 'Quotation', value: 'Quotation' },
+    { label: 'Sales Order', value: 'Sales Order' },
     { label: 'Delivery Challan', value: 'Delivery Challan' },
     { label: 'Tax Invoice', value: 'Tax Invoice' },
     { label: 'Purchase Bill', value: 'Purchase Bill' },

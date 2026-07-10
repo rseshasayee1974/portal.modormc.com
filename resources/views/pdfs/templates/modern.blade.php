@@ -14,16 +14,18 @@
             .inv-root { min-height: 297mm; }
         }
 
-        .inv-header { display: table; width: 100%; padding: 18px 18px 14px; }
-        .header-left  { display: table-cell; vertical-align: top; }
-        .header-right { display: table-cell; vertical-align: top; text-align: right; }
+        .inv-header { display: table; width: 100%; }
+        .header-left  { display: table-cell; vertical-align: top; padding: 18px 0 14px 18px; }
+        .header-right { display: table-cell; vertical-align: top; text-align: right; padding: 18px 18px 14px 0; }
         .co-name   { font-size: 13px; font-weight: 700; }
         .co-detail { font-size: 10px; color: #64748b; line-height: 1.5; }
         .inv-title { font-size: 30px; font-weight: 900; line-height: 1.0; }
         .inv-ref   { font-size: 10.5px; color: #64748b; margin-top: 3px; }
 
-        .addr-section  { display: table; width: 100%; padding: 12px 18px 8px; }
-        .addr-col      { display: table-cell; width: 50%; padding-right: 20px; vertical-align: top; }
+        .addr-section  { display: table; width: 100%; }
+        .addr-col      { display: table-cell; width: 50%; padding: 12px 10px 8px 10px; vertical-align: top; }
+        .addr-col:first-child { padding-left: 18px; }
+        .addr-col:last-child { padding-right: 18px; }
         .addr-label    { color: #888; font-size: 10.5px; margin-bottom: 3px; }
         .addr-name     { font-weight: 700; }
         .addr-line     { color: #94a3b8; line-height: 1.5; }
@@ -107,18 +109,18 @@
         <thead>
             <tr>
                 <th class="dbar-th">Date</th>
-                @if($pdfSettings['due_date'] ?? true) <th class="dbar-th">Due Date</th> @endif
+                @if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') <th class="dbar-th">Due Date</th> @endif
                 <th class="dbar-th">Delivery</th>
-                <th class="dbar-th">PO#</th>
+                @if(!empty($data['meta']['po_number']) && $data['meta']['po_number'] !== '-') <th class="dbar-th">PO#</th> @endif
                 <th class="dbar-th">Project</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td class="dbar-td">{{ $data['doc_date'] }}</td>
-                @if($pdfSettings['due_date'] ?? true) <td class="dbar-td">{{ $data['due_date'] }}</td> @endif
+                @if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') <td class="dbar-td">{{ $data['due_date'] }}</td> @endif
                 <td class="dbar-td">{{ $data['delivery_date'] }}</td>
-                <td class="dbar-td">{{ $data['meta']['po_number'] ?? '-' }}</td>
+                @if(!empty($data['meta']['po_number']) && $data['meta']['po_number'] !== '-') <td class="dbar-td">{{ $data['meta']['po_number'] }}</td> @endif
                 <td class="dbar-td">{{ $data['meta']['project_name'] ?? '-' }}</td>
             </tr>
         </tbody>

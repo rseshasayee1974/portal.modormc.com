@@ -14,9 +14,9 @@
         @media screen {
             .inv-root { min-height: 297mm; }
         }
-        .compact-header { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 5px 8px; }
-        .ch-left  { display: table-cell; vertical-align: middle; }
-        .ch-right { display: table-cell; vertical-align: middle; text-align: right; }
+        .compact-header { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; }
+        .ch-left  { display: table-cell; vertical-align: middle; padding: 5px 0 5px 8px; }
+        .ch-right { display: table-cell; vertical-align: middle; text-align: right; padding: 5px 8px 5px 0; }
         .co-name  { font-size: 11px; font-weight: 700; }
         .co-det   { font-size: 8.5px; color: #64748b; }
         .inv-title{ font-size: 16px; font-weight: 900; }
@@ -61,7 +61,7 @@
     <div class="meta-strip">
         @php
             $metaFields = [];
-            if($pdfSettings['due_date'] ?? true) $metaFields['Due'] = $data['due_date'];
+            if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') $metaFields['Due'] = $data['due_date'];
             $metaFields['Delivery'] = $data['delivery_date'];
             $metaFields['PO#'] = ($data['meta']['po_number'] ?? '');
             $metaFields['Status'] = $data['state'];

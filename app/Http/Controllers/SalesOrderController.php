@@ -78,6 +78,7 @@ class SalesOrderController extends Controller
             'mixDesign.items.uom', 
             'mixDesign.concrete_grade',
             'customerPO.patron',
+            'customerPO',
             'customerPO.site',
             'customerPO.quotation.items.mixDesign'
         ]);

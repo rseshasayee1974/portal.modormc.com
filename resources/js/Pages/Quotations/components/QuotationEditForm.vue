@@ -85,6 +85,7 @@ const form = useForm({
     is_tax_inclusive: props.quotation.is_tax_inclusive ? true : false,
     quote_date: props.quotation.quote_date ? String(props.quotation.quote_date).substring(0, 10) : new Date().toISOString().substring(0, 10),
     validity_date: props.quotation.validity_date ? String(props.quotation.validity_date).substring(0, 10) : null,
+    notes: props.quotation.notes ?? '',
     status: Number(props.quotation.status ?? 0),
     adjustment: Number(props.quotation.adjustment || 0),
     // Header totals
@@ -160,6 +161,9 @@ const getMixDesignMaterials = (mixDesignId: number | null) => {
         uom: it.uom?.unit_code || '',
     }));
 };
+
+
+console.log('quote',props.quotation);
 
 const calculateTotals = () => {
     let totalUntaxed = 0;
@@ -477,44 +481,49 @@ const sendEmail = () => {
                 </table>
             </div>
 
-            <div class="flex flex-col md:flex-row justify-between items-end gap-8">
-                
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start mt-6">
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Internal Notes / Terms</label>
+                        <textarea v-model="form.notes" :disabled="isLocked" placeholder="Specify any additional conditions..." class="w-full h-32 rounded-2xl border-slate-200 text-sm focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 transition-all p-4" />
+                    </div>
 
-                <!-- Recipe Details -->
-                <div v-if="uniqueSelectedMixDesignIds.length" class="w-full space-y-3 mt-4 self-start">
-                    <div 
-                        v-for="designId in uniqueSelectedMixDesignIds" 
-                        :key="designId"
-                        class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 text-left animate-fade-in"
-                    >
-                        <div class="flex items-center justify-between">
-                            <label class="text-[10px] font-bold uppercase tracking-[0.1em] text-indigo-500">
-                                Recipe Details
-                            </label>
-                            <span class="rounded bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
-                                {{ props.mixDesigns.find(d => Number(d.id) === Number(designId))?.title || props.mixDesigns.find(d => Number(d.id) === Number(designId))?.design_name || '-' }}
-                            </span>
-                        </div>
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            <div 
-                                v-for="item in getMixDesignMaterials(designId)" 
-                                :key="item.id" 
-                                class="flex items-center gap-2 rounded-md border border-indigo-100 bg-white px-3 py-2"
-                            >
-                                <span class="text-xs text-slate-700">{{ item.name }}</span>
-                                <span class="font-semibold text-indigo-600">
-                                    {{ item.qty }}
-                                    <span class="text-slate-400 text-[10px]">{{ item.uom }}</span>
+                    <!-- Recipe Details -->
+                    <div v-if="uniqueSelectedMixDesignIds.length" class="w-full space-y-3 ">
+                        <div 
+                            v-for="designId in uniqueSelectedMixDesignIds" 
+                            :key="designId"
+                            class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 text-left animate-fade-in "
+                        >
+                            <div class="flex items-center justify-between">
+                                <label class="text-[10px] font-bold uppercase tracking-[0.1em] text-indigo-500">
+                                    Recipe Details
+                                </label>
+                                <span class="rounded bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
+                                    {{ props.mixDesigns.find(d => Number(d.id) === Number(designId))?.title || props.mixDesigns.find(d => Number(d.id) === Number(designId))?.design_name || '-' }}
                                 </span>
                             </div>
-                            <div v-if="!getMixDesignMaterials(designId).length" class="text-xs text-slate-400 italic">
-                                No materials configured for this recipe.
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <div 
+                                    v-for="item in getMixDesignMaterials(designId)" 
+                                    :key="item.id" 
+                                    class="flex items-center gap-2 rounded-md border border-indigo-100 bg-white px-3 py-2"
+                                >
+                                    <span class="text-xs text-slate-700">{{ item.name }}</span>
+                                    <span class="font-semibold text-indigo-600">
+                                        {{ item.qty }}
+                                        <span class="text-slate-400 text-[10px]">{{ item.uom }}</span>
+                                    </span>
+                                </div>
+                                <div v-if="!getMixDesignMaterials(designId).length" class="text-xs text-slate-400 italic">
+                                    No materials configured for this recipe.
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="w-full md:w-96 bg-white border border-slate-100 rounded-md p-4 space-y-3">
+                <div class="w-full md:w-96 bg-white border border-slate-100 rounded-md p-4 space-y-3 ml-auto">
                       <div class="flex justify-between items-center text-[12px] font-medium text-slate-600">
                                     <span>Subtotal (Untaxed)</span>
                                     <span class="font-bold">₹ {{ Number(form.amount_untaxed).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
@@ -540,7 +549,7 @@ const sendEmail = () => {
                 </div>
             </div>
 
-            <div class="flex justify-end" v-if="!isLocked">
+            <div class="flex justify-between" v-if="!isLocked">
                 <div class="text-[10px] text-slate-400 space-y-1">
                     <div v-if="quotation.creator" class="flex items-center gap-2">
                         <UserIcon class="w-3 h-3" />

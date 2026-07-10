@@ -33,9 +33,8 @@ const emit = defineEmits<{
     (e: 'saved'): void;
     (e: 'cancel'): void;
 }>();
-
-const { isAdmin } = usePermissions();
-
+const { isAdmin , isSuperAdmin} = usePermissions();
+const admin = isAdmin.value || isSuperAdmin.value;
 const form = useForm({
     prefix: props.customerPO?.prefix ?? 'CPO',
     reference: props.customerPO?.reference ?? '',
@@ -828,7 +827,7 @@ const performSubmit = (customerPOId: any) => {
 
         <div class="mt-5 flex justify-end gap-2 border-t border-gray-200 pt-4">
             <BaseFormActions
-                :disabled="props.customerPO.has_salesorders && !isAdmin"
+                :disabled="props.customerPO.has_salesorders && !admin "
                 mode="update"
                 updateLabel="Update Customer PO"
                 :loading="form.processing"

@@ -44,6 +44,7 @@ class StoreQuotationRequest extends FormRequest
             'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
             'quote_date' => 'required|date',
             'validity_date' => 'nullable|date',
+            'notes' => 'nullable|string',
             'amount_untaxed' => 'nullable|numeric',
             'tax_amount' => 'nullable|numeric',
             'amount_tax' => 'nullable|numeric',

@@ -9,9 +9,9 @@
         @media screen {
             .inv-root { min-height: 297mm; }
         }
-        .ledger-header { display: table; width: 100%; border-bottom: 2px solid #111; padding: 8px 12px; }
-        .lh-left  { display: table-cell; vertical-align: bottom; }
-        .lh-right { display: table-cell; vertical-align: bottom; text-align: right; }
+        .ledger-header { display: table; width: 100%; border-bottom: 2px solid #111; }
+        .lh-left  { display: table-cell; vertical-align: bottom; padding: 8px 0 8px 12px; }
+        .lh-right { display: table-cell; vertical-align: bottom; text-align: right; padding: 8px 12px 8px 0; }
         .co-name  { font-size: 14px; font-weight: 700; }
         .co-det   { font-size: 9.5px; color: #64748b; }
         .doc-badge { display: inline-block; background: #111; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 16px; }
@@ -35,9 +35,9 @@
         .tl-val   { display: table-cell; width: 22%; text-align: right; padding: 4px 12px; font-size: 10.5px; }
         .tl-final { background: #111; color: #fff; }
         .tl-final .tl-label, .tl-final .tl-val { font-weight: 700; font-size: 12px; }
-        .sig-row { display: table; width: 100%; padding: 8px 12px; min-height: 80px; }
-        .sig-left  { display: table-cell; vertical-align: bottom; font-size: 10px; color: #64748b; width: 60%; }
-        .sig-right { display: table-cell; vertical-align: bottom; text-align: right; }
+        .sig-row { display: table; width: 100%; min-height: 80px; }
+        .sig-left  { display: table-cell; vertical-align: bottom; font-size: 10px; color: #64748b; width: 60%; padding: 8px 0 8px 12px; }
+        .sig-right { display: table-cell; vertical-align: bottom; text-align: right; padding: 8px 12px 8px 0; }
         .sig-line  { display: inline-block; width: 160px; border-top: 1px solid #999; padding-top: 4px; font-size: 10px; color: #64748b; text-align: center; }
     </style>
 </head>
@@ -56,7 +56,7 @@
     </div>
 
     <div class="meta-bar">
-        @foreach(['Date'=>$data['doc_date'], 'Due Date'=>$data['due_date'], 'Delivery'=>$data['delivery_date'], 'Party'=>$data['bill_to']['name'], 'Project'=>($data['meta']['project_name']??'')] as $k=>$v)
+        @foreach(['Date'=>$data['doc_date'], 'Due Date'=>($data['due_date'] !== 'N/A' ? $data['due_date'] : ''), 'Delivery'=>$data['delivery_date'], 'Party'=>$data['bill_to']['name'], 'Project'=>($data['meta']['project_name']??'')] as $k=>$v)
         @if($v) <div class="mb-cell"><span class="mb-key">{{ $k }}</span><span class="mb-val">{{ $v }}</span></div> @endif
         @endforeach
     </div>
