@@ -96,10 +96,10 @@ const form = useForm({
     modifier: props.dispatch?.modifier || null,
 
     weights: {
-        empty_weight_truck: props.dispatch?.empty_weight_truck || props.batch?.empty_weight_truck || 0,
-        loaded_weight_truck: props.dispatch?.loaded_weight_truck || props.batch?.loaded_weight_truck || 0,
-        empty_weight_time_load: props.dispatch?.empty_weight_time_load ? new Date(props.dispatch.empty_weight_time_load) : (props.batch?.empty_time ? new Date(props.batch.empty_time) : null),
-        loaded_weight_time_load: props.dispatch?.loaded_weight_time_load ? new Date(props.dispatch.loaded_weight_time_load) : (props.batch?.load_time ? new Date(props.batch.load_time) : null),
+        empty_weight_truck: props.dispatch?.empty_weight_truck || props.batch?.dispatches?.[0]?.empty_weight_truck || 0,
+        loaded_weight_truck: props.dispatch?.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck || 0,
+        empty_weight_time_load: props.dispatch?.empty_time ? new Date(props.dispatch.empty_time) : (props.batch?.dispatches?.[0]?.empty_time ? new Date(props.batch.dispatches[0].empty_time) : null),
+        loaded_weight_time_load: props.dispatch?.load_time ? new Date(props.dispatch.load_time) : (props.batch?.dispatches?.[0]?.load_time ? new Date(props.batch.dispatches[0].load_time) : null),
         empty_weight_unload: props.dispatch?.empty_weight_unload || 0,
         loaded_weight_unload: props.dispatch?.loaded_weight_unload || 0,
         empty_weight_time_unload: props.dispatch?.empty_weight_time_unload ? new Date(props.dispatch.empty_weight_time_unload) : null,
@@ -108,7 +108,7 @@ const form = useForm({
     },
 
     financials: {
-        load_units: props.dispatch?.load_units || (props.batch?.loaded_weight_truck ? Number((Number(props.batch.loaded_weight_truck) - Number(props.batch.empty_weight_truck || 0)).toFixed(3)) : (props.batch?.batch_size || 0)),
+        load_units: props.dispatch?.load_units || ((props.dispatch?.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck) ? Number((Number(props.dispatch?.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck) - Number(props.dispatch?.empty_weight_truck || props.batch?.dispatches?.[0]?.empty_weight_truck || 0)).toFixed(3)) : (props.batch?.batch_size || 0)),
         load_rate: props.dispatch?.load_rate || 0,
         load_tax_id: props.dispatch?.load_tax_id ? Number(props.dispatch.load_tax_id) : null,
         load_uom_id: props.dispatch?.load_uom_id || props.batch?.uom_id,
@@ -188,12 +188,12 @@ watch(() => props.batch, (newBatch) => {
         form.unload_site_id = newBatch.unload_site_id ? Number(newBatch.unload_site_id) : form.unload_site_id;
         form.driver_id = newBatch.driver_id ? Number(newBatch.driver_id) : form.driver_id;
         form.sales_executive_id = newBatch.sales_executive_id ? Number(newBatch.sales_executive_id) : form.sales_executive_id;
-        form.weights.empty_weight_truck = newBatch.empty_weight_truck || 0;
-        form.weights.loaded_weight_truck = newBatch.loaded_weight_truck || 0;
-        form.weights.empty_weight_time_load = newBatch.empty_time ? new Date(newBatch.empty_time) : null;
-        form.weights.loaded_weight_time_load = newBatch.load_time ? new Date(newBatch.load_time) : null;
+        form.weights.empty_weight_truck = newBatch.dispatches?.[0]?.empty_weight_truck || 0;
+        form.weights.loaded_weight_truck = newBatch.dispatches?.[0]?.loaded_weight_truck || 0;
+        form.weights.empty_weight_time_load = newBatch.dispatches?.[0]?.empty_time ? new Date(newBatch.dispatches[0].empty_time) : null;
+        form.weights.loaded_weight_time_load = newBatch.dispatches?.[0]?.load_time ? new Date(newBatch.dispatches[0].load_time) : null;
 
-        form.financials.load_units = newBatch.loaded_weight_truck ? Number((Number(newBatch.loaded_weight_truck) - Number(newBatch.empty_weight_truck || 0)).toFixed(3)) : (newBatch.batch_size || 0);
+        form.financials.load_units = newBatch.dispatches?.[0]?.loaded_weight_truck ? Number((Number(newBatch.dispatches[0].loaded_weight_truck) - Number(newBatch.dispatches[0].empty_weight_truck || 0)).toFixed(3)) : (newBatch.batch_size || 0);
         form.financials.load_uom_id = newBatch.uom_id || form.financials.load_uom_id;
         form.financials.unload_units = newBatch.batch_size || 0;
         form.financials.unload_uom_id = newBatch.uom_id || form.financials.unload_uom_id;
@@ -251,10 +251,10 @@ watch(() => props.dispatch, (newDispatch) => {
         }
 
         // Sync Weights
-        form.weights.empty_weight_truck = newDispatch.empty_weight_truck || props.batch?.empty_weight_truck || 0;
-        form.weights.loaded_weight_truck = newDispatch.loaded_weight_truck || props.batch?.loaded_weight_truck || 0;
-        form.weights.empty_weight_time_load = newDispatch.empty_weight_time_load ? new Date(newDispatch.empty_weight_time_load) : (props.batch?.empty_time ? new Date(props.batch.empty_time) : null);
-        form.weights.loaded_weight_time_load = newDispatch.loaded_weight_time_load ? new Date(newDispatch.loaded_weight_time_load) : (props.batch?.load_time ? new Date(props.batch.load_time) : null);
+        form.weights.empty_weight_truck = newDispatch.empty_weight_truck || props.batch?.dispatches?.[0]?.empty_weight_truck || 0;
+        form.weights.loaded_weight_truck = newDispatch.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck || 0;
+        form.weights.empty_weight_time_load = newDispatch.empty_time ? new Date(newDispatch.empty_time) : (props.batch?.dispatches?.[0]?.empty_time ? new Date(props.batch.dispatches[0].empty_time) : null);
+        form.weights.loaded_weight_time_load = newDispatch.load_time ? new Date(newDispatch.load_time) : (props.batch?.dispatches?.[0]?.load_time ? new Date(props.batch.dispatches[0].load_time) : null);
         form.weights.empty_weight_unload = newDispatch.empty_weight_unload || 0;
         form.weights.loaded_weight_unload = newDispatch.loaded_weight_unload || 0;
         form.weights.empty_weight_time_unload = newDispatch.empty_weight_time_unload ? new Date(newDispatch.empty_weight_time_unload) : null;
@@ -262,7 +262,7 @@ watch(() => props.dispatch, (newDispatch) => {
         form.weights.round_off = newDispatch.round_off || 0;
 
         // Sync Financials
-        form.financials.load_units = newDispatch.load_units !== undefined ? newDispatch.load_units : (props.batch?.loaded_weight_truck ? Number((Number(props.batch.loaded_weight_truck) - Number(props.batch.empty_weight_truck || 0)).toFixed(3)) : (props.batch?.batch_size || 0));
+        form.financials.load_units = newDispatch.load_units !== undefined ? newDispatch.load_units : ((newDispatch.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck) ? Number((Number(newDispatch.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck) - Number(newDispatch.empty_weight_truck || props.batch?.dispatches?.[0]?.empty_weight_truck || 0)).toFixed(3)) : (props.batch?.batch_size || 0));
         form.financials.load_rate = newDispatch.load_rate !== undefined ? newDispatch.load_rate : 0;
         form.financials.load_tax_id = newDispatch.load_tax_id || null;
         form.financials.load_uom_id = newDispatch.load_uom_id || props.batch?.uom_id;

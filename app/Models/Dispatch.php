@@ -22,6 +22,8 @@ class Dispatch extends Model
 
     protected $casts = [
         'dispatch_time' => 'datetime',
+        'empty_time' => 'datetime',
+        'load_time' => 'datetime',
         'delivered_qty' => 'decimal:3',
         'load_rate' => 'decimal:2',
         'load_tax_amount' => 'decimal:2',
@@ -49,16 +51,16 @@ class Dispatch extends Model
     {
         $designName = $this->mixDesign?->design_name;
         if (empty($designName) && $this->salesOrder) {
-            $designName = $this->salesOrder->items->first()?->mixDesign?->design_name;
+            $designName = $this->salesOrder->mixDesign?->design_name;
         }
         $designName = $designName ?? 'Concrete';
 
         return collect([(object)[
-            'mix_design_id' => $this->mixdesign_id ?? $this->saslesOrder?->items->first()?->mix_design_id,
+            'mix_design_id' => $this->mixdesign_id ?? $this->salesOrder?->mix_design_id,
             'product_id' => null, 
             'description' => "RMC Dispatch: " . $designName,
             'quantity' => $this->delivered_qty,
-            'uom_id' => $this->uom_id ?? $this->mixDesign?->unit_id ?? $this->salesOrder?->items->first()?->mixDesign?->unit_id,
+            'uom_id' => $this->uom_id ?? $this->mixDesign?->unit_id ?? $this->salesOrder?->mixDesign?->unit_id,
             'unit_price' => $this->load_rate,
             'discount_type' => '₹',
             'discount_amount' => 0,
