@@ -1215,17 +1215,20 @@ class PrintDataFormatter
         return $data;
     }
 
-    /**
-     * Converts a number to words in Indian Numbering System.
-     */
-    public static function numberToWords($number, $currency = 'INR')
+    private static function convertNumberToWords($no)
     {
-        $no = (int)$number;
-$point = (int)round(($number - $no) * 100);
-        $hundred = null;
-        $digits_1 = strlen($no);
-        $i = 0;
-        $str = array();
+        if ($no == 0) {
+            return '';
+        }
+
+        if ($no >= 10000000) {
+            $crores = floor($no / 10000000);
+            $remainder = $no % 10000000;
+            $croresStr = self::convertNumberToWords($crores) . ' Crore';
+            $remainderStr = $remainder > 0 ? ' ' . self::convertNumberToWords($remainder) : '';
+            return trim($croresStr . $remainderStr);
+        }
+
         $words = array(
             '0' => '', '1' => 'One', '2' => 'Two',
             '3' => 'Three', '4' => 'Four', '5' => 'Five', '6' => 'Six',
@@ -1239,6 +1242,12 @@ $point = (int)round(($number - $no) * 100);
             '80' => 'Eighty', '90' => 'Ninety'
         );
         $digits = array('', 'Hundred', 'Thousand', 'Lakh', 'Crore');
+
+        $digits_1 = strlen($no);
+        $i = 0;
+        $str = array();
+        $tempNo = $no;
+
         while ($i < $digits_1) {
             $divider = ($i == 2) ? 10 : 100;
             $number = floor($no % $divider);
