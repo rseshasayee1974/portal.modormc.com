@@ -142,6 +142,83 @@ class Batch extends Model
         return $this->hasMany(Dispatch::class, 'batch_id');
     }
 
+    public function getFormattedMaterials(string $mode = 'run')
+    {
+        $materials = $this->materials;
+
+        if ($mode === 'run' || $materials->isEmpty()) {
+            return $materials->map(function ($mat) {
+                $target = (float) $mat->target_qty;
+                $actual = (float) $mat->actual_qty;
+                $devVal = (float) $mat->deviation_quantity;
+                $devPercent = $target > 0 ? ($devVal / $target) * 100 : 0;
+
+                $rawName = $mat->material_name ?: ($mat->product->title ?? 'Material');
+                $cleanName = preg_replace('/\s*[-–—]?\s*Run\s*[-–—]?\s*\d+\s*$/i', '', $rawName);
+
+                return (object) [
+                    'material_name' => $cleanName,
+                    'target_qty' => $target,
+                    'actual_qty' => $actual,
+                    'deviation_quantity' => $devVal,
+                    'deviation_percent' => $devPercent,
+                    'uom_code' => $mat->uom->unit_code ?? 'KGS',
+                ];
+            });
+        }
+
+        // Estimate run size using the first recipe item that matches
+        $runSize = null;
+        $mixDesign = $this->salesOrder?->mixDesign ?? $this->workOrder?->mixDesign;
+
+        if ($mixDesign) {
+            $recipeItems = $mixDesign->items;
+            foreach ($materials as $mat) {
+                if ($mat->product_id) {
+                    $recipeItem = $recipeItems->firstWhere('product_id', $mat->product_id);
+                    if ($recipeItem && (float) $recipeItem->actual_quantity > 0 && (float) $mat->target_qty > 0) {
+                        $runSize = (float) $mat->target_qty / (float) $recipeItem->actual_quantity;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Fallback if we cannot estimate the run size
+        if ($runSize === null || $runSize <= 0) {
+            $runSize = 1.0;
+        }
+
+        $batchSize = (float) $this->batch_size;
+        if ($batchSize <= 0) {
+            $batchSize = 1.0;
+        }
+
+        // Define scale factor
+        // For 'mix_design': target/actual should be per 1 m3, i.e., raw_qty / runSize
+        // For 'batch_size': target/actual should be for total load, i.e., raw_qty * (batchSize / runSize)
+        $scaleFactor = ($mode === 'mix_design') ? (1.0 / $runSize) : ($batchSize / $runSize);
+
+        return $materials->map(function ($mat) use ($scaleFactor) {
+            $target = (float) $mat->target_qty * $scaleFactor;
+            $actual = (float) $mat->actual_qty * $scaleFactor;
+            $devVal = $actual - $target;
+            $devPercent = $target > 0 ? ($devVal / $target) * 100 : 0;
+
+            $rawName = $mat->material_name ?: ($mat->product->title ?? 'Material');
+            $cleanName = preg_replace('/\s*[-–—]?\s*Run\s*[-–—]?\s*\d+\s*$/i', '', $rawName);
+
+            return (object) [
+                'material_name' => $cleanName,
+                'target_qty' => $target,
+                'actual_qty' => $actual,
+                'deviation_quantity' => $devVal,
+                'deviation_percent' => $devPercent,
+                'uom_code' => $mat->uom->unit_code ?? 'KGS',
+            ];
+        });
+    }
+
     public function getReportData(): array
     {
         $materials = $this->materials->map(function ($material) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import DatePicker from 'primevue/datepicker';
@@ -19,8 +19,13 @@ const props = defineProps<{
     addLoan: () => void;
     removeLoan: (index: number) => void;
 }>();
-console.log(props.transportOwnerOptions);
+// console.log(props.transportOwnerOptions);
+console.log(props.form.vehicle_type);
 const activeTab = ref<'specs' | 'compliance' | 'finance'>('specs');
+
+const isPump = computed(() => {
+    return props.form.vehicle_type?.toLowerCase()?.includes('pump');
+});
 
 defineExpose({ activeTab });
 </script>
@@ -66,13 +71,21 @@ defineExpose({ activeTab });
                 </div>
                 <div class="col-span-12 md:col-span-3 field-group">
                     <BaseInput 
-                        v-model="form.registration" 
-                        label="Registration ID"
-                        required
-                        placeholder="E.g. UP 15 AH 1234"
-                        :error="form.errors.registration"
+                    v-model="form.registration" 
+                    label="Registration ID"
+                    required
+                    placeholder="E.g. UP 15 AH 1234"
+                    :error="form.errors.registration"
                     />
                 </div>
+                <div v-if="form.vehicle_type?.toLowerCase() === 'pump'" class="col-span-12 md:col-span-3 field-group">
+                     <BaseInputNumber 
+                         v-model="form.pump_rate" 
+                         label="Pump Rate"
+                         placeholder="1500"
+                         :error="form.errors.pump_rate"
+                     />
+                 </div>
                 <div class="col-span-12 md:col-span-3 field-group">
                     <BaseInput 
                         v-model="form.vehicle_model" 
@@ -149,6 +162,10 @@ defineExpose({ activeTab });
                         <div class="col-span-12 md:col-span-4 field-group">
                             <label class="field-label">Doc Type</label>
                             <BaseSelect v-model="doc.type" :options="docTypeOptions" optionLabel="label" optionValue="value" />
+                        </div>
+                        <div class="col-span-6 md:col-span-4 field-group">
+                            <label class="field-label">Amount </label>
+                            <BaseInputNumber v-model="doc.amount" class="!w-full h-10" />
                         </div>
                         <div class="col-span-6 md:col-span-4 field-group">
                             <label class="field-label">Issue Date</label>

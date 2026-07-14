@@ -90,6 +90,8 @@
         <div class="gmt-cell"><div class="gmt-key">Date</div><div class="gmt-val">{{ $data['doc_date'] }}</div></div>
         @if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') <div class="gmt-cell"><div class="gmt-key">Due Date</div><div class="gmt-val">{{ $data['due_date'] }}</div></div> @endif
         <div class="gmt-cell"><div class="gmt-key">State of Supply</div><div class="gmt-val">{{ $data['bill_to']['state'] ?? 'Tamil Nadu' }}</div></div>
+        @if(!empty($data['meta']['sales_executive_name'])) <div class="gmt-cell"><div class="gmt-key">Sales Exec</div><div class="gmt-val">{{ $data['meta']['sales_executive_name'] }}</div></div> @endif
+        @if(!empty($data['meta']['sales_executive_mobile'])) <div class="gmt-cell"><div class="gmt-key">Contact No</div><div class="gmt-val">{{ $data['meta']['sales_executive_mobile'] }}</div></div> @endif
         <div class="gmt-cell"><div class="gmt-key">Project</div><div class="gmt-val">{{ $data['meta']['project_name'] ?: '---' }}</div></div>
     </div>
 

@@ -44,7 +44,22 @@
         <div class="title-right">{{ $data['doc_title'] }}<br><span style="font-size:11px;font-weight:400;opacity:0.7">{{ $data['doc_no'] }}</span></div>
     </div>
     <div class="doc-ref">
-        @foreach(['Date' => $data['doc_date'], 'Delivery' => $data['delivery_date'], 'Due Date' => ($data['due_date'] !== 'N/A' ? $data['due_date'] : ''), 'PO#' => ($data['meta']['po_number'] ?? ''), 'Status' => $data['state']] as $k=>$v)
+        @php
+            $docRefFields = [
+                'Date' => $data['doc_date'],
+                'Delivery' => $data['delivery_date'],
+                'Due Date' => ($data['due_date'] !== 'N/A' ? $data['due_date'] : ''),
+                'PO#' => ($data['meta']['po_number'] ?? ''),
+                'Status' => $data['state']
+            ];
+            if (!empty($data['meta']['sales_executive_name'])) {
+                $docRefFields['Sales Exec'] = $data['meta']['sales_executive_name'];
+            }
+            if (!empty($data['meta']['sales_executive_mobile'])) {
+                $docRefFields['Contact No'] = $data['meta']['sales_executive_mobile'];
+            }
+        @endphp
+        @foreach($docRefFields as $k=>$v)
             @if($v) <div class="dr-cell"><span class="dr-key">{{ $k }}</span><span class="dr-val">{{ $v }}</span></div> @endif
         @endforeach
     </div>

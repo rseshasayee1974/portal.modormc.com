@@ -116,6 +116,176 @@ class PrintDataFormatter
         return $fallbackTerms ?? '';
     }
 
+    // ─────────────────────────────────────────────────────
+    //  DRY HELPERS
+    // ─────────────────────────────────────────────────────
+    public static function formatCompany($plant): array
+    {
+        $plAddr = $plant?->addresses?->first();
+        return [
+            'name'    => $plant?->entity?->entity_name ?? $plant?->name ?? 'Company',
+            'address' => $plAddr?->line_1 ?? '',
+            'city'    => $plAddr?->city ?? '',
+            'state'   => $plAddr?->state?->state_name ?? $plAddr?->state_code ?? '',
+            'pin'     => $plAddr?->zipcode ?? '',
+            'gstin'   => $plant?->gstin ?? '',
+            'phone'   => $plant?->phone ?? '',
+            'email'   => $plant?->email ?? '',
+            'seal_sign_path' => $plant?->seal_sign_path ?? '',
+        ];
+    }
+
+    public static function formatPartner($partner): array
+    {
+        if (!$partner) {
+            return [
+                'name' => 'N/A', 'address' => '', 'city' => '', 'state' => '', 'pin' => '', 'gstin' => '', 'phone' => '',
+            ];
+        }
+
+        $partnerAddr = null;
+        $primaryContact = null;
+
+        if (isset($partner->contacts)) {
+            $primaryContact = $partner->contacts->where('is_primary', true)->first() ?? $partner->contacts->first();
+            if ($primaryContact && isset($primaryContact->addresses)) {
+                $partnerAddr = $primaryContact->addresses->where('is_primary', true)->first() ?? $primaryContact->addresses->first();
+            }
+        }
+
+        if (!$partnerAddr && isset($partner->addresses)) {
+            $partnerAddr = $partner->addresses->first();
+        }
+
+        $name = $partner->legal_name ?: ($partner->name ?: 'N/A');
+        $address = $partnerAddr?->line_1 ?: ($partner->address_line1 ?? '');
+        $city = $partnerAddr?->city ?: ($partner->city ?? '');
+        
+        $stateVal = '';
+        if ($partnerAddr) {
+            $stateVal = $partnerAddr->state?->state_name ?: ($partnerAddr->state_code ?? '');
+        }
+        if (empty($stateVal)) {
+            $stateVal = $partner->state ?? '';
+        }
+
+        $pin = $partnerAddr?->zipcode ?: ($partner->pincode ?? '');
+        $gstin = $partner->gstin ?? '';
+        
+        $phone = $partner->phone ?: ($partner->mobile ?? '');
+        if (empty($phone) && $primaryContact) {
+            $phone = $primaryContact->mobile ?? '';
+        }
+
+        return [
+            'name'    => $name,
+            'address' => $address,
+            'city'    => $city,
+            'state'   => $stateVal,
+            'pin'     => $pin,
+            'gstin'   => $gstin,
+            'phone'   => $phone,
+        ];
+    }
+
+    public static function formatShipTo($site, array $billTo): array
+    {
+        return [
+            'name'    => $site?->name ?: $billTo['name'],
+            'address' => $site?->site_address_1 ?: ($site?->address ?: $billTo['address']),
+            'city'    => $site?->city ?: $billTo['city'],
+            'state'   => $site?->state ?: $billTo['state'],
+            'pin'     => $site?->zipcode ?: ($site?->pincode ?: $billTo['pin']),
+        ];
+    }
+
+    public static function isIntraState(?string $plantGstin, ?string $partnerGstin): bool
+    {
+        $plantState = strlen($plantGstin ?? '') >= 2 ? substr($plantGstin, 0, 2) : '33';
+        $partnerState = strlen($partnerGstin ?? '') >= 2 ? substr($partnerGstin, 0, 2) : '';
+        return !(strlen($partnerState) >= 2 && $partnerState !== $plantState);
+    }
+
+    public static function resolveTaxDetails($taxModel, bool $isIntra, float $priceTax, float $subtotal): array
+    {
+        $taxRate = $taxModel ? (float)$taxModel->tax_rate : 0.0;
+        $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : '';
+        $taxName = $taxModel ? ($taxModel->tax_name ?? '') : '';
+
+        if ($taxRate <= 0 && $priceTax > 0 && $subtotal > 0) {
+            $taxRate = round(($priceTax / $subtotal) * 100, 2);
+            $taxGroup = $isIntra ? 'GST' : 'IGST';
+            $taxName = $taxGroup . ' ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
+        }
+
+        return [
+            'rate' => $taxRate,
+            'group' => $taxGroup,
+            'name' => $taxName,
+        ];
+    }
+
+    public static function compileTaxLines($items, bool $isIntra, string $taxField, $subtotalFieldOrFn): array
+    {
+        $taxLines = [];
+        foreach ($items as $item) {
+            $taxModel = $item->tax;
+            $taxRate = $taxModel ? (float)$taxModel->tax_rate : 0.0;
+            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : '';
+            $priceTax = (float)($item->{$taxField} ?? 0);
+            
+            $subtotal = 0.0;
+            if (is_callable($subtotalFieldOrFn)) {
+                $subtotal = (float)$subtotalFieldOrFn($item);
+            } else {
+                $subtotal = (float)($item->{$subtotalFieldOrFn} ?? 0);
+            }
+
+            if ($priceTax <= 0 && !$taxModel) {
+                continue;
+            }
+
+            if ($taxRate <= 0 && $subtotal > 0) {
+                $taxGroup = $isIntra ? 'GST' : 'IGST';
+            }
+            if (empty($taxGroup)) {
+                $taxGroup = $isIntra ? 'GST' : 'IGST';
+            }
+
+            $g = strtoupper(trim($taxGroup));
+            if ($g === 'GST') {
+                $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($priceTax / 2);
+                $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($priceTax / 2);
+            } else {
+                $taxLines[$g] = ($taxLines[$g] ?? 0) + $priceTax;
+            }
+        }
+
+        return collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray();
+    }
+
+    public static function formatMixDesignDescription(?string $baseDesc, $mixDesign): string
+    {
+        $description = $baseDesc ?? $mixDesign?->design_code ?? '';
+        if ($mixDesign && $mixDesign->items && $mixDesign->items->count() > 0) {
+            $materials = $mixDesign->items->map(function ($mdItem) {
+                $prodName = $mdItem->product->title ?? $mdItem->product?->title ?? 'Unknown';
+                $qty = (float)$mdItem->actual_quantity;
+                $unit = $mdItem->uom->unit_code ?? $mdItem->uom?->unit_code ?? '';
+                $formattedQty = $qty == floor($qty) ? (int)$qty : number_format($qty, 2);
+                return trim("• {$prodName} ({$formattedQty} {$unit})");
+            })->filter()->implode("\n");
+            
+            if ($materials) {
+                $description .= $description ? "\n\nRecipe Details:\n{$materials}" : "Recipe Details:\n{$materials}";
+            }
+        }
+        return $description;
+    }
+
+    // ─────────────────────────────────────────────────────
+    //  FORMATTERS
+    // ─────────────────────────────────────────────────────
     public static function fromPurchaseOrder($order): array
     {
         $order->loadMissing(['items.product', 'items.uom', 'items.tax', 'vendor', 'plant', 'plant.entity', 'plant.addresses', 'currency']);
@@ -127,60 +297,32 @@ class PrintDataFormatter
         $data['due_date']      = $order->due_date?->format('d/m/Y') ?? 'N/A';
         $data['delivery_date'] = $order->date_planned?->format('d/m/Y') ?? 'N/A';
         $data['state']         = strtoupper($order->state ?? 'DRAFT');
-        $plAddr = $order->plant->addresses->first();
-        $data['company'] = [
-            'name'    => $order->plant->entity->entity_name ?? $order->plant->name,
-            'address' => $plAddr->line_1 ?? '', 'city'    => $plAddr->city ?? '',
-            'state'   => $plAddr->state->state_name ?? $plAddr->state_code ?? '', 'pin'     => $plAddr->zipcode ?? '',
-            'gstin'   => $order->plant->gstin ?? '', 'phone'   => $order->plant->phone ?? '', 'email'   => $order->plant->email ?? '',
-        ];
-        $data['bill_to'] = [
-            'name'    => $order->vendor->legal_name, 'address' => $order->vendor->address_line1,
-            'city'    => $order->vendor->city ?? '', 'state'   => $order->vendor->state ?? '',
-            'pin'     => $order->vendor->pincode ?? '', 'gstin'   => $order->vendor->gstin ?? '', 'phone'   => $order->vendor->phone ?? '',
-        ];
+        
+        $data['company'] = self::formatCompany($order->plant);
+        $data['bill_to'] = self::formatPartner($order->vendor);
         $data['ship_to'] = [
-            'name'    => $order->plant->entity->entity_name ?? $order->plant->name,
-            'address' => $plAddr->line_1 ?? '', 'city'    => $plAddr->city ?? '',
-            'state'   => $plAddr->state->state_name ?? $plAddr->state_code ?? '', 'pin'     => $plAddr->zipcode ?? '',
+            'name'    => $data['company']['name'],
+            'address' => $data['company']['address'],
+            'city'    => $data['company']['city'],
+            'state'   => $data['company']['state'],
+            'pin'     => $data['company']['pin'],
         ];
-        $plantGstin = $order->plant->gstin ?? ''; $vendorGstin = $order->vendor->gstin ?? '';
-        $plantState = strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
-        $vendorState = strlen($vendorGstin) >= 2 ? substr($vendorGstin, 0, 2) : '';
-        $isIntra = true; if (strlen($vendorState) >= 2 && $vendorState !== $plantState) $isIntra = false;
+
+        $isIntra = self::isIntraState($order->plant->gstin ?? '', $order->vendor->gstin ?? '');
         $data['items'] = $order->items->map(function ($item, $idx) use ($isIntra) {
-            $taxModel = $item->tax; $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
-            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : ''; $taxName  = $taxModel ? ($taxModel->tax_name ?? '') : '';
-            $priceTax = (float)$item->price_tax;
-            if ($taxRate <= 0 && $priceTax > 0 && (float)$item->price_subtotal > 0) {
-                $taxRate = round(($priceTax / (float)$item->price_subtotal) * 100, 2);
-                if ($isIntra) { $taxGroup = 'GST'; $taxName  = 'GST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%'; }
-                else { $taxGroup = 'IGST'; $taxName  = 'IGST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%'; }
-            }
+            $taxDetails = self::resolveTaxDetails($item->tax, $isIntra, (float)$item->price_tax, (float)$item->price_subtotal);
             return [
                 'no' => $idx + 1, 'name' => $item->product->title ?? '', 'description' => $item->description ?? '',
                 'hsn' => $item->product->hsn_code ?? '-', 'qty' => (float)$item->product_quantity,
                 'received_qty' => (float)($item->received_quantity ?? 0), 'unit' => $item->uom->unit_code ?? '',
-                'unit_price' => (float)$item->unit_price, 'tax_name' => $taxName ?: '-', 'tax_rate' => $taxRate,
-                'tax_group' => $taxGroup, 'tax_amount' => $priceTax, 'total' => (float)$item->price_total,
+                'unit_price' => (float)$item->unit_price, 'tax_name' => $taxDetails['name'] ?: '-', 'tax_rate' => $taxDetails['rate'],
+                'tax_group' => $taxDetails['group'], 'tax_amount' => (float)$item->price_tax, 'total' => (float)$item->price_total,
             ];
         })->toArray();
 
-        // Tax lines summary
-        $taxLines = [];
-        foreach ($order->items as $item) {
-            $taxModel = $item->tax; $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
-            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : ''; $priceTax = (float)$item->price_tax;
-            if ($priceTax <= 0 && !$taxModel) continue;
-            if ($taxRate <= 0 && (float)$item->price_subtotal > 0) { $taxRate = round(($priceTax / (float)$item->price_subtotal) * 100, 2); $taxGroup = $isIntra ? 'GST' : 'IGST'; }
-            if (empty($taxGroup)) $taxGroup = $isIntra ? 'GST' : 'IGST';
-            $g = strtoupper(trim($taxGroup));
-            if ($g === 'GST') { $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($priceTax / 2); $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($priceTax / 2); }
-            else { $taxLines[$g] = ($taxLines[$g] ?? 0) + $priceTax; }
-        }
         $data['totals'] = [
             'sub_total'   => (float)$order->amount_untaxed, 'discount'    => (float)($order->discount_amount ?? 0),
-            'tax_lines'   => collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray(),
+            'tax_lines'   => self::compileTaxLines($order->items, $isIntra, 'price_tax', 'price_subtotal'),
             'shipping'    => (float)($order->shipping_charges ?? 0), 'adjustment'  => (float)($order->adjustment ?? 0),
             'round_off'   => (float)($order->round_off ?? 0), 'grand_total' => (float)$order->amount_total,
         ];
@@ -196,12 +338,9 @@ class PrintDataFormatter
         return $data;
     }
 
-    // ─────────────────────────────────────────────────────
-    //  INVOICE
-    // ─────────────────────────────────────────────────────
     public static function fromInvoice($invoice): array
     {
-        $invoice->loadMissing(['plant', 'plant.entity', 'plant.addresses', 'partner', 'items.tax', 'items.uom', 'orderTaxes']);
+        $invoice->loadMissing(['plant', 'plant.entity', 'plant.addresses', 'partner', 'partner.addresses', 'partner.contacts.addresses', 'items.tax', 'items.uom', 'orderTaxes']);
         $data = self::base();
         $data['settings'] = self::getCustomSettings($invoice->plant_id, 'invoices');
         $defaultTitle = $invoice->invoice_type === 'bill' ? 'PURCHASE BILL' : 'TAX INVOICE';
@@ -216,13 +355,8 @@ class PrintDataFormatter
         $data['doc_date']  = $invoice->invoice_date?->format('d/m/Y') ?? now()->format('d/m/Y');
         $data['due_date']  = $invoice->due_date?->format('d/m/Y') ?? 'N/A';
         $data['state']     = strtoupper($invoice->status ?? 'DRAFT');
-        $plAddr = $invoice->plant->addresses->first();
-        $data['company'] = [
-            'name' => $invoice->plant->entity->entity_name ?? $invoice->plant->name ?? 'Company',
-            'address' => $plAddr->line_1 ?? '', 'city' => $plAddr->city ?? '',
-            'state' => $plAddr->state->state_name ?? $plAddr->state_code ?? '', 'pin' => $plAddr->zipcode ?? '',
-            'gstin' => $invoice->plant->gstin ?? '', 'phone' => $invoice->plant->phone ?? '', 'email' => $invoice->plant->email ?? '',
-        ];
+        $data['company']   = self::formatCompany($invoice->plant);
+        
         $partner = $invoice->partner;
         $dispatch = \App\Models\Dispatch::whereHas('status', function ($q) use ($invoice) {
             $q->where('invoice_id', $invoice->id);
@@ -262,15 +396,11 @@ class PrintDataFormatter
             }
         }
 
-        $partnerAddr = $partner ? $partner->addresses()->first() : null;
-        $data['bill_to'] = [
-            'name' => $partner?->legal_name ?: ($partner?->name ?: 'N/A'),
-            'address' => $partnerAddr?->line_1 ?: ($partner?->address_line1 ?? ''),
-            'city' => $partnerAddr?->city ?: ($partner?->city ?? ''),
-            'state' => $partnerAddr?->state?->state_name ?: ($partnerAddr?->state_code ?: ($partner?->state ?? '')),
-            'pin' => $partnerAddr?->zipcode ?: ($partner?->pincode ?? ''), 'gstin' => $partner?->gstin ?? '', 'phone' => $partner?->phone ?? '',
-        ];
-        $data['ship_to'] = $data['bill_to'];
+        if ($partner) {
+            $partner->loadMissing(['addresses', 'contacts.addresses']);
+        }
+        
+        $data['bill_to'] = self::formatPartner($partner);
 
         $site = null;
         if ($dispatch) {
@@ -294,32 +424,19 @@ class PrintDataFormatter
             }
         }
 
-        if ($site) {
-            $data['ship_to'] = [
-                'name' => $site->name ?: $data['bill_to']['name'], 'address' => $site->site_address_1 ?: ($site->address ?: $data['bill_to']['address']),
-                'city' => $site->city ?: $data['bill_to']['city'], 'state' => $site->state ?: $data['bill_to']['state'], 'pin' => $site->zipcode ?: ($site->pincode ?: $data['bill_to']['pin']),
-            ];
-        }
-        $plantGstin = $invoice->plant->gstin ?? ''; $partnerGstin = $partner?->gstin ?? '';
-        $plantState = strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
-        $partnerState = strlen($partnerGstin) >= 2 ? substr($partnerGstin, 0, 2) : '';
-        $isIntra = true; if (strlen($partnerState) >= 2 && $partnerState !== $plantState) $isIntra = false;
+        $data['ship_to'] = self::formatShipTo($site, $data['bill_to']);
+
+        $isIntra = self::isIntraState($invoice->plant->gstin ?? '', $partner?->gstin ?? '');
         $data['items'] = $invoice->items->map(function ($item, $idx) use ($isIntra) {
-            $taxModel = $item->tax; $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
-            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : ''; $taxName  = $taxModel ? ($taxModel->tax_name ?? '') : '';
-            $priceTax = (float)$item->line_tax_amount;
-            if ($taxRate <= 0 && $priceTax > 0 && (float)$item->subtotal > 0) {
-                $taxRate = round(($priceTax / (float)$item->subtotal) * 100, 2);
-                if ($isIntra) { $taxGroup = 'GST'; $taxName  = 'GST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%'; }
-                else { $taxGroup = 'IGST'; $taxName  = 'IGST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%'; }
-            }
+            $taxDetails = self::resolveTaxDetails($item->tax, $isIntra, (float)$item->line_tax_amount, (float)$item->subtotal);
             return [
                 'no' => $idx + 1, 'name' => $item->item_name, 'description' => '', 'hsn' => $item->hsn_code ?? '-',
                 'qty' => (float)$item->quantity, 'unit' => $item->uom->unit_code ?? 'm³', 'unit_price' => (float)$item->price_unit,
-                'tax_name' => $taxName ?: '-', 'tax_rate' => $taxRate, 'tax_group' => $taxGroup, 'tax_amount' => $priceTax,
+                'tax_name' => $taxDetails['name'] ?: '-', 'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => (float)$item->line_tax_amount,
                 'total' => (float)($item->line_total ?? ($item->quantity * $item->price_unit)),
             ];
         })->toArray();
+        
         $taxLines = $invoice->orderTaxes->map(function($ot) { return ['label' => $ot->name, 'amount' => (float)$ot->amount]; })->toArray();
         $data['totals'] = [
             'sub_total' => (float)$invoice->subtotal, 'discount' => (float)($invoice->discount_total ?? $invoice->global_discount),
@@ -337,176 +454,271 @@ class PrintDataFormatter
 
     public static function fromQuotation($quotation): array
     {
-        $quotation->loadMissing(['items.mixDesign','items.mixDesign.items.product','items.mixDesign.items.uom','items.mixDesign.unit','items.uom','items.tax','patron','plant','plant.entity','plant.addresses','tax']);
-        $data = self::base();
-        $data['settings'] = self::getCustomSettings($quotation->plant_id, 'quotations');
-        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? 'QUOTATION';
-        $data['doc_no']    = $quotation->reference ?? $quotation->id;
-        $data['doc_date']  = $quotation->quote_date?->format('d/m/Y') ?? now()->format('d/m/Y');
-        $data['due_date']  = $quotation->validity_date?->format('d/m/Y') ?? 'N/A';
-        $data['state']     = strtoupper($quotation->status_text ?? 'DRAFT');
-        $isTaxInclusive    = (bool)($quotation->is_tax_inclusive ?? false);
-        $data['is_tax_inclusive'] = $isTaxInclusive;
-        $plAddr = $quotation->plant->addresses->first();
-        $data['company'] = [
-            'name' => $quotation->plant->entity->entity_name ?? $quotation->plant->name, 'address' => $plAddr->line_1 ?? '',
-            'city' => $plAddr->city ?? '', 'state' => $plAddr->state->state_name ?? $plAddr->state_code ?? '',
-            'pin' => $plAddr->zipcode ?? '', 'gstin' => $quotation->plant->gstin ?? '', 'phone' => $quotation->plant->phone ?? '',
-            'email' => $quotation->plant->email ?? '', 'seal_sign_path' => $quotation->plant->seal_sign_path ?? '',
+        $statusLabels = [
+            0 => 'DRAFT',
+            1 => 'SENT',
+            2 => 'ACCEPTED',
+            3 => 'REJECTED'
         ];
-        $data['bill_to'] = [
-            'name' => $quotation->patron->legal_name ?? $quotation->patron->name ?? 'N/A', 'address' => $quotation->patron->address_line1 ?? '',
-            'city' => $quotation->patron->city ?? '', 'state' => $quotation->patron->state ?? '',
-            'pin' => $quotation->patron->pincode ?? '', 'gstin' => $quotation->patron->gstin ?? '', 'phone' => $quotation->patron->phone ?? '',
-        ];
-        $data['ship_to'] = [
-            'name' => $quotation->site->name ?? $data['bill_to']['name'], 'address' => $quotation->site->address ?? $data['bill_to']['address'],
-            'city' => $quotation->site->city ?? $data['bill_to']['city'], 'state' => $quotation->site->state ?? $data['bill_to']['state'],
-            'pin' => $quotation->site->pincode ?? $data['bill_to']['pin'],
-        ];
-        $plantGstin = $quotation->plant->gstin ?? ''; $patronGstin = $quotation->patron->gstin ?? '';
-        $plantState = strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
-        $patronState = strlen($patronGstin) >= 2 ? substr($patronGstin, 0, 2) : '';
-        $isIntra = true; if (strlen($patronState) >= 2 && $patronState !== $plantState) $isIntra = false;
-        $data['items'] = $quotation->items->map(function ($item, $idx) use ($isIntra, $isTaxInclusive) {
-            $taxModel = $item->tax; $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
-            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : ''; $taxName  = $taxModel ? ($taxModel->tax_name ?? '') : '';
-            $priceTax = (float)$item->tax_amount; $subtotal = (float)($item->untaxed_amount ?? ($item->quantity * $item->rate));
-            if ($taxRate <= 0 && $priceTax > 0 && $subtotal > 0) {
-                $taxRate = round(($priceTax / $subtotal) * 100, 2);
-                if ($isIntra) { $taxGroup = 'GST'; $taxName  = 'GST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%'; }
-                else { $taxGroup = 'IGST'; $taxName  = 'IGST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%'; }
-            }
-            $description = $item->description ?? $item->mixDesign->design_code ?? '';
-            if ($item->mixDesign && $item->mixDesign->items && $item->mixDesign->items->count() > 0) {
-                $materials = $item->mixDesign->items->map(function ($mdItem) {
-                    $prodName = $mdItem->product->title ?? 'Unknown'; $qty = (float)$mdItem->actual_quantity;
-                    $unit = $mdItem->uom->unit_code ?? ''; $formattedQty = $qty == floor($qty) ? (int)$qty : number_format($qty, 2);
-                    return trim("• {$prodName} ({$formattedQty} {$unit})");
-                })->filter()->implode("\n");
-                if ($materials) $description .= $description ? "\n\nRecipe Details:\n{$materials}" : "Recipe Details:\n{$materials}";
-            }
-            return [
-                'no' => $idx + 1, 'name' => $item->mixDesign->design_name ?? 'N/A', 'description' => $description,
-                'hsn' => $item->mixDesign->hsn_code ?? '-', 'qty' => (float)$item->quantity, 'received_qty' => 0,
-                'unit' => $item->uom->unit_code ?? $item->mixDesign->unit->unit_code ?? '', 'unit_price' => (float)$item->rate,
-                'tax_name' => $taxName ?: '-', 'tax_rate' => $taxRate, 'tax_group' => $taxGroup, 'tax_amount' => $priceTax,
-                'total' => (float)($item->amount_total ?? ($item->quantity * $item->rate)),
-            ];
-        })->toArray();
-        $taxLines = [];
-        foreach ($quotation->items as $item) {
-            $taxModel = $item->tax; $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
-            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : ''; $priceTax = (float)$item->tax_amount; $subtotal = (float)($item->quantity * $item->rate);
-            if ($priceTax <= 0 && !$taxModel) continue;
-            if ($taxRate <= 0 && $subtotal > 0) { $taxRate = round(($priceTax / $subtotal) * 100, 2); $taxGroup = $isIntra ? 'GST' : 'IGST'; }
-            if (empty($taxGroup)) $taxGroup = $isIntra ? 'GST' : 'IGST';
-            $g = strtoupper(trim($taxGroup));
-            if ($g === 'GST') { $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($priceTax / 2); $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($priceTax / 2); }
-            else { $taxLines[$g] = ($taxLines[$g] ?? 0) + $priceTax; }
-        }
-        $computedTaxLines = collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray();
-        $finalTaxLines = $quotation->tax ? [['label' => $quotation->tax->tax_name, 'amount' => (float)$quotation->tax_amount]] : $computedTaxLines;
-        $data['totals'] = [
-            'sub_total' => (float)$quotation->amount_untaxed, 'discount' => 0, 'tax_lines' => $finalTaxLines,
-            'shipping' => 0, 'adjustment' => (float)($quotation->adjustment ?? 0), 'round_off' => (float)($quotation->round_off ?? 0),
-            'grand_total' => (float)$quotation->amount_total,
-        ];
-        $data['meta'] = [
-            'currency_code' => 'INR', 'currency_symbol' => '₹', 'notes' => $quotation->notes ?? '',
-            'terms_text' => self::resolveTermsCondition($data['settings'], 'Quotation', $quotation->plant_id, $quotation->terms_conditions ?? ''),
-            'total_words' => self::numberToWords($quotation->amount_total, 'INR'),
-        ];
-        return $data;
+        $state = $statusLabels[$quotation->status] ?? 'DRAFT';
+
+        return self::fromQuotationOrCustomerPO(
+            $quotation,
+            'quotations',
+            'QUOTATION',
+            $quotation->reference ?? $quotation->id,
+            $quotation->quote_date?->format('d/m/Y'),
+            $quotation->validity_date?->format('d/m/Y'),
+            $state
+        );
     }
 
     public static function fromCustomerPO($customerPO): array
     {
-        $customerPO->loadMissing(['items.mixDesign','items.mixDesign.items.product','items.mixDesign.items.uom','items.mixDesign.unit','items.tax','patron','plant','plant.entity','plant.addresses','site']);
+        $statusLabels = [
+            0 => 'DRAFT',
+            1 => 'CONFIRMED',
+            2 => 'COMPLETED'
+        ];
+        $state = $statusLabels[$customerPO->status] ?? 'DRAFT';
+
+        return self::fromQuotationOrCustomerPO(
+            $customerPO,
+            'customer_pos',
+            'CUSTOMER PO',
+            $customerPO->reference ?? $customerPO->id,
+            $customerPO->order_date?->format('d/m/Y'),
+            $customerPO->due_date?->format('d/m/Y'),
+            $state
+        );
+    }
+
+    private static function fromQuotationOrCustomerPO($model, string $module, string $defaultTitle, string $docNo, ?string $docDate, ?string $dueDate, string $state): array
+    {
+        $model->loadMissing([
+            'items.mixDesign',
+            'items.mixDesign.items.product',
+            'items.mixDesign.items.uom',
+            'items.mixDesign.unit',
+            'items.uom',
+            'items.tax',
+            'patron',
+            'patron.addresses',
+            'patron.contacts.addresses',
+            'site',
+            'plant',
+            'plant.entity',
+            'plant.addresses',
+            'tax',
+            'salesExecutive',
+            'concretePump',
+        ]);
+
         $data = self::base();
-        $data['settings'] = self::getCustomSettings($customerPO->plant_id, 'customer_pos') ?: self::getCustomSettings($customerPO->plant_id, 'quotations');
-        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? 'CUSTOMER PO';
-        $data['doc_no']    = $customerPO->reference ?? $customerPO->id;
-        $data['doc_date']  = $customerPO->order_date?->format('d/m/Y') ?? now()->format('d/m/Y');
-        $data['due_date']  = $customerPO->due_date?->format('d/m/Y') ?? '';
-        $statusText = 'DRAFT'; if ($customerPO->status == 1) $statusText = 'CONFIRMED'; if ($customerPO->status == 2) $statusText = 'COMPLETED';
-        $data['state'] = $statusText;
-        $isTaxInclusive = (bool)($customerPO->is_tax_inclusive ?? false); $data['is_tax_inclusive'] = $isTaxInclusive;
-        $plAddr = $customerPO->plant->addresses->first();
-        $data['company'] = [
-            'name' => $customerPO->plant->entity->entity_name ?? $customerPO->plant->name, 'address' => $plAddr->line_1 ?? '',
-            'city' => $plAddr->city ?? '', 'state' => $plAddr->state->state_name ?? $plAddr->state_code ?? '', 'pin' => $plAddr->zipcode ?? '',
-            'gstin' => $customerPO->plant->gstin ?? '', 'phone' => $customerPO->plant->phone ?? '', 'email' => $customerPO->plant->email ?? '',
-            'seal_sign_path' => $customerPO->plant->seal_sign_path ?? '',
-        ];
-        $data['bill_to'] = [
-            'name' => $customerPO->patron->legal_name ?? $customerPO->patron->name ?? 'N/A', 'address' => $customerPO->patron->address_line1 ?? '',
-            'city' => $customerPO->patron->city ?? '', 'state' => $customerPO->patron->state ?? '', 'pin' => $customerPO->patron->pincode ?? '',
-            'gstin' => $customerPO->patron->gstin ?? '', 'phone' => $customerPO->patron->phone ?? '',
-        ];
-        $data['ship_to'] = [
-            'name' => $customerPO->site->name ?? $data['bill_to']['name'], 'address' => $customerPO->site->address ?? $data['bill_to']['address'],
-            'city' => $customerPO->site->city ?? $data['bill_to']['city'], 'state' => $customerPO->site->state ?? $data['bill_to']['state'],
-            'pin' => $customerPO->site->pincode ?? $data['bill_to']['pin'],
-        ];
-        $plantGstin = $customerPO->plant->gstin ?? ''; $patronGstin = $customerPO->patron->gstin ?? '';
-        $plantState = strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
-        $patronState = strlen($patronGstin) >= 2 ? substr($patronGstin, 0, 2) : '';
-        $isIntra = true; if (strlen($patronState) >= 2 && $patronState !== $plantState) $isIntra = false;
-        $data['items'] = $customerPO->items->map(function ($item, $idx) use ($isIntra, $isTaxInclusive) {
-            $taxModel = $item->tax; $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
-            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : ''; $taxName  = $taxModel ? ($taxModel->tax_name ?? '') : '';
-            $priceTax = (float)$item->tax_amount; $subtotal = (float)($item->untaxed_amount ?? ($item->quantity * $item->rate));
-            if ($taxRate <= 0 && $priceTax > 0 && $subtotal > 0) {
-                $taxRate = round(($priceTax / $subtotal) * 100, 2);
-                if ($isIntra) { $taxGroup = 'GST'; $taxName  = 'GST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%'; }
-                else { $taxGroup = 'IGST'; $taxName  = 'IGST ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%'; }
+        $data['settings'] = self::getCustomSettings($model->plant_id, $module);
+        if ($module === 'customer_pos' && empty($data['settings']['pdf'])) {
+            $data['settings'] = self::getCustomSettings($model->plant_id, 'quotations');
+        }
+
+        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? $defaultTitle;
+        $data['doc_no']    = $docNo;
+        $data['doc_date']  = $docDate ?? now()->format('d/m/Y');
+        $data['due_date']  = $dueDate ?? 'N/A';
+        $data['state']     = $state;
+        
+        $isTaxInclusive = (bool)($model->is_tax_inclusive ?? false);
+        $data['is_tax_inclusive'] = $isTaxInclusive;
+        
+        $data['company'] = self::formatCompany($model->plant);
+        $data['bill_to'] = self::formatPartner($model->patron);
+        $data['ship_to'] = self::formatShipTo($model->site, $data['bill_to']);
+
+        $isIntra = self::isIntraState($model->plant->gstin ?? '', $model->patron->gstin ?? '');
+
+        $settings = \App\Models\CustomSetting::getForModule($model->plant_id, 'batching');
+        $addPouringRatesToTotal = !empty($settings['add_pouring_rates_to_total']) && $settings['add_pouring_rates_to_total'] == 1;
+
+        // Determine if selected concrete pump is boom or manual
+        $isBoom = false;
+        $isManual = false;
+        if ($model->concretePump) {
+            $isBoom = str_contains(strtolower($model->concretePump->vehicle_type ?? ''), 'boom')
+                   || str_contains(strtolower($model->concretePump->registration ?? ''), 'boom');
+            $isManual = str_contains(strtolower($model->concretePump->vehicle_type ?? ''), 'manual')
+                     || str_contains(strtolower($model->concretePump->registration ?? ''), 'manual');
+        }
+
+        $selectedRate = 0.0;
+        if ($model->concrete_pump) {
+            if ($isManual) {
+                $selectedRate = (float)($model->manual_rate ?? 0);
+            } else {
+                $selectedRate = $isBoom ? (float)($model->boom_pump_rate ?? 0) : (float)($model->pump_rate ?? 0);
             }
-            $description = $item->description ?? $item->mixDesign->design_code ?? '';
-            if ($item->mixDesign && $item->mixDesign->items && $item->mixDesign->items->count() > 0) {
-                $materials = $item->mixDesign->items->map(function ($mdItem) {
-                    $prodName = $mdItem->product->title ?? 'Unknown'; $qty = (float)$mdItem->actual_quantity;
-                    $unit = $mdItem->uom->unit_code ?? ''; $formattedQty = $qty == floor($qty) ? (int)$qty : number_format($qty, 2);
-                    return trim("• {$prodName} ({$formattedQty} {$unit})");
-                })->filter()->implode("\n");
-                if ($materials) $description .= $description ? "\n\nRecipe Details:\n{$materials}" : "Recipe Details:\n{$materials}";
+        } else {
+            $selectedRate = (float)($model->manual_rate ?? 0);
+        }
+
+        $itemPumpRate = 0.0;
+        if (!$addPouringRatesToTotal) {
+            $itemPumpRate = $selectedRate;
+        }
+
+        $subtotalAmt = 0.0;
+        $totalTaxAmt = 0.0;
+        $grandTotalAmt = 0.0;
+
+        $data['items'] = $model->items->map(function ($item, $idx) use ($isIntra, $isTaxInclusive, $itemPumpRate, &$subtotalAmt, &$totalTaxAmt, &$grandTotalAmt) {
+            $rate = (float)$item->rate + $itemPumpRate;
+            $qty = (float)$item->quantity;
+            $taxModel = $item->tax;
+            $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
+
+            $lineTotal = 0.0;
+            $lineTax = 0.0;
+            $lineUntaxed = 0.0;
+
+            if ($isTaxInclusive) {
+                $lineTotal = $rate * $qty;
+                $lineTax = $lineTotal - ($lineTotal / (1 + $taxRate / 100));
+                $lineUntaxed = $lineTotal - $lineTax;
+            } else {
+                $lineUntaxed = $rate * $qty;
+                $lineTax = ($lineUntaxed * $taxRate) / 100;
+                $lineTotal = $lineUntaxed + $lineTax;
             }
-            $unitPrice = $isTaxInclusive ? (float)($item->quantity > 0 ? ($subtotal / $item->quantity) : $item->rate) : (float)$item->rate;
+
+            $subtotalAmt += $lineUntaxed;
+            $totalTaxAmt += $lineTax;
+            $grandTotalAmt += $lineTotal;
+
+            $taxDetails = self::resolveTaxDetails($taxModel, $isIntra, $lineTax, $lineUntaxed);
+            $unitPrice = $isTaxInclusive ? (float)($qty > 0 ? ($lineUntaxed / $qty) : $rate) : $rate;
+
             return [
-                'no' => $idx + 1, 'name' => $item->mixDesign->design_name ?? 'N/A', 'description' => $description,
-                'hsn' => $item->mixDesign->hsn_code ?? '-', 'qty' => (float)$item->quantity, 'received_qty' => 0,
-                'unit' => $item->mixDesign->unit->unit_code ?? 'm³', 'unit_price' => $unitPrice,
-                'tax_name' => $taxName ?: '-', 'tax_rate' => $taxRate, 'tax_group' => $taxGroup, 'tax_amount' => $priceTax,
-                'total' => (float)($item->amount_total ?? ($item->quantity * $item->rate)),
+                'no' => $idx + 1,
+                'name' => $item->mixDesign->design_name ?? 'N/A',
+                'description' => self::formatMixDesignDescription($item->description, $item->mixDesign),
+                'hsn' => $item->mixDesign->hsn_code ?? '-',
+                'qty' => $qty,
+                'received_qty' => 0,
+                'unit' => $item->mixDesign->unit->unit_code ?? 'm³',
+                'unit_price' => $unitPrice,
+                'tax_name' => $taxDetails['name'] ?: '-',
+                'tax_rate' => $taxDetails['rate'],
+                'tax_group' => $taxDetails['group'],
+                'tax_amount' => (float)$lineTax,
+                'total' => (float)$lineTotal,
             ];
         })->toArray();
-        $taxLines = [];
-        foreach ($customerPO->items as $item) {
-            $taxModel = $item->tax; $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
-            $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : ''; $priceTax = (float)$item->tax_amount; $subtotal = (float)($item->quantity * $item->rate);
-            if ($priceTax <= 0 && !$taxModel) continue;
-            if ($taxRate <= 0 && $subtotal > 0) { $taxRate = round(($priceTax / $subtotal) * 100, 2); $taxGroup = $isIntra ? 'GST' : 'IGST'; }
-            if (empty($taxGroup)) $taxGroup = $isIntra ? 'GST' : 'IGST';
-            $g = strtoupper(trim($taxGroup));
-            if ($g === 'GST') { $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($priceTax / 2); $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($priceTax / 2); }
-            else { $taxLines[$g] = ($taxLines[$g] ?? 0) + $priceTax; }
+
+        // Calculate quotation level pouring rate concrete pump charges
+        $chargeType = strtolower($settings['pouring_rate_charge_type'] ?? 'per_m3');
+        $totalQty = (float) $model->items->sum('quantity');
+
+        if ($chargeType === 'flat_rate') {
+            $pouringCharge = $selectedRate;
+        } else {
+            $pouringCharge = $selectedRate * $totalQty;
         }
-        $computedTaxLines = collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray();
+
+        if ($addPouringRatesToTotal && $pouringCharge > 0) {
+            $data['items'][] = [
+                'no' => count($data['items']) + 1,
+                'name' => 'Concrete Pump / Pouring Charges' . ($model->concretePump ? ' (' . ($model->concretePump->registration ?? 'Pump') . ')' : ' (Manual)'),
+                'description' => $chargeType === 'flat_rate' ? 'Flat rate pouring charges' : 'Pouring charges at ₹' . number_format($selectedRate, 2) . ' per m³',
+                'hsn' => '-',
+                'qty' => $chargeType === 'flat_rate' ? 1 : $totalQty,
+                'received_qty' => 0,
+                'unit' => $chargeType === 'flat_rate' ? 'Qty' : 'm³',
+                'unit_price' => $selectedRate,
+                'tax_name' => '-',
+                'tax_rate' => 0,
+                'tax_group' => '',
+                'tax_amount' => 0.0,
+                'total' => $pouringCharge,
+            ];
+            $grandTotalAmt += $pouringCharge;
+            $subtotalAmt += $pouringCharge;
+        }
+
+        // Compile tax lines
+        $taxLines = [];
+        foreach ($data['items'] as $item) {
+            $taxAmt = $item['tax_amount'];
+            if ($taxAmt > 0) {
+                $g = strtoupper(trim($item['tax_group'] ?: ($isIntra ? 'GST' : 'IGST')));
+                if ($g === 'GST') {
+                    $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($taxAmt / 2);
+                    $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($taxAmt / 2);
+                } else {
+                    $taxLines[$g] = ($taxLines[$g] ?? 0) + $taxAmt;
+                }
+            }
+        }
+        $formattedTaxLines = collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray();
+
+        $adjustment = (float)($model->adjustment ?? 0);
+        $finalGrandTotal = $grandTotalAmt + $adjustment;
+
+        // Generate Pouring Option Rates Table HTML if any rate is greater than 0
+        $ratesTableHtml = '';
+        $manualRate = (float)($model->manual_rate ?? 0);
+        $pumpRate = (float)($model->pump_rate ?? 0);
+        $boomPumpRate = (float)($model->boom_pump_rate ?? 0);
+
+        if ($manualRate > 0 || $pumpRate > 0 || $boomPumpRate > 0) {
+            $ratesTableHtml .= '<div style="margin-top: 15px; margin-bottom: 15px; page-break-inside: avoid;">';
+            $ratesTableHtml .= '<h4 style="font-size: 11px; font-weight: bold; color: #1e293b; margin-bottom: 8px; text-transform: uppercase;">Pouring Option Rates</h4>';
+            $ratesTableHtml .= '<table style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: center; border: 1px solid #cbd5e1;">';
+            $ratesTableHtml .= '<thead style="background-color: #f1f5f9; font-weight: bold; color: #334155; border-bottom: 2px solid #cbd5e1;">';
+            $ratesTableHtml .= '<tr>';
+            $ratesTableHtml .= '<th style="padding: 6px; border: 1px solid #cbd5e1;">MANUAL</th>';
+            $ratesTableHtml .= '<th style="padding: 6px; border: 1px solid #cbd5e1;">PUMP</th>';
+            $ratesTableHtml .= '<th style="padding: 6px; border: 1px solid #cbd5e1;">BOOM PUMP</th>';
+            $ratesTableHtml .= '</tr>';
+            $ratesTableHtml .= '</thead>';
+            $ratesTableHtml .= '<tbody>';
+            $suffix = $chargeType === 'flat_rate' ? ' (Flat)' : ' / m³';
+            $ratesTableHtml .= '<tr>';
+            $ratesTableHtml .= '<td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: bold;">₹' . number_format($manualRate, 2) . $suffix . '</td>';
+            $ratesTableHtml .= '<td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: bold;">₹' . number_format($pumpRate, 2) . $suffix . '</td>';
+            $ratesTableHtml .= '<td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: bold;">₹' . number_format($boomPumpRate, 2) . $suffix . '</td>';
+            $ratesTableHtml .= '</tr>';
+            $ratesTableHtml .= '</tbody>';
+            $ratesTableHtml .= '</table>';
+            $ratesTableHtml .= '</div>';
+        }
+
         $data['totals'] = [
-            'sub_total' => (float)$customerPO->amount_untaxed, 'discount' => 0, 'tax_lines' => $computedTaxLines,
-            'shipping' => 0, 'adjustment' => 0, 'round_off' => 0, 'grand_total' => (float)$customerPO->amount_total,
+            'sub_total'   => (float)$subtotalAmt,
+            'discount'    => 0,
+            'tax_lines'   => $formattedTaxLines,
+            'shipping'    => 0,
+            'adjustment'  => $adjustment,
+            'round_off'   => 0,
+            'grand_total' => (float)$finalGrandTotal,
+            'rates_table_html' => $ratesTableHtml, // Stored here so your PDF template can cleanly load it right above or in your totals section!
         ];
+
+        $termsText = self::resolveTermsCondition($data['settings'], ($module === 'customer_pos' ? 'Customer PO' : 'Quotation'), $model->plant_id, $model->terms_conditions ?? '');
+
         $data['meta'] = [
-            'currency_code' => 'INR', 'currency_symbol' => '₹', 'notes' => $customerPO->notes ?? '',
-            'terms_text' => self::resolveTermsCondition($data['settings'], 'Customer PO', $customerPO->plant_id, ''),
-            'total_words' => self::numberToWords($customerPO->amount_total, 'INR'),
+            'currency_code'   => 'INR',
+            'currency_symbol' => '₹',
+            'notes'           => $model->notes ?? '',
+            'terms_text'      => $ratesTableHtml . $termsText,
+            'total_words'     => self::numberToWords($finalGrandTotal, 'INR'),
+            'sales_executive_name' => $model->salesExecutive?->full_name ?? '',
+            'sales_executive_mobile' => $model->salesExecutive?->mobile ?? '',
         ];
+
         return $data;
     }
 
     public static function fromSalesOrder($salesOrder): array
     {
-        $salesOrder->loadMissing(['customer','customer.addresses','site','plant','plant.entity','plant.addresses','mixDesign','mixDesign.concrete_grade','mixDesign.unit','mixDesign.items.product','mixDesign.items.uom','customerPO.items.mixDesign','customerPO.items.tax','customerPO.quotation.items.mixDesign','customerPO.quotation.items.tax','customerPO.quotation.items.mixDesign.items.product','customerPO.quotation.items.mixDesign.items.uom']);
+        $salesOrder->loadMissing(['customer','customer.addresses','customer.contacts.addresses','site','plant','plant.entity','plant.addresses','mixDesign','mixDesign.concrete_grade','mixDesign.unit','mixDesign.items.product','mixDesign.items.uom','customerPO.items.mixDesign','customerPO.items.tax','customerPO.quotation.items.mixDesign','customerPO.quotation.items.tax','customerPO.quotation.items.mixDesign.items.product','customerPO.quotation.items.mixDesign.items.uom']);
         $data = self::base();
         $data['settings'] = self::getCustomSettings($salesOrder->plant_id, 'sales_orders') ?: self::getCustomSettings($salesOrder->plant_id, 'quotations');
         $data['doc_title']  = $data['settings']['pdf']['labels']['invoice_title'] ?? 'SALES ORDER';
@@ -515,66 +727,29 @@ class PrintDataFormatter
         $data['due_date']   = $salesOrder->scheduled_end ? \Carbon\Carbon::parse($salesOrder->scheduled_end)->format('d/m/Y') : '';
         $statusMap = [1 => 'SCHEDULED', 2 => 'IN PROGRESS', 3 => 'COMPLETED', 4 => 'CANCELLED'];
         $data['state'] = $statusMap[$salesOrder->status] ?? 'DRAFT';
-        $plAddr = $salesOrder->plant->addresses->first();
-        $data['company'] = [
-            'name' => $salesOrder->plant->entity->entity_name ?? $salesOrder->plant->name, 'address' => $plAddr->line_1 ?? '',
-            'city' => $plAddr->city ?? '', 'state' => $plAddr->state->state_name ?? $plAddr->state_code ?? '', 'pin' => $plAddr->zipcode ?? '',
-            'gstin' => $salesOrder->plant->gstin ?? '', 'phone' => $salesOrder->plant->phone ?? '', 'email' => $salesOrder->plant->email ?? '',
-            'seal_sign_path' => $salesOrder->plant->seal_sign_path ?? '',
-        ];
-        $custAddr = $salesOrder->customer?->addresses?->first();
-        $data['bill_to'] = [
-            'name' => $salesOrder->customer?->legal_name ?? 'N/A', 'address' => $custAddr?->line_1 ?? ($salesOrder->customer?->address_line1 ?? ''),
-            'city' => $custAddr?->city ?? ($salesOrder->customer?->city ?? ''), 'state' => $custAddr?->state?->state_name ?? ($salesOrder->customer?->state ?? ''),
-            'pin' => $custAddr?->zipcode ?? ($salesOrder->customer?->pincode ?? ''), 'gstin' => $salesOrder->customer?->gstin ?? '',
-            'phone' => $salesOrder->customer?->mobile ?? $salesOrder->customer?->phone ?? '',
-        ];
-        $data['ship_to'] = [
-            'name' => $salesOrder->site?->name ?? $data['bill_to']['name'], 'address' => $salesOrder->site?->site_address_1 ?? $data['bill_to']['address'],
-            'city' => $salesOrder->site?->city ?? $data['bill_to']['city'], 'state' => $salesOrder->site?->state ?? $data['bill_to']['state'],
-            'pin' => $salesOrder->site?->zipcode ?? $data['bill_to']['pin'],
-        ];
+        
+        $data['company'] = self::formatCompany($salesOrder->plant);
+        $data['bill_to'] = self::formatPartner($salesOrder->customer);
+        $data['ship_to'] = self::formatShipTo($salesOrder->site, $data['bill_to']);
+
         $isTaxInclusive = false; if ($salesOrder->customerPO) $isTaxInclusive = (bool)($salesOrder->customerPO->is_tax_inclusive ?? false);
-        $plantGstin  = $salesOrder->plant->gstin ?? ''; $custGstin   = $salesOrder->customer?->gstin ?? '';
-        $plantState  = strlen($plantGstin) >= 2 ? substr($plantGstin, 0, 2) : '33';
-        $custState   = strlen($custGstin)  >= 2 ? substr($custGstin, 0, 2) : '';
-        $isIntra     = !(strlen($custState) >= 2 && $custState !== $plantState);
+        $isIntra     = self::isIntraState($salesOrder->plant->gstin ?? '', $salesOrder->customer?->gstin ?? '');
         $quotationItems = $salesOrder->customerPO?->quotation?->items ?? collect();
         if ($quotationItems->isNotEmpty()) {
-            $data['items'] = $quotationItems->map(function ($item, $idx) use ($isIntra, $isTaxInclusive) {
-                $taxModel  = $item->tax; $taxRate   = $taxModel ? (float)$taxModel->tax_rate : 0.0;
-                $taxGroup  = $taxModel ? ($taxModel->tax_group ?? '') : ''; $taxName   = $taxModel ? ($taxModel->tax_name ?? '') : '';
-                $priceTax  = (float)$item->tax_amount; $subtotal  = (float)($item->untaxed_amount ?? ($item->quantity * $item->rate));
-                if ($taxRate <= 0 && $priceTax > 0 && $subtotal > 0) { $taxRate = round(($priceTax / $subtotal) * 100, 2); $taxGroup = $isIntra ? 'GST' : 'IGST'; $taxName  = $taxGroup . ' ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%'; }
-                $description = $item->description ?? $item->mixDesign?->design_code ?? '';
-                if ($item->mixDesign && $item->mixDesign->items?->count() > 0) {
-                    $materials = $item->mixDesign->items->map(function ($mdItem) {
-                        $prodName = $mdItem->product?->title ?? 'Unknown'; $qty = (float)$mdItem->actual_quantity;
-                        $unit = $mdItem->uom?->unit_code ?? ''; $formattedQty = $qty == floor($qty) ? (int)$qty : number_format($qty, 2);
-                        return "• {$prodName} ({$formattedQty} {$unit})";
-                    })->filter()->implode("\n");
-                    if ($materials) $description .= $description ? "\n\nRecipe Details:\n{$materials}" : "Recipe Details:\n{$materials}";
-                }
+            $data['items'] = $quotationItems->map(function ($item, $idx) use ($isIntra, $isTaxInclusive, $salesOrder) {
+                $subtotal  = (float)($item->untaxed_amount ?? ($item->quantity * $item->rate));
+                $taxDetails = self::resolveTaxDetails($item->tax, $isIntra, (float)$item->tax_amount, $subtotal);
+                $description = self::formatMixDesignDescription($item->description, $item->mixDesign);
                 $unitPrice = $isTaxInclusive ? (float)($item->quantity > 0 ? ($subtotal / $item->quantity) : $item->rate) : (float)$item->rate;
                 return [
                     'no' => $idx + 1, 'name' => $item->mixDesign?->design_name ?? 'N/A', 'description' => $description,
                     'hsn' => $item->mixDesign?->hsn_code ?? '-', 'qty' => (float)$item->quantity, 'received_qty'=> (float)($salesOrder->produced_qty ?? 0),
-                    'unit' => $item->mixDesign?->unit?->unit_code ?? 'm³', 'unit_price' => $unitPrice, 'tax_name' => $taxName ?: '-',
-                    'tax_rate' => $taxRate, 'tax_group' => $taxGroup, 'tax_amount' => $priceTax, 'total' => (float)($item->amount_total ?? ($item->quantity * $item->rate)),
+                    'unit' => $item->mixDesign?->unit?->unit_code ?? 'm³', 'unit_price' => $unitPrice, 'tax_name' => $taxDetails['name'] ?: '-',
+                    'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => (float)$item->tax_amount, 'total' => (float)($item->amount_total ?? ($item->quantity * $item->rate)),
                 ];
             })->toArray();
-            $taxLines = [];
-            foreach ($quotationItems as $item) {
-                $taxModel = $item->tax; $taxRate  = $taxModel ? (float)$taxModel->tax_rate : 0.0;
-                $taxGroup = $taxModel ? ($taxModel->tax_group ?? '') : ''; $priceTax = (float)$item->tax_amount; $subtotal = (float)($item->quantity * $item->rate);
-                if ($priceTax <= 0 && !$taxModel) continue;
-                if ($taxRate <= 0 && $subtotal > 0) { $taxRate  = round(($priceTax / $subtotal) * 100, 2); $taxGroup = $isIntra ? 'GST' : 'IGST'; }
-                if (empty($taxGroup)) $taxGroup = $isIntra ? 'GST' : 'IGST';
-                $g = strtoupper(trim($taxGroup));
-                if ($g === 'GST') { $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($priceTax / 2); $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($priceTax / 2); }
-                else { $taxLines[$g] = ($taxLines[$g] ?? 0) + $priceTax; }
-            }
-            $computedTaxLines = collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray();
+
+            $computedTaxLines = self::compileTaxLines($quotationItems, $isIntra, 'tax_amount', fn($i) => $i->quantity * $i->rate);
             $grandTotal  = $quotationItems->sum('amount_total'); $untaxedAmt  = $quotationItems->sum('untaxed_amount') ?: $quotationItems->sum(fn($i) => $i->quantity * $i->rate);
             $data['totals'] = ['sub_total' => (float)$untaxedAmt, 'discount' => 0, 'tax_lines' => $computedTaxLines, 'shipping' => 0, 'adjustment' => 0, 'round_off' => 0, 'grand_total' => (float)$grandTotal];
         } else {
@@ -595,15 +770,7 @@ class PrintDataFormatter
                     else { $priceTax = $untaxedAmt * ($taxRate / 100); $total = $untaxedAmt + $priceTax; }
                 }
             }
-            $description = $mixDesign?->design_code ?? '';
-            if ($mixDesign && $mixDesign->items?->count() > 0) {
-                $materials = $mixDesign->items->map(function ($mdItem) {
-                    $prodName = $mdItem->product?->title ?? 'Unknown'; $qtyVal = (float)$mdItem->actual_quantity;
-                    $unit = $mdItem->uom?->unit_code ?? ''; $formattedQty = $qtyVal == floor($qtyVal) ? (int)$qtyVal : number_format($qtyVal, 2);
-                    return "• {$prodName} ({$formattedQty} {$unit})";
-                })->filter()->implode("\n");
-                if ($materials) $description .= $description ? "\n\nRecipe Details:\n{$materials}" : "Recipe Details:\n{$materials}";
-            }
+            $description = self::formatMixDesignDescription('', $mixDesign);
             $data['items'] = $mixDesign ? [[
                 'no' => 1, 'name' => $mixDesign->design_name ?? 'Concrete Mix', 'description' => $description,
                 'hsn' => $mixDesign->hsn_code ?? '-', 'qty' => $qty, 'received_qty'=> (float)($salesOrder->produced_qty ?? 0),
@@ -627,6 +794,66 @@ class PrintDataFormatter
         return $data;
     }
 
+    public static function fromDeliveryChallan($batch): array
+    {
+        $batch->loadMissing(['salesOrder','salesOrder.customer','salesOrder.site','salesOrder.plant','salesOrder.plant.entity','salesOrder.plant.addresses','salesOrder.mixDesign','salesOrder.mixDesign.concrete_grade','salesOrder.mixDesign.unit','dispatches','dispatches.truck','dispatches.driver','dispatches.transport','dispatches.loadTax','materials.product','materials.uom','operator']);
+        $data = self::base();
+        $data['settings'] = self::getCustomSettings($batch->salesOrder->plant_id, 'delivery_challans');
+        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? 'DELIVERY CHALLAN';
+        $data['doc_no']    = 'B' . ($batch->batch_no ?? $batch->id);
+        $data['doc_date']  = optional($batch->load_time ?? $batch->created_at)->format('d/m/Y H:i');
+        $dispatch = $batch->dispatches->first();
+        $data['delivery_date'] = $dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('d/m/Y H:i') : ($batch->load_time ? $batch->load_time->format('d/m/Y H:i') : 'N/A');
+        $data['state']     = $batch->status_text ?? 'DISPATCHED';
+        
+        $data['company'] = self::formatCompany($batch->salesOrder->plant);
+        $data['bill_to'] = self::formatPartner($batch->salesOrder->customer);
+        $data['ship_to'] = self::formatShipTo($batch->salesOrder->site, $data['bill_to']);
+
+        $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
+        $printMode = $settings['material_print_mode'] ?? 'run';
+        $formattedMaterials = $batch->getFormattedMaterials($printMode);
+
+        $groupedMaterials = $formattedMaterials->groupBy(function($mat){ return $mat->material_name; })->map(function($group){
+            $first = $group->first(); $target = $group->sum('target_qty'); $actual = $group->sum('actual_qty');
+            return (object)['material_name'=>$first->material_name,'uom_code'=>$first->uom_code,'hsn_code'=>'-','target_qty'=>$target,'actual_qty'=>$actual,'deviation_quantity'=>$group->sum('deviation_quantity')];
+        });
+        $itemsList = [];
+        if ($dispatch) {
+            $mixDesign = $batch->salesOrder->mixDesign; $mixDesignName = $mixDesign?->design_name ?? ($mixDesign?->concrete_grade?->name ?? 'Concrete Mix');
+            $qty = (float)($dispatch->delivered_qty ?: $batch->batch_size); $rate = (float)($dispatch->load_rate ?? 0);
+            $subTotal = (float)($dispatch->load_untax_amount ?? ($qty * $rate)); $taxAmount = (float)($dispatch->load_tax_amount ?? 0);
+            $totalAmount = (float)($dispatch->load_total_amount ?? ($subTotal + $taxAmount)); $taxRate = $dispatch->loadTax?->rate ?? 0; $taxName = $dispatch->loadTax?->name ?? '-';
+            $itemsList[] = ['no'=>1,'name'=>$mixDesignName,'description'=>"Concrete Mix Design - " . ($mixDesign?->design_code ?? ''),'hsn'=>'3824','qty'=>$qty,'received_qty'=>$qty,'unit'=>$dispatch->uom?->unit_code ?? 'CBM','unit_price'=>$rate,'tax_name'=>$taxName,'tax_rate'=>$taxRate,'tax_amount'=>$taxAmount,'total'=>$totalAmount];
+        }
+        $sno = count($itemsList) + 1;
+        foreach ($groupedMaterials->values() as $item) {
+            $target = (float) $item->target_qty; $actual = (float) $item->actual_qty; $deviationVal = $actual - $target; $devPercent = 0;
+            if ($target > 0) $devPercent = ($deviationVal / $target) * 100;
+            $devSign = $devPercent > 0 ? '+' : '';
+            $desc = sprintf("Target: %s %s | Actual: %s %s | Dev: %s%s%%", number_format($target, 2), $item->uom_code, number_format($actual, 2), $item->uom_code, $devSign, number_format($devPercent, 2));
+            $itemsList[] = ['no'=>$sno++,'name'=>$item->material_name,'description'=>$desc,'hsn'=>$item->hsn_code,'qty'=>$actual ?: $target,'received_qty'=>$actual,'unit'=>$item->uom_code,'unit_price'=>0.00,'tax_name'=>'-','tax_rate'=>0.00,'tax_amount'=>0.00,'total'=>0.00];
+        }
+        $data['items'] = $itemsList;
+        $taxLines = [];
+        if ($dispatch && $dispatch->load_tax_amount > 0) $taxLines[] = ['name'=>$dispatch->loadTax?->name ?? 'GST','rate'=>$dispatch->loadTax?->rate ?? 18,'amount'=>(float)$dispatch->load_tax_amount];
+        $data['totals'] = ['sub_total'=>(float)($dispatch?->load_untax_amount ?? 0),'discount'=>(float)($dispatch?->discount_amount ?? 0),'tax_lines'=>$taxLines,'shipping'=>(float)($dispatch?->transport_expenses ?? 0),'adjustment'=>(float)($dispatch?->adjustment_amount ?? 0),'round_off'=>(float)($dispatch?->round_off ?? 0),'grand_total'=>(float)($dispatch?->load_total_amount ?? 0)];
+        $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
+        $isMetricTon = !empty($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
+        $emptyWeight = (float) ($dispatch?->empty_weight_truck ?? 0); $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
+        $netWeight = (float) ($dispatch?->net_weight ?? ($loadedWeight - $emptyWeight));
+        $unitLabel = $isMetricTon ? ' MT' : ' kg'; $decimals = $isMetricTon ? 3 : 0;
+        $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel; $loadedWeightStr = number_format($loadedWeight, $decimals) . $unitLabel; $netWeightStr = number_format($netWeight, $decimals) . $unitLabel;
+        $weightNotes = "VEHICLE WEIGHT DETAILS:\n" . "Truck No: " . ($dispatch?->truck?->registration ?? '-') . "\n" . "Driver: " . (trim(($dispatch?->driver?->first_name ?? '') . ' ' . ($dispatch?->driver?->last_name ?? '')) ?: '-') . "\n" . "Empty Weight: " . $emptyWeightStr . " (" . ($dispatch?->empty_time ? \Carbon\Carbon::parse($dispatch->empty_time)->format('d-m-Y H:i') : '-') . ")\n" . "Loaded Weight: " . $loadedWeightStr . " (" . ($dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('d-m-Y H:i') : '-') . ")\n" . "Net Weight: " . $netWeightStr . "\n\n" . "Batch size: " . number_format((float) $batch->batch_size, 2) . " m³\n" . "Concrete Grade: " . ($batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->design_name ?? '-')) . " / Recipe Code: " . ($batch->salesOrder?->mixDesign?->design_code ?? '-');
+        $data['meta'] = [
+            'currency_code'=>'INR','currency_symbol'=>'₹','notes'=>$weightNotes,
+            'terms_text'=>self::resolveTermsCondition($data['settings'], 'Delivery Challan', $batch->salesOrder->plant_id, $batch->salesOrder?->terms_conditions ?? "1. Goods received in good condition.\n2. Any variation in quantity to be reported immediately."),
+            'total_words'=>'','po_number'=>$batch->salesOrder?->order_no ?? '-','project_name'=>'Concrete Grade: ' . ($batch->salesOrder?->mixDesign?->concrete_grade?->name ?? '-'),
+        ];
+        $data['batch'] = $batch;
+        return $data;
+    }
+
     // ─────────────────────────────────────────────────────
     //  NUMBER TO WORDS - INDIAN SYSTEM TILL CRORE ONLY
     //  Larger numbers => Hundred Crore / Thousand Crore / Lakh Crore
@@ -639,7 +866,7 @@ class PrintDataFormatter
         20 => 'Twenty', 30 => 'Thirty', 40 => 'Forty', 50 => 'Fifty', 60 => 'Sixty', 70 => 'Seventy', 80 => 'Eighty', 90 => 'Ninety'
     ];
 
-    // Converts 0 to 99,99,999 (no Crore word) - used for both rem and crore count
+    // Converts 0 to 99,99,999 (no Crore word) - used for rem count
     private static function convertBelowCrore(int $num): string
     {
         if ($num === 0) return '';
@@ -772,62 +999,5 @@ class PrintDataFormatter
             ],
             'excel' => ['hsn_code'=>true,'discount'=>true]
         ];
-    }
-
-    public static function fromDeliveryChallan($batch): array
-    {
-        $batch->loadMissing(['salesOrder','salesOrder.customer','salesOrder.site','salesOrder.plant','salesOrder.plant.entity','salesOrder.plant.addresses','salesOrder.mixDesign','salesOrder.mixDesign.concrete_grade','salesOrder.mixDesign.unit','dispatches','dispatches.truck','dispatches.driver','dispatches.transport','dispatches.loadTax','materials.product','materials.uom','operator']);
-        $data = self::base();
-        $data['settings'] = self::getCustomSettings($batch->salesOrder->plant_id, 'delivery_challans');
-        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? 'DELIVERY CHALLAN';
-        $data['doc_no']    = 'B' . ($batch->batch_no ?? $batch->id);
-        $data['doc_date']  = optional($batch->load_time ?? $batch->created_at)->format('d/m/Y H:i');
-        $dispatch = $batch->dispatches->first();
-        $data['delivery_date'] = $dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('d/m/Y H:i') : ($batch->load_time ? $batch->load_time->format('d/m/Y H:i') : 'N/A');
-        $data['state']     = $batch->status_text ?? 'DISPATCHED';
-        $plant = $batch->salesOrder->plant; $plAddr = $plant->addresses->first();
-        $data['company'] = ['name'=>$plant->name,'address'=>$plAddr->line_1 ?? '','city'=>$plAddr->city ?? '','state'=>$plAddr->state->state_name ?? $plAddr->state_code ?? '','pin'=>$plAddr->zipcode ?? '','gstin'=>$plant->gstin ?? '','phone'=>$plant->phone ?? '','email'=>$plant->email ?? ''];
-        $customer = $batch->salesOrder->customer;
-        $data['bill_to'] = ['name'=>$customer->legal_name ?? $customer->name ?? 'N/A','address'=>$customer->address_line1 ?? '','city'=>$customer->city ?? '','state'=>$customer->state ?? '','pin'=>$customer->pincode ?? '','gstin'=>$customer->gstin ?? '','phone'=>$customer->phone ?? ''];
-        $site = $batch->salesOrder->site;
-        $data['ship_to'] = ['name'=>$site->name ?? $data['bill_to']['name'],'address'=>$site->site_address_1 ?? $data['bill_to']['address'],'city'=>$site->city ?? $data['bill_to']['city'],'state'=>$site->state ?? $data['bill_to']['state'],'pin'=>$site->zipcode ?? $data['bill_to']['pin']];
-        $groupedMaterials = $batch->materials->groupBy(function($mat){ return $mat->product_id ?? $mat->material_name; })->map(function($group){
-            $first = $group->first(); $target = $group->sum('target_qty'); $actual = $group->sum('actual_qty');
-            return (object)['material_name'=>$first->material_name ?: ($first->product->title ?? 'Material'),'uom_code'=>$first->uom->unit_code ?? 'kg','hsn_code'=>$first->product->hsn_code ?? '-','target_qty'=>$target,'actual_qty'=>$actual,'deviation_quantity'=>$group->sum('deviation_quantity')];
-        });
-        $itemsList = [];
-        if ($dispatch) {
-            $mixDesign = $batch->salesOrder->mixDesign; $mixDesignName = $mixDesign?->design_name ?? ($mixDesign?->concrete_grade?->name ?? 'Concrete Mix');
-            $qty = (float)($dispatch->delivered_qty ?: $batch->batch_size); $rate = (float)($dispatch->load_rate ?? 0);
-            $subTotal = (float)($dispatch->load_untax_amount ?? ($qty * $rate)); $taxAmount = (float)($dispatch->load_tax_amount ?? 0);
-            $totalAmount = (float)($dispatch->load_total_amount ?? ($subTotal + $taxAmount)); $taxRate = $dispatch->loadTax?->rate ?? 0; $taxName = $dispatch->loadTax?->name ?? '-';
-            $itemsList[] = ['no'=>1,'name'=>$mixDesignName,'description'=>"Concrete Mix Design - " . ($mixDesign?->design_code ?? ''),'hsn'=>'3824','qty'=>$qty,'received_qty'=>$qty,'unit'=>$dispatch->uom?->unit_code ?? 'CBM','unit_price'=>$rate,'tax_name'=>$taxName,'tax_rate'=>$taxRate,'tax_amount'=>$taxAmount,'total'=>$totalAmount];
-        }
-        $sno = count($itemsList) + 1;
-        foreach ($groupedMaterials->values() as $item) {
-            $target = (float) $item->target_qty; $actual = (float) $item->actual_qty; $deviationVal = $actual - $target; $devPercent = 0;
-            if ($target > 0) $devPercent = ($deviationVal / $target) * 100;
-            $devSign = $devPercent > 0 ? '+' : '';
-            $desc = sprintf("Target: %s %s | Actual: %s %s | Dev: %s%s%%", number_format($target, 2), $item->uom_code, number_format($actual, 2), $item->uom_code, $devSign, number_format($devPercent, 2));
-            $itemsList[] = ['no'=>$sno++,'name'=>$item->material_name,'description'=>$desc,'hsn'=>$item->hsn_code,'qty'=>$actual ?: $target,'received_qty'=>$actual,'unit'=>$item->uom_code,'unit_price'=>0.00,'tax_name'=>'-','tax_rate'=>0.00,'tax_amount'=>0.00,'total'=>0.00];
-        }
-        $data['items'] = $itemsList;
-        $taxLines = [];
-        if ($dispatch && $dispatch->load_tax_amount > 0) $taxLines[] = ['name'=>$dispatch->loadTax?->name ?? 'GST','rate'=>$dispatch->loadTax?->rate ?? 18,'amount'=>(float)$dispatch->load_tax_amount];
-        $data['totals'] = ['sub_total'=>(float)($dispatch?->load_untax_amount ?? 0),'discount'=>(float)($dispatch?->discount_amount ?? 0),'tax_lines'=>$taxLines,'shipping'=>(float)($dispatch?->transport_expenses ?? 0),'adjustment'=>(float)($dispatch?->adjustment_amount ?? 0),'round_off'=>(float)($dispatch?->round_off ?? 0),'grand_total'=>(float)($dispatch?->load_total_amount ?? 0)];
-        $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
-        $isMetricTon = !empty($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
-        $emptyWeight = (float) ($dispatch?->empty_weight_truck ?? 0); $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
-        $netWeight = (float) ($dispatch?->net_weight ?? ($loadedWeight - $emptyWeight));
-        $unitLabel = $isMetricTon ? ' MT' : ' kg'; $decimals = $isMetricTon ? 3 : 0;
-        $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel; $loadedWeightStr = number_format($loadedWeight, $decimals) . $unitLabel; $netWeightStr = number_format($netWeight, $decimals) . $unitLabel;
-        $weightNotes = "VEHICLE WEIGHT DETAILS:\n" . "Truck No: " . ($dispatch?->truck?->registration ?? '-') . "\n" . "Driver: " . (trim(($dispatch?->driver?->first_name ?? '') . ' ' . ($dispatch?->driver?->last_name ?? '')) ?: '-') . "\n" . "Empty Weight: " . $emptyWeightStr . " (" . ($dispatch?->empty_time ? \Carbon\Carbon::parse($dispatch->empty_time)->format('d-m-Y H:i') : '-') . ")\n" . "Loaded Weight: " . $loadedWeightStr . " (" . ($dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('d-m-Y H:i') : '-') . ")\n" . "Net Weight: " . $netWeightStr . "\n\n" . "Batch size: " . number_format((float) $batch->batch_size, 2) . " m³\n" . "Concrete Grade: " . ($batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->design_name ?? '-')) . " / Recipe Code: " . ($batch->salesOrder?->mixDesign?->design_code ?? '-');
-        $data['meta'] = [
-            'currency_code'=>'INR','currency_symbol'=>'₹','notes'=>$weightNotes,
-            'terms_text'=>self::resolveTermsCondition($data['settings'], 'Delivery Challan', $batch->salesOrder->plant_id, $batch->salesOrder?->terms_conditions ?? "1. Goods received in good condition.\n2. Any variation in quantity to be reported immediately."),
-            'total_words'=>'','po_number'=>$batch->salesOrder?->order_no ?? '-','project_name'=>'Concrete Grade: ' . ($batch->salesOrder?->mixDesign?->concrete_grade?->name ?? '-'),
-        ];
-        $data['batch'] = $batch;
-        return $data;
     }
 }

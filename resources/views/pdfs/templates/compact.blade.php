@@ -65,6 +65,8 @@
             $metaFields['Delivery'] = $data['delivery_date'];
             $metaFields['PO#'] = ($data['meta']['po_number'] ?? '');
             $metaFields['Status'] = $data['state'];
+            if (!empty($data['meta']['sales_executive_name'])) $metaFields['Sales Exec'] = $data['meta']['sales_executive_name'];
+            if (!empty($data['meta']['sales_executive_mobile'])) $metaFields['Contact No'] = $data['meta']['sales_executive_mobile'];
         @endphp
         @foreach($metaFields as $k => $v)
             @if($v) <div class="ms-cell"><span class="ms-key">{{ $k }}: </span><span class="ms-val">{{ $v }}</span></div> @endif

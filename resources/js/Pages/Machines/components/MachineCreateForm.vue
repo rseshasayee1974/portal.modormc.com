@@ -26,7 +26,15 @@ const toggle = () => {
         props.form.clearErrors();
     }
 };
-
+function formatLocalDate(date: any) {
+  if (!date) return null;
+  if (typeof date === 'string') return date.split(/[Tt]/)[0];
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 const handleSubmit = () => {
     if (!props.form.registration) {
         props.form.errors.registration = 'Registration ID is required';
@@ -35,6 +43,22 @@ const handleSubmit = () => {
         }
         return;
     }
+
+     // Transform dates before emit. Parent's form.post/put will get YYYY-MM-DD
+    props.form.transform((data: any) => ({
+       ...data,
+        documents: (data.documents || []).map((doc: any) => ({
+           ...doc,
+            issue_date: formatLocalDate(doc.issue_date),
+            expiry_date: formatLocalDate(doc.expiry_date),
+        })),
+        loans: (data.loans || []).map((loan: any) => ({
+           ...loan,
+            start_date: formatLocalDate(loan.start_date),
+            end_date: formatLocalDate(loan.end_date),
+        })),
+    }));
+
     emit('submit');
 };
 </script>

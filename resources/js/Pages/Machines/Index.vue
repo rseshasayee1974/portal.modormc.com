@@ -87,6 +87,8 @@ const getInitialForm = () => ({
     engine_no: '',
     chassis_no: '',
     vehicle_type: null as string | null,
+    concrete_pump: null as string | null,
+    pump_rate: null as number | null,
     capacity: null as number | null,
     is_active: true,
     owner_id: null as number | null,
@@ -114,6 +116,8 @@ const openEdit = (m: Machine) => {
     editForm.engine_no = m.engine_no || '';
     editForm.chassis_no = m.chassis_no || '';
     editForm.vehicle_type = m.vehicle_type;
+    editForm.concrete_pump = (m as any).concrete_pump || null;
+    editForm.pump_rate = (m as any).pump_rate ? Number((m as any).pump_rate) : null;
     editForm.capacity = m.capacity ? Number(m.capacity) : null;
     editForm.is_active = m.is_active !== undefined ? Boolean(m.is_active) : true;
     editForm.owner_id = (m as any).owner_id ? Number((m as any).owner_id) : null;
@@ -145,6 +149,16 @@ const removeLoan = (form: any, index: number) => {
     form.loans.splice(index, 1);
 };
 
+function formatLocalDate(date: any) {
+    if (!date) return null;
+    if (typeof date === 'string') return date.split(/[Tt]/)[0];
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 const submitCreate = () => {
     createForm.post(route('machines.store'), {
         onSuccess: () => {
@@ -158,6 +172,21 @@ const submitCreate = () => {
 
 const submitEdit = () => {
     if (!editingId.value) return;
+
+    editForm.transform((data: any) => ({
+        ...data,
+        documents: (data.documents || []).map((doc: any) => ({
+            ...doc,
+            issue_date: formatLocalDate(doc.issue_date),
+            expiry_date: formatLocalDate(doc.expiry_date),
+        })),
+        loans: (data.loans || []).map((loan: any) => ({
+            ...loan,
+            start_date: formatLocalDate(loan.start_date),
+            end_date: formatLocalDate(loan.end_date),
+        })),
+    }));
+
     editForm.put(route('machines.update', editingId.value), {
         onSuccess: () => {
             resetEditForm();

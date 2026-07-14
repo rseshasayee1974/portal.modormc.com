@@ -317,6 +317,12 @@
                             if ($pdfSettings['status'] ?? false) {
                                 $infoLines['Status'] = $data['state'];
                             }
+                            if (!empty($data['meta']['sales_executive_name'])) {
+                                $infoLines['Sales Executive'] = $data['meta']['sales_executive_name'];
+                            }
+                            if (!empty($data['meta']['sales_executive_mobile'])) {
+                                $infoLines['Contact No'] = $data['meta']['sales_executive_mobile'];
+                            }
                         @endphp
                         @foreach ($infoLines as $label => $val)
                             @if ($val)

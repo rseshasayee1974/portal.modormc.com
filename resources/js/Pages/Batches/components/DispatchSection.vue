@@ -58,6 +58,17 @@ const isReadOnly = computed(() => {
     return isTripOperator.value && isDataPresented.value;
 });
 
+const showInvoiceSection = computed(() => {
+    if (!props.dispatch) return false;
+    // Always show if invoice is already linked/generated
+    if (props.dispatch.status?.invoice_status == 1) return true;
+    
+    // Otherwise, show only if pricing and quantities have data and are saved in the db
+    return (Number(props.dispatch.load_rate) > 0) && 
+           (Number(props.dispatch.delivered_qty || props.dispatch.load_units || 0) > 0) &&
+           (props.dispatch.uom_id !== null && props.dispatch.uom_id !== undefined);
+});
+
 // console.log(props.dropdownData);
 
 const emit = defineEmits<{
@@ -487,6 +498,7 @@ const handleDeleteInvoice = () => {
                 :sales_executives="sales_executives"
                 :errors="form.errors"
                 :isReadOnly="isReadOnly"
+                :showInvoiceSection="showInvoiceSection"
                 @submit="submit"
                 @generateInvoice="handleGenerateInvoice"
                 @deleteInvoice="handleDeleteInvoice"

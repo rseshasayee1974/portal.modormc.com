@@ -275,7 +275,12 @@
     </div>
 
     {{-- ── Batched Materials ── --}}
-    @if ($batch->materials->count() > 0)
+    {{-- @php
+        $printMode = $settings['material_print_mode'] ?? 'run';
+        $formattedMaterials = $batch->getFormattedMaterials($printMode);
+    @endphp
+
+    @if ($formattedMaterials->count() > 0)
         <div class="divider"></div>
         <div class="section-title">Batched Materials</div>
         <table class="materials-table">
@@ -288,15 +293,31 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach ($batch->materials as $mat)
+                @php
+                    $groupedMaterials = $formattedMaterials->groupBy(function($mat) {
+                        return $mat->material_name;
+                    })->map(function($group) {
+                        $first = $group->first();
+                        $target = $group->sum('target_qty');
+                        $actual = $group->sum('actual_qty');
+                        $deviation = $group->sum('deviation_quantity');
+                        return (object)[
+                            'material_name' => $first->material_name,
+                            'target_qty' => $target,
+                            'actual_qty' => $actual,
+                            'deviation_quantity' => $deviation,
+                        ];
+                    });
+                @endphp
+                @foreach ($groupedMaterials as $mat)
                     @php
                         $target      = (float) $mat->target_qty;
                         $actual      = (float) $mat->actual_qty;
-                        $deviationVal = (float) $mat->deviation_quantity;
+                        $deviationVal = $actual - $target;
                         $devPercent  = $target > 0 ? ($deviationVal / $target) * 100 : 0;
                     @endphp
                     <tr>
-                        <td>{{ $mat->material_name ?: ($mat->product->title ?? 'Material') }}</td>
+                        <td>{{ $mat->material_name }}</td>
                         <td class="text-right font-mono">{{ number_format($target, 0) }}</td>
                         <td class="text-right font-mono">{{ number_format($actual, 0) }}</td>
                         <td class="text-right font-mono">{{ ($devPercent > 0 ? '+' : '') . number_format($devPercent, 1) }}%</td>
@@ -304,7 +325,7 @@
                 @endforeach
             </tbody>
         </table>
-    @endif
+    @endif --}}
 
     {{-- ── QR Code (server-side SVG, works in browser + dompdf) ── --}}
     <div class="divider"></div>

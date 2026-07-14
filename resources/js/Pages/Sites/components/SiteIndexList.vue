@@ -29,7 +29,7 @@ const emit = defineEmits<{
     'cancelEdit': [];
 }>();
 
-const { isAdmin } = usePermissions();
+const { isAdmin ,isSuperAdmin } = usePermissions();
 
 const filters = ref({
     global: { value: props.searchQuery ?? null, matchMode: 'contains' },
@@ -128,7 +128,7 @@ watch(() => props.searchQuery, (newVal) => {
             <template #body="slotProps">
                 <div class="flex justify-end gap-1">
                     <Button 
-                        v-if="isAdmin || !slotProps.data.is_in_use"
+                        v-if="isSuperAdmin || !slotProps.data.is_in_use"
                         icon="pi pi-trash" 
                         text 
                         rounded 

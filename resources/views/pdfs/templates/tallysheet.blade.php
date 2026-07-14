@@ -56,8 +56,23 @@
     </div>
 
     <div class="meta-bar">
-        @foreach(['Date'=>$data['doc_date'], 'Due Date'=>($data['due_date'] !== 'N/A' ? $data['due_date'] : ''), 'Delivery'=>$data['delivery_date'], 'Party'=>$data['bill_to']['name'], 'Project'=>($data['meta']['project_name']??'')] as $k=>$v)
-        @if($v) <div class="mb-cell"><span class="mb-key">{{ $k }}</span><span class="mb-val">{{ $v }}</span></div> @endif
+        @php
+            $metaBarFields = [
+                'Date' => $data['doc_date'],
+                'Due Date' => ($data['due_date'] !== 'N/A' ? $data['due_date'] : ''),
+                'Delivery' => $data['delivery_date'],
+                'Party' => $data['bill_to']['name'],
+                'Project' => ($data['meta']['project_name'] ?? '')
+            ];
+            if (!empty($data['meta']['sales_executive_name'])) {
+                $metaBarFields['Sales Exec'] = $data['meta']['sales_executive_name'];
+            }
+            if (!empty($data['meta']['sales_executive_mobile'])) {
+                $metaBarFields['Contact No'] = $data['meta']['sales_executive_mobile'];
+            }
+        @endphp
+        @foreach($metaBarFields as $k=>$v)
+            @if($v) <div class="mb-cell"><span class="mb-key">{{ $k }}</span><span class="mb-val">{{ $v }}</span></div> @endif
         @endforeach
     </div>
 

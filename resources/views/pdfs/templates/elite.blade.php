@@ -95,6 +95,8 @@
                         if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') $kv1['Due Date'] = $data['due_date'];
                         $kv1['Delivery'] = $data['delivery_date'];
                         $kv1['PO#'] = $data['meta']['po_number'] ?? '';
+                        if (!empty($data['meta']['sales_executive_name'])) $kv1['Sales Exec'] = $data['meta']['sales_executive_name'];
+                        if (!empty($data['meta']['sales_executive_mobile'])) $kv1['Contact No'] = $data['meta']['sales_executive_mobile'];
                     @endphp
                     @foreach($kv1 as $k => $v)
                         @if($v) <tr><td class="kv-key">{{ $k }}</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $v }}</td></tr> @endif

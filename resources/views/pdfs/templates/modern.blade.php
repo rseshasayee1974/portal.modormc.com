@@ -112,6 +112,8 @@
                 @if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') <th class="dbar-th">Due Date</th> @endif
                 <th class="dbar-th">Delivery</th>
                 @if(!empty($data['meta']['po_number']) && $data['meta']['po_number'] !== '-') <th class="dbar-th">PO#</th> @endif
+                @if(!empty($data['meta']['sales_executive_name'])) <th class="dbar-th">Sales Exec</th> @endif
+                @if(!empty($data['meta']['sales_executive_mobile'])) <th class="dbar-th">Contact No</th> @endif
                 <th class="dbar-th">Project</th>
             </tr>
         </thead>
@@ -121,6 +123,8 @@
                 @if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') <td class="dbar-td">{{ $data['due_date'] }}</td> @endif
                 <td class="dbar-td">{{ $data['delivery_date'] }}</td>
                 @if(!empty($data['meta']['po_number']) && $data['meta']['po_number'] !== '-') <td class="dbar-td">{{ $data['meta']['po_number'] }}</td> @endif
+                @if(!empty($data['meta']['sales_executive_name'])) <td class="dbar-td">{{ $data['meta']['sales_executive_name'] }}</td> @endif
+                @if(!empty($data['meta']['sales_executive_mobile'])) <td class="dbar-td">{{ $data['meta']['sales_executive_mobile'] }}</td> @endif
                 <td class="dbar-td">{{ $data['meta']['project_name'] ?? '-' }}</td>
             </tr>
         </tbody>

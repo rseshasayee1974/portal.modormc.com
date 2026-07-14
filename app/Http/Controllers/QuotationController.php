@@ -40,6 +40,15 @@ class QuotationController extends Controller
         ]);
     }
 
+    public function show(Quotation $quotation)
+    {
+        $this->authorizeModule('menu');
+
+        return Inertia::render('Quotations/Show', [
+            'quotation' => $quotation->loadMissing(['patron', 'site', 'items.mixDesign', 'customerPOs', 'creator', 'modifier', 'salesExecutive', 'concretePump'])
+        ]);
+    }
+
     public function store(StoreQuotationRequest $request)
     {
         $this->authorizeModule('create');
@@ -112,6 +121,9 @@ class QuotationController extends Controller
                     'site_id' => $quotation->site_id,
                     'sales_executive_id' => $quotation->sales_executive_id,
                     'concrete_pump' => $quotation->concrete_pump,
+                    'pump_rate' => $quotation->pump_rate,
+                    'manual_rate' => $quotation->manual_rate,
+                    'boom_pump_rate' => $quotation->boom_pump_rate,
                     'order_date' => $existingPO ? $existingPO->order_date : now()->toDateString(),
                     'status' => \App\Models\CustomerPO::STATUS_CONFIRMED,
                     'converted_by_user_id' => $user->id,
@@ -131,10 +143,10 @@ class QuotationController extends Controller
                 // Clear any existing items in the customer PO to avoid duplicates/orphans
                 $customerPO->items()->delete();
 
-                // Copy items from quotation to customer PO items
-                $quotation->load('items');
-                foreach ($quotation->items as $item) {
-                    $customerPO->items()->create([
+                // Copy items from quotation to customer PO items via bulk insert
+                $quotation->loadMissing('items');
+                $itemsData = $quotation->items->map(function ($item) {
+                    return [
                         'mix_design_id' => $item->mix_design_id,
                         'quantity' => $item->quantity,
                         'rate' => $item->rate,
@@ -142,8 +154,10 @@ class QuotationController extends Controller
                         'tax_amount' => $item->tax_amount,
                         'untaxed_amount' => $item->untaxed_amount,
                         'amount_total' => $item->amount_total,
-                    ]);
-                }
+                    ];
+                })->toArray();
+
+                $customerPO->items()->createMany($itemsData);
             } else {
                 \App\Models\CustomerPO::where('quotation_id', $quotation->id)->delete();
             }

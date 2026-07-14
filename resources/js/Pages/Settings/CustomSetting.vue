@@ -53,6 +53,9 @@ const form = useForm({
         target_to_actual:  props.batchingSettings?.target_to_actual == 1,
         default_transport: props.batchingSettings?.default_transport || '',
         quote_validity:    props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
+        material_print_mode: props.batchingSettings?.material_print_mode || 'run',
+        add_pouring_rates_to_total: props.batchingSettings?.add_pouring_rates_to_total == 1,
+        pouring_rate_charge_type: props.batchingSettings?.pouring_rate_charge_type || 'per_m3',
         custom_params:     props.batchingSettings?.custom_params || [],
     }
 });
@@ -87,6 +90,8 @@ const settingRows = computed(() => [
     { section: 'Batch Sheet', key: 'target_to_actual',   label: 'One-Click Target to Actual',     value: form.settings.target_to_actual,    type: 'bool' },
     { section: 'Defaults',    key: 'default_transport',  label: 'Default Transporter Name',        value: form.settings.default_transport,   type: 'text' },
     { section: 'Defaults',    key: 'quote_validity',     label: 'Quotation Validity (Days)',       value: form.settings.quote_validity,      type: 'text' },
+    { section: 'Defaults',    key: 'add_pouring_rates_to_total', label: 'Add Pouring Rates to Quotation Total', value: form.settings.add_pouring_rates_to_total, type: 'bool' },
+    { section: 'Defaults',    key: 'pouring_rate_charge_type', label: 'Pouring Rate Charge Type', value: form.settings.pouring_rate_charge_type, type: 'text' },
     // Appearance
     { section: 'Appearance',  key: 'loader_gif',         label: 'Custom Global Loader (GIF URL)', value: form.settings.loader_gif,          type: 'text' },
     // Document Prefixes
@@ -117,6 +122,9 @@ const submit = () => {
         hide_batch_form:    form.settings.hide_batch_form    ? 1 : 0,
         target_to_actual:   form.settings.target_to_actual   ? 1 : 0,
         quote_validity:     form.settings.quote_validity     ? parseInt(form.settings.quote_validity as any, 10) : 15,
+        material_print_mode: form.settings.material_print_mode || 'run',
+        add_pouring_rates_to_total: form.settings.add_pouring_rates_to_total ? 1 : 0,
+        pouring_rate_charge_type: form.settings.pouring_rate_charge_type || 'per_m3',
     };
 
     form.transform((data) => ({ ...data, settings: payload }))
@@ -407,6 +415,38 @@ const deleteModule = (id: number) => {
                                     min="1"
                                 />
                             </div>
+
+                            <!-- Add Pouring Rates to Total -->
+                            <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                                <div>
+                                    <h4 class="font-bold text-emerald-700 text-sm">Add Pouring Rates to Quotation Total <code class="text-[9px] text-emerald-400 ml-1 font-normal">[add_pouring_rates_to_total]</code></h4>
+                                    <p class="text-xs text-slate-500 mt-0.5">If enabled, the grand total is calculated using the pouring rates (Manual/Pump/Boom Pump) matching the selected concrete type. If disabled, it uses the actual rate from line items.</p>
+                                </div>
+                                <InputSwitch v-model="form.settings.add_pouring_rates_to_total" />
+                            </div>
+
+                            <!-- Pouring Rates Charge Type -->
+                            <div class="flex flex-col gap-2 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-bold text-emerald-700 text-sm">Pouring Rate Charge Type <code class="text-[9px] text-emerald-400 ml-1 font-normal">[pouring_rate_charge_type]</code></h4>
+                                        <p class="text-xs text-slate-500 mt-0.5">Specify whether the pouring rate is charged per cubic meter (m³) or as a flat rate for the entire quotation.</p>
+                                    </div>
+                                </div>
+                                <div class="mt-2 max-w-xs">
+                                    <Dropdown
+                                        v-model="form.settings.pouring_rate_charge_type"
+                                        :options="[
+                                            { label: 'Charged Per m³', value: 'per_m3' },
+                                            { label: 'Flat Rate (Total Value)', value: 'flat_rate' }
+                                        ]"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        placeholder="Select charge type"
+                                        class="w-full text-sm animate-fade-in"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -502,6 +542,30 @@ const deleteModule = (id: number) => {
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.target_to_actual" />
+                            </div>
+
+                            <!-- material_print_mode -->
+                            <div class="flex flex-col gap-2 p-4 bg-violet-50 rounded-xl border border-violet-100">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-bold text-violet-700 text-sm">Material Print Mode on PDFs <code class="text-[9px] text-violet-400 ml-1 font-normal">[material_print_mode]</code></h4>
+                                        <p class="text-xs text-violet-500 mt-0.5">Choose how material quantities (Target &amp; Actual) are printed on PDF tokens and passes.</p>
+                                    </div>
+                                </div>
+                                <div class="mt-2 max-w-md">
+                                    <Dropdown
+                                        v-model="form.settings.material_print_mode"
+                                        :options="[
+                                            { label: 'By Run (As Synced)', value: 'run' },
+                                            { label: 'By Batch Size (Total Load)', value: 'batch_size' },
+                                            { label: 'By Mix Design (Per m³)', value: 'mix_design' }
+                                        ]"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        placeholder="Select print mode"
+                                        class="w-full text-sm"
+                                    />
+                                </div>
                             </div>
 
                             <!-- Dynamic Sync Params -->

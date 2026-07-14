@@ -21,6 +21,7 @@ const props = withDefaults(defineProps<{
     sales_ledgers?: any[];
     errors: any;
     isReadOnly?: boolean;
+    showInvoiceSection?: boolean;
 }>(), {
     uoms: () => [],
     taxes: () => [],
@@ -32,7 +33,8 @@ const props = withDefaults(defineProps<{
     payment_methods: () => [],
     sales_ledgers: () => [],
     errors: () => ({}),
-    isReadOnly: false
+    isReadOnly: false,
+    showInvoiceSection: false
 });
 // console.log(props.sales_ledgers)
 const emit = defineEmits(['update:modelValue', 'generateInvoice' , 'deleteInvoice']);
@@ -190,7 +192,7 @@ const formatTime = (dateVal: any) => {
             </div>
 
             <!-- Invoice Section -->
-            <div v-if="modelValue.status.invoice_status != 1" class="p-2">
+            <div v-if="showInvoiceSection && modelValue.status.invoice_status != 1" class="p-2">
                 <div class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-indigo-500">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -216,7 +218,7 @@ const formatTime = (dateVal: any) => {
             </div>
 
             <!-- Generated Invoice Information -->
-            <div v-else class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-3 px-4 bg-slate-50 border border-slate-100 rounded-xl mt-4">
+            <div v-else-if="showInvoiceSection" class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-3 px-4 bg-slate-50 border border-slate-100 rounded-xl mt-4">
                 <div class="flex flex-wrap items-center gap-6 w-full md:w-auto">
                     <!-- Left: Status Badge -->
                     <div class="flex items-center gap-3">

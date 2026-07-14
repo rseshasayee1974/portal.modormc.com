@@ -762,7 +762,7 @@ const shareBatchEmail = () => {
                                             <div v-if="slotProps.data.dispatches?.[0]" class="py-1 text-left">
                                                 <!-- If Invoice not yet generated -->
                                                 <button
-                                                    v-if="slotProps.data.status >= 3 && (!slotProps.data.dispatches[0].status || slotProps.data.dispatches[0].status.invoice_status !== 1)"
+                                                    v-if="slotProps.data.status >= 3 && Number(slotProps.data.dispatches[0].load_rate) > 0 && Number(slotProps.data.dispatches[0].delivered_qty || slotProps.data.dispatches[0].load_units || 0) > 0 && slotProps.data.dispatches[0].uom_id && (!slotProps.data.dispatches[0].status || slotProps.data.dispatches[0].status.invoice_status !== 1)"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 transition-colors"
                                                     @click="generateInvoiceDirect(slotProps.data.dispatches[0]); activeMenuId = null;"
                                                 >
@@ -1027,7 +1027,7 @@ const shareBatchEmail = () => {
                 <div v-if="activeBatch.dispatches?.[0]" class="py-1">
                     <!-- If Invoice not yet generated -->
                     <button
-                        v-if="activeBatch.status >= 3 && (!activeBatch.dispatches[0].status || activeBatch.dispatches[0].status.invoice_status !== 1)"
+                        v-if="activeBatch.status >= 3 && Number(activeBatch.dispatches[0].load_rate) > 0 && Number(activeBatch.dispatches[0].delivered_qty || activeBatch.dispatches[0].load_units || 0) > 0 && activeBatch.dispatches[0].uom_id && (!activeBatch.dispatches[0].status || activeBatch.dispatches[0].status.invoice_status !== 1)"
                         class="flex w-full items-center px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 transition-colors"
                         @click="generateInvoiceDirect(activeBatch.dispatches[0]); closeAllMenus();"
                     >
