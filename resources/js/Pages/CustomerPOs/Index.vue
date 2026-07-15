@@ -8,9 +8,11 @@ import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
+import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
 import Popover from 'primevue/popover';
+import Dialog from 'primevue/dialog';
 import { ShoppingBagIcon, CpuChipIcon } from '@heroicons/vue/24/outline';
 import CustomerPOCreateForm from './components/CustomerPOCreateForm.vue';
 import CustomerPOEditForm from './components/CustomerPOEditForm.vue';
@@ -178,55 +180,72 @@ const deleteCustomerPO = (customerPO: any) => {
     });
 };
 
+const showConvertModal = ref(false);
+const convertPO = ref<any>(null);
+const convertItems = ref<any[]>([]);
+
+const getItemCompletedQty = (customerPO: any, mixDesignId: number) => {
+    return customerPO.sales_orders?.filter((so: any) => Number(so.mix_design_id) === Number(mixDesignId))
+        .reduce((sum: number, so: any) => sum + Number(so.total_qty || 0), 0) || 0;
+};
+
 const convertToSalesOrder = (customerPO: any) => {
-    const total = getCustomerPOTotalQty(customerPO);
-    const completed = getCustomerPOCompletedQty(customerPO);
-    const remainingQty = Math.max(0, total - completed);
-    const defaultQty = remainingQty > 0? remainingQty : 1;
+    convertPO.value = customerPO;
+    convertItems.value = (customerPO.items || []).map((item: any) => {
+        const completed = getItemCompletedQty(customerPO, item.mix_design_id);
+        const remaining = Math.max(0, Number(item.quantity || 0) - completed);
+        return {
+            item_id: item.id,
+            mix_design_id: item.mix_design_id,
+            design_name: item.mix_design?.design_name || 'Concrete Mix',
+            po_qty: Number(item.quantity || 0),
+            completed_qty: completed,
+            remaining_qty: remaining,
+            quantity: remaining > 0 ? remaining : 0,
+            concrete_pump: item.concrete_pump || null,
+        };
+    });
+    showConvertModal.value = true;
+};
 
-    Swal.fire({
-        title: 'Generate Sales Order',
-        text: 'Enter the quantity for the Sales Order:',
-        input: 'number',
-        inputValue: defaultQty,
-        inputLabel: 'Quantity (m³)',
-        inputPlaceholder: 'Enter quantity',
-        inputAttributes: {
-            min: '0.001',
-            max: String(remainingQty),
-            step: '0.1',
-            required: 'true'
-        },
-        showCancelButton: true,
-        confirmButtonColor: '#4f46e5',
-        confirmButtonText: 'Yes, generate',
-        inputValidator: (value) => {
-            if (!value || parseFloat(value) <= 0) {
-                return 'Please enter a valid quantity greater than 0!';
-            }
-            
-            if (remainingQty > 0 && parseFloat(value) > remainingQty) {
-                return 'Quantity cannot be greater than the remaining quantity (' + remainingQty + ' m³)!';
-            }
+const submitConversion = () => {
+    // Validate quantities
+    for (const item of convertItems.value) {
+        if (Number(item.quantity) < 0) {
+            Swal.fire('Error', 'Quantity cannot be negative', 'error');
+            return;
         }
-    }).then((result) => {
-        if (!result.isConfirmed ||!result.value) return;
+        if (Number(item.quantity) > 9.99) {
+            Swal.fire('Error', `Quantity for ${item.design_name} cannot exceed 9.99 m³`, 'error');
+            return;
+        }
+        if (Number(item.quantity) > item.remaining_qty) {
+            Swal.fire('Error', `Quantity for ${item.design_name} cannot exceed remaining quantity (${item.remaining_qty} m³)`, 'error');
+            return;
+        }
+    }
 
-        router.post(route('customer-po.convert-salesorder', customerPO.id), {
-            quantity: result.value
-        }, {
-            preserveScroll: true,
-            onSuccess: () => {
-                Swal.fire({
-                    toast: true,
-                    position: 'top-end',
-                    icon: 'success',
-                    title: 'Sales Orders generated successfully.',
-                    showConfirmButton: false,
-                    timer: 1500,
-                });
-            },
-        });
+    const payload = {
+        items: convertItems.value.map(item => ({
+            item_id: item.item_id,
+            quantity: Number(item.quantity),
+            concrete_pump: item.concrete_pump,
+        }))
+    };
+
+    router.post(route('customer-po.convert-salesorder', convertPO.value.id), payload, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showConvertModal.value = false;
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'Sales Orders generated successfully.',
+                showConfirmButton: false,
+                timer: 1500,
+            });
+        },
     });
 };
 
@@ -328,7 +347,7 @@ watch(() => props.customerPOs, () => {
 
                     <Column field="reference" header="Ref #" sortable>
                         <template #body="slotProps">
-                            <span class="text-slate-800 dark:text-slate-100 text-sm font-bold font-mono">{{ slotProps.data.reference || '--' }}</span>
+                            <span class="text-slate-800 dark:text-slate-100 text-sm font-bold font-mono uppercase">{{ slotProps.data.reference || '--' }}</span>
                         </template>
                     </Column>
 
@@ -510,10 +529,106 @@ watch(() => props.customerPOs, () => {
                     >
                         <i class="pi pi-trash mr-2 text-slate-400 font-bold"></i>
                         Delete (Locked)
+                </div>
+            </div>
+        </div>
+        </Popover>
+        <!-- Convert Customer PO to Sales Order Dialog -->
+        <Dialog 
+            v-model:visible="showConvertModal" 
+            modal 
+            header="Generate Sales Orders" 
+            :style="{ width: '90vw', maxWidth: '800px' }"
+            class="premium-dialog"
+        >
+            <div class="space-y-6 py-2">
+                <div class="bg-indigo-50/50 dark:bg-slate-900/40 p-4 rounded-xl border border-indigo-100/50 dark:border-slate-800 flex flex-col sm:flex-row justify-between gap-4 text-xs">
+                    <div>
+                        <span class="text-slate-400 block font-medium">Customer PO Reference</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">CPO #{{ convertPO?.id }} - {{ convertPO?.reference || 'N/A' }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block font-medium">Patron / Customer</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">{{ convertPO?.patron?.legal_name || 'N/A' }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block font-medium">Site</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">{{ convertPO?.site?.name || 'N/A' }}</span>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                        <span class="h-2 w-2 rounded-full bg-indigo-600"></span>
+                        Ordered Mix Designs
+                    </h3>
+                    
+                    <div class="border border-slate-100 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
+                                    <th class="p-3 font-semibold text-slate-500">Mix Design</th>
+                                    <th class="p-3 font-semibold text-slate-500 text-center">PO Qty</th>
+                                    <th class="p-3 font-semibold text-slate-500 text-center">Converted</th>
+                                    <th class="p-3 font-semibold text-slate-500 text-center">Remaining</th>
+                                    <th class="p-3 font-semibold text-slate-500" style="width: 140px;">SO Qty (m³)</th>
+                                    <th class="p-3 font-semibold text-slate-500" style="width: 200px;">Concrete Pump / Type</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                                <tr v-for="item in convertItems" :key="item.item_id">
+                                    <td class="p-3 font-medium text-slate-700 dark:text-slate-300">
+                                        {{ item.design_name }}
+                                    </td>
+                                    <td class="p-3 text-center text-slate-600 dark:text-slate-400">{{ item.po_qty }} m³</td>
+                                    <td class="p-3 text-center text-slate-600 dark:text-slate-400">{{ item.completed_qty }} m³</td>
+                                    <td class="p-3 text-center font-bold text-slate-800 dark:text-slate-200">{{ item.remaining_qty }} m³</td>
+                                    <td class="p-3">
+                                        <BaseInputNumber 
+                                            v-model="item.quantity" 
+                                            :disabled="item.remaining_qty <= 0"
+                                            :min="0"
+                                            :max="Math.min(item.remaining_qty, 9.99)"
+                                            :minFractionDigits="1"
+                                            :maxFractionDigits="3"
+                                            placeholder="Qty"
+                                        />
+                                    </td>
+                                    <td class="p-3">
+                                        <BaseSelect
+                                            v-model="item.concrete_pump"
+                                            :options="props.pumpTypeOptions || []"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            placeholder="Select Pump"
+                                            showClear
+                                            :disabled="item.remaining_qty <= 0"
+                                            class="w-full"
+                                        />
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
-        </Popover>
+
+            <template #footer>
+                <div class="flex justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <BaseButton 
+                        label="Cancel" 
+                        severity="secondary" 
+                        outlined 
+                        @click="showConvertModal = false" 
+                    />
+                    <BaseButton 
+                        label="Generate Sales Orders" 
+                        severity="primary" 
+                        @click="submitConversion"
+                    />
+                </div>
+            </template>
+        </Dialog>
     </AppLayout>
 </template>
 

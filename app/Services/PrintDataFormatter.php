@@ -132,6 +132,7 @@ class PrintDataFormatter
             'phone'   => $plant?->phone ?? '',
             'email'   => $plant?->email ?? '',
             'seal_sign_path' => $plant?->seal_sign_path ?? '',
+            'upi_qr_path' => $plant?->upi_qr_path ?? '',
         ];
     }
 
@@ -340,7 +341,7 @@ class PrintDataFormatter
 
     public static function fromInvoice($invoice): array
     {
-        $invoice->loadMissing(['plant', 'plant.entity', 'plant.addresses', 'partner', 'partner.addresses', 'partner.contacts.addresses', 'items.tax', 'items.uom', 'orderTaxes']);
+        $invoice->loadMissing(['plant', 'plant.entity', 'plant.addresses', 'partner', 'partner.addresses', 'partner.contacts.addresses', 'items.tax', 'items.uom', 'items.itemTaxes', 'orderTaxes']);
         $data = self::base();
         $data['settings'] = self::getCustomSettings($invoice->plant_id, 'invoices');
         $defaultTitle = $invoice->invoice_type === 'bill' ? 'PURCHASE BILL' : 'TAX INVOICE';
@@ -428,11 +429,34 @@ class PrintDataFormatter
 
         $isIntra = self::isIntraState($invoice->plant->gstin ?? '', $partner?->gstin ?? '');
         $data['items'] = $invoice->items->map(function ($item, $idx) use ($isIntra) {
-            $taxDetails = self::resolveTaxDetails($item->tax, $isIntra, (float)$item->line_tax_amount, (float)$item->subtotal);
+            $taxModel = $item->tax;
+            $lineTaxAmount = (float)$item->line_tax_amount;
+
+            // Fallback: if no direct tax relationship, derive from itemTaxes (order_taxes splits)
+            if (!$taxModel && $item->relationLoaded('itemTaxes') && $item->itemTaxes->isNotEmpty()) {
+                $splits = $item->itemTaxes;
+                $lineTaxAmount = (float)$splits->sum('amount');
+                $totalRate = (float)$splits->sum('rate');
+                $groupNames = $splits->pluck('name')->filter()->implode(' + ');
+                // Determine the parent tax group from the split names
+                $firstSplitName = strtolower($splits->first()->name ?? '');
+                if (str_contains($firstSplitName, 'igst')) {
+                    $taxGroup = 'IGST';
+                } elseif (str_contains($firstSplitName, 'cgst') || str_contains($firstSplitName, 'sgst')) {
+                    $taxGroup = 'GST';
+                } else {
+                    $taxGroup = $isIntra ? 'GST' : 'IGST';
+                }
+                $taxName = $taxGroup . ' ' . ($totalRate == floor($totalRate) ? (int)$totalRate : $totalRate) . '%';
+                $taxDetails = ['rate' => $totalRate, 'group' => $taxGroup, 'name' => $taxName];
+            } else {
+                $taxDetails = self::resolveTaxDetails($taxModel, $isIntra, $lineTaxAmount, (float)$item->subtotal);
+            }
+
             return [
                 'no' => $idx + 1, 'name' => $item->item_name, 'description' => '', 'hsn' => $item->hsn_code ?? '-',
                 'qty' => (float)$item->quantity, 'unit' => $item->uom->unit_code ?? 'm³', 'unit_price' => (float)$item->price_unit,
-                'tax_name' => $taxDetails['name'] ?: '-', 'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => (float)$item->line_tax_amount,
+                'tax_name' => $taxDetails['name'] ?: '-', 'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => $lineTaxAmount,
                 'total' => (float)($item->line_total ?? ($item->quantity * $item->price_unit)),
             ];
         })->toArray();
@@ -1002,6 +1026,7 @@ class PrintDataFormatter
                 'bill_to'=>true,'ship_to'=>true,'hsn_code'=>true,'description'=>true,'unit'=>true,'discount'=>true,
                 'tax_percent'=>true,'cgst'=>true,'sgst'=>true,'igst'=>true,'shipping'=>true,'adjustment'=>true,
                 'round_off'=>true,'total_words'=>true,'notes'=>true,'terms'=>true,'signature'=>true,
+                'upi_qr'=>true,
                 'pump_rates'=>true,
                 'labels' => ['invoice_title'=>$invoiceTitle,'bill_to'=>'Bill To','ship_to'=>'Ship To','rate'=>'Rate','amount'=>'Amount']
             ],

@@ -133,8 +133,27 @@ Log::info($dispatch);
     public function update(DispatchStoreRequest $request, Dispatch $dispatch)
     {
         $this->authorizeModule('edit');
-        // dd( $dispatch->all());
         $user = auth()->user();
+        
+        $isAdmin = $user && method_exists($user, 'hasRole') && (
+            $user->hasRole('Saas Owner') || 
+            $user->hasRole('Platform Admin') || 
+            $user->hasRole('Super Admin') || 
+            $user->hasRole('Admin') || 
+            $user->hasRole('Super Administrator') ||
+            $user->hasRole('Administrator')
+        );
+
+        if (!$isAdmin) {
+            if (
+                ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$dispatch->sales_order_id) ||
+                ($request->has('delivered_qty') && (float)$request->delivered_qty !== (float)$dispatch->delivered_qty) ||
+                ($request->has('concrete_pump') && $request->concrete_pump !== $dispatch->concrete_pump)
+            ) {
+                return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Sales Order, Delivered Qty, or Concrete Pump.']);
+            }
+        }
+
         if($dispatch->dispatch_status !== 'Draft'){
             abort(403, 'Access Denied: This dispatch is already invoiced.');
         }

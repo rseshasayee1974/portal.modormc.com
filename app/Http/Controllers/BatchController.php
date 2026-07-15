@@ -46,7 +46,7 @@ class BatchController extends Controller
         'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
         'materials.product:id,title',
         'materials.uom:id,unit_code',
-        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id',
+        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id,customer_po_id',
         'salesOrder.plant:id,name,mixer_capacity',
         'salesOrder.customer:id,legal_name',
         'salesOrder.mixDesign:id,design_name,design_code',
@@ -187,7 +187,7 @@ class BatchController extends Controller
             'customers'         => PatronsDropdown('Customer'),
             'transporters'      => PatronsDropdown('Transporter'),
             'loading_sites'     => SitesDropdown('loading'),
-            'unloading_sites'   => SitesDropdown('unloading'),
+            'unloading_sites'   => SitesDropdown(),
             'drivers'           => DriversDropdown(),
             'sales_executives'  => PersonnelDropdown('','Sales Executive'),
             'taxes'             => TaxesDropdown('sales'),
@@ -285,6 +285,31 @@ class BatchController extends Controller
                     ->where('prefix', $prefix)
                     ->max(DB::raw('CAST(dispatch_no AS UNSIGNED)'));
                 
+                $baseRate = (float)($batch->rate ?? $salesOrder->rate ?? 0);
+                $taxId = $batch->tax_id ?? $salesOrder->tax_id ?? null;
+
+                $batchSize = (float)($batch->batch_size ?? 0);
+                $netWeight = (float)($payload['net_weight'] ?? 0);
+
+                $isMetricTon = !empty($batchingSettings['InvoiceInMetricTon']) && $batchingSettings['InvoiceInMetricTon'] == 1;
+
+                if ($isMetricTon) {
+                    $units = $netWeight;
+                    $loadRate = $netWeight > 0 ? ($batchSize * $baseRate) / $netWeight : $baseRate;
+                } else {
+                    $units = $batchSize;
+                    $loadRate = $baseRate;
+                }
+
+                $loadUntaxAmount = $units * $loadRate;
+                $loadTaxAmount = 0.0;
+                if ($taxId) {
+                    $tax = \App\Models\Tax::find($taxId);
+                    $taxRate = $tax ? (float)($tax->tax_rate ?? $tax->rate ?? 0) : 0.0;
+                    $loadTaxAmount = ($loadUntaxAmount * $taxRate) / 100;
+                }
+                $loadTotalAmount = $loadUntaxAmount + $loadTaxAmount;
+
                 $dispatchData = [
                     'sales_order_id'      => $payload['sales_order_id'],
                     // 'customer_po_id'      => $salesOrder->customer_po_id,
@@ -308,12 +333,18 @@ class BatchController extends Controller
                     'dispatch_status'     => 'Draft',
                     'prefix'              => $prefix,
                     'dispatch_no'         => (string)(($maxNumber ?: 0) + 1),
-                    'dispatch_time' => now()->format('H:i:s'),
-                    'created_at' => now(),
+                    'dispatch_time'       => now()->format('H:i:s'),
+                    'delivered_qty'       => $units,
+                    'load_rate'           => $loadRate,
+                    'load_tax_id'         => $taxId,
+                    'load_untax_amount'   => $loadUntaxAmount,
+                    'load_tax_amount'     => $loadTaxAmount,
+                    'load_total_amount'   => $loadTotalAmount,
+                    'created_at'          => now(),
                 ];
 
-                    Log::info('Creating Dispatch', $dispatchData);
-                    $dispatch = Dispatch::create($dispatchData);
+                Log::info('Creating Dispatch', $dispatchData);
+                $dispatch = Dispatch::create($dispatchData);
                     
                     $dispatch->status()->updateOrCreate(
                         ['dispatch_id' => $dispatch->id],
@@ -524,14 +555,30 @@ class BatchController extends Controller
     }
 
     public function update(UpdateBatchRequest $request, Batch $batch)
-    // public function update(Request $request, Batch $batch)
     {
-       
-        // dd($request->all());
         $this->authorizeModule('edit');
-        // $batch->load('salesOrder');
-        //  dd($batch->load('salesOrder'));
-        // $this->ensurePlantScope($batch->salesOrder);
+
+        $user = auth()->user();
+        $isAdmin = $user && method_exists($user, 'hasRole') && (
+            $user->hasRole('Saas Owner') || 
+            $user->hasRole('Platform Admin') || 
+            $user->hasRole('Super Admin') || 
+            $user->hasRole('Admin') || 
+            $user->hasRole('Super Administrator') ||
+            $user->hasRole('Administrator')
+        );
+
+        if (!$isAdmin) {
+            $dispatch = $batch->dispatches()->first();
+            $dispatchPump = $dispatch ? $dispatch->concrete_pump : null;
+            if (
+                ($request->has('batch_size') && (float)$request->batch_size !== (float)$batch->batch_size) ||
+                ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$batch->sales_order_id) ||
+                ($request->has('concrete_pump') && $request->concrete_pump !== $dispatchPump)
+            ) {
+                return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Sales Order, Batch Size, or Concrete Pump.']);
+            }
+        }
 
         $payload = $request->validated();
         
@@ -924,10 +971,10 @@ class BatchController extends Controller
     public function deliveryToken(Batch $batch)
     {
         $batch->load([
-            'salesOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
+            'salesOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no,customer_po_id',
             'salesOrder.customer:id,legal_name',
             'salesOrder.site:id,name',
-            'salesOrder.plant:id,entity_id,name,logo_path,seal_sign_path',
+            'salesOrder.plant:id,entity_id,name,logo_path,seal_sign_path,upi_qr_path',
             'salesOrder.plant.entity:id,legal_name',
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,design_name,design_code,design_type',
@@ -961,7 +1008,7 @@ class BatchController extends Controller
             'salesOrder:id,prefix,plant_id,customer_id,mix_design_id,site_id,order_no',
             'salesOrder.customer:id,legal_name',
             'salesOrder.site:id,name',
-            'salesOrder.plant:id,entity_id,name,logo_path,seal_sign_path',
+            'salesOrder.plant:id,entity_id,name,logo_path,seal_sign_path,upi_qr_path',
             'salesOrder.plant.entity:id,legal_name',
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,design_name,design_code,design_type',

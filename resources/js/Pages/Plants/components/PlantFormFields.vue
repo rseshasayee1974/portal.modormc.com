@@ -49,6 +49,20 @@ const sealPreview = computed(() => {
     return null;
 });
 
+const upiQrPreview = computed(() => {
+    if (props.form.upi_qr && props.form.upi_qr instanceof File) {
+        try {
+            return URL.createObjectURL(props.form.upi_qr);
+        } catch (e) {
+            return null;
+        }
+    }
+    if (props.form.upi_qr_path) {
+        return `/storage/${props.form.upi_qr_path}`;
+    }
+    return null;
+});
+
 // --- Dynamic Address Lookup Logic ---
 const districts = ref<string[]>([]);
 const allLocations = ref<any[]>([]);
@@ -346,6 +360,24 @@ onMounted(() => {
                             type="file" 
                             accept="image/*" 
                             @change="(e: any) => form.seal_sign = e.target.files[0]"
+                            class="text-[10px] text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                        />
+                    </div>
+                </div>
+
+                <div class="col-span-12 md:col-span-2">
+                    <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">UPI QR Code</label>
+                    <div class="mt-1 flex items-center gap-3">
+                        <div v-if="upiQrPreview" class="relative w-12 h-12 rounded-lg border border-slate-200 overflow-hidden bg-slate-50 flex items-center justify-center">
+                            <img 
+                                :src="upiQrPreview" 
+                                class="w-full h-full object-contain"
+                            />
+                        </div>
+                        <input 
+                            type="file" 
+                            accept="image/*" 
+                            @change="(e: any) => form.upi_qr = e.target.files[0]"
                             class="text-[10px] text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
                         />
                     </div>

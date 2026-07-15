@@ -5,13 +5,15 @@ import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import { ScaleIcon, BanknotesIcon, TruckIcon, PrinterIcon, DocumentDuplicateIcon, TrashIcon  } from '@heroicons/vue/24/outline';
 import { usePermissions } from '@/Composables/usePermissions';
+import { watch, computed } from 'vue';
+import Swal from 'sweetalert2';
 
 const props = withDefaults(defineProps<{
     modelValue: any; // The whole form object
     uoms: any[];
     taxes: any[];
-    drivers:any[];
-    sales_executives:any[];
+    drivers: any[];
+    sales_executives: any[];
     loading_sites: any[];
     unloading_sites: any[];
     trucks?: any[];
@@ -36,15 +38,10 @@ const props = withDefaults(defineProps<{
     isReadOnly: false,
     showInvoiceSection: false
 });
-// console.log(props.sales_ledgers)
+
 const emit = defineEmits(['update:modelValue', 'generateInvoice' , 'deleteInvoice']);
 
 const { can, isAdmin, isSuperAdmin, permissions, userRole } = usePermissions();
-console.log('Current User Role:', userRole.value);
-console.log('Current User Permissions:', permissions.value);
-
-import { watch, computed } from 'vue';
-import Swal from 'sweetalert2';
 
 const canExportInvoice = computed(() => isAdmin.value );
 
@@ -61,6 +58,8 @@ const handleGenerateInvoice = () => {
     emit('generateInvoice');
 };
 
+console.log('sdfsd',props.modelValue);
+
 watch(() => props.modelValue.payment_mode, (newMode) => {
     if (newMode === 'cash') {
         if (!props.modelValue.payment.payment_method_id) {
@@ -76,7 +75,7 @@ watch(() => props.modelValue.payment_mode, (newMode) => {
         props.modelValue.payment.payment_method_id = null;
     }
 });
-console.log(props)
+
 const isValidDate = (dateVal: any) => {
     if (!dateVal) return false;
     const d = new Date(dateVal);
@@ -96,7 +95,6 @@ const formatTime = (dateVal: any) => {
 
 <template>
     <div class="space-y-6">
-        <!-- Validation Errors Alert -->
         <div v-if="Object.keys(errors).length > 0" class="mx-5 my-2 p-4 rounded-xl bg-rose-50 border border-rose-100 text-rose-800 text-xs flex flex-col gap-1.5 shadow-sm">
             <div class="font-bold flex items-center gap-2 text-rose-700">
                 <svg class="w-4 h-4 text-rose-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -111,9 +109,8 @@ const formatTime = (dateVal: any) => {
             </ul>
         </div>
 
-        <!-- 1. Logistics & Delivery Section -->
         <div class="bg-white">
-            <div class="flex items-center gap-2 border-b border-slate-100">
+            <div class="flex items-center gap-2 border-b border-slate-100 mb-4">
                 <TruckIcon class="h-5 w-5 text-indigo-500" />
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">1. Logistics & Delivery</h3>
             </div>
@@ -126,15 +123,14 @@ const formatTime = (dateVal: any) => {
                 <BaseInput v-model="modelValue.status.receiver_name" label="Receiver Name" :error="errors['status.receiver_name']" :disabled="isReadOnly" />
                 <BaseInput v-model="modelValue.status.receive_mobile" label="Receiver Mobile" :error="errors['status.receive_mobile']" :disabled="isReadOnly" />
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 <BaseInput v-model="modelValue.status.invoice_number" label="Invoice #" :disabled="true" v-if="modelValue.status.dispatch_status"/>
                 <BaseDatePicker v-model="modelValue.status.invoice_date" label="Invoice Date" fluid :disabled="true" v-if="modelValue.status.dispatch_status" :error="errors.invoice_date" />
             </div>
         </div>
 
-        <!-- 2. Pricing & Quantities Section -->
         <div class="bg-white">
-            <div class="flex items-center gap-2 border-b border-slate-100 pb-1">
+            <div class="flex items-center gap-2 border-b border-slate-100 pb-1 mb-4">
                 <ScaleIcon class="h-5 w-5 text-indigo-500" />
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">2. Pricing & Quantities</h3>
             </div>
@@ -147,52 +143,48 @@ const formatTime = (dateVal: any) => {
             </div>
         </div>
 
-        <!-- 3. Financials & Invoice Section -->
-        <div class="bg-white">
-            <div class="flex items-center gap-2 border-b border-slate-100">
+        <div class="bg-white space-y-6">
+            <div class="flex items-center gap-2 border-b border-slate-100 pb-1">
                 <BanknotesIcon class="h-5 w-5 text-indigo-500" />
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">3. Financials & Invoice</h3>
             </div>
 
-            <!-- Adjustments Grid -->
-               
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" :error="errors['financials.pass_amount']" :disabled="isReadOnly" />
-                <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" :error="errors['financials.discount_amount']" :disabled="isReadOnly" />
-                <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" :error="errors['financials.transport_expenses']" :disabled="isReadOnly" />
-                <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" :error="errors['financials.adjustment_amount']" :disabled="isReadOnly" />
-                <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" :error="errors['financials.round_off']" :disabled="isReadOnly"   />
-            </div>
-            
+        <div v-if="modelValue.id">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" :error="errors['financials.pass_amount']" :disabled="isReadOnly" />
+        <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" :error="errors['financials.discount_amount']" :disabled="isReadOnly" />
+        <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" :error="errors['financials.transport_expenses']" :disabled="isReadOnly" />
+        <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" :error="errors['financials.adjustment_amount']" :disabled="isReadOnly" />
+        <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" :error="errors['financials.round_off']" :disabled="isReadOnly" />
+    </div>
 
-            <!-- Immediate Payment Box -->
-            <div v-show="modelValue.payment_mode === 'cash'" class="p-2 space-y-2">
-                <div class="flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-emerald-500">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-                    </svg>
-                    <div>
-                        <h4 class="text-[11px] font-black uppercase tracking-widest text-emerald-600">Immediate Payment Collection</h4>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <BaseSelect 
-                        v-model="modelValue.payment.payment_method_id" 
-                        label="Payment Method" 
-                        :options="payment_methods" 
-                        optionLabel="name" 
-                        optionValue="id" 
-                        placeholder="Select Method"
-                        filter
-                        :error="errors['payment.payment_method_id']"
-                        :disabled="isReadOnly"
-                    />
-                    <!-- <BaseInputNumber v-model="modelValue.payment.amount" label="Amount" :minFractionDigits="2" :error="errors['payment.amount']" :disabled="isReadOnly" /> -->
-                </div>
+    <div v-show="modelValue.payment_mode === 'cash'" class="p-2 space-y-2">
+        <div class="flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-emerald-500">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+            </svg>
+            <div>
+                <h4 class="text-[11px] font-black uppercase tracking-widest text-emerald-600">Immediate Payment Collection</h4>
             </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <BaseSelect 
+                v-model="modelValue.payment.payment_method_id" 
+                label="Payment Method" 
+                :options="payment_methods" 
+                optionLabel="name" 
+                optionValue="id" 
+                placeholder="Select Method"
+                filter
+                :error="errors['payment.payment_method_id']"
+                :disabled="isReadOnly"
+            />
+        </div>
+    </div>
 
-            <!-- Invoice Section -->
-            <div v-if="showInvoiceSection && modelValue.status.invoice_status != 1" class="p-2">
+    <div class="space-y-4">
+        <div v-if="modelValue.generate_invoice === true" class="space-y-4">
+            <div v-if="modelValue.status.invoice_status !== 1" class="space-y-4">
                 <div class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-indigo-500">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
@@ -201,26 +193,22 @@ const formatTime = (dateVal: any) => {
                         <h4 class="text-[11px] font-black uppercase tracking-widest text-indigo-700">Invoice Generation</h4>
                     </div>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
                     <BaseSelect v-model="modelValue.ledger_id" :options="sales_ledgers" optionLabel="label" optionValue="value" label="Sales Ledger" filter placeholder="Select Sales Account" :error="errors.ledger_id" />
                     <BaseDatePicker v-model="modelValue.invoice_date" label="Invoice Date" :error="errors.invoice_date" />
-                
-                <div class="flex justify-end pt-2 col-span-2">
-                    <button 
-                        type="button"
-                        @click="handleGenerateInvoice"
-                        class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm text-white text-[11px] font-black uppercase tracking-widest rounded-xl"
-                    >
-                        Generate Invoice
-                    </button>
-                </div>
+                    <div class="flex justify-end col-span-1 sm:col-span-2">
+                        <button 
+                            type="button"
+                            @click="handleGenerateInvoice"
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-sm text-white text-[11px] font-black uppercase tracking-widest rounded-xl"
+                        >
+                            Generate Invoice
+                        </button>
+                    </div>
                 </div>
             </div>
-
-            <!-- Generated Invoice Information -->
-            <div v-else-if="showInvoiceSection" class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-3 px-4 bg-slate-50 border border-slate-100 rounded-xl mt-4">
+            <div v-if="modelValue.status.invoice_status == 1" class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-3 px-4 bg-slate-50 border border-slate-100 rounded-xl mt-4">
                 <div class="flex flex-wrap items-center gap-6 w-full md:w-auto">
-                    <!-- Left: Status Badge -->
                     <div class="flex items-center gap-3">
                         <div class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-4 w-4">
@@ -235,11 +223,9 @@ const formatTime = (dateVal: any) => {
                     
                     <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
 
-                    <!-- Middle: Details -->
                     <div class="flex flex-wrap items-center gap-5 text-[11px] font-semibold text-slate-700">
                         <div>
                             <span class="text-[9px] block text-slate-400 font-bold uppercase tracking-wider">Invoice #</span>
-                            <!-- <span class="font-extrabold text-slate-800">{{ modelValue.status.invoice?.prefix || '' }}{{ modelValue.status.invoice?.invoice_number }}</span> -->
                             <span class="font-extrabold text-slate-800">{{ modelValue.status.invoice?.full_number }}</span>
                         </div>
                         <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
@@ -255,7 +241,6 @@ const formatTime = (dateVal: any) => {
                     </div>
                 </div>
 
-                <!-- Right: Actions -->
                 <div class="flex items-center gap-2.5 w-full md:w-auto justify-end">
                     <template v-if="modelValue.status.invoice?.encrypted_id">
                         <a 
@@ -293,33 +278,14 @@ const formatTime = (dateVal: any) => {
                 </div>
             </div>
         </div>
-
-        <!-- 6. Dispatch Audit Info -->
-        <!-- <div class="px-5 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl flex items-center justify-between">
-            <div class="flex items-center gap-6">
-                <div class="flex flex-col">
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Created</span>
-                    <div class="flex items-center gap-1.5 mt-0.5">
-                        <span class="text-[10px] font-black text-slate-600">{{ modelValue.creator?.email || 'System' }}</span>
-                        <span class="text-[10px] text-slate-400">@</span>
-                        <span class="text-[10px] font-bold text-slate-500">{{ modelValue.created_at ? new Date(modelValue.created_at).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).replace(/\//g, '-') : '---' }}</span>
-                    </div>
-                </div>
-                <div v-if="modelValue.updated_at && modelValue.updated_at !== modelValue.created_at" class="flex flex-col border-l border-slate-200 pl-6">
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Last Modified</span>
-                    <div class="flex items-center gap-1.5 mt-0.5">
-                        <span class="text-[10px] font-black text-slate-600">{{ modelValue.modifier?.email || modelValue.creator?.email || 'System' }}</span>
-                        <span class="text-[10px] text-slate-400">@</span>
-                        <span class="text-[10px] font-bold text-slate-500">{{ new Date(modelValue.updated_at).toLocaleString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).replace(/\//g, '-') }}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="flex items-center gap-2">
-                <div class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" v-if="modelValue.dispatch_status === 'Delivered'"></div>
-                <span class="text-[9px] font-black uppercase tracking-widest" :class="modelValue.dispatch_status === 'Delivered' ? 'text-emerald-600' : 'text-amber-600'">
-                    {{ modelValue.dispatch_status }}
-                </span>
-            </div>
-        </div> -->
+        </div>
+        </div>
+        <div v-else class="flex items-center justify-center gap-2 p-6 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center text-[11px] text-slate-500 font-bold uppercase tracking-wider mx-2">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 text-slate-400">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            Save dispatch to enable adjustments and invoice processing
+        </div>
+        </div>
     </div>
 </template>

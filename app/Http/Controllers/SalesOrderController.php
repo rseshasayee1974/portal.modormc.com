@@ -106,13 +106,25 @@ class SalesOrderController extends Controller
         $this->authorizeModule('edit');
         $this->ensurePlantScope($salesorder);
         
-        // $user = request()->user();
-        // $isSuperAdmin = $user && method_exists($user, 'hasRole') && $user->hasRole(['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN' , 'ADMIN' ,'ADMINISTRATOR']);
-        // $hasActiveData = $salesorder->batches()->exists() || $salesorder->dispatches()->exists() || $salesorder->status == SalesOrder::STATUS_COMPLETED;
+        $user = auth()->user();
+        $isAdmin = $user && method_exists($user, 'hasRole') && (
+            $user->hasRole('Saas Owner') || 
+            $user->hasRole('Platform Admin') || 
+            $user->hasRole('Super Admin') || 
+            $user->hasRole('Admin') || 
+            $user->hasRole('Super Administrator') ||
+            $user->hasRole('Administrator')
+        );
 
-        // if (!$isSuperAdmin && $hasActiveData) {
-        //     return redirect()->back()->with('error', 'Cannot update this sales order because it has associated batches or dispatches. Only Super Admins can force update.');
-        // }
+        if (!$isAdmin) {
+            if (
+                ($request->has('mix_design_id') && (int)$request->mix_design_id !== (int)$salesorder->mix_design_id) ||
+                ($request->has('total_qty') && (float)$request->total_qty !== (float)$salesorder->total_qty) ||
+                ($request->has('concrete_pump') && $request->concrete_pump !== $salesorder->concrete_pump)
+            ) {
+                return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Mix Design, Total Quantity, or Concrete Pump Type.']);
+            }
+        }
 
         $payload = $request->validated();
         

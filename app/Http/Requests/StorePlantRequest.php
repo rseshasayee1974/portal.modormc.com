@@ -28,6 +28,7 @@ class StorePlantRequest extends FormRequest
             'mixer_capacity' => ['nullable', 'numeric', 'min:0'],
             'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             'seal_sign' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
+            'upi_qr' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             'email_address' => ['required', 'email:rfc,dns', 'max:255'],
             'mobile_number' => ['nullable', 'string', 'max:20'],
             'plant_type' => ['nullable', 'string', 'max:255'],

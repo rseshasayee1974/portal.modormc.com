@@ -59,9 +59,12 @@ const isReadOnly = computed(() => {
 });
 
 const showInvoiceSection = computed(() => {
-    if (!props.dispatch) return false;
+    if (!props.dispatch || !props.dispatch.id) return false;
     // Always show if invoice is already linked/generated
-    if (props.dispatch.status?.invoice_status == 1) return true;
+    if (props.dispatch.status?.invoice_status === 1) return true;
+    
+    // Hide invoice generation panel if the form has unsaved edits
+    if (form.isDirty) return false;
     
     // Otherwise, show only if pricing and quantities have data and are saved in the db
     return (Number(props.dispatch.load_rate) > 0) && 
@@ -120,8 +123,8 @@ const form = useForm({
 
     financials: {
         load_units: props.dispatch?.load_units || ((props.dispatch?.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck) ? Number((Number(props.dispatch?.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck) - Number(props.dispatch?.empty_weight_truck || props.batch?.dispatches?.[0]?.empty_weight_truck || 0)).toFixed(3)) : (props.batch?.batch_size || 0)),
-        load_rate: props.dispatch?.load_rate || 0,
-        load_tax_id: props.dispatch?.load_tax_id ? Number(props.dispatch.load_tax_id) : null,
+        load_rate: props.dispatch?.load_rate || (props.settings?.InvoiceInMetricTon == 1 ? (((Number(props.dispatch?.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck || 0) - Number(props.dispatch?.empty_weight_truck || props.batch?.dispatches?.[0]?.empty_weight_truck || 0)) > 0) ? Number((Number(props.batch?.batch_size || 0) * Number(props.batch?.rate || props.salesOrder?.rate || 0) / (Number(props.dispatch?.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck || 0) - Number(props.dispatch?.empty_weight_truck || props.batch?.dispatches?.[0]?.empty_weight_truck || 0))).toFixed(2)) : Number(props.batch?.rate || props.salesOrder?.rate || 0)) : Number(props.batch?.rate || props.salesOrder?.rate || 0)),
+        load_tax_id: props.dispatch?.load_tax_id ? Number(props.dispatch.load_tax_id) : (props.batch?.tax_id || props.salesOrder?.tax_id || null),
         load_uom_id: props.dispatch?.load_uom_id || props.batch?.uom_id,
         unload_units: props.dispatch?.unload_units || props.batch?.batch_size || 0,
         unload_rate: props.dispatch?.unload_rate || 0,
@@ -205,6 +208,12 @@ watch(() => props.batch, (newBatch) => {
         form.weights.loaded_weight_time_load = newBatch.dispatches?.[0]?.load_time ? new Date(newBatch.dispatches[0].load_time) : null;
 
         form.financials.load_units = newBatch.dispatches?.[0]?.loaded_weight_truck ? Number((Number(newBatch.dispatches[0].loaded_weight_truck) - Number(newBatch.dispatches[0].empty_weight_truck || 0)).toFixed(3)) : (newBatch.batch_size || 0);
+        
+        const tempNet = newBatch.dispatches?.[0]?.loaded_weight_truck ? (Number(newBatch.dispatches[0].loaded_weight_truck) - Number(newBatch.dispatches[0].empty_weight_truck || 0)) : 0;
+        const bRate = Number(newBatch.rate || props.salesOrder?.rate || 0);
+        form.financials.load_rate = props.settings?.InvoiceInMetricTon == 1 ? (tempNet > 0 ? Number((Number(newBatch.batch_size || 0) * bRate / tempNet).toFixed(2)) : bRate) : bRate;
+        form.financials.load_tax_id = newBatch.tax_id || props.salesOrder?.tax_id || null;
+
         form.financials.load_uom_id = newBatch.uom_id || form.financials.load_uom_id;
         form.financials.unload_units = newBatch.batch_size || 0;
         form.financials.unload_uom_id = newBatch.uom_id || form.financials.unload_uom_id;
@@ -221,6 +230,7 @@ watch(() => props.dispatch, (newDispatch) => {
         
         // Sync basic fields
         form.id = newDispatch.id || null;
+        form.generate_invoice = !!newDispatch.id;
         form.prefix = newDispatch.prefix || form.prefix;
         form.dispatch_no = newDispatch.dispatch_no || form.dispatch_no;
         form.dispatch_reference = newDispatch.dispatch_reference || '';
@@ -304,6 +314,14 @@ watch(() => props.dispatch, (newDispatch) => {
     }
 }, { deep: true, immediate: true });
 
+const baseRate = computed(() => {
+    return Number(props.batch?.rate || props.salesOrder?.rate || 0);
+});
+
+const baseTaxId = computed(() => {
+    return props.batch?.tax_id || props.salesOrder?.tax_id || null;
+});
+
 const isMetricTon = computed(() => props.settings?.InvoiceInMetricTon == 1);
 
 const netWeight = computed(() => {
@@ -316,7 +334,29 @@ const displayUnits = computed(() => {
 
 
 
-watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses], () => {
+watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses, baseRate], () => {
+    // Automatically calculate load_rate if it is 0 or needs to match formula
+    if (isMetricTon.value) {
+        if (netWeight.value > 0) {
+            const computedRate = Number(((Number(form.batch_size || 0) * baseRate.value) / netWeight.value).toFixed(2));
+            if (!form.financials.load_rate || Number(form.financials.load_rate) === 0 || form.financials.load_rate === baseRate.value) {
+                form.financials.load_rate = computedRate;
+            }
+        } else {
+            if (!form.financials.load_rate || Number(form.financials.load_rate) === 0) {
+                form.financials.load_rate = baseRate.value;
+            }
+        }
+    } else {
+        if (!form.financials.load_rate || Number(form.financials.load_rate) === 0 || form.financials.load_rate !== baseRate.value) {
+            form.financials.load_rate = baseRate.value;
+        }
+    }
+
+    if (!form.financials.load_tax_id && baseTaxId.value) {
+        form.financials.load_tax_id = baseTaxId.value;
+    }
+
     const units = isMetricTon.value ? netWeight.value : Number(form.batch_size || 0);
     form.delivered_qty = units;
     form.financials.load_units = units;

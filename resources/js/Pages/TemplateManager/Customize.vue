@@ -293,6 +293,14 @@ const submit = () => {
                                     </div>
                                     <InputSwitch v-model="form.settings.pdf.signature" />
                                 </div>
+
+                                <div class="setting-item">
+                                    <div class="setting-info">
+                                        <label class="setting-label">UPI QR Code</label>
+                                        <p class="setting-desc">Show UPI payment QR code</p>
+                                    </div>
+                                    <InputSwitch v-model="form.settings.pdf.upi_qr" />
+                                </div>
                              </div>
                         </div>
 

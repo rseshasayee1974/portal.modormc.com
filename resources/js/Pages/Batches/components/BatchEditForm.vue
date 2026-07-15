@@ -13,6 +13,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import { CubeIcon, InformationCircleIcon, BeakerIcon, ListBulletIcon, ArrowDownTrayIcon, PlusCircleIcon, ClockIcon } from '@heroicons/vue/24/outline';
 import { useWeighbridge } from '@/Composables/useWeighbridge';
+import { usePermissions } from '@/Composables/usePermissions';
 import BatchSheetUploader from './BatchSheetUploader.vue';
 
 interface BatchMaterial {
@@ -177,8 +178,17 @@ const isMetricTon = computed(() => {
     return customSettings?.batching?.InvoiceInMetricTon == 1;
 });
 
+const { isAdmin, isSuperAdmin } = usePermissions();
+
 const isLocked = computed(() => {
     return form.status === 3;
+});
+
+const isRestrictedFieldLocked = computed(() => {
+    if (!isAdmin.value && !isSuperAdmin.value) {
+        return true;
+    }
+    return isLocked.value;
 });
 
 const salesOrderDetails = computed(() => {
@@ -826,7 +836,7 @@ const submit = () => {
                                         optionValue="value"
                                         :fluid="true"
                                         :error="form.errors.concrete_pump"
-                                        :disabled="isLocked"
+                                        :disabled="isRestrictedFieldLocked"
                                     />
                                 </div>
                             </div>

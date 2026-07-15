@@ -48,7 +48,7 @@ const filteredStatuses = computed(() => {
     return props.statuses.filter(status => [1, 2, 4].includes(Number(status.value)));
 });
 
-const { can } = usePermissions();
+const { can, isAdmin, isSuperAdmin } = usePermissions();
 
 const hasActiveData = computed(() => {
     return Number(props.salesOrder?.batches_count || 0) > 0 || 
@@ -74,6 +74,20 @@ const isLocked = computed(() => {
     // Normal users (with UPDATE but no APPROVE) are locked if there is active data or if the status is not Scheduled (1) or Cancelled (4)
     const status = Number(props.salesOrder?.status);
     return hasActiveData.value || (status !== 1 && status !== 4);
+});
+
+const isRestrictedFieldLocked = computed(() => {
+    if (!isAdmin.value && !isSuperAdmin.value) {
+        return true;
+    }
+    return isLocked.value;
+});
+
+const isMixDesignLocked = computed(() => {
+    if (!isAdmin.value && !isSuperAdmin.value) {
+        return true;
+    }
+    return isCriticalLocked.value || !!form.customer_po_id;
 });
 
 const selectedMixDesign = computed(() => {
@@ -381,7 +395,7 @@ const isOverdue = computed(() => {
             v-model="form.total_qty"
             label="Total Quantity (m³)"
             :error="form.errors.total_qty"
-            :disabled="isLocked"
+            :disabled="isRestrictedFieldLocked"
             :minFractionDigits="3"
         />
         <div v-else class="flex flex-col gap-1 mt-1">
@@ -437,7 +451,7 @@ const isOverdue = computed(() => {
             label="Concrete Type"
             placeholder="Select Concrete Type"
             :error="form.errors.concrete_pump"
-            :disabled="isLocked"
+            :disabled="isRestrictedFieldLocked"
         />
     </div>
 
@@ -486,7 +500,7 @@ const isOverdue = computed(() => {
             filter
             label="Mix Design"
             :error="form.errors.mix_design_id"
-            :disabled="isCriticalLocked || !!form.customer_po_id"
+            :disabled="isMixDesignLocked"
         />
     </div>
 
