@@ -45,17 +45,29 @@ const props = defineProps<{
     onSaved?: (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => void;
 }>();
 
-const { userRole } = usePermissions();
-const isTripOperator = computed(() => userRole.value === 'Trip Operator');
-const isDataPresented = computed(() => {
+const { isAdmin, isSuperAdmin, can } = usePermissions();
+
+const hasEditBypass = computed(() => isAdmin || isSuperAdmin);
+const hasDispatchActivity = computed(() => {
     if (!props.dispatch) return false;
-    return (Number(props.dispatch.load_rate) > 0) || 
-           (props.dispatch.status?.invoice_status == 1) || 
-           (props.dispatch.dispatch_status && props.dispatch.dispatch_status !== 'Draft') ||
-           (props.dispatch.payments && props.dispatch.payments.length > 0);
+
+    return (
+        Number(props.dispatch.load_rate) > 0 ||
+        props.dispatch.status?.invoice_status === 1 ||
+        (props.dispatch.dispatch_status &&
+            props.dispatch.dispatch_status !== 'Draft') ||
+        (props.dispatch.payments?.length ?? 0) > 0
+    );
 });
+
 const isReadOnly = computed(() => {
-    return isTripOperator.value && isDataPresented.value;
+    // Admins/Super Admins can always edit
+    if (hasEditBypass.value) {
+        return false;
+    }
+
+    // Everyone else becomes read-only once activity exists
+    return hasDispatchActivity.value;
 });
 
 const showInvoiceSection = computed(() => {

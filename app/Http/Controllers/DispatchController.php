@@ -15,7 +15,7 @@ class DispatchController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'sales_orders';
+    protected string $module = 'dispatch';
 
     private function mapNestedFields(?array $source, array $fields): array
     {
@@ -132,7 +132,7 @@ Log::info($dispatch);
 
     public function update(DispatchStoreRequest $request, Dispatch $dispatch)
     {
-        $this->authorizeModule('edit');
+        $this->authorizeModule('update');
         $user = auth()->user();
         
         $isAdmin = $user && method_exists($user, 'hasRole') && (
@@ -159,19 +159,19 @@ Log::info($dispatch);
         }
 
 
-$wanted = 'trip operator'; // strtolower(trim('Trip Operator'))
-if ($user && collect($user->getRoleNames())
-        ->map(fn($r) => strtolower(trim($r)))
-        ->contains($wanted)) {           
-        $isDataPresented = (float)$dispatch->load_rate > 0 || 
-                               $dispatch->dispatch_status !== 'Draft' || 
-                               ($dispatch->status()->first() && $dispatch->status()->first()->invoice_status == 1) ||
-                               $dispatch->payments()->exists();
+// $wanted = 'trip operator'; // strtolower(trim('Trip Operator'))
+// if ($user && collect($user->getRoleNames())
+//         ->map(fn($r) => strtolower(trim($r)))
+//         ->contains($wanted)) {           
+//         $isDataPresented = (float)$dispatch->load_rate > 0 || 
+//                                $dispatch->dispatch_status !== 'Draft' || 
+//                                ($dispatch->status()->first() && $dispatch->status()->first()->invoice_status == 1) ||
+//                                $dispatch->payments()->exists();
                                
-            if ($isDataPresented) {
-                abort(403, 'Access Denied: You do not have permission to edit this trip as the data is already presented.');
-            }
-        }
+//             if ($isDataPresented) {
+//                 abort(403, 'Access Denied: You do not have permission to edit this trip as the data is already presented.');
+//             }
+//         }
 
         $validated = $request->validated();
         
@@ -245,6 +245,8 @@ if ($user && collect($user->getRoleNames())
 
     public function generateInvoice(\Illuminate\Http\Request $request, Dispatch $dispatch)
     {
+                $this->authorizeModule('pdf');
+
         $validated = $request->validate([
             'ledger_id' => 'required|exists:mm_ledgers,id',
             'invoice_date' => 'required|date',
