@@ -153,42 +153,42 @@ watch(() => form.customer_po_id, (newVal) => {
     }
 });
 
-watch(() => form.scheduled_start, (newStart) => {
-    if (newStart) {
-        const start = new Date(newStart);
-        if (form.scheduled_end && new Date(form.scheduled_end) <= start) {
-            const endDate = new Date(start);
-            endDate.setHours(endDate.getHours() + 1);
-            form.scheduled_end = endDate;
-        }
-    }
-});
+// watch(() => form.scheduled_start, (newStart) => {
+//     if (newStart) {
+//         const start = new Date(newStart);
+//         if (form.scheduled_end && new Date(form.scheduled_end) <= start) {
+//             const endDate = new Date(start);
+//             endDate.setHours(endDate.getHours() + 1);
+//             form.scheduled_end = endDate;
+//         }
+//     }
+// });
 
 const submit = () => {
-     form.clearErrors('scheduled_end');
-    if (form.scheduled_start && form.scheduled_end) {
-        const startDate = new Date(form.scheduled_start);
-        startDate.setSeconds(0, 0);
-        const start = startDate.getTime();
-
-        const endDate = new Date(form.scheduled_end);
-        endDate.setSeconds(0, 0);
-        const end = endDate.getTime();
-        
-        // if (start === end) {
-        //     form.setError('scheduled_end', 'Start and end time cannot be exactly the same.');
-        //     return;
-        // }
-        if (start > end) {
-            form.setError('scheduled_end', 'End time cannot be before the start time.');
-            return;
-        }
-    }
-    if (!form.scheduled_end && form.scheduled_start) {
-        const endDate = new Date(form.scheduled_start);
-        endDate.setHours(endDate.getHours() + 1);
-        form.scheduled_end = endDate;
-    }
+    // form.clearErrors('scheduled_end');
+    // if (form.scheduled_start && form.scheduled_end) {
+    //     const startDate = new Date(form.scheduled_start);
+    //     startDate.setSeconds(0, 0);
+    //     const start = startDate.getTime();
+    // 
+    //     const endDate = new Date(form.scheduled_end);
+    //     endDate.setSeconds(0, 0);
+    //     const end = endDate.getTime();
+    //     
+    //     // if (start === end) {
+    //     //     form.setError('scheduled_end', 'Start and end time cannot be exactly the same.');
+    //     //     return;
+    //     // }
+    //     if (start > end) {
+    //         form.setError('scheduled_end', 'End time cannot be before the start time.');
+    //         return;
+    //     }
+    // }
+    // if (!form.scheduled_end && form.scheduled_start) {
+    //     const endDate = new Date(form.scheduled_start);
+    //     endDate.setHours(endDate.getHours() + 1);
+    //     form.scheduled_end = endDate;
+    // }
     const formatLocalTime = (date: Date | any) => {
         if (!date) return null;
         const d = new Date(date);
@@ -399,7 +399,7 @@ const handleMixCreated = () => {
         </small>
     </div>
 
-    <div>
+    <!-- <div>
         <label class="mb-1 block text-[10px] font-bold uppercase tracking-widest text-gray-400">
             Scheduled End
         </label>
@@ -418,7 +418,7 @@ const handleMixCreated = () => {
         >
             {{ form.errors.scheduled_end }}
         </small>
-    </div>
+    </div> -->
 
 
 

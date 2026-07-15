@@ -157,7 +157,16 @@ class SalesOrder extends Model
                 ->where('mix_design_id', $this->mix_design_id)
                 ->first();
             if ($item) {
-                return (float)$item->rate;
+                $baseRate = (float)$item->rate;
+                if ($this->concrete_pump) {
+                    $pumpRate = $item->pumpRates()
+                        ->where('pump_type', (string)$this->concrete_pump)
+                        ->value('pump_rate');
+                    if ($pumpRate) {
+                        $baseRate += (float)$pumpRate;
+                    }
+                }
+                return $baseRate;
             }
         }
         return 0.0;

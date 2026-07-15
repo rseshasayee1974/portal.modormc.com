@@ -215,8 +215,8 @@ const submitConversion = () => {
             Swal.fire('Error', 'Quantity cannot be negative', 'error');
             return;
         }
-        if (Number(item.quantity) > 9.99) {
-            Swal.fire('Error', `Quantity for ${item.design_name} cannot exceed 9.99 m³`, 'error');
+        if (Number(item.quantity) >= 9) {
+            Swal.fire('Error', `Quantity for ${item.design_name} cannot exceed 9 m³`, 'error');
             return;
         }
         if (Number(item.quantity) > item.remaining_qty) {
