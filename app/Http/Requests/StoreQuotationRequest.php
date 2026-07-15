@@ -41,7 +41,7 @@ class StoreQuotationRequest extends FormRequest
             'site_id' => 'nullable|required_without:new_site_name|exists:mm_sites,id',
             'new_site_name' => 'nullable|string|max:255',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
-            'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
+            // 'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
             'quote_date' => 'required|date',
             'validity_date' => 'nullable|date',
             'notes' => 'nullable|string',
@@ -60,6 +60,9 @@ class StoreQuotationRequest extends FormRequest
             'items.*.untaxed_amount' => 'nullable|numeric',
             'items.*.tax_amount' => 'nullable|numeric',
             'items.*.amount_total' => 'nullable|numeric',
+            'items.*.pump_rates' => 'nullable|array',
+            'items.*.pump_rates.*.pump_type' => 'required|string|max:100',
+            'items.*.pump_rates.*.pump_rate' => 'required|numeric|min:0',
         ];
     }
 }

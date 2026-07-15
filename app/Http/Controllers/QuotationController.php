@@ -23,7 +23,7 @@ class QuotationController extends Controller
         $plantId = session('active_plant_id');
 
         return Inertia::render('Quotations/Index', [
-            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'customerPOs', 'creator', 'modifier','salesExecutive', 'concretePump'])
+            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'items.pumpRates', 'customerPOs', 'creator', 'modifier','salesExecutive', 'concretePump'])
                 ->where('plant_id', $plantId)
                 ->latest()
                 ->get(),
@@ -36,6 +36,7 @@ class QuotationController extends Controller
             'drivers'  => PersonnelDropdown(),
             'unitOptions' => Productunit(),
             'concretePumpOptions' => ConcretePumpDropdown(),
+            'pumpTypeOptions' => PumpTypeDropdown(),
             'instant_customer' => CustomSetting::getForModule(session('active_entity_id'), 'quotation')['instant_customer'] ?? 0,
         ]);
     }
@@ -143,23 +144,33 @@ class QuotationController extends Controller
                 // Clear any existing items in the customer PO to avoid duplicates/orphans
                 $customerPO->items()->delete();
 
-                // Copy items from quotation to customer PO items via bulk insert
-                $quotation->loadMissing('items');
-                $itemsData = $quotation->items->map(function ($item) {
-                    return [
-                        'mix_design_id' => $item->mix_design_id,
-                        'quantity' => $item->quantity,
-                        'rate' => $item->rate,
-                        'tax_id' => $item->tax_id,
-                        'tax_amount' => $item->tax_amount,
-                        'untaxed_amount' => $item->untaxed_amount,
-                        'amount_total' => $item->amount_total,
-                    ];
-                })->toArray();
+                // Copy items from quotation to customer PO items and their pump rates
+                $quotation->loadMissing('items.pumpRates');
+                foreach ($quotation->items as $qItem) {
+                    $cpoItem = $customerPO->items()->create([
+                        'mix_design_id' => $qItem->mix_design_id,
+                        'quantity' => $qItem->quantity,
+                        'rate' => $qItem->rate,
+                        'tax_id' => $qItem->tax_id,
+                        'tax_amount' => $qItem->tax_amount,
+                        'untaxed_amount' => $qItem->untaxed_amount,
+                        'amount_total' => $qItem->amount_total,
+                    ]);
 
-                $customerPO->items()->createMany($itemsData);
+                    // Copy pump rates
+                    $sourcePumpRates = $qItem->pumpRates->map(fn($pr) => [
+                        'pump_type' => $pr->pump_type,
+                        'pump_rate' => $pr->pump_rate,
+                    ])->toArray();
+                    if (!empty($sourcePumpRates)) {
+                        $cpoItem->syncPumpRates($sourcePumpRates);
+                    }
+                }
             } else {
-                \App\Models\CustomerPO::where('quotation_id', $quotation->id)->delete();
+                $pos = \App\Models\CustomerPO::where('quotation_id', $quotation->id)->get();
+                foreach ($pos as $po) {
+                    $po->delete();
+                }
             }
         });
 

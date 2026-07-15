@@ -34,6 +34,7 @@ interface QuotationItemPayload {
     // tax_amount: number;
     untaxed_amount: number;
     amount_total: number;
+    pump_rates: { pump_type: string; pump_rate: number }[];
 }
 
 const props = defineProps<{
@@ -46,6 +47,7 @@ const props = defineProps<{
     instant_customer: number | boolean;
     salesExecutives?: { id: number; label: string; value: number }[];
     concretePumpOptions?: { label: string; value: number }[];
+    pumpTypeOptions?: { label: string; value: string }[];
 }>();
 // console.log(props.taxes);
 const isOpen = ref(true);
@@ -67,7 +69,7 @@ const form = useForm({
     patron_id: null as number | null,
     site_id: null as number | null,
     sales_executive_id: null as number | null,
-    concrete_pump: null as number | null,
+    // concrete_pump: null as number | null,
     new_site_name: '' as string,
     is_new_site: false,
     is_tax_inclusive: false,
@@ -107,7 +109,8 @@ function createNewItem(): QuotationItemPayload {
         tax_amount: 0,
         notes: '',
         untaxed_amount: 0,
-        amount_total: 0
+        amount_total: 0,
+        pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })),
     };
 }
 
@@ -132,10 +135,12 @@ const mixDesignOptions = computed(() => props.mixDesigns.map(p => ({
 const unitOptions = computed(() => (props.unitOptions || []).map(u => ({ label: u.unit_code, value: u.id })));
 const taxOptions = computed(() => props.taxes?.map(t => ({ label: t.tax_name, value: t.id })) || []);
 
+const excludedMixDesignPumpRates = ref<number[]>([]);
+
 const uniqueSelectedMixDesignIds = computed(() => {
     const ids = new Set<number>();
     form.items.forEach(item => {
-        if (item.mix_design_id) {
+        if (item.mix_design_id && !excludedMixDesignPumpRates.value.includes(Number(item.mix_design_id))) {
             ids.add(Number(item.mix_design_id));
         }
     });
@@ -226,7 +231,23 @@ const onMixDesignChange = (index: number) => {
     if (design) {
         if (!item.rate) item.rate = Number(design.rate || 0);
         if (!item.uom_id && design.unit_id) item.uom_id = design.unit_id;
+        
+        // Remove from excluded list if re-selected/changed
+        const designId = Number(item.mix_design_id);
+        excludedMixDesignPumpRates.value = excludedMixDesignPumpRates.value.filter(id => id !== designId);
     }
+};
+
+const removePumpRatesForDesign = (designId: number) => {
+    excludedMixDesignPumpRates.value.push(Number(designId));
+    // Zero out pump rates for this design in the items
+    form.items.forEach(item => {
+        if (Number(item.mix_design_id) === Number(designId)) {
+            item.pump_rates.forEach(pr => {
+                pr.pump_rate = 0;
+            });
+        }
+    });
 };
 
 const addItem = () => form.items.push(createNewItem());
@@ -348,10 +369,7 @@ const submit = () => {
         hasErrors = true;
     }
 
-    if (!form.concrete_pump) {
-        form.setError('concrete_pump', 'Concrete Type is required.');
-        hasErrors = true;
-    }
+   
 
     // Item Validations
     form.items.forEach((item, index) => {
@@ -551,7 +569,7 @@ const submit = () => {
                             :error="form.errors.sales_executive_id"
                         />
  
-                        <BaseSelect 
+                        <!-- <BaseSelect 
                             v-model="form.concrete_pump" 
                             :options="concretePumpOptions || []" 
                             optionLabel="label" 
@@ -560,7 +578,7 @@ const submit = () => {
                             placeholder="Select Concrete Type" 
                             :error="form.errors.concrete_pump"
                         />
- 
+  -->
                         <BaseDatePicker v-model="form.quote_date" label="Quote Date" required />
                         <BaseDatePicker v-model="form.validity_date" label="Valid Until" />
                         <BaseSelect 
@@ -649,6 +667,63 @@ const submit = () => {
                             </table>
                         </div>
                     </div>
+
+                    <!-- ── Pump Rates per Mix Design ── -->
+                    <div v-if="uniqueSelectedMixDesignIds.length && pumpTypeOptions && pumpTypeOptions.length" class="mt-4 rounded-xl border border-indigo-200 bg-indigo-100/30 p-5 shadow-sm">
+    <div class="flex items-center gap-2 mb-4">
+        <span class="text-[11px] font-black text-indigo-700 uppercase tracking-[0.18em]">⚙ Pump Rates per Mix Design</span>
+        <span class="text-[10px] text-indigo-500 font-medium">(enter rate per m³ for each pump type)</span>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-3 gap-3 w-full items-start">
+        <div 
+            v-for="designId in uniqueSelectedMixDesignIds" 
+            :key="designId" 
+            class="w-full flex flex-col"
+        >
+            <div class="mb-2 flex items-center justify-between">
+                <span class="rounded-md bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-800 uppercase tracking-wider border border-indigo-100/50 shadow-sm">
+                    {{ props.mixDesigns.find(d => Number(d.id) === Number(designId))?.title || props.mixDesigns.find(d => Number(d.id) === Number(designId))?.design_name || '-' }}
+                </span>
+                <button 
+                    type="button" 
+                    @click="removePumpRatesForDesign(designId)"
+                    class="text-rose-500 hover:text-rose-700 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 hover:underline mr-1"
+                >
+                    <TrashIcon class="w-3.5 h-3.5" /> Remove
+                </button>
+            </div>
+
+            <div class="w-full rounded-lg border border-indigo-100 bg-white overflow-hidden shadow-sm">
+                <table class="w-full text-xs table-fixed">
+                    <thead>
+                        <tr class="bg-indigo-50/60 border-b border-indigo-100 text-[10px] uppercase font-bold text-indigo-700 tracking-wider">
+                            <th class="px-4 py-2.5 text-left w-1/2">Pump Type</th>
+                            <th class="px-4 py-2.5 text-right w-1/2">Rate (₹ / m³)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-indigo-50/50">
+                        <template v-for="item in form.items" :key="item.mix_design_id + '-pumprow'">
+                            <template v-if="Number(item.mix_design_id) === Number(designId)">
+                                <tr v-for="(pr, pi) in item.pump_rates" :key="pr.pump_type" class="hover:bg-indigo-50/20 transition-colors p-1">
+                                    <td class="px-4 py-0 font-medium text-slate-700 truncate">{{ pr.pump_type }}</td>
+                                    <td class="px-1 py-3 text-right">
+                                        <BaseInputNumber 
+                                            v-model="pr.pump_rate" 
+                                            prefix="₹" 
+                                            :min="0" 
+                                            class="!w-32 ml-auto" 
+                                        />
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
 
                     <!-- Footer Summary -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">

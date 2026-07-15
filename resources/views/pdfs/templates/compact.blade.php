@@ -120,6 +120,7 @@
                             @if (($pdfSettings['description'] ?? true) && $item['description'])
                                 <div class="item-sub">{{ $item['description'] }}</div>
                             @endif
+                            @include('pdfs.partials._pump_rates_table', ['item' => $item])
                             @if (($pdfSettings['hsn_code'] ?? true) && ($item['hsn'] ?? false))
                                 <div class="small muted">HSN: {{ $item['hsn'] }}</div>
                             @endif

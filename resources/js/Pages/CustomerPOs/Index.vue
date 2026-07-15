@@ -25,6 +25,7 @@ const props = defineProps<{
     salesExecutives?: any[];
     concretePumpOptions?: any[];
     taxes?: any[];
+    pumpTypeOptions?: any[];
 }>();
 
 const filters = ref({
@@ -282,6 +283,7 @@ watch(() => props.customerPOs, () => {
                 :salesExecutives="salesExecutives"
                 :concretePumpOptions="concretePumpOptions"
                 :taxes="taxes"
+                :pumpTypeOptions="pumpTypeOptions"
             />
 
             <!-- List Of Sales Orders -->
@@ -440,6 +442,7 @@ watch(() => props.customerPOs, () => {
                                 :salesExecutives="salesExecutives"
                                 :concretePumpOptions="concretePumpOptions"
                                 :taxes="taxes"
+                                :pumpTypeOptions="pumpTypeOptions"
                                 @saved="expandedRows = {}"
                                 @cancel="expandedRows = {}"
                             />

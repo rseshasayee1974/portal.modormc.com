@@ -106,8 +106,13 @@ class Quotation extends Model
 
             $quotation = self::create($quotationData);
 
-            foreach ($data['items'] as $item) {
-                $quotation->items()->create($item);
+            foreach ($data['items'] as $itemData) {
+                $pumpRates = $itemData['pump_rates'] ?? [];
+                $itemPayload = collect($itemData)->except('pump_rates')->toArray();
+                $item = $quotation->items()->create($itemPayload);
+                if (!empty($pumpRates)) {
+                    $item->syncPumpRates($pumpRates);
+                }
             }
 
             $quotation->updateTotals();
@@ -131,13 +136,26 @@ class Quotation extends Model
             $this->update($quotationData);
 
             $itemIds = collect($data['items'])->pluck('id')->filter()->toArray();
-            $this->items()->whereNotIn('id', $itemIds)->delete();
+            $staleItems = $this->items()->whereNotIn('id', $itemIds)->get();
+            foreach ($staleItems as $staleItem) {
+                $staleItem->delete();
+            }
 
-            foreach ($data['items'] as $item) {
-                if (isset($item['id'])) {
-                    $this->items()->where('id', $item['id'])->update(collect($item)->except('id')->toArray());
+            foreach ($data['items'] as $itemData) {
+                $pumpRates = $itemData['pump_rates'] ?? [];
+                $itemPayload = collect($itemData)->except('pump_rates')->toArray();
+
+                if (isset($itemData['id'])) {
+                    $item = $this->items()->find($itemData['id']);
+                    if ($item) {
+                        $item->update(collect($itemPayload)->except('id')->toArray());
+                    }
                 } else {
-                    $this->items()->create($item);
+                    $item = $this->items()->create($itemPayload);
+                }
+
+                if ($item) {
+                    $item->syncPumpRates($pumpRates);
                 }
             }
 
@@ -229,5 +247,14 @@ class Quotation extends Model
     public function getEncryptedIdAttribute()
     {
         return encrypt($this->id);
+    }
+
+    protected static function booted()
+    {
+        static::deleting(function ($quotation) {
+            foreach ($quotation->items as $item) {
+                $item->delete();
+            }
+        });
     }
 }

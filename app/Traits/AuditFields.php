@@ -15,7 +15,7 @@ trait AuditFields
     {
         static::creating(function ($model) {
             if (!$model->isDirty('created_by')) {
-                $model->created_by = Auth::id();
+                $model->created_by = auth()->id() ?? request()->user()?->id;
             }
             
             // Force the modification timestamp to be null on initial creation
@@ -27,7 +27,7 @@ trait AuditFields
 
         static::updating(function ($model) {
             if (!$model->isDirty('updated_by')) {
-                $model->updated_by = Auth::id();
+                $model->updated_by = auth()->id() ?? request()->user()?->id;
             }
             // updated_at will be handled by Laravel as the UPDATED_AT replacement
         });
@@ -35,7 +35,7 @@ trait AuditFields
         if (method_exists(static::class, 'bootSoftDeletes')) {
             static::deleting(function ($model) {
                 if (method_exists($model, 'isForceDeleting') && !$model->isForceDeleting()) {
-                    $model->deleted_by = Auth::id();
+                    $model->deleted_by = auth()->id() ?? request()->user()?->id;
                     $model->saveQuietly();
                 }
             });

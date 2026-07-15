@@ -29,6 +29,7 @@ const props = defineProps<{
     drivers: { id: number; first_name: string; last_name: string }[];
     salesExecutives: any[];
     concretePumpOptions?: any[];
+    pumpTypeOptions?: any[];
 }>();
 
 // console.log('quotations', props.quotations);
@@ -226,6 +227,7 @@ const updateConversion = (quotation: any) => {
                     :taxes="taxes"
                     :salesExecutives="salesExecutives"
                     :concretePumpOptions="concretePumpOptions"
+                    :pumpTypeOptions="pumpTypeOptions"
                 />
 
                 <hr class="border-slate-200 border-dashed" />
@@ -361,6 +363,7 @@ const updateConversion = (quotation: any) => {
                                     :taxes="taxes"
                                     :salesExecutives="salesExecutives"
                                     :concretePumpOptions="concretePumpOptions"
+                                    :pumpTypeOptions="pumpTypeOptions"
                                     @updated="collapseExpandedRows"
                                 />
                             </BaseExpansionPanel>

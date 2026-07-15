@@ -179,9 +179,17 @@ const submit = () => {
                                 <div class="setting-item">
                                     <div class="setting-info">
                                         <label class="setting-label">Description</label>
-                                        <p class="setting-desc">Show line-item description</p>
+                                        <p class="setting-desc">Show line-items description</p>
                                     </div>
                                     <InputSwitch v-model="form.settings.pdf.description" />
+                                </div>
+
+                                <div class="setting-item">
+                                    <div class="setting-info">
+                                        <label class="setting-label">Pump Rates Table</label>
+                                        <p class="setting-desc">Show pump rates table on quotation/PO</p>
+                                    </div>
+                                    <InputSwitch v-model="form.settings.pdf.pump_rates" />
                                 </div>
 
                                 <div class="setting-item">

@@ -502,6 +502,7 @@ class PrintDataFormatter
             'items.mixDesign.unit',
             'items.uom',
             'items.tax',
+            'items.pumpRates',
             'patron',
             'patron.addresses',
             'patron.contacts.addresses',
@@ -511,7 +512,7 @@ class PrintDataFormatter
             'plant.addresses',
             'tax',
             'salesExecutive',
-            'concretePump',
+            'concretePump', 
         ]);
 
         $data = self::base();
@@ -595,10 +596,12 @@ class PrintDataFormatter
             $taxDetails = self::resolveTaxDetails($taxModel, $isIntra, $lineTax, $lineUntaxed);
             $unitPrice = $isTaxInclusive ? (float)($qty > 0 ? ($lineUntaxed / $qty) : $rate) : $rate;
 
+            $itemDescription = self::formatMixDesignDescription($item->description, $item->mixDesign);
+
             return [
                 'no' => $idx + 1,
                 'name' => $item->mixDesign->design_name ?? 'N/A',
-                'description' => self::formatMixDesignDescription($item->description, $item->mixDesign),
+                'description' => $itemDescription,
                 'hsn' => $item->mixDesign->hsn_code ?? '-',
                 'qty' => $qty,
                 'received_qty' => 0,
@@ -609,6 +612,10 @@ class PrintDataFormatter
                 'tax_group' => $taxDetails['group'],
                 'tax_amount' => (float)$lineTax,
                 'total' => (float)$lineTotal,
+                'pump_rates' => $item->pumpRates->map(fn($pr) => [
+                    'pump_type' => $pr->pump_type,
+                    'pump_rate' => (float)$pr->pump_rate,
+                ])->toArray(),
             ];
         })->toArray();
 
@@ -995,6 +1002,7 @@ class PrintDataFormatter
                 'bill_to'=>true,'ship_to'=>true,'hsn_code'=>true,'description'=>true,'unit'=>true,'discount'=>true,
                 'tax_percent'=>true,'cgst'=>true,'sgst'=>true,'igst'=>true,'shipping'=>true,'adjustment'=>true,
                 'round_off'=>true,'total_words'=>true,'notes'=>true,'terms'=>true,'signature'=>true,
+                'pump_rates'=>true,
                 'labels' => ['invoice_title'=>$invoiceTitle,'bill_to'=>'Bill To','ship_to'=>'Ship To','rate'=>'Rate','amount'=>'Amount']
             ],
             'excel' => ['hsn_code'=>true,'discount'=>true]

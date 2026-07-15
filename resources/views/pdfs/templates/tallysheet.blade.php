@@ -93,7 +93,13 @@
             @foreach($data['items'] as $item)
             <tr>
                 <td class="text-center">{{ $item['no'] }}</td>
-                <td><div class="item-name">{{ $item['name'] }}</div>@if($item['description'])<div class="item-sub">{{ $item['description'] }}</div>@endif</td>
+                <td>
+                    <div class="item-name">{{ $item['name'] }}</div>
+                    @if($item['description'])
+                        <div class="item-sub">{{ $item['description'] }}</div>
+                    @endif
+                    @include('pdfs.partials._pump_rates_table', ['item' => $item])
+                </td>
                 <td class="text-center">{{ $item['hsn'] }}</td>
                 <td class="text-right bold">{{ number_format($item['qty'], 2) }}</td>
                 <td class="text-center">{{ $item['unit'] }}</td>

@@ -28,6 +28,54 @@ class CustomerPOItem extends Model
         'deleted_by',
     ];
 
+    /**
+     * Sync pump rates for this CPO item.
+     */
+    public function syncPumpRates(array $pumpRates): void
+    {
+        $keepTypes = [];
+        foreach ($pumpRates as $pr) {
+            if (empty($pr['pump_type'])) continue;
+            $rate = (float)($pr['pump_rate'] ?? 0);
+            
+            if ($rate > 0) {
+                $keepTypes[] = $pr['pump_type'];
+                $this->pumpRates()->updateOrCreate(
+                    ['pump_type' => $pr['pump_type']],
+                    [
+                        'pump_rate' => $rate,
+                        'customer_po_id' => $this->customer_po_id,
+                    ]
+                );
+            }
+        }
+        if (!empty($keepTypes)) {
+            $stale = $this->pumpRates()->whereNotIn('pump_type', $keepTypes)->get();
+            foreach ($stale as $item) {
+                $item->delete();
+            }
+        } else {
+            $stale = $this->pumpRates()->get();
+            foreach ($stale as $item) {
+                $item->delete();
+            }
+        }
+    }
+
+    protected static function booted()
+    {
+        static::deleting(function ($item) {
+            foreach ($item->pumpRates as $pr) {
+                $pr->delete();
+            }
+        });
+    }
+
+    public function pumpRates()
+    {
+        return $this->hasMany(CustomerPOItemPumpRate::class, 'customer_po_item_id');
+    }
+
     public function customerPO()
     {
         return $this->belongsTo(CustomerPO::class, 'customer_po_id');
@@ -38,6 +86,10 @@ class CustomerPOItem extends Model
         return $this->belongsTo(MixDesign::class, 'mix_design_id');
     }
 
+    public function uom()
+    {
+        return $this->belongsTo(ProductUnit::class, 'uom_id');
+    }
     public function tax()
     {
         return $this->belongsTo(Tax::class, 'tax_id');

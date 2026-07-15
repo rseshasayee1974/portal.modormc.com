@@ -112,6 +112,24 @@ class CustomerPO extends Model
     {
         return $this->hasMany(CustomerPOItem::class, 'customer_po_id');
     }
+    public function tax()
+    {
+        return $this->belongsTo(Tax::class, 'tax_id');
+    }
+
+    public function concretePump()
+    {
+        return $this->belongsTo(Machine::class, 'concrete_pump');
+    }
+
+    protected static function booted()
+    {
+        static::deleting(function ($customerPO) {
+            foreach ($customerPO->items as $item) {
+                $item->delete();
+            }
+        });
+    }
 
     public static function generateReference($plantId, $customPrefix = null)
     {

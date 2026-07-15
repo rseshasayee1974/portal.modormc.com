@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3';
-import { computed, watch } from 'vue';
+import { computed, watch, ref } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import Swal from 'sweetalert2';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import Button from 'primevue/button';
 import { usePermissions } from '@/Composables/usePermissions';
-
+import { TrashIcon } from '@heroicons/vue/24/outline';
 const props = withDefaults(defineProps<{
     customerPO?: any;
     quotations?: any[];
@@ -18,6 +19,7 @@ const props = withDefaults(defineProps<{
     salesExecutives?: any[];
     concretePumpOptions?: any[];
     taxes?: any[];
+    pumpTypeOptions?: { label: string; value: string }[];
 }>(), {
     customerPO: () => ({}),
     quotations: () => [],   
@@ -27,7 +29,9 @@ const props = withDefaults(defineProps<{
     salesExecutives: () => [],
     concretePumpOptions: () => [],
     taxes: () => [],
+    pumpTypeOptions: () => [],
 });
+
 
 const emit = defineEmits<{
     (e: 'saved'): void;
@@ -42,31 +46,37 @@ const form = useForm({
     patron_id: props.customerPO?.patron_id ?? null,
     site_id: props.customerPO?.site_id ?? null,
     sales_executive_id: props.customerPO?.sales_executive_id ?? null,
-    concrete_pump: props.customerPO?.concrete_pump !== null ? (isNaN(Number(props.customerPO.concrete_pump)) ? props.customerPO.concrete_pump : Number(props.customerPO.concrete_pump)) : null,
+    // concrete_pump: props.customerPO?.concrete_pump !== null ? (isNaN(Number(props.customerPO.concrete_pump)) ? props.customerPO.concrete_pump : Number(props.customerPO.concrete_pump)) : null,
     is_tax_inclusive: props.customerPO?.is_tax_inclusive ? true : false,
     order_date: props.customerPO?.order_date ?? '',
     status: props.customerPO?.status ?? 1,
     notes: props.customerPO?.notes ?? '',
-    items: [] as Array<{ mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null }>,
+    items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, pump_rates: Array<{ pump_type: string, pump_rate: number }> }>,
     mix_design_id: null as number | null,
     quantity: null as number | null,
     rate: null as number | null,
     tax_id: null as number | null,
     tax_amount: null as number | null,
+    pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })) as Array<{ pump_type: string, pump_rate: number }>,
 });
 
 // Pre-fill items from sales order or quotation items
 const itemsList = props.customerPO?.items || props.customerPO?.quotation?.items || [];
 form.items = itemsList.map((item: any) => ({
+    id: props.customerPO?.items?.some((i: any) => i.id === item.id) ? item.id : null,
     mix_design_id: item.mix_design_id,
     quantity: Number(item.quantity),
     rate: Number(item.rate),
     tax_id: item.tax_id ?? null,
     tax_amount: item.tax_amount !== null ? Number(item.tax_amount) : 0,
+    pump_rates: (props.pumpTypeOptions || []).map(pt => {
+        const saved = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.pump_type === pt.value);
+        return { pump_type: pt.value, pump_rate: saved ? Number(saved.pump_rate) : 0 };
+    }),
 }));
 
 if (form.items.length === 0 && !form.quotation_id) {
-    form.items.push({ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0 });
+    form.items.push({ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })) });
 }
 
 if (itemsList.length === 1) {
@@ -76,10 +86,15 @@ if (itemsList.length === 1) {
     form.rate = Number(item.rate);
     form.tax_id = item.tax_id ?? null;
     form.tax_amount = item.tax_amount !== null ? Number(item.tax_amount) : 0;
+    form.pump_rates = (props.pumpTypeOptions || []).map(pt => {
+        const saved = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.pump_type === pt.value);
+        return { pump_type: pt.value, pump_rate: saved ? Number(saved.pump_rate) : 0 };
+    });
 }
 
 // Watch quotation selection to auto-fill patron, site, and sales executive
 watch(() => form.quotation_id, (newVal) => {
+    excludedMixDesignPumpRates.value = [];
     if (newVal) {
         const quote = props.quotations.find((q) => Number(q.id) === Number(newVal));
         if (quote) {
@@ -89,11 +104,16 @@ watch(() => form.quotation_id, (newVal) => {
             form.is_tax_inclusive = quote.is_tax_inclusive ? true : false;
             const quoteItems = quote.items || [];
             form.items = quoteItems.map((item: any) => ({
+                id: null,
                 mix_design_id: item.mix_design_id,
                 quantity: Number(item.quantity),
                 rate: Number(item.rate),
                 tax_id: item.tax_id ?? null,
                 tax_amount: Number(item.tax_amount ?? 0),
+                pump_rates: (props.pumpTypeOptions || []).map(pt => {
+                    const saved = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.pump_type === pt.value);
+                    return { pump_type: pt.value, pump_rate: saved ? Number(saved.pump_rate) : 0 };
+                }),
             }));
             if (quoteItems.length === 1) {
                 form.mix_design_id = quoteItems[0].mix_design_id;
@@ -101,23 +121,29 @@ watch(() => form.quotation_id, (newVal) => {
                 form.rate = Number(quoteItems[0].rate);
                 form.tax_id = quoteItems[0].tax_id ?? null;
                 form.tax_amount = Number(quoteItems[0].tax_amount ?? 0);
+                form.pump_rates = (props.pumpTypeOptions || []).map(pt => {
+                    const saved = (quoteItems[0].pump_rates || quoteItems[0].pumpRates || []).find((pr: any) => pr.pump_type === pt.value);
+                    return { pump_type: pt.value, pump_rate: saved ? Number(saved.pump_rate) : 0 };
+                });
             }
         }
     } else {
-        form.items = [{ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0 }];
+        form.items = [{ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })) }];
         form.mix_design_id = null;
         form.quantity = null;
         form.rate = null;
         form.tax_id = null;
         form.tax_amount = null;
+        form.pump_rates = (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 }));
         form.sales_executive_id = null;
         form.is_tax_inclusive = false;
     }
 });
 
 const addItem = () => {
-    form.items.push({ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0 });
+    form.items.push({ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })) });
 };
+
 
 const removeItem = (index: number) => {
     if (form.items.length > 1) {
@@ -220,25 +246,47 @@ watch(() => [form.quantity, form.rate, form.tax_id, form.is_tax_inclusive], () =
     }
 }, { deep: true, immediate: true });
 
+const excludedMixDesignPumpRates = ref<number[]>([]);
+
 const uniqueSelectedMixDesignIds = computed(() => {
     const ids = new Set<number>();
     
     // Check form items list
     if (form.items && form.items.length) {
         form.items.forEach(item => {
-            if (item.mix_design_id) {
+            if (item.mix_design_id && !excludedMixDesignPumpRates.value.includes(Number(item.mix_design_id))) {
                 ids.add(Number(item.mix_design_id));
             }
         });
     }
     
     // Check form single item
-    if (form.mix_design_id) {
+    if (form.mix_design_id && !excludedMixDesignPumpRates.value.includes(Number(form.mix_design_id))) {
         ids.add(Number(form.mix_design_id));
     }
     
     return Array.from(ids);
 });
+
+const removePumpRatesForDesign = (designId: number) => {
+    excludedMixDesignPumpRates.value.push(Number(designId));
+    // Zero out pump rates for this design in the items
+    if (form.items && form.items.length) {
+        form.items.forEach(item => {
+            if (Number(item.mix_design_id) === Number(designId)) {
+                item.pump_rates.forEach(pr => {
+                    pr.pump_rate = 0;
+                });
+            }
+        });
+    }
+    // Also check single form item pump rates
+    if (Number(form.mix_design_id) === Number(designId) && form.pump_rates) {
+        form.pump_rates.forEach((pr: any) => {
+            pr.pump_rate = 0;
+        });
+    }
+};
 
 const calculatedTotals = computed(() => {
     let subtotal = 0;
@@ -460,7 +508,7 @@ const performSubmit = (customerPOId: any) => {
                     :error="form.errors.sales_executive_id"
                 />
             </div>
-            <div class="col-span-12 md:col-span-1">
+            <!-- <div class="col-span-12 md:col-span-1">
                 <BaseSelect
                     v-model="form.concrete_pump"
                     :options="concretePumpOptions"
@@ -469,8 +517,8 @@ const performSubmit = (customerPOId: any) => {
                     label="Concrete Type"
                     placeholder="Select Concrete Type"
                     :error="form.errors.concrete_pump"
-                />
-            </div>
+                </div>
+                /> -->
             <div class="col-span-12 md:col-span-1">
                 <BaseSelect
                     v-model="form.patron_id"
@@ -801,7 +849,84 @@ const performSubmit = (customerPOId: any) => {
                 </div>
             </div>
 
+            <!-- ── Pump Rates per Mix Design ── -->
+            <div v-if="uniqueSelectedMixDesignIds.length && pumpTypeOptions && pumpTypeOptions.length" class="col-span-12 md:col-span-5 mt-4 rounded-xl border border-indigo-200 bg-indigo-100/30 p-5 shadow-sm">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="text-[11px] font-black text-indigo-700 uppercase tracking-[0.18em]">⚙ Pump Rates per Mix Design</span>
+                    <span class="text-[10px] text-indigo-500 font-medium">(enter rate per m³ for each pump type)</span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-3 gap-3 w-full items-start">
+                    <div 
+                        v-for="designId in uniqueSelectedMixDesignIds" 
+                        :key="designId" 
+                        class="w-full flex flex-col"
+                    >
+                        <div class="mb-2 flex items-center justify-between">
+                            <span class="rounded-md bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-800 uppercase tracking-wider border border-indigo-100/50 shadow-sm">
+                                {{ props.mixDesigns.find(d => Number(d.id) === Number(designId))?.title || props.mixDesigns.find(d => Number(d.id) === Number(designId))?.design_name || '-' }}
+                            </span>
+                            <button 
+                                type="button" 
+                                @click="removePumpRatesForDesign(designId)"
+                                class="text-rose-500 hover:text-rose-700 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 hover:underline mr-1"
+                            >
+                                <TrashIcon class="w-3.5 h-3.5" /> Remove
+                            </button>
+                        </div>
+
+                        <div class="w-full rounded-lg border border-indigo-100 bg-white overflow-hidden shadow-sm">
+                            <table class="w-full text-xs table-fixed">
+                                <thead>
+                                    <tr class="bg-indigo-50/60 border-b border-indigo-100 text-[10px] uppercase font-bold text-indigo-700 tracking-wider">
+                                        <th class="px-4 py-2.5 text-left w-1/2">Pump Type</th>
+                                        <th class="px-4 py-2.5 text-right w-1/2">Rate (₹ / m³)</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-indigo-50/50">
+                                    <!-- Single item mode -->
+                                    <template v-if="(!form.quotation_id && form.items.length <= 1) || (form.quotation_id && (customerPO?.quotation?.items?.length === 1 || customerPO?.items?.length === 1))">
+                                        <template v-if="Number(form.mix_design_id) === Number(designId)">
+                                            <tr v-for="pr in form.pump_rates" :key="pr.pump_type" class="hover:bg-indigo-50/20 transition-colors p-1">
+                                                <td class="px-4 py-0 font-medium text-slate-700 truncate">{{ pr.pump_type }}</td>
+                                                <td class="px-1 py-3 text-right">
+                                                    <BaseInputNumber 
+                                                        v-model="pr.pump_rate" 
+                                                        prefix="₹" 
+                                                        :min="0" 
+                                                        class="!w-32 ml-auto" 
+                                                    />
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </template>
+                                    <!-- Multi item mode -->
+                                    <template v-else>
+                                        <template v-for="item in form.items" :key="String(item.mix_design_id) + '-cpo-pr-edit'">
+                                            <template v-if="Number(item.mix_design_id) === Number(designId)">
+                                                <tr v-for="pr in item.pump_rates" :key="pr.pump_type" class="hover:bg-indigo-50/20 transition-colors p-1">
+                                                    <td class="px-4 py-0 font-medium text-slate-700 truncate">{{ pr.pump_type }}</td>
+                                                    <td class="px-1 py-3 text-right">
+                                                        <BaseInputNumber 
+                                                            v-model="pr.pump_rate" 
+                                                            prefix="₹" 
+                                                            :min="0" 
+                                                            class="!w-32 ml-auto" 
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </template>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Totals & Summary Block -->
+
             <div class="col-span-12 md:col-span-5 flex flex-col md:flex-row justify-between items-start gap-8 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">
                 <!-- Notes / Terms on the left -->
                 <div class="w-full md:flex-1 space-y-2">
