@@ -78,14 +78,14 @@ defineExpose({ activeTab });
                     :error="form.errors.registration"
                     />
                 </div>
-                <div v-if="form.vehicle_type?.toLowerCase() === 'pump'" class="col-span-12 md:col-span-3 field-group">
+                <!-- <div v-if="form.vehicle_type?.toLowerCase() === 'pump'" class="col-span-12 md:col-span-3 field-group">
                      <BaseInputNumber 
                          v-model="form.pump_rate" 
                          label="Pump Rate"
                          placeholder="1500"
                          :error="form.errors.pump_rate"
                      />
-                 </div>
+                 </div> -->
                 <div class="col-span-12 md:col-span-3 field-group">
                     <BaseInput 
                         v-model="form.vehicle_model" 

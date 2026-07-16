@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { usePermissions } from '@/Composables/usePermissions';
 import { 
     UsersIcon,
     ShieldCheckIcon,
@@ -26,10 +27,12 @@ const IconMap = {
 };
 
 const page = usePage();
+const { can } = usePermissions();
 
 // parent_id 8 is Personel/Users
 const visibleNav = computed(() => {
-    return (page.props as any).menus?.sidebar_nav?.[8] || [];
+    const children = (page.props as any).menus?.sidebar_nav?.[8] || [];
+    return children.filter((item: any) => !item.permission_name || can(item.permission_name));
 });
 
 const isSubMenuActive = (item: any) => {

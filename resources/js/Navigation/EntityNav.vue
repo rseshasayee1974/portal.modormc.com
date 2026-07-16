@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import { usePermissions } from '@/Composables/usePermissions';
 import { 
     MapIcon, 
     CreditCardIcon, 
@@ -32,10 +33,12 @@ const IconMap = {
 };
 
 const page = usePage();
+const { can } = usePermissions();
 
 // parent_id 7 is Entity
 const visibleNav = computed(() => {
-    return (page.props as any).menus?.sidebar_nav?.[7] || [];
+    const children = (page.props as any).menus?.sidebar_nav?.[7] || [];
+    return children.filter((item: any) => !item.permission_name || can(item.permission_name));
 });
 
 const isSubMenuActive = (item) => {
