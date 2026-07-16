@@ -330,11 +330,12 @@ const isOverdue = computed(() => {
         <div class="mb-3 flex items-center justify-between">
             <h3 class="text-xs font-bold uppercase tracking-wide text-indigo-800">Edit Sales Order</h3>
             
-            <div class="flex items-center gap-3"><StatusBadge
+            <div class="flex items-center gap-3">
+                <!-- <StatusBadge
 
     v-if="form.scheduled_end"
     :value="new Date(form.scheduled_end) < new Date() ? 'Overdue' : 'Due'"
-/> 
+/>  -->
             <span class="font-mono text-xs font-bold text-amber-600">REF # : {{ salesOrder.prefix }}{{ salesOrder.order_no }}</span>
         </div>
         </div>

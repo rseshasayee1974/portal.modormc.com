@@ -335,6 +335,7 @@ const handleBatchCreated = () => {
 const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => {
     router.reload({
         only: ['batches', 'nextBatchNo', 'salesOrders'],
+        // only: ['batches', 'nextBatchNo', 'salesOrders' ,'dispatch'],
         preserveScroll: true,
         preserveState: true
     });
@@ -865,7 +866,7 @@ const shareBatchEmail = () => {
                                                     :statuses="statuses"
                                                     :loading_sites="loading_sites"
                                                     :concretePumpOptions="concretePumpOptions"
-                                                    :onSaved="handleBatchSaved"
+                                                    @saved="handleBatchSaved"
                                                     @cancel="collapseExpandedRows()"
                                                 />
                                             </div>

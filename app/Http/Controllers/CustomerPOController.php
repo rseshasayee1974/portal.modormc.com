@@ -491,6 +491,7 @@ class CustomerPOController extends Controller
 
     public function convertToSalesOrder(Request $request, CustomerPO $customerPO)
     {
+        $this->module = 'SALES_ORDER';
         $this->authorizeModule('create');
         
         $customerPO->load(['items.mixDesign']);

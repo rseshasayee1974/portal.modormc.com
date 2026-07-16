@@ -183,6 +183,7 @@ const deleteCustomerPO = (customerPO: any) => {
 const showConvertModal = ref(false);
 const convertPO = ref<any>(null);
 const convertItems = ref<any[]>([]);
+const conversionErrors = ref<Record<string, string>>({});
 
 const getItemCompletedQty = (customerPO: any, mixDesignId: number) => {
     return customerPO.sales_orders?.filter((so: any) => Number(so.mix_design_id) === Number(mixDesignId))
@@ -191,6 +192,7 @@ const getItemCompletedQty = (customerPO: any, mixDesignId: number) => {
 
 const convertToSalesOrder = (customerPO: any) => {
     convertPO.value = customerPO;
+    conversionErrors.value = {};
     convertItems.value = (customerPO.items || []).map((item: any) => {
         const completed = getItemCompletedQty(customerPO, item.mix_design_id);
         const remaining = Math.max(0, Number(item.quantity || 0) - completed);
@@ -209,20 +211,42 @@ const convertToSalesOrder = (customerPO: any) => {
 };
 
 const submitConversion = () => {
-    // Validate quantities
+    conversionErrors.value = {};
+    let hasErrors = false;
+    let hasSelectedItems = false;
+
     for (const item of convertItems.value) {
-        if (Number(item.quantity) < 0) {
-            Swal.fire('Error', 'Quantity cannot be negative', 'error');
-            return;
+        const qty = Number(item.quantity || 0);
+        const remaining = Number(item.remaining_qty || 0);
+
+        if (qty < 0) {
+            conversionErrors.value[`quantity_${item.item_id}`] = 'Quantity cannot be negative';
+            hasErrors = true;
         }
-        if (Number(item.quantity) >= 9) {
-            Swal.fire('Error', `Quantity for ${item.design_name} cannot exceed 9 m³`, 'error');
-            return;
+        if (qty >= 9) {
+            conversionErrors.value[`quantity_${item.item_id}`] = 'Quantity cannot exceed 9 m³';
+            hasErrors = true;
         }
-        if (Number(item.quantity) > item.remaining_qty) {
-            Swal.fire('Error', `Quantity for ${item.design_name} cannot exceed remaining quantity (${item.remaining_qty} m³)`, 'error');
-            return;
+        if (Number(qty.toFixed(3)) > Number(remaining.toFixed(3))) {
+            conversionErrors.value[`quantity_${item.item_id}`] = `Cannot exceed remaining (${remaining.toFixed(3)} m³)`;
+            hasErrors = true;
         }
+        if (qty > 0) {
+            hasSelectedItems = true;
+            if (item.concrete_pump === null || item.concrete_pump === undefined || item.concrete_pump === '') {
+                conversionErrors.value[`concrete_pump_${item.item_id}`] = 'Concrete Pump is required';
+                hasErrors = true;
+            }
+        }
+    }
+
+    if (hasErrors) {
+        return;
+    }
+
+    if (!hasSelectedItems) {
+        Swal.fire('Error', 'Please enter a quantity greater than 0 for at least one mix design.', 'error');
+        return;
     }
 
     const payload = {
@@ -572,7 +596,7 @@ watch(() => props.customerPOs, () => {
                                     <th class="p-3 font-semibold text-slate-500 text-center">Converted</th>
                                     <th class="p-3 font-semibold text-slate-500 text-center">Remaining</th>
                                     <th class="p-3 font-semibold text-slate-500" style="width: 140px;">SO Qty (m³)</th>
-                                    <th class="p-3 font-semibold text-slate-500" style="width: 200px;">Concrete Pump / Type</th>
+                                    <th class="p-3 font-semibold text-slate-500" style="width: 200px;">Concrete Pump / Type <span class="text-rose-500">*</span></th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -592,6 +616,7 @@ watch(() => props.customerPOs, () => {
                                             :minFractionDigits="1"
                                             :maxFractionDigits="3"
                                             placeholder="Qty"
+                                            :error="conversionErrors[`quantity_${item.item_id}`]"
                                         />
                                     </td>
                                     <td class="p-3">
@@ -604,6 +629,7 @@ watch(() => props.customerPOs, () => {
                                             showClear
                                             :disabled="item.remaining_qty <= 0"
                                             class="w-full"
+                                            :error="conversionErrors[`concrete_pump_${item.item_id}`]"
                                         />
                                     </td>
                                 </tr>
