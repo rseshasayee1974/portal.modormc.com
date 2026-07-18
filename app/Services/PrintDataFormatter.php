@@ -526,7 +526,7 @@ class PrintDataFormatter
             'items.mixDesign.unit',
             'items.uom',
             'items.tax',
-            'items.pumpRates',
+            'items.pumpRates.pump',
             'patron',
             'patron.addresses',
             'patron.contacts.addresses',
@@ -637,7 +637,7 @@ class PrintDataFormatter
                 'tax_amount' => (float)$lineTax,
                 'total' => (float)$lineTotal,
                 'pump_rates' => $item->pumpRates->map(fn($pr) => [
-                    'pump_type' => $pr->pump_type,
+                    'pump_type' => $pr->pump?->registration ?? $pr->pump_type,
                     'pump_rate' => (float)$pr->pump_rate,
                 ])->toArray(),
             ];

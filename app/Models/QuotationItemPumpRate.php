@@ -34,4 +34,9 @@ class QuotationItemPumpRate extends Model
     {
         return $this->belongsTo(QuotationItem::class, 'quotation_item_id');
     }
+
+    public function pump()
+    {
+        return $this->belongsTo(Machine::class, 'pump_type');
+    }
 }
