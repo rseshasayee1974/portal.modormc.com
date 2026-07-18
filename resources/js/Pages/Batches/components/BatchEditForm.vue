@@ -65,8 +65,7 @@ const blankMaterial = (): BatchMaterial => ({
 });
 
 const form = useForm({
-    sales_order_id: props.batch?.sales_order_id ?? null,
-    batch_no: props.batch?.batch_no ?? null,
+sales_order_id: props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null),    batch_no: props.batch?.batch_no ?? null,
     batch_size: Number(props.batch?.batch_size ?? 1),
     truck_id: props.batch?.dispatches?.[0]?.truck_id ? Number(props.batch.dispatches[0].truck_id) : null,
     transport_id: props.batch?.dispatches?.[0]?.transport_id ? Number(props.batch.dispatches[0].transport_id) : null,
@@ -501,7 +500,17 @@ const viewBatchSheet = () => {
         window.open(url, '_blank');
     }
 };
-
+const unifiedSalesOrders = computed(() => {
+    const list = [...(props.salesOrders || [])];
+    if (props.batch?.sales_order) {
+        // If the batch's sales order isn't in the list, inject it
+        const exists = list.some(so => so.id === props.batch.sales_order.id);
+        if (!exists) {
+            list.unshift(props.batch.sales_order);
+        }
+    }
+    return list;
+});
 // Option 1: Fetch consumption via batches.sync API
 const fetchConsumption = async () => {
     isFetchingConsumption.value = true;
@@ -722,7 +731,7 @@ const submit = () => {
                         <BaseSelect 
                             v-model="form.sales_order_id" 
                             optionLabel="full_number" 
-                            :options="salesOrders"  
+                            :options="unifiedSalesOrders"  
                             optionValue="id" 
                             filter 
                             :disabled="true"
