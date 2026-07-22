@@ -253,6 +253,7 @@ function createNewItem(): QuotationItemPayload {
         tax_amount: 0,
         untaxed_amount: 0,
         amount_total: 0,
+        pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })),
     };
 }
 
@@ -545,7 +546,7 @@ const sendEmail = () => {
                         <template v-for="item in form.items" :key="item.mix_design_id + '-pumprow'">
                             <template v-if="Number(item.mix_design_id) === Number(designId)">
                                 <tr v-for="(pr, pi) in item.pump_rates" :key="pr.pump_type" class="hover:bg-indigo-50/20 transition-colors">
-                                    <td class="px-4 py-3 font-medium text-slate-700">{{ pr.pump_type }}</td>
+                                    <td class="px-4 py-3 font-medium text-slate-700">{{ props.pumpTypeOptions?.find(opt => String(opt.value) === String(pr.pump_type))?.label || pr.pump_type }}</td>
                                     <td class="px-4 py-3 text-right">
                                         <BaseInputNumber 
                                             v-model="pr.pump_rate" 

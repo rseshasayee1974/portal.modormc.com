@@ -776,8 +776,8 @@ if (!function_exists('PumpTypeDropdown')) {
             ->orderBy('registration')
             ->get(['id', 'registration'])
             ->map(fn($t) => [
-                'label' => $t->id,
-                'value' => $t->registration,   // Store the type name as the value (not FK) for portability
+                'label' => $t->registration,
+                'value' => (string) $t->id,   // Store the type name as the value (not FK) for portability (cast to string to pass validation)
             ])
             ->toArray();
     }

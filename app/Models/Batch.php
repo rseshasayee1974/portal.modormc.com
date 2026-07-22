@@ -44,7 +44,7 @@ class Batch extends Model
         // 'site_id',
     ];
 
-    protected $appends = ['sheet_url', 'original_sheet_url'];
+    protected $appends = ['sheet_url', 'original_sheet_url', 'rate', 'tax_id'];
 
     public function getSheetUrlAttribute()
     {
@@ -54,6 +54,16 @@ class Batch extends Model
     public function getOriginalSheetUrlAttribute()
     {
         return $this->batch_original_sheet_path ? \Illuminate\Support\Facades\Storage::url($this->batch_original_sheet_path) : null;
+    }
+
+    public function getRateAttribute()
+    {
+        return $this->salesOrder ? (float)$this->salesOrder->rate : 0.0;
+    }
+
+    public function getTaxIdAttribute()
+    {
+        return $this->salesOrder ? $this->salesOrder->tax_id : null;
     }
 
     protected $casts = [

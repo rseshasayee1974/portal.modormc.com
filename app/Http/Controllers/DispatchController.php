@@ -15,7 +15,7 @@ class DispatchController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'sales_orders';
+    protected string $module = 'dispatch';
 
     private function mapNestedFields(?array $source, array $fields): array
     {
@@ -132,27 +132,46 @@ Log::info($dispatch);
 
     public function update(DispatchStoreRequest $request, Dispatch $dispatch)
     {
-        $this->authorizeModule('edit');
-        // dd( $dispatch->all());
+        $this->authorizeModule('update');
         $user = auth()->user();
+        
+        $isAdmin = $user && method_exists($user, 'hasRole') && (
+            $user->hasRole('Saas Owner') || 
+            $user->hasRole('Platform Admin') || 
+            $user->hasRole('Super Admin') || 
+            $user->hasRole('Admin') || 
+            $user->hasRole('Super Administrator') ||
+            $user->hasRole('Administrator')
+        );
+
+        if (!$isAdmin) {
+            if (
+                ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$dispatch->sales_order_id) ||
+                ($request->has('delivered_qty') && (float)$request->delivered_qty !== (float)$dispatch->delivered_qty) ||
+                ($request->has('concrete_pump') && $request->concrete_pump !== $dispatch->concrete_pump)
+            ) {
+                return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Sales Order, Delivered Qty, or Concrete Pump.']);
+            }
+        }
+
         if($dispatch->dispatch_status !== 'Draft'){
             abort(403, 'Access Denied: This dispatch is already invoiced.');
         }
 
 
-$wanted = 'trip operator'; // strtolower(trim('Trip Operator'))
-if ($user && collect($user->getRoleNames())
-        ->map(fn($r) => strtolower(trim($r)))
-        ->contains($wanted)) {           
-        $isDataPresented = (float)$dispatch->load_rate > 0 || 
-                               $dispatch->dispatch_status !== 'Draft' || 
-                               ($dispatch->status()->first() && $dispatch->status()->first()->invoice_status == 1) ||
-                               $dispatch->payments()->exists();
+// $wanted = 'trip operator'; // strtolower(trim('Trip Operator'))
+// if ($user && collect($user->getRoleNames())
+//         ->map(fn($r) => strtolower(trim($r)))
+//         ->contains($wanted)) {           
+//         $isDataPresented = (float)$dispatch->load_rate > 0 || 
+//                                $dispatch->dispatch_status !== 'Draft' || 
+//                                ($dispatch->status()->first() && $dispatch->status()->first()->invoice_status == 1) ||
+//                                $dispatch->payments()->exists();
                                
-            if ($isDataPresented) {
-                abort(403, 'Access Denied: You do not have permission to edit this trip as the data is already presented.');
-            }
-        }
+//             if ($isDataPresented) {
+//                 abort(403, 'Access Denied: You do not have permission to edit this trip as the data is already presented.');
+//             }
+//         }
 
         $validated = $request->validated();
         
@@ -226,6 +245,8 @@ if ($user && collect($user->getRoleNames())
 
     public function generateInvoice(\Illuminate\Http\Request $request, Dispatch $dispatch)
     {
+                $this->authorizeModule('pdf');
+
         $validated = $request->validate([
             'ledger_id' => 'required|exists:mm_ledgers,id',
             'invoice_date' => 'required|date',

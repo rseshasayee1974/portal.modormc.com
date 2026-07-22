@@ -107,23 +107,6 @@ class HandleInertiaRequests extends Middleware
         }
 
         $menus = [];
-        if ($user) {
-            $topNav = \App\Models\Menu::where('menutype', 1)
-                ->where('published', true)
-                ->orderBy('ordering')
-                ->get();
-
-            $sideNav = \App\Models\Menu::where('menutype', 2)
-                ->where('published', true)
-                ->orderBy('ordering')
-                ->get()
-                ->groupBy('parent_id');
-
-            $menus = [
-                'top_nav' => $topNav,
-                'sidebar_nav' => $sideNav,
-            ];
-        }
 
         $activePlantId = session('active_plant_id');
         $activePlant   = null;
@@ -181,6 +164,38 @@ class HandleInertiaRequests extends Middleware
             }
         } else {
             $tenantPermissions = $user ? $user->getAllPermissions()->pluck('name') : collect();
+        }
+
+        if ($user) {
+            $isSuper = $user->hasRole('Platform Admin') || $user->hasRole('Saas Owner');
+
+            $topNav = \App\Models\Menu::where('menutype', 1)
+                ->where('published', true)
+                ->orderBy('ordering')
+                ->get()
+                ->filter(function ($item) use ($isSuper, $tenantPermissions) {
+                    if ($isSuper) return true;
+                    if (!$item->permission_name) return true;
+                    return $tenantPermissions->contains(fn($p) => strtolower($p) === strtolower($item->permission_name));
+                })
+                ->values();
+
+            $sideNav = \App\Models\Menu::where('menutype', 2)
+                ->where('published', true)
+                ->orderBy('ordering')
+                ->get()
+                ->filter(function ($item) use ($isSuper, $tenantPermissions) {
+                    if ($isSuper) return true;
+                    if (!$item->permission_name) return true;
+                    return $tenantPermissions->contains(fn($p) => strtolower($p) === strtolower($item->permission_name));
+                })
+                ->values()
+                ->groupBy('parent_id');
+
+            $menus = [
+                'top_nav' => $topNav,
+                'sidebar_nav' => $sideNav,
+            ];
         }
 
         return [

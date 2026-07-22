@@ -33,7 +33,7 @@ export function usePermissions() {
      * Super Administrators always return true (all permissions granted).
      */
     const can = (permission: string): boolean => {
-        if (isSuperAdmin.value) return true;
+        if (isAdmin.value) return true;
         const normalized = permission.toLowerCase();
         // console.log('normalized', normalized);
         // console.log('permissions', permissions.value);

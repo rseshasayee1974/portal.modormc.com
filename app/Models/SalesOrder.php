@@ -141,11 +141,48 @@ class SalesOrder extends Model
 
     protected $appends = [
         'full_number',
+        'rate',
+        'tax_id',
     ];
 
     public function getFullNumberAttribute()
     {
         return sprintf('%s%04d', $this->prefix, (int)$this->order_no);
+    }
+
+    public function getRateAttribute()
+    {
+        if ($this->customerPO) {
+            $item = $this->customerPO->items()
+                ->where('mix_design_id', $this->mix_design_id)
+                ->first();
+            if ($item) {
+                $baseRate = (float)$item->rate;
+                if ($this->concrete_pump) {
+                    $pumpRate = $item->pumpRates()
+                        ->where('pump_type', (string)$this->concrete_pump)
+                        ->value('pump_rate');
+                    if ($pumpRate) {
+                        $baseRate += (float)$pumpRate;
+                    }
+                }
+                return $baseRate;
+            }
+        }
+        return 0.0;
+    }
+
+    public function getTaxIdAttribute()
+    {
+        if ($this->customerPO) {
+            $item = $this->customerPO->items()
+                ->where('mix_design_id', $this->mix_design_id)
+                ->first();
+            if ($item) {
+                return $item->tax_id;
+            }
+        }
+        return null;
     }
 
     public static function generateOrderNo(int $plantId, string $prefix = 'SO'): array

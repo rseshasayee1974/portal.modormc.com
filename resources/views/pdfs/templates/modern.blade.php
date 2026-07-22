@@ -276,30 +276,57 @@
     @endif
 
     @if($pdfSettings['signature'] ?? true)
-    <div style="min-height:80px;padding:10px 18px;border-top:1px solid #ccc;text-align:right;">
-        <div style="margin-top:20px; display: inline-block; text-align: center; position: relative;">
-            @if (!empty($data['company']['seal_sign_path']))
-                @php
-                    $sealPath = ltrim(
-                        str_replace(
-                            ['public/', 'storage/', '/storage/'],
-                            '',
-                            $data['company']['seal_sign_path'],
-                        ),
-                        '/',
-                    );
-                    $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
-                        ? asset('storage/' . $sealPath)
-                        : public_path('storage/' . $sealPath);
-                @endphp
-                <div style="margin-bottom: -15px; text-align: center;">
-                    <img src="{{ $sealUrl }}" style="max-height: 45px; max-width: 120px; object-fit: contain;" />
-                </div>
-            @else
-                <div style="height: 30px;"></div>
-            @endif
-            <span style="display:inline-block;width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:#64748b">Authorized Signatory<br><span style="font-size:9px">For {{ $data['company']['name'] }}</span></span>
-        </div>
+    <div style="min-height:80px;padding:10px 18px;border-top:1px solid #ccc;">
+        <table style="width:100%; border-collapse: collapse; border: none; margin: 0; padding: 0;">
+            <tr>
+                <td style="width: 50%; vertical-align: bottom; border: none; text-align: left; padding: 0;">
+                    @if (($pdfSettings['upi_qr'] ?? true) && !empty($data['company']['upi_qr_path']))
+                        @php
+                            $qrPath = ltrim(
+                                str_replace(
+                                    ['public/', 'storage/', '/storage/'],
+                                    '',
+                                    $data['company']['upi_qr_path'],
+                                ),
+                                '/',
+                            );
+                            $qrUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                                ? asset('storage/' . $qrPath)
+                                : public_path('storage/' . $qrPath);
+                        @endphp
+                        <div style="display: inline-block; text-align: left; vertical-align: top; margin-top: 10px;">
+                            <div style="font-size: 8px; color: #64748b; font-weight: bold; margin-bottom: 2px;">Scan to Pay (UPI)</div>
+                            <img src="{{ $qrUrl }}" style="max-height: 80px; max-width: 80px; object-fit: contain; border: 1px solid #cbd5e1; padding: 2px; background: #fff;" />
+                        </div>
+                    @endif
+                </td>
+                <td style="width: 50%; vertical-align: bottom; border: none; text-align: right; padding: 0;">
+                    <div style="margin-top:20px; display: inline-block; text-align: center; position: relative;">
+                        @if (!empty($data['company']['seal_sign_path']))
+                            @php
+                                $sealPath = ltrim(
+                                    str_replace(
+                                        ['public/', 'storage/', '/storage/'],
+                                        '',
+                                        $data['company']['seal_sign_path'],
+                                    ),
+                                    '/',
+                                );
+                                $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                                    ? asset('storage/' . $sealPath)
+                                    : public_path('storage/' . $sealPath);
+                            @endphp
+                            <div style="margin-bottom: -15px; text-align: center;">
+                                <img src="{{ $sealUrl }}" style="max-height: 45px; max-width: 120px; object-fit: contain;" />
+                            </div>
+                        @else
+                            <div style="height: 30px;"></div>
+                        @endif
+                        <span style="display:inline-block;width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:#64748b">Authorized Signatory<br><span style="font-size:9px">For {{ $data['company']['name'] }}</span></span>
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
     @endif
 

@@ -48,7 +48,7 @@ class StoreSalesOrderRequest extends FormRequest
             'produced_qty' => ['nullable', 'numeric', 'gte:0'],
             'status' => ['nullable', 'integer', 'in:1,2,3,4'],
             'scheduled_start' => ['nullable', 'date'],
-            'scheduled_end' => ['nullable', 'date', 'after_or_equal:scheduled_start'],
+            // 'scheduled_end' => ['nullable', 'date', 'after_or_equal:scheduled_start'],
             'customer_po_id' => ['nullable', 'integer', 'exists:mm_customer_pos,id'],
             'concrete_pump' => ['nullable', 'integer', 'exists:mm_machines,id'],
         ];

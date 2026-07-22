@@ -525,7 +525,27 @@
         {{-- SIGNATURE --}}
         @if ($pdfSettings['signature'] ?? true)
             <div class="sig-section" style="min-height:80px">
-                <div class="sig-left"></div>
+                <div class="sig-left">
+                    @if (($pdfSettings['upi_qr'] ?? true) && !empty($data['company']['upi_qr_path']))
+                        @php
+                            $qrPath = ltrim(
+                                str_replace(
+                                    ['public/', 'storage/', '/storage/'],
+                                    '',
+                                    $data['company']['upi_qr_path'],
+                                ),
+                                '/',
+                            );
+                            $qrUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                                ? asset('storage/' . $qrPath)
+                                : public_path('storage/' . $qrPath);
+                        @endphp
+                        <div style="display: inline-block; text-align: left; vertical-align: top; margin-top: 10px;">
+                            <div class="small muted" style="margin-bottom: 4px; font-weight: bold;">Scan to Pay (UPI)</div>
+                            <img src="{{ $qrUrl }}" style="max-height: 80px; max-width: 80px; object-fit: contain; border: 1px solid #cbd5e1; padding: 2px; background: #fff;" />
+                        </div>
+                    @endif
+                </div>
                 <div class="sig-right" style="padding-bottom:10px; position: relative;">
                     @if (!empty($data['company']['seal_sign_path']))
                         @php

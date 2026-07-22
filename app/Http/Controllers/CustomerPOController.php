@@ -491,11 +491,8 @@ class CustomerPOController extends Controller
 
     public function convertToSalesOrder(Request $request, CustomerPO $customerPO)
     {
+        $this->module = 'SALES_ORDER';
         $this->authorizeModule('create');
-        
-        $validated = $request->validate([
-            'quantity' => 'required|numeric|min:0.001',
-        ]);
         
         $customerPO->load(['items.mixDesign']);
         
@@ -503,28 +500,71 @@ class CustomerPOController extends Controller
             return redirect()->back()->with('error', 'No items found in this Customer PO.');
         }
 
-        DB::transaction(function () use ($customerPO, $validated) {
-            if ((int)$customerPO->status === CustomerPO::STATUS_DRAFT) {
-                $customerPO->update(['status' => CustomerPO::STATUS_CONFIRMED]);
-            }
+        if ($request->has('items')) {
+            $validated = $request->validate([
+                'items' => 'required|array',
+                'items.*.item_id' => 'required|exists:mm_customer_po_items,id',
+                'items.*.quantity' => 'required|numeric|min:0',
+                'items.*.concrete_pump' => 'nullable|integer|exists:mm_machines,id',
+            ]);
+            
+            DB::transaction(function () use ($customerPO, $validated) {
+                if ((int)$customerPO->status === CustomerPO::STATUS_DRAFT) {
+                    $customerPO->update(['status' => CustomerPO::STATUS_CONFIRMED]);
+                }
 
-            foreach ($customerPO->items as $item) {
-                $details = SalesOrder::generateOrderNo($customerPO->plant_id, 'SO');
-                SalesOrder::create([
-                    'prefix' => $details['prefix'],
-                    'order_no' => $details['next_number'],
-                    'plant_id' => $customerPO->plant_id,
-                    'customer_id' => $customerPO->patron_id,
-                    'site_id' => $customerPO->site_id,
-                    'mix_design_id' => $item->mix_design_id,
-                    'total_qty' => $validated['quantity'],
-                    'produced_qty' => 0,
-                    'status' => SalesOrder::STATUS_SCHEDULED,
-                    'customer_po_id' => $customerPO->id,
-                ]);
-            }
-        });
+                foreach ($validated['items'] as $itemData) {
+                    if ((float)$itemData['quantity'] <= 0) {
+                        continue;
+                    }
+                    
+                    $poItem = $customerPO->items()->find($itemData['item_id']);
+                    if (!$poItem) continue;
 
-        return redirect()->back()->with('success', 'Sales Order created successfully.');
+                    $details = SalesOrder::generateOrderNo($customerPO->plant_id, 'SO');
+                    SalesOrder::create([
+                        'prefix' => $details['prefix'],
+                        'order_no' => $details['next_number'],
+                        'plant_id' => $customerPO->plant_id,
+                        'customer_id' => $customerPO->patron_id,
+                        'site_id' => $customerPO->site_id,
+                        'mix_design_id' => $poItem->mix_design_id,
+                        'total_qty' => $itemData['quantity'],
+                        'produced_qty' => 0,
+                        'status' => SalesOrder::STATUS_SCHEDULED,
+                        'customer_po_id' => $customerPO->id,
+                        'concrete_pump' => $itemData['concrete_pump'],
+                    ]);
+                }
+            });
+        } else {
+            $validated = $request->validate([
+                'quantity' => 'required|numeric|min:0.001',
+            ]);
+            
+            DB::transaction(function () use ($customerPO, $validated) {
+                if ((int)$customerPO->status === CustomerPO::STATUS_DRAFT) {
+                    $customerPO->update(['status' => CustomerPO::STATUS_CONFIRMED]);
+                }
+
+                foreach ($customerPO->items as $item) {
+                    $details = SalesOrder::generateOrderNo($customerPO->plant_id, 'SO');
+                    SalesOrder::create([
+                        'prefix' => $details['prefix'],
+                        'order_no' => $details['next_number'],
+                        'plant_id' => $customerPO->plant_id,
+                        'customer_id' => $customerPO->patron_id,
+                        'site_id' => $customerPO->site_id,
+                        'mix_design_id' => $item->mix_design_id,
+                        'total_qty' => $validated['quantity'],
+                        'produced_qty' => 0,
+                        'status' => SalesOrder::STATUS_SCHEDULED,
+                        'customer_po_id' => $customerPO->id,
+                    ]);
+                }
+            });
+        }
+
+        return redirect()->back()->with('success', 'Sales Orders created successfully.');
     }
 }

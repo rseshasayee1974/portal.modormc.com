@@ -267,6 +267,26 @@
     @if($pdfSettings['signature'] ?? true)
     <div class="sig-row">
         <div class="sig-left">
+            @if (($pdfSettings['upi_qr'] ?? true) && !empty($data['company']['upi_qr_path']))
+                @php
+                    $qrPath = ltrim(
+                        str_replace(
+                            ['public/', 'storage/', '/storage/'],
+                            '',
+                            $data['company']['upi_qr_path'],
+                        ),
+                        '/',
+                    );
+                    $qrUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                        ? asset('storage/' . $qrPath)
+                        : public_path('storage/' . $qrPath);
+                @endphp
+                <div style="display: inline-block; text-align: left; vertical-align: top; margin-bottom: 8px;">
+                    <div style="font-size: 8px; color: #64748b; font-weight: bold; margin-bottom: 2px;">Scan to Pay (UPI)</div>
+                    <img src="{{ $qrUrl }}" style="max-height: 80px; max-width: 80px; object-fit: contain; border: 1px solid #cbd5e1; padding: 2px; background: #fff;" />
+                </div>
+                <br>
+            @endif
             E. &amp; O.E.<br>
             <span style="font-size:8px">This is a computer generated document.</span>
         </div>

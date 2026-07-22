@@ -21,6 +21,7 @@ export default defineConfig({
         visualizer({
             open: false,
             gzipSize: true,
+            sourcemap: false,
             filename: 'stats.html',
         }),
     ],

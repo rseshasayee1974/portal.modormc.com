@@ -34,4 +34,9 @@ class CustomerPOItemPumpRate extends Model
     {
         return $this->belongsTo(CustomerPOItem::class, 'customer_po_item_id');
     }
+
+    public function pump()
+    {
+        return $this->belongsTo(Machine::class, 'pump_type');
+    }
 }

@@ -30,6 +30,8 @@ class UpdatePlantRequest extends FormRequest
             'logo_path' => ['nullable', 'string'],
             'seal_sign' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             'seal_sign_path' => ['nullable', 'string'],
+            'upi_qr' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
+            'upi_qr_path' => ['nullable', 'string'],
             'email_address' => ['required', 'email:rfc,dns', 'max:255'],
             'mobile_number' => ['nullable', 'string', 'max:20'],
             'plant_type' => ['nullable', 'string', 'max:255'],

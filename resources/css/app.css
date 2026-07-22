@@ -1122,3 +1122,8 @@ input.field-input:-webkit-autofill:focus {
     border-color: rgba(255, 255, 255, 0.18) !important;
     transition: background-color 9999s ease-in-out 0s !important;
 }
+
+/* SweetAlert2 override to appear above PrimeVue dialogs/overlays */
+.swal2-container {
+    z-index: 999999 !important;
+}

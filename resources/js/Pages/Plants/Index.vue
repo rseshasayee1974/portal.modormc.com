@@ -53,6 +53,8 @@ const blankForm = () => ({
     logo: null as File | null,
     seal_sign_path: null as string | null,
     seal_sign: null as File | null,
+    upi_qr_path: null as string | null,
+    upi_qr: null as File | null,
     address: {
         address_type_id: props.addressTypes?.[0]?.id ?? null,
         line_1: '', line_2: '', city: '',
@@ -109,6 +111,8 @@ const populatePlantForm = (form: any, plant: any) => {
     form.logo = null;
     form.seal_sign_path = plant.seal_sign_path || null;
     form.seal_sign = null;
+    form.upi_qr_path = plant.upi_qr_path || null;
+    form.upi_qr = null;
     
     form.address = {
         address_type_id: address.address_type_id || (props.addressTypes?.[0]?.id ?? null),

@@ -48,7 +48,7 @@ const filteredStatuses = computed(() => {
     return props.statuses.filter(status => [1, 2, 4].includes(Number(status.value)));
 });
 
-const { can } = usePermissions();
+const { can, isAdmin, isSuperAdmin } = usePermissions();
 
 const hasActiveData = computed(() => {
     return Number(props.salesOrder?.batches_count || 0) > 0 || 
@@ -74,6 +74,20 @@ const isLocked = computed(() => {
     // Normal users (with UPDATE but no APPROVE) are locked if there is active data or if the status is not Scheduled (1) or Cancelled (4)
     const status = Number(props.salesOrder?.status);
     return hasActiveData.value || (status !== 1 && status !== 4);
+});
+
+const isRestrictedFieldLocked = computed(() => {
+    if (!isAdmin.value && !isSuperAdmin.value) {
+        return true;
+    }
+    return isLocked.value;
+});
+
+const isMixDesignLocked = computed(() => {
+    if (!isAdmin.value && !isSuperAdmin.value) {
+        return true;
+    }
+    return isCriticalLocked.value || !!form.customer_po_id;
 });
 
 const selectedMixDesign = computed(() => {
@@ -228,16 +242,16 @@ watch(() => form.customer_po_id, (newVal) => {
     }
 });
 
-watch(() => form.scheduled_start, (newStart) => {
-    if (newStart) {
-        const start = new Date(newStart);
-        if (form.scheduled_end && new Date(form.scheduled_end) <= start) {
-            const endDate = new Date(start);
-            endDate.setHours(endDate.getHours() + 1);
-            form.scheduled_end = endDate;
-        }
-    }
-});
+// watch(() => form.scheduled_start, (newStart) => {
+//     if (newStart) {
+//         const start = new Date(newStart);
+//         if (form.scheduled_end && new Date(form.scheduled_end) <= start) {
+//             const endDate = new Date(start);
+//             endDate.setHours(endDate.getHours() + 1);
+//             form.scheduled_end = endDate;
+//         }
+//     }
+// });
 
 console.log('fdlmf',form);
 
@@ -256,25 +270,25 @@ const submit = () => {
         return;
     }
 
-    form.clearErrors('scheduled_end');
-    if (form.scheduled_start && form.scheduled_end) {
-        const startDate = new Date(form.scheduled_start);
-        startDate.setSeconds(0, 0);
-        const start = startDate.getTime();
-
-        const endDate = new Date(form.scheduled_end);
-        endDate.setSeconds(0, 0);
-        const end = endDate.getTime();
-        
-        if (start === end) {
-            form.setError('scheduled_end', 'Start and end time cannot be exactly the same.');
-            return;
-        }
-        if (start > end) {
-            form.setError('scheduled_end', 'End time cannot be before the start time.');
-            return;
-        }
-    }
+    // form.clearErrors('scheduled_end');
+    // if (form.scheduled_start && form.scheduled_end) {
+    //     const startDate = new Date(form.scheduled_start);
+    //     startDate.setSeconds(0, 0);
+    //     const start = startDate.getTime();
+    // 
+    //     const endDate = new Date(form.scheduled_end);
+    //     endDate.setSeconds(0, 0);
+    //     const end = endDate.getTime();
+    //     
+    //     if (start === end) {
+    //         form.setError('scheduled_end', 'Start and end time cannot be exactly the same.');
+    //         return;
+    //     }
+    //     if (start > end) {
+    //         form.setError('scheduled_end', 'End time cannot be before the start time.');
+    //         return;
+    //     }
+    // }
 
     const formatLocalTime = (date: Date | any) => {
         if (!date) return null;
@@ -316,11 +330,12 @@ const isOverdue = computed(() => {
         <div class="mb-3 flex items-center justify-between">
             <h3 class="text-xs font-bold uppercase tracking-wide text-indigo-800">Edit Sales Order</h3>
             
-            <div class="flex items-center gap-3"><StatusBadge
+            <div class="flex items-center gap-3">
+                <!-- <StatusBadge
 
     v-if="form.scheduled_end"
     :value="new Date(form.scheduled_end) < new Date() ? 'Overdue' : 'Due'"
-/> 
+/>  -->
             <span class="font-mono text-xs font-bold text-amber-600">REF # : {{ salesOrder.prefix }}{{ salesOrder.order_no }}</span>
         </div>
         </div>
@@ -381,7 +396,7 @@ const isOverdue = computed(() => {
             v-model="form.total_qty"
             label="Total Quantity (m³)"
             :error="form.errors.total_qty"
-            :disabled="isLocked"
+            :disabled="isRestrictedFieldLocked"
             :minFractionDigits="3"
         />
         <div v-else class="flex flex-col gap-1 mt-1">
@@ -437,7 +452,7 @@ const isOverdue = computed(() => {
             label="Concrete Type"
             placeholder="Select Concrete Type"
             :error="form.errors.concrete_pump"
-            :disabled="isLocked"
+            :disabled="isRestrictedFieldLocked"
         />
     </div>
 
@@ -459,7 +474,7 @@ const isOverdue = computed(() => {
         </small>
     </div>
 
-    <div class="col-span-1">
+    <!-- <div class="col-span-1">
         <label class="mb-1 block text-xs font-semibold text-slate-500">
             Scheduled End
         </label>
@@ -475,7 +490,7 @@ const isOverdue = computed(() => {
         <small class="text-red-500">
             {{ form.errors.scheduled_end }}
         </small>
-    </div>
+    </div> -->
 
     <div class="col-span-1">
         <BaseSelect
@@ -486,7 +501,7 @@ const isOverdue = computed(() => {
             filter
             label="Mix Design"
             :error="form.errors.mix_design_id"
-            :disabled="isCriticalLocked || !!form.customer_po_id"
+            :disabled="isMixDesignLocked"
         />
     </div>
 

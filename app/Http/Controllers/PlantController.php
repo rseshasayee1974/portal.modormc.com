@@ -102,6 +102,21 @@ class PlantController extends Controller
                 $plant->update(['seal_sign_path' => $path]);
             }
 
+            // Handle UPI QR Code Upload
+            if ($request->hasFile('upi_qr')) {
+                $entity = Entity::find($validated['entity_id']);
+                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
+                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
+                
+                $path = $request->file('upi_qr')->storeAs(
+                    "plants/{$entitySlug}/{$plantSlug}",
+                    "upi_qr_" . time() . "." . $request->file('upi_qr')->getClientOriginalExtension(),
+                    'public'
+                );
+                
+                $plant->update(['upi_qr_path' => $path]);
+            }
+
             // Handle Address
             if (!empty($validated['address']['line_1'])) {
                 $addressData = $validated['address'];
@@ -179,6 +194,26 @@ class PlantController extends Controller
                 );
                 
                 $plant->update(['seal_sign_path' => $path]);
+            }
+
+            // Handle UPI QR Code Upload
+            if ($request->hasFile('upi_qr')) {
+                // Delete old upi_qr if exists
+                if ($plant->upi_qr_path) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->delete($plant->upi_qr_path);
+                }
+
+                $entity = Entity::find($plant->entity_id);
+                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
+                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
+                
+                $path = $request->file('upi_qr')->storeAs(
+                    "plants/{$entitySlug}/{$plantSlug}",
+                    "upi_qr_" . time() . "." . $request->file('upi_qr')->getClientOriginalExtension(),
+                    'public'
+                );
+                
+                $plant->update(['upi_qr_path' => $path]);
             }
 
             // Handle Address

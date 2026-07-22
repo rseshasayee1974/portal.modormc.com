@@ -18,6 +18,7 @@ class Plant extends Model
         'mixer_capacity',
         'logo_path',
         'seal_sign_path',
+        'upi_qr_path',
         'email_address',
         'mobile_number',
         'plant_type',
