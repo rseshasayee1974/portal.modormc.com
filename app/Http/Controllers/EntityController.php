@@ -38,7 +38,12 @@ class EntityController extends Controller
             'contactTypes' => ContactType::all(),
             'bankAccountTypes' => BankAccountType::all(),
             'countries' => Country::all(['id', 'country_name']),
-            'stateCodes' => StateCode::all(['id', 'state_name', 'state_code', 'country_id'])
+            'stateCodes' => StateCode::whereNotNull('state_name')
+                ->where('state_name', '!=', '')
+                ->groupBy('country_id', 'state_name', 'state_code')
+                ->selectRaw('MIN(id) as id, state_name, state_code, country_id')
+                ->orderBy('state_name')
+                ->get()
         ]);
     }
 
