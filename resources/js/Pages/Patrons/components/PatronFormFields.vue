@@ -304,7 +304,7 @@ onMounted(() => {
 
                     <!-- 4. Area Select -->
                     <div class="col-span-12 md:col-span-3">
-                        <BaseSelect 
+                        <!-- <BaseSelect 
                             label="Area / Locality" 
                             v-model="selectedArea" 
                             :options="areasOptions" 
@@ -315,7 +315,12 @@ onMounted(() => {
                             :disabled="!selectedZipcode"
                             placeholder="Select Area"
                             class="!rounded-xl !border-slate-200"
-                        />
+                        /> -->
+                         <BaseInput 
+                        v-model="form.address_line_2"
+                        placeholder="e.g. T. Nagar"
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
                     </div>
                 </template>
 

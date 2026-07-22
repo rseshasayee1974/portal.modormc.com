@@ -490,7 +490,7 @@ onMounted(() => {
                 <div class="md:col-span-2 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Area / Locality</label>
                     <!-- Dropdown mode -->
-                    <BaseSelect
+                    <!-- <BaseSelect
                         v-if="hasAreaData"
                         v-model="selectedArea"
                         :options="areasOptions"
@@ -501,13 +501,11 @@ onMounted(() => {
                         :disabled="!selectedZipcode"
                         placeholder="Select Area"
                         class="!w-full !rounded-md !border-slate-200 font-medium text-sm"
-                    />
+                    /> -->
                     <!-- Manual input mode -->
-                    <BaseInput
-                        v-else
+                    <BaseInput 
                         v-model="form.address.line_2"
                         placeholder="e.g. T. Nagar"
-                        :disabled="!form.address.state_id"
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>

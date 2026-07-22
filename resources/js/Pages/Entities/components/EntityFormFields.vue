@@ -34,7 +34,7 @@ const addBank = () => props.form.bank_accounts.push({ account_type: props.bankAc
 const addTax = () => props.form.taxes.push({ tax_type: 'GST', tax_number: '', country_id: null, state_id: null, is_primary: 0 });
 
 const removeRel = (arr: any[], idx: number) => arr.splice(idx, 1);
-const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST'];
+const taxTypeOptions = ['GST', 'PAN', 'VAT', 'TIN', 'Service Tax', 'CST', 'MSME'];
 
 const activeTab = ref('0');
 

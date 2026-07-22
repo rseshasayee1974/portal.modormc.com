@@ -74,8 +74,8 @@ class StoreEntityRequest extends FormRequest
             // Nested Taxes Validation
             'taxes' => 'nullable|array',
             'taxes.*.id' => 'nullable|integer',
-            'taxes.*.tax_type' => 'required|string|max:100', // Or tax type id if there's a table
-            'taxes.*.tax_number' => 'required|string|max:100',
+            'taxes.*.tax_type' => 'nullable|string|max:100', // Or tax type id if there's a table
+            'taxes.*.tax_number' => 'nullable|string|max:100',
             'taxes.*.country_id' => 'nullable|exists:mm_countries,id',
             'taxes.*.state_id' => 'nullable|exists:mm_state_codes,id',
             'taxes.*.is_primary' => 'boolean',
@@ -89,7 +89,6 @@ class StoreEntityRequest extends FormRequest
             'addresses.*.line_1.required' => 'Address line 1 is required.',
             'addresses.*.city.required' => 'City is required.',
             'contacts.*.contact_type.required' => 'Please select a contact type.',
-            'contacts.*.contact_person.required' => 'Contact person name is required.',
             'bank_accounts.*.account_type.required' => 'Please select a bank account type.',
             'bank_accounts.*.bank_name.required' => 'Bank name is required.',
             'bank_accounts.*.account_number.required' => 'Account number is required.',

@@ -25,7 +25,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            $table->unique(['entity_id', 'tax_type']);
+            // $table->unique(['entity_id', 'tax_type']);
         });
     }
 

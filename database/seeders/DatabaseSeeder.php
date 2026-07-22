@@ -12,6 +12,9 @@ class DatabaseSeeder extends Seeder
 
         // ── 1. Core Setup ──────────────────────────────────────
         $this->call(\Database\Seeders\EntityTypeSeeder::class);
+        $this->call(\Database\Seeders\AddressTypeSeeder::class);
+        $this->call(\Database\Seeders\ContactTypeSeeder::class);
+        $this->call(\Database\Seeders\BankAccountTypeSeeder::class);
         $this->call(\Database\Seeders\EntitySeeder::class);
         $this->call(\Database\Seeders\RoleSeeder::class);
         $this->call(\Database\Seeders\MenuSeeder::class);
