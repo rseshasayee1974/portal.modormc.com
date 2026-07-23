@@ -33,7 +33,10 @@ class StateCodeController extends Controller
         $validated = $request->validate([
             'country_id' => 'required|exists:mm_countries,id',
             'state_code' => 'required|string|max:50',
-            'state_name' => 'required|string|max:100'
+            'state_name' => 'required|string|max:100',
+            'zipcode' => 'nullable|string|max:20',
+            'area' => 'nullable|string|max:150',
+            'district' => 'nullable|string|max:150',
         ]);
 
         $stateCode = StateCode::create($validated);
@@ -57,7 +60,10 @@ class StateCodeController extends Controller
         $validated = $request->validate([
             'country_id' => 'required|exists:mm_countries,id',
             'state_code' => 'required|string|max:50',
-            'state_name' => 'required|string|max:100'
+            'state_name' => 'required|string|max:100',
+            'zipcode' => 'nullable|string|max:20',
+            'area' => 'nullable|string|max:150',
+            'district' => 'nullable|string|max:150',
         ]);
 
         $statecode->update($validated);

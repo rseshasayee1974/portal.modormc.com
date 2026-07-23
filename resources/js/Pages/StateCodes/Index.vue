@@ -21,6 +21,9 @@ interface StateCode {
     country_id: number;
     state_code: string;
     state_name: string;
+    zipcode?: string | null;
+    area?: string | null;
+    district?: string | null;
 }
 
 interface CountryOption {
@@ -56,23 +59,32 @@ const createForm = ref({
     country_id: null as number | null,
     state_code: '',
     state_name: '',
+    zipcode: '',
+    area: '',
+    district: '',
     processing: false,
-    errors: { country_id: '', state_code: '', state_name: '' },
+    errors: { country_id: '', state_code: '', state_name: '', zipcode: '', area: '', district: '' },
 });
 
 const editForm = ref({
     country_id: null as number | null,
     state_code: '',
     state_name: '',
+    zipcode: '',
+    area: '',
+    district: '',
     processing: false,
-    errors: { country_id: '', state_code: '', state_name: '' },
+    errors: { country_id: '', state_code: '', state_name: '', zipcode: '', area: '', district: '' },
 });
 
 const resetCreateForm = () => {
     createForm.value.country_id = null;
     createForm.value.state_code = '';
     createForm.value.state_name = '';
-    createForm.value.errors = { country_id: '', state_code: '', state_name: '' };
+    createForm.value.zipcode = '';
+    createForm.value.area = '';
+    createForm.value.district = '';
+    createForm.value.errors = { country_id: '', state_code: '', state_name: '', zipcode: '', area: '', district: '' };
 };
 
 const resetEditForm = () => {
@@ -81,7 +93,10 @@ const resetEditForm = () => {
     editForm.value.country_id = null;
     editForm.value.state_code = '';
     editForm.value.state_name = '';
-    editForm.value.errors = { country_id: '', state_code: '', state_name: '' };
+    editForm.value.zipcode = '';
+    editForm.value.area = '';
+    editForm.value.district = '';
+    editForm.value.errors = { country_id: '', state_code: '', state_name: '', zipcode: '', area: '', district: '' };
 };
 
 const getCountryName = (id: number) => {
@@ -99,12 +114,15 @@ const filteredStateCodes = computed(() => {
 
 const submitCreate = async () => {
     createForm.value.processing = true;
-    createForm.value.errors = { country_id: '', state_code: '', state_name: '' };
+    createForm.value.errors = { country_id: '', state_code: '', state_name: '', zipcode: '', area: '', district: '' };
     try {
         const response = await axios.post(route('statecodes.store'), {
             country_id: createForm.value.country_id,
             state_code: createForm.value.state_code,
             state_name: createForm.value.state_name,
+            zipcode: createForm.value.zipcode,
+            area: createForm.value.area,
+            district: createForm.value.district,
         });
         store.addStateCode(response.data.stateCode);
         toast.add({ severity: 'success', summary: 'Created', detail: 'State code created successfully.', life: 1500 });
@@ -115,6 +133,9 @@ const submitCreate = async () => {
         createForm.value.errors.country_id = errs.country_id?.[0] || '';
         createForm.value.errors.state_code = errs.state_code?.[0] || '';
         createForm.value.errors.state_name = errs.state_name?.[0] || '';
+        createForm.value.errors.zipcode = errs.zipcode?.[0] || '';
+        createForm.value.errors.area = errs.area?.[0] || '';
+        createForm.value.errors.district = errs.district?.[0] || '';
         if (!Object.keys(errs).length) {
             toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to create state code.', life: 1500 });
         }
@@ -130,7 +151,10 @@ const onRowExpand = (event: { data: StateCode }) => {
     editForm.value.country_id = row.country_id;
     editForm.value.state_code = row.state_code;
     editForm.value.state_name = row.state_name;
-    editForm.value.errors = { country_id: '', state_code: '', state_name: '' };
+    editForm.value.zipcode = row.zipcode || '';
+    editForm.value.area = row.area || '';
+    editForm.value.district = row.district || '';
+    editForm.value.errors = { country_id: '', state_code: '', state_name: '', zipcode: '', area: '', district: '' };
 };
 
 const onRowCollapse = () => {
@@ -140,12 +164,15 @@ const onRowCollapse = () => {
 const submitEdit = async () => {
     if (!editingId.value) return;
     editForm.value.processing = true;
-    editForm.value.errors = { country_id: '', state_code: '', state_name: '' };
+    editForm.value.errors = { country_id: '', state_code: '', state_name: '', zipcode: '', area: '', district: '' };
     try {
         const response = await axios.put(route('statecodes.update', editingId.value), {
             country_id: editForm.value.country_id,
             state_code: editForm.value.state_code,
             state_name: editForm.value.state_name,
+            zipcode: editForm.value.zipcode,
+            area: editForm.value.area,
+            district: editForm.value.district,
         });
         store.updateStateCode(response.data.stateCode);
         toast.add({ severity: 'success', summary: 'Updated', detail: 'State code updated successfully.', life: 1500 });
@@ -155,6 +182,9 @@ const submitEdit = async () => {
         editForm.value.errors.country_id = errs.country_id?.[0] || '';
         editForm.value.errors.state_code = errs.state_code?.[0] || '';
         editForm.value.errors.state_name = errs.state_name?.[0] || '';
+        editForm.value.errors.zipcode = errs.zipcode?.[0] || '';
+        editForm.value.errors.area = errs.area?.[0] || '';
+        editForm.value.errors.district = errs.district?.[0] || '';
         if (!Object.keys(errs).length) {
             toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to update state code.', life: 1500 });
         }
@@ -266,6 +296,33 @@ watch(filterCountry, () => {
                                 />
                                 <small v-if="createForm.errors.state_code" class="field-error">{{ createForm.errors.state_code }}</small>
                             </div>
+                            <div class="field-group">
+                                <label class="field-label">District</label>
+                                <BaseInput
+                                    v-model="createForm.district"
+                                    placeholder="e.g. Coimbatore"
+                                    :class="{ 'p-invalid': createForm.errors.district }"
+                                />
+                                <small v-if="createForm.errors.district" class="field-error">{{ createForm.errors.district }}</small>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Zipcode</label>
+                                <BaseInput
+                                    v-model="createForm.zipcode"
+                                    placeholder="e.g. 641001"
+                                    :class="{ 'p-invalid': createForm.errors.zipcode }"
+                                />
+                                <small v-if="createForm.errors.zipcode" class="field-error">{{ createForm.errors.zipcode }}</small>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Area</label>
+                                <BaseInput
+                                    v-model="createForm.area"
+                                    placeholder="e.g. Town Hall"
+                                    :class="{ 'p-invalid': createForm.errors.area }"
+                                />
+                                <small v-if="createForm.errors.area" class="field-error">{{ createForm.errors.area }}</small>
+                            </div>
                         </div>
                         <div class="expansion-actions">
                             <Button label="Save State Code" icon="pi pi-check" :loading="createForm.processing" @click="submitCreate" />
@@ -279,7 +336,7 @@ watch(filterCountry, () => {
                 v-model:expandedRows="expandedRows"
                 :value="filteredStateCodes"
                 v-model:filters="filters"
-                :globalFilterFields="['state_name', 'state_code', 'country_name']"
+                :globalFilterFields="['state_code', 'district', 'zipcode', 'area']"
                 showSearch
                 showSerial
                 heading="State Codes Directory"
@@ -301,23 +358,29 @@ watch(filterCountry, () => {
                 </template>
                 <Column expander style="width: 46px; padding: 0 12px;" />
 
-                <Column field="country_name" header="Country" sortable>
+                <Column field="state_code" header="State Code" sortable style="width: 120px">
                     <template #body="{ data }">
-                        <span class="font-semibold text-gray-700 text-sm">{{ data.country_name }}</span>
+                        <code class="code-chip">{{ data.state_code }}</code>
                     </template>
                 </Column>
 
-                    <Column field="state_name" header="State Name" sortable>
-                        <template #body="{ data }">
-                            <span class="font-semibold text-gray-800 text-sm">{{ data.state_name }}</span>
-                        </template>
-                    </Column>
+                <Column field="district" header="District" sortable>
+                    <template #body="{ data }">
+                        <span class="font-semibold text-gray-800 text-sm">{{ data.district || '-' }}</span>
+                    </template>
+                </Column>
 
-                    <Column field="state_code" header="Code" sortable style="width: 120px">
-                        <template #body="{ data }">
-                            <code class="code-chip">{{ data.state_code }}</code>
-                        </template>
-                    </Column>
+                <Column field="zipcode" header="Zipcode" sortable style="width: 150px">
+                    <template #body="{ data }">
+                        <span class="font-semibold text-gray-700 text-sm">{{ data.zipcode || '-' }}</span>
+                    </template>
+                </Column>
+
+                <Column field="area" header="Area" sortable>
+                    <template #body="{ data }">
+                        <span class="text-gray-600 text-sm">{{ data.area || '-' }}</span>
+                    </template>
+                </Column>
 
                     <Column header="" style="width: 56px; text-align: right">
                         <template #body="{ data }">
@@ -368,6 +431,33 @@ watch(filterCountry, () => {
                                         :class="{ 'p-invalid': editForm.errors.state_code }"
                                     />
                                     <small v-if="editForm.errors.state_code" class="field-error">{{ editForm.errors.state_code }}</small>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">District</label>
+                                    <BaseInput
+                                        v-model="editForm.district"
+                                        placeholder="e.g. Coimbatore"
+                                        :class="{ 'p-invalid': editForm.errors.district }"
+                                    />
+                                    <small v-if="editForm.errors.district" class="field-error">{{ editForm.errors.district }}</small>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Zipcode</label>
+                                    <BaseInput
+                                        v-model="editForm.zipcode"
+                                        placeholder="e.g. 641001"
+                                        :class="{ 'p-invalid': editForm.errors.zipcode }"
+                                    />
+                                    <small v-if="editForm.errors.zipcode" class="field-error">{{ editForm.errors.zipcode }}</small>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Area</label>
+                                    <BaseInput
+                                        v-model="editForm.area"
+                                        placeholder="e.g. Town Hall"
+                                        :class="{ 'p-invalid': editForm.errors.area }"
+                                    />
+                                    <small v-if="editForm.errors.area" class="field-error">{{ editForm.errors.area }}</small>
                                 </div>
                             </div>
 

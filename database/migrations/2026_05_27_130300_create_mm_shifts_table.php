@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('mm_shifts', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('plant_id')->constrained('mm_plants')->onDelete('cascade');
+            $table->foreignId('plant_id')->nullable()->constrained('mm_plants')->nullOnDelete();
             $table->string('shift_name');
             $table->time('start_time');
             $table->time('end_time');

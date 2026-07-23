@@ -16,20 +16,23 @@ class HrmsMasterSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->command->info("Seeding global HRMS master data (Departments, Designations, Leave Types, Shifts)...");
+
+        $this->seedDepartments();
+        $this->seedDesignations();
+        $this->seedLeaveTypes();
+        $this->seedShifts();
+
         $plants = Plant::all();
 
         if ($plants->isEmpty()) {
-            $this->command->warn('No plants found. Skipping HRMS master seeding.');
+            $this->command->warn('No plants found. Skipping plant-specific HRMS master seeding.');
             return;
         }
 
         foreach ($plants as $plant) {
-            $this->command->info("Seeding HRMS master data for plant: [{$plant->id}] {$plant->name}");
+            $this->command->info("Seeding plant-specific HRMS master data for plant: [{$plant->id}] {$plant->name}");
 
-            $this->seedDepartments($plant);
-            $this->seedDesignations($plant);
-            $this->seedLeaveTypes($plant);
-            $this->seedShifts($plant);
             $this->seedSalaryComponents($plant);
             $this->seedStatutoryConfigs($plant);
         }
@@ -39,7 +42,7 @@ class HrmsMasterSeeder extends Seeder
 
     // ─────────────────────────────────────────────────────────────────────────
 
-    private function seedDepartments(Plant $plant): void
+    private function seedDepartments(): void
     {
         $departments = [
             ['name' => 'Production',      'code' => 'PROD'],
@@ -51,7 +54,7 @@ class HrmsMasterSeeder extends Seeder
 
         foreach ($departments as $dept) {
             Department::updateOrCreate(
-                ['plant_id' => $plant->id, 'code' => $dept['code']],
+                ['code' => $dept['code']],
                 [
                     'name'       => $dept['name'],
                     'created_by' => Auth::id() ?? 1,
@@ -60,7 +63,7 @@ class HrmsMasterSeeder extends Seeder
         }
     }
 
-    private function seedDesignations(Plant $plant): void
+    private function seedDesignations(): void
     {
         $designations = [
             ['name' => 'Plant Manager',       'code' => 'PM'],
@@ -72,7 +75,7 @@ class HrmsMasterSeeder extends Seeder
 
         foreach ($designations as $desig) {
             Designation::updateOrCreate(
-                ['plant_id' => $plant->id, 'code' => $desig['code']],
+                ['code' => $desig['code']],
                 [
                     'name'       => $desig['name'],
                     'created_by' => Auth::id() ?? 1,
@@ -81,7 +84,7 @@ class HrmsMasterSeeder extends Seeder
         }
     }
 
-    private function seedLeaveTypes(Plant $plant): void
+    private function seedLeaveTypes(): void
     {
         $leaveTypes = [
             ['name' => 'Casual Leave',      'is_paid' => true,  'max_days_per_year' => 12,  'carry_forward' => false],
@@ -93,7 +96,7 @@ class HrmsMasterSeeder extends Seeder
 
         foreach ($leaveTypes as $lt) {
             LeaveType::updateOrCreate(
-                ['plant_id' => $plant->id, 'name' => $lt['name']],
+                ['plant_id' => null, 'name' => $lt['name']],
                 [
                     'is_paid'           => $lt['is_paid'],
                     'max_days_per_year' => $lt['max_days_per_year'],
@@ -104,7 +107,7 @@ class HrmsMasterSeeder extends Seeder
         }
     }
 
-    private function seedShifts(Plant $plant): void
+    private function seedShifts(): void
     {
         $shifts = [
             ['shift_name' => 'General Shift', 'start_time' => '09:00', 'end_time' => '18:00', 'grace_time' => 10, 'working_hours' => 9, 'is_night_shift' => false],
@@ -115,7 +118,7 @@ class HrmsMasterSeeder extends Seeder
 
         foreach ($shifts as $shift) {
             Shift::updateOrCreate(
-                ['plant_id' => $plant->id, 'shift_name' => $shift['shift_name']],
+                ['plant_id' => null, 'shift_name' => $shift['shift_name']],
                 [
                     'start_time'     => $shift['start_time'],
                     'end_time'       => $shift['end_time'],

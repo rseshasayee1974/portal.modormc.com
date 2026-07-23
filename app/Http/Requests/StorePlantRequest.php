@@ -25,7 +25,7 @@ class StorePlantRequest extends FormRequest
             'entity_id' => ['required', 'exists:mm_entities,id'],
             'code' => ['required', 'string', 'max:255', 'unique:mm_plants,code'],
             'name' => ['required', 'string', 'max:255'],
-            'mixer_capacity' => ['nullable', 'numeric', 'min:0'],
+            'mixer_capacity' => ['nullable', 'numeric'],
             'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             'seal_sign' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             'upi_qr' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],

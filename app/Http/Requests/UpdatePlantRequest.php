@@ -25,7 +25,7 @@ class UpdatePlantRequest extends FormRequest
             'entity_id' => ['required', 'exists:mm_entities,id'],
             'code' => ['required', 'string', 'max:255', \Illuminate\Validation\Rule::unique('mm_plants')->ignore($this->route('plant'))],
             'name' => ['required', 'string', 'max:255'],
-            'mixer_capacity' => ['nullable', 'numeric', 'min:0'],
+            'mixer_capacity' => ['nullable', 'numeric'],
             'logo' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],
             'logo_path' => ['nullable', 'string'],
             'seal_sign' => ['nullable', 'image', 'mimes:jpeg,png,jpg', 'max:2048'],

@@ -11,7 +11,7 @@ return new class extends Migration
         if (!Schema::hasTable('mm_leave_types')) {
             Schema::create('mm_leave_types', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('plant_id')->constrained('mm_plants')->onDelete('cascade');
+                $table->foreignId('plant_id')->nullable()->constrained('mm_plants')->nullOnDelete();
                 $table->string('name'); // CL, SL, PL, Maternity, etc.
                 $table->boolean('is_paid')->default(true);
                 $table->integer('max_days_per_year')->nullable();

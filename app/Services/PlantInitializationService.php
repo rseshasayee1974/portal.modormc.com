@@ -965,7 +965,7 @@ class PlantInitializationService
         }
     }
 
-    private function seedLeaveTypes(Plant $plant)
+    private function seedLeaveTypes(Plant $plant = null)
     {
         $leaveTypes = [
             ['name' => 'Casual Leave',      'is_paid' => true,  'max_days_per_year' => 12, 'carry_forward' => false],
@@ -978,7 +978,7 @@ class PlantInitializationService
         foreach ($leaveTypes as $lt) {
             $this->updateOrCreateWithTrashed(
                 LeaveType::class,
-                ['plant_id' => $plant->id, 'name' => $lt['name']],
+                ['plant_id' => null, 'name' => $lt['name']],
                 [
                     'is_paid'           => $lt['is_paid'],
                     'max_days_per_year' => $lt['max_days_per_year'],
@@ -989,7 +989,7 @@ class PlantInitializationService
         }
     }
 
-    private function seedShifts(Plant $plant)
+    private function seedShifts(Plant $plant = null)
     {
         $shifts = [
             ['shift_name' => 'General Shift', 'start_time' => '09:00', 'end_time' => '18:00', 'grace_time' => 10, 'working_hours' => 9,  'is_night_shift' => false],
@@ -1001,7 +1001,7 @@ class PlantInitializationService
         foreach ($shifts as $shift) {
             $this->updateOrCreateWithTrashed(
                 Shift::class,
-                ['plant_id' => $plant->id, 'shift_name' => $shift['shift_name']],
+                ['plant_id' => null, 'shift_name' => $shift['shift_name']],
                 [
                     'start_time'     => $shift['start_time'],
                     'end_time'       => $shift['end_time'],
