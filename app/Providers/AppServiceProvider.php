@@ -14,8 +14,6 @@ use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rules\Password;
-use App\Listeners\ModelAuditSubscriber;
-use App\Services\Audit\AuditLogger;
 use App\Services\PlantContextService;
 
 class AppServiceProvider extends ServiceProvider
@@ -27,7 +25,6 @@ class AppServiceProvider extends ServiceProvider
     {
         // Bind our custom LoginResponse so Fortify uses it after successful login
         $this->app->singleton(LoginResponseContract::class, LoginResponse::class);
-        $this->app->singleton(AuditLogger::class);
 
         // Centralised plant/entity context — resolves session → user default → null.
         // Singleton per request ensures one session read + re-hydration per lifecycle.
@@ -116,12 +113,6 @@ class AppServiceProvider extends ServiceProvider
                 'ip_address'     => $ip,
                 'login_location' => $location,
             ])->saveQuietly();
-
-            app(AuditLogger::class)->logAuthEvent('LOGIN', $event->user, [
-                'guard' => $event->guard,
-                'remember' => $event->remember,
-                'login_location' => $location,
-            ]);
         });
 
         // Set login_status = false and clear ip_address when user logs out
@@ -130,14 +121,8 @@ class AppServiceProvider extends ServiceProvider
                 $event->user->forceFill([
                     'login_status' => false,
                 ])->saveQuietly();
-
-                app(AuditLogger::class)->logAuthEvent('LOGOUT', $event->user, [
-                    'guard' => $event->guard,
-                ]);
             }
         });
-
-        Event::subscribe(ModelAuditSubscriber::class);      
 
         // Register custom ZeptoMail HTTP API mail driver to bypass port blocks on production
         \Illuminate\Support\Facades\Mail::extend('zeptomail_api', function (array $config = []) {

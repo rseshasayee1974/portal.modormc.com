@@ -21,14 +21,12 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\TitleCaseInputs::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
-            \App\Http\Middleware\AttachAuditContext::class,
             \App\Http\Middleware\SetEntityContext::class,
             \App\Http\Middleware\RequireOtpVerification::class,
         ]);
 
         $middleware->api(append: [
             \App\Http\Middleware\TitleCaseInputs::class,
-            \App\Http\Middleware\AttachAuditContext::class,
         ]);
 
         $middleware->alias([
