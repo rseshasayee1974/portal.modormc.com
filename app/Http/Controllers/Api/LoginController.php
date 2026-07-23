@@ -11,13 +11,8 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use OpenApi\Attributes as OA;
-use App\Services\Audit\AuditLogger;
-
 class LoginController extends Controller
 {
-    public function __construct(private readonly AuditLogger $auditLogger)
-    {
-    }
 
     #[OA\Post(
         path: "/auth/login",

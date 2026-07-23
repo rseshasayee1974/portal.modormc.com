@@ -34,7 +34,7 @@
         }
     </script>
 
-    @if(config('app.debug'))
+    @if(config('app.debug') && class_exists(\TraceReplay\View\Components\TraceBar::class))
         <x-trace-replay-trace-bar />
     @endif
 </body>
