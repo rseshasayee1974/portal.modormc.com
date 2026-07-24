@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\AuditFields;
 use App\Traits\PlantScoping;
 use App\Traits\PostsToAccounting;
 use App\Traits\TracksModelChanges;
@@ -17,7 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 class PurchaseOrder extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping, PostsToAccounting, TracksModelChanges;
+        use HasFactory, SoftDeletes, PlantScoping, PostsToAccounting, TracksModelChanges;
 
     protected $table = 'mm_purchase_orders';
 

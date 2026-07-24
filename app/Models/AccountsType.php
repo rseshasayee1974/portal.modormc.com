@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\ProtectsSystemItems;
 
+use App\Traits\TracksModelChanges;
 class AccountsType extends Model
 {
-    use HasFactory, SoftDeletes, ProtectsSystemItems;
+    use HasFactory, SoftDeletes, ProtectsSystemItems, TracksModelChanges;
     protected $table = 'mm_account_types';
     public $timestamps = false;
 

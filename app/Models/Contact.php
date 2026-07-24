@@ -6,12 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-
-use App\Traits\AuditFields;
-
 class Contact extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+        use HasFactory, SoftDeletes;
     protected $table = 'mm_contacts';
     protected $fillable = [
         'plant_id',

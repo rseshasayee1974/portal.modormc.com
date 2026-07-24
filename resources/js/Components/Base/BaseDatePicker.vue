@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import DatePicker from 'primevue/datepicker';
 import BaseField from './BaseField.vue';
 
@@ -47,20 +47,28 @@ const emit = defineEmits<{
     (e: 'change', ev: any): void;
 }>();
 
+const baseFieldRef = ref<any>(null);
+
 onMounted(() => {
-    if (props.modelValue === null || props.modelValue === undefined || props.modelValue === '') {
-        emit('update:modelValue', new Date()); // includes current time
+    const el = baseFieldRef.value?.$el;
+    const form = el?.closest('form');
+    if (form) {
+        form.addEventListener('submit', () => {
+            if (props.modelValue === null || props.modelValue === undefined || props.modelValue === '') {
+                emit('update:modelValue', new Date()); // fallback to current time on submit if empty
+            }
+        }, { capture: true });
     }
 });
 
 const internalValue = computed({
     get() {
         const parseValue = (val: any): any => {
-            if (!val) return new Date(); // default to now
+            if (!val) return null;
             if (val instanceof Date) return val;
             if (typeof val === 'string') {
                 const parsed = new Date(val);
-                return isNaN(parsed.getTime()) ? new Date() : parsed;
+                return isNaN(parsed.getTime()) ? null : parsed;
             }
             if (Array.isArray(val)) return val.map(parseValue);
             return val;
@@ -75,6 +83,7 @@ const internalValue = computed({
 
 <template>
     <BaseField
+        ref="baseFieldRef"
         :label="label"
         :required="required"
         :error="error"

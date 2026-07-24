@@ -1,8 +1,6 @@
 <?php
 
 namespace App\Models;
-
-use App\Traits\AuditFields;
 use App\Traits\PlantScoping;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 class BatchSheetUpload extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
+        use HasFactory, SoftDeletes, PlantScoping;
 
     protected $table = 'mm_batch_sheet_uploads';
 

@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AddressRelation extends Model
 {
+    use SoftDeletes;
     protected $table = 'mm_address_relation';
 
     protected $fillable = [

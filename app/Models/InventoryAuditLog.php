@@ -34,6 +34,7 @@ class InventoryAuditLog extends Model
     ];
 
     const UPDATED_AT = null;
+    // const UPDATED_AT = null;
 
     protected $casts = [
         'created_at' => 'datetime',

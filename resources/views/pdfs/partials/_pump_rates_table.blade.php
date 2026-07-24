@@ -10,10 +10,12 @@
             </thead>
             <tbody>
                 @foreach ($item['pump_rates'] as $pr)
+                    @if(!empty($pr['pump_type']) && (float)($pr['pump_rate'] ?? 0) > 0)
                     <tr style="border-bottom: 1px solid #f1f5f9; color: #334155;">
                         <td style="padding: 3px 6px; text-align: left;">{{ $pr['pump_type'] }}</td>
-                        <td style="padding: 3px 6px; text-align: right; font-weight: bold; color: #1e293b;">₹ {{ number_format($pr['pump_rate'], 2) }} / m³</td>
+                        <td style="padding: 3px 6px; text-align: right; font-weight: bold; color: #1e293b;">₹ {{ number_format($pr['pump_rate'], 2) }}</td>
                     </tr>
+                    @endif
                 @endforeach
             </tbody>
         </table>

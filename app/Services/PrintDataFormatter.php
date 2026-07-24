@@ -56,44 +56,193 @@ class PrintDataFormatter
 
     public static function dummy(string $category = 'invoice'): array
     {
+        $plantId = session('active_plant_id') ?: 1;
+
+        // 1. Try to load real latest record from DB based on module category
+        try {
+            switch ($category) {
+                case 'invoices':
+                case 'gst_invoices':
+                case 'billings':
+                case 'purchase_bills':
+                    $type = ($category === 'purchase_bills') ? 'bill' : 'invoice';
+                    $invoice = \App\Models\Invoice::where('plant_id', $plantId)
+                        ->where('invoice_type', $type)
+                        ->latest()
+                        ->first()
+                        ?? \App\Models\Invoice::latest()->first();
+                    if ($invoice) {
+                        return self::fromInvoice($invoice);
+                    }
+                    break;
+
+                case 'purchase_orders':
+                    $po = \App\Models\PurchaseOrder::where('plant_id', $plantId)->latest()->first()
+                        ?? \App\Models\PurchaseOrder::latest()->first();
+                    if ($po) {
+                        return self::fromPurchaseOrder($po);
+                    }
+                    break;
+
+                case 'quotations':
+                    $quotation = \App\Models\Quotation::where('plant_id', $plantId)->latest()->first()
+                        ?? \App\Models\Quotation::latest()->first();
+                    if ($quotation) {
+                        return self::fromQuotation($quotation);
+                    }
+                    break;
+
+                case 'customer_pos':
+                    $cpo = \App\Models\CustomerPO::where('plant_id', $plantId)->latest()->first()
+                        ?? \App\Models\CustomerPO::latest()->first();
+                    if ($cpo) {
+                        return self::fromCustomerPO($cpo);
+                    }
+                    break;
+
+                case 'sales_orders':
+                    $so = \App\Models\SalesOrder::where('plant_id', $plantId)->latest()->first()
+                        ?? \App\Models\SalesOrder::latest()->first();
+                    if ($so) {
+                        if (empty($so->pump_rate) || (float)$so->pump_rate <= 0) {
+                            $so->pump_rate = 1500.00;
+                        }
+                        return self::fromSalesOrder($so);
+                    }
+                    break;
+
+                case 'delivery_challans':
+                    $batch = \App\Models\Batch::whereHas('workOrder', fn ($q) => $q->where('plant_id', $plantId))->latest()->first()
+                        ?? \App\Models\Batch::latest()->first();
+                    if ($batch) {
+                        return self::fromDeliveryChallan($batch);
+                    }
+                    break;
+            }
+        } catch (\Throwable $e) {
+            // Fallback to model-based sample query if direct model load fails
+        }
+
+        // 2. If no record for that category exists, build dynamic payload from real DB models (Plant, Partner, Product)
         $data = self::base();
-        $data['doc_title'] = strtoupper($category) . ' DOCUMENT';
-        $data['doc_no']    = 'REF-2026-001';
+        $data['settings']  = self::getCustomSettings($plantId, $category);
+        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? (strtoupper($category) . ' DOCUMENT');
+        $data['doc_no']    = 'REF-' . now()->format('Y') . '-001';
         $data['doc_date']  = now()->format('d/m/Y');
         $data['due_date']  = now()->addDays(15)->format('d/m/Y');
         $data['delivery_date'] = now()->addDays(5)->format('d/m/Y');
-        $data['company'] = [
-            'name'    => 'ModoMines Tech Solutions', 'address' => '123 Cloud Avenue, Tech Park', 'city'    => 'Chennai',
-            'state'   => 'Tamil Nadu', 'pin'     => '600001', 'gstin'   => '33AAAAA0000A1Z5', 'phone'   => '+91 98765 43210', 'email'   => 'support@modomines.com',
-        ];
-        $data['bill_to'] = [
-            'name'    => 'Alpha Prime Industries', 'address' => '45 Industrial Estate, Phase II', 'city'    => 'Coimbatore',
-            'state'   => 'Tamil Nadu', 'pin'     => '641001', 'gstin'   => '33BBBBB1111B1Z2', 'phone'   => '+91 422 2345678',
-        ];
-        $data['ship_to'] = [
-            'name'    => 'Alpha Prime - Site A', 'address' => 'Plot 88, Near New Bypass', 'city'    => 'Salem', 'state'   => 'Tamil Nadu', 'pin'     => '636001',
-        ];
-        $data['items'] = [
-            [
-                'no' => 1, 'name' => 'High Grade Concrete Mix (M40)', 'description'  => 'Standard grade for heavy structural works',
-                'hsn' => '382450', 'qty' => 45.00, 'received_qty' => 45.00, 'unit' => 'm³', 'unit_price' => 4500.00,
-                'tax_name' => 'GST 12%', 'tax_rate' => 12, 'tax_group' => 'GST', 'tax_amount' => 24300.00, 'total' => 226800.00,
-            ],
-            [
-                'no' => 2, 'name' => 'Reinforcement Steel (12mm)', 'description'  => 'TMT Bars - FE500D Grade',
-                'hsn' => '721420', 'qty' => 2.50, 'received_qty' => 0.00, 'unit' => 'MT', 'unit_price' => 62000.00,
-                'tax_name' => 'GST 18%', 'tax_rate' => 18, 'tax_group' => 'GST', 'tax_amount' => 27900.00, 'total' => 182900.00,
-            ]
-        ];
-        $data['totals'] = [
-            'sub_total'   => 357500.00, 'discount'    => 5000.00,
-            'tax_lines'   => [['label' => 'CGST', 'amount' => 26100.00], ['label' => 'SGST', 'amount' => 26100.00]],
-            'shipping'    => 1200.00, 'adjustment'  => 0, 'round_off'   => 0, 'grand_total' => 405900.00,
-        ];
-        $data['meta']['total_words']    = 'Rupees Four Lakh Five Thousand Nine Hundred Only';
-        $data['meta']['project_name']   = 'Grand Mall Construction - Phase 1';
+
+        // Real Plant company details
+        $plant = \App\Models\Plant::with(['entity', 'addresses'])->find($plantId)
+            ?? \App\Models\Plant::with(['entity', 'addresses'])->first();
+        if ($plant) {
+            $data['company'] = self::formatCompany($plant);
+        } else {
+            $data['company'] = [
+                'name'    => 'ModoMines Tech Solutions', 'address' => '123 Cloud Avenue, Tech Park', 'city'    => 'Chennai',
+                'state'   => 'Tamil Nadu', 'pin'     => '600001', 'gstin'   => '33AAAAA0000A1Z5', 'phone'   => '+91 98765 43210', 'email'   => 'support@modomines.com',
+            ];
+        }
+
+        // Real Patron details from DB
+        $partner = \App\Models\Patron::where('plant_id', $plantId)->first()
+            ?? \App\Models\Patron::first();
+        if ($partner) {
+            $data['bill_to'] = self::formatPartner($partner);
+            $data['ship_to'] = [
+                'name'    => $data['bill_to']['name'] . ' - Site A',
+                'address' => $data['bill_to']['address'],
+                'city'    => $data['bill_to']['city'],
+                'state'   => $data['bill_to']['state'],
+                'pin'     => $data['bill_to']['pin'],
+            ];
+        } else {
+            $data['bill_to'] = [
+                'name'    => 'Alpha Prime Industries', 'address' => '45 Industrial Estate, Phase II', 'city'    => 'Coimbatore',
+                'state'   => 'Tamil Nadu', 'pin'     => '641001', 'gstin'   => '33BBBBB1111B1Z2', 'phone'   => '+91 422 2345678',
+            ];
+            $data['ship_to'] = [
+                'name'    => 'Alpha Prime - Site A', 'address' => 'Plot 88, Near New Bypass', 'city'    => 'Salem', 'state'   => 'Tamil Nadu', 'pin'     => '636001',
+            ];
+        }
+
+        // Real Products from DB if available
+        $products = \App\Models\Product::with(['uom', 'tax'])->where('status', 'active')->limit(2)->get();
+        if ($products->count() > 0) {
+            $items = [];
+            $subtotal = 0;
+            $totalTax = 0;
+
+            foreach ($products as $idx => $prod) {
+                $qty = ($idx === 0) ? 25.0 : 2.0;
+                $price = (float)($prod->sale_price ?? $prod->cost_price ?? 4500.00);
+                if ($price <= 0) $price = 4500.00;
+                
+                $lineTotal = $qty * $price;
+                $taxRate = $prod->tax ? (float)$prod->tax->tax_rate : 12.0;
+                $taxAmount = ($lineTotal * $taxRate) / 100;
+                
+                $subtotal += $lineTotal;
+                $totalTax += $taxAmount;
+
+                $items[] = [
+                    'no' => $idx + 1,
+                    'name' => $prod->title ?? $prod->name ?? 'Product ' . ($idx + 1),
+                    'description' => $prod->description ?? $prod->title ?? '',
+                    'hsn' => $prod->hsn_code ?? '382450',
+                    'qty' => $qty,
+                    'received_qty' => $qty,
+                    'unit' => $prod->uom->unit_code ?? 'm³',
+                    'unit_price' => $price,
+                    'tax_name' => 'GST ' . (int)$taxRate . '%',
+                    'tax_rate' => $taxRate,
+                    'tax_group' => 'GST',
+                    'tax_amount' => $taxAmount,
+                    'total' => $lineTotal + $taxAmount,
+                ];
+            }
+
+            $data['items'] = $items;
+            $data['totals'] = [
+                'sub_total'   => $subtotal,
+                'discount'    => 0,
+                'tax_lines'   => [
+                    ['label' => 'CGST', 'amount' => $totalTax / 2],
+                    ['label' => 'SGST', 'amount' => $totalTax / 2],
+                ],
+                'shipping'    => 0,
+                'adjustment'  => 0,
+                'round_off'   => 0,
+                'grand_total' => $subtotal + $totalTax,
+            ];
+            $data['meta']['total_words'] = self::numberToWords($subtotal + $totalTax, 'INR');
+        } else {
+            $data['items'] = [
+                [
+                    'no' => 1, 'name' => 'High Grade Concrete Mix (M40)', 'description'  => 'Standard grade for heavy structural works',
+                    'hsn' => '382450', 'qty' => 45.00, 'received_qty' => 45.00, 'unit' => 'm³', 'unit_price' => 4500.00,
+                    'tax_name' => 'GST 12%', 'tax_rate' => 12, 'tax_group' => 'GST', 'tax_amount' => 24300.00, 'total' => 226800.00,
+                ],
+                [
+                    'no' => 2, 'name' => 'Reinforcement Steel (12mm)', 'description'  => 'TMT Bars - FE500D Grade',
+                    'hsn' => '721420', 'qty' => 2.50, 'received_qty' => 0.00, 'unit' => 'MT', 'unit_price' => 62000.00,
+                    'tax_name' => 'GST 18%', 'tax_rate' => 18, 'tax_group' => 'GST', 'tax_amount' => 27900.00, 'total' => 182900.00,
+                ]
+            ];
+            $data['totals'] = [
+                'sub_total'   => 357500.00, 'discount'    => 5000.00,
+                'tax_lines'   => [['label' => 'CGST', 'amount' => 26100.00], ['label' => 'SGST', 'amount' => 26100.00]],
+                'shipping'    => 1200.00, 'adjustment'  => 0, 'round_off'   => 0, 'grand_total' => 405900.00,
+            ];
+            $data['meta']['total_words'] = 'Rupees Four Lakh Five Thousand Nine Hundred Only';
+        }
+
+        $data['meta']['project_name']   = $plant?->name ?? 'Grand Mall Construction - Phase 1';
         $data['meta']['po_number']     = 'PO-8877';
-        $data['meta']['terms_text']    = "1. Payment within 15 days of delivery.\n2. Goods once sold will not be taken back.\n3. Subject to Chennai Jurisdiction.";
+        $data['meta']['terms_text']    = self::resolveTermsCondition($data['settings'], 'Invoice', $plantId, "1. Payment within 15 days of delivery.\n2. Goods once sold will not be taken back.");
+        $data['meta']['sales_executive_name']   = 'Sales Executive';
+        $data['meta']['sales_executive_mobile'] = $plant?->phone ?? '';
+
         return $data;
     }
 
@@ -291,7 +440,8 @@ class PrintDataFormatter
     {
         $order->loadMissing(['items.product', 'items.uom', 'items.tax', 'vendor', 'plant', 'plant.entity', 'plant.addresses', 'currency']);
         $data = self::base();
-        $data['settings'] = self::getCustomSettings($order->plant_id, 'purchase_orders');
+        $templateKey = self::resolveTemplateKey('purchase_orders', $order->plant_id);
+        $data['settings'] = self::getCustomSettings($order->plant_id, 'purchase_orders', $templateKey);
         $data['doc_title']     = $data['settings']['pdf']['labels']['invoice_title'] ?? 'PURCHASE ORDER';
         $data['doc_no']        = $order->ref_no;
         $data['doc_date']      = $order->date_order?->format('d/m/Y') ?? 'N/A';
@@ -541,7 +691,7 @@ class PrintDataFormatter
 
         $data = self::base();
         $data['settings'] = self::getCustomSettings($model->plant_id, $module);
-        if ($module === 'customer_pos' && empty($data['settings']['pdf'])) {
+        if ($module === 'customer_pos' && empty(\App\Models\CustomSetting::getForModule($model->plant_id, 'customer_pos'))) {
             $data['settings'] = self::getCustomSettings($model->plant_id, 'quotations');
         }
 
@@ -599,16 +749,22 @@ class PrintDataFormatter
             $taxModel = $item->tax;
             $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
 
+            // Calculate lump sum pump rate for this item (if configured per mix design)
+            $linePumpTotal = 0.0;
+            if ($item->relationLoaded('pumpRates') && $item->pumpRates->isNotEmpty()) {
+                $linePumpTotal = (float) $item->pumpRates->sum('pump_rate');
+            }
+
             $lineTotal = 0.0;
             $lineTax = 0.0;
             $lineUntaxed = 0.0;
 
             if ($isTaxInclusive) {
-                $lineTotal = $rate * $qty;
+                $lineTotal = ($rate * $qty) + $linePumpTotal;
                 $lineTax = $lineTotal - ($lineTotal / (1 + $taxRate / 100));
                 $lineUntaxed = $lineTotal - $lineTax;
             } else {
-                $lineUntaxed = $rate * $qty;
+                $lineUntaxed = ($rate * $qty) + $linePumpTotal;
                 $lineTax = ($lineUntaxed * $taxRate) / 100;
                 $lineTotal = $lineUntaxed + $lineTax;
             }
@@ -624,7 +780,7 @@ class PrintDataFormatter
 
             return [
                 'no' => $idx + 1,
-                'name' => $item->mixDesign->design_name ?? 'N/A',
+                'name' => $item->mixDesign->design_name ?? $item->mixDesign->title ?? 'N/A',
                 'description' => $itemDescription,
                 'hsn' => $item->mixDesign->hsn_code ?? '-',
                 'qty' => $qty,
@@ -636,10 +792,19 @@ class PrintDataFormatter
                 'tax_group' => $taxDetails['group'],
                 'tax_amount' => (float)$lineTax,
                 'total' => (float)$lineTotal,
-                'pump_rates' => $item->pumpRates->map(fn($pr) => [
-                    'pump_type' => $pr->pump?->registration ?? $pr->pump_type,
-                    'pump_rate' => (float)$pr->pump_rate,
-                ])->toArray(),
+                'pump_rates' => $item->pumpRates->map(function ($pr) {
+                    $rawType = $pr->pump?->registration ?? $pr->pump_type ?? 'Pump';
+                    $formattedType = match(strtolower($rawType)) {
+                        'line_pump' => 'Line Pump',
+                        'boom_pump' => 'Boom Pump',
+                        'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
+                        default => ucwords(str_replace('_', ' ', $rawType))
+                    };
+                    return [
+                        'pump_type' => $formattedType,
+                        'pump_rate' => (float)$pr->pump_rate,
+                    ];
+                })->toArray(),
             ];
         })->toArray();
 
@@ -779,10 +944,6 @@ class PrintDataFormatter
                     'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => (float)$item->tax_amount, 'total' => (float)($item->amount_total ?? ($item->quantity * $item->rate)),
                 ];
             })->toArray();
-
-            $computedTaxLines = self::compileTaxLines($quotationItems, $isIntra, 'tax_amount', fn($i) => $i->quantity * $i->rate);
-            $grandTotal  = $quotationItems->sum('amount_total'); $untaxedAmt  = $quotationItems->sum('untaxed_amount') ?: $quotationItems->sum(fn($i) => $i->quantity * $i->rate);
-            $data['totals'] = ['sub_total' => (float)$untaxedAmt, 'discount' => 0, 'tax_lines' => $computedTaxLines, 'shipping' => 0, 'adjustment' => 0, 'round_off' => 0, 'grand_total' => (float)$grandTotal];
         } else {
             $mixDesign = $salesOrder->mixDesign; $qty  = (float)($salesOrder->total_qty ?? 0);
             $poItem = null; if ($salesOrder->customerPO) $poItem = $salesOrder->customerPO->items->where('mix_design_id', $salesOrder->mix_design_id)->first();
@@ -808,15 +969,84 @@ class PrintDataFormatter
                 'unit' => $mixDesign->unit?->unit_code ?? 'm³', 'unit_price' => $unitPrice, 'tax_name' => $taxName ?: '-',
                 'tax_rate' => $taxRate, 'tax_group' => $taxGroup, 'tax_amount' => $priceTax, 'total' => $total,
             ]] : [];
-            $taxLines = [];
-            if ($priceTax > 0 || $taxModel) {
-                $g = strtoupper(trim($taxGroup ?: ($isIntra ? 'GST' : 'IGST')));
-                if ($g === 'GST') { $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($priceTax / 2); $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($priceTax / 2); }
-                else { $taxLines[$g] = ($taxLines[$g] ?? 0) + $priceTax; }
-            }
-            $computedTaxLines = collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray();
-            $data['totals'] = ['sub_total' => (float)$untaxedAmt, 'discount' => 0, 'tax_lines' => $computedTaxLines, 'shipping' => 0, 'adjustment' => 0, 'round_off' => 0, 'grand_total' => (float)$total];
         }
+
+        // Add pump rate flat charge if configured & enabled
+        $pumpRate = (float)($salesOrder->pump_rate ?? 0);
+        $showPumpRate = (!isset($data['settings']['pdf']['pump_rates']) || $data['settings']['pdf']['pump_rates']) && $pumpRate > 0;
+
+        $pumpRateUntaxed = 0.0;
+        $pumpRateTax = 0.0;
+        $pumpRateTotal = 0.0;
+        $taxGroup = '';
+
+        if ($showPumpRate) {
+            $firstItem = collect($data['items'])->first();
+            $taxRate = 0.0;
+            if ($firstItem) {
+                $taxRate = (float)($firstItem['tax_rate'] ?? 0);
+                $taxGroup = $firstItem['tax_group'] ?? '';
+            }
+
+            if ($isTaxInclusive) {
+                $pumpRateTotal = $pumpRate;
+                $pumpRateTax = $pumpRateTotal - ($pumpRateTotal / (1 + $taxRate / 100));
+                $pumpRateUntaxed = $pumpRateTotal - $pumpRateTax;
+            } else {
+                $pumpRateUntaxed = $pumpRate;
+                $pumpRateTax = $pumpRateUntaxed * ($taxRate / 100);
+                $pumpRateTotal = $pumpRateUntaxed + $pumpRateTax;
+            }
+        }
+
+        // Compile/Recalculate totals
+        $subTotalVal = 0.0;
+        $grandTotalVal = 0.0;
+        $taxLines = [];
+        
+        foreach ($data['items'] as $item) {
+            if ($isTaxInclusive) {
+                $subTotalVal += ((float)$item['total'] - (float)$item['tax_amount']);
+            } else {
+                $subTotalVal += ((float)$item['qty'] * (float)$item['unit_price']);
+            }
+            $grandTotalVal += (float)$item['total'];
+
+            $taxAmt = (float)$item['tax_amount'];
+            if ($taxAmt > 0) {
+                $g = strtoupper(trim($item['tax_group'] ?: ($isIntra ? 'GST' : 'IGST')));
+                if ($g === 'GST') {
+                    $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($taxAmt / 2);
+                    $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($taxAmt / 2);
+                } else {
+                    $taxLines[$g] = ($taxLines[$g] ?? 0) + $taxAmt;
+                }
+            }
+        }
+
+        // Add the pump rate tax to the tax lines
+        if ($showPumpRate && $pumpRateTax > 0) {
+            $g = strtoupper(trim($taxGroup ?: ($isIntra ? 'GST' : 'IGST')));
+            if ($g === 'GST') {
+                $taxLines['CGST'] = ($taxLines['CGST'] ?? 0) + ($pumpRateTax / 2);
+                $taxLines['SGST'] = ($taxLines['SGST'] ?? 0) + ($pumpRateTax / 2);
+            } else {
+                $taxLines[$g] = ($taxLines[$g] ?? 0) + $pumpRateTax;
+            }
+        }
+
+        $computedTaxLines = collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray();
+        $data['totals'] = [
+            'sub_total'   => (float)$subTotalVal,
+            'pump_rate'   => (float)$pumpRateUntaxed,
+            'discount'    => 0,
+            'tax_lines'   => $computedTaxLines,
+            'shipping'    => 0,
+            'adjustment'  => 0,
+            'round_off'   => 0,
+            'grand_total' => (float)($grandTotalVal + $pumpRateTotal)
+        ];
+
         $data['meta'] = [
             'currency_code' => 'INR', 'currency_symbol' => '₹', 'notes' => $salesOrder->terms_conditions ?? '',
             'terms_text' => self::resolveTermsCondition($data['settings'], 'Sales Order', $salesOrder->plant_id, ''),
@@ -980,6 +1210,9 @@ class PrintDataFormatter
     public static function resolveTemplateKey(string $moduleKey, int $plantId): string
     {
         $setting = PrintTemplateSetting::where('module_key', $moduleKey)->where('plant_id', $plantId)->with('template')->first();
+        if (!$setting && $moduleKey === 'customer_pos') {
+            $setting = PrintTemplateSetting::where('module_key', 'quotations')->where('plant_id', $plantId)->with('template')->first();
+        }
         return $setting?->template?->key ?? 'standard';
     }
 
@@ -997,11 +1230,25 @@ class PrintDataFormatter
         return "pdfs.templates.{$key}";
     }
 
-    public static function getCustomSettings(int $plantId, string $module): array
+    public static function getCustomSettings(int $plantId, string $module, ?string $templateKey = null): array
     {
-        $stored = \App\Models\CustomSetting::getForModule($plantId, $module);
         $defaults = self::getDefaultSettings($module);
-        return array_replace_recursive($defaults, $stored);
+        $baseStored = \App\Models\CustomSetting::getForModule($plantId, $module);
+        $merged = array_replace_recursive($defaults, $baseStored);
+
+        if (!$templateKey) {
+            $templateKey = self::resolveTemplateKey($module, $plantId);
+        }
+
+        if ($templateKey) {
+            $designSpecificKey = $module . '_' . strtolower($templateKey);
+            $designStored = \App\Models\CustomSetting::getForModule($plantId, $designSpecificKey);
+            if (!empty($designStored)) {
+                $merged = array_replace_recursive($merged, $designStored);
+            }
+        }
+
+        return $merged;
     }
 
     public static function getDefaultSettings(string $module): array

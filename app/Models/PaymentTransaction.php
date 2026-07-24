@@ -5,12 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Traits\AuditFields;
 use App\Traits\PlantScoping;
 
+use App\Traits\TracksModelChanges;
 class PaymentTransaction extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
+        use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_payment_transactions';
 

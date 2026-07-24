@@ -6,14 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\AuditFields;
 use App\Traits\ProtectsSystemItems;
 use App\Traits\PlantScoping;
 use Illuminate\Support\Arr;
 
 class Patron extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems, PlantScoping;
+        use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping;
     
     protected $table = 'mm_patrons';
     
@@ -160,6 +159,11 @@ class Patron extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function modifier()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     // modifier relation provided by AuditFields trait linked to updated_by

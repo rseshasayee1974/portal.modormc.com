@@ -1,8 +1,6 @@
 <?php
 
 namespace App\Models;
-
-use App\Traits\AuditFields;
 use App\Traits\PlantScoping;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,7 +10,7 @@ use Illuminate\Support\Str;
 
 class SalesOrder extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
+        use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
     protected static function boot()
     {
@@ -59,12 +57,16 @@ class SalesOrder extends Model
         'site_id',
         'mix_design_id',
         'total_qty',
+        'rate',
+        'tax_id',
+        'is_tax_inclusive',
         'produced_qty',
         'scheduled_start',
         'scheduled_end',
         'status',
         'customer_po_id',
         'concrete_pump',
+        'pump_rate',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -75,6 +77,9 @@ class SalesOrder extends Model
         'scheduled_end' => 'datetime',
         'total_qty' => 'decimal:3',
         'produced_qty' => 'decimal:3',
+        'rate' => 'decimal:3',
+        'tax_id' => 'integer',
+        'is_tax_inclusive' => 'boolean',
         'sales_executive_id' => 'integer',
     ];
 
@@ -123,6 +128,11 @@ class SalesOrder extends Model
         return $this->belongsTo(CustomerPO::class, 'customer_po_id');
     }
 
+    public function tax()
+    {
+        return $this->belongsTo(Tax::class, 'tax_id');
+    }
+
     public static function statusOptions(): array
     {
         return [
@@ -141,8 +151,6 @@ class SalesOrder extends Model
 
     protected $appends = [
         'full_number',
-        'rate',
-        'tax_id',
     ];
 
     public function getFullNumberAttribute()
@@ -150,8 +158,14 @@ class SalesOrder extends Model
         return sprintf('%s%04d', $this->prefix, (int)$this->order_no);
     }
 
-    public function getRateAttribute()
+    public function getRateAttribute($value)
     {
+        // If a rate is stored directly on this record, use it
+        if ($value !== null && (float)$value > 0) {
+            return (float)$value;
+        }
+
+        // Fall back to CustomerPO-derived rate
         if ($this->customerPO) {
             $item = $this->customerPO->items()
                 ->where('mix_design_id', $this->mix_design_id)
@@ -172,8 +186,14 @@ class SalesOrder extends Model
         return 0.0;
     }
 
-    public function getTaxIdAttribute()
+    public function getTaxIdAttribute($value)
     {
+        // If a tax_id is stored directly on this record, use it
+        if ($value !== null && (int)$value > 0) {
+            return (int)$value;
+        }
+
+        // Fall back to CustomerPO-derived tax_id
         if ($this->customerPO) {
             $item = $this->customerPO->items()
                 ->where('mix_design_id', $this->mix_design_id)

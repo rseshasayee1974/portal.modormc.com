@@ -1,65 +1,190 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
+import axios from 'axios';
 import { 
-    AdjustmentsHorizontalIcon,
     ArrowLeftIcon,
     CheckCircleIcon,
+    PrinterIcon,
+    ArrowDownTrayIcon,
+    SwatchIcon,
+    BuildingOfficeIcon,
+    TableCellsIcon,
+    BanknotesIcon,
     DocumentTextIcon,
-    EyeIcon,
-    PaintBrushIcon
+    SparklesIcon,
+    CheckIcon,
+    MagnifyingGlassPlusIcon,
+    MagnifyingGlassMinusIcon
 } from '@heroicons/vue/24/outline';
 import InputSwitch from 'primevue/inputswitch';
 import InputText from 'primevue/inputtext';
+import Textarea from 'primevue/textarea';
 
 const props = defineProps<{
     moduleKey: string;
     moduleName: string;
     initialSettings: any;
+    templateSettingsMap?: Record<string, any>;
+    assignedTemplateKey?: string;
+    availableTemplates?: string[];
+    dummyData?: any;
 }>();
 
-const form = useForm({
-    settings: props.initialSettings
+const selectedTemplateKey = ref(props.assignedTemplateKey || 'standard');
+
+const designs = [
+    { id: 'standard', name: 'Standard', description: 'Classic bordered grid layout with comprehensive details' },
+    { id: 'elite', name: 'Elite', description: 'Two-section modern corporate format with split metadata' },
+    { id: 'modern', name: 'Modern', description: 'Clean borderless layout with subtle slate accents' },
+    { id: 'compact', name: 'Compact', description: 'Ultra-dense minimal invoice format for quick receipts' },
+    { id: 'indian_gst', name: 'Indian GST', description: 'Full GST-compliant layout with HSN & tax column splits' },
+    { id: 'spreadsheet', name: 'Spreadsheet', description: 'Grid-based inventory disbursement & dispatch layout' },
+    { id: 'tallysheet', name: 'Tally Sheet', description: 'Ledger-style statement layout for debit/credit tracking' },
+];
+
+const availableDesignList = computed(() => {
+    if (props.availableTemplates && props.availableTemplates.length > 0) {
+        return designs.filter(d => props.availableTemplates?.includes(d.id));
+    }
+    return designs;
 });
 
-const activeSection = ref('header'); // header, body, totals, footer
+// Helper to ensure nested pdf settings exist
+const ensurePdfStructure = (rawSettings: any) => {
+    const s = JSON.parse(JSON.stringify(rawSettings || {}));
+    if (!s.pdf) s.pdf = {};
+    if (!s.pdf.labels) s.pdf.labels = {};
+    if (s.pdf.terms_text === undefined) {
+        s.pdf.terms_text = "1. Payment within 15 days of invoice date.\n2. Goods once sold will not be returned.\n3. All disputes subject to local jurisdiction.";
+    }
+    return s;
+};
+
+// Initialize per-template settings map
+const templateSettingsMap = ref<Record<string, any>>({});
+
+availableDesignList.value.forEach(d => {
+    const raw = props.templateSettingsMap?.[d.id] || props.initialSettings || {};
+    templateSettingsMap.value[d.id] = ensurePdfStructure(raw);
+});
+
+// Current active settings object for the selected template design
+const activeSettings = computed({
+    get: () => {
+        if (!templateSettingsMap.value[selectedTemplateKey.value]) {
+            templateSettingsMap.value[selectedTemplateKey.value] = ensurePdfStructure(props.initialSettings);
+        }
+        return templateSettingsMap.value[selectedTemplateKey.value];
+    },
+    set: (val) => {
+        templateSettingsMap.value[selectedTemplateKey.value] = val;
+    }
+});
+
+const form = useForm({
+    settings: activeSettings.value,
+    template_key: selectedTemplateKey.value,
+    template_settings_map: templateSettingsMap.value
+});
+
+const activeSection = ref('layout'); // layout, header, body, totals, footer
+const currentZoom = ref(85);
+const previewHtml = ref('');
+const isLoadingPreview = ref(false);
+
+let fetchTimer: any = null;
+
+const refreshPreview = () => {
+    if (fetchTimer) clearTimeout(fetchTimer);
+    fetchTimer = setTimeout(() => {
+        isLoadingPreview.value = true;
+        axios.post(route('templates.preview-render', props.moduleKey), {
+            settings: activeSettings.value,
+            template_key: selectedTemplateKey.value
+        }).then(res => {
+            previewHtml.value = res.data;
+        }).catch(err => {
+            console.error('Preview render error', err);
+        }).finally(() => {
+            isLoadingPreview.value = false;
+        });
+    }, 120);
+};
+
+watch([activeSettings, selectedTemplateKey], () => {
+    refreshPreview();
+}, { deep: true });
+
+onMounted(() => {
+    refreshPreview();
+});
 
 const sections = [
-    { id: 'header', name: 'Header & Company', icon: DocumentTextIcon },
-    { id: 'body', name: 'Items & Table', icon: AdjustmentsHorizontalIcon },
-    { id: 'totals', name: 'Pricing & Taxes', icon: PaintBrushIcon },
-    { id: 'footer', name: 'Footer & Legal', icon: PaintBrushIcon },
+    { id: 'layout', name: 'Layout', icon: SwatchIcon },
+    { id: 'header', name: 'Header', icon: BuildingOfficeIcon },
+    { id: 'body', name: 'Columns', icon: TableCellsIcon },
+    { id: 'totals', name: 'Totals', icon: BanknotesIcon },
+    { id: 'footer', name: 'Terms', icon: DocumentTextIcon },
 ];
 
 const submit = () => {
+    form.template_key = selectedTemplateKey.value;
+    form.settings = activeSettings.value;
+    form.template_settings_map = templateSettingsMap.value;
     form.post(route('templates.save-customization', props.moduleKey), {
         preserveScroll: true,
         onSuccess: () => {
-            // Success notification handled by session flash if configured
+            refreshPreview();
         }
     });
+};
+
+const printTest = () => {
+    const url = `/print/${props.moduleKey}/dummy/view?template=${selectedTemplateKey.value}`;
+    window.open(url, '_blank');
+};
+
+const downloadSample = () => {
+    const url = `/print/${props.moduleKey}/dummy/download?template=${selectedTemplateKey.value}`;
+    window.location.href = url;
 };
 </script>
 
 <template>
-    <AppLayout :title="'Customize ' + moduleName">
+    <AppLayout :title="'Live Customizer - ' + moduleName">
         <template #header>
-            <div class="flex items-center justify-between">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="flex items-center gap-4">
-                    <Link :href="route('templates.index')" class="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-                        <ArrowLeftIcon class="w-5 h-5 text-slate-500" />
+                    <Link :href="route('templates.index')" class="p-2 bg-white border border-slate-200 hover:bg-slate-50 rounded-xl transition-all shadow-sm">
+                        <ArrowLeftIcon class="w-5 h-5 text-slate-600" />
                     </Link>
                     <div>
-                        <h2 class="text-xl font-black text-slate-800 uppercase tracking-tight">Smart Customization</h2>
-                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Configuring {{ moduleName }} Output</p>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-lg font-black text-slate-800 uppercase tracking-tight">Template Builder</h2>
+                            <span class="px-2 py-0.5 text-[9px] font-black uppercase tracking-widest bg-indigo-100 text-indigo-700 rounded-full flex items-center gap-1">
+                                <SparklesIcon class="w-3 h-3" />
+                                Real-Time Engine
+                            </span>
+                        </div>
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Customizing {{ moduleName }} Output • Design: {{ selectedTemplateKey.toUpperCase() }}</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-3">
+
+                <div class="flex items-center gap-2.5">
+                    <button @click="printTest" type="button" class="action-btn">
+                        <PrinterIcon class="w-4 h-4 text-slate-600" />
+                        <span>Print Test</span>
+                    </button>
+                    <button @click="downloadSample" type="button" class="action-btn">
+                        <ArrowDownTrayIcon class="w-4 h-4 text-slate-600" />
+                        <span>Download PDF</span>
+                    </button>
                     <button 
                         @click="submit"
                         :disabled="form.processing"
-                        class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl shadow-lg shadow-indigo-100 transition-all active:scale-[0.98] group"
+                        class="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl shadow-md transition-all active:scale-[0.98]"
                     >
                         <span class="text-xs font-black uppercase tracking-widest">Save Configuration</span>
                         <CheckCircleIcon class="w-4 h-4" />
@@ -68,240 +193,328 @@ const submit = () => {
             </div>
         </template>
 
-        <div class="py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-12 gap-8">
+        <div class="py-6 max-w-[1650px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-12 gap-8 items-start">
                 
-                <!-- Sidebar Nav -->
-                <div class="col-span-12 lg:col-span-3 space-y-2">
-                    <button 
-                        v-for="section in sections" 
-                        :key="section.id"
-                        @click="activeSection = section.id"
-                        :class="['w-full flex items-center gap-3 px-4 py-4 rounded-2xl transition-all border', 
-                            activeSection === section.id 
-                            ? 'bg-white border-indigo-100 shadow-sm text-indigo-600' 
-                            : 'bg-transparent border-transparent text-slate-500 hover:bg-slate-50']"
-                    >
-                        <component :is="section.icon" class="w-5 h-5" />
-                        <span class="text-xs font-black uppercase tracking-widest">{{ section.name }}</span>
-                    </button>
+                <!-- ═══ LEFT PANEL: CONTROLS (5 cols) ═══ -->
+                <div class="col-span-12 lg:col-span-5 space-y-6">
+                    
+                    <!-- Sleek Category Tabs -->
+                    <div class="bg-slate-200/60 p-1.5 rounded-2xl flex items-center gap-1 overflow-x-auto custom-scrollbar">
+                        <button 
+                            v-for="section in sections" 
+                            :key="section.id"
+                            @click="activeSection = section.id"
+                            :class="['flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl transition-all whitespace-nowrap', 
+                                activeSection === section.id 
+                                ? 'bg-white shadow-sm font-black text-indigo-600' 
+                                : 'text-slate-600 hover:text-slate-900 font-bold']"
+                        >
+                            <component :is="section.icon" class="w-4 h-4" />
+                            <span class="text-[11px] uppercase tracking-wider">{{ section.name }}</span>
+                        </button>
+                    </div>
+
+                    <!-- Main Settings Form Container -->
+                    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 space-y-6">
+                        
+                        <!-- 1. LAYOUT SECTION -->
+                        <div v-if="activeSection === 'layout'" class="space-y-4 animate-in fade-in duration-300">
+                            <div class="border-b border-slate-100 pb-3">
+                                <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider">Select Active Design Template</h3>
+                                <p class="text-[11px] text-slate-400 font-medium">Each design template preserves its own custom print settings</p>
+                            </div>
+
+                            <div class="grid grid-cols-1 gap-3">
+                                <button 
+                                    v-for="d in availableDesignList" 
+                                    :key="d.id"
+                                    type="button"
+                                    @click="selectedTemplateKey = d.id"
+                                    :class="['w-full text-left p-4 rounded-2xl border transition-all relative',
+                                        selectedTemplateKey === d.id 
+                                        ? 'bg-indigo-50/50 border-indigo-500 ring-2 ring-indigo-500/20 shadow-sm' 
+                                        : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/50']"
+                                >
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-black uppercase tracking-tight" :class="selectedTemplateKey === d.id ? 'text-indigo-700' : 'text-slate-800'">
+                                            {{ d.name }}
+                                        </span>
+                                        <div v-if="selectedTemplateKey === d.id" class="flex items-center gap-1 bg-indigo-600 text-white px-2 py-0.5 rounded-full text-[9px] font-black uppercase">
+                                            <CheckIcon class="w-3 h-3 stroke-[3]" /> Active
+                                        </div>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 font-medium leading-relaxed">{{ d.description }}</p>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 2. HEADER & BRANDING SECTION -->
+                        <div v-if="activeSection === 'header'" class="space-y-6 animate-in fade-in duration-300">
+                            <div class="border-b border-slate-100 pb-3">
+                                <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider">Header & Company Branding</h3>
+                                <p class="text-[11px] text-slate-400 font-medium">Configuring settings for <strong class="text-indigo-600 uppercase">{{ selectedTemplateKey }}</strong> design</p>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Company Name</label>
+                                        <p class="setting-desc">Display entity name in template header</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.company_name" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Company Logo</label>
+                                        <p class="setting-desc">Display brand logo on printable header</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.logo" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Full Address</label>
+                                        <p class="setting-desc">Show registered address & plant location</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.address" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Company GSTIN</label>
+                                        <p class="setting-desc">Show tax registration number in header</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.gstin" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Phone & Email</label>
+                                        <p class="setting-desc">Include contact phone and support email</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.phone" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Document Reference #</label>
+                                        <p class="setting-desc">Show document number e.g. INV-2026-001</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.invoice_number" />
+                                </div>
+
+                                <div class="pt-2">
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Custom Document Title ({{ selectedTemplateKey.toUpperCase() }})</label>
+                                    <InputText v-model="activeSettings.pdf.labels.invoice_title" class="w-full" placeholder="e.g. TAX INVOICE, QUOTATION" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. ITEMS & COLUMNS SECTION -->
+                        <div v-if="activeSection === 'body'" class="space-y-6 animate-in fade-in duration-300">
+                            <div class="border-b border-slate-100 pb-3">
+                                <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider">Party Details & Table Columns</h3>
+                                <p class="text-[11px] text-slate-400 font-medium">Configuring settings for <strong class="text-indigo-600 uppercase">{{ selectedTemplateKey }}</strong> design</p>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Bill To Address Block</label>
+                                        <p class="setting-desc">Show billing party name, address & GSTIN</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.bill_to" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Ship To Address Block</label>
+                                        <p class="setting-desc">Show delivery site & shipping address</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.ship_to" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">HSN / SAC Code Column</label>
+                                        <p class="setting-desc">Display HSN classification column</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.hsn_code" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Item Description Column</label>
+                                        <p class="setting-desc">Show detailed item description text</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.description" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Unit of Measure (UOM)</label>
+                                        <p class="setting-desc">Display unit column (m³, MT, Nos)</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.unit" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Item Discount Column</label>
+                                        <p class="setting-desc">Show item-level discount column</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.discount" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Pump Rates Breakdown</label>
+                                        <p class="setting-desc">Display pumping & piping rate breakdown</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.pump_rates" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4. TAXES & TOTALS SECTION -->
+                        <div v-if="activeSection === 'totals'" class="space-y-6 animate-in fade-in duration-300">
+                            <div class="border-b border-slate-100 pb-3">
+                                <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider">Taxes & Pricing Breakdown</h3>
+                                <p class="text-[11px] text-slate-400 font-medium">Configuring settings for <strong class="text-indigo-600 uppercase">{{ selectedTemplateKey }}</strong> design</p>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Central GST (CGST)</label>
+                                        <p class="setting-desc">Show CGST tax split line in totals</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.cgst" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">State GST (SGST)</label>
+                                        <p class="setting-desc">Show SGST tax split line in totals</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.sgst" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Integrated GST (IGST)</label>
+                                        <p class="setting-desc">Show IGST tax line for interstate sales</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.igst" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Freight / Shipping Charges</label>
+                                        <p class="setting-desc">Show shipping & delivery line item</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.shipping" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Amount in Words</label>
+                                        <p class="setting-desc">Convert grand total into words format</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.total_words" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. FOOTER & TERMS SECTION -->
+                        <div v-if="activeSection === 'footer'" class="space-y-6 animate-in fade-in duration-300">
+                            <div class="border-b border-slate-100 pb-3">
+                                <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider">Legal Terms & Signatures</h3>
+                                <p class="text-[11px] text-slate-400 font-medium">Configuring settings for <strong class="text-indigo-600 uppercase">{{ selectedTemplateKey }}</strong> design</p>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Document Notes</label>
+                                        <p class="setting-desc">Show document-specific special notes</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.notes" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Terms & Conditions Block</label>
+                                        <p class="setting-desc">Show terms & conditions section in footer</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.terms" />
+                                </div>
+
+                                <div v-if="activeSettings.pdf.terms !== false" class="pt-2">
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Custom Terms & Conditions Text ({{ selectedTemplateKey.toUpperCase() }})</label>
+                                    <Textarea v-model="activeSettings.pdf.terms_text" rows="4" class="w-full text-xs font-medium" placeholder="Enter terms & conditions line by line..." />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Authorized Signatory Line</label>
+                                        <p class="setting-desc">Show company signature placeholder</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.signature" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">UPI Payment QR Code</label>
+                                        <p class="setting-desc">Show payment QR code on print template</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.upi_qr" />
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
                 </div>
 
-                <!-- Main Content -->
-                <div class="col-span-12 lg:col-span-9">
-                    <div class="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                <!-- ═══ RIGHT PANEL: EXACT BLADE HTML IFRAME PREVIEW (7 cols) ═══ -->
+                <div class="col-span-12 lg:col-span-7">
+                    <div class="bg-slate-900/5 backdrop-blur-md rounded-3xl border border-slate-200/80 p-6 shadow-inner flex flex-col items-center sticky top-24">
                         
-                        <!-- Header Section -->
-                        <div v-if="activeSection === 'header'" class="p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                                <div class="col-span-2 pb-2 border-bottom border-slate-50">
-                                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-tight">Issuer Details</h3>
-                                </div>
-                                
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Company Name</label>
-                                        <p class="setting-desc">Show your entity name in header</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.company_name" />
-                                </div>
+                        <!-- Toolbar -->
+                        <div class="w-full flex items-center justify-between mb-6 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                <span class="text-[10px] font-black text-slate-700 uppercase tracking-widest">Blade Print Engine ({{ selectedTemplateKey.toUpperCase() }})</span>
+                                <span v-if="isLoadingPreview" class="text-[10px] text-slate-400 font-bold animate-pulse">(Updating...)</span>
+                            </div>
 
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Logo</label>
-                                        <p class="setting-desc">Show branding logo on document</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.logo" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Address & Contact</label>
-                                        <p class="setting-desc">Full plant address, phone & email</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.address" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">GSTIN</label>
-                                        <p class="setting-desc">Show Tax Registration Number</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.gstin" />
-                                </div>
-
-                                <div class="col-span-2 pt-4 pb-2 border-bottom border-slate-50">
-                                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-tight">Labels & Titles</h3>
-                                </div>
-
-                                <div class="col-span-2 md:col-span-1">
-                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Document Title</label>
-                                    <InputText v-model="form.settings.pdf.labels.invoice_title" class="w-full" placeholder="e.g. TAX INVOICE" />
-                                </div>
+                            <!-- Scale Zoom -->
+                            <div class="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-xl">
+                                <button type="button" @click="currentZoom = Math.max(50, currentZoom - 5)" class="text-slate-600 hover:text-slate-900 font-bold p-1">
+                                    <MagnifyingGlassMinusIcon class="w-3.5 h-3.5" />
+                                </button>
+                                <span class="text-[10px] font-black text-slate-700 w-10 text-center">{{ currentZoom }}%</span>
+                                <button type="button" @click="currentZoom = Math.min(130, currentZoom + 5)" class="text-slate-600 hover:text-slate-900 font-bold p-1">
+                                    <MagnifyingGlassPlusIcon class="w-3.5 h-3.5" />
+                                </button>
                             </div>
                         </div>
 
-                        <!-- Body Section -->
-                        <div v-if="activeSection === 'body'" class="p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                                <div class="col-span-2 pb-2 border-bottom border-slate-50">
-                                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-tight">Party Details</h3>
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Bill To Section</label>
-                                        <p class="setting-desc">Show Billing Address details</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.bill_to" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Ship To Section</label>
-                                        <p class="setting-desc">Show Delivery Address details</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.ship_to" />
-                                </div>
-
-                                <div class="col-span-2 pt-4 pb-2 border-bottom border-slate-50">
-                                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-tight">Item Table Columns</h3>
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">HSN Code</label>
-                                        <p class="setting-desc">Show HSN/SAC classification</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.hsn_code" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Description</label>
-                                        <p class="setting-desc">Show line-items description</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.description" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Pump Rates Table</label>
-                                        <p class="setting-desc">Show pump rates table on quotation/PO</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.pump_rates" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Unit of Measure</label>
-                                        <p class="setting-desc">Show UOM column (m3, MT, etc)</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.unit" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Discount</label>
-                                        <p class="setting-desc">Show item-level discount</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.discount" />
-                                </div>
+                        <!-- Scalable Frame Canvas -->
+                        <div class="w-full overflow-auto max-h-[820px] flex justify-center py-4 custom-scrollbar">
+                            <div 
+                                class="a4-canvas transition-all duration-300 origin-top shadow-2xl rounded-sm bg-white"
+                                :style="{ transform: `scale(${currentZoom / 100})`, marginBottom: `${(100 - currentZoom) * -2.5}px` }"
+                            >
+                                <iframe 
+                                    :srcdoc="previewHtml" 
+                                    sandbox="allow-same-origin allow-forms"
+                                    class="w-full h-full border-0 min-h-[297mm]"
+                                ></iframe>
                             </div>
-                        </div>
-
-                        <!-- Totals Section -->
-                        <div v-if="activeSection === 'totals'" class="p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                                <div class="col-span-2 pb-2 border-bottom border-slate-50">
-                                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-tight">Tax Display</h3>
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Show CGST</label>
-                                        <p class="setting-desc">Toggle Central GST split</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.cgst" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Show SGST</label>
-                                        <p class="setting-desc">Toggle State GST split</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.sgst" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Show IGST</label>
-                                        <p class="setting-desc">Toggle Integrated GST split</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.igst" />
-                                </div>
-
-                                <div class="col-span-2 pt-4 pb-2 border-bottom border-slate-50">
-                                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-tight">Charges & Totals</h3>
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Shipping Charges</label>
-                                        <p class="setting-desc">Show freight/shipping line</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.shipping" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Amount in Words</label>
-                                        <p class="setting-desc">Convert grand total to words</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.total_words" />
-                                </div>
-                             </div>
-                        </div>
-
-                        <!-- Footer Section -->
-                        <div v-if="activeSection === 'footer'" class="p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                                <div class="col-span-2 pb-2 border-bottom border-slate-50">
-                                    <h3 class="text-sm font-black text-slate-800 uppercase tracking-tight">Legal & Signature</h3>
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Notes</label>
-                                        <p class="setting-desc">Show document-specific notes</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.notes" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Terms & Conditions</label>
-                                        <p class="setting-desc">Show legal terms at bottom</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.terms" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">Signature Block</label>
-                                        <p class="setting-desc">Show Authorized Signatory line</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.signature" />
-                                </div>
-
-                                <div class="setting-item">
-                                    <div class="setting-info">
-                                        <label class="setting-label">UPI QR Code</label>
-                                        <p class="setting-desc">Show UPI payment QR code</p>
-                                    </div>
-                                    <InputSwitch v-model="form.settings.pdf.upi_qr" />
-                                </div>
-                             </div>
                         </div>
 
                     </div>
@@ -313,51 +526,81 @@ const submit = () => {
 </template>
 
 <style scoped>
-.setting-item {
+.setting-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px;
+    padding: 6px 0;
 }
 
-.setting-label {
+.setting-title {
     display: block;
     font-size: 11px;
-    font-weight: 900;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #334155;
-    margin-bottom: 2px;
+    letter-spacing: 0.04em;
+    color: #1e293b;
 }
 
 .setting-desc {
-    font-size: 11px;
+    font-size: 10.5px;
     color: #94a3b8;
     font-weight: 500;
 }
 
-:deep(.p-inputswitch.p-focus .p-inputswitch-slider) {
-    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #e0e7ff;
+.a4-canvas {
+    width: 210mm;
+    min-height: 297mm;
+    background: white;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #334155;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.action-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
 }
 
 :deep(.p-inputswitch .p-inputswitch-slider) {
-    background: #f1f5f9;
+    background: #e2e8f0;
 }
 
 :deep(.p-inputswitch.p-inputswitch-checked .p-inputswitch-slider) {
     background: #4f46e5;
 }
 
-:deep(.p-inputtext) {
+:deep(.p-inputtext), :deep(.p-inputtextarea) {
     border-radius: 12px;
-    border-color: #f1f5f9;
-    font-size: 13px;
+    border-color: #e2e8f0;
+    font-size: 12px;
     padding: 10px 14px;
     font-weight: 600;
 }
 
-:deep(.p-inputtext:focus) {
-    border-color: #c7d2fe;
-    box-shadow: 0 0 0 4px #f5f3ff;
+:deep(.p-inputtext:focus), :deep(.p-inputtextarea:focus) {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 4px #e0e7ff;
 }
+
+.custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
 </style>

@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
-use App\Traits\AuditFields;
 use App\Traits\PostsToAccounting;
 use App\Traits\PlantScoping;
 use App\Models\JournalEntry;
@@ -19,9 +18,10 @@ use App\Models\AccountDefaultSetting;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
+use App\Traits\TracksModelChanges;
 class Invoice extends Model implements Postable
 {
-    use HasFactory, SoftDeletes, AuditFields, PostsToAccounting, PlantScoping;
+        use HasFactory, SoftDeletes, PostsToAccounting, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_invoices';
 
@@ -746,5 +746,15 @@ class Invoice extends Model implements Postable
         $this->syncTaxSplits($this->invoice_type ?? 'sales');
 
         return app(AccountingPostingService::class)->post($this);
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function destroyer()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 }

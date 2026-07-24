@@ -73,20 +73,57 @@ class PrintTemplateController extends Controller
     }
 
     /**
+     * Render live Blade template HTML for customizer iframe preview.
+     */
+    public function renderLivePreview(Request $request, string $module)
+    {
+        $plantId = session('active_plant_id') ?: 1;
+        $data = \App\Services\PrintDataFormatter::dummy($module);
+
+        if ($request->has('settings') && is_array($request->settings)) {
+            $data['settings'] = array_replace_recursive($data['settings'], $request->settings);
+            
+            if (!empty($request->settings['pdf']['labels']['invoice_title'])) {
+                $data['doc_title'] = $request->settings['pdf']['labels']['invoice_title'];
+            }
+        }
+
+        $templateKey = $request->get('template_key') 
+            ?: \App\Services\PrintDataFormatter::resolveTemplateKey($module, $plantId);
+
+        $view = \App\Services\PrintDataFormatter::resolveView($templateKey);
+
+        return response()->view($view, ['data' => $data, 'is_preview' => true]);
+    }
+
+    /**
      * Show customization UI for a module.
      */
     public function customize(string $module)
     {
-        $plantId = session('active_plant_id');
+        $plantId = session('active_plant_id') ?: 1;
         $settings = \App\Services\PrintDataFormatter::getCustomSettings($plantId, $module);
+        $assignedKey = \App\Services\PrintDataFormatter::resolveTemplateKey($module, $plantId);
         
         // Find the module config to get its name
         $moduleConfig = collect($this->getPrintableModules())->firstWhere('key', $module);
+        $availableTemplates = $moduleConfig['templates'] ?? ['standard', 'elite', 'modern', 'compact', 'indian_gst'];
+
+        $templateSettingsMap = [];
+        foreach ($availableTemplates as $tKey) {
+            $templateSettingsMap[$tKey] = \App\Services\PrintDataFormatter::getCustomSettings($plantId, $module, $tKey);
+        }
+
+        $dummyData = \App\Services\PrintDataFormatter::dummy($module);
 
         return Inertia::render('TemplateManager/Customize', [
             'moduleKey' => $module,
             'moduleName' => $moduleConfig['name'] ?? ucfirst($module),
             'initialSettings' => $settings,
+            'templateSettingsMap' => $templateSettingsMap,
+            'assignedTemplateKey' => $assignedKey,
+            'availableTemplates' => $availableTemplates,
+            'dummyData' => $dummyData,
         ]);
     }
 
@@ -96,24 +133,53 @@ class PrintTemplateController extends Controller
     public function saveCustomization(Request $request, string $module)
     {
         $plantId = session('active_plant_id');
+        $entityId = session('active_entity_id');
 
-        // Capture previous settings for diff
-        $existing = \App\Models\CustomSetting::where('plant_id', $plantId)
-            ->where('module_name', $module)
-            ->first();
+        // Save per-template settings map if supplied
+        if ($request->has('template_settings_map') && is_array($request->template_settings_map)) {
+            foreach ($request->template_settings_map as $tKey => $tSettings) {
+                \App\Models\CustomSetting::updateOrCreate(
+                    [
+                        'plant_id'    => $plantId,
+                        'module_name' => $module . '_' . strtolower($tKey),
+                    ],
+                    [
+                        'settings'  => $tSettings,
+                        'module_id' => 0,
+                    ]
+                );
+            }
+        }
 
-        $oldSettings = $existing?->settings;
+        // Save base module custom settings
+        if ($request->has('settings')) {
+            \App\Models\CustomSetting::updateOrCreate(
+                [
+                    'plant_id'    => $plantId,
+                    'module_name' => $module,
+                ],
+                [
+                    'settings'  => $request->settings,
+                    'module_id' => 0,
+                ]
+            );
+        }
 
-        \App\Models\CustomSetting::updateOrCreate(
-            [
-                'plant_id'    => $plantId,
-                'module_name' => $module,
-            ],
-            [
-                'settings'  => $request->settings,
-                'module_id' => 0,
-            ]
-        );
+        if ($request->has('template_key') && !empty($request->template_key)) {
+            $tpl = PrintTemplate::where('key', $request->template_key)->first();
+            if ($tpl) {
+                PrintTemplateSetting::updateOrCreate(
+                    [
+                        'module_key' => strtolower($module),
+                        'plant_id'   => $plantId,
+                    ],
+                    [
+                        'entity_id'         => $entityId,
+                        'print_template_id' => $tpl->id,
+                    ]
+                );
+            }
+        }
 
         // Audit log was removed
 
@@ -124,9 +190,11 @@ class PrintTemplateController extends Controller
     {
         return [
             ['key' => 'invoices',           'name' => 'Invoices',           'templates' => ['standard', 'elite', 'modern', 'compact', 'indian_gst', 'standard_indigo', 'minimalist_lite', 'formal_gst']],
+            ['key' => 'sales_orders',       'name' => 'Sales Orders',       'templates' => ['standard', 'elite', 'modern', 'compact', 'indian_gst']],
             ['key' => 'purchase_orders',    'name' => 'Purchase Orders',    'templates' => ['standard', 'elite', 'modern', 'spreadsheet', 'tallysheet', 'compact', 'indian_gst']],
             ['key' => 'purchase_bills',     'name' => 'Purchase Bills',     'templates' => ['standard', 'elite', 'modern', 'compact', 'indian_gst']],
             ['key' => 'quotations',         'name' => 'Quotations',         'templates' => ['standard', 'elite', 'modern', 'compact']],
+            ['key' => 'customer_pos',       'name' => 'Customer POs',       'templates' => ['standard', 'elite', 'modern', 'compact']],
             ['key' => 'delivery_challans',  'name' => 'Delivery Challans',  'templates' => ['standard', 'elite', 'modern', 'compact', 'spreadsheet', 'delivery_challan_a4']],
             ['key' => 'credit_notes',       'name' => 'Credit Notes',       'templates' => ['standard', 'elite']],
             ['key' => 'statements',         'name' => 'Account Statements', 'templates' => ['tallysheet']],

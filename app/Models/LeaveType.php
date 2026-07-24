@@ -5,11 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\AuditFields;
-
 class LeaveType extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+        use HasFactory, SoftDeletes;
 
     protected $table = 'mm_leave_types';
 

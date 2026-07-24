@@ -1,24 +1,37 @@
 <script setup lang="ts">
-import { defineProps } from 'vue';
+import { computed } from 'vue';
 
 const props = defineProps<{
     dummyData: any;
+    settings?: any;
 }>();
+
+const pdfSettings = computed(() => props.settings?.pdf || props.dummyData?.settings?.pdf || {});
+const labels = computed(() => pdfSettings.value?.labels || {});
+
+const company = computed(() => props.dummyData?.company || {});
+const billTo = computed(() => props.dummyData?.bill_to || {});
+const shipTo = computed(() => props.dummyData?.ship_to || {});
+const items = computed(() => props.dummyData?.items || []);
+const totals = computed(() => props.dummyData?.totals || {});
+const meta = computed(() => props.dummyData?.meta || {});
 </script>
 
 <template>
     <div class="design-wrap gst-mode">
         <div class="flex justify-between items-start mb-8 border-b-2 border-slate-200 pb-8">
             <div>
-                <h1 class="text-3xl font-black text-slate-900 border-l-8 border-slate-900 pl-4">msrk V4</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase mt-2 pl-4">GSTIN: 33AAACX0000X1Z • PAN: AAAAA0000A</p>
-                <p class="text-[9px] text-slate-500 mt-1 pl-4 max-w-sm uppercase leading-relaxed">Plot No 42, Sector 5, Industrial Estate, Tamil Nadu, India.</p>
+                <h1 v-if="pdfSettings.company_name !== false" class="text-3xl font-black text-slate-900 border-l-8 border-slate-900 pl-4">{{ company.name || 'Company Name' }}</h1>
+                <p v-if="pdfSettings.gstin !== false && company.gstin" class="text-[10px] text-slate-400 font-bold uppercase mt-2 pl-4">GSTIN: {{ company.gstin }}</p>
+                <p v-if="pdfSettings.address !== false" class="text-[9px] text-slate-500 mt-1 pl-4 max-w-sm uppercase leading-relaxed">
+                    {{ company.address }} {{ company.city ? `, ${company.city}` : '' }} {{ company.state ? `, ${company.state}` : '' }} {{ company.pin ? `- ${company.pin}` : '' }}
+                </p>
             </div>
             <div class="text-right">
-                <h2 class="text-4xl font-black text-indigo-600 uppercase tracking-tighter">GST Invoice</h2>
-                <div class="mt-4 bg-indigo-50 p-4 rounded-lg inline-block border border-indigo-100">
+                <h2 class="text-4xl font-black text-indigo-600 uppercase tracking-tighter">{{ labels.invoice_title || dummyData.doc_title || 'GST Invoice' }}</h2>
+                <div v-if="pdfSettings.invoice_number !== false" class="mt-4 bg-indigo-50 p-4 rounded-lg inline-block border border-indigo-100">
                     <div class="flex justify-between gap-8">
-                        <span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest leading-none">Invoice NO</span>
+                        <span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest leading-none">Document NO</span>
                         <span class="text-xs font-black text-indigo-800 leading-none uppercase">{{ dummyData.doc_no }}</span>
                     </div>
                 </div>

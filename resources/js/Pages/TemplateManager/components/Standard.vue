@@ -1,7 +1,20 @@
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue';
+
+const props = defineProps<{
     dummyData: any;
+    settings?: any;
 }>();
+
+const pdfSettings = computed(() => props.settings?.pdf || props.dummyData?.settings?.pdf || {});
+const labels = computed(() => pdfSettings.value?.labels || {});
+
+const company = computed(() => props.dummyData?.company || {});
+const billTo = computed(() => props.dummyData?.bill_to || {});
+const shipTo = computed(() => props.dummyData?.ship_to || {});
+const items = computed(() => props.dummyData?.items || []);
+const totals = computed(() => props.dummyData?.totals || {});
+const meta = computed(() => props.dummyData?.meta || {});
 </script>
 
 <template>
@@ -10,12 +23,19 @@ defineProps<{
         <!-- ═══ HEADER ═══ -->
         <div class="inv-header">
             <div class="inv-header-left">
-                <div class="company-name">msrk</div>
-                <div class="company-address"> , , Tamil Nadu - , India</div>
+                <div v-if="pdfSettings.company_name !== false" class="company-name">{{ company.name || 'Company Name' }}</div>
+                <div v-if="pdfSettings.address !== false" class="company-address">
+                    {{ company.address }} {{ company.city ? `, ${company.city}` : '' }} {{ company.state ? `, ${company.state}` : '' }} {{ company.pin ? `- ${company.pin}` : '' }}
+                </div>
+                <div v-if="pdfSettings.phone !== false && company.phone" class="company-address">Phone: {{ company.phone }}</div>
+                <div v-if="pdfSettings.email !== false && company.email" class="company-address">Email: {{ company.email }}</div>
+                <div v-if="pdfSettings.gstin !== false && company.gstin" class="company-gstin">GSTIN: {{ company.gstin }}</div>
             </div>
             <div class="inv-header-right">
-                <div class="inv-title">TAX INVOICE</div>
-                <div class="inv-number">Invoice# {{ dummyData.doc_no }}</div>
+                <div class="inv-title">{{ labels.invoice_title || dummyData.doc_title || 'DOCUMENT' }}</div>
+                <div v-if="pdfSettings.invoice_number !== false" class="inv-number">
+                    {{ (labels.invoice_title || dummyData.doc_title || '').includes('INVOICE') ? 'Invoice#' : 'Ref#' }} {{ dummyData.doc_no }}
+                </div>
             </div>
         </div>
 
@@ -27,30 +47,30 @@ defineProps<{
                     <td class="info-cell info-details">
                         <table class="meta-table">
                             <tbody>
-                                <tr>
-                                    <td class="meta-label">Invoice Date</td>
+                                <tr v-if="pdfSettings.date !== false">
+                                    <td class="meta-label">Date</td>
                                     <td class="meta-colon">:</td>
-                                    <td class="meta-value">{{ dummyData.date }}</td>
+                                    <td class="meta-value">{{ dummyData.doc_date || dummyData.date }}</td>
                                 </tr>
-                                <tr>
-                                    <td class="meta-label">Terms</td>
-                                    <td class="meta-colon">:</td>
-                                    <td class="meta-value bold">Due on Receipt</td>
-                                </tr>
-                                <tr>
+                                <tr v-if="pdfSettings.due_date !== false && dummyData.due_date">
                                     <td class="meta-label">Due Date</td>
                                     <td class="meta-colon">:</td>
                                     <td class="meta-value">{{ dummyData.due_date }}</td>
                                 </tr>
-                                <tr>
+                                <tr v-if="meta.po_number">
                                     <td class="meta-label">P.O.#</td>
                                     <td class="meta-colon">:</td>
-                                    <td class="meta-value bold">SO-17</td>
+                                    <td class="meta-value bold">{{ meta.po_number }}</td>
                                 </tr>
-                                <tr>
-                                    <td class="meta-label">Project Name</td>
+                                <tr v-if="meta.project_name">
+                                    <td class="meta-label">Project</td>
                                     <td class="meta-colon">:</td>
-                                    <td class="meta-value bold">Design project</td>
+                                    <td class="meta-value bold">{{ meta.project_name }}</td>
+                                </tr>
+                                <tr v-if="pdfSettings.status && dummyData.state">
+                                    <td class="meta-label">Status</td>
+                                    <td class="meta-colon">:</td>
+                                    <td class="meta-value bold">{{ dummyData.state }}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -58,30 +78,27 @@ defineProps<{
 
                     <!-- Bill To column -->
                     <td class="info-cell info-bill">
-                        <div class="address-header">Bill To :</div>
-                        <div class="address-name">{{ dummyData.bill_to.name }}</div>
-                        <div class="address-line">{{ dummyData.bill_to.address }}</div>
-                        <div class="address-line">{{ dummyData.bill_to.city }}</div>
-                        <div class="address-line">{{ dummyData.bill_to.pin }} {{ dummyData.bill_to.state }}</div>
-                        <div class="address-line">India</div>
+                        <template v-if="pdfSettings.bill_to !== false">
+                            <div class="address-header">{{ labels.bill_to || 'Bill To' }} :</div>
+                            <div class="address-name">{{ billTo.name }}</div>
+                            <div class="address-line">{{ billTo.address }}</div>
+                            <div class="address-line">{{ billTo.city }} {{ billTo.state }} {{ billTo.pin }}</div>
+                            <div v-if="pdfSettings.gstin !== false && billTo.gstin" class="address-line small">GSTIN: {{ billTo.gstin }}</div>
+                        </template>
                     </td>
 
                     <!-- Ship To column -->
                     <td class="info-cell info-ship no-right-border">
-                        <div class="address-header">Ship To :</div>
-                        <div class="address-line">{{ dummyData.ship_to.address }}</div>
-                        <div class="address-line">{{ dummyData.ship_to.city }}</div>
-                        <div class="address-line">{{ dummyData.ship_to.pin }} {{ dummyData.ship_to.state }}</div>
-                        <div class="address-line">India</div>
+                        <template v-if="pdfSettings.ship_to !== false">
+                            <div class="address-header">{{ labels.ship_to || 'Ship To' }} :</div>
+                            <div class="address-name">{{ shipTo.name }}</div>
+                            <div class="address-line">{{ shipTo.address }}</div>
+                            <div class="address-line">{{ shipTo.city }} {{ shipTo.state }} {{ shipTo.pin }}</div>
+                        </template>
                     </td>
                 </tr>
             </tbody>
         </table>
-
-        <!-- ═══ SUBJECT ROW ═══ -->
-        <div class="subject-row">
-            <span class="subject-label">Subject :</span> Description
-        </div>
 
         <!-- ═══ ITEMS TABLE ═══ -->
         <table class="items-table">
@@ -89,24 +106,26 @@ defineProps<{
                 <tr>
                     <th class="col-num">#</th>
                     <th class="col-item text-left">Item</th>
-                    <th class="col-desc text-left">Description</th>
+                    <th v-if="pdfSettings.hsn_code !== false" class="col-hsn text-center">HSN/SAC</th>
+                    <th v-if="pdfSettings.description !== false" class="col-desc text-left">Description</th>
                     <th class="col-qty text-right">Qty</th>
-                    <th class="col-unit text-right">Units</th>
-                    <th class="col-rate text-right">Rate</th>
-                    <th class="col-amt text-right">Amount</th>
+                    <th v-if="pdfSettings.unit !== false" class="col-unit text-right">Unit</th>
+                    <th class="col-rate text-right">{{ labels.rate || 'Rate' }}</th>
+                    <th class="col-amt text-right">{{ labels.amount || 'Amount' }}</th>
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="(item, idx) in dummyData.items" :key="idx">
+                <tr v-for="(item, idx) in items" :key="idx">
                     <td class="col-num text-center">{{ idx + 1 }}</td>
                     <td class="col-item">
-                        <div class="item-name">{{ item.description }}</div>
+                        <div class="item-name">{{ item.name || item.description }}</div>
                     </td>
-                    <td class="col-desc item-desc">{{ item.description }} Single Sided Color</td>
-                    <td class="col-qty text-right">{{ item.qty }}.00</td>
-                    <td class="col-unit text-right">Nos</td>
-                    <td class="col-rate text-right">{{ item.rate }}.00</td>
-                    <td class="col-amt text-right">{{ item.amount }}.00</td>
+                    <td v-if="pdfSettings.hsn_code !== false" class="col-hsn text-center">{{ item.hsn || '-' }}</td>
+                    <td v-if="pdfSettings.description !== false" class="col-desc item-desc">{{ item.description || '-' }}</td>
+                    <td class="col-qty text-right">{{ Number(item.qty || 0).toFixed(2) }}</td>
+                    <td v-if="pdfSettings.unit !== false" class="col-unit text-right">{{ item.unit || 'm³' }}</td>
+                    <td class="col-rate text-right">₹{{ Number(item.unit_price || item.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                    <td class="col-amt text-right">₹{{ Number(item.total || item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
                 </tr>
             </tbody>
         </table>
@@ -114,76 +133,54 @@ defineProps<{
         <!-- ═══ NOTES + TOTALS ═══ -->
         <div class="notes-totals-row">
             <div class="notes-section">
-                <span class="notes-label">Notes :</span>
-                <span class="notes-text">Thanks for your business.</span>
+                <div v-if="pdfSettings.notes !== false && (meta.notes || dummyData.notes)">
+                    <span class="notes-label">Notes :</span>
+                    <span class="notes-text">{{ meta.notes || dummyData.notes }}</span>
+                </div>
+                <div v-if="pdfSettings.terms !== false" class="terms-block">
+                    <div class="notes-label">Terms & Conditions :</div>
+                    <div class="terms-text whitespace-pre-line">{{ pdfSettings.terms_text || meta.terms_text || 'Payment due within 15 days of invoice date.' }}</div>
+                </div>
             </div>
             <div class="totals-section">
                 <table class="totals-table">
                     <tbody>
                         <tr>
                             <td class="total-label">Sub Total</td>
-                            <td class="total-value">{{ dummyData.sub_total }}.00</td>
+                            <td class="total-value">₹{{ Number(totals.sub_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
                         </tr>
-                        <tr>
+                        <tr v-if="pdfSettings.discount !== false && totals.discount">
                             <td class="total-label">Discount</td>
-                            <td class="total-value">0.00</td>
+                            <td class="total-value">(-) ₹{{ Number(totals.discount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                        </tr>
+                        <template v-if="totals.tax_lines && totals.tax_lines.length">
+                            <tr v-for="tLine in totals.tax_lines" :key="tLine.label">
+                                <td class="total-label">{{ tLine.label }}</td>
+                                <td class="total-value">₹{{ Number(tLine.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                            </tr>
+                        </template>
+                        <tr v-if="pdfSettings.shipping !== false && totals.shipping">
+                            <td class="total-label">Shipping Charges</td>
+                            <td class="total-value">₹{{ Number(totals.shipping || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
                         </tr>
                         <tr class="total-row-bold">
-                            <td class="total-label">Total</td>
-                            <td class="total-value bold">₹{{ dummyData.total }}.75</td>
-                        </tr>
-                        <tr>
-                            <td class="total-label underline-label">Payment Retention</td>
-                            <td class="total-value red">(-) 10.00</td>
-                        </tr>
-                        <tr>
-                            <td class="total-label">Payment Made</td>
-                            <td class="total-value red">(-) 100.00</td>
-                        </tr>
-                        <tr class="balance-row">
-                            <td class="total-label bold">Balance Due</td>
-                            <td class="total-value bold">₹562.75</td>
+                            <td class="total-label">Grand Total</td>
+                            <td class="total-value bold">₹{{ Number(totals.grand_total || dummyData.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
-        <!-- ═══ TOTAL IN WORDS ═══ -->
-        <div class="words-row">
-            <span class="words-label">Total In Words :</span>
-            <span class="words-value">Indian Rupee Six Hundred Sixty-Two and Seventy-Five Paise Only</span>
+        <div v-if="pdfSettings.total_words !== false && (meta.total_words || totals.grand_total)" class="amount-words">
+            <span class="words-label">Amount in Words:</span> {{ meta.total_words || 'Rupees Only' }}
         </div>
 
-        <!-- ═══ PAYMENT OPTIONS ═══ -->
-        <div class="payment-row">
-            <span class="payment-label">Payment Options</span>
-            <div class="payment-icons">
-                <span class="paypal-badge">PayPal</span>
-                <span class="card-badge">💳</span>
+        <div v-if="pdfSettings.signature !== false" class="signature-row">
+            <div class="sig-box">
+                <div class="sig-title">For {{ company.name || 'Company' }}</div>
+                <div class="sig-line">Authorized Signatory</div>
             </div>
-        </div>
-
-        <!-- ═══ TERMS + SIGNATURE ═══ -->
-        <div class="terms-signature-row">
-            <div class="terms-section">
-                <div class="terms-label">Terms &amp; Conditions :</div>
-                <div class="terms-text">Your company's Terms and Conditions will be displayed here.<br>You can add it in the Invoice Preferences page under Settings.</div>
-            </div>
-            <div class="signature-section">
-                <div class="signature-line"></div>
-                <div class="signature-label">Authorized Signature</div>
-            </div>
-        </div>
-
-        <!-- ═══ FOOTER ═══ -->
-        <div class="inv-footer">
-            <div class="powered-by">
-                <span class="powered-text">POWERED BY</span>
-                <img src="https://onemodo.com/favicon.ico" alt="onemodo" class="powered-logo-img" onerror="this.style.display='none'" />
-                <span class="powered-brand">onemodo.com</span>
-            </div>
-            <div class="page-num">1</div>
         </div>
 
     </div>

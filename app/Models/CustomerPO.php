@@ -5,12 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Traits\AuditFields;
 use App\Traits\TracksModelChanges;
 
 class CustomerPO extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, TracksModelChanges;
+        use HasFactory, SoftDeletes, TracksModelChanges;
 
     /** Override auto-derived module name (Str::snake('CustomerPO') produces 'customer_p_o') */
     public static string $permissionModule = 'customer_po';

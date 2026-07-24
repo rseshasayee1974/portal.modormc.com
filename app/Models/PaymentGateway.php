@@ -23,9 +23,10 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @package App\Models
  */
+use App\Traits\TracksModelChanges;
 class PaymentGateway extends Model
 {
-	use HasFactory;
+	use HasFactory, TracksModelChanges;
 
 	protected $table = 'mm_payment_gateways';
 

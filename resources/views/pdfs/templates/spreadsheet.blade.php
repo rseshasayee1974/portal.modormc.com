@@ -135,6 +135,14 @@
                     {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['sub_total'], 2) }}
                 </td>
             </tr>
+            @if (($pdfSettings['pump_rates'] ?? true) && isset($data['totals']['pump_rate']) && $data['totals']['pump_rate'] > 0)
+                <tr>
+                    <td class="btt-lbl">Concrete Pump Charges</td>
+                    <td class="btt-val">
+                        {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['pump_rate'], 2) }}
+                    </td>
+                </tr>
+            @endif
             @if (($pdfSettings['discount'] ?? true) && $data['totals']['discount'] > 0)
                 <tr>
                     <td class="btt-lbl" style="color:#ef4444;">Discount (-)</td>

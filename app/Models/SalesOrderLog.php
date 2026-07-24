@@ -1,13 +1,11 @@
 <?php
 
 namespace App\Models;
-
-use App\Traits\AuditFields;
 use Illuminate\Database\Eloquent\Model;
 
 class SalesOrderLog extends Model
 {
-    use AuditFields;
+    
     protected $table = 'mm_sales_order_logs';
     public $timestamps = false;
 

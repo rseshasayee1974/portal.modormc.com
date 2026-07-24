@@ -6,13 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
-use App\Traits\AuditFields;
 use App\Traits\PlantScoping;
 use App\Traits\TracksModelChanges;
 
 class Quotation extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping , TracksModelChanges;
+        use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
     protected $table = 'mm_quotations';
 
     protected $appends = [
@@ -71,6 +70,11 @@ class Quotation extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function modifier()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     /**

@@ -7,14 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-
-use App\Traits\AuditFields;
 use App\Traits\PlantScoping;
 use App\Traits\TracksModelChanges;
 
 class Dispatch extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping , TracksModelChanges;
+        use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_dispatches';
 
@@ -218,5 +216,15 @@ class Dispatch extends Model
                 'invoice_status' => 0,
             ]);
         }
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function modifier()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

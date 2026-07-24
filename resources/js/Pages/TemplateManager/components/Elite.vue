@@ -1,7 +1,20 @@
 <script setup lang="ts">
-defineProps<{
+import { computed } from 'vue';
+
+const props = defineProps<{
     dummyData: any;
+    settings?: any;
 }>();
+
+const pdfSettings = computed(() => props.settings?.pdf || props.dummyData?.settings?.pdf || {});
+const labels = computed(() => pdfSettings.value?.labels || {});
+
+const company = computed(() => props.dummyData?.company || {});
+const billTo = computed(() => props.dummyData?.bill_to || {});
+const shipTo = computed(() => props.dummyData?.ship_to || {});
+const items = computed(() => props.dummyData?.items || []);
+const totals = computed(() => props.dummyData?.totals || {});
+const meta = computed(() => props.dummyData?.meta || {});
 </script>
 
 <template>
@@ -12,14 +25,19 @@ defineProps<{
         ════════════════════════════════════════ -->
         <div class="inv-header">
             <div class="header-left">
-                <div class="co-name">msrk</div>
-                <div class="co-detail">Tamil Nadu</div>
-                <div class="co-detail">India</div>
-                <div class="co-detail">ragul@onemodo.com</div>
+                <div v-if="pdfSettings.company_name !== false" class="co-name">{{ company.name || 'Company Name' }}</div>
+                <div v-if="pdfSettings.address !== false" class="co-detail">
+                    {{ company.address }} {{ company.city ? `, ${company.city}` : '' }} {{ company.state ? `, ${company.state}` : '' }} {{ company.pin ? `- ${company.pin}` : '' }}
+                </div>
+                <div v-if="pdfSettings.email !== false && company.email" class="co-detail">{{ company.email }}</div>
+                <div v-if="pdfSettings.phone !== false && company.phone" class="co-detail">Phone: {{ company.phone }}</div>
+                <div v-if="pdfSettings.gstin !== false && company.gstin" class="co-detail">GSTIN: {{ company.gstin }}</div>
             </div>
             <div class="header-right">
-                <div class="inv-title">TAX INVOICE</div>
-                <div class="inv-ref">Invoice# <strong>{{ dummyData.doc_no }}</strong></div>
+                <div class="inv-title">{{ labels.invoice_title || dummyData.doc_title || 'DOCUMENT' }}</div>
+                <div v-if="pdfSettings.invoice_number !== false" class="inv-ref">
+                    Ref# <strong>{{ dummyData.doc_no }}</strong>
+                </div>
             </div>
         </div>
 
@@ -149,12 +167,7 @@ defineProps<{
             <!-- LEFT: Total in Words + Payment -->
             <div class="totals-left">
                 <div class="tow-label">Total In Words</div>
-                <div class="tow-value">{{ dummyData.total_words }}</div>
-                <div class="payment-row">
-                    <span class="pay-label">Payment Options</span>
-                    <span class="paypal-badge">PayPal</span>
-                    <span class="card-badge">💳</span>
-                </div>
+                <div class="tow-value">{{ dummyData.total_words || meta.total_words }}</div>
             </div>
 
             <!-- RIGHT: Breakdown -->

@@ -5,11 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\AuditFields;
-
 class PurchaseOrderHistory extends Model
 {
-    use HasFactory, SoftDeletes, \App\Traits\AuditFields;
+        use HasFactory, SoftDeletes, \App\Traits\AuditFields;
 
     protected $table = 'mm_purchase_order_history';
 
