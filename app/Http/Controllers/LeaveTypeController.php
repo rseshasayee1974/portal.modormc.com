@@ -15,8 +15,7 @@ class LeaveTypeController extends Controller
     {
         $this->authorizeModule('view');
 
-        $activePlantId = session('active_plant_id');
-        $types = LeaveType::where('plant_id', $activePlantId)->get();
+        $types = LeaveType::orderBy('name', 'asc')->get();
 
         if (request()->wantsJson()) {
             return response()->json($types);
@@ -35,8 +34,6 @@ class LeaveTypeController extends Controller
             'max_days_per_year' => 'nullable|integer|min:0',
             'carry_forward' => 'boolean',
         ]);
-
-        $validated['plant_id'] = session('active_plant_id');
 
         LeaveType::create($validated);
 

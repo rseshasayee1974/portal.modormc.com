@@ -14,7 +14,6 @@ class Shift extends Model
     protected $table = 'mm_shifts';
 
     protected $fillable = [
-        'plant_id',
         'shift_name',
         'start_time',
         'end_time',
@@ -26,11 +25,6 @@ class Shift extends Model
     protected $casts = [
         'is_night_shift' => 'boolean',
     ];
-
-    public function plant()
-    {
-        return $this->belongsTo(Plant::class, 'plant_id');
-    }
 
     public function personnels()
     {

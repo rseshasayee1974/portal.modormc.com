@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\EntityUser;
 use App\Models\Entity;
 use App\Models\Plant;
-use App\Services\Audit\AuditLogger;
 use Illuminate\Support\Facades\File;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -280,23 +279,7 @@ class EntityContextController extends Controller
         );
         File::append(storage_path('logs/suspension.log'), $logMessage);
 
-        // 2. Database Activity Log (mm_activity_log)
-        app(AuditLogger::class)->log('STATUS_CHANGE', $entity, [
-            'description' => "Organization [{$entity->legal_name}] status changed to [{$status}] by User [{$user->username}].",
-            'old_values' => [
-                'is_suspended' => $oldSuspendedState,
-            ],
-            'new_values' => [
-                'is_suspended' => $entity->is_suspended,
-                'status_label' => $status,
-            ],
-            'changed_fields' => ['is_suspended'],
-            'metadata'   => [
-                'old_state' => $oldSuspendedState,
-                'new_state' => $entity->is_suspended,
-                'user_ip'   => $request->ip(),
-            ],
-        ]);
+        // Database Activity Log (mm_activity_log) was removed
 
         return response()->json([
             'status' => 'success',

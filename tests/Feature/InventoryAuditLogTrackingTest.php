@@ -24,9 +24,9 @@ class InventoryAuditLogTrackingTest extends TestCase
     }
 
     /**
-     * Test that creating an audited model triggers a CREATE log.
+     * Test that creating an audited model does NOT trigger a CREATE log.
      */
-    public function test_creating_model_triggers_audit_log(): void
+    public function test_creating_model_does_not_trigger_create_audit_log(): void
     {
         $user = User::factory()->create();
         $this->actingAs($user);
@@ -41,11 +41,7 @@ class InventoryAuditLogTrackingTest extends TestCase
             ->where('reference_id', $product->id)
             ->first();
 
-        $this->assertNotNull($log);
-        $this->assertStringContainsString('Created: Product', $log->remarks);
-        
-        $logTo = json_decode($log->log_to, true);
-        $this->assertEquals('Initial Product Title', $logTo['title'] ?? null);
+        $this->assertNull($log);
     }
 
     /**

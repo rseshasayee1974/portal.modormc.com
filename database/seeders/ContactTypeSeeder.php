@@ -9,6 +9,8 @@ class ContactTypeSeeder extends Seeder
 {
     public function run(): void
     {
-        ContactType::factory()->count(10)->create();
+        if (ContactType::count() === 0) {
+            ContactType::factory()->count(10)->create();
+        }
     }
 }

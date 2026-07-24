@@ -111,7 +111,6 @@ Route::middleware([
         Route::resource('menus', \App\Http\Controllers\MenuController::class);
         Route::resource('sites', \App\Http\Controllers\SiteController::class);
         Route::resource('taxes', \App\Http\Controllers\TaxController::class);
-        Route::get('audit-logs', [\App\Http\Controllers\AuditLogController::class, 'index'])->name('settings.audit-logs');
         
         // AI Agent Builder
         Route::get('agents', [\App\Http\Controllers\AgentBuilderController::class, 'index'])->name('settings.agents.index');

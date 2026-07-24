@@ -14,6 +14,7 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseCard from '@/Components/Base/BaseCard.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
+import { usePermissions } from '@/Composables/usePermissions';
 
 interface Department {
     id: number;
@@ -26,6 +27,7 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
+const { isSassOwner } = usePermissions();
 const editingId = ref<number | null>(null);
 
 const form = useForm({
@@ -106,7 +108,7 @@ watch(
                 <div class="space-y-6">
                     
                     <!-- Form Container (col-span-3 standard grid layout) -->
-                    <BaseCard class="text-sm">
+                    <BaseCard v-if="isSassOwner" class="text-sm">
                         <template #header>
                             <div class="flex items-center gap-2">
                                 <FolderOpenIcon class="w-5 h-5 text-indigo-500" />
@@ -169,7 +171,7 @@ watch(
                                 </template>
                             </Column>
 
-                            <Column header="Actions" alignFrozen="right" frozen>
+                            <Column v-if="isSassOwner" header="Actions" alignFrozen="right" frozen>
                                 <template #body="slotProps">
                                     <div class="flex justify-end gap-2">
                                         <BaseButton 

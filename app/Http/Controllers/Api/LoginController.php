@@ -11,8 +11,12 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use OpenApi\Attributes as OA;
+
 class LoginController extends Controller
 {
+    public function __construct()
+    {
+    }
 
     #[OA\Post(
         path: "/auth/login",
@@ -196,11 +200,6 @@ class LoginController extends Controller
 
         $token = $user->createToken($tokenName)->plainTextToken;
 
-        $this->auditLogger->logAuthEvent('LOGIN', $user, [
-            'channel' => 'api',
-            'token_name' => $tokenName,
-        ]);
-
         return response()->json([
             'status' => true,
             'message' => 'Login Success',
@@ -240,11 +239,7 @@ class LoginController extends Controller
             'login_status' => false,
         ])->saveQuietly();
 
-        if ($user) {
-            $this->auditLogger->logAuthEvent('LOGOUT', $user, [
-                'channel' => 'api',
-            ]);
-        }
+
 
         return response()->json([
             'status' => true,

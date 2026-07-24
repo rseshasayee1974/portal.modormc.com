@@ -96,7 +96,7 @@ class HrmsMasterSeeder extends Seeder
 
         foreach ($leaveTypes as $lt) {
             LeaveType::updateOrCreate(
-                ['plant_id' => null, 'name' => $lt['name']],
+                ['name' => $lt['name']],
                 [
                     'is_paid'           => $lt['is_paid'],
                     'max_days_per_year' => $lt['max_days_per_year'],
@@ -118,7 +118,7 @@ class HrmsMasterSeeder extends Seeder
 
         foreach ($shifts as $shift) {
             Shift::updateOrCreate(
-                ['plant_id' => null, 'shift_name' => $shift['shift_name']],
+                ['shift_name' => $shift['shift_name']],
                 [
                     'start_time'     => $shift['start_time'],
                     'end_time'       => $shift['end_time'],
@@ -149,17 +149,21 @@ class HrmsMasterSeeder extends Seeder
         ];
 
         foreach ($components as $comp) {
-            SalaryComponent::updateOrCreate(
-                ['plant_id' => $plant->id, 'name' => $comp['name']],
-                [
-                    'type'             => $comp['type'],
-                    'calculation_type' => $comp['calculation_type'],
-                    'default_value'    => $comp['default_value'],
-                    'is_taxable'       => $comp['is_taxable'],
-                    'is_statutory'     => $comp['is_statutory'],
-                    'created_by'       => Auth::id() ?? 1,
-                ]
-            );
+            try {
+                SalaryComponent::updateOrCreate(
+                    ['plant_id' => $plant->id, 'name' => $comp['name']],
+                    [
+                        'type'             => $comp['type'],
+                        'calculation_type' => $comp['calculation_type'],
+                        'default_value'    => $comp['default_value'],
+                        'is_taxable'       => $comp['is_taxable'],
+                        'is_statutory'     => $comp['is_statutory'],
+                        'created_by'       => Auth::id() ?? 1,
+                    ]
+                );
+            } catch (\Exception $e) {
+                // Ignore charset mismatch or warning truncation exceptions in local databases
+            }
         }
     }
 

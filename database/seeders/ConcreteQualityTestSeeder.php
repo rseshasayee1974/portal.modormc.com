@@ -115,10 +115,15 @@ class ConcreteQualityTestSeeder extends Seeder
                 $waterPermeability = ($i % 4 === 0) ? rand(12, 25) : null;
                 $rapidChloride = ($i % 5 === 0) ? rand(1200, 1800) : null;
 
+                $testCode = 'QC-' . $testDate->format('Y') . '-' . str_pad($plant->id . ($i + 1), 4, '0', STR_PAD_LEFT);
+                if (ConcreteQualityTest::where('test_code', $testCode)->exists()) {
+                    continue;
+                }
+
                 ConcreteQualityTest::create([
                     'plant_id' => $plant->id,
                     'batch_id' => $batchId,
-                    'test_code' => 'QC-' . $testDate->format('Y') . '-' . str_pad($plant->id . ($i + 1), 4, '0', STR_PAD_LEFT),
+                    'test_code' => $testCode,
                     'test_date' => $testDate,
                     'tested_by' => $testedByOptions[$i % count($testedByOptions)],
                     

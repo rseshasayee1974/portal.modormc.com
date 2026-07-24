@@ -14,6 +14,7 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseCard from '@/Components/Base/BaseCard.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
+import { usePermissions } from '@/Composables/usePermissions';
 import DatePicker from 'primevue/datepicker';
 import ToggleSwitch from 'primevue/toggleswitch';
 import Tabs from 'primevue/tabs';
@@ -58,6 +59,7 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
+const { isSassOwner } = usePermissions();
 const activeTab = ref('shifts');
 const editingShiftId = ref<number | null>(null);
 
@@ -240,7 +242,7 @@ watch(
                         <TabPanel value="shifts">
                             <div class="space-y-6">
                                 <!-- Shift Form (3-column layout) -->
-                                <BaseCard class="text-sm">
+                                <BaseCard v-if="isSassOwner" class="text-sm">
                                     <template #header>
                                         <div class="flex items-center gap-2">
                                             <SparklesIcon class="w-5 h-5 text-indigo-500" />
@@ -342,7 +344,7 @@ watch(
                                                 <Tag :severity="slotProps.data.is_night_shift ? 'warn' : 'info'" :value="slotProps.data.is_night_shift ? 'YES' : 'NO'" rounded />
                                             </template>
                                         </Column>
-                                        <Column header="Actions" alignFrozen="right" frozen>
+                                        <Column v-if="isSassOwner" header="Actions" alignFrozen="right" frozen>
                                             <template #body="slotProps">
                                                 <div class="flex justify-end gap-2">
                                                     <BaseButton 
@@ -371,7 +373,7 @@ watch(
                         <TabPanel value="assignments">
                             <div class="space-y-6">
                                 <!-- Shift Assignment Form -->
-                                <BaseCard class="text-sm">
+                                <BaseCard v-if="isSassOwner" class="text-sm">
                                     <template #header>
                                         <div class="flex items-center gap-2">
                                             <CalendarDaysIcon class="w-5 h-5 text-indigo-500" />
@@ -455,7 +457,7 @@ watch(
                                                 <span>{{ slotProps.data.effective_from }} to {{ slotProps.data.effective_to || 'Present' }}</span>
                                             </template>
                                         </Column>
-                                        <Column header="Actions" alignFrozen="right" frozen>
+                                        <Column v-if="isSassOwner" header="Actions" alignFrozen="right" frozen>
                                             <template #body="slotProps">
                                                 <div class="flex justify-end gap-2">
                                                     <BaseButton 

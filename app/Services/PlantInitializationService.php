@@ -978,7 +978,7 @@ class PlantInitializationService
         foreach ($leaveTypes as $lt) {
             $this->updateOrCreateWithTrashed(
                 LeaveType::class,
-                ['plant_id' => null, 'name' => $lt['name']],
+                ['name' => $lt['name']],
                 [
                     'is_paid'           => $lt['is_paid'],
                     'max_days_per_year' => $lt['max_days_per_year'],
@@ -1001,7 +1001,7 @@ class PlantInitializationService
         foreach ($shifts as $shift) {
             $this->updateOrCreateWithTrashed(
                 Shift::class,
-                ['plant_id' => null, 'shift_name' => $shift['shift_name']],
+                ['shift_name' => $shift['shift_name']],
                 [
                     'start_time'     => $shift['start_time'],
                     'end_time'       => $shift['end_time'],

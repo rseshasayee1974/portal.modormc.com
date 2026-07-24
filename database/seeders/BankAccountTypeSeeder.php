@@ -9,6 +9,8 @@ class BankAccountTypeSeeder extends Seeder
 {
     public function run(): void
     {
-        BankAccountType::factory()->count(10)->create();
+        if (BankAccountType::count() === 0) {
+            BankAccountType::factory()->count(10)->create();
+        }
     }
 }

@@ -23,6 +23,9 @@ export function usePermissions() {
     const isSuperAdmin = computed(() =>
         ['Super Administrator', 'Platform Admin', 'Saas Owner', 'Super Admin'].includes(userRole.value)
     );
+    const isSassOwner = computed(() =>
+        ['Saas Owner'].includes(userRole.value)
+    );
 
     const isAdmin = computed(() =>
         ['Administrator', 'Admin'].includes(userRole.value)
@@ -33,8 +36,34 @@ export function usePermissions() {
      * Super Administrators always return true (all permissions granted).
      */
     const can = (permission: string): boolean => {
-        if (isAdmin.value) return true;
         const normalized = permission.toLowerCase();
+        if (isSassOwner.value) return true;
+
+        // Master data permissions are strictly restricted to Super Administrators
+        const masterModules = [
+            'master',
+            'address_type',
+            'bank_account_type',
+            'contact_type',
+            'country',
+            'currency',
+            'entity_type',
+            'invoice_status',
+            'payment_status',
+            'plan',
+            'subscription_status',
+            'state_code',
+            'terms_condition',
+            'menu',
+            'role',
+            'permission'
+        ];
+        const moduleName = normalized.split('.')[0];
+        if (masterModules.includes(moduleName)) {
+            return isSuperAdmin.value;
+        }
+
+        if (isSuperAdmin.value) return true;
         // console.log('normalized', normalized);
         // console.log('permissions', permissions.value);
         // console.log('isSuperAdmin', isSuperAdmin.value);
@@ -42,5 +71,5 @@ export function usePermissions() {
         return permissions.value.some(p => p.toLowerCase() === normalized);
     };
 
-    return { can, isSuperAdmin, isAdmin, permissions, userRole };
+    return { can, isSuperAdmin, isAdmin, permissions, userRole, isSassOwner };
 }

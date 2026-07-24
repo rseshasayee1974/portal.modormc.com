@@ -167,13 +167,50 @@ class HandleInertiaRequests extends Middleware
         }
 
         if ($user) {
-            $isSuper = $user->hasRole('Platform Admin') || $user->hasRole('Saas Owner');
+            $isSuper = $user->isSystemAdmin();
+
+            $isMasterMenu = function ($menu) {
+                // If it is the Master menu or a child of it
+                if ($menu->id === 2 || $menu->parent_id === 2) {
+                    return true;
+                }
+                
+                if ($menu->permission_name) {
+                    $prefix = strtolower(explode('.', $menu->permission_name)[0]);
+                    $masterModules = [
+                        'master',
+                        'address_type',
+                        'bank_account_type',
+                        'contact_type',
+                        'country',
+                        'currency',
+                        'entity_type',
+                        'invoice_status',
+                        'payment_status',
+                        'plan',
+                        'subscription_status',
+                        'state_code',
+                        'terms_condition',
+                        'menu',
+                        'role',
+                        'permission'
+                    ];
+                    if (in_array($prefix, $masterModules)) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            };
 
             $topNav = \App\Models\Menu::where('menutype', 1)
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions) {
+                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu) {
+                    if ($isMasterMenu($item)) {
+                        return $isSuper;
+                    }
                     if ($isSuper) return true;
                     if (!$item->permission_name) return true;
                     return $tenantPermissions->contains(fn($p) => strtolower($p) === strtolower($item->permission_name));
@@ -184,7 +221,10 @@ class HandleInertiaRequests extends Middleware
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions) {
+                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu) {
+                    if ($isMasterMenu($item)) {
+                        return $isSuper;
+                    }
                     if ($isSuper) return true;
                     if (!$item->permission_name) return true;
                     return $tenantPermissions->contains(fn($p) => strtolower($p) === strtolower($item->permission_name));

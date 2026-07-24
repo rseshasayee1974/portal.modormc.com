@@ -28,7 +28,7 @@ class LeaveApplicationController extends Controller
                 })
                 ->latest()
                 ->get(),
-            'leaveTypes' => LeaveType::where('plant_id', $activePlantId)->get(),
+            'leaveTypes' => LeaveType::orderBy('name', 'asc')->get(),
             'personnel' => Personnel::where('plant_id', $activePlantId)->get(['id', 'first_name', 'last_name', 'employee_code']),
             'statuses' => ['pending', 'approved', 'rejected', 'cancelled']
         ]);

@@ -53,9 +53,9 @@ const form = useForm({
         target_to_actual:  props.batchingSettings?.target_to_actual == 1,
         default_transport: props.batchingSettings?.default_transport || '',
         quote_validity:    props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
-        material_print_mode: props.batchingSettings?.material_print_mode || 'run',
-        add_pouring_rates_to_total: props.batchingSettings?.add_pouring_rates_to_total == 1,
-        pouring_rate_charge_type: props.batchingSettings?.pouring_rate_charge_type || 'per_m3',
+        // material_print_mode: props.batchingSettings?.material_print_mode || 'run',
+        // add_pouring_rates_to_total: props.batchingSettings?.add_pouring_rates_to_total == 1,
+        // pouring_rate_charge_type: props.batchingSettings?.pouring_rate_charge_type || 'per_m3',
         custom_params:     props.batchingSettings?.custom_params || [],
     }
 });
@@ -417,16 +417,16 @@ const deleteModule = (id: number) => {
                             </div>
 
                             <!-- Add Pouring Rates to Total -->
-                            <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                            <!-- <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                                 <div>
                                     <h4 class="font-bold text-emerald-700 text-sm">Add Pouring Rates to Quotation Total <code class="text-[9px] text-emerald-400 ml-1 font-normal">[add_pouring_rates_to_total]</code></h4>
                                     <p class="text-xs text-slate-500 mt-0.5">If enabled, the grand total is calculated using the pouring rates (Manual/Pump/Boom Pump) matching the selected concrete type. If disabled, it uses the actual rate from line items.</p>
                                 </div>
                                 <InputSwitch v-model="form.settings.add_pouring_rates_to_total" />
-                            </div>
+                            </div> -->
 
                             <!-- Pouring Rates Charge Type -->
-                            <div class="flex flex-col gap-2 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                            <!-- <div class="flex flex-col gap-2 p-4 bg-emerald-50/50 rounded-xl border border-emerald-100">
                                 <div class="flex items-center justify-between">
                                     <div>
                                         <h4 class="font-bold text-emerald-700 text-sm">Pouring Rate Charge Type <code class="text-[9px] text-emerald-400 ml-1 font-normal">[pouring_rate_charge_type]</code></h4>
@@ -446,7 +446,7 @@ const deleteModule = (id: number) => {
                                         class="w-full text-sm animate-fade-in"
                                     />
                                 </div>
-                            </div>
+                            </div> -->
                         </div>
                     </div>
 
@@ -545,7 +545,7 @@ const deleteModule = (id: number) => {
                             </div>
 
                             <!-- material_print_mode -->
-                            <div class="flex flex-col gap-2 p-4 bg-violet-50 rounded-xl border border-violet-100">
+                            <!-- <div class="flex flex-col gap-2 p-4 bg-violet-50 rounded-xl border border-violet-100">
                                 <div class="flex items-center justify-between">
                                     <div>
                                         <h4 class="font-bold text-violet-700 text-sm">Material Print Mode on PDFs <code class="text-[9px] text-violet-400 ml-1 font-normal">[material_print_mode]</code></h4>
@@ -566,7 +566,7 @@ const deleteModule = (id: number) => {
                                         class="w-full text-sm"
                                     />
                                 </div>
-                            </div>
+                            </div> -->
 
                             <!-- Dynamic Sync Params -->
                             <div v-for="(p, idx) in form.settings.custom_params.filter(x => x.module === 'sync' || (x.module === 'batching' && x.key.includes('sync')))" :key="'s-'+idx" 

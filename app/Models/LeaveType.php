@@ -14,7 +14,6 @@ class LeaveType extends Model
     protected $table = 'mm_leave_types';
 
     protected $fillable = [
-        'plant_id',
         'name',
         'is_paid',
         'max_days_per_year',
@@ -25,11 +24,6 @@ class LeaveType extends Model
         'is_paid' => 'boolean',
         'carry_forward' => 'boolean',
     ];
-
-    public function plant()
-    {
-        return $this->belongsTo(Plant::class, 'plant_id');
-    }
 
     public function balances()
     {
