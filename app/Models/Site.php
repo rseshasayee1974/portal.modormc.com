@@ -10,8 +10,8 @@ use App\Traits\PlantScoping;
 
 class Site extends Model
 {
-    /** @    use HasFactory<\Database\Factories\SiteFactory> */
-     HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping;
+    //    use HasFactory<\Database\Factories\SiteFactory> 
+    use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping;
 
     const CREATED_AT = 'created_at';
 

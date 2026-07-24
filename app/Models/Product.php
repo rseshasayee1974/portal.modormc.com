@@ -13,7 +13,7 @@ use App\Traits\TracksModelChanges;
 class Product extends Model
 {
     /** @    use HasFactory<\Database\Factories\ProductFactory> */
-     HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping, TracksModelChanges;
+    use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_products';
 
