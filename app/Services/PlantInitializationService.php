@@ -302,11 +302,9 @@ class PlantInitializationService
         foreach ($schema as $groupTitle => $groupData) {
             $account = $this->updateOrCreateWithTrashed(
                 Accounts::class,
-                ['code' => $groupData['code'], 'is_system' => true],
+                ['code' => $groupData['code'], 'is_system' => true, 'plant_id' => $plant->id],
                 [
-                    'plant_id'  => $plant->id,
                     'title'     => $groupTitle,
-                    'is_system' => true,
                     'status'    => 1,
                     'created_by' => Auth::id() ?? 1,
                     'created'   => now(),

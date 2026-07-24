@@ -203,13 +203,15 @@ class HandleInertiaRequests extends Middleware
                 return false;
             };
 
+            $isSassOwnerOnly = $user->hasAnyRole(['Saas Owner', 'Platform Admin']);
+
             $topNav = \App\Models\Menu::where('menutype', 1)
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu) {
+                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu, $isSassOwnerOnly) {
                     if ($isMasterMenu($item)) {
-                        return $isSuper;
+                        return $isSassOwnerOnly;
                     }
                     if ($isSuper) return true;
                     if (!$item->permission_name) return true;
@@ -221,9 +223,9 @@ class HandleInertiaRequests extends Middleware
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu) {
+                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu, $isSassOwnerOnly) {
                     if ($isMasterMenu($item)) {
-                        return $isSuper;
+                        return $isSassOwnerOnly;
                     }
                     if ($isSuper) return true;
                     if (!$item->permission_name) return true;

@@ -21,7 +21,7 @@ export function usePermissions() {
     );
 
     const isSuperAdmin = computed(() =>
-        ['Super Administrator', 'Platform Admin', 'Saas Owner', 'Super Admin'].includes(userRole.value)
+        ['Super Administrator', 'Platform Admin', 'Super Admin'].includes(userRole.value)
     );
     const isSassOwner = computed(() =>
         ['Saas Owner'].includes(userRole.value)
@@ -60,7 +60,7 @@ export function usePermissions() {
         ];
         const moduleName = normalized.split('.')[0];
         if (masterModules.includes(moduleName)) {
-            return isSuperAdmin.value;
+            return ['Saas Owner', 'Platform Admin'].includes(userRole.value);
         }
 
         if (isSuperAdmin.value) return true;

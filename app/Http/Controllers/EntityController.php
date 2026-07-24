@@ -34,9 +34,9 @@ class EntityController extends Controller
         return Inertia::render('Entities/Index', [
             'entities' => Entity::all(),
             'entityTypes' => EntityType::all(),
-            'addressTypes' => AddressType::all(),
-            'contactTypes' => ContactType::all(),
-            'bankAccountTypes' => BankAccountType::all(),
+                'addressTypes' => AddressType::all(),
+                'contactTypes' => ContactType::all(),
+                'bankAccountTypes' => BankAccountType::all(),
             'countries' => Country::all(['id', 'country_name']),
             'stateCodes' => StateCode::whereNotNull('state_name')
                 ->where('state_name', '!=', '')
