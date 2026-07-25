@@ -30,6 +30,15 @@ class SalaryComponent extends Model
         'config' => 'json',
     ];
 
+    public function setCalculationTypeAttribute($value)
+    {
+        $map = [
+            '₹' => 'fixed',
+            '%' => 'percentage',
+        ];
+        $this->attributes['calculation_type'] = $map[$value] ?? $value;
+    }
+
     public function plant()
     {
         return $this->belongsTo(Plant::class, 'plant_id');

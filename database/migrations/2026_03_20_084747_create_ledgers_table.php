@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('mm_ledgers', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('entity_id');
+            $table->unsignedBigInteger('entity_id')->nullable();
             $table->unsignedBigInteger('account_type_id');
             $table->string('code')->nullable();
             $table->boolean('is_pnl')->default(false);

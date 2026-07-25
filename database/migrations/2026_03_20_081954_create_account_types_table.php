@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('mm_account_types', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('entity_id');
+            $table->unsignedBigInteger('entity_id')->nullable();
             $table->string('code')->nullable();
             $table->unsignedBigInteger('account_id');
             $table->unsignedBigInteger('parent_id')->nullable();

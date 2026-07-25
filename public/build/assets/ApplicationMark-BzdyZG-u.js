@@ -1,0 +1,1 @@
+import{_ as o}from"./app-C8fK4T7k.js";import{j as r,l as s}from"./framework-core-DXuuiTUM.js";const a={src:"/assets/modormc_logo_v1.png",alt:"ModoRMC",class:"object-contain"},t=o({},[["render",function(o,t){return s(),r("img",a)}]]);export{t as A};

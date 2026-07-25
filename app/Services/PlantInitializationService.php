@@ -316,7 +316,6 @@ class PlantInitializationService
                     AccountsType::class,
                     ['code' => $subGroupData['code'], 'plant_id' => $plant->id],
                     [
-                        'entity_id'  => $plant->entity_id ?? null,
                         'account_id' => $account->id,
                         'title'      => $subGroupTitle,
                         'is_system'  => true,
@@ -331,7 +330,6 @@ class PlantInitializationService
                         Ledger::class,
                         ['code' => $ledgerData['code'], 'plant_id' => $plant->id],
                         [
-                            'entity_id'       => $plant->entity_id ?? null,
                             'account_type_id' => $accountType->id,
                             'title'           => $ledgerData['title'],
                             'slug'            => Str::slug($ledgerData['title']),
@@ -868,7 +866,6 @@ class PlantInitializationService
                 'patron_type' => ['Customer'], // The request said 'Customer, Vendor, Transport'
                 'is_system' => true,
                 'is_active' => true,
-                'aadhar_number' => 123456789012,
                 'created_by' => Auth::id() ?? 1,
             ]
         );
@@ -883,8 +880,6 @@ class PlantInitializationService
                 'code' => 'VEND-001',
                 'patron_type' => ['Vendor'],
                 'is_system' => true,
-                                'aadhar_number' => 123456789012,
-
                 'is_active' => true,
                 'created_by' => Auth::id() ?? 1,
             ]
@@ -901,8 +896,6 @@ class PlantInitializationService
                 'patron_type' => ['Transport'],
                 'is_system' => true,
                 'is_active' => true,
-                                'aadhar_number' => 123456789012,
-
                 'created_by' => Auth::id() ?? 1,
             ]
         );
@@ -1025,17 +1018,17 @@ class PlantInitializationService
     {
         $components = [
             // Earnings
-            ['name' => 'Basic Salary',          'type' => 'earning',   'calculation_type' => '₹',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
-            ['name' => 'House Rent Allowance',  'type' => 'earning',   'calculation_type' => '%',  'default_value' => 40,   'is_taxable' => false, 'is_statutory' => false],
-            ['name' => 'Conveyance Allowance',  'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 1600, 'is_taxable' => false, 'is_statutory' => false],
-            ['name' => 'Special Allowance',     'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
-            ['name' => 'Overtime',              'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'Basic Salary',          'type' => 'earning',   'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'House Rent Allowance',  'type' => 'earning',   'calculation_type' => 'percentage', 'default_value' => 40,   'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Conveyance Allowance',  'type' => 'earning',   'calculation_type' => 'fixed',      'default_value' => 1600, 'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Special Allowance',     'type' => 'earning',   'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'Overtime',              'type' => 'earning',   'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
             // Deductions
-            ['name' => 'Provident Fund (PF)',   'type' => 'deduction', 'calculation_type' => '%',  'default_value' => 12,   'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'ESI',                   'type' => 'deduction', 'calculation_type' => '%',  'default_value' => 0.75, 'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'Professional Tax',      'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 200,  'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'TDS',                   'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'Advance Deduction',     'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Provident Fund (PF)',   'type' => 'deduction', 'calculation_type' => 'percentage', 'default_value' => 12,   'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'ESI',                   'type' => 'deduction', 'calculation_type' => 'percentage', 'default_value' => 0.75, 'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'Professional Tax',      'type' => 'deduction', 'calculation_type' => 'fixed',      'default_value' => 200,  'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'TDS',                   'type' => 'deduction', 'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'Advance Deduction',     'type' => 'deduction', 'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => false, 'is_statutory' => false],
         ];
 
         foreach ($components as $comp) {

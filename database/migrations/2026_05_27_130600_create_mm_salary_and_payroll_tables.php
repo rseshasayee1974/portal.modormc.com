@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('plant_id')->constrained('mm_plants')->onDelete('cascade');
             $table->string('name'); // Basic, HRA, DA, PF, ESI, Professional Tax...
             $table->enum('type', ['earning', 'deduction']);
-            $table->enum('calculation_type', ['₹', '%', 'formula', 'attendance_based']);
+            $table->enum('calculation_type', ['fixed', 'percentage', '₹', '%', 'formula', 'attendance_based']);
             $table->decimal('default_value', 12, 2)->default(0);
             $table->boolean('is_taxable')->default(true);
             $table->boolean('is_statutory')->default(false); // PF, ESI, PT, etc.

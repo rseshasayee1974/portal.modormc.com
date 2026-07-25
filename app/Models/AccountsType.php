@@ -16,7 +16,6 @@ class AccountsType extends Model
 
     protected $fillable = [
         'plant_id',
-        'entity_id',
         'code',
         'account_id',
         'parent_id',
@@ -27,7 +26,6 @@ class AccountsType extends Model
         'created_by',
         'updated_at',
         'updated_by',
-        'updated_at',
         'deleted_at',
         'deleted_by',
     ];
