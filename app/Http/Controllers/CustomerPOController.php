@@ -249,7 +249,7 @@ class CustomerPOController extends Controller
             // 'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
             'is_tax_inclusive' => 'nullable|boolean',
             'order_date' => 'required|date',
-            'status' => 'required|integer|in:0,1,2,3',
+            'status' => 'required|integer|in:0,1,2',
             'mix_design_id' => 'nullable|exists:mm_mix_designs,id',
             'quantity' => 'nullable|numeric|min:0.001',
             'rate' => 'nullable|numeric|min:0',
@@ -544,6 +544,14 @@ class CustomerPOController extends Controller
                         'concrete_pump' => $itemData['concrete_pump'],
                     ]);
                 }
+
+                // Auto-complete: check if total allocated qty now covers total ordered qty
+                $customerPO->refresh()->load(['items', 'salesOrders']);
+                $totalOrdered   = $customerPO->items->sum('quantity');
+                $totalAllocated = $customerPO->salesOrders->sum('total_qty');
+                if ($totalOrdered > 0 && $totalAllocated >= $totalOrdered) {
+                    $customerPO->update(['status' => CustomerPO::STATUS_COMPLETED]);
+                }
             });
         } else {
             $validated = $request->validate([
@@ -569,6 +577,14 @@ class CustomerPOController extends Controller
                         'status' => SalesOrder::STATUS_SCHEDULED,
                         'customer_po_id' => $customerPO->id,
                     ]);
+                }
+
+                // Auto-complete: check if total allocated qty now covers total ordered qty
+                $customerPO->refresh()->load(['items', 'salesOrders']);
+                $totalOrdered   = $customerPO->items->sum('quantity');
+                $totalAllocated = $customerPO->salesOrders->sum('total_qty');
+                if ($totalOrdered > 0 && $totalAllocated >= $totalOrdered) {
+                    $customerPO->update(['status' => CustomerPO::STATUS_COMPLETED]);
                 }
             });
         }

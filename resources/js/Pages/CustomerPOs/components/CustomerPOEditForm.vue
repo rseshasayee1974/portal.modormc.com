@@ -37,8 +37,8 @@ const emit = defineEmits<{
     (e: 'saved'): void;
     (e: 'cancel'): void;
 }>();
-const { isAdmin , isSuperAdmin} = usePermissions();
-const admin = isAdmin.value || isSuperAdmin.value;
+const { isAdmin , isSuperAdmin , isSassOwner} = usePermissions();
+const admin = isAdmin.value || isSuperAdmin.value || isSassOwner.value;
 const form = useForm({
     prefix: props.customerPO?.prefix ?? 'CPO',
     reference: props.customerPO?.reference ?? '',
@@ -207,6 +207,8 @@ const taxOptions = computed(() => (props.taxes || []).map(t => ({
     label: t.tax_name ? `${t.tax_name} (${t.tax_rate}%)` : `Tax (${t.tax_rate}%)`,
     value: t.id
 })));
+
+console.log('sdfsdf',props.customerPO);
 
 // Watch form items and is_tax_inclusive status to dynamically update tax_amount
 watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) => {
@@ -956,7 +958,7 @@ const performSubmit = (customerPOId: any) => {
 
         <div class="mt-5 flex justify-end gap-2 border-t border-gray-200 pt-4">
             <BaseFormActions
-                :disabled="props.customerPO.has_salesorders && !admin "
+                :disabled="props.customerPO.has_salesorders && !admin"
                 mode="update"
                 updateLabel="Update Customer PO"
                 :loading="form.processing"
