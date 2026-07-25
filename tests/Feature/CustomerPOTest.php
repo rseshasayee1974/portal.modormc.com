@@ -29,10 +29,14 @@ class CustomerPOTest extends TestCase
         
         $this->user = User::factory()->create();
         
-        $role = \Spatie\Permission\Models\Role::firstOrCreate(
+        $role = \App\Models\Role::firstOrCreate(
             ['name' => 'Super Admin', 'guard_name' => 'web'],
             ['code' => 'SUPER_ADMIN']
         );
+        $updatePermission = \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'CUSTOMER_PO.UPDATE', 'guard_name' => 'web']);
+        $deletePermission = \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'CUSTOMER_PO.DELETE', 'guard_name' => 'web']);
+        $role->givePermissionTo([$updatePermission, $deletePermission]);
+
         $this->superAdmin = User::factory()->create();
         $this->superAdmin->assignRole($role);
 
@@ -568,5 +572,58 @@ class CustomerPOTest extends TestCase
         ]));
 
         $response->assertStatus(200);
+    }
+
+    public function test_direct_customer_po_creation_and_update_with_pump_rates()
+    {
+        $this->withoutExceptionHandling();
+        $mixDesign = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id]);
+
+        // 1. Create a Direct Customer PO (single item mode) with pump rates
+        $response = $this->post(route('customer-po.store'), [
+            'patron_id' => $this->patron->id,
+            'site_id' => $this->site->id,
+            'order_date' => now()->format('Y-m-d'),
+            'mix_design_id' => $mixDesign->id,
+            'quantity' => 10,
+            'rate' => 500,
+            'pump_rates' => [
+                ['pump_type' => 'Pump A', 'pump_rate' => 250],
+                ['pump_type' => 'Pump B', 'pump_rate' => 300],
+            ],
+        ]);
+
+        $response->assertStatus(302);
+        $customerPO = CustomerPO::latest('id')->first();
+        $this->assertNotNull($customerPO);
+        $this->assertCount(1, $customerPO->items);
+        
+        $item = $customerPO->items->first();
+        $this->assertCount(2, $item->pumpRates);
+        $this->assertEquals(250, $item->pumpRates->where('pump_type', 'Pump A')->first()->pump_rate);
+        $this->assertEquals(300, $item->pumpRates->where('pump_type', 'Pump B')->first()->pump_rate);
+
+        // 2. Update the Direct Customer PO with new/modified pump rates (single item mode)
+        $response = $this->put(route('customer-po.update', $customerPO->id), [
+            'patron_id' => $this->patron->id,
+            'site_id' => $this->site->id,
+            'order_date' => now()->format('Y-m-d'),
+            'status' => 1,
+            'mix_design_id' => $mixDesign->id,
+            'quantity' => 10,
+            'rate' => 500,
+            'pump_rates' => [
+                ['pump_type' => 'Pump A', 'pump_rate' => 400], // updated
+                ['pump_type' => 'Pump B', 'pump_rate' => 0],   // removed (since rate is 0)
+                ['pump_type' => 'Pump C', 'pump_rate' => 150], // added
+            ],
+        ]);
+
+        $response->assertStatus(302);
+        $item->refresh();
+        $this->assertCount(2, $item->pumpRates);
+        $this->assertEquals(400, $item->pumpRates->where('pump_type', 'Pump A')->first()->pump_rate);
+        $this->assertNull($item->pumpRates->where('pump_type', 'Pump B')->first());
+        $this->assertEquals(150, $item->pumpRates->where('pump_type', 'Pump C')->first()->pump_rate);
     }
 }

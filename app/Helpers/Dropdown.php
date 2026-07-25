@@ -740,23 +740,7 @@ if (!function_exists('PaymentMethodsDropdown')) {
             ->get(['id', 'name']);
     }
 }
-if (!function_exists('ConcretePumpDropdown')) {
-    /**
-     * Dropdown for concrete pump type — sourced from mm_machine_types.
-     */
-    function ConcretePumpDropdown()
-    {
-        $types = Machine::whereHas('machineType', function($q) {
-            $q->where('name', 'LIKE', 'Pump%');
-        })->where('plant_id', _activePlantId())->whereNull('deleted_at')
-        ->get();
 
-        return $types->map(fn($type) => [
-            'label' => $type->registration,
-            'value' => $type->id,
-        ])->toArray();
-    }
-}
 
 if (!function_exists('PumpTypeDropdown')) {
     /**

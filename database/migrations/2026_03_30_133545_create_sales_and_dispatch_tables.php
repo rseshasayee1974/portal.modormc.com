@@ -72,6 +72,7 @@ return new class extends Migration
                 ->nullOnDelete();
             $table->date('order_date');
             $table->tinyInteger('status')->default(0);
+            $table->text('notes')->nullable();
 
             $table->auditColumns();
 

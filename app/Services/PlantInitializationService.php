@@ -316,6 +316,7 @@ class PlantInitializationService
                     AccountsType::class,
                     ['code' => $subGroupData['code'], 'plant_id' => $plant->id],
                     [
+                        'entity_id'  => $plant->entity_id ?? null,
                         'account_id' => $account->id,
                         'title'      => $subGroupTitle,
                         'is_system'  => true,
@@ -330,6 +331,7 @@ class PlantInitializationService
                         Ledger::class,
                         ['code' => $ledgerData['code'], 'plant_id' => $plant->id],
                         [
+                            'entity_id'       => $plant->entity_id ?? null,
                             'account_type_id' => $accountType->id,
                             'title'           => $ledgerData['title'],
                             'slug'            => Str::slug($ledgerData['title']),
@@ -348,7 +350,7 @@ class PlantInitializationService
     private function seedTaxes(Plant $plant)
     {
         // --- GST Slabs (Sales) ---
-        $slabs = [ 5, 12, 18, 28];
+        $slabs = [0, 5, 12, 18, 28];
 
         foreach ($slabs as $rate) {
             if ($rate == 0) {
@@ -670,10 +672,10 @@ class PlantInitializationService
 
     private function seedProductsAndCategories(Plant $plant)
     {
-        $kgUnit = ProductUnit::where('unit_code', 'KGS')->first() ?? ProductUnit::create(['unit_name' => 'KGS', 'unit_code' => 'KGS', 'is_system' => true, 'status' => 1]);
-        $m3Unit = ProductUnit::where('unit_code', 'CBM')->first() ?? ProductUnit::create(['unit_name' => 'CBM', 'unit_code' => 'CBM', 'is_system' => true, 'status' => 1]);
-        $bagUnit = ProductUnit::where('unit_code', 'BAG')->first() ?? ProductUnit::create(['unit_name' => 'BAGS', 'unit_code' => 'BAG', 'is_system' => true, 'status' => 1]);
-        $nosUnit = ProductUnit::where('unit_code', 'NOS')->first() ?? ProductUnit::create(['unit_name' => 'NUMBERS', 'unit_code' => 'NOS', 'is_system' => true, 'status' => 1]);
+        $kgUnit = ProductUnit::where('unit_code', 'KGS')->first() ?? ProductUnit::create(['unit_name' => 'KGS', 'unit_code' => 'KGS', 'unit_type' => 'Weight', 'is_system' => true, 'status' => 1]);
+        $m3Unit = ProductUnit::where('unit_code', 'CBM')->first() ?? ProductUnit::create(['unit_name' => 'CBM', 'unit_code' => 'CBM', 'unit_type' => 'Volume', 'is_system' => true, 'status' => 1]);
+        $bagUnit = ProductUnit::where('unit_code', 'BAG')->first() ?? ProductUnit::create(['unit_name' => 'BAGS', 'unit_code' => 'BAG', 'unit_type' => 'Measure', 'is_system' => true, 'status' => 1]);
+        $nosUnit = ProductUnit::where('unit_code', 'NOS')->first() ?? ProductUnit::create(['unit_name' => 'NUMBERS', 'unit_code' => 'NOS', 'unit_type' => 'Measure', 'is_system' => true, 'status' => 1]);
 
         $rmcCategory = $this->updateOrCreateWithTrashed(
             ProductCategory::class,
@@ -863,7 +865,7 @@ class PlantInitializationService
             ], [
                 'entity_id' => $plant->entity_id,
                 'code' => 'CUST-001',
-                'patron_type' => 'Customer', // The request said 'Customer, Vendor, Transport'
+                'patron_type' => ['Customer'], // The request said 'Customer, Vendor, Transport'
                 'is_system' => true,
                 'is_active' => true,
                 'created_by' => Auth::id() ?? 1,
@@ -878,7 +880,7 @@ class PlantInitializationService
             ], [
                 'entity_id' => $plant->entity_id,
                 'code' => 'VEND-001',
-                'patron_type' => 'Vendor',
+                'patron_type' => ['Vendor'],
                 'is_system' => true,
                 'is_active' => true,
                 'created_by' => Auth::id() ?? 1,
@@ -893,7 +895,7 @@ class PlantInitializationService
             ], [
                 'entity_id' => $plant->entity_id,
                 'code' => 'TRANS-001',
-                'patron_type' => 'Transport',
+                'patron_type' => ['Transport'],
                 'is_system' => true,
                 'is_active' => true,
                 'created_by' => Auth::id() ?? 1,
@@ -1016,17 +1018,17 @@ class PlantInitializationService
     {
         $components = [
             // Earnings
-            ['name' => 'Basic Salary',          'type' => 'earning',   'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
-            ['name' => 'House Rent Allowance',  'type' => 'earning',   'calculation_type' => 'percentage',  'default_value' => 40,   'is_taxable' => false, 'is_statutory' => false],
-            ['name' => 'Conveyance Allowance',  'type' => 'earning',   'calculation_type' => 'fixed',       'default_value' => 1600, 'is_taxable' => false, 'is_statutory' => false],
-            ['name' => 'Special Allowance',     'type' => 'earning',   'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
-            ['name' => 'Overtime',              'type' => 'earning',   'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'Basic Salary',          'type' => 'earning',   'calculation_type' => '₹',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'House Rent Allowance',  'type' => 'earning',   'calculation_type' => '%',  'default_value' => 40,   'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Conveyance Allowance',  'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 1600, 'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Special Allowance',     'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'Overtime',              'type' => 'earning',   'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
             // Deductions
-            ['name' => 'Provident Fund (PF)',   'type' => 'deduction', 'calculation_type' => 'percentage',  'default_value' => 12,   'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'ESI',                   'type' => 'deduction', 'calculation_type' => 'percentage',  'default_value' => 0.75, 'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'Professional Tax',      'type' => 'deduction', 'calculation_type' => 'fixed',       'default_value' => 200,  'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'TDS',                   'type' => 'deduction', 'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'Advance Deduction',     'type' => 'deduction', 'calculation_type' => 'fixed',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Provident Fund (PF)',   'type' => 'deduction', 'calculation_type' => '%',  'default_value' => 12,   'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'ESI',                   'type' => 'deduction', 'calculation_type' => '%',  'default_value' => 0.75, 'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'Professional Tax',      'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 200,  'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'TDS',                   'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'Advance Deduction',     'type' => 'deduction', 'calculation_type' => '₹',       'default_value' => 0,    'is_taxable' => false, 'is_statutory' => false],
         ];
 
         foreach ($components as $comp) {
@@ -1092,8 +1094,11 @@ class PlantInitializationService
 
         $moduleTemplates = [
             'invoices'          => 'standard_indigo',
+            'sales_orders'      => 'standard',
             'purchase_orders'   => 'standard_indigo',
+            'purchase_bills'    => 'standard',
             'quotations'        => 'standard',
+            'customer_pos'      => 'standard',
             'delivery_challans' => 'delivery_challan_a4',
             'delivery_notes'    => 'standard',
             'credit_notes'      => 'standard',

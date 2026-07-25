@@ -36,13 +36,9 @@ class SalesOrderIndexDataFactory
                 ->get()
                 ->toArray() : [],
             'statuses' => SalesOrder::statusOptions(),
-            'concretePumpOptions' => ConcretePumpDropdown(),
+            'concretePumpOptions' => PumpTypeDropdown(),
             'salesExecutives' => SalesExecutivesDropdown(),
-            'taxes' => $activePlantId ? \App\Models\Tax::where('plant_id', $activePlantId)
-                ->whereNull('parent_id')
-                ->orderBy('tax_name')
-                ->get(['id', 'tax_name', 'tax_rate', 'tax_group'])
-                ->toArray() : [],
+            'taxes'    => TaxesDropdown('Sales', ['GST', 'IGST']),
             'activePlantId' => $activePlantId,
             'nextReference' => $activePlantId ? SalesOrder::generateOrderNo($activePlantId, 'SO')['full_number'] : null,
             'products' => \Inertia\Inertia::lazy(fn() => $activePlantId ? ProductsDropdown('Purchase')->toArray() : []),

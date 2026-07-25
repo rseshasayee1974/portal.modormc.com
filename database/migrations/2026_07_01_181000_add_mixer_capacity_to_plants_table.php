@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('mm_plants', function (Blueprint $table) {
-            $table->decimal('mixer_capacity', 8, 2)->nullable()->after('name');
-        });
+        if (!Schema::hasColumn('mm_plants', 'mixer_capacity')) {
+            Schema::table('mm_plants', function (Blueprint $table) {
+                $table->decimal('mixer_capacity', 8, 2)->nullable()->after('name');
+            });
+        }
     }
 
     /**
@@ -21,8 +23,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('mm_plants', function (Blueprint $table) {
-            $table->dropColumn('mixer_capacity');
-        });
+        if (Schema::hasColumn('mm_plants', 'mixer_capacity')) {
+            Schema::table('mm_plants', function (Blueprint $table) {
+                $table->dropColumn('mixer_capacity');
+            });
+        }
     }
 };

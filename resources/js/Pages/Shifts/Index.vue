@@ -373,7 +373,7 @@ watch(
                         <TabPanel value="assignments">
                             <div class="space-y-6">
                                 <!-- Shift Assignment Form -->
-                                <BaseCard v-if="isSassOwner" class="text-sm">
+                                <BaseCard class="text-sm">
                                     <template #header>
                                         <div class="flex items-center gap-2">
                                             <CalendarDaysIcon class="w-5 h-5 text-indigo-500" />

@@ -198,7 +198,7 @@ class BatchController extends Controller
             'sales_ledgers'     => toSelectOptions(LedgersDropdown('REVENUE'), 'title', 'id'),
             'nextBatchNo'       => $nextBatchNo ?: 1,
             'batchingSettings'  => CustomSetting::getForModule($activePlantId, 'batching'),
-            'concretePumpOptions' => ConcretePumpDropdown(),
+            'concretePumpOptions' => PumpTypeDropdown(),
         ]);
     }
 

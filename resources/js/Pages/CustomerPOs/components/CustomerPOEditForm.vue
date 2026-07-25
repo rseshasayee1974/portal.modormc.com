@@ -885,7 +885,7 @@ const performSubmit = (customerPOId: any) => {
                                 </thead>
                                 <tbody class="divide-y divide-indigo-50/50">
                                     <!-- Single item mode -->
-                                    <template v-if="(!form.quotation_id && form.items.length <= 1) || (form.quotation_id && (customerPO?.quotation?.items?.length === 1 || customerPO?.items?.length === 1))">
+                                    <template v-if="form.quotation_id && (customerPO?.quotation?.items?.length === 1 || customerPO?.items?.length === 1)">
                                         <template v-if="Number(form.mix_design_id) === Number(designId)">
                                             <tr v-for="pr in form.pump_rates" :key="pr.pump_type" class="hover:bg-indigo-50/20 transition-colors p-1">
                                                 <td class="px-4 py-0 font-medium text-slate-700 truncate">{{ props.pumpTypeOptions?.find(opt => String(opt.value) === String(pr.pump_type))?.label || pr.pump_type }}</td>
