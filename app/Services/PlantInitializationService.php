@@ -868,6 +868,7 @@ class PlantInitializationService
                 'patron_type' => ['Customer'], // The request said 'Customer, Vendor, Transport'
                 'is_system' => true,
                 'is_active' => true,
+                'aadhar_number' => 123456789012,
                 'created_by' => Auth::id() ?? 1,
             ]
         );
@@ -882,6 +883,8 @@ class PlantInitializationService
                 'code' => 'VEND-001',
                 'patron_type' => ['Vendor'],
                 'is_system' => true,
+                                'aadhar_number' => 123456789012,
+
                 'is_active' => true,
                 'created_by' => Auth::id() ?? 1,
             ]
@@ -898,6 +901,8 @@ class PlantInitializationService
                 'patron_type' => ['Transport'],
                 'is_system' => true,
                 'is_active' => true,
+                                'aadhar_number' => 123456789012,
+
                 'created_by' => Auth::id() ?? 1,
             ]
         );
@@ -928,6 +933,7 @@ class PlantInitializationService
             ['name' => 'Accounts',        'code' => 'ACC'],
             ['name' => 'Human Resources', 'code' => 'HR'],
             ['name' => 'Administration',  'code' => 'ADMIN'],
+            ['name' => 'Logistics',       'code' => 'LGS'],
         ];
 
         foreach ($departments as $dept) {
@@ -951,6 +957,7 @@ class PlantInitializationService
             ['name' => 'Accountant',          'code' => 'ACCT'],
             ['name' => 'Operator',            'code' => 'OPR'],
             ['name' => 'Sales Executive',     'code' => 'SE'],
+            ['name' => 'Driver',     'code' => 'DRV'],
         ];
 
         foreach ($designations as $desig) {
