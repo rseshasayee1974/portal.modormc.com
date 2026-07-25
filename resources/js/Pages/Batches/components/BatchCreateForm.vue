@@ -152,14 +152,54 @@ const salesOrderDetails = computed(() => {
     ];
 });
 
+const isAutofillingSalesOrder = ref(false);
+
 watch(() => form.sales_order_id, (newVal) => {
     if (newVal && selectedSalesOrder.value) {
+        isAutofillingSalesOrder.value = true;
+
         // Calculate remaining qty and assign to batch_size (capped at 6)
         const remaining = Number((Number(selectedSalesOrder.value.total_qty) - Number(selectedSalesOrder.value.produced_qty)).toFixed(3));
         form.batch_size = remaining > 6 ? 6 : (remaining > 0 ? remaining : 1);
         
-        // Assign sales executive
-        form.sales_executive_id = selectedSalesOrder.value.sales_executive_id ? Number(selectedSalesOrder.value.sales_executive_id) : null;
+        // References for easy access
+        const po = selectedSalesOrder.value.customer_p_o;
+        const quotation = po?.quotation;
+        const latestDispatch = selectedSalesOrder.value.latest_dispatch;
+
+        // Fallbacks for concrete_pump and sales_executive_id
+        const concretePumpVal = selectedSalesOrder.value.concrete_pump
+            ?? po?.concrete_pump
+            ?? quotation?.concrete_pump
+            ?? latestDispatch?.concrete_pump
+            ?? null;
+        form.concrete_pump = concretePumpVal ? String(concretePumpVal) : null;
+
+        const salesExecVal = selectedSalesOrder.value.sales_executive_id
+            ?? po?.sales_executive_id
+            ?? quotation?.sales_executive_id
+            ?? latestDispatch?.sales_executive_id
+            ?? null;
+        form.sales_executive_id = salesExecVal ? Number(salesExecVal) : null;
+
+        // Fallbacks for logistics from the latest dispatchs
+        if (latestDispatch) {
+            form.truck_id = latestDispatch.truck_id ? Number(latestDispatch.truck_id) : null;
+            form.driver_id = latestDispatch.driver_id ? Number(latestDispatch.driver_id) : null;
+            form.transport_id = latestDispatch.transport_id ? Number(latestDispatch.transport_id) : null;
+        } else {
+            form.truck_id = null;
+            form.driver_id = null;
+            form.transport_id = null;
+        }
+
+        // If transport_id is still not set but we have a driver_id, use the driver's associated transporter
+        if (!form.transport_id && form.driver_id) {
+            const driverObj = props.drivers.find(d => Number(d.id) === Number(form.driver_id));
+            if (driverObj?.transporter_id) {
+                form.transport_id = Number(driverObj.transporter_id);
+            }
+        }
 
         if (selectedSalesOrder.value.mix_design?.items) {
             form.materials = selectedSalesOrder.value.mix_design.items.map((item: any) => ({
@@ -173,13 +213,30 @@ watch(() => form.sales_order_id, (newVal) => {
             form.materials = [blankMaterial()];
         }
         form.batch_no = props.nextBatchNo;
-        form.concrete_pump = selectedSalesOrder.value.concrete_pump ? Number(selectedSalesOrder.value.concrete_pump) : null;
+
+        // Reset flag after a microtask so that driver_id watcher triggered by the assignment above won't override it
+        setTimeout(() => {
+            isAutofillingSalesOrder.value = false;
+        }, 0);
     } else {
         form.materials = [blankMaterial()];
         form.batch_no = props.nextBatchNo;
         form.concrete_pump = null;
         form.sales_executive_id = null;
+        form.truck_id = null;
+        form.driver_id = null;
+        form.transport_id = null;
         form.batch_size = 1;
+    }
+});
+
+watch(() => form.driver_id, (newDriverId) => {
+    if (isAutofillingSalesOrder.value) return;
+    if (newDriverId) {
+        const driverObj = props.drivers.find(d => Number(d.id) === Number(newDriverId));
+        if (driverObj?.transporter_id) {
+            form.transport_id = Number(driverObj.transporter_id);
+        }
     }
 });
 

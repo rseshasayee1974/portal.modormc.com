@@ -382,53 +382,38 @@
         </tr>
     </table>
 
-    @if ($batch->materials->count() > 0)
+    @if ($batch->workOrder?->mixDesign?->items?->count() > 0)
         <div class="divider"></div>
         <div
             style="font-weight: bold; text-align: center; margin-bottom: 4px; font-size: 10px; color: #000000 !important; letter-spacing: 0.05em;">
-            DISPATCHED MATERIALS</div>
+            DISPATCHED MATERIALS (per m³)</div>
         <table class="materials-table">
             <thead>
                 <tr>
                     <th style="width: 37%;">Material</th>
-                    <th class="text-right" style="width: 21%;">Tar(kg)</th>
+                    <th class="text-right" style="width: 21%;">Rec(kg)</th>
                     <th class="text-right" style="width: 21%;">Act(kg)</th>
                     <th class="text-right" style="width: 21%;">Dev(%)</th>
                 </tr>
             </thead>
             <tbody>
                 @php
-                    $groupedMaterials = $batch->materials->groupBy(function($mat) {
-                        return $mat->product_id ?? $mat->material_name;
-                    })->map(function($group) {
-                        $first = $group->first();
-                        $target = $group->sum('target_qty');
-                        $actual = $group->sum('actual_qty');
-                        $deviation = $group->sum('deviation_quantity');
-                        return (object)[
-                            'material_name' => $first->material_name ?: ($first->product->title ?? 'Material'),
-                            'target_qty' => $target,
-                            'actual_qty' => $actual,
-                            'deviation_quantity' => $deviation,
-                        ];
-                    });
+                    // Group batch materials by product_id for quick lookup of actual_qty
+                    $batchActuals = $batch->materials->groupBy('product_id')->map(fn($g) => $g->sum('actual_qty'));
                 @endphp
-                @foreach ($groupedMaterials as $mat)
+                @foreach ($batch->workOrder->mixDesign->items as $item)
                     @php
-                        $target = (float) $mat->target_qty;
-                        $actual = (float) $mat->actual_qty;
-                        $deviationVal = $actual - $target;
-                        $devPercent = 0;
-                        if ($target > 0) {
-                            $devPercent = ($deviationVal / $target) * 100;
-                        }
+                        $recipe  = (float) $item->actual_quantity;                            // raw mix design qty per m³
+                        $actual  = (float) ($batchActuals[$item->product_id] ?? 0);           // what was actually dispensed
+                        $devVal  = $actual - $recipe;
+                        $devPct  = $recipe > 0 ? ($devVal / $recipe) * 100 : 0;
                     @endphp
                     <tr>
-                        <td>{{ $mat->material_name }}</td>
-                        <td class="text-right font-mono">{{ number_format($target, 0) }}</td>
+                        <td>{{ $item->product?->title ?? 'Material' }}</td>
+                        <td class="text-right font-mono">{{ number_format($recipe, 0) }}</td>
                         <td class="text-right font-mono">{{ number_format($actual, 0) }}</td>
                         <td class="text-right font-mono">
-                            {{ ($devPercent > 0 ? '+' : '') . number_format($devPercent, 1) }}%</td>
+                            {{ ($devPct > 0 ? '+' : '') . number_format($devPct, 1) }}%</td>
                     </tr>
                 @endforeach
             </tbody>

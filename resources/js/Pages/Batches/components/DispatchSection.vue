@@ -102,15 +102,42 @@ const form = useForm({
     dispatch_reference: props.dispatch?.dispatch_reference || '',
     dispatch_time: props.dispatch?.dispatch_time ? new Date(props.dispatch.dispatch_time) : new Date(),
     delivered_qty: props.dispatch?.delivered_qty || props.batch?.batch_size || 0,
-    truck_id: (props.dispatch?.truck_id || props.batch?.truck_id) ? Number(props.dispatch?.truck_id || props.batch?.truck_id) : null,
-    transport_id: (props.dispatch?.transport_id || props.batch?.transport_id) ? Number(props.dispatch?.transport_id || props.batch?.transport_id) : null,
+    truck_id: (() => {
+        const direct = props.dispatch?.truck_id || props.batch?.truck_id;
+        if (direct) return Number(direct);
+        return props.salesOrder?.latest_dispatch?.truck_id ? Number(props.salesOrder.latest_dispatch.truck_id) : null;
+    })(),
+    transport_id: (() => {
+        const direct = props.dispatch?.transport_id || props.batch?.transport_id;
+        if (direct) return Number(direct);
+        if (props.salesOrder?.latest_dispatch?.transport_id) return Number(props.salesOrder.latest_dispatch.transport_id);
+        const drId = props.dispatch?.driver_id || props.batch?.driver_id || props.salesOrder?.latest_dispatch?.driver_id;
+        if (drId) {
+            const driverObj = props.drivers?.find((d: any) => Number(d.id) === Number(drId));
+            if (driverObj?.transporter_id) return Number(driverObj.transporter_id);
+        }
+        return null;
+    })(),
     customer_id: (props.dispatch?.customer_id || props.batch?.customer_id) ? Number(props.dispatch?.customer_id || props.batch?.customer_id) : null,
     mixdesign_id: (props.dispatch?.mixdesign_id || props.batch?.mix_design_id) ? Number(props.dispatch?.mixdesign_id || props.batch?.mix_design_id) : null,
     uom_id: (props.dispatch?.uom_id || props.batch?.uom_id) ? Number(props.dispatch?.uom_id || props.batch?.uom_id) : null,
     load_site_id: (props.dispatch?.load_site_id || props.batch?.load_site_id) ? Number(props.dispatch?.load_site_id || props.batch?.load_site_id) : null,
     unload_site_id: (props.dispatch?.unload_site_id || props.batch?.unload_site_id) ? Number(props.dispatch?.unload_site_id || props.batch?.unload_site_id) : null,
-    driver_id: (props.dispatch?.driver_id || props.batch?.driver_id) ? Number(props.dispatch?.driver_id || props.batch?.driver_id) : null,
-    sales_executive_id: (props.dispatch?.sales_executive_id || props.batch?.sales_executive_id) ? Number(props.dispatch?.sales_executive_id || props.batch?.sales_executive_id) : null,
+    driver_id: (() => {
+        const direct = props.dispatch?.driver_id || props.batch?.driver_id;
+        if (direct) return Number(direct);
+        return props.salesOrder?.latest_dispatch?.driver_id ? Number(props.salesOrder.latest_dispatch.driver_id) : null;
+    })(),
+    sales_executive_id: (() => {
+        const direct = props.dispatch?.sales_executive_id || props.batch?.sales_executive_id;
+        if (direct) return Number(direct);
+        const val = props.salesOrder?.sales_executive_id
+            || props.salesOrder?.customer_p_o?.sales_executive_id
+            || props.salesOrder?.customer_p_o?.quotation?.sales_executive_id
+            || props.salesOrder?.latest_dispatch?.sales_executive_id
+            || null;
+        return val ? Number(val) : null;
+    })(),
     payment_mode: props.dispatch?.payment_mode || 'credit',
     dispatch_status: props.dispatch?.dispatch_status || 'Draft',
     generate_invoice: false,
@@ -149,6 +176,7 @@ const form = useForm({
         load_tax_amount: props.dispatch?.load_tax_amount || 0,
         load_untax_amount: props.dispatch?.load_untax_amount || 0,
         load_total_amount: props.dispatch?.load_total_amount || 0,
+        pump_charge: props.dispatch?.pump_charge || 0,
         pass_amount: props.dispatch?.pass_amount || 0,
         discount_amount: props.dispatch?.discount_amount || 0,
         transport_expenses: props.dispatch?.transport_expenses || 0,
@@ -205,15 +233,33 @@ watch(() => props.batch, (newBatch) => {
         form.batch_id = newBatch.id;
         form.batch_size = newBatch.batch_size || 0;
         form.delivered_qty = newBatch.batch_size || 0;
-        form.truck_id = newBatch.truck_id ? Number(newBatch.truck_id) : form.truck_id;
-        form.transport_id = newBatch.transport_id ? Number(newBatch.transport_id) : form.transport_id;
+
+        const latestDispatch = props.salesOrder?.latest_dispatch;
+
+        form.truck_id = newBatch.truck_id ? Number(newBatch.truck_id) 
+            : (latestDispatch?.truck_id ? Number(latestDispatch.truck_id) : form.truck_id);
+
+        form.driver_id = newBatch.driver_id ? Number(newBatch.driver_id) 
+            : (latestDispatch?.driver_id ? Number(latestDispatch.driver_id) : form.driver_id);
+
+        form.transport_id = newBatch.transport_id ? Number(newBatch.transport_id) 
+            : (latestDispatch?.transport_id ? Number(latestDispatch.transport_id) 
+               : (form.driver_id ? (() => {
+                     const driverObj = props.drivers?.find((d: any) => Number(d.id) === Number(form.driver_id));
+                     return driverObj?.transporter_id ? Number(driverObj.transporter_id) : form.transport_id;
+                  })() : form.transport_id));
+
         form.customer_id = newBatch.customer_id ? Number(newBatch.customer_id) : form.customer_id;
         form.mixdesign_id = newBatch.mix_design_id ? Number(newBatch.mix_design_id) : form.mixdesign_id;
         form.uom_id = newBatch.uom_id ? Number(newBatch.uom_id) : form.uom_id;
         form.load_site_id = newBatch.load_site_id ? Number(newBatch.load_site_id) : form.load_site_id;
         form.unload_site_id = newBatch.unload_site_id ? Number(newBatch.unload_site_id) : form.unload_site_id;
-        form.driver_id = newBatch.driver_id ? Number(newBatch.driver_id) : form.driver_id;
-        form.sales_executive_id = newBatch.sales_executive_id ? Number(newBatch.sales_executive_id) : form.sales_executive_id;
+
+        form.sales_executive_id = newBatch.sales_executive_id ? Number(newBatch.sales_executive_id)
+            : (props.salesOrder?.sales_executive_id ? Number(props.salesOrder.sales_executive_id)
+               : (props.salesOrder?.customer_p_o?.sales_executive_id ? Number(props.salesOrder.customer_p_o.sales_executive_id)
+                  : (props.salesOrder?.customer_p_o?.quotation?.sales_executive_id ? Number(props.salesOrder.customer_p_o.quotation.sales_executive_id)
+                     : (latestDispatch?.sales_executive_id ? Number(latestDispatch.sales_executive_id) : form.sales_executive_id))));
         form.weights.empty_weight_truck = newBatch.dispatches?.[0]?.empty_weight_truck || 0;
         form.weights.loaded_weight_truck = newBatch.dispatches?.[0]?.loaded_weight_truck || 0;
         form.weights.empty_weight_time_load = newBatch.dispatches?.[0]?.empty_time ? new Date(newBatch.dispatches[0].empty_time) : null;
@@ -326,6 +372,15 @@ watch(() => props.dispatch, (newDispatch) => {
     }
 }, { deep: true, immediate: true });
 
+watch(() => form.driver_id, (newDriverId) => {
+    if (newDriverId) {
+        const driverObj = props.drivers?.find((d: any) => Number(d.id) === Number(newDriverId));
+        if (driverObj?.transporter_id) {
+            form.transport_id = Number(driverObj.transporter_id);
+        }
+    }
+});
+
 const baseRate = computed(() => {
     return Number(props.batch?.rate || props.salesOrder?.rate || 0);
 });
@@ -346,7 +401,10 @@ const displayUnits = computed(() => {
 
 
 
-watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses, baseRate], () => {
+const pumpRate = computed(() => Number(props.salesOrder?.pump_rate || props.batch?.pump_rate || 0));
+const addPumpToTotal = computed(() => !!props.settings?.add_pouring_rates_to_total);
+
+watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses, baseRate, pumpRate, addPumpToTotal], () => {
     // Automatically calculate load_rate if it is 0 or needs to match formula
     if (isMetricTon.value) {
         if (netWeight.value > 0) {
@@ -376,15 +434,31 @@ watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load
     // Calculate amounts
     const loadRate = Number(form.financials.load_rate || 0);
     const untaxAmount = units * loadRate;
-    
+
     const tax = props.dropdownData.taxes.find(t => t.id === form.financials.load_tax_id);
     const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
     const taxAmountVal = (untaxAmount * taxRate) / 100;
-    
-    const totalAmountVal = untaxAmount + taxAmountVal 
-        - Number(form.financials.discount_amount || 0) 
-        + Number(form.financials.pass_amount || 0) 
-        + Number(form.financials.round_off || 0) 
+
+    // Pump charge calculation
+    // OFF (add_pouring_rates_to_total = false): pump_charge = units × pump_rate_per_m3
+    // ON  (add_pouring_rates_to_total = true):  pump_charge = flat pump_rate (from Sales Order)
+    let pumpCharge = 0;
+    if (pumpRate.value > 0) {
+        if (addPumpToTotal.value) {
+            // Flat amount — use pump_rate as-is from the sales order
+            pumpCharge = pumpRate.value;
+        } else {
+            // Per m³/MT — multiply by units
+            pumpCharge = units * pumpRate.value;
+        }
+    }
+    form.financials.pump_charge = pumpCharge;
+
+    const totalAmountVal = untaxAmount + taxAmountVal
+        + pumpCharge
+        - Number(form.financials.discount_amount || 0)
+        + Number(form.financials.pass_amount || 0)
+        + Number(form.financials.round_off || 0)
         + Number(form.financials.adjustment_amount || 0)
         + Number(form.financials.transport_expenses || 0);
 
@@ -625,6 +699,13 @@ const handleDeleteInvoice = () => {
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.transport_expenses" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Hire Charge</span>
                                         <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.transport_expenses || 0).toLocaleString() }}</span>
+                                    </div>
+                                    <div v-if="pumpRate > 0" class="flex items-center justify-between">
+                                        <span class="text-[10px] font-bold uppercase tracking-widest text-amber-500">
+                                            Pump Charge
+                                            <span class="normal-case font-normal text-amber-400 ml-1">({{ addPumpToTotal ? 'flat' : 'per m³' }})</span>
+                                        </span>
+                                        <span class="text-xs font-bold text-amber-600">₹ {{ Number(form.financials.pump_charge || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) }}</span>
                                     </div>
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.pass_amount" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pass Amount</span>

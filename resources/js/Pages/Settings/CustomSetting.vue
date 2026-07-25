@@ -53,9 +53,8 @@ const form = useForm({
         target_to_actual:  props.batchingSettings?.target_to_actual == 1,
         default_transport: props.batchingSettings?.default_transport || '',
         quote_validity:    props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
-        // material_print_mode: props.batchingSettings?.material_print_mode || 'run',
-        // add_pouring_rates_to_total: props.batchingSettings?.add_pouring_rates_to_total == 1,
-        // pouring_rate_charge_type: props.batchingSettings?.pouring_rate_charge_type || 'per_m3',
+        add_pouring_rates_to_total: props.batchingSettings?.add_pouring_rates_to_total == 1,
+
         custom_params:     props.batchingSettings?.custom_params || [],
     }
 });
@@ -65,6 +64,7 @@ const expanded = ref<Record<string, boolean>>({
     weighbridge: true,
     camera: false,
     batch_sync: false,
+    pouring_settings: false,
     prefixes: false,
     appearance: false,
     custom: true,
@@ -124,7 +124,7 @@ const submit = () => {
         quote_validity:     form.settings.quote_validity     ? parseInt(form.settings.quote_validity as any, 10) : 15,
         material_print_mode: form.settings.material_print_mode || 'run',
         add_pouring_rates_to_total: form.settings.add_pouring_rates_to_total ? 1 : 0,
-        pouring_rate_charge_type: form.settings.pouring_rate_charge_type || 'per_m3',
+
     };
 
     form.transform((data) => ({ ...data, settings: payload }))
@@ -579,6 +579,36 @@ const deleteModule = (id: number) => {
                                     <InputSwitch v-if="p.type === 'bool'" v-model="p.value" />
                                     <Button icon="pi pi-trash" severity="danger" text rounded @click="removeParameter(form.settings.custom_params.indexOf(p))" />
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pouring & Pump Settings -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <button type="button"
+                            class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-amber-50/30 transition-colors"
+                            @click="toggle('pouring_settings')">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 bg-amber-100 rounded-lg"><Cog6ToothIcon class="w-4 h-4 text-amber-600" /></div>
+                                <span class="text-sm font-bold text-slate-700">Pouring &amp; Concrete Pump Settings</span>
+                                <span v-if="form.settings.add_pouring_rates_to_total"
+                                    class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
+                            </div>
+                            <ChevronDownIcon v-if="!expanded.pouring_settings" class="w-4 h-4 text-slate-400" />
+                            <ChevronUpIcon   v-else                       class="w-4 h-4 text-slate-400" />
+                        </button>
+
+                        <div v-if="expanded.pouring_settings" class="p-6 space-y-4 animate-fade-in">
+                            <!-- add_pouring_rates_to_total -->
+                            <div class="flex items-center justify-between p-4 bg-amber-50 rounded-xl border border-amber-100">
+                                <div>
+                                    <h4 class="font-bold text-amber-700 text-sm">Add Pump Charges to Total <code class="text-[9px] text-amber-400 ml-1 font-normal">[add_pouring_rates_to_total]</code></h4>
+                                    <p class="text-xs text-slate-500 mt-0.5">
+                                        <span class="font-semibold text-slate-600">OFF</span> — Pump charge = Quantity (m³ / MT) × Pump Rate from Sales Order.<br/>
+                                        <span class="font-semibold text-amber-600">ON</span> — Pump charge = Flat Pump Rate from Sales Order + (Qty × Load Rate).
+                                    </p>
+                                </div>
+                                <InputSwitch v-model="form.settings.add_pouring_rates_to_total" />
                             </div>
                         </div>
                     </div>

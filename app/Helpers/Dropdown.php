@@ -268,7 +268,9 @@ if (!function_exists('DriversDropdown')) {
 
     function DriversDropdown($excludeId = null)
     {
-        $query = Personnel::with('designation')
+        $query = Personnel::with(['designation', 'patrons' => function ($q) {
+            $q->where('patron_type', 'Transporter');
+        }])
             ->where('plant_id', _activePlantId());
 
         if ($excludeId) {
@@ -282,12 +284,14 @@ $q->where(DB::raw('LOWER(name)'), strtolower('Driver'));            })
             ->where('status', 'active')
             ->get()
             ->map(function ($personnel) {
+                $transporter = $personnel->patrons->first();
                 return [
                     'id' => $personnel->id,
                     'value' => $personnel->id,
                     'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
                     'first_name' => $personnel->first_name,
                     'last_name' => $personnel->last_name,
+                    'transporter_id' => $transporter ? $transporter->id : null,
                 ];
             });
     }

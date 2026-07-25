@@ -65,13 +65,47 @@ const blankMaterial = (): BatchMaterial => ({
 });
 
 const form = useForm({
-sales_order_id: props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null),    batch_no: props.batch?.batch_no ?? null,
+    sales_order_id: props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null),
+    batch_no: props.batch?.batch_no ?? null,
     batch_size: Number(props.batch?.batch_size ?? 1),
-    truck_id: props.batch?.dispatches?.[0]?.truck_id ? Number(props.batch.dispatches[0].truck_id) : null,
-    transport_id: props.batch?.dispatches?.[0]?.transport_id ? Number(props.batch.dispatches[0].transport_id) : null,
-    driver_id: props.batch?.dispatches?.[0]?.driver_id ? Number(props.batch.dispatches[0].driver_id) : null,
-    sales_executive_id: props.batch?.dispatches?.[0]?.sales_executive_id ? Number(props.batch.dispatches[0].sales_executive_id) : null,
-    concrete_pump: props.batch?.dispatches?.[0]?.concrete_pump ? Number(props.batch.dispatches[0].concrete_pump) : null,
+    truck_id: (() => {
+        const direct = props.batch?.dispatches?.[0]?.truck_id || props.batch?.truck_id;
+        if (direct) return Number(direct);
+        const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
+        return so?.latest_dispatch?.truck_id ? Number(so.latest_dispatch.truck_id) : null;
+    })(),
+    transport_id: (() => {
+        const direct = props.batch?.dispatches?.[0]?.transport_id || props.batch?.transport_id;
+        if (direct) return Number(direct);
+        const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
+        if (so?.latest_dispatch?.transport_id) return Number(so.latest_dispatch.transport_id);
+        const drId = props.batch?.dispatches?.[0]?.driver_id || props.batch?.driver_id || so?.latest_dispatch?.driver_id;
+        if (drId) {
+            const driverObj = props.drivers?.find((d: any) => Number(d.id) === Number(drId));
+            if (driverObj?.transporter_id) return Number(driverObj.transporter_id);
+        }
+        return null;
+    })(),
+    driver_id: (() => {
+        const direct = props.batch?.dispatches?.[0]?.driver_id || props.batch?.driver_id;
+        if (direct) return Number(direct);
+        const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
+        return so?.latest_dispatch?.driver_id ? Number(so.latest_dispatch.driver_id) : null;
+    })(),
+    sales_executive_id: (() => {
+        const direct = props.batch?.dispatches?.[0]?.sales_executive_id || props.batch?.sales_executive_id;
+        if (direct) return Number(direct);
+        const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
+        const val = so?.sales_executive_id ?? so?.customer_p_o?.sales_executive_id ?? so?.customer_p_o?.quotation?.sales_executive_id ?? so?.latest_dispatch?.sales_executive_id ?? null;
+        return val ? Number(val) : null;
+    })(),
+    concrete_pump: (() => {
+        const direct = props.batch?.dispatches?.[0]?.concrete_pump || props.batch?.concrete_pump;
+        if (direct) return String(direct);
+        const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
+        const val = so?.concrete_pump ?? so?.customer_p_o?.concrete_pump ?? so?.customer_p_o?.quotation?.concrete_pump ?? so?.latest_dispatch?.concrete_pump ?? null;
+        return val ? String(val) : null;
+    })(),
     empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? 0),
     loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? 0),
         
@@ -216,6 +250,15 @@ watch(() => form.batch_size, (newVal) => {
     }
 });
 
+watch(() => form.driver_id, (newDriverId) => {
+    if (newDriverId) {
+        const driverObj = props.drivers.find(d => Number(d.id) === Number(newDriverId));
+        if (driverObj?.transporter_id) {
+            form.transport_id = Number(driverObj.transporter_id);
+        }
+    }
+});
+
 
 
 
@@ -266,11 +309,35 @@ const applyBatchToForm = (newBatch: any) => {
     form.batch_size = Number(newBatch.batch_size ?? 1);
     
     const dispatch = newBatch.dispatches?.[0];
-    form.truck_id = dispatch?.truck_id ? Number(dispatch.truck_id) : null;
-    form.transport_id = dispatch?.transport_id ? Number(dispatch.transport_id) : null;
-    form.driver_id = dispatch?.driver_id ? Number(dispatch.driver_id) : null;
-    form.sales_executive_id = dispatch?.sales_executive_id ? Number(dispatch.sales_executive_id) : null;
-    form.concrete_pump = dispatch?.concrete_pump ? Number(dispatch.concrete_pump) : null;
+    const so = newBatch.sales_order || props.salesOrders.find((wo: any) => wo.id === newBatch.sales_order_id);
+    const po = so?.customer_p_o;
+    const quotation = po?.quotation;
+    const latestDispatch = so?.latest_dispatch;
+
+    form.truck_id = dispatch?.truck_id ? Number(dispatch.truck_id) 
+        : (latestDispatch?.truck_id ? Number(latestDispatch.truck_id) : null);
+
+    form.driver_id = dispatch?.driver_id ? Number(dispatch.driver_id) 
+        : (latestDispatch?.driver_id ? Number(latestDispatch.driver_id) : null);
+
+    form.transport_id = dispatch?.transport_id ? Number(dispatch.transport_id) 
+        : (latestDispatch?.transport_id ? Number(latestDispatch.transport_id) 
+           : (form.driver_id ? (() => {
+                 const driverObj = props.drivers?.find((d: any) => Number(d.id) === Number(form.driver_id));
+                 return driverObj?.transporter_id ? Number(driverObj.transporter_id) : null;
+              })() : null));
+
+    form.sales_executive_id = dispatch?.sales_executive_id ? Number(dispatch.sales_executive_id)
+        : (so?.sales_executive_id ? Number(so.sales_executive_id)
+           : (po?.sales_executive_id ? Number(po.sales_executive_id)
+              : (quotation?.sales_executive_id ? Number(quotation.sales_executive_id)
+                 : (latestDispatch?.sales_executive_id ? Number(latestDispatch.sales_executive_id) : null))));
+
+    form.concrete_pump = dispatch?.concrete_pump ? String(dispatch.concrete_pump)
+        : (so?.concrete_pump ? String(so.concrete_pump)
+           : (po?.concrete_pump ? String(po.concrete_pump)
+              : (quotation?.concrete_pump ? String(quotation.concrete_pump)
+                 : (latestDispatch?.concrete_pump ? String(latestDispatch.concrete_pump) : null))));
     form.empty_weight_truck = Number(dispatch?.empty_weight_truck ?? 0);
     form.loaded_weight_truck = Number(dispatch?.loaded_weight_truck ?? 0);
     form.net_weight = Number(dispatch?.net_weight ?? 0);

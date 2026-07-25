@@ -101,7 +101,9 @@ class BatchController extends Controller
                 'mixDesign.concrete_grade:id,name,concrete_ratio',
                 'customerPO.patron',
                 'customerPO.site',
-                'customerPO.quotation.items.mixDesign'
+                'customerPO.quotation.items.mixDesign',
+                'customerPO.quotation',
+                'latestDispatch:id,sales_order_id,truck_id,transport_id,driver_id,concrete_pump,sales_executive_id,empty_weight_truck'
             ])
             ->withCount('batches')
             ->where('plant_id', $activePlantId)

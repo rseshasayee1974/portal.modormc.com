@@ -124,6 +124,11 @@ class SalesOrder extends Model
         return $this->hasMany(Dispatch::class, 'sales_order_id');
     }
 
+    public function latestDispatch()
+    {
+        return $this->hasOne(Dispatch::class, 'sales_order_id')->latest();
+    }
+
     public function customerPO()
     {
         return $this->belongsTo(CustomerPO::class, 'customer_po_id');
