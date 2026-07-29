@@ -147,7 +147,12 @@ class PlantInitializationService
         }
 
         try {
-            Mail::raw("Welcome to the portal! Your account for plant {$plant->name} has been created.\n\nEmail: {$plant->email_address}\nPassword: {$password}\n\nPlease login at: " . url('/'), function ($message) use ($plant) {
+            $loginUrl = url('/');
+            Mail::send('emails.plant_credentials', [
+                'plant' => $plant,
+                'password' => $password,
+                'loginUrl' => $loginUrl,
+            ], function ($message) use ($plant) {
                 $message->to($plant->email_address)
                     ->subject("Plant Access Created: {$plant->name}");
             });

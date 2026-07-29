@@ -103,7 +103,7 @@ class PlantController extends Controller
             }
 
             // Handle UPI QR Code Upload
-            if ($request->hasFile('upi_qr')) {
+            if ($request->hasFile('upi_qr') && \Illuminate\Support\Facades\Schema::hasColumn('mm_plants', 'upi_qr_path')) {
                 $entity = Entity::find($validated['entity_id']);
                 $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
                 $plantSlug = \Illuminate\Support\Str::slug($plant->name);
@@ -154,6 +154,9 @@ class PlantController extends Controller
             if (!$user->hasRole('Saas Owner')) {
                 unset($updatableFields['code'], $updatableFields['name']);
             }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('mm_plants', 'upi_qr_path')) {
+                unset($updatableFields['upi_qr_path']);
+            }
             $plant->update($updatableFields);
 
             // Handle Logo Upload
@@ -197,9 +200,9 @@ class PlantController extends Controller
             }
 
             // Handle UPI QR Code Upload
-            if ($request->hasFile('upi_qr')) {
+            if ($request->hasFile('upi_qr') && \Illuminate\Support\Facades\Schema::hasColumn('mm_plants', 'upi_qr_path')) {
                 // Delete old upi_qr if exists
-                if ($plant->upi_qr_path) {
+                if (!empty($plant->upi_qr_path)) {
                     \Illuminate\Support\Facades\Storage::disk('public')->delete($plant->upi_qr_path);
                 }
 
