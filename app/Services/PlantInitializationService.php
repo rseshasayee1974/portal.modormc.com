@@ -866,6 +866,7 @@ class PlantInitializationService
                 'patron_type' => ['Customer'], // The request said 'Customer, Vendor, Transport'
                 'is_system' => true,
                 'is_active' => true,
+                'aadhar_number' => 6556454646456,
                 'created_by' => Auth::id() ?? 1,
             ]
         );
@@ -880,6 +881,8 @@ class PlantInitializationService
                 'code' => 'VEND-001',
                 'patron_type' => ['Vendor'],
                 'is_system' => true,
+                                'gstin' => 'GSTIN-4646456',
+
                 'is_active' => true,
                 'created_by' => Auth::id() ?? 1,
             ]
@@ -896,6 +899,8 @@ class PlantInitializationService
                 'patron_type' => ['Transport'],
                 'is_system' => true,
                 'is_active' => true,
+                                'aadhar_number' => 6556454646456,
+
                 'created_by' => Auth::id() ?? 1,
             ]
         );
