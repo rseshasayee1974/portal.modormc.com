@@ -33,7 +33,7 @@ class AccountDefaultSettingController extends Controller
 
         $validated = $request->validate([
             'settings' => 'nullable|array',
-            'settings.*.module_id' => 'required|exists:mm_modules,id',
+            'settings.*.module_id' => 'required|exists:mm_module,id',
             'settings.*.setting_key' => 'required|string|max:100',
             'settings.*.ledger_id' => 'nullable|exists:mm_ledgers,id',
 

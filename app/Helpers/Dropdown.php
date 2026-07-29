@@ -268,7 +268,9 @@ if (!function_exists('DriversDropdown')) {
 
     function DriversDropdown($excludeId = null)
     {
-        $query = Personnel::with('designation')
+        $query = Personnel::with(['designation', 'patrons' => function ($q) {
+            $q->where('patron_type', 'Transporter');
+        }])
             ->where('plant_id', _activePlantId());
 
         if ($excludeId) {
@@ -282,12 +284,14 @@ $q->where(DB::raw('LOWER(name)'), strtolower('Driver'));            })
             ->where('status', 'active')
             ->get()
             ->map(function ($personnel) {
+                $transporter = $personnel->patrons->first();
                 return [
                     'id' => $personnel->id,
                     'value' => $personnel->id,
                     'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
                     'first_name' => $personnel->first_name,
                     'last_name' => $personnel->last_name,
+                    'transporter_id' => $transporter ? $transporter->id : null,
                 ];
             });
     }
@@ -740,23 +744,7 @@ if (!function_exists('PaymentMethodsDropdown')) {
             ->get(['id', 'name']);
     }
 }
-if (!function_exists('ConcretePumpDropdown')) {
-    /**
-     * Dropdown for concrete pump type — sourced from mm_machine_types.
-     */
-    function ConcretePumpDropdown()
-    {
-        $types = Machine::whereHas('machineType', function($q) {
-            $q->where('name', 'LIKE', 'Pump%');
-        })->where('plant_id', _activePlantId())->whereNull('deleted_at')
-        ->get();
 
-        return $types->map(fn($type) => [
-            'label' => $type->registration,
-            'value' => $type->id,
-        ])->toArray();
-    }
-}
 
 if (!function_exists('PumpTypeDropdown')) {
     /**
@@ -777,7 +765,7 @@ if (!function_exists('PumpTypeDropdown')) {
             ->get(['id', 'registration'])
             ->map(fn($t) => [
                 'label' => $t->registration,
-                'value' => (string) $t->id,   // Store the type name as the value (not FK) for portability (cast to string to pass validation)
+                'value' => (int) $t->id,
             ])
             ->toArray();
     }

@@ -5,12 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Traits\AuditFields;
-
+use App\Traits\TracksModelChanges;
 class Payment extends Model
 {
+    use TracksModelChanges;
+
 	protected $table = 'mm_payments';
-    use HasFactory, SoftDeletes, AuditFields;
+        use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'plant_id',

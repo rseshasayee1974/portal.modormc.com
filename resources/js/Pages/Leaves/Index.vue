@@ -14,6 +14,7 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseCard from '@/Components/Base/BaseCard.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
+import { usePermissions } from '@/Composables/usePermissions';
 import DatePicker from 'primevue/datepicker';
 import Tag from 'primevue/tag';
 import ToggleSwitch from 'primevue/toggleswitch';
@@ -62,6 +63,7 @@ const props = defineProps<{
 }>();
 
 const page = usePage();
+const { isSassOwner } = usePermissions();
 const activeTab = ref('applications');
 const editingAppId = ref<number | null>(null);
 const editingTypeId = ref<number | null>(null);
@@ -234,7 +236,7 @@ const getStatusSeverity = (status: string) => {
                         <TabPanel value="applications">
                             <div class="space-y-6">
                                 <!-- Application Form (3-column layout) -->
-                                <BaseCard class="text-sm">
+                                <BaseCard v-if="isSassOwner" class="text-sm">
                                     <template #header>
                                         <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
                                             {{ editingAppId ? 'Edit Leave Application' : 'Request Time Off' }}
@@ -329,7 +331,7 @@ const getStatusSeverity = (status: string) => {
                                                 <Tag :severity="getStatusSeverity(slotProps.data.status)" :value="slotProps.data.status.toUpperCase()" rounded />
                                             </template>
                                         </Column>
-                                        <Column header="Action / Approval" alignFrozen="right" frozen>
+                                        <Column v-if="isSassOwner" header="Action / Approval" alignFrozen="right" frozen>
                                             <template #body="slotProps">
                                                 <div class="flex justify-end gap-2">
                                                     <div v-if="slotProps.data.status === 'pending'" class="flex gap-1">
@@ -350,7 +352,7 @@ const getStatusSeverity = (status: string) => {
                         <TabPanel value="types">
                             <div class="space-y-6">
                                 <!-- Leave Type Form (3-column layout) -->
-                                <BaseCard class="text-sm">
+                                <BaseCard v-if="isSassOwner" class="text-sm">
                                     <template #header>
                                         <span class="text-md font-semibold uppercase text-gray-800 dark:text-gray-100">
                                             {{ editingTypeId ? 'Edit Leave Category' : 'Create Leave Category' }}
@@ -446,7 +448,7 @@ const getStatusSeverity = (status: string) => {
                                                 <Tag :severity="slotProps.data.carry_forward ? 'info' : 'secondary'" :value="slotProps.data.carry_forward ? 'YES' : 'NO'" rounded />
                                             </template>
                                         </Column>
-                                        <Column header="Actions" alignFrozen="right" frozen>
+                                        <Column v-if="isSassOwner" header="Actions" alignFrozen="right" frozen>
                                             <template #body="slotProps">
                                                 <div class="flex justify-end gap-2">
                                                     <BaseButton 

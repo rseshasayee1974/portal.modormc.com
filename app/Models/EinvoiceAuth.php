@@ -4,11 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\AuditFields;
-
 class EinvoiceAuth extends Model
 {
-    use HasFactory, AuditFields;
+        use HasFactory;
 
     protected $table = 'mm_einvoice_auth';
 

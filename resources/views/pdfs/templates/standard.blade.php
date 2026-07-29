@@ -444,6 +444,14 @@
                             {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['sub_total'], 2) }}
                         </td>
                     </tr>
+                    @if (($pdfSettings['pump_rates'] ?? true) && isset($data['totals']['pump_rate']) && $data['totals']['pump_rate'] > 0)
+                        <tr>
+                            <td class="bt-label">Concrete Pump Charges</td>
+                            <td class="bt-val">
+                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['pump_rate'], 2) }}
+                            </td>
+                        </tr>
+                    @endif
                     @if (($pdfSettings['discount'] ?? true) && $data['totals']['discount'] > 0)
                         <tr>
                             <td class="bt-label red">Discount (-)</td>
@@ -515,10 +523,13 @@
         </div>
 
         {{-- TERMS --}}
-        @if (($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? false))
+        @php
+            $termsText = !empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? '');
+        @endphp
+        @if (($pdfSettings['terms'] ?? true) && !empty($termsText))
             <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;font-size:11px">
                 <div class="small muted" style="margin-bottom:2px">Terms &amp; Conditions</div>
-                <div class="terms-text-content" style="font-size:10px;color:#94a3b8;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $data['meta']['terms_text'] !!}</div>
+                <div class="terms-text-content" style="font-size:10px;color:#334155;text-align:left;white-space:pre-line;">{!! nl2br(e($termsText)) !!}</div>
             </div>
         @endif
 

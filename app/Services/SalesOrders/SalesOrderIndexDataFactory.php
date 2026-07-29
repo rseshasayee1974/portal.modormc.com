@@ -23,15 +23,22 @@ class SalesOrderIndexDataFactory
             'customers' => $activePlantId ? PatronsDropdown(['Customer'])->toArray() : [],
             'sites' => $activePlantId ? SitesDropdown()->toArray() : [],
             'mixDesigns' => $activePlantId ? $this->loadMixDesigns($activePlantId, $schema)->toArray() : [],
-            'customerPOs' => $activePlantId ? CustomerPO::with(['patron:id,legal_name', 'site:id,name', 'quotation.items.mixDesign'])
+            'customerPOs' => $activePlantId ? CustomerPO::with([
+                'patron:id,legal_name', 
+                'site:id,name', 
+                'items.mixDesign', 
+                'items.pumpRates', 
+                'quotation.items.mixDesign', 
+                'quotation.items.pumpRates'
+            ])
                 ->where('plant_id', $activePlantId)
                 ->latest()
                 ->get()
                 ->toArray() : [],
             'statuses' => SalesOrder::statusOptions(),
-            'concretePumpOptions' => ConcretePumpDropdown(),
-                        'salesExecutives' => SalesExecutivesDropdown(),
-
+            'concretePumpOptions' => PumpTypeDropdown(),
+            'salesExecutives' => SalesExecutivesDropdown(),
+            'taxes'    => TaxesDropdown('Sales', ['GST', 'IGST']),
             'activePlantId' => $activePlantId,
             'nextReference' => $activePlantId ? SalesOrder::generateOrderNo($activePlantId, 'SO')['full_number'] : null,
             'products' => \Inertia\Inertia::lazy(fn() => $activePlantId ? ProductsDropdown('Purchase')->toArray() : []),

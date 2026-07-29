@@ -4,11 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\AuditFields;
-
 class DashboardAlert extends Model
 {
-    use SoftDeletes, AuditFields;
+        use SoftDeletes;
 
     protected $table = 'mm_dashboard_alerts';
 

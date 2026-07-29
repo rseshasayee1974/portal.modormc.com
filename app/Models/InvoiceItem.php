@@ -5,11 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Traits\AuditFields;
-
+use App\Traits\TracksModelChanges;
 class InvoiceItem extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+        use HasFactory, SoftDeletes, TracksModelChanges;
 
     protected $table = 'mm_invoice_items';
 

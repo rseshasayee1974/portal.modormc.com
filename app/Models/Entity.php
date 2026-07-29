@@ -17,8 +17,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\UploadedFile;
 use Spatie\Permission\Traits\HasRoles;
-use App\Traits\AuditFields;
-
 /**
  * Class Entity
  * 
@@ -45,7 +43,7 @@ use App\Traits\AuditFields;
  */
 class Entity extends Model
 {
-	use HasFactory, HasRoles, AuditFields;
+	    use HasFactory, HasRoles;
 
 	use SoftDeletes;
 	protected $table = 'mm_entities';

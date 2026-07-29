@@ -6,11 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\TracksModelChanges;
-use App\Traits\AuditFields;
-
 class ConcreteGradeItem extends Model
 {
-    use HasFactory, SoftDeletes, TracksModelChanges, AuditFields;
+        use HasFactory, SoftDeletes, TracksModelChanges;
 
     protected $table = 'mm_concrete_grade_items';
 

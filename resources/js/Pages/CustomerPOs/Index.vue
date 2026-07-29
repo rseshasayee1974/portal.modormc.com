@@ -553,9 +553,9 @@ watch(() => props.customerPOs, () => {
                     >
                         <i class="pi pi-trash mr-2 text-slate-400 font-bold"></i>
                         Delete (Locked)
+                    </div>
                 </div>
             </div>
-        </div>
         </Popover>
         <!-- Convert Customer PO to Sales Order Dialog -->
         <Dialog 

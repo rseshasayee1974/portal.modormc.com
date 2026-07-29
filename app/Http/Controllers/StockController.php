@@ -14,7 +14,7 @@ class StockController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'stocks';
+    protected string $module = 'stock';
 
     public function index()
     {

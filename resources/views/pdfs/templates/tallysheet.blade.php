@@ -115,6 +115,9 @@
 
     <div class="totals-ledger">
         <div class="tl-row"><div class="tl-label">Subtotal</div><div class="tl-val">{{ number_format($data['totals']['sub_total'], 2) }}</div></div>
+        @if (($pdfSettings['pump_rates'] ?? true) && isset($data['totals']['pump_rate']) && $data['totals']['pump_rate'] > 0)
+        <div class="tl-row"><div class="tl-label">Concrete Pump Charges</div><div class="tl-val">{{ number_format($data['totals']['pump_rate'], 2) }}</div></div>
+        @endif
         @foreach($data['totals']['tax_lines'] as $tl)
         <div class="tl-row"><div class="tl-label">{{ $tl['label'] }}</div><div class="tl-val">{{ number_format($tl['amount'], 2) }}</div></div>
         @endforeach

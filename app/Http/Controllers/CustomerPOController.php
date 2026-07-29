@@ -44,7 +44,7 @@ class CustomerPOController extends Controller
             'mixDesigns' => $mixDesigns,
             'taxes' => TaxesDropdown('sales',['GST','IGST']),
             'salesExecutives' => SalesExecutivesDropdown(),
-            'concretePumpOptions' => ConcretePumpDropdown(),
+            'concretePumpOptions' => PumpTypeDropdown(),
             'pumpTypeOptions' => PumpTypeDropdown(),
         ]);
     }
@@ -69,6 +69,9 @@ class CustomerPOController extends Controller
             'rate' => 'nullable|numeric|min:0',
             'tax_id' => 'nullable|exists:mm_taxes,id',
             'tax_amount' => 'nullable|numeric|min:0',
+            'pump_rates' => 'nullable|array',
+            'pump_rates.*.pump_type' => 'required|string|max:100',
+            'pump_rates.*.pump_rate' => 'required|numeric|min:0',
             'items' => 'nullable|array',
             'items.*.mix_design_id' => 'required_without:quotation_id|exists:mm_mix_designs,id',
             'items.*.quantity' => 'required_without:quotation_id|numeric|min:0.001',
@@ -113,6 +116,7 @@ class CustomerPOController extends Controller
                 'rate' => $validated['rate'],
                 'tax_id' => $validated['tax_id'] ?? null,
                 'tax_amount' => $validated['tax_amount'] ?? 0,
+                'pump_rates' => $request->input('pump_rates') ?? [],
             ]];
         }
 
@@ -138,7 +142,7 @@ class CustomerPOController extends Controller
                 'plant_id' => $plantId,
                 'prefix' => $validated['prefix'],
                 'reference' => $validated['reference'],
-                'quotation_id' => $validated['quotation_id'] ?: null,
+                'quotation_id' => $validated['quotation_id'] ?? null,
                 'patron_id' => $validated['patron_id'],
                 'site_id' => $validated['site_id'],
                 'notes' => $validated['notes'] ?? null,
@@ -245,12 +249,15 @@ class CustomerPOController extends Controller
             // 'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
             'is_tax_inclusive' => 'nullable|boolean',
             'order_date' => 'required|date',
-            'status' => 'required|integer|in:0,1,2,3',
+            'status' => 'required|integer|in:0,1,2',
             'mix_design_id' => 'nullable|exists:mm_mix_designs,id',
             'quantity' => 'nullable|numeric|min:0.001',
             'rate' => 'nullable|numeric|min:0',
             'tax_id' => 'nullable|exists:mm_taxes,id',
             'tax_amount' => 'nullable|numeric|min:0',
+            'pump_rates' => 'nullable|array',
+            'pump_rates.*.pump_type' => 'required|string|max:100',
+            'pump_rates.*.pump_rate' => 'required|numeric|min:0',
             'items' => 'nullable|array',
             'items.*.id' => 'nullable|integer',
             'notes' => 'nullable|string',
@@ -290,6 +297,7 @@ class CustomerPOController extends Controller
                 'rate' => $validated['rate'],
                 'tax_id' => $validated['tax_id'] ?? null,
                 'tax_amount' => $validated['tax_amount'] ?? 0,
+                'pump_rates' => $request->input('pump_rates') ?? [],
             ]];
         }
 
@@ -298,7 +306,7 @@ class CustomerPOController extends Controller
         }
 
         DB::transaction(function () use ($customerPO, $validated, $request, $plantId, $items) {
-            if ($customerPO->quotation_id && $customerPO->quotation_id != $validated['quotation_id']) {
+            if ($customerPO->quotation_id && $customerPO->quotation_id != ($validated['quotation_id'] ?? null)) {
                 $otherUses = CustomerPO::where('quotation_id', $customerPO->quotation_id)
                     ->where('id', '!=', $customerPO->id)
                     ->exists();
@@ -536,6 +544,14 @@ class CustomerPOController extends Controller
                         'concrete_pump' => $itemData['concrete_pump'],
                     ]);
                 }
+
+                // Auto-complete: check if total allocated qty now covers total ordered qty
+                $customerPO->refresh()->load(['items', 'salesOrders']);
+                $totalOrdered   = $customerPO->items->sum('quantity');
+                $totalAllocated = $customerPO->salesOrders->sum('total_qty');
+                if ($totalOrdered > 0 && $totalAllocated >= $totalOrdered) {
+                    $customerPO->update(['status' => CustomerPO::STATUS_COMPLETED]);
+                }
             });
         } else {
             $validated = $request->validate([
@@ -561,6 +577,14 @@ class CustomerPOController extends Controller
                         'status' => SalesOrder::STATUS_SCHEDULED,
                         'customer_po_id' => $customerPO->id,
                     ]);
+                }
+
+                // Auto-complete: check if total allocated qty now covers total ordered qty
+                $customerPO->refresh()->load(['items', 'salesOrders']);
+                $totalOrdered   = $customerPO->items->sum('quantity');
+                $totalAllocated = $customerPO->salesOrders->sum('total_qty');
+                if ($totalOrdered > 0 && $totalAllocated >= $totalOrdered) {
+                    $customerPO->update(['status' => CustomerPO::STATUS_COMPLETED]);
                 }
             });
         }

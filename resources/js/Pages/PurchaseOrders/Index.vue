@@ -117,6 +117,10 @@ const downloadPdf = (id, template = 'downloadable') => {
     window.open(route('purchaseorder.download', { purchase_order: id, template: template }), '_blank');
 };
 
+const printPdf = (id) => {
+    window.open(route('purchaseorder.report', id), '_blank');
+};
+
 const toggleEdit = (data) => {
     if (expandedRows.value[data.id]) {
         expandedRows.value = {};
@@ -264,7 +268,7 @@ const formatStateLabel = (state) => {
                             <template #body="slotProps">
                                 <div class="flex justify-end gap-2">
                                     <Button icon="pi pi-file" severity="info" text rounded @click.stop="downloadPdf(slotProps.data.id)" title="Premium PDF" />
-                                    <Button icon="pi pi-print" severity="secondary" text rounded @click.stop="downloadPdf(slotProps.data.id, 'printable')" title="Printable Form" />
+                                    <Button icon="pi pi-print" severity="secondary" text rounded @click.stop="printPdf(slotProps.data.id)" title="Printable Form" />
                                     <!-- <Button icon="pi pi-pencil" :severity="slotProps.data.receipt_status > 0 ? 'secondary' : 'warn'" text rounded @click.stop="toggleEdit(slotProps.data)" :title="slotProps.data.receipt_status > 0 ? 'View Locked PO' : 'Edit Inline'" /> -->
 <Button 
     icon="pi pi-trash" 

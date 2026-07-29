@@ -1,21 +1,27 @@
 <script setup lang="ts">
-import { defineProps } from 'vue';
+import { computed } from 'vue';
 
 const props = defineProps<{
     dummyData: any;
+    settings?: any;
 }>();
+
+const pdfSettings = computed(() => props.settings?.pdf || props.dummyData?.settings?.pdf || {});
+const labels = computed(() => pdfSettings.value?.labels || {});
+
+const company = computed(() => props.dummyData?.company || {});
 </script>
 
 <template>
     <div class="design-wrap tally-view">
         <div class="flex justify-between items-start mb-16">
             <div>
-                <h3 class="text-2xl font-black text-slate-900">msrk</h3>
-                <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">Tamil Nadu, India</p>
-                <p class="text-[10px] text-slate-400 font-bold lowercase">billing@modomines.com</p>
+                <h3 v-if="pdfSettings.company_name !== false" class="text-2xl font-black text-slate-900">{{ company.name || 'Company Name' }}</h3>
+                <p v-if="pdfSettings.address !== false" class="text-[10px] text-slate-400 font-bold uppercase mt-1">{{ company.city }}, {{ company.state }}</p>
+                <p v-if="pdfSettings.email !== false && company.email" class="text-[10px] text-slate-400 font-bold lowercase">{{ company.email }}</p>
             </div>
             <div class="text-right">
-                <h1 class="text-3xl font-black text-slate-800 uppercase tracking-tight border-b-4 border-slate-800 pb-2">Account Statement</h1>
+                <h1 class="text-3xl font-black text-slate-800 uppercase tracking-tight border-b-4 border-slate-800 pb-2">{{ labels.invoice_title || dummyData.doc_title || 'Account Statement' }}</h1>
                 <p class="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest">{{ dummyData.date }} Cycle</p>
             </div>
         </div>

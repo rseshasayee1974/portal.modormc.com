@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\PlantScoping;
 
+use App\Traits\TracksModelChanges;
 class BankStatementLine extends Model
 {
-    use HasFactory, SoftDeletes, PlantScoping;
+    use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_bank_statement_lines';
 

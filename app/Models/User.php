@@ -19,7 +19,6 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Traits\HasRoles;
-use App\Traits\AuditFields;
 use App\Helpers\DateTimeHelper;
 
 /**
@@ -57,7 +56,7 @@ use App\Helpers\DateTimeHelper;
 class User extends Authenticatable implements MustVerifyEmail
 {
 	use HasFactory, Notifiable, HasApiTokens, HasProfilePhoto, TwoFactorAuthenticatable, HasRoles;
-	use SoftDeletes, AuditFields;
+	    use SoftDeletes;
 	protected $table = 'mm_users';
 
 	protected $casts = [

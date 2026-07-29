@@ -7,15 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\ProtectsSystemItems;
 
+use App\Traits\TracksModelChanges;
 class AccountsType extends Model
 {
-    use HasFactory, SoftDeletes, ProtectsSystemItems;
+    use HasFactory, SoftDeletes, ProtectsSystemItems, TracksModelChanges;
     protected $table = 'mm_account_types';
     public $timestamps = false;
 
     protected $fillable = [
         'plant_id',
-        'entity_id',
         'code',
         'account_id',
         'parent_id',
@@ -26,7 +26,6 @@ class AccountsType extends Model
         'created_by',
         'updated_at',
         'updated_by',
-        'updated_at',
         'deleted_at',
         'deleted_by',
     ];

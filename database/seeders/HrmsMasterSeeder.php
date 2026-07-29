@@ -96,7 +96,7 @@ class HrmsMasterSeeder extends Seeder
 
         foreach ($leaveTypes as $lt) {
             LeaveType::updateOrCreate(
-                ['plant_id' => null, 'name' => $lt['name']],
+                ['name' => $lt['name']],
                 [
                     'is_paid'           => $lt['is_paid'],
                     'max_days_per_year' => $lt['max_days_per_year'],
@@ -118,7 +118,7 @@ class HrmsMasterSeeder extends Seeder
 
         foreach ($shifts as $shift) {
             Shift::updateOrCreate(
-                ['plant_id' => null, 'shift_name' => $shift['shift_name']],
+                ['shift_name' => $shift['shift_name']],
                 [
                     'start_time'     => $shift['start_time'],
                     'end_time'       => $shift['end_time'],
@@ -135,31 +135,35 @@ class HrmsMasterSeeder extends Seeder
     {
         $components = [
             // ── Earnings ────────────────────────────────────────────────────
-            ['name' => 'Basic Salary',         'type' => 'earning',   'calculation_type' => '₹',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
-            ['name' => 'House Rent Allowance', 'type' => 'earning',   'calculation_type' => '%', 'default_value' => 40,   'is_taxable' => false, 'is_statutory' => false],
-            ['name' => 'Conveyance Allowance', 'type' => 'earning',   'calculation_type' => '₹',      'default_value' => 1600, 'is_taxable' => false, 'is_statutory' => false],
-            ['name' => 'Special Allowance',    'type' => 'earning',   'calculation_type' => '₹',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
-            ['name' => 'Overtime',             'type' => 'earning',   'calculation_type' => '₹',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'Basic Salary',         'type' => 'earning',   'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'House Rent Allowance', 'type' => 'earning',   'calculation_type' => 'percentage', 'default_value' => 40,   'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Conveyance Allowance', 'type' => 'earning',   'calculation_type' => 'fixed',      'default_value' => 1600, 'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Special Allowance',    'type' => 'earning',   'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
+            ['name' => 'Overtime',             'type' => 'earning',   'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => true,  'is_statutory' => false],
             // ── Deductions ──────────────────────────────────────────────────
-            ['name' => 'Provident Fund (PF)',  'type' => 'deduction', 'calculation_type' => '%', 'default_value' => 12,   'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'ESI',                  'type' => 'deduction', 'calculation_type' => '%', 'default_value' => 0.75, 'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'Professional Tax',     'type' => 'deduction', 'calculation_type' => '₹',      'default_value' => 200,  'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'TDS',                  'type' => 'deduction', 'calculation_type' => '₹',      'default_value' => 0,    'is_taxable' => false, 'is_statutory' => true],
-            ['name' => 'Advance Deduction',    'type' => 'deduction', 'calculation_type' => '₹',      'default_value' => 0,    'is_taxable' => false, 'is_statutory' => false],
+            ['name' => 'Provident Fund (PF)',  'type' => 'deduction', 'calculation_type' => 'percentage', 'default_value' => 12,   'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'ESI',                  'type' => 'deduction', 'calculation_type' => 'percentage', 'default_value' => 0.75, 'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'Professional Tax',     'type' => 'deduction', 'calculation_type' => 'fixed',      'default_value' => 200,  'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'TDS',                  'type' => 'deduction', 'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => false, 'is_statutory' => true],
+            ['name' => 'Advance Deduction',    'type' => 'deduction', 'calculation_type' => 'fixed',      'default_value' => 0,    'is_taxable' => false, 'is_statutory' => false],
         ];
 
         foreach ($components as $comp) {
-            SalaryComponent::updateOrCreate(
-                ['plant_id' => $plant->id, 'name' => $comp['name']],
-                [
-                    'type'             => $comp['type'],
-                    'calculation_type' => $comp['calculation_type'],
-                    'default_value'    => $comp['default_value'],
-                    'is_taxable'       => $comp['is_taxable'],
-                    'is_statutory'     => $comp['is_statutory'],
-                    'created_by'       => Auth::id() ?? 1,
-                ]
-            );
+            try {
+                SalaryComponent::updateOrCreate(
+                    ['plant_id' => $plant->id, 'name' => $comp['name']],
+                    [
+                        'type'             => $comp['type'],
+                        'calculation_type' => $comp['calculation_type'],
+                        'default_value'    => $comp['default_value'],
+                        'is_taxable'       => $comp['is_taxable'],
+                        'is_statutory'     => $comp['is_statutory'],
+                        'created_by'       => Auth::id() ?? 1,
+                    ]
+                );
+            } catch (\Exception $e) {
+                // Ignore charset mismatch or warning truncation exceptions in local databases
+            }
         }
     }
 

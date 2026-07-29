@@ -7,8 +7,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Auth;
 
+use App\Traits\TracksModelChanges;
 class ExpenseType extends Model
 {
+    use TracksModelChanges;
+
 	protected $table = 'mm_expense_types';
     use HasFactory, SoftDeletes;
 

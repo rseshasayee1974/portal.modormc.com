@@ -95,7 +95,12 @@ const activePlant = computed(() => page.props.active_plant);
 // Dynamically source top navigation from database menus
 const visibleNav = computed(() => {
     const menus = page.props.menus?.top_nav || [];
-    return menus.filter(item => !item.permission_name || can(item.permission_name));
+    return menus.filter(item => {
+        if (!item.permission_name) return true;
+        if (can(item.permission_name)) return true;
+        const children = page.props.menus?.sidebar_nav?.[item.id] || [];
+        return children.some(child => !child.permission_name || can(child.permission_name));
+    });
 });
 
 const isTopMenuActive = (item) => {

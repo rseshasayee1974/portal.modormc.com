@@ -25,8 +25,28 @@ trait AuthorizesModule
             abort(401);
         }
 
-        // Explicit bypass for SaaS Owner and Super Admin roles
-        if ($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin')) {
+        // Restrict master and its submenus strictly to SaaS Owner and Platform Admin (blocking Super Admin)
+        $prefix = strtoupper(\Illuminate\Support\Str::singular($this->module));
+        $isMasterModule = false;
+        try {
+            $isMasterModule = \App\Models\Menu::where(function ($q) {
+                    $q->where('id', 2)->orWhere('parent_id', 2);
+                })
+                ->where('permission_name', 'like', $prefix . '.%')
+                ->exists();
+        } catch (\Exception $e) {
+            // Safe fallback if database is not fully loaded/migrated yet
+        }
+
+        if ($isMasterModule) {
+            if ($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin')) {
+                return;
+            }
+            abort(403, "Access Denied: Master data is restricted to SaaS Owners.");
+        }
+
+        // Explicit bypass for SaaS Owner and Super Admin roles for other modules
+        if ($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin')) {
             return;
         }
 

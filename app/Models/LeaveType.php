@@ -5,16 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\AuditFields;
-
 class LeaveType extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+        use HasFactory, SoftDeletes;
 
     protected $table = 'mm_leave_types';
 
     protected $fillable = [
-        'plant_id',
         'name',
         'is_paid',
         'max_days_per_year',
@@ -25,11 +22,6 @@ class LeaveType extends Model
         'is_paid' => 'boolean',
         'carry_forward' => 'boolean',
     ];
-
-    public function plant()
-    {
-        return $this->belongsTo(Plant::class, 'plant_id');
-    }
 
     public function balances()
     {

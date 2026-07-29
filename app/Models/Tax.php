@@ -5,13 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\AuditFields;
 use App\Traits\ProtectsSystemItems;
 use App\Traits\PlantScoping;
 
+use App\Traits\TracksModelChanges;
 class Tax extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems, PlantScoping;
+        use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping, TracksModelChanges;
 
     // ──────────────────────────────────────────────────────────────
     // Dropdown / Lookup Scopes

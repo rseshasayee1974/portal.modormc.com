@@ -1,17 +1,25 @@
 <script setup lang="ts">
-import { defineProps } from 'vue';
+import { computed } from 'vue';
 
 const props = defineProps<{
     dummyData: any;
+    settings?: any;
 }>();
+
+const pdfSettings = computed(() => props.settings?.pdf || props.dummyData?.settings?.pdf || {});
+const labels = computed(() => pdfSettings.value?.labels || {});
+
+const company = computed(() => props.dummyData?.company || {});
+const billTo = computed(() => props.dummyData?.bill_to || {});
+const items = computed(() => props.dummyData?.items || []);
 </script>
 
 <template>
     <div class="design-wrap spreadsheet-mode">
         <div class="border-4 border-slate-900 p-8 mb-8">
             <div class="flex justify-between items-center">
-                <h1 class="text-4xl font-black uppercase tracking-tighter">Inventory Disbursement</h1>
-                <div class="bg-slate-900 text-white px-6 py-2 text-sm font-black uppercase">Ref: {{ dummyData.doc_no }}</div>
+                <h1 class="text-4xl font-black uppercase tracking-tighter">{{ labels.invoice_title || dummyData.doc_title || 'Inventory Disbursement' }}</h1>
+                <div v-if="pdfSettings.invoice_number !== false" class="bg-slate-900 text-white px-6 py-2 text-sm font-black uppercase">Ref: {{ dummyData.doc_no }}</div>
             </div>
         </div>
 

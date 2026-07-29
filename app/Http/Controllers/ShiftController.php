@@ -21,7 +21,7 @@ class ShiftController extends Controller
         $activePlantId = session('active_plant_id');
 
         return Inertia::render('Shifts/Index', [
-            'shifts' => Shift::where('plant_id', $activePlantId)->latest()->get(),
+            'shifts' => Shift::latest()->get(),
             'personnel' => Personnel::where('plant_id', $activePlantId)->get(['id', 'first_name', 'last_name', 'employee_code']),
             'employeeShifts' => EmployeeShift::with(['personnel', 'shift'])
                 ->whereHas('personnel', function ($q) use ($activePlantId) {
@@ -44,8 +44,6 @@ class ShiftController extends Controller
             'working_hours' => 'required|numeric|min:0',
             'is_night_shift' => 'boolean',
         ]);
-
-        $validated['plant_id'] = session('active_plant_id');
 
         Shift::create($validated);
 

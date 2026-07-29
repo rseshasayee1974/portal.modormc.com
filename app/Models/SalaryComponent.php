@@ -5,12 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\AuditFields;
 use App\Traits\PlantScoping;
 
 class SalaryComponent extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, PlantScoping;
+        use HasFactory, SoftDeletes, PlantScoping;
 
     protected $table = 'mm_salary_components';
 
@@ -30,6 +29,15 @@ class SalaryComponent extends Model
         'is_statutory' => 'boolean',
         'config' => 'json',
     ];
+
+    public function setCalculationTypeAttribute($value)
+    {
+        $map = [
+            '₹' => 'fixed',
+            '%' => 'percentage',
+        ];
+        $this->attributes['calculation_type'] = $map[$value] ?? $value;
+    }
 
     public function plant()
     {

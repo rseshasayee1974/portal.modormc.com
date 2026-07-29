@@ -3,11 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\AuditFields;
-
+use App\Traits\TracksModelChanges;
 class PaymentAllocation extends Model
 {
-    use AuditFields;
+        use TracksModelChanges;
 
     protected $table = 'mm_payment_allocations';
 

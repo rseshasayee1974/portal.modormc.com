@@ -341,7 +341,8 @@ class PlantController extends Controller
         );
 
         // Ensure role and entity assignment
-        $role = \Spatie\Permission\Models\Role::where('name', 'Super Admin')->first();
+        // Ensure role and entity assignment to Administrator
+        $role = \Spatie\Permission\Models\Role::where('name', 'Administrator')->first();
         if ($role) $user->assignRole($role);
 
         \App\Models\EntityUser::updateOrCreate([
@@ -349,7 +350,7 @@ class PlantController extends Controller
             'entity_id' => $plant->entity_id,
             'plant_id' => $plant->id,
         ], [
-            'role_id' => $role ? $role->id : 3,
+            'role_id' => $role ? $role->id : 4,
             'created_by' => Auth::id() ?? 1,
         ]);
 

@@ -167,30 +167,95 @@ class HandleInertiaRequests extends Middleware
         }
 
         if ($user) {
-            $isSuper = $user->hasRole('Platform Admin') || $user->hasRole('Saas Owner');
+            $isSuper = $user->isSystemAdmin();
 
-            $topNav = \App\Models\Menu::where('menutype', 1)
-                ->where('published', true)
-                ->orderBy('ordering')
-                ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions) {
-                    if ($isSuper) return true;
-                    if (!$item->permission_name) return true;
-                    return $tenantPermissions->contains(fn($p) => strtolower($p) === strtolower($item->permission_name));
-                })
-                ->values();
+            $isMasterMenu = function ($menu) {
+                // If it is the Master menu or a child of it
+                if ($menu->id === 2 || $menu->parent_id === 2) {
+                    return true;
+                }
+                
+                if ($menu->permission_name) {
+                    $prefix = strtolower(explode('.', $menu->permission_name)[0]);
+                    $masterModules = [
+                        'master',
+                        'address_type',
+                        'bank_account_type',
+                        'contact_type',
+                        'country',
+                        'currency',
+                        'entity_type',
+                        'invoice_status',
+                        'payment_status',
+                        'plan',
+                        'subscription_status',
+                        'state_code',
+                        'terms_condition',
+                        'menu',
+                        'role',
+                        'permission'
+                    ];
+                    if (in_array($prefix, $masterModules)) {
+                        return true;
+                    }
+                }
+                
+                return false;
+            };
+
+            $isSassOwnerOnly = $user->hasAnyRole(['Saas Owner', 'Platform Admin']);
 
             $sideNav = \App\Models\Menu::where('menutype', 2)
                 ->where('published', true)
                 ->orderBy('ordering')
                 ->get()
-                ->filter(function ($item) use ($isSuper, $tenantPermissions) {
+                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu, $isSassOwnerOnly) {
+                    if ($isMasterMenu($item)) {
+                        return $isSassOwnerOnly;
+                    }
                     if ($isSuper) return true;
                     if (!$item->permission_name) return true;
                     return $tenantPermissions->contains(fn($p) => strtolower($p) === strtolower($item->permission_name));
                 })
                 ->values()
                 ->groupBy('parent_id');
+
+            $topNav = \App\Models\Menu::where('menutype', 1)
+                ->where('published', true)
+                ->orderBy('ordering')
+                ->get()
+                ->filter(function ($item) use ($isSuper, $tenantPermissions, $isMasterMenu, $isSassOwnerOnly, $sideNav) {
+                    if ($isMasterMenu($item)) {
+                        return $isSassOwnerOnly;
+                    }
+                    if ($isSuper) return true;
+
+                    $hasDirectPerm = $item->permission_name
+                        ? $tenantPermissions->contains(fn($p) => strtolower($p) === strtolower($item->permission_name))
+                        : false;
+
+                    $hasChildrenInDb = \App\Models\Menu::where('menutype', 2)->where('parent_id', $item->id)->count() > 0;
+                    $hasChildSubNav = isset($sideNav[$item->id]) && $sideNav[$item->id]->isNotEmpty();
+
+                    if ($hasChildrenInDb) {
+                        if (!$hasChildSubNav) {
+                            return false;
+                        }
+
+                        $isLinkPermitted = $sideNav[$item->id]->contains(fn($child) => $child->link === $item->link);
+                        if (!$isLinkPermitted) {
+                            $item->link = $sideNav[$item->id]->first()->link;
+                        }
+                        return true;
+                    }
+
+                    if ($item->permission_name) {
+                        return $hasDirectPerm;
+                    }
+
+                    return true;
+                })
+                ->values();
 
             $menus = [
                 'top_nav' => $topNav,

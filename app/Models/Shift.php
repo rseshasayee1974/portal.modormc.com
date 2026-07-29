@@ -5,16 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\AuditFields;
-
 class Shift extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields;
+        use HasFactory, SoftDeletes;
 
     protected $table = 'mm_shifts';
 
     protected $fillable = [
-        'plant_id',
         'shift_name',
         'start_time',
         'end_time',
@@ -26,11 +23,6 @@ class Shift extends Model
     protected $casts = [
         'is_night_shift' => 'boolean',
     ];
-
-    public function plant()
-    {
-        return $this->belongsTo(Plant::class, 'plant_id');
-    }
 
     public function personnels()
     {

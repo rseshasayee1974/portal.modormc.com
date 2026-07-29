@@ -20,6 +20,7 @@ class SalesOrderTest extends TestCase
     protected Patron $customer;
     protected Site $site;
     protected MixDesign $mixDesign;
+    protected \App\Models\Machine $machine;
 
     protected function setUp(): void
     {
@@ -35,6 +36,15 @@ class SalesOrderTest extends TestCase
         $this->customer = Patron::factory()->create(['legal_name' => 'Test Customer']);
         $this->site = Site::factory()->create(['name' => 'Test Site']);
         $this->mixDesign = MixDesign::factory()->create(['plant_id' => $this->plant->id]);
+
+        $machineType = \App\Models\MachineType::firstOrCreate(
+            ['name' => 'Concrete Pump'],
+            ['code' => 'PUMP', 'status' => 'active', 'plant_id' => $this->plant->id]
+        );
+        $this->machine = \App\Models\Machine::factory()->create([
+            'plant_id' => $this->plant->id,
+            'vehicle_type' => $machineType->name,
+        ]);
 
         $role = \Spatie\Permission\Models\Role::firstOrCreate(
             ['name' => 'Super Admin', 'guard_name' => 'web'],
@@ -81,11 +91,82 @@ class SalesOrderTest extends TestCase
             'mix_design_id' => $this->mixDesign->id,
             'total_qty' => 100,
             'status' => SalesOrder::STATUS_SCHEDULED,
+            'concrete_pump' => $this->machine->id,
+            'pump_rate' => 1500,
         ];
 
         $response = $this->post(route('salesorders.store'), $data);
 
         $response->assertRedirect();
-        $this->assertDatabaseHas('mm_sales_orders', ['total_qty' => 100]);
+        $this->assertDatabaseHas('mm_sales_orders', [
+            'total_qty' => 100,
+            'concrete_pump' => $this->machine->id,
+            'pump_rate' => 1500,
+        ]);
+    }
+
+    public function test_can_show_sales_order()
+    {
+        $salesOrder = SalesOrder::factory()->create([
+            'plant_id' => $this->plant->id,
+            'customer_id' => $this->customer->id,
+            'site_id' => $this->site->id,
+            'mix_design_id' => $this->mixDesign->id,
+        ]);
+
+        $response = $this->get(route('salesorders.show', $salesOrder));
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('id', $salesOrder->id);
+    }
+
+    public function test_can_update_sales_order()
+    {
+        $salesOrder = SalesOrder::factory()->create([
+            'plant_id' => $this->plant->id,
+            'customer_id' => $this->customer->id,
+            'site_id' => $this->site->id,
+            'mix_design_id' => $this->mixDesign->id,
+            'total_qty' => 100,
+            'status' => SalesOrder::STATUS_SCHEDULED,
+        ]);
+
+        $updateData = [
+            'order_no' => $salesOrder->order_no,
+            'prefix' => $salesOrder->prefix,
+            'customer_id' => $this->customer->id,
+            'site_id' => $this->site->id,
+            'mix_design_id' => $this->mixDesign->id,
+            'total_qty' => 150,
+            'status' => SalesOrder::STATUS_SCHEDULED,
+            'concrete_pump' => $this->machine->id,
+            'pump_rate' => 2000,
+        ];
+
+        $response = $this->put(route('salesorders.update', $salesOrder), $updateData);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('mm_sales_orders', [
+            'id' => $salesOrder->id,
+            'total_qty' => 150,
+            'concrete_pump' => $this->machine->id,
+            'pump_rate' => 2000,
+        ]);
+    }
+
+    public function test_can_delete_sales_order()
+    {
+        $salesOrder = SalesOrder::factory()->create([
+            'plant_id' => $this->plant->id,
+            'customer_id' => $this->customer->id,
+            'site_id' => $this->site->id,
+            'mix_design_id' => $this->mixDesign->id,
+        ]);
+
+        $response = $this->delete(route('salesorders.destroy', $salesOrder));
+
+        $response->assertRedirect();
+        $this->assertSoftDeleted('mm_sales_orders', ['id' => $salesOrder->id]);
     }
 }
+

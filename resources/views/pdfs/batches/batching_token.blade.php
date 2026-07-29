@@ -205,11 +205,11 @@
     @endif --}}
 
     <div class="header">
-        @if ($batch->workOrder?->plant?->logo_path)
+        @if ($batch->salesOrder?->plant?->logo_path)
             <div style="text-align: center; margin-bottom: 6px;">
                 @php
                     $cleanLogoPath = ltrim(
-                        str_replace(['public/', 'storage/', '/storage/'], '', $batch->workOrder->plant->logo_path),
+                        str_replace(['public/', 'storage/', '/storage/'], '', $batch->salesOrder->plant->logo_path),
                         '/',
                     );
                     $logoUrl = !empty($isPreview)
@@ -219,9 +219,9 @@
                 <img src="{{ $logoUrl }}" style="max-height: 50px; max-width: 150px; object-fit: contain;" />
             </div>
         @endif
-        <div class="company-name">{{ $batch->workOrder?->plant?->name }}</div>
-        @if ($batch->workOrder?->plant && $batch->workOrder->plant->addresses->isNotEmpty())
-            @php $plAddr = $batch->workOrder->plant->addresses->first(); @endphp
+        <div class="company-name">{{ $batch->salesOrder?->plant?->name }}</div>
+        @if ($batch->salesOrder?->plant && $batch->salesOrder->plant->addresses->isNotEmpty())
+            @php $plAddr = $batch->salesOrder->plant->addresses->first(); @endphp
             <div class="company-address">
                 {{ $plAddr->line_1 ?? '' }}, {{ $plAddr->city ?? '' }},
                 {{ $plAddr->state->state_name ?? ($plAddr->state_code ?? '') }} - {{ $plAddr->zipcode ?? '' }}
@@ -255,15 +255,15 @@
     <table class="meta-table">
         <tr>
             <td class="meta-label">Customer:</td>
-            <td class="meta-value">{{ $batch->workOrder?->customer?->legal_name ?? '-' }}</td>
+            <td class="meta-value">{{ $batch->salesOrder?->customer?->legal_name ?? '-' }}</td>
         </tr>
         <tr>
             <td class="meta-label">Site:</td>
-            <td class="meta-value">{{ $batch->workOrder?->site?->name ?? '-' }}</td>
+            <td class="meta-value">{{ $batch->salesOrder?->site?->name ?? '-' }}</td>
         </tr>
         <tr>
             <td class="meta-label">Order No:</td>
-            <td class="meta-value font-mono">{{ $batch->workOrder?->order_no ?? '-' }}</td>
+            <td class="meta-value font-mono">{{ $batch->salesOrder?->order_no ?? '-' }}</td>
         </tr>
     </table>
 
@@ -273,12 +273,12 @@
         <tr>
             <td class="meta-label">Recipe:</td>
             <td class="meta-value">
-                {{ $batch->workOrder?->mixDesign?->concrete_grade?->name ?? ($batch->workOrder?->mixDesign?->design_name ?? '-') }}
+                {{ $batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->design_name ?? '-') }}
             </td>
         </tr>
         <tr>
             <td class="meta-label">Code:</td>
-            <td class="meta-value font-mono">{{ $batch->workOrder?->mixDesign?->design_code ?? '-' }}</td>
+            <td class="meta-value font-mono">{{ $batch->salesOrder?->mixDesign?->design_code ?? '-' }}</td>
         </tr>
         <tr>
             <td class="meta-label">Batch Size:</td>
@@ -338,35 +338,23 @@
         </tr>
     </table>
 
-    @if ($batch->materials->count() > 0)
+    @if ($batch->salesOrder?->mixDesign?->items?->count() > 0)
         <div class="divider"></div>
         <div
-            style="font-weight: 800; text-align: center; margin-bottom: 4px; font-size: 11px; color: #475569; letter-spacing: 0.05em;">
-            TARGET MATERIALS</div>
+            style="font-weight: 800; text-align: center; margin-bottom: 4px; font-size: 11px; color: #000000 !important; letter-spacing: 0.05em;">
+            TARGET MATERIALS (per m³)</div>
         <table class="materials-table">
             <thead>
                 <tr>
                     <th>Material</th>
-                    <th class="text-right">Qty (kg)</th>
+                    <th class="text-right">Qty (kg/m³)</th>
                 </tr>
             </thead>
             <tbody>
-                @php
-                    $groupedMaterials = $batch->materials->groupBy(function($mat) {
-                        return $mat->product_id ?? $mat->material_name;
-                    })->map(function($group) {
-                        $first = $group->first();
-                        $target = $group->sum('target_qty');
-                        return (object)[
-                            'material_name' => $first->material_name ?: ($first->product->title ?? 'Material'),
-                            'target_qty' => $target,
-                        ];
-                    });
-                @endphp
-                @foreach ($groupedMaterials as $mat)
+                @foreach ($batch->salesOrder->mixDesign->items as $item)
                     <tr>
-                        <td>{{ $mat->material_name }}</td>
-                        <td class="text-right font-mono">{{ number_format((float) $mat->target_qty, 2) }}</td>
+                        <td>{{ $item->product?->title ?? 'Material' }}</td>
+                        <td class="text-right font-mono">{{ number_format((float) $item->actual_quantity, 2) }}</td>
                     </tr>
                 @endforeach
             </tbody>

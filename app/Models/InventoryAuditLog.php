@@ -12,6 +12,15 @@ class InventoryAuditLog extends Model
 
     protected $table = 'mm_inventory_audit_logs';
 
+    protected static function booted()
+    {
+        static::creating(function ($log) {
+            if (strcasecmp($log->transaction_type ?? '', 'CREATE') === 0) {
+                return false;
+            }
+        });
+    }
+
     protected $fillable = [
         'plant_id',
         'transaction_type',
@@ -25,6 +34,7 @@ class InventoryAuditLog extends Model
     ];
 
     const UPDATED_AT = null;
+    // const UPDATED_AT = null;
 
     protected $casts = [
         'created_at' => 'datetime',

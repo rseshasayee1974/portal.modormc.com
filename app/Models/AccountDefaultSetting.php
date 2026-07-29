@@ -5,12 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\AuditFields;
 use App\Traits\ProtectsSystemItems;
 
 class AccountDefaultSetting extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems;
+        use HasFactory, SoftDeletes, ProtectsSystemItems;
 
     protected $table = 'mm_account_default_settings';
 

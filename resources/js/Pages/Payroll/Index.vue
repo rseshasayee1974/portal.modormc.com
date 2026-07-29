@@ -110,7 +110,7 @@ const periodForm = useForm({
 const compForm = useForm({
     name: '',
     type: 'earning',
-    calculation_type: '₹',
+    calculation_type: 'fixed',
     default_value: 0,
     is_taxable: true,
     is_statutory: false,
@@ -126,8 +126,8 @@ const typeOptions = [
 ];
 
 const calcOptions = [
-    { label: 'FIXED AMOUNT', value: '₹' },
-    { label: '%', value: '%' },
+    { label: 'FIXED AMOUNT', value: 'fixed' },
+    { label: 'PERCENTAGE (%)', value: 'percentage' },
     { label: 'FORMULA', value: 'formula' },
     { label: 'ATTENDANCE BASED', value: 'attendance_based' },
 ];

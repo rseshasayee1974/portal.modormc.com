@@ -6,8 +6,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+use App\Traits\TracksModelChanges;
 class Billing extends Model
 {
+    use TracksModelChanges;
+
     protected $table = 'mm_billings';
     use HasFactory;
 
@@ -28,5 +31,10 @@ class Billing extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function destroyer()
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 }

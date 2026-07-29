@@ -8,11 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Traits\ProtectsSystemItems;
 use App\Traits\TracksModelChanges;
-use App\Traits\AuditFields;
-
 class ConcreteGrade extends Model
 {
-    use HasFactory, SoftDeletes, ProtectsSystemItems, TracksModelChanges, AuditFields ;
+        use HasFactory, SoftDeletes, ProtectsSystemItems, TracksModelChanges;
     protected $table = 'mm_concrete_grades';
     protected $fillable = [
         'plant_id',

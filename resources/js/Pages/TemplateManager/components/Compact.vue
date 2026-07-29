@@ -1,16 +1,29 @@
 <script setup lang="ts">
-import { defineProps } from 'vue';
+import { computed } from 'vue';
 
 const props = defineProps<{
     dummyData: any;
+    settings?: any;
 }>();
+
+const pdfSettings = computed(() => props.settings?.pdf || props.dummyData?.settings?.pdf || {});
+const labels = computed(() => pdfSettings.value?.labels || {});
+
+const company = computed(() => props.dummyData?.company || {});
+const billTo = computed(() => props.dummyData?.bill_to || {});
+const shipTo = computed(() => props.dummyData?.ship_to || {});
+const items = computed(() => props.dummyData?.items || []);
+const totals = computed(() => props.dummyData?.totals || {});
+const meta = computed(() => props.dummyData?.meta || {});
 </script>
 
 <template>
     <div class="design-wrap compact-mode">
         <div class="flex justify-between items-center border-b border-slate-200 pb-4 mb-6">
-            <h1 class="text-xl font-black uppercase tracking-tight">msrk <span class="text-slate-300 font-light ml-2">Invoice</span></h1>
-            <div class="text-[10px] font-black text-slate-400">#{{ dummyData.doc_no }}</div>
+            <h1 class="text-xl font-black uppercase tracking-tight">
+                {{ company.name || 'Company' }} <span class="text-slate-400 font-light ml-2">{{ labels.invoice_title || dummyData.doc_title || 'Document' }}</span>
+            </h1>
+            <div v-if="pdfSettings.invoice_number !== false" class="text-[10px] font-black text-slate-400">#{{ dummyData.doc_no }}</div>
         </div>
 
         <div class="flex gap-12 mb-8">

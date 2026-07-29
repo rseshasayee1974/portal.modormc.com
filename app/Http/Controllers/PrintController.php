@@ -23,6 +23,9 @@ class PrintController extends Controller
      */
     public function handle(Request $request, string $module, string $id, string $action = 'view')
     {
+        $realId = $id;
+        try { $realId = decrypt($id); } catch (\Exception $e) { }
+
         // 1. Set module for authorization check
         $this->module = $module === 'delivery_challans' ? 'sales_orders' : $module;
         $this->authorizeModule('show');
@@ -35,9 +38,6 @@ class PrintController extends Controller
         }
  // to handle the first time invoice printing and the duplicate invoice printing
         if ($module === 'invoices') {
-            $realId = $id;
-            try { $realId = decrypt($id); } catch (\Exception $e) { }
-
             $invoice = \App\Models\Invoice::find($realId);
             if ($invoice) {
                 $user = auth()->user();
@@ -115,9 +115,12 @@ class PrintController extends Controller
      */
     protected function resolveData(string $module, string $id): ?array
     {
-        $activePlantId = session('active_plant_id');
-        if (!$activePlantId) {
-            abort(403, "No active plant selected.");
+        $activePlantId = session('active_plant_id') ?: 1;
+
+        if (in_array(strtolower($id), ['dummy', 'sample', '0', 'preview'])) {
+            $data = PrintDataFormatter::dummy($module);
+            $data['settings'] = PrintDataFormatter::getCustomSettings($activePlantId, $module);
+            return $data;
         }
 
         $realId = $id;
@@ -126,12 +129,14 @@ class PrintController extends Controller
             $realId = decrypt($id);
         } catch (\Exception $e) { }
 
+        $data = null;
         switch ($module) {
             case 'purchase_orders':
                 $model = \App\Models\PurchaseOrder::where('id', $realId)
                     ->where('plant_id', $activePlantId)
                     ->first();
-                return $model ? PrintDataFormatter::fromPurchaseOrder($model) : null;
+                $data = $model ? PrintDataFormatter::fromPurchaseOrder($model) : null;
+                break;
 
             case 'invoices':
                 $model = \App\Models\Invoice::where('id', $realId)
@@ -142,9 +147,8 @@ class PrintController extends Controller
                     $moduleKey = $model->invoice_type === 'bill' ? 'purchase_bills' : 'invoices';
                     $defaultSettings = PrintDataFormatter::getDefaultSettings($moduleKey);
                     $data['doc_title'] = $defaultSettings['pdf']['labels']['invoice_title'];
-                    return $data;
                 }
-                return null;
+                break;
 
             case 'billings':
                 $model = \App\Models\Invoice::where('id', $realId)
@@ -153,10 +157,9 @@ class PrintController extends Controller
                 if ($model) {
                     $data = PrintDataFormatter::fromInvoice($model);
                     $data['doc_title'] = 'MANUAL BILL';
-                   
-                    return $data;
                 }
-                return null;
+                break;
+
             case 'purchase_bills':
                 $model = \App\Models\Invoice::where('id', $realId)
                     ->where('plant_id', $activePlantId)
@@ -165,36 +168,46 @@ class PrintController extends Controller
                     $data = PrintDataFormatter::fromInvoice($model);
                     $data['doc_title'] = 'PURCHASE BILL';
                     $data['settings'] = PrintDataFormatter::getCustomSettings($activePlantId, 'purchase_bills');
-                    return $data;
                 }
-                return null;
+                break;
 
             case 'quotations':
                 $model = \App\Models\Quotation::where('id', $realId)
                     ->where('plant_id', $activePlantId)
                     ->first();
-                return $model ? PrintDataFormatter::fromQuotation($model) : null;
+                $data = $model ? PrintDataFormatter::fromQuotation($model) : null;
+                break;
 
             case 'customer_pos':
                 $model = \App\Models\CustomerPO::where('id', $realId)
                     ->where('plant_id', $activePlantId)
                     ->first();
-                return $model ? PrintDataFormatter::fromCustomerPO($model) : null;
+                $data = $model ? PrintDataFormatter::fromCustomerPO($model) : null;
+                break;
 
             case 'sales_orders':
                 $model = \App\Models\SalesOrder::where('id', $realId)
                     ->where('plant_id', $activePlantId)
                     ->first();
-                return $model ? PrintDataFormatter::fromSalesOrder($model) : null;
+                $data = $model ? PrintDataFormatter::fromSalesOrder($model) : null;
+                break;
 
             case 'delivery_challans':
                 $model = \App\Models\Batch::where('id', $realId)
                     ->whereHas('workOrder', fn ($q) => $q->where('plant_id', $activePlantId))
                     ->first();
-                return $model ? PrintDataFormatter::fromDeliveryChallan($model) : null;
+                $data = $model ? PrintDataFormatter::fromDeliveryChallan($model) : null;
+                break;
 
             default:
-                return null;
+                $data = null;
         }
+
+        if (!$data) {
+            $data = PrintDataFormatter::dummy($module);
+            $data['settings'] = PrintDataFormatter::getCustomSettings($activePlantId, $module);
+        }
+
+        return $data;
     }
 }

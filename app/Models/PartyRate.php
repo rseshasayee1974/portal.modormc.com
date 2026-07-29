@@ -5,13 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Traits\AuditFields;
 use Illuminate\Support\Facades\Auth;
 
 class PartyRate extends Model
 {
     protected $table = 'mm_party_rates';
-    use HasFactory, SoftDeletes, AuditFields;
+        use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'plant_id',

@@ -111,7 +111,6 @@ Route::middleware([
         Route::resource('menus', \App\Http\Controllers\MenuController::class);
         Route::resource('sites', \App\Http\Controllers\SiteController::class);
         Route::resource('taxes', \App\Http\Controllers\TaxController::class);
-        Route::get('audit-logs', [\App\Http\Controllers\AuditLogController::class, 'index'])->name('settings.audit-logs');
         
         // AI Agent Builder
         Route::get('agents', [\App\Http\Controllers\AgentBuilderController::class, 'index'])->name('settings.agents.index');
@@ -138,6 +137,7 @@ Route::middleware([
         Route::get('templates/{template}/preview', [\App\Http\Controllers\PrintTemplateController::class, 'preview'])->name('templates.preview');
         Route::get('templates/{module}/customize', [\App\Http\Controllers\PrintTemplateController::class, 'customize'])->name('templates.customize');
         Route::post('templates/{module}/customize', [\App\Http\Controllers\PrintTemplateController::class, 'saveCustomization'])->name('templates.save-customization');
+        Route::post('templates/{module}/preview-render', [\App\Http\Controllers\PrintTemplateController::class, 'renderLivePreview'])->name('templates.preview-render');
   Route::get('default-accounts', [\App\Http\Controllers\AccountDefaultSettingController::class, 'index'])->name('settings.account-defaults');
         Route::post('default-accounts', [\App\Http\Controllers\AccountDefaultSettingController::class, 'store'])->name('settings.account-defaults.store');
 

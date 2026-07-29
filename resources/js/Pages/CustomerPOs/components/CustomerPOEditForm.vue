@@ -37,8 +37,8 @@ const emit = defineEmits<{
     (e: 'saved'): void;
     (e: 'cancel'): void;
 }>();
-const { isAdmin , isSuperAdmin} = usePermissions();
-const admin = isAdmin.value || isSuperAdmin.value;
+const { isAdmin , isSuperAdmin , isSassOwner} = usePermissions();
+const admin = isAdmin.value || isSuperAdmin.value || isSassOwner.value;
 const form = useForm({
     prefix: props.customerPO?.prefix ?? 'CPO',
     reference: props.customerPO?.reference ?? '',
@@ -207,6 +207,8 @@ const taxOptions = computed(() => (props.taxes || []).map(t => ({
     label: t.tax_name ? `${t.tax_name} (${t.tax_rate}%)` : `Tax (${t.tax_rate}%)`,
     value: t.id
 })));
+
+console.log('sdfsdf',props.customerPO);
 
 // Watch form items and is_tax_inclusive status to dynamically update tax_amount
 watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) => {
@@ -885,7 +887,7 @@ const performSubmit = (customerPOId: any) => {
                                 </thead>
                                 <tbody class="divide-y divide-indigo-50/50">
                                     <!-- Single item mode -->
-                                    <template v-if="(!form.quotation_id && form.items.length <= 1) || (form.quotation_id && (customerPO?.quotation?.items?.length === 1 || customerPO?.items?.length === 1))">
+                                    <template v-if="form.quotation_id && (customerPO?.quotation?.items?.length === 1 || customerPO?.items?.length === 1)">
                                         <template v-if="Number(form.mix_design_id) === Number(designId)">
                                             <tr v-for="pr in form.pump_rates" :key="pr.pump_type" class="hover:bg-indigo-50/20 transition-colors p-1">
                                                 <td class="px-4 py-0 font-medium text-slate-700 truncate">{{ props.pumpTypeOptions?.find(opt => String(opt.value) === String(pr.pump_type))?.label || pr.pump_type }}</td>
@@ -956,7 +958,7 @@ const performSubmit = (customerPOId: any) => {
 
         <div class="mt-5 flex justify-end gap-2 border-t border-gray-200 pt-4">
             <BaseFormActions
-                :disabled="props.customerPO.has_salesorders && !admin "
+                :disabled="props.customerPO.has_salesorders && !admin"
                 mode="update"
                 updateLabel="Update Customer PO"
                 :loading="form.processing"

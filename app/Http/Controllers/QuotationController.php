@@ -35,7 +35,7 @@ class QuotationController extends Controller
             'vehicles' => MachinesDropdown(),
             'drivers'  => PersonnelDropdown(),
             'unitOptions' => Productunit(),
-            'concretePumpOptions' => ConcretePumpDropdown(),
+            'concretePumpOptions' => PumpTypeDropdown(),
             'pumpTypeOptions' => PumpTypeDropdown(),
             'instant_customer' => CustomSetting::getForModule(session('active_entity_id'), 'quotation')['instant_customer'] ?? 0,
         ]);
@@ -177,30 +177,59 @@ class QuotationController extends Controller
         return redirect()->back()->with('success', 'Customer PO conversion status updated.');
     }
 
-    public function sendEmail(Quotation $quotation)
+    public function sendEmail(Request $request, Quotation $quotation)
     {
         $this->authorizeModule('menu');
         
+        \Illuminate\Support\Facades\Log::info("Starting email sending flow for Quotation ID: {$quotation->id}, Reference: {$quotation->reference}");
+
         $quotation->load(['patron.contacts', 'site']);
         
-        $primaryContact = $quotation->patron->contacts()->where('is_primary', 1)->first() 
-                        ?? $quotation->patron->contacts()->first();
+        $email = $request->input('email');
+        if ($email) {
+            \Illuminate\Support\Facades\Log::info("Custom email provided in request payload: {$email}");
+        }
         
-        $email = $primaryContact?->email;
+        if (!$email) {
+            \Illuminate\Support\Facades\Log::info("No custom email in payload. Resolving primary contact email from patron ID: {$quotation->patron_id}");
+            $primaryContact = $quotation->patron->contacts()
+                ->whereNotNull('email')
+                ->where('email', '!=', '')
+                ->orderByDesc('is_primary')
+                ->first();
+            
+            $email = $primaryContact?->email;
+            if ($email) {
+                \Illuminate\Support\Facades\Log::info("Resolved contact email: {$email} (Primary: " . ($primaryContact->is_primary ? 'Yes' : 'No') . ", Name: " . ($primaryContact->name ?? 'N/A') . ")");
+            } else {
+                \Illuminate\Support\Facades\Log::warning("No contact email found for Patron ID: {$quotation->patron_id}");
+            }
+        }
 
         if (!$email) {
             return redirect()->back()->with('error', 'Customer does not have a primary contact email.');
         }
 
-        // Send notification
-        \Illuminate\Support\Facades\Notification::route('mail', $email)
-            ->notify(new \App\Notifications\QuotationSentNotification($quotation));
+        try {
+            \Illuminate\Support\Facades\Log::info("Sending QuotationSentNotification synchronously to {$email}...");
+            // Send notification synchronously to handle connection/transport errors immediately
+            \Illuminate\Support\Facades\Notification::route('mail', $email)
+                ->notifyNow(new \App\Notifications\QuotationSentNotification($quotation));
 
-        // Update status if it was draft
-        if ((int)$quotation->status === Quotation::STATUS_DRAFT) {
-            $quotation->update(['status' => Quotation::STATUS_SENT]);
+            \Illuminate\Support\Facades\Log::info("Notification sent successfully to {$email}.");
+
+            // Update status if it was draft
+            if ((int)$quotation->status === Quotation::STATUS_DRAFT) {
+                \Illuminate\Support\Facades\Log::info("Updating quotation status from Draft to Sent.");
+                $quotation->update(['status' => Quotation::STATUS_SENT]);
+            }
+
+            return redirect()->back()->with('success', "Quotation sent successfully to $email");
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to send quotation email: " . $e->getMessage(), [
+                'exception' => $e
+            ]);
+            return redirect()->back()->with('error', 'Failed to send email: ' . $e->getMessage());
         }
-
-        return redirect()->back()->with('success', "Quotation sent successfully to $email");
     }
 }

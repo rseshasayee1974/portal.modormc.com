@@ -5,14 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use App\Traits\AuditFields;
 use App\Traits\ProtectsSystemItems;
 use App\Traits\PlantScoping;
 
 class Site extends Model
 {
-    /** @use HasFactory<\Database\Factories\SiteFactory> */
-    use HasFactory, SoftDeletes, AuditFields, ProtectsSystemItems, PlantScoping;
+    //    use HasFactory<\Database\Factories\SiteFactory> 
+    use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping;
 
     const CREATED_AT = 'created_at';
 

@@ -204,6 +204,12 @@
                         <td style="font-weight:bold; color:#64748b;">Sub Total</td>
                         <td class="text-right">{{ number_format($data['totals']['sub_total'], 2) }}</td>
                     </tr>
+                    @if (($pdfSettings['pump_rates'] ?? true) && isset($data['totals']['pump_rate']) && $data['totals']['pump_rate'] > 0)
+                    <tr>
+                        <td style="font-weight:bold; color:#64748b;">Concrete Pump Charges</td>
+                        <td class="text-right">{{ number_format($data['totals']['pump_rate'], 2) }}</td>
+                    </tr>
+                    @endif
                     @if (($pdfSettings['discount'] ?? true) && $data['totals']['discount'] > 0)
                     <tr>
                         <td style="font-weight:bold; color:#ef4444;">Discount (-)</td>

@@ -39,6 +39,7 @@ class PermissionSeeder extends Seeder
             'DASHBOARD' => ['VIEW'],
             'SETTING' => ['VIEW', 'UPDATE'],
             'REPORT' => ['VIEW', 'EXPORT'],
+            'MASTER' => ['ALL'],
             
             // Financials
             'ACCOUNT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],

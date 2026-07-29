@@ -21,14 +21,16 @@ class QuotationTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user);
         
-        Plant::factory()->create(['name' => 'Main Plant']);
-        Product::factory()->create(['name' => 'Sand', 'code' => 'SND01']);
+        $plant = Plant::factory()->create(['name' => 'Main Plant']);
+        session(['active_plant_id' => $plant->id]);
+        Product::factory()->create(['title' => 'Sand', 'code' => 'SND01']);
         Patron::factory()->create(['name' => 'Test Client']);
     }
 
     public function test_can_list_quotations()
     {
-        Quotation::factory(3)->create();
+        $plant = Plant::first();
+        Quotation::factory(3)->create(['plant_id' => $plant->id]);
 
         $response = $this->get(route('quotations.index'));
 
@@ -84,5 +86,50 @@ class QuotationTest extends TestCase
             'is_tax_inclusive' => true,
             'amount_total' => 100.00,
         ]);
+    }
+
+    public function test_can_send_quotation_email()
+    {
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $plant = Plant::first();
+        session(['active_plant_id' => $plant->id]);
+
+        $patron = Patron::factory()->create([
+            'plant_id' => $plant->id,
+        ]);
+        
+        // Create contact with email for the patron
+        $contactType = \App\Models\ContactType::first() ?: \App\Models\ContactType::factory()->create();
+        $contact = \App\Models\Contact::create([
+            'plant_id' => $plant->id,
+            'patron_id' => $patron->id,
+            'contact_type_id' => $contactType->id,
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'is_primary' => true,
+        ]);
+
+        $quotation = Quotation::factory()->create([
+            'plant_id' => $plant->id,
+            'patron_id' => $patron->id,
+            'status' => Quotation::STATUS_DRAFT,
+        ]);
+
+        $response = $this->post(route('quotations.send-email', $quotation->id));
+
+        $response->assertStatus(302);
+        $response->assertSessionHas('success');
+
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            new \Illuminate\Notifications\AnonymousNotifiable,
+            \App\Notifications\QuotationSentNotification::class,
+            function ($notification, $channels, $notifiable) use ($quotation) {
+                return $notifiable->routes['mail'] === 'john@example.com';
+            }
+        );
+
+        $quotation->refresh();
+        $this->assertEquals(Quotation::STATUS_SENT, (int)$quotation->status);
     }
 }

@@ -6,15 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\AccountsType;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Traits\AuditFields;
 use Illuminate\Support\Str;
 use App\Http\Controllers\Concerns\GeneratesAccountingCode;
 use App\Traits\ProtectsSystemItems;
 use App\Traits\PlantScoping;
 
+use App\Traits\TracksModelChanges;
 class Ledger extends Model
 {
-    use HasFactory, SoftDeletes, AuditFields, GeneratesAccountingCode, ProtectsSystemItems, PlantScoping;
+        use HasFactory, SoftDeletes, GeneratesAccountingCode, ProtectsSystemItems, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_ledgers';
 

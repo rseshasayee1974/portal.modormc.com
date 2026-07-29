@@ -31,9 +31,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *
  * @package App\Models
  */
+use App\Traits\TracksModelChanges;
 class InvoicePayment extends Model
 {
-	use HasFactory;
+	use HasFactory, TracksModelChanges;
 
 	use SoftDeletes;
 	protected $table = 'mm_invoice_payments';

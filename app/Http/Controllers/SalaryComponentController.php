@@ -32,7 +32,7 @@ class SalaryComponentController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'type' => 'required|in:earning,deduction',
-            'calculation_type' => 'required|in:fixed,%,formula,attendance_based',
+            'calculation_type' => 'required|in:fixed,percentage,%,formula,attendance_based,₹',
             'default_value' => 'required|numeric|min:0',
             'is_taxable' => 'boolean',
             'is_statutory' => 'boolean',
@@ -53,7 +53,7 @@ class SalaryComponentController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100',
             'type' => 'required|in:earning,deduction',
-            'calculation_type' => 'required|in:fixed,%,formula,attendance_based',
+            'calculation_type' => 'required|in:fixed,percentage,%,formula,attendance_based,₹',
             'default_value' => 'required|numeric|min:0',
             'is_taxable' => 'boolean',
             'is_statutory' => 'boolean',
