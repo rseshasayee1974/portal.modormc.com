@@ -13,6 +13,7 @@ use App\Models\Address;
 use App\Models\Contact;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Services\PlantInitializationService;
@@ -29,18 +30,25 @@ class PlantController extends Controller
     public function index(Request $request)
     {
         $user = Auth::user();
+        $isSuperUser = $user && method_exists($user, 'hasRole') && (
+            $user->hasRole('Saas Owner') || 
+            $user->hasRole('Platform Admin') || 
+            $user->hasRole('Super Admin')
+        );
 
-        if ($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin')) {
+        if ($isSuperUser) {
             $allowedEntityIds = Entity::pluck('id')->toArray();
-            
         } else {
             $allowedEntityIds = $user->entityUsers()->pluck('entity_id')->toArray();
-            
         }
-// dd($allowedEntityIds);
+
         $query = Plant::query()
             ->whereIn('entity_id', $allowedEntityIds)
             ->with(['addresses.addressType', 'addresses.state', 'contacts.contactType', 'entity']);
+
+        if ($isSuperUser) {
+            $query->withTrashed();
+        }
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -358,5 +366,43 @@ class PlantController extends Controller
         }
 
         return redirect()->back()->with('error', 'Failed to send credentials.');
+    }
+
+    public function restore($id)
+    {
+        $user = Auth::user();
+        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $plant = Plant::onlyTrashed()->findOrFail($id);
+        $plant->restore();
+
+        return redirect()->back()->with('success', 'Plant restored successfully.');
+    }
+
+    public function forceDelete($id)
+    {
+        $user = Auth::user();
+        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $plant = Plant::withTrashed()->findOrFail($id);
+        
+        // Cleanup logo, seal, and upi_qr files if they exist
+        if ($plant->logo_path) {
+            Storage::disk('public')->delete($plant->logo_path);
+        }
+        if ($plant->seal_sign_path) {
+            Storage::disk('public')->delete($plant->seal_sign_path);
+        }
+        if ($plant->upi_qr_path) {
+            Storage::disk('public')->delete($plant->upi_qr_path);
+        }
+
+        $plant->forceDelete();
+
+        return redirect()->back()->with('success', 'Plant permanently deleted.');
     }
 }

@@ -168,7 +168,13 @@ if (!function_exists('MachinesDropdown')) {
             ->select('id', 'registration', 'plant_id');
 
         if ($vehicleType !== null) {
-            $query->where('vehicle_type', $vehicleType);
+            if (is_array($vehicleType)) {
+                if (!empty($vehicleType)) {
+                    $query->whereIn('vehicle_type', $vehicleType);
+                }
+            } else {
+                $query->where('vehicle_type', $vehicleType);
+            }
         }
 
         if ($excludeId !== null) {

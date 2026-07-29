@@ -124,6 +124,47 @@ const sendWhatsappVerification = async (user: any) => {
         loadingWhatsapp.value[user.id] = false;
     }
 };
+
+const confirmRestore = (id: number) => {
+    Swal.fire({
+        title: 'Restore User?',
+        text: 'This will restore the user and reactivate their account.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, restore it!',
+    }).then(result => {
+        if (result.isConfirmed) {
+            router.post(route('users.restore', id), {}, {
+                onSuccess: () => {
+                    toast.add({ severity: 'success', summary: 'Restored', detail: 'User restored successfully.' });
+                    router.reload({ only: ['users'] });
+                },
+            });
+        }
+    });
+};
+
+const confirmForceDelete = (id: number) => {
+    Swal.fire({
+        title: 'Permanently Delete User?',
+        text: 'This action is irreversible and will permanently delete the user.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete permanently!',
+    }).then(result => {
+        if (result.isConfirmed) {
+            router.delete(route('users.force-delete', id), {
+                onSuccess: () => {
+                    toast.add({ severity: 'success', summary: 'Deleted', detail: 'User permanently deleted.' });
+                    router.reload({ only: ['users'] });
+                },
+            });
+        }
+    });
+};
+// console.log(props.users);
 </script>
 
 <template>
@@ -186,6 +227,13 @@ const sendWhatsappVerification = async (user: any) => {
             <Column field="is_active" header="Status">
                 <template #body="slotProps">
                     <Tag
+                        v-if="slotProps.data.deleted_at"
+                        value="Deleted"
+                        severity="danger"
+                        rounded
+                    />
+                    <Tag
+                        v-else
                         :value="slotProps.data.is_active ? 'Active' : 'Inactive'"
                         :severity="slotProps.data.is_active ? 'success' : 'danger'"
                         rounded
@@ -218,32 +266,48 @@ const sendWhatsappVerification = async (user: any) => {
             <Column header="Actions" style="width: 180px">
                 <template #body="slotProps">
                     <div class="flex justify-end gap-1">
-                        <BaseActionButton
-                            v-if="!slotProps.data.email_verified_at"
-                            icon="pi pi-whatsapp" 
-                            severity="success"
-                            tooltip="Send WhatsApp Verification"
-                            :loading="loadingWhatsapp[slotProps.data.id]"
-                            @click="sendWhatsappVerification(slotProps.data)"
-                        />
-                        <BaseActionButton
-                            icon="pi pi-eye" 
-                            severity="secondary"
-                            tooltip="View Details"
-                            @click="openRow(slotProps.data, 'view')"
-                        />
-                        <BaseActionButton
-                            icon="pi pi-pencil" 
-                            severity="info"
-                            tooltip="Edit User"
-                            @click="openRow(slotProps.data, 'edit')"
-                        />
-                        <BaseDeleteButton
-                            :url="route('users.destroy', slotProps.data.id)"
-                            title="Delete User?"
-                            text="This action cannot be undone."
-                            @success="onUpdated(slotProps.data.id)"
-                        />
+                        <template v-if="slotProps.data.deleted_at">
+                            <BaseActionButton
+                                icon="pi pi-refresh" 
+                                severity="success"
+                                tooltip="Restore User"
+                                @click="confirmRestore(slotProps.data.id)"
+                            />
+                            <BaseActionButton
+                                icon="pi pi-trash" 
+                                severity="danger"
+                                tooltip="Permanently Delete"
+                                @click="confirmForceDelete(slotProps.data.id)"
+                            />
+                        </template>
+                        <template v-else>
+                            <BaseActionButton
+                                v-if="!slotProps.data.email_verified_at"
+                                icon="pi pi-whatsapp" 
+                                severity="success"
+                                tooltip="Send WhatsApp Verification"
+                                :loading="loadingWhatsapp[slotProps.data.id]"
+                                @click="sendWhatsappVerification(slotProps.data)"
+                            />
+                            <BaseActionButton
+                                icon="pi pi-eye" 
+                                severity="secondary"
+                                tooltip="View Details"
+                                @click="openRow(slotProps.data, 'view')"
+                            />
+                            <BaseActionButton
+                                icon="pi pi-pencil" 
+                                severity="info"
+                                tooltip="Edit User"
+                                @click="openRow(slotProps.data, 'edit')"
+                            />
+                            <BaseDeleteButton
+                                :url="route('users.destroy', slotProps.data.id)"
+                                title="Delete User?"
+                                text="This action will soft delete the user."
+                                @success="onUpdated(slotProps.data.id)"
+                            />
+                        </template>
                     </div>
                 </template>
             </Column>

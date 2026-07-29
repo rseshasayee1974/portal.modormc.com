@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\TracksModelChanges;
 class PaymentAllocation extends Model
 {
-        use TracksModelChanges;
+        use SoftDeletes, TracksModelChanges;
 
     protected $table = 'mm_payment_allocations';
 
@@ -15,7 +17,8 @@ class PaymentAllocation extends Model
         'invoice_id',
         'amount',
         'created_by',
-        'updated_by'
+        'updated_by',
+        'deleted_by',
     ];
 
     public function payment()

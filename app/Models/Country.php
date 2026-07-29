@@ -6,6 +6,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use Carbon\Carbon;
@@ -25,7 +27,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Country extends Model
 {
-	use HasFactory;
+	use SoftDeletes, HasFactory;
 
 	protected $table = 'mm_countries';
 
@@ -36,6 +38,7 @@ class Country extends Model
 	protected $fillable = [
 		'country_name',
 		'country_code',
-		'is_active'
+		'is_active',
+		'deleted_by',
 	];
 }

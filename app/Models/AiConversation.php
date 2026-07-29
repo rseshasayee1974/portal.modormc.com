@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class AiConversation extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'entity_id',
         'plant_id',
@@ -23,6 +26,7 @@ class AiConversation extends Model
         'status',
         'message_count',
         'summary',
+        'deleted_by',
     ];
 
     protected $casts = [

@@ -228,6 +228,49 @@ const deleteEntity = (id: number) => {
     });
 };
 
+const restoreEntity = (id: number) => {
+    Swal.fire({
+        title: 'Restore Entity?',
+        text: 'This will restore the entity and reactivate its record.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, restore it!',
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                await axios.post(route('entities.restore', id));
+                window.location.reload();
+            } catch {
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Restore failed.', life: 1500 });
+            }
+        }
+    });
+};
+
+const forceDeleteEntity = (id: number) => {
+    Swal.fire({
+        title: 'Permanently Delete Entity?',
+        text: 'This action is irreversible and will permanently delete the entity.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Yes, delete permanently!',
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            try {
+                await axios.delete(route('entities.force-delete', id));
+                store.removeEntity(id);
+                if (editingId.value === id) resetEditForm();
+                toast.add({ severity: 'info', summary: 'Deleted', detail: 'Entity permanently deleted.', life: 1500 });
+            } catch {
+                toast.add({ severity: 'error', summary: 'Error', detail: 'Delete failed.', life: 1500 });
+            }
+        }
+    });
+};
+
 // ── Switch Entity Context ──────────────────────────────────
 const switchToEntity = async (id: number) => {
     try {
@@ -278,6 +321,8 @@ const switchToEntity = async (id: number) => {
                 @update:search-query="searchQuery = $event"
                 @update:expanded-rows="handleExpandedRowsUpdate"
                 @delete="deleteEntity"
+                @restore="restoreEntity"
+                @force-delete="forceDeleteEntity"
                 @switch-entity="switchToEntity"
                 @submit-edit="submitEdit"
                 @cancel-edit="resetEditForm"

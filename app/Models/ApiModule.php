@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ApiModule extends Model
 {
-    use HasFactory;
+    use SoftDeletes, HasFactory;
 
     protected $table = 'mm_modules';
 
@@ -15,5 +17,6 @@ class ApiModule extends Model
         'name',
         'price_per_1000_tokens',
         'price_per_request',
+        'deleted_by',
     ];
 }

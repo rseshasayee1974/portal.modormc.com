@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class PersonnelContact extends Model
 {
-    use HasFactory;
+    use SoftDeletes, HasFactory;
 
     protected $table = 'mm_personnel_contacts';
     protected $primaryKey = 'contact_id';
@@ -20,7 +22,8 @@ class PersonnelContact extends Model
         'employee_id',
         'contact_type',
         'contact_value',
-        'is_primary'
+        'is_primary',
+        'deleted_by',
     ];
 
     protected $casts = [

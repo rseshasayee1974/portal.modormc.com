@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use App\Traits\PlantScoping;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 class MaintenanceLine extends Model
 {
-    use HasFactory, PlantScoping;
+    use SoftDeletes, HasFactory, PlantScoping;
 
     protected $table = 'mm_machine_maintanence_lines';
 
@@ -37,7 +39,8 @@ class MaintenanceLine extends Model
         'received_price',
         'partner_id',
         'created_by',
-        'modified_by'
+        'modified_by',
+        'deleted_by',
     ];
 
     protected $casts = [

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 
 class RagDocument extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'entity_id',
         'source_type',
@@ -16,6 +19,7 @@ class RagDocument extends Model
         'content_hash',
         'token_count',
         'is_active',
+        'deleted_by',
     ];
 
     protected $casts = [

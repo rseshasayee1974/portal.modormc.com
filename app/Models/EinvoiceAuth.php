@@ -2,11 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 class EinvoiceAuth extends Model
 {
-        use HasFactory;
+        use SoftDeletes, HasFactory;
 
     protected $table = 'mm_einvoice_auth';
 
@@ -23,6 +25,7 @@ class EinvoiceAuth extends Model
         'token_generated_at',
         'token_expiry_at',
         'created_by',
+        'deleted_by',
     ];
 
     protected $casts = [

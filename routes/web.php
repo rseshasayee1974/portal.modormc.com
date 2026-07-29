@@ -100,6 +100,11 @@ Route::middleware([
         Route::post('plants/{plant}/initialize', [\App\Http\Controllers\PlantController::class, 'initialize'])->name('plants.initialize');
         Route::post('plants/{plant}/send-credentials', [\App\Http\Controllers\PlantController::class, 'sendCredentials'])->name('plants.send-credentials');
         
+        Route::post('plants/{id}/restore', [\App\Http\Controllers\PlantController::class, 'restore'])->name('plants.restore');
+        Route::delete('plants/{id}/force-delete', [\App\Http\Controllers\PlantController::class, 'forceDelete'])->name('plants.force-delete');
+        
+        Route::post('entities/{id}/restore', [\App\Http\Controllers\EntityController::class, 'restore'])->name('entities.restore');
+        Route::delete('entities/{id}/force-delete', [\App\Http\Controllers\EntityController::class, 'forceDelete'])->name('entities.force-delete');
     });
 
     // 4. Settings & Permissions
@@ -153,6 +158,8 @@ Route::middleware([
     // 5. Patrons & Personnel (Membership)
     Route::prefix('membership')->group(function () {
         Route::get('users/{user}/whatsapp-verification', [\App\Http\Controllers\UserController::class, 'whatsappVerificationUrl'])->name('users.whatsapp-verification');
+        Route::post('users/{id}/restore', [\App\Http\Controllers\UserController::class, 'restore'])->name('users.restore');
+        Route::delete('users/{id}/force-delete', [\App\Http\Controllers\UserController::class, 'forceDelete'])->name('users.force-delete');
         Route::resource('users', \App\Http\Controllers\UserController::class);
         Route::resource('personnel', \App\Http\Controllers\PersonnelController::class);
         

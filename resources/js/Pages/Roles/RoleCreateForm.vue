@@ -163,13 +163,11 @@ const submit = async () => {
                 </div>
             </div>
         </div>
-
-        <template #footer>
-            <div class="flex gap-2 justify-end">
+ <div class="flex gap-2 justify-end">
                 <BaseButton label="Clear Form" text severity="secondary" @click="resetForm" />
                 <BaseButton label="Create Role" :loading="processing" icon="pi pi-check" @click="submit" />
             </div>
-        </template>
+        
     </BaseCard>
 </template>
 

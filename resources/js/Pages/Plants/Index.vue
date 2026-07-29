@@ -208,6 +208,46 @@ const deletePlant = (id: number) => {
     });
 };
 
+const restorePlant = (id: number) => {
+    Swal.fire({
+        title: 'Restore Plant?',
+        text: 'This will restore the plant and its operational status.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, restore it!',
+    }).then(result => {
+        if (result.isConfirmed) {
+            router.post(route('plants.restore', id), {}, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.add({ severity: 'success', summary: 'Restored', detail: 'Plant restored successfully.', life: 1500 });
+                },
+            });
+        }
+    });
+};
+
+const forceDeletePlant = (id: number) => {
+    Swal.fire({
+        title: 'Permanently Delete Plant?',
+        text: 'This action is irreversible and will permanently delete the plant.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete permanently!',
+    }).then(result => {
+        if (result.isConfirmed) {
+            router.delete(route('plants.force-delete', id), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.add({ severity: 'success', summary: 'Deleted', detail: 'Plant permanently deleted.', life: 1500 });
+                },
+            });
+        }
+    });
+};
+
 const initializePlant = (id: number) => {
     Swal.fire({
         title: 'Initialize Plant?',
@@ -340,6 +380,8 @@ const handleSort = (event: any) => {
                         @page="handlePageChange"
                         @sort="handleSort"
                         @delete="deletePlant"
+                        @restore="restorePlant"
+                        @force-delete="forceDeletePlant"
                         @initialize="initializePlant"
                         @send-credentials="sendCredentials"
                         @submit-edit="submitEdit"

@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AiMessage extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'conversation_id',
         'role',
@@ -20,6 +23,7 @@ class AiMessage extends Model
         'audio_path',
         'rag_sources',
         'metadata',
+        'deleted_by',
     ];
 
     protected $casts = [

@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DispatchStatus extends Model
 {
-        use HasFactory;
+        use SoftDeletes, HasFactory;
 
     protected $table = 'mm_dispatch_statuses';
 

@@ -68,7 +68,7 @@ class UpdateQuotationRequest extends FormRequest
             'items.*.tax_amount' => 'nullable|numeric',
             'items.*.amount_total' => 'nullable|numeric',
             'items.*.pump_rates' => 'nullable|array',
-            'items.*.pump_rates.*.pump_type' => 'required|string|max:100',
+            'items.*.pump_rates.*.pump_type' => 'required|max:100',
             'items.*.pump_rates.*.pump_rate' => 'required|numeric|min:0',
         ];
     }

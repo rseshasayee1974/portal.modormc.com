@@ -30,6 +30,8 @@ const emit = defineEmits<{
     'update:searchQuery': [value: string];
     'update:expandedRows': [value: Record<number, boolean>];
     delete: [id: number];
+    restore: [id: number];
+    forceDelete: [id: number];
     switchEntity: [id: number];
     submitEdit: [];
     cancelEdit: [];
@@ -140,7 +142,10 @@ const onRowClick = (event: any) => {
         <!-- ── Status Column ── -->
         <Column header="Status" style="width: 100px" align="center">
             <template #body="slotProps">
-                <div class="flex items-center justify-center gap-2">
+                <div v-if="slotProps.data.deleted_at" class="flex items-center justify-center gap-2">
+                    <Tag value="Deleted" severity="danger" rounded />
+                </div>
+                <div v-else class="flex items-center justify-center gap-2">
                     <!-- Active/Inactive Icon -->
                     <i 
                         :class="[
@@ -164,19 +169,35 @@ const onRowClick = (event: any) => {
         <Column header="Actions" class="text-right" style="width: 130px">
             <template #body="slotProps">
                 <div class="flex justify-center gap-1">
-                    <BaseActionButton
-                        v-if="isSuperAdmin"
-                        icon="pi pi-arrows-h"
-                        severity="warning"
-                        tooltip="Switch to this Entity"
-                        @click="$emit('switchEntity', slotProps.data.id)"
-                    />
-                    <BaseActionButton
-                        icon="pi pi-trash"
-                        severity="danger"
-                        tooltip="Delete Entity"
-                        @click="$emit('delete', slotProps.data.id)"
-                    />
+                    <template v-if="slotProps.data.deleted_at">
+                        <BaseActionButton
+                            icon="pi pi-refresh"
+                            severity="success"
+                            tooltip="Restore Entity"
+                            @click.stop="$emit('restore', slotProps.data.id)"
+                        />
+                        <BaseActionButton
+                            icon="pi pi-trash"
+                            severity="danger"
+                            tooltip="Permanently Delete"
+                            @click.stop="$emit('forceDelete', slotProps.data.id)"
+                        />
+                    </template>
+                    <template v-else>
+                        <BaseActionButton
+                            v-if="isSuperAdmin"
+                            icon="pi pi-arrows-h"
+                            severity="warning"
+                            tooltip="Switch to this Entity"
+                            @click.stop="$emit('switchEntity', slotProps.data.id)"
+                        />
+                        <BaseActionButton
+                            icon="pi pi-trash"
+                            severity="danger"
+                            tooltip="Delete Entity"
+                            @click.stop="$emit('delete', slotProps.data.id)"
+                        />
+                    </template>
                 </div>
             </template>
         </Column>

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 
 class Menu extends Model
 {
+    use SoftDeletes;
 	protected $table = 'mm_menus';
     protected $fillable = [
         'menutype',
@@ -19,6 +22,7 @@ class Menu extends Model
         'ordering',
         'permission_name',
         'entity_id',
+        'deleted_by',
     ];
 
     protected $casts = [

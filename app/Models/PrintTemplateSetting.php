@@ -2,17 +2,21 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 
 class PrintTemplateSetting extends Model
 {
+    use SoftDeletes;
     protected $table = 'mm_print_template_settings';
     
     protected $fillable = [
         'module_key',
         'print_template_id',
         'plant_id',
-        'entity_id'
+        'entity_id',
+        'deleted_by',
     ];
 
     public function template()

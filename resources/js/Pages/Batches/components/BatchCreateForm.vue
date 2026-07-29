@@ -173,7 +173,12 @@ watch(() => form.sales_order_id, (newVal) => {
             ?? quotation?.concrete_pump
             ?? latestDispatch?.concrete_pump
             ?? null;
-        form.concrete_pump = concretePumpVal ? String(concretePumpVal) : null;
+        if (concretePumpVal !== null) {
+            const num = Number(concretePumpVal);
+            form.concrete_pump = isNaN(num) ? concretePumpVal : num;
+        } else {
+            form.concrete_pump = null;
+        }
 
         const salesExecVal = selectedSalesOrder.value.sales_executive_id
             ?? po?.sales_executive_id

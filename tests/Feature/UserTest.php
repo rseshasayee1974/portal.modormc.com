@@ -47,4 +47,78 @@ class UserTest extends TestCase
             $this->assertDatabaseMissing($model->getTable(), ['id' => $model->id]);
         }
     }
+
+    public function test_super_users_can_see_all_users_and_roles()
+    {
+        $plant = \App\Models\Plant::factory()->create();
+        $superUser = User::factory()->create();
+        
+        $role = \Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Platform Admin', 'guard_name' => 'web'],
+            ['code' => 'PLATFORM_ADMIN']
+        );
+        $superUser->assignRole($role);
+
+        // Also create a SAAS_OWNER user that standard users shouldn't see
+        $saasOwnerUser = User::factory()->create();
+        $saasRole = \Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Saas Owner', 'guard_name' => 'web'],
+            ['code' => 'SAAS_OWNER']
+        );
+        $saasOwnerUser->assignRole($saasRole);
+
+        $response = $this->actingAs($superUser)
+            ->withSession([
+                'active_plant_id' => $plant->id,
+                'active_entity_id' => $plant->entity_id,
+            ])
+            ->get(route('users.index'));
+
+        $response->assertStatus(200);
+        
+        // Assert that the page receives the SAAS_OWNER user
+        $response->assertInertia(fn ($page) => $page
+            ->component('Users/Index')
+            ->has('users.data')
+        );
+    }
+
+    public function test_super_user_can_restore_and_force_delete_user()
+    {
+        $plant = \App\Models\Plant::factory()->create();
+        $superUser = User::factory()->create();
+        
+        $role = \Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Platform Admin', 'guard_name' => 'web'],
+            ['code' => 'PLATFORM_ADMIN']
+        );
+        $superUser->assignRole($role);
+
+        $targetUser = User::factory()->create();
+        $targetUser->delete(); // Soft delete it
+
+        $this->assertSoftDeleted($targetUser);
+
+        // Restore it
+        $response = $this->actingAs($superUser)
+            ->withSession([
+                'active_plant_id' => $plant->id,
+                'active_entity_id' => $plant->entity_id,
+            ])
+            ->post(route('users.restore', $targetUser->id));
+
+        $response->assertRedirect();
+        $this->assertNotSoftDeleted($targetUser);
+
+        // Force delete it
+        $response = $this->actingAs($superUser)
+            ->withSession([
+                'active_plant_id' => $plant->id,
+                'active_entity_id' => $plant->entity_id,
+            ])
+            ->delete(route('users.force-delete', $targetUser->id));
+
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('mm_users', ['id' => $targetUser->id]);
+    }
 }

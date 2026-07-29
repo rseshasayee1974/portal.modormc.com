@@ -26,24 +26,36 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        
         $this->authorizeModule('menu');
-        $query = User::with(['entityUsers.entity', 'entityUsers.plant', 'entityUsers.role'])
-            ->whereDoesntHave('roles', function ($q) {
+        /** @var User $user */
+        $user = $request->user();
+        $isSuperUser = $user && method_exists($user, 'hasRole') && (
+            $user->hasRole('Saas Owner') || 
+            $user->hasRole('Platform Admin') || 
+            $user->hasRole('Super Admin')
+        );
+
+        $query = User::with(['entityUsers.entity', 'entityUsers.plant', 'entityUsers.role']);
+
+        if ($isSuperUser) {
+            $query->withTrashed();
+        } else {
+            $query->whereDoesntHave('roles', function ($q) {
                 $q->where('code', 'SAAS_OWNER');
             });
 
-        $activePlantId = session('active_plant_id');
-        if ($activePlantId) {
-            $query->whereHas('entityUsers', function ($q) use ($activePlantId) {
-                $q->where('plant_id', $activePlantId);
-            });
-        } else {
-            $activeEntityId = session('active_entity_id');
-            if ($activeEntityId) {
-                $query->whereHas('entityUsers', function ($q) use ($activeEntityId) {
-                    $q->where('entity_id', $activeEntityId);
+            $activePlantId = session('active_plant_id');
+            if ($activePlantId) {
+                $query->whereHas('entityUsers', function ($q) use ($activePlantId) {
+                    $q->where('plant_id', $activePlantId);
                 });
+            } else {
+                $activeEntityId = session('active_entity_id');
+                if ($activeEntityId) {
+                    $query->whereHas('entityUsers', function ($q) use ($activeEntityId) {
+                        $q->where('entity_id', $activeEntityId);
+                    });
+                }
             }
         }
 
@@ -58,12 +70,8 @@ class UserController extends Controller
         $users = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
         
         // Load dropdown collections for Form
-        /** @var User $user */
-        $user = $request->user();
- 
-        if ($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin')) {
-            $availableEntities = Entity::where('is_active', 1)->get();
-          
+        if ($isSuperUser) {
+            $availableEntities = Entity::all();
         } else {
             // Get entities from EntityUser mapping
             $availableEntities = $user->entityUsers()->with('entity')->get()->pluck('entity')->filter(function ($entity) {
@@ -78,21 +86,30 @@ class UserController extends Controller
             ];
         })->values();
 
-        $spatieLevel = $user->roles->min('level');
-        $entityLevel = $user->entityUsers()->with('role')->get()->min('role.level');
-        $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
-        $userLevel = empty($levels) ? 999 : min($levels);
-        
-        $userGroups = Role::where('level', '<=', $userLevel)->get()->map(function ($group) {
-            return [
-                'value' => $group->id,
-                'label' => $group->name,
-            ];
-        })->values();
-        // dd($userGroups,$levels,$userLevel,$entityLevel,$spatieLevel);
-        $activePlantId = session('active_plant_id');
+        if ($isSuperUser) {
+            $userGroups = Role::all()->map(function ($group) {
+                return [
+                    'value' => $group->id,
+                    'label' => $group->name,
+                ];
+            })->values();
+        } else {
+            $spatieLevel = $user->roles->min('level');
+            $entityLevel = $user->entityUsers()->with('role')->get()->min('role.level');
+            $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
+            $userLevel = empty($levels) ? 100 : min($levels);
+            
+            $userGroups = Role::where('level', '<=', $userLevel)->get()->map(function ($group) {
+                return [
+                    'value' => $group->id,
+                    'label' => $group->name,
+                ];
+            })->values();
+        }
+
         $plantsQuery = Plant::where('is_active', 1);
-        if ($activePlantId) {
+        $activePlantId = session('active_plant_id');
+        if ($activePlantId && !$isSuperUser) {
             $plantsQuery->where('id', $activePlantId);
         }
         $plants = $plantsQuery->get()->map(fn($p) => [
@@ -100,7 +117,7 @@ class UserController extends Controller
             'label' => $p->name,
             'entity_id' => $p->entity_id
         ]);
-// dd($query,$plants);
+
         return Inertia::render('Users/Index', [
             'users' => $users,
             'entities' => $entities,
@@ -229,5 +246,36 @@ class UserController extends Controller
         return response()->json([
             'url' => $waUrl
         ]);
+    }
+
+    public function restore($id)
+    {
+        $user = auth()->user();
+        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $targetUser = User::onlyTrashed()->findOrFail($id);
+        $targetUser->restore();
+
+        return redirect()->back()->with('success', 'User restored successfully.');
+    }
+
+    public function forceDelete($id)
+    {
+        $user = auth()->user();
+        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $targetUser = User::withTrashed()->findOrFail($id);
+        if ($targetUser->profile_photo_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($targetUser->profile_photo_path);
+        }
+
+        $targetUser->entityUsers()->forceDelete(); // Clean relationships permanently
+        $targetUser->forceDelete();
+
+        return redirect()->back()->with('success', 'User permanently deleted.');
     }
 }

@@ -6,6 +6,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -24,7 +26,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class MainGroupMaster extends Model
 {
-    use HasFactory;
+    use SoftDeletes, HasFactory;
 
     protected $table = 'mm_main_group_master';
 
@@ -37,5 +39,6 @@ class MainGroupMaster extends Model
         'group_code',
         'description',
         'status',
+        'deleted_by',
     ];
 }

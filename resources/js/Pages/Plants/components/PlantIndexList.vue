@@ -35,6 +35,8 @@ const emit = defineEmits<{
     'page': [event: any];
     'sort': [event: any];
     'delete': [id: number];
+    'restore': [id: number];
+    'forceDelete': [id: number];
     'initialize': [id: number];
     'send-credentials': [id: number];
     'submitEdit': [];
@@ -137,7 +139,11 @@ const onRowClick = (event: any) => {
 
         <Column field="is_active" header="Status" sortable style="width: 120px">
             <template #body="slotProps">
-                <div class="flex items-center gap-2">
+                <div v-if="slotProps.data.deleted_at" class="flex items-center gap-2">
+                    <i class="pi pi-times-circle text-rose-500 drop-shadow-[0_0_6px_rgba(239,68,68,0.4)]"></i>
+                    <span class="text-[11px] font-black uppercase tracking-wider text-rose-600">Deleted</span>
+                </div>
+                <div v-else class="flex items-center gap-2">
                     <i
                         class="pi text-xs"
                         :class="slotProps.data.is_active ? 'pi-check-circle text-emerald-500 drop-shadow-[0_0_6px_rgba(16,185,129,0.4)]' : 'pi-times-circle text-slate-300'"
@@ -149,29 +155,45 @@ const onRowClick = (event: any) => {
             </template>
         </Column>
 
-        <Column header="Actions" class="text-right" style="width: 100px">
+        <Column header="Actions" class="text-right" style="width: 120px">
             <template #body="slotProps">
                 <div class="flex justify-end gap-1">
-                    <BaseActionButton
-                        v-if="!slotProps.data.is_initialized"
-                        icon="pi pi-bolt"
-                        severity="help"
-                        tooltip="Initialize Defaults"
-                        @click.stop="$emit('initialize', slotProps.data.id)"
-                    />
-                    <BaseActionButton
-                        v-if="slotProps.data.is_initialized"
-                        icon="pi pi-lock"
-                        severity="success"
-                        tooltip="Send/Resend Login Credentials"
-                        @click.stop="$emit('send-credentials', slotProps.data.id)"
-                    />
-                    <BaseActionButton
-                        icon="pi pi-trash"
-                        severity="danger"
-                        tooltip="Delete Plant"
-                        @click.stop="$emit('delete', slotProps.data.id)"
-                    />
+                    <template v-if="slotProps.data.deleted_at">
+                        <BaseActionButton
+                            icon="pi pi-refresh"
+                            severity="success"
+                            tooltip="Restore Plant"
+                            @click.stop="$emit('restore', slotProps.data.id)"
+                        />
+                        <BaseActionButton
+                            icon="pi pi-trash"
+                            severity="danger"
+                            tooltip="Permanently Delete"
+                            @click.stop="$emit('forceDelete', slotProps.data.id)"
+                        />
+                    </template>
+                    <template v-else>
+                        <BaseActionButton
+                            v-if="!slotProps.data.is_initialized"
+                            icon="pi pi-bolt"
+                            severity="help"
+                            tooltip="Initialize Defaults"
+                            @click.stop="$emit('initialize', slotProps.data.id)"
+                        />
+                        <BaseActionButton
+                            v-if="slotProps.data.is_initialized"
+                            icon="pi pi-lock"
+                            severity="success"
+                            tooltip="Send/Resend Login Credentials"
+                            @click.stop="$emit('send-credentials', slotProps.data.id)"
+                        />
+                        <BaseActionButton
+                            icon="pi pi-trash"
+                            severity="danger"
+                            tooltip="Delete Plant"
+                            @click.stop="$emit('delete', slotProps.data.id)"
+                        />
+                    </template>
                 </div>
             </template>
         </Column>

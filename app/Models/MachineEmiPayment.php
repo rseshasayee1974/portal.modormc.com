@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class MachineEmiPayment extends Model
 {
-    use HasFactory;
+    use SoftDeletes, HasFactory;
 
     protected $table = 'mm_machine_emi_payments';
 
@@ -17,6 +19,7 @@ class MachineEmiPayment extends Model
         'paid_date',
         'amount',
         'status',
+        'deleted_by',
     ];
 
     public function loan()

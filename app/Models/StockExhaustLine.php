@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Auth;
 
 class StockExhaustLine extends Model
 {
-    use HasFactory;
+    use SoftDeletes, HasFactory;
 
     protected $table = 'mm_stock_exhaust_lines';
 
@@ -27,7 +29,8 @@ class StockExhaustLine extends Model
         'changed_km',
         'notes',
         'created_by',
-        'modified_by'
+        'modified_by',
+        'deleted_by',
     ];
 
     protected $casts = [

@@ -2,15 +2,19 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 
 class PersonnelPatronRel extends Model
 {
+    use SoftDeletes;
     protected $table = 'mm_personnel_patron_rels';
 
     protected $fillable = [
         'employee_id',
-        'patron_id'
+        'patron_id',
+        'deleted_by',
     ];
 
     public function employee()

@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\PlantScoping;
 
 class TruckEmptyWeight extends Model
 {
-    use HasFactory, PlantScoping;
+    use SoftDeletes, HasFactory, PlantScoping;
 
     protected $table = 'mm_truck_empty_weights';
 
@@ -16,6 +18,7 @@ class TruckEmptyWeight extends Model
         'truck_id',
         'empty_weight',
         'plant_id',
+        'deleted_by',
     ];
 
     protected $casts = [

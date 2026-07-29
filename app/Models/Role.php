@@ -9,6 +9,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Permission\Models\Role as SpatieRole;
 use Illuminate\Support\Facades\DB;
 
@@ -25,7 +26,7 @@ use Illuminate\Support\Facades\DB;
  */
 class Role extends SpatieRole
 {
-	use HasFactory;
+	use HasFactory , SoftDeletes;
 	protected $table = 'mm_roles';
     protected $fillable = [
         'name',

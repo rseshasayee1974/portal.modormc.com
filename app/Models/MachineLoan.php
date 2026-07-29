@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class MachineLoan extends Model
 {
-    use HasFactory;
+    use SoftDeletes, HasFactory;
 
     protected $table = 'mm_machine_loans';
 
@@ -18,6 +20,7 @@ class MachineLoan extends Model
         'tenure_months',
         'start_date',
         'end_date',
+        'deleted_by',
     ];
 
     public function machine()

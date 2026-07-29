@@ -185,7 +185,7 @@ class BatchController extends Controller
         return Inertia::render('Batches/Index', [
             'batches'           => $batches,
             'salesOrders'        => $salesOrders,
-            'trucks'            => MachinesDropdown(),
+            'trucks'            => MachinesDropdown(['Transit Mixer', 'Truck']),
             'customers'         => PatronsDropdown('Customer'),
             'transporters'      => PatronsDropdown('Transporter'),
             'loading_sites'     => SitesDropdown('loading'),

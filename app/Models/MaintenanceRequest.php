@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use App\Traits\PlantScoping;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 class MaintenanceRequest extends Model
 {
-    use HasFactory, PlantScoping;
+    use SoftDeletes, HasFactory, PlantScoping;
 
     protected $table = 'mm_machine_maintanence_request';
 
@@ -43,7 +45,8 @@ class MaintenanceRequest extends Model
         'start_date',
         'end_date',
         'created_by',
-        'modified_by'
+        'modified_by',
+        'deleted_by',
     ];
 
     protected $casts = [

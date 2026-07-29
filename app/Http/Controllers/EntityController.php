@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class EntityController extends Controller
@@ -31,12 +32,22 @@ class EntityController extends Controller
     public function index()
     {
         $this->authorizeModule('menu');
+
+        $user = Auth::user();
+        $isSuperUser = $user && method_exists($user, 'hasRole') && (
+            $user->hasRole('Saas Owner') || 
+            $user->hasRole('Platform Admin') || 
+            $user->hasRole('Super Admin')
+        );
+
+        $entities = $isSuperUser ? Entity::withTrashed()->get() : Entity::all();
+
         return Inertia::render('Entities/Index', [
-            'entities' => Entity::all(),
+            'entities' => $entities,
             'entityTypes' => EntityType::all(),
-                'addressTypes' => AddressType::all(),
-                'contactTypes' => ContactType::all(),
-                'bankAccountTypes' => BankAccountType::all(),
+            'addressTypes' => AddressType::all(),
+            'contactTypes' => ContactType::all(),
+            'bankAccountTypes' => BankAccountType::all(),
             'countries' => Country::all(['id', 'country_name']),
             'stateCodes' => StateCode::whereNotNull('state_name')
                 ->where('state_name', '!=', '')
@@ -161,5 +172,43 @@ class EntityController extends Controller
     {
         $entity->taxes()->where('id', $tax)->delete();
         return response()->json(['message' => 'Tax deleted successfully.']);
+    }
+
+    public function restore($id)
+    {
+        $user = Auth::user();
+        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $entity = Entity::onlyTrashed()->findOrFail($id);
+        $entity->restore();
+
+        return redirect()->back()->with('success', 'Entity restored successfully.');
+    }
+
+    public function forceDelete($id)
+    {
+        $user = Auth::user();
+        if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $entity = Entity::withTrashed()->findOrFail($id);
+        
+        // Destroy the physical file off the partition to prevent silent data bloat leaks
+        if ($entity->logo_file) {
+            Storage::disk('public')->delete($entity->logo_file);
+        }
+
+        // Cascade delete relations permanently
+        $entity->addresses()->forceDelete();
+        $entity->contacts()->forceDelete();
+        $entity->bankAccounts()->forceDelete();
+        $entity->taxes()->forceDelete();
+
+        $entity->forceDelete();
+
+        return redirect()->back()->with('success', 'Entity permanently deleted.');
     }
 }

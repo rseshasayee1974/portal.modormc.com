@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 
 class PrintTemplate extends Model
 {
+    use SoftDeletes;
     protected $table = 'mm_print_templates';
     
     protected $fillable = [
@@ -15,6 +18,7 @@ class PrintTemplate extends Model
         'thumbnail',
         'is_system',
         'mm_config',
+        'deleted_by',
     ];
 
     protected $casts = [

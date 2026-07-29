@@ -6,6 +6,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use Illuminate\Database\Eloquent\Model;
@@ -20,12 +22,13 @@ use Illuminate\Database\Eloquent\Model;
  */
 class InvoiceStatus extends Model
 {
-	use HasFactory;
+	use SoftDeletes, HasFactory;
 
 	protected $table = 'mm_invoice_statuses';
 	public $timestamps = false;
 
 	protected $fillable = [
-		'status_name'
+		'status_name',
+		'deleted_by',
 	];
 }

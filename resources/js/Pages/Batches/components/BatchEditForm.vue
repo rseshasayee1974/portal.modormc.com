@@ -101,10 +101,17 @@ const form = useForm({
     })(),
     concrete_pump: (() => {
         const direct = props.batch?.dispatches?.[0]?.concrete_pump || props.batch?.concrete_pump;
-        if (direct) return String(direct);
+        if (direct) {
+            const num = Number(direct);
+            return isNaN(num) ? direct : num;
+        }
         const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
         const val = so?.concrete_pump ?? so?.customer_p_o?.concrete_pump ?? so?.customer_p_o?.quotation?.concrete_pump ?? so?.latest_dispatch?.concrete_pump ?? null;
-        return val ? String(val) : null;
+        if (val) {
+            const num = Number(val);
+            return isNaN(num) ? val : num;
+        }
+        return null;
     })(),
     empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? 0),
     loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? 0),
@@ -333,11 +340,18 @@ const applyBatchToForm = (newBatch: any) => {
               : (quotation?.sales_executive_id ? Number(quotation.sales_executive_id)
                  : (latestDispatch?.sales_executive_id ? Number(latestDispatch.sales_executive_id) : null))));
 
-    form.concrete_pump = dispatch?.concrete_pump ? String(dispatch.concrete_pump)
-        : (so?.concrete_pump ? String(so.concrete_pump)
-           : (po?.concrete_pump ? String(po.concrete_pump)
-              : (quotation?.concrete_pump ? String(quotation.concrete_pump)
-                 : (latestDispatch?.concrete_pump ? String(latestDispatch.concrete_pump) : null))));
+    const rawPump = dispatch?.concrete_pump 
+        ?? so?.concrete_pump 
+        ?? po?.concrete_pump 
+        ?? quotation?.concrete_pump 
+        ?? latestDispatch?.concrete_pump 
+        ?? null;
+    if (rawPump !== null) {
+        const num = Number(rawPump);
+        form.concrete_pump = isNaN(num) ? rawPump : num;
+    } else {
+        form.concrete_pump = null;
+    }
     form.empty_weight_truck = Number(dispatch?.empty_weight_truck ?? 0);
     form.loaded_weight_truck = Number(dispatch?.loaded_weight_truck ?? 0);
     form.net_weight = Number(dispatch?.net_weight ?? 0);

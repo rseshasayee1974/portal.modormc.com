@@ -230,4 +230,30 @@ class EntityControllerTest extends TestCase
             $this->assertDatabaseMissing('mm_entity_addresses', ['id' => $address->id]);
         }
     }
+
+    public function test_super_user_can_restore_and_force_delete_entity()
+    {
+        $superUser = User::factory()->create();
+        $role = \Spatie\Permission\Models\Role::firstOrCreate(
+            ['name' => 'Platform Admin', 'guard_name' => 'web'],
+            ['code' => 'PLATFORM_ADMIN']
+        );
+        $superUser->assignRole($role);
+
+        $entityType = EntityType::factory()->create();
+        $entity = Entity::factory()->create(['entity_type' => $entityType->id]);
+        
+        $entity->delete();
+        $this->assertSoftDeleted($entity);
+
+        // Restore Entity
+        $response = $this->actingAs($superUser)->post(route('entities.restore', $entity->id));
+        $response->assertRedirect();
+        $this->assertNotSoftDeleted($entity);
+
+        // Force Delete Entity
+        $response = $this->actingAs($superUser)->delete(route('entities.force-delete', $entity->id));
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('mm_entities', ['id' => $entity->id]);
+    }
 }

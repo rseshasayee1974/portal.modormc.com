@@ -6,6 +6,8 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use Illuminate\Database\Eloquent\Model;
@@ -22,7 +24,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class StateCode extends Model
 {
-	use HasFactory;
+	use SoftDeletes, HasFactory;
 
 	protected $table = 'mm_state_codes';
 	public $timestamps = false;
@@ -37,6 +39,7 @@ class StateCode extends Model
 		'state_name',
 		'zipcode',
 		'area',
-		'district'
+		'district',
+		'deleted_by',
 	];
 }

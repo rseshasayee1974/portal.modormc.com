@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DocumentChunk extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'rag_document_id',
         'entity_id',
@@ -16,6 +19,7 @@ class DocumentChunk extends Model
         'content_hash',
         'token_count',
         'is_active',
+        'deleted_by',
     ];
 
     protected $casts = [

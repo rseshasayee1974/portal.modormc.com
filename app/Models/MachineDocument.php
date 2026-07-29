@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class MachineDocument extends Model
 {
-    use HasFactory;
+    use SoftDeletes, HasFactory;
 
     protected $table = 'mm_machine_documents';
 
@@ -17,6 +19,7 @@ class MachineDocument extends Model
         'issue_date',
         'expiry_date',
         'amount',
+        'deleted_by',
     ];
 
     public function machine()
