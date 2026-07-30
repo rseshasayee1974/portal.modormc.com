@@ -11,7 +11,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class DepartmentController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'departments';
+    protected string $module = 'department';
 
     public function index()
     {

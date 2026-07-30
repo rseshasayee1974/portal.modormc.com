@@ -273,12 +273,6 @@ const confirmForceDelete = (id: number) => {
                                 tooltip="Restore User"
                                 @click="confirmRestore(slotProps.data.id)"
                             />
-                            <BaseActionButton
-                                icon="pi pi-trash" 
-                                severity="danger"
-                                tooltip="Permanently Delete"
-                                @click="confirmForceDelete(slotProps.data.id)"
-                            />
                         </template>
                         <template v-else>
                             <BaseActionButton

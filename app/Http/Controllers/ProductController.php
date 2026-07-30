@@ -10,11 +10,15 @@ use App\Models\Entity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class ProductController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'product';
     public function index()
     {
+        $this->authorizeModule('menu');
         $this->authorize('viewAny', Product::class);
 
         $plantId = session('active_plant_id');
@@ -39,6 +43,7 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $this->authorize('create', Product::class);
 
         $plantId = session('active_plant_id');
@@ -83,6 +88,7 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
+        $this->authorizeModule('edit');
         $this->authorize('update', $product);
 
         $plantId = session('active_plant_id');
@@ -118,6 +124,7 @@ class ProductController extends Controller
         }
 
         // 2. Authorization check
+        $this->authorizeModule('delete');
         $this->authorize('delete', $product);
 
         $product->delete();
@@ -127,6 +134,7 @@ class ProductController extends Controller
 
     public function batchStore(Request $request)
     {
+        $this->authorizeModule('create');
         $this->authorize('create', Product::class);
 
         $plantId = session('active_plant_id');

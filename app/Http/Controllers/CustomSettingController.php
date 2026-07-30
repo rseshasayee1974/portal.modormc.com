@@ -5,11 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\CustomSetting;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class CustomSettingController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'setting';
     public function index()
     {
+        $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
         if (!$plantId) {
             return redirect()->back()->with('error', 'Please select a plant first.');
@@ -31,6 +35,7 @@ class CustomSettingController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $plantId = session('active_plant_id');
         if (!$plantId) {
             return redirect()->back()->with('error', 'Plant session expired.');
@@ -53,6 +58,7 @@ class CustomSettingController extends Controller
 
     public function update(Request $request)
     {
+        $this->authorizeModule('edit');
         $plantId = session('active_plant_id');
         if (!$plantId) {
             return redirect()->back()->with('error', 'Plant session expired.');
@@ -82,6 +88,7 @@ class CustomSettingController extends Controller
 
     public function destroy(CustomSetting $customsetting)
     {
+        $this->authorizeModule('delete');
         $plantId = session('active_plant_id');
         if ((int)$customsetting->plant_id !== (int)$plantId) {
             abort(403, 'Unauthorized.');

@@ -10,7 +10,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class DesignationController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'designations';
+    protected string $module = 'designation';
 
     public function index()
     {

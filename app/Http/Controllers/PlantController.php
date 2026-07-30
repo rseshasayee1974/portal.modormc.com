@@ -17,9 +17,13 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use App\Services\PlantInitializationService;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class PlantController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'plant';
+
     protected $initService;
 
     public function __construct(PlantInitializationService $initService)
@@ -29,6 +33,8 @@ class PlantController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
+
         $user = Auth::user();
         $isSuperUser = $user && method_exists($user, 'hasRole') && (
             $user->hasRole('Saas Owner') || 
@@ -75,6 +81,8 @@ class PlantController extends Controller
 
     public function store(StorePlantRequest $request)
     {
+        $this->authorizeModule('create');
+
         $validated = $request->validated();
         
         return DB::transaction(function () use ($validated, $request) {
@@ -154,6 +162,8 @@ class PlantController extends Controller
 
     public function update(UpdatePlantRequest $request, Plant $plant)
     {
+        $this->authorizeModule('edit');
+
         $validated = $request->validated();
         $user = Auth::user();
         
@@ -273,6 +283,8 @@ class PlantController extends Controller
 
     public function destroy(Plant $plant)
     {
+        $this->authorizeModule('delete');
+
         $plant->delete();
         return redirect()->back()->with('success', 'Plant deleted successfully.');
     }
@@ -297,6 +309,8 @@ class PlantController extends Controller
      */
     public function initialize(Plant $plant)
     {
+        $this->authorizeModule('edit');
+
         $user = Auth::user();
 
         // Check permissions: saas-owner, platform-admin, or super-admin
@@ -332,6 +346,8 @@ class PlantController extends Controller
      */
     public function sendCredentials(Plant $plant)
     {
+        $this->authorizeModule('edit');
+
         if (empty($plant->email_address)) {
             return redirect()->back()->with('error', 'Plant does not have an admin email address.');
         }
@@ -373,6 +389,8 @@ class PlantController extends Controller
 
     public function restore($id)
     {
+        $this->authorizeModule('edit');
+
         $user = Auth::user();
         if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
             abort(403, 'Unauthorized.');
@@ -386,6 +404,8 @@ class PlantController extends Controller
 
     public function forceDelete($id)
     {
+        $this->authorizeModule('delete');
+
         $user = Auth::user();
         if (!$user || !($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('Super Admin'))) {
             abort(403, 'Unauthorized.');
