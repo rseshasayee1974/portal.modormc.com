@@ -11,14 +11,18 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class KnowledgeController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'setting';
     /**
      * List all indexed knowledge base documents.
      */
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
         $entityId = $this->getEntityId();
 
         $documents = RagDocument::forEntity($entityId)
@@ -41,6 +45,7 @@ class KnowledgeController extends Controller
      */
     public function store(Request $request, EmbeddingService $embeddingService)
     {
+        $this->authorizeModule('create');
         $request->validate([
             'title'       => 'required|string|max:255',
             'source_type' => 'required|string|max:100',
@@ -79,6 +84,7 @@ class KnowledgeController extends Controller
      */
     public function toggleActive(RagDocument $document)
     {
+        $this->authorizeModule('edit');
         $document->update(['is_active' => !$document->is_active]);
 
         return back()->with('success', 'Document status updated.');
@@ -89,6 +95,7 @@ class KnowledgeController extends Controller
      */
     public function reEmbed(RagDocument $document, EmbeddingService $embeddingService)
     {
+        $this->authorizeModule('edit');
         $embedding = $embeddingService->embed($document->content);
 
         if (empty($embedding)) {
@@ -108,6 +115,7 @@ class KnowledgeController extends Controller
      */
     public function destroy(RagDocument $document)
     {
+        $this->authorizeModule('delete');
         $document->delete();
 
         return back()->with('success', 'Document removed from knowledge base.');

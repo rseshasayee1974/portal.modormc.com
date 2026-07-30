@@ -176,12 +176,6 @@ const onRowClick = (event: any) => {
                             tooltip="Restore Entity"
                             @click.stop="$emit('restore', slotProps.data.id)"
                         />
-                        <BaseActionButton
-                            icon="pi pi-trash"
-                            severity="danger"
-                            tooltip="Permanently Delete"
-                            @click.stop="$emit('forceDelete', slotProps.data.id)"
-                        />
                     </template>
                     <template v-else>
                         <BaseActionButton

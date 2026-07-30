@@ -8,11 +8,15 @@ use App\Models\Module;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class AccountDefaultSettingController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'setting';
     public function index()
     {
+        $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
         
         $modules = Module::where('is_active', true)->get();
@@ -28,6 +32,7 @@ class AccountDefaultSettingController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $plantId = session('active_plant_id');
     abort_unless($plantId, 403, 'No active plant selected');
 

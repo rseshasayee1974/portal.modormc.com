@@ -12,7 +12,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class ShiftController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'shifts';
+    protected string $module = 'shift';
 
     public function index()
     {

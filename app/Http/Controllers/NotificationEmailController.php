@@ -8,14 +8,18 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class NotificationEmailController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'setting';
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
+        $this->authorizeModule('menu');
         $user = Auth::user();
         if ($user->hasRole('Super Administrator')) {
             $allowedPlantIds = Plant::pluck('id')->toArray();
@@ -46,6 +50,7 @@ class NotificationEmailController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $validated = $request->validate([
             'type' => 'required|string|max:40',
             'role_name' => 'required|string|max:40',
@@ -67,6 +72,7 @@ class NotificationEmailController extends Controller
      */
     public function update(Request $request, NotificationEmail $notificationemail)
     {
+        $this->authorizeModule('edit');
         $validated = $request->validate([
             'type' => 'required|string|max:40',
             'role_name' => 'required|string|max:40',
@@ -87,6 +93,7 @@ class NotificationEmailController extends Controller
      */
     public function destroy(NotificationEmail $notificationemail)
     {
+        $this->authorizeModule('delete');
         $notificationemail->deleted_by = Auth::id();
         $notificationemail->save();
         $notificationemail->delete();

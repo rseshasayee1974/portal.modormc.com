@@ -6,13 +6,17 @@ use App\Models\PrintTemplate;
 use App\Models\PrintTemplateSetting;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Support\Facades\Auth;
 
 class PrintTemplateController extends Controller
 {
+    use AuthorizesModule;
+    protected string $module = 'template';
+    
     public function index()
     {
-        // $this->authorize('viewAny', PrintTemplate::class); // Enable if policy exists
+        $this->authorizeModule('menu');
         
         $templates = PrintTemplate::all();
         $settings = PrintTemplateSetting::where('plant_id', session('active_plant_id') ?: null)
@@ -28,6 +32,7 @@ class PrintTemplateController extends Controller
 
     public function assign(Request $request)
     {
+        $this->authorizeModule('edit');
         $request->validate([
             'module_key'        => 'required|string',
             'print_template_id' => 'required|exists:mm_print_templates,id',
@@ -66,6 +71,7 @@ class PrintTemplateController extends Controller
 
     public function preview(PrintTemplate $template)
     {
+        $this->authorizeModule('menu');
         return Inertia::render('TemplateManager/Preview', [
             'template' => $template,
             'dummyData' => \App\Services\PrintDataFormatter::dummy($template->category)
@@ -77,6 +83,7 @@ class PrintTemplateController extends Controller
      */
     public function renderLivePreview(Request $request, string $module)
     {
+        $this->authorizeModule('menu');
         $plantId = session('active_plant_id') ?: 1;
         $data = \App\Services\PrintDataFormatter::dummy($module);
 
@@ -101,6 +108,7 @@ class PrintTemplateController extends Controller
      */
     public function customize(string $module)
     {
+        $this->authorizeModule('edit');
         $plantId = session('active_plant_id') ?: 1;
         $settings = \App\Services\PrintDataFormatter::getCustomSettings($plantId, $module);
         $assignedKey = \App\Services\PrintDataFormatter::resolveTemplateKey($module, $plantId);
@@ -132,6 +140,7 @@ class PrintTemplateController extends Controller
      */
     public function saveCustomization(Request $request, string $module)
     {
+        $this->authorizeModule('edit');
         $plantId = session('active_plant_id');
         $entityId = session('active_entity_id');
 
