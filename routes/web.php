@@ -85,6 +85,7 @@ Route::middleware([
         Route::get('statecodes/{state_id}/zipcodes', [\App\Http\Controllers\StateCodeController::class, 'getZipcodes'])->name('statecodes.zipcodes');
         Route::resource('statecodes', \App\Http\Controllers\StateCodeController::class)->except(['create', 'edit', 'show']);
         Route::resource('subscriptionstatuses', \App\Http\Controllers\SubscriptionStatusController::class)->except(['create', 'edit', 'show']);
+        Route::resource('paymentmethods', \App\Http\Controllers\PaymentMethodController::class)->except(['create', 'edit', 'show']);
         Route::resource('productunits', \App\Http\Controllers\ProductUnitController::class);
     });
 

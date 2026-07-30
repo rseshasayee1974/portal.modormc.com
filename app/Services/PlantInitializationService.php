@@ -68,7 +68,7 @@ class PlantInitializationService
                 $this->seedSite($plant);
                 $this->seedTemplates($plant);
                 // $this->seedVoucherTypes($plant);
-                // $this->seedPaymentMethods($plant);
+                // $this->seedPaymentMethods();
                 $this->seedCustomSettings($plant);
                 $this->seedDepartments($plant);
                 $this->seedDesignations($plant);
@@ -1185,28 +1185,26 @@ class PlantInitializationService
     //     }
     // }
 
-    // private function seedPaymentMethods(Plant $plant)
-    // {
-    //     $methods = [
-    //         ['name' => 'Cash', 'description' => 'Cash Payment'],
-    //         ['name' => 'UPI', 'description' => 'Digital Wallet / UPI'],
-    //         ['name' => 'Bank Transfer', 'description' => 'IMPS/NEFT/RTGS'],
-    //         ['name' => 'Check', 'description' => 'Bank Check'],
-    //     ];
+    private function seedPaymentMethods()
+    {
+        $methods = [
+            ['name' => 'Cash', 'description' => 'Cash Payment'],
+            ['name' => 'UPI', 'description' => 'Digital Wallet / UPI'],
+            ['name' => 'Bank Transfer', 'description' => 'IMPS/NEFT/RTGS'],
+            ['name' => 'Check', 'description' => 'Bank Check'],
+        ];
 
-    //     foreach ($methods as $method) {
-    //         PaymentMethod::updateOrCreate(
-    //             [
-    //                 'name'     => $method['name'],
-    //                 'plant_id' => $plant->id
-    //             ],
-    //             array_merge($method, [
-    //                 'plant_id'  => $plant->id,
-    //                 'is_active' => true
-    //             ])
-    //         );
-    //     }
-    // }
+        foreach ($methods as $method) {
+            PaymentMethod::updateOrCreate(
+                [
+                    'name'     => $method['name']
+                ],
+                array_merge($method, [
+                    'is_active' => true
+                ])
+            );
+        }
+    }
 
     private function seedCustomSettings(Plant $plant)
     {

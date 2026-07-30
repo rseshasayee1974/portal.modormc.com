@@ -110,6 +110,7 @@ class PermissionSeeder extends Seeder
             'STATE_CODE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'INVOICE_STATUS' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'PAYMENT_STATUS' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'PAYMENT_METHOD' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'PLAN' => ['VIEW', 'CREATE', 'UPDATE'],
             'SUBSCRIPTION_STATUS' => ['VIEW', 'CREATE', 'UPDATE'],
             'TERMS_CONDITION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE']

@@ -187,6 +187,7 @@ class HandleInertiaRequests extends Middleware
                         'entity_type',
                         'invoice_status',
                         'payment_status',
+                        'payment_method',
                         'plan',
                         'subscription_status',
                         'state_code',
