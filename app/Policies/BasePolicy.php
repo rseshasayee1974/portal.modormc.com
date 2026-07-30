@@ -17,10 +17,7 @@ abstract class BasePolicy
 
     public function before(User $user, $ability)
     {
-        if ($user->hasRole('super-admin') || 
-            $user->hasRole('Super Admin') || 
-            $user->hasRole('Platform Admin') || 
-            $user->hasRole('Saas Owner')) {
+        if ($user->isSystemAdmin()) {
             return true;
         }
     }

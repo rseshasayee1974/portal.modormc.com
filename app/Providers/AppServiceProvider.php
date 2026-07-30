@@ -48,9 +48,9 @@ class AppServiceProvider extends ServiceProvider
                 ->symbols();
         });
 
-        // Implicitly grant "Super Administrator" and "Saas Owner" roles all permissions
+        // Implicitly grant Administrator, Super Admin, Platform Admin, and Saas Owner roles all permissions
         Gate::before(function ($user, $ability) {
-            return $user->hasRole('Platform Admin') || $user->hasRole('Saas Owner') ? true : null;
+            return $user->isSystemAdmin() ? true : null;
         });
 
         // Register policy guessing for automatic mapping

@@ -243,7 +243,15 @@ class User extends Authenticatable implements MustVerifyEmail
 	}
 	public function isSystemAdmin(): bool
 	{
-		return $this->hasAnyRole(['Saas Owner', 'Super Administrator', 'Platform Admin']);
+		return $this->hasAnyRole([
+			'Saas Owner',
+			'Platform Admin',
+			'Super Admin',
+			'Super Administrator',
+			'super-admin',
+			'Administrator',
+			'Admin',
+		]);
 	}
 
     /**

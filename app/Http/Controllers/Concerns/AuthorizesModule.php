@@ -45,8 +45,8 @@ trait AuthorizesModule
             abort(403, "Access Denied: Master data is restricted to SaaS Owners.");
         }
 
-        // Explicit bypass for SaaS Owner and Super Admin roles for other modules
-        if ($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin')) {
+        // Explicit bypass for SaaS Owner, Super Admin, and Administrator roles for other modules
+        if ($user->isSystemAdmin()) {
             return;
         }
 

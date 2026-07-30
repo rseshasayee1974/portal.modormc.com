@@ -27,6 +27,7 @@ class MixDesignController extends Controller
 
     public function index()
     {
+        $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
         $units = Productunit();
         $defaultUomId = $this->resolveDefaultUomId($plantId, $units);
@@ -46,6 +47,7 @@ class MixDesignController extends Controller
 
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $plantId = session('active_plant_id');
 
         $validated = $request->validate([
@@ -102,6 +104,7 @@ class MixDesignController extends Controller
 
     public function update(Request $request, MixDesign $mixdesign)
     {
+        $this->authorizeModule('edit');
         $plantId = session('active_plant_id');
 
         // Prevent edit if Mix Design is used in batching
