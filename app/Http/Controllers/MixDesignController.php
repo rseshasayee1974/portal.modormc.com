@@ -20,10 +20,10 @@ class MixDesignController extends Controller
 {
     use AuthorizesModule;
     protected string $module = 'mix_design';
-    public function __construct()
-    {
-        $this->authorizeResource(MixDesign::class, 'mixdesign');
-    }
+    //  public function __construct()
+    // {
+    //     $this->authorizeResource(MixDesign::class, 'mixdesign');
+    // }
 
     public function index()
     {
