@@ -75,9 +75,6 @@ const showInvoiceSection = computed(() => {
     // Always show if invoice is already linked/generated
     if (props.dispatch.status?.invoice_status === 1) return true;
     
-    // Hide invoice generation panel if the form has unsaved edits
-    if (form.isDirty) return false;
-    
     // Otherwise, show only if pricing and quantities have data and are saved in the db
     return (Number(props.dispatch.load_rate) > 0) && 
            (Number(props.dispatch.delivered_qty || props.dispatch.load_units || 0) > 0) &&
@@ -404,7 +401,7 @@ const displayUnits = computed(() => {
 const pumpRate = computed(() => Number(props.salesOrder?.pump_rate || props.batch?.pump_rate || 0));
 const addPumpToTotal = computed(() => !!props.settings?.add_pouring_rates_to_total);
 
-watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses, baseRate, pumpRate, addPumpToTotal], () => {
+watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses, () => form.financials.pump_charge, baseRate], () => {
     // Automatically calculate load_rate if it is 0 or needs to match formula
     if (isMetricTon.value) {
         if (netWeight.value > 0) {
@@ -439,20 +436,14 @@ watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load
     const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
     const taxAmountVal = (untaxAmount * taxRate) / 100;
 
-    // Pump charge calculation
-    // OFF (add_pouring_rates_to_total = false): pump_charge = units × pump_rate_per_m3
-    // ON  (add_pouring_rates_to_total = true):  pump_charge = flat pump_rate (from Sales Order)
-    let pumpCharge = 0;
-    if (pumpRate.value > 0) {
-        if (addPumpToTotal.value) {
-            // Flat amount — use pump_rate as-is from the sales order
-            pumpCharge = pumpRate.value;
-        } else {
-            // Per m³/MT — multiply by units
-            pumpCharge = units * pumpRate.value;
+    if (!addPumpToTotal.value) {
+        const computedPumpCharge = Number((Number(form.batch_size || 0) * pumpRate.value).toFixed(2));
+        if (Number(form.financials.pump_charge || 0) !== computedPumpCharge) {
+            form.financials.pump_charge = computedPumpCharge;
         }
     }
-    form.financials.pump_charge = pumpCharge;
+
+    const pumpCharge = Number(form.financials.pump_charge || 0);
 
     const totalAmountVal = untaxAmount + taxAmountVal
         + pumpCharge
@@ -625,6 +616,7 @@ const handleDeleteInvoice = () => {
                 :errors="form.errors"
                 :isReadOnly="isReadOnly"
                 :showInvoiceSection="showInvoiceSection"
+                :add-pump-to-total="addPumpToTotal"
                 @submit="submit"
                 @generateInvoice="handleGenerateInvoice"
                 @deleteInvoice="handleDeleteInvoice"
@@ -691,6 +683,10 @@ const handleDeleteInvoice = () => {
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-rose-400">Discount</span>
                                         <span class="text-xs font-bold text-rose-500">- ₹ {{ Number(form.financials.discount_amount || 0).toLocaleString() }}</span>
                                     </div>
+                                    <div class="flex items-center justify-between" ><!-- v-if="form.financials.pump_charge" -->
+                                        <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pump Charge</span>
+                                        <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.pump_charge || 0).toLocaleString() }}</span>
+                                    </div>
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.discount_amount" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Adjustment</span>
                                         <span class="text-xs font-bold text-gray-700">₹ {{ Number(form.financials.adjustment_amount || 0).toLocaleString() }}</span>
@@ -700,17 +696,18 @@ const handleDeleteInvoice = () => {
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Hire Charge</span>
                                         <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.transport_expenses || 0).toLocaleString() }}</span>
                                     </div>
-                                    <div v-if="pumpRate > 0" class="flex items-center justify-between">
+                                    <!-- <div v-if="pumpRate > 0" class="flex items-center justify-between">
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-amber-500">
                                             Pump Charge
                                             <span class="normal-case font-normal text-amber-400 ml-1">({{ addPumpToTotal ? 'flat' : 'per m³' }})</span>
                                         </span>
                                         <span class="text-xs font-bold text-amber-600">₹ {{ Number(form.financials.pump_charge || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) }}</span>
-                                    </div>
+                                    </div> -->
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.pass_amount" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pass Amount</span>
                                         <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.pass_amount || 0).toLocaleString() }}</span>
                                     </div>
+                                    
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.discount_amount" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-gray-600">Round</span>
                                         <span class="text-xs font-bold text-gray-700">₹ {{ Number(form.financials.round_off || 0).toLocaleString() }}</span>

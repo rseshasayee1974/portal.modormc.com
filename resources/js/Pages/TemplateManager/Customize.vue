@@ -59,32 +59,35 @@ const ensurePdfStructure = (rawSettings: any) => {
     if (s.pdf.terms_text === undefined) {
         s.pdf.terms_text = "1. Payment within 15 days of invoice date.\n2. Goods once sold will not be returned.\n3. All disputes subject to local jurisdiction.";
     }
+    if (s.pdf.pump_rates_matrix === undefined || s.pdf.pump_rates_matrix === null) {
+        s.pdf.pump_rates_matrix = true;
+    } else {
+        s.pdf.pump_rates_matrix = s.pdf.pump_rates_matrix === 1 || s.pdf.pump_rates_matrix === true || s.pdf.pump_rates_matrix === '1';
+    }
     return s;
 };
 
-// Initialize per-template settings map
+// Initialize shared settings object
+const sharedSettings = ref(ensurePdfStructure(props.initialSettings));
 const templateSettingsMap = ref<Record<string, any>>({});
 
 availableDesignList.value.forEach(d => {
-    const raw = props.templateSettingsMap?.[d.id] || props.initialSettings || {};
-    templateSettingsMap.value[d.id] = ensurePdfStructure(raw);
+    templateSettingsMap.value[d.id] = sharedSettings.value;
 });
 
-// Current active settings object for the selected template design
+// Current active settings object (shared across all designs)
 const activeSettings = computed({
-    get: () => {
-        if (!templateSettingsMap.value[selectedTemplateKey.value]) {
-            templateSettingsMap.value[selectedTemplateKey.value] = ensurePdfStructure(props.initialSettings);
-        }
-        return templateSettingsMap.value[selectedTemplateKey.value];
-    },
+    get: () => sharedSettings.value,
     set: (val) => {
-        templateSettingsMap.value[selectedTemplateKey.value] = val;
+        sharedSettings.value = val;
+        availableDesignList.value.forEach(d => {
+            templateSettingsMap.value[d.id] = val;
+        });
     }
 });
 
 const form = useForm({
-    settings: activeSettings.value,
+    settings: sharedSettings.value,
     template_key: selectedTemplateKey.value,
     template_settings_map: templateSettingsMap.value
 });
@@ -222,7 +225,7 @@ const downloadSample = () => {
                         <div v-if="activeSection === 'layout'" class="space-y-4 animate-in fade-in duration-300">
                             <div class="border-b border-slate-100 pb-3">
                                 <h3 class="text-xs font-black text-slate-800 uppercase tracking-wider">Select Active Design Template</h3>
-                                <p class="text-[11px] text-slate-400 font-medium">Each design template preserves its own custom print settings</p>
+                                <p class="text-[11px] text-slate-400 font-medium">All design templates share the same custom print settings</p>
                             </div>
 
                             <div class="grid grid-cols-1 gap-3">
@@ -368,12 +371,20 @@ const downloadSample = () => {
                                     <InputSwitch v-model="activeSettings.pdf.discount" />
                                 </div>
 
-                                <div class="setting-row">
+                                <!-- <div class="setting-row">
                                     <div>
                                         <label class="setting-title">Pump Rates Breakdown</label>
                                         <p class="setting-desc">Display pumping & piping rate breakdown</p>
                                     </div>
                                     <InputSwitch v-model="activeSettings.pdf.pump_rates" />
+                                </div> -->
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Operation Charges Matrix</label>
+                                        <p class="setting-desc">Display additional operation / pump charges matrix table</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.pump_rates_matrix" />
                                 </div>
                             </div>
                         </div>

@@ -84,6 +84,8 @@ class SalesOrder extends Model
         'sales_executive_id' => 'integer',
     ];
 
+    public const STATUS_DRAFT = 0;
+    public const STATUS_CONFIRMED = 1;
     public const STATUS_SCHEDULED = 1;
     public const STATUS_IN_PROGRESS = 2;
     public const STATUS_COMPLETED = 3;
@@ -117,6 +119,11 @@ class SalesOrder extends Model
     public function batches()
     {
         return $this->hasMany(Batch::class, 'sales_order_id');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(SalesOrderItem::class, 'sales_order_id');
     }
 
     public function dispatches()
@@ -177,16 +184,29 @@ class SalesOrder extends Model
                 ->where('mix_design_id', $this->mix_design_id)
                 ->first();
             if ($item) {
-                $baseRate = (float)$item->rate;
-                if ($this->concrete_pump) {
-                    $pumpRate = $item->pumpRates()
-                        ->where('pump_type', (string)$this->concrete_pump)
-                        ->value('pump_rate');
-                    if ($pumpRate) {
-                        $baseRate += (float)$pumpRate;
-                    }
+                return (float)$item->rate;
+            }
+        }
+        return 0.0;
+    }
+
+    public function getPumpRateAttribute($value)
+    {
+        if ($value !== null && (float)$value > 0) {
+            return (float)$value;
+        }
+
+        if ($this->customerPO && $this->concrete_pump) {
+            $item = $this->customerPO->items()
+                ->where('mix_design_id', $this->mix_design_id)
+                ->first();
+            if ($item) {
+                $pumpRate = $item->pumpRates()
+                    ->where('pump_type', (string)$this->concrete_pump)
+                    ->value('pump_rate');
+                if ($pumpRate) {
+                    return (float)$pumpRate;
                 }
-                return $baseRate;
             }
         }
         return 0.0;

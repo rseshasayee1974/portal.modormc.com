@@ -32,6 +32,67 @@ class Product extends Model
                 $product->code = static::generateCode($product->plant_id, $product->category_id);
             }
         });
+
+        static::updating(function (Product $product) {
+            $user = auth()->user();
+            $isSystemAdmin = $user && $user->isSystemAdmin();
+
+            if ($product->isRestrictedFromModification() && !$isSystemAdmin) {
+                $dirtyFields = array_keys($product->getDirty());
+                $exemptedFields = ['category_id', 'hsn_code', 'material_code', 'updated_at', 'updated_by'];
+                
+                $restrictedChanges = [];
+                foreach ($dirtyFields as $field) {
+                    if (!in_array($field, $exemptedFields)) {
+                        $original = $product->getOriginal($field);
+                        $current = $product->getAttribute($field);
+
+                        // Normalize booleans
+                        if (in_array($field, ['status', 'tax_mode', 'is_service']) || is_bool($original) || is_bool($current)) {
+                            if (filter_var($original, FILTER_VALIDATE_BOOLEAN) === filter_var($current, FILTER_VALIDATE_BOOLEAN)) {
+                                continue;
+                            }
+                        }
+                        // Normalize numbers
+                        if (is_numeric($original) && is_numeric($current)) {
+                            if ((float)$original === (float)$current) {
+                                continue;
+                            }
+                        }
+                        // Normalize strings
+                        if (is_string($original) && is_string($current)) {
+                            if (strtolower(trim($original)) === strtolower(trim($current))) {
+                                continue;
+                            }
+                        }
+                        // Normalize empty defaults in sqlite
+                        if (($original === null || $original === 0 || $original === false || $original === '0.00' || $original === 0.0) && 
+                            ($current === null || $current === 0 || $current === false || $current === 0.0)) {
+                            continue;
+                        }
+
+                        $restrictedChanges[] = $field;
+                    }
+                }
+
+                if (!empty($restrictedChanges)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'product' => ['This product cannot be updated because it is used in an active mix design associated with a batch.'],
+                    ]);
+                }
+            }
+        });
+
+        static::deleting(function (Product $product) {
+            $user = auth()->user();
+            $isSystemAdmin = $user && $user->isSystemAdmin();
+
+            if ($product->isRestrictedFromModification() && !$isSystemAdmin) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'product' => ['This product cannot be deleted because it is used in an active mix design associated with a batch.'],
+                ]);
+            }
+        });
     }
 
     /**
@@ -204,22 +265,57 @@ class Product extends Model
         return $this->belongsTo(\App\Models\User::class, 'created_by');
     }
 
-    public function inventoryAuditLogs()
+
+    public function getConversionQuantityAttribute()
     {
-        return $this->morphMany(InventoryAuditLog::class, 'reference');
+        if (array_key_exists('convertsion_quantity', $this->attributes)) {
+            return $this->attributes['convertsion_quantity'];
+        }
+        if (array_key_exists('conversion_quantity', $this->attributes)) {
+            return $this->attributes['conversion_quantity'];
+        }
+        return 0;
+    }
+
+    public function setConversionQuantityAttribute($value)
+    {
+        if (array_key_exists('convertsion_quantity', $this->attributes)) {
+            $this->attributes['convertsion_quantity'] = $value;
+        } elseif (array_key_exists('conversion_quantity', $this->attributes)) {
+            $this->attributes['conversion_quantity'] = $value;
+        } else {
+            static $hasConvertsionCol = null;
+            if ($hasConvertsionCol === null) {
+                try {
+                    $hasConvertsionCol = \Illuminate\Support\Facades\Schema::hasColumn($this->getTable(), 'convertsion_quantity');
+                } catch (\Exception $e) {
+                    $hasConvertsionCol = false;
+                }
+            }
+            if ($hasConvertsionCol) {
+                $this->attributes['convertsion_quantity'] = $value;
+            } else {
+                $this->attributes['conversion_quantity'] = $value;
+            }
+        }
     }
 
     public function getIsInUseAttribute(): bool
     {
-        return \App\Models\PurchaseOrderItem::where('product_id', $this->id)->exists() ||
-            \App\Models\PurchaseOrderHistory::where('product_id', $this->id)->exists() ||
-            \App\Models\Quantity::where('product_id', $this->id)->exists() ||
-            \App\Models\BatchMaterial::where('product_id', $this->id)->exists() ||
-            
-            \App\Models\MaintenanceLine::where('product_id', $this->id)->exists() ||
-            \App\Models\StockExhaustLine::where('product_id', $this->id)->exists() ||
-            \App\Models\PartyRate::where('product_id', $this->id)->exists() ||
-            \App\Models\ConcreteGradeItem::where('product_id', $this->id)->exists() ||
-            \App\Models\MixDesignItem::where('product_id', $this->id)->exists();
+        return $this->isRestrictedFromModification();
+    }
+
+    public function isRestrictedFromModification(): bool
+    {
+        return DB::table('mm_mix_design_items')
+            ->join('mm_mix_designs', 'mm_mix_design_items.mix_design_id', '=', 'mm_mix_designs.id')
+            ->join('mm_sales_orders', 'mm_mix_designs.id', '=', 'mm_sales_orders.mix_design_id')
+            ->join('mm_batches', 'mm_sales_orders.id', '=', 'mm_batches.sales_order_id')
+            ->where('mm_mix_design_items.product_id', $this->id)
+            ->whereNull('mm_mix_designs.deleted_at')
+            ->whereNull('mm_mix_design_items.deleted_at')
+            ->whereNull('mm_sales_orders.deleted_at')
+            ->whereNull('mm_batches.deleted_at')
+            ->exists();
     }
 }

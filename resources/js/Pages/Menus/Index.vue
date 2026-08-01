@@ -41,7 +41,7 @@ interface Menu {
     parent_id: number;
     ordering: number;
     published: boolean;
-    permission_name: string | null;
+    permission_name: string;
     level?: number;
     children?: Menu[];
 }
@@ -88,6 +88,13 @@ const resetForm = () => {
     form.clearErrors();
 };
 
+watch(
+    () => form.permission_name,
+    (value) => {
+        form.permission_name = value?.toUpperCase() || '';
+    }
+);
+
 const editMenu = (menu: Menu) => {
     editingId.value = menu.id;
     form.title = menu.title;
@@ -98,7 +105,7 @@ const editMenu = (menu: Menu) => {
     form.parent_id = menu.parent_id;
     form.ordering = menu.ordering;
     form.published = menu.published;
-    form.permission_name = menu.permission_name || '';
+    form.permission_name = menu.permission_name?.toUpperCase() || '';
 };
 
 const submit = () => {
@@ -233,8 +240,13 @@ watch(
                                         <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Gate Permission Name</label>
                                         <span class="relative">
                                             <ShieldCheckIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                            <BaseInput v-model="form.permission_name" placeholder="machines.menu" class="pl-10" fluid />
-                                        </span>
+<BaseInput
+    :modelValue="form.permission_name"
+    @update:modelValue="value => form.permission_name = value.toUpperCase()"
+    placeholder="MACHINES.MENU"
+    class="pl-10"
+    fluid
+/>                                        </span>
                                     </div>
 
                                     <div class="flex flex-col gap-1.5">

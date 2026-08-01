@@ -77,6 +77,9 @@ class DispatchController extends Controller
                     'load_rate', 'load_tax_id', 'load_tax_amount', 'load_untax_amount', 'load_total_amount',
                     'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off'
                 ]));
+                if (isset($validated['financials']['pump_charge'])) {
+                    $dispatchData['pump_charges'] = $validated['financials']['pump_charge'];
+                }
 
                 $dispatchData['plant_id'] = session('active_plant_id');
 
@@ -192,6 +195,9 @@ Log::info($dispatch);
                 'load_rate', 'load_tax_id', 'load_tax_amount', 'load_untax_amount', 'load_total_amount',
                 'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off'
             ]));
+            if (isset($validated['financials']['pump_charge'])) {
+                $dispatchData['pump_charges'] = $validated['financials']['pump_charge'];
+            }
 
             // if (array_key_exists('sales_order_id', $dispatchData)) {
             //     if (!empty($dispatchData['sales_order_id'])) {

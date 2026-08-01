@@ -920,8 +920,8 @@ const submit = () => {
                                     <BaseSelect
                                         v-model="form.concrete_pump"
                                         :options="concretePumpOptions"
-                                        label="Concrete Type"
-                                        placeholder="Select Concrete Type"
+                                        label="Operation Type"
+                                        placeholder="Select Operation Type"
                                         optionLabel="label"
                                         optionValue="value"
                                         :fluid="true"

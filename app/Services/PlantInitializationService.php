@@ -736,14 +736,14 @@ class PlantInitializationService
         );
 
         $products = [
-            ['title' => 'Cement OPC 53 Grade', 'cat' => 'CEMENT', 'code' => 'CMT-001'],
-            ['title' => 'Crushed Sand (M-Sand)', 'cat' => 'SAND', 'code' => 'SND-001'],
-            ['title' => 'Fine Sand', 'cat' => 'FINE AGGREGATES', 'code' => 'FSND-001'],
-            ['title' => 'Coarse Aggregate 10mm', 'cat' => 'AGGREGATES', 'code' => 'AGG-010'],
-            ['title' => 'Coarse Aggregate 20mm', 'cat' => 'AGGREGATES', 'code' => 'AGG-020'],
-            ['title' => 'Water', 'cat' => 'WATER', 'code' => 'WTR-001'],
-            ['title' => 'Admixture', 'cat' => 'ADMIXTURE', 'code' => 'ADM-001'],
-            ['title' => 'Silica Fume', 'cat' => 'SILICA', 'code' => 'SIL-001'],
+            ['title' => 'Cement OPC 53 Grade', 'cat' => 'CEMENT', 'code' => 'CMT-001' , 'status'=> 0],
+            ['title' => 'Crushed Sand (M-Sand)', 'cat' => 'SAND', 'code' => 'SND-001' , 'status'=> 0],
+            ['title' => 'Fine Sand', 'cat' => 'FINE AGGREGATES', 'code' => 'FSND-001' , 'status'=> 0],
+            ['title' => 'Coarse Aggregate 10mm', 'cat' => 'AGGREGATES', 'code' => 'AGG-010' , 'status'=> 0],
+            ['title' => 'Coarse Aggregate 20mm', 'cat' => 'AGGREGATES', 'code' => 'AGG-020' , 'status'=> 0],
+            ['title' => 'Water', 'cat' => 'WATER', 'code' => 'WTR-001' , 'status'=> 0],
+            ['title' => 'Admixture', 'cat' => 'ADMIXTURE', 'code' => 'ADM-001' , 'status'=> 0],
+            ['title' => 'Silica Fume', 'cat' => 'SILICA', 'code' => 'SIL-001' , 'status'=> 0],
         ];
 
         foreach ($products as $p) {

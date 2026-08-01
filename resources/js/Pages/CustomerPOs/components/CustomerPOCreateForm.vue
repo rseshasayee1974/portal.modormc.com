@@ -66,7 +66,7 @@ watch(() => form.quotation_id, (newVal) => {
                 tax_id: item.tax_id ?? null,
                 tax_amount: Number(item.tax_amount ?? 0),
                 pump_rates: (props.pumpTypeOptions || []).map(pt => {
-                    const saved = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.pump_type === pt.value);
+                    const saved = (item.pump_rates || item.pumpRates || []).find((pr: any) => String(pr.pump_type) === String(pt.value));
                     return { pump_type: pt.value, pump_rate: saved ? Number(saved.pump_rate) : 0 };
                 }),
             }));
@@ -587,8 +587,8 @@ const submit = () => {
     <!-- ── Pump Rates per Mix Design ── -->
     <div v-if="uniqueSelectedMixDesignIds.length && pumpTypeOptions && pumpTypeOptions.length" class="col-span-full mt-4 rounded-xl border border-indigo-200 bg-indigo-100/30 p-5 shadow-sm">
         <div class="flex items-center gap-2 mb-4">
-            <span class="text-[11px] font-black text-indigo-700 uppercase tracking-[0.18em]">⚙ Pump Rates per Mix Design</span>
-            <span class="text-[10px] text-indigo-500 font-medium">(enter rate per m³ for each pump type)</span>
+            <span class="text-[11px] font-black text-indigo-700 uppercase tracking-[0.18em]">⚙ Operation Charges per Mix Design</span>
+            <span class="text-[10px] text-indigo-500 font-medium">(enter rate per m³ for each operation type)</span>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-3 gap-3 w-full items-start">
@@ -614,7 +614,7 @@ const submit = () => {
                     <table class="w-full text-xs table-fixed">
                         <thead>
                             <tr class="bg-indigo-50/60 border-b border-indigo-100 text-[10px] uppercase font-bold text-indigo-700 tracking-wider">
-                                <th class="px-4 py-2.5 text-left w-1/2">Pump Type</th>
+                                <th class="px-4 py-2.5 text-left w-1/2">Operation Type</th>
                                 <th class="px-4 py-2.5 text-right w-1/2">Rate (₹ / m³)</th>
                             </tr>
                         </thead>

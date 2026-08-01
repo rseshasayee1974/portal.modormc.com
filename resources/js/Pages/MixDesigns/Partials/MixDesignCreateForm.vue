@@ -82,7 +82,7 @@ const submit = () => {
     form.clearErrors();
     let hasErrors = false;
 
-    if (!form.partner_id) { form.setError('partner_id', 'Partner is required.'); hasErrors = true; }
+    // if (!form.partner_id) { form.setError('partner_id', 'Partner is required.'); hasErrors = true; }
     if (!form.design_name?.trim()) { form.setError('design_name', 'Design Name is required.'); hasErrors = true; }
 
     if (form.items.length === 0) {
@@ -139,13 +139,13 @@ const submit = () => {
                         <BaseInput v-model="form.design_name" label="Design Name *" placeholder="e.g. M25 Standard Pump" :error="form.errors.design_name" />
                         <BaseInput v-model="form.design_code" label="Internal Code" placeholder="DM-001" :error="form.errors.design_code" />
                         <div>
-                            <BaseSelect v-model="form.design_type" :options="typeOptions" optionLabel="label" optionValue="value" @change="handleGradeChange" filter placeholder="Concrete Grade" fluid />
+                            <BaseSelect v-model="form.design_type" :options="typeOptions" optionLabel="label" optionValue="value" @change="handleGradeChange" filter placeholder="Concrete Grade" label="Concrete Grade" fluid />
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <BaseSelect v-model="form.unit_id" :options="unitOptions" optionLabel="label" optionValue="value" placeholder="Selling Unit" fluid />
+                                <BaseSelect v-model="form.unit_id" :options="unitOptions" optionLabel="label" label="UOM"  optionValue="value" placeholder="Selling Unit" fluid />
                             </div>
-                            <BaseInputNumber v-model="form.rate_per_qty"   :minFractionDigits="2" placeholder="0.00" fluid />
+                            <BaseInputNumber v-model="form.rate_per_qty" label="Rate per m³"  :minFractionDigits="2" placeholder="0.00" fluid />
                         </div>
                     </div>
                 </div>

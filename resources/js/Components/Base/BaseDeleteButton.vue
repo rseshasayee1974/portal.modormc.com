@@ -59,7 +59,14 @@ const handleClick = (e: MouseEvent) => {
                         });
                         emit('success');
                     },
-                    onError: () => {
+                    onError: (errors) => {
+                        const errorMessage = errors.product || Object.values(errors).flat()[0] || 'An error occurred while deleting this item.';
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Unable to Delete',
+                            text: errorMessage,
+                            confirmButtonColor: '#ef4444'
+                        });
                         emit('error');
                     }
                 });

@@ -11,7 +11,11 @@ import Tag from 'primevue/tag';
 import ProductEditForm from './ProductEditForm.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 
-const { can } = usePermissions();
+const { can, isSuperAdmin, isAdmin, isSassOwner } = usePermissions();
+
+const isSystemAdmin = computed(() => {
+    return Boolean(isSuperAdmin.value || isAdmin.value || isSassOwner.value);
+});
 
 interface Product {
     id: number;
@@ -155,12 +159,14 @@ const watchFilters = watch([filters, filterCategory], () => {
 
             <Column header="Action" style="width: 26px; text-align: right">
                 <template #body="{ data }">
-                    <!-- :disabled="data.is_in_use" -->
-                    <!-- v-if="can('PRODUCT.delete')" -->
                     <BaseDeleteButton
+                        v-if="can('PRODUCT.delete')"
                         :url="route('products.destroy', data.id)"
-                        title="Delete product?"
-                        :text="`${data.title} will be permanently removed.`"
+                        :title="data.is_in_use && isSystemAdmin ? 'Force Delete Product?' : 'Delete product?'"
+                        :text="data.is_in_use && isSystemAdmin 
+                            ? 'Warning: This product is used in an active mix design associated with a batch. Deleting it will affect related production records.' 
+                            : `${data.title} will be permanently removed.`"
+                        :disabled="Boolean(data.is_in_use && !isSystemAdmin)"
                     />
                 </template>
             </Column>

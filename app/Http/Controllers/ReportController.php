@@ -13,11 +13,17 @@ use App\Services\Reports\ReportServiceFactory;
 use Illuminate\Support\Facades\Cache;
 use App\Services\Reports\ExcelExportService;
 use Illuminate\Validation\Rule;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class ReportController extends Controller
 {
+    use AuthorizesModule;
+
+    protected string $module = 'report';
+
     public function index(Request $request)
     {
+        $this->authorizeModule('view');
         $plantId = session('active_plant_id');
         $ledgers = Ledger::where('plant_id', $plantId)->orderBy('title')->get();
         $patrons = Patron::where('plant_id', $plantId)->orderBy('legal_name')->get();
@@ -36,6 +42,7 @@ class ReportController extends Controller
 
     public function generate(Request $request, ReportServiceFactory $factory, ExcelExportService $excelService)
     {
+        $this->authorizeModule($request->input('export') ? 'export' : 'view');
         $type     = $request->input('type');
         $id       = $request->input('id');
         $patronId = $request->input('patron_id');
@@ -204,6 +211,7 @@ class ReportController extends Controller
      */
     public function salesRegister(Request $request, SalesRegisterService $service)
     {
+        $this->authorizeModule('view');
         $filters = $request->validate([
             'from_date'      => 'required|date',
             'to_date'        => 'required|date|after_or_equal:from_date',
@@ -235,6 +243,7 @@ class ReportController extends Controller
      */
     public function purchaseRegister(Request $request, PurchaseRegisterService $service)
     {
+        $this->authorizeModule('view');
         $filters = $request->validate([
             'from_date'   => 'required|date',
             'to_date'     => 'required|date|after_or_equal:from_date',
@@ -263,6 +272,7 @@ class ReportController extends Controller
      */
     public function getExportStatus(string $key)
     {
+        $this->authorizeModule('view');
         $status = Cache::get($key);
 
         if (!$status) {
@@ -280,6 +290,7 @@ class ReportController extends Controller
      */
     public function machineSummary(Request $request, \App\Services\Reports\MachineReportService $service)
     {
+        $this->authorizeModule('view');
         $filters = $request->validate([
             'from_date' => 'required|date',
             'to_date'   => 'required|date|after_or_equal:from_date',
@@ -305,6 +316,7 @@ class ReportController extends Controller
      */
     public function vehiclePL(Request $request, \App\Services\Reports\MachineReportService $service)
     {
+        $this->authorizeModule('view');
         $filters = $request->validate([
             'from_date' => 'required|date',
             'to_date'   => 'required|date|after_or_equal:from_date',
@@ -330,6 +342,7 @@ class ReportController extends Controller
      */
     public function listSchedules(Request $request)
     {
+        $this->authorizeModule('view');
         $plantId = session('active_plant_id');
         $schedules = \App\Models\ReportSchedule::where('plant_id', $plantId)->get();
         return response()->json($schedules);
@@ -340,6 +353,7 @@ class ReportController extends Controller
      */
     public function storeSchedule(Request $request)
     {
+        $this->authorizeModule('create');
         $plantId = session('active_plant_id');
         $data = $request->validate([
             'report_type'      => 'required|string',
@@ -366,6 +380,7 @@ class ReportController extends Controller
      */
     public function deleteSchedule(\App\Models\ReportSchedule $schedule)
     {
+        $this->authorizeModule('delete');
         if ($schedule->plant_id != session('active_plant_id')) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }

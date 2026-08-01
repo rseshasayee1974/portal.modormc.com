@@ -56,12 +56,14 @@ abstract class BasePolicy
         }
 
         // 2. Business rule validation: Cannot delete if the resource is in use
-        if (method_exists($model, 'getIsInUseAttribute') && $model->getIsInUseAttribute()) {
-            return false;
-        }
+        if (!$user->isSystemAdmin()) {
+            if (method_exists($model, 'getIsInUseAttribute') && $model->getIsInUseAttribute()) {
+                return false;
+            }
 
-        if (isset($model->is_in_use) && $model->is_in_use) {
-            return false;
+            if (isset($model->is_in_use) && $model->is_in_use) {
+                return false;
+            }
         }
 
         return true;

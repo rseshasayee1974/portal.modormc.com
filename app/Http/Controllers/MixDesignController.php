@@ -51,10 +51,11 @@ class MixDesignController extends Controller
         $plantId = session('active_plant_id');
 
         $validated = $request->validate([
-            'partner_id' => 'required|exists:mm_patrons,id',
+            'partner_id' => 'nullable|exists:mm_patrons,id',
             'design_name' => 'required|string|max:255|unique:mm_mix_designs,design_name,NULL,id,plant_id,' . $plantId . ',partner_id,' . $request->partner_id,
             'design_code' => 'nullable|string|max:100',
-            'design_type' => 'required|string|exists:mm_concrete_grades,name,plant_id,' . $plantId,
+            // 'design_type' => 'required|string|exists:mm_concrete_grades,name,plant_id,' . $plantId,
+            'design_type' => 'nullable|exists:mm_concrete_grades,name,plant_id,' . $plantId,
             'unit_id' => 'nullable|exists:mm_product_units,id',
             'rate_per_qty' => 'nullable|numeric',
             'items' => 'required|array|min:1',
@@ -66,15 +67,18 @@ class MixDesignController extends Controller
             'items.*.variation_quantity' => 'nullable|numeric',
         ]);
 
-        $concreteGrade = ConcreteGrade::where('plant_id', $plantId)
-            ->where('name', $validated['design_type'])
-            ->firstOrFail();
+        $concreteGrade = null;
+        if (!empty($validated['design_type'])) {
+            $concreteGrade = ConcreteGrade::where('plant_id', $plantId)
+                ->where('name', $validated['design_type'])
+                ->firstOrFail();
+        }
 
         DB::transaction(function () use ($validated, $plantId, $concreteGrade) {
             $mixDesign = MixDesign::create([
                 'plant_id' => $plantId,
                 'partner_id' => $validated['partner_id'],
-                'concrete_grade_id' => $concreteGrade->id,
+                'concrete_grade_id' => $concreteGrade?->id,
                 'design_name' => $validated['design_name'],
                 'design_code' => $validated['design_code'],
                 'design_type' => $validated['design_type'],
@@ -116,7 +120,7 @@ class MixDesignController extends Controller
             'partner_id' => 'required|exists:mm_patrons,id',
             'design_name' => 'required|string|max:255|unique:mm_mix_designs,design_name,' . $mixdesign->id . ',id,plant_id,' . $plantId . ',partner_id,' . $request->partner_id,
             'design_code' => 'nullable|string|max:100',
-            'design_type' => 'required|string|exists:mm_concrete_grades,name,plant_id,' . $plantId,
+            'design_type' => 'nullable|exists:mm_concrete_grades,name,plant_id,' . $plantId,
             'unit_id' => 'nullable|exists:mm_product_units,id',
             'rate_per_qty' => 'nullable|numeric',
             'items' => 'required|array|min:1',
@@ -129,14 +133,17 @@ class MixDesignController extends Controller
             'items.*.variation_quantity' => 'nullable|numeric',
         ]);
 
-        $concreteGrade = ConcreteGrade::where('plant_id', $plantId)
-            ->where('name', $validated['design_type'])
-            ->firstOrFail();
+        $concreteGrade = null;
+        if (!empty($validated['design_type'])) {
+            $concreteGrade = ConcreteGrade::where('plant_id', $plantId)
+                ->where('name', $validated['design_type'])
+                ->firstOrFail();
+        }
 
         DB::transaction(function () use ($validated, $mixdesign, $plantId, $concreteGrade) {
             $mixdesign->update([
                 'partner_id' => $validated['partner_id'],
-                'concrete_grade_id' => $concreteGrade->id,
+                'concrete_grade_id' => $concreteGrade?->id,
                 'design_name' => $validated['design_name'],
                 'design_code' => $validated['design_code'],
                 'design_type' => $validated['design_type'],

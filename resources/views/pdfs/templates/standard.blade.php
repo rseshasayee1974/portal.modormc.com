@@ -522,14 +522,24 @@
             </div>
         </div>
 
+        {{-- PUMP CHARGES MATRIX --}}
+        @if (($pdfSettings['pump_rates_matrix'] ?? true) && !empty($data['totals']['rates_table_html']))
+            <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;">
+                {!! $data['totals']['rates_table_html'] !!}
+            </div>
+        @endif
+
         {{-- TERMS --}}
         @php
             $termsText = !empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? '');
+            if (!empty($data['totals']['rates_table_html'])) {
+                $termsText = str_replace($data['totals']['rates_table_html'], '', $termsText);
+            }
         @endphp
         @if (($pdfSettings['terms'] ?? true) && !empty($termsText))
             <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;font-size:11px">
                 <div class="small muted" style="margin-bottom:2px">Terms &amp; Conditions</div>
-                <div class="terms-text-content" style="font-size:10px;color:#334155;text-align:left;white-space:pre-line;">{!! nl2br(e($termsText)) !!}</div>
+                <div class="terms-text-content" style="font-size:10px;color:#334155;text-align:left;white-space:pre-line;">{!! $termsText !!}</div>
             </div>
         @endif
 

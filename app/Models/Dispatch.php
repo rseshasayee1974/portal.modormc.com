@@ -32,6 +32,7 @@ class Dispatch extends Model
         'transport_expenses' => 'decimal:2',
         'adjustment_amount' => 'decimal:2',
         'round_off' => 'decimal:2',
+        'pump_charges' => 'decimal:2',
     ];
 
     /**

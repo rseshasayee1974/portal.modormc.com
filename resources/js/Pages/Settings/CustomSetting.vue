@@ -62,11 +62,11 @@ const form = useForm({
 // ─── Section expand / collapse ────────────────────────────────────────────────
 const expanded = ref<Record<string, boolean>>({
     weighbridge: true,
-    camera: false,
-    batch_sync: false,
-    pouring_settings: false,
-    prefixes: false,
-    appearance: false,
+    camera: true,
+    batch_sync: true,
+    pouring_settings: true,
+    prefixes: true,
+    appearance: true,
     custom: true,
 });
 
@@ -90,8 +90,7 @@ const settingRows = computed(() => [
     { section: 'Batch Sheet', key: 'target_to_actual',   label: 'One-Click Target to Actual',     value: form.settings.target_to_actual,    type: 'bool' },
     { section: 'Defaults',    key: 'default_transport',  label: 'Default Transporter Name',        value: form.settings.default_transport,   type: 'text' },
     { section: 'Defaults',    key: 'quote_validity',     label: 'Quotation Validity (Days)',       value: form.settings.quote_validity,      type: 'text' },
-    { section: 'Defaults',    key: 'add_pouring_rates_to_total', label: 'Add Pouring Rates to Quotation Total', value: form.settings.add_pouring_rates_to_total, type: 'bool' },
-    { section: 'Defaults',    key: 'pouring_rate_charge_type', label: 'Pouring Rate Charge Type', value: form.settings.pouring_rate_charge_type, type: 'text' },
+    { section: 'Defaults',    key: 'add_pouring_rates_to_total', label: 'Flat Rate Additional Operation Charges', value: form.settings.add_pouring_rates_to_total, type: 'bool' },
     // Appearance
     { section: 'Appearance',  key: 'loader_gif',         label: 'Custom Global Loader (GIF URL)', value: form.settings.loader_gif,          type: 'text' },
     // Document Prefixes
@@ -124,7 +123,6 @@ const submit = () => {
         quote_validity:     form.settings.quote_validity     ? parseInt(form.settings.quote_validity as any, 10) : 15,
         material_print_mode: form.settings.material_print_mode || 'run',
         add_pouring_rates_to_total: form.settings.add_pouring_rates_to_total ? 1 : 0,
-
     };
 
     form.transform((data) => ({ ...data, settings: payload }))

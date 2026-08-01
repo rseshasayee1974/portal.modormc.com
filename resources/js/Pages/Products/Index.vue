@@ -1,13 +1,26 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 import Toast from 'primevue/toast';
 import ProductCreateForm from './Partials/ProductCreateForm.vue';
 import ProductTable from './Partials/ProductTable.vue';
 import { usePermissions } from '@/Composables/usePermissions';
+import { watch } from 'vue';
+import { useToast } from 'primevue/usetoast';
 
 const { can } = usePermissions();
+const page = usePage();
+const toast = useToast();
+
+watch(() => page.props.flash, (flash: any) => {
+    if (flash && flash.warning) {
+        toast.add({ severity: 'warn', summary: 'Warning', detail: flash.warning, life: 5000 });
+    }
+    if (flash && flash.error) {
+        toast.add({ severity: 'error', summary: 'Error', detail: flash.error, life: 5000 });
+    }
+}, { immediate: true, deep: true });
 
 interface Product {
     id: number;

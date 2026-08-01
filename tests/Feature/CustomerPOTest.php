@@ -86,6 +86,11 @@ class CustomerPOTest extends TestCase
             'amount_total' => 7500,
         ]);
 
+        $quotationItem->syncPumpRates([
+            ['pump_type' => 'Pump A', 'pump_rate' => 250],
+            ['pump_type' => 'Pump B', 'pump_rate' => 300],
+        ]);
+
         $response = $this->patch(route('quotations.convert', $quotation->id), [
             'is_customer_po' => 1,
         ]);
@@ -103,6 +108,10 @@ class CustomerPOTest extends TestCase
         $this->assertCount(1, $customerPO->items);
         $this->assertEquals(12.5, $customerPO->items->first()->quantity);
         $this->assertEquals(600, $customerPO->items->first()->rate);
+
+        $this->assertCount(2, $customerPO->items->first()->pumpRates);
+        $this->assertEquals(250, $customerPO->items->first()->pumpRates->where('pump_type', 'Pump A')->first()->pump_rate);
+        $this->assertEquals(300, $customerPO->items->first()->pumpRates->where('pump_type', 'Pump B')->first()->pump_rate);
     }
 
     public function test_creating_customer_po_creates_customer_po_items()

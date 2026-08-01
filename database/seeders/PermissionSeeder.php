@@ -99,6 +99,8 @@ class PermissionSeeder extends Seeder
             'MIX_DESIGN' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
             'CONCRETE_GRADE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'CONCRETE_QUALITY_TEST' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'PDF'],
+            'DISPATCH' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'INVENTORY_AUDIT_LOG' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             
             // Master Data / Settings
             'ADDRESS_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
@@ -113,7 +115,8 @@ class PermissionSeeder extends Seeder
             'PAYMENT_METHOD' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'PLAN' => ['VIEW', 'CREATE', 'UPDATE'],
             'SUBSCRIPTION_STATUS' => ['VIEW', 'CREATE', 'UPDATE'],
-            'TERMS_CONDITION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE']
+            'TERMS_CONDITION' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'TEMPLATE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE']
         ];
 
         $allPermissionNames = [];

@@ -99,6 +99,11 @@ const submit = () => {
             toast.add({ severity: 'success', summary: 'Updated', detail: 'Product updated successfully.', life: 1500 });
             emit('saved');
         },
+        onError: (errors) => {
+            if (errors.product) {
+                toast.add({ severity: 'error', summary: 'Error', detail: errors.product, life: 5000 });
+            }
+        }
     });
 };
 </script>

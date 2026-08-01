@@ -64,6 +64,9 @@ return new class extends Migration
         if (Schema::hasTable('mm_work_orders') && !Schema::hasTable('mm_sales_orders')) {
             Schema::rename('mm_work_orders', 'mm_sales_orders');
         }
+        if (Schema::hasTable('mm_work_order_items') && !Schema::hasTable('mm_sales_order_items')) {
+            Schema::rename('mm_work_order_items', 'mm_sales_order_items');
+        }
         if (Schema::hasTable('mm_work_order_logs') && !Schema::hasTable('mm_sales_order_logs')) {
             Schema::rename('mm_work_order_logs', 'mm_sales_order_logs');
         }
@@ -135,6 +138,21 @@ return new class extends Migration
             
             try {
                 Schema::table('mm_sales_order_operations', function (Blueprint $table) {
+                    $table->foreign('sales_order_id')->references('id')->on('mm_sales_orders')->cascadeOnDelete();
+                });
+            } catch (\Exception $e) {}
+        }
+        if (Schema::hasTable('mm_sales_order_items')) {
+            try {
+                Schema::table('mm_sales_order_items', function (Blueprint $table) {
+                    if (Schema::hasColumn('mm_sales_order_items', 'work_order_id')) {
+                        $table->renameColumn('work_order_id', 'sales_order_id');
+                    }
+                });
+            } catch (\Exception $e) {}
+            
+            try {
+                Schema::table('mm_sales_order_items', function (Blueprint $table) {
                     $table->foreign('sales_order_id')->references('id')->on('mm_sales_orders')->cascadeOnDelete();
                 });
             } catch (\Exception $e) {}
@@ -282,6 +300,9 @@ return new class extends Migration
         if (Schema::hasTable('mm_sales_orders') && !Schema::hasTable('mm_work_orders')) {
             Schema::rename('mm_sales_orders', 'mm_work_orders');
         }
+        if (Schema::hasTable('mm_sales_order_items') && !Schema::hasTable('mm_work_order_items')) {
+            Schema::rename('mm_sales_order_items', 'mm_work_order_items');
+        }
         if (Schema::hasTable('mm_sales_order_logs') && !Schema::hasTable('mm_work_order_logs')) {
             Schema::rename('mm_sales_order_logs', 'mm_work_order_logs');
         }
@@ -292,7 +313,9 @@ return new class extends Migration
         if (Schema::hasTable('mm_sales_order_items')) {
             try {
                 Schema::table('mm_sales_order_items', function (Blueprint $table) {
-                    $table->foreign('sales_order_id')->references('id')->on('mm_sales_orders')->cascadeOnDelete();
+                    if (Schema::hasColumn('mm_sales_order_items', 'sales_order_id')) {
+                        $table->renameColumn('sales_order_id', 'work_order_id');
+                    }
                 });
             } catch (\Exception $e) {}
         }

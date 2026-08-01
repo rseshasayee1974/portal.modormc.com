@@ -61,6 +61,7 @@ const blankMaterial = (): BatchMaterial => ({
     uom_id: null,
 });
 
+// console.log("concretePumpOptions",props?.concretePumpOptions);
 
 const form = useForm({
     sales_order_id: null as number | null,
@@ -468,6 +469,30 @@ const submit = () => {
         return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     };
 
+    const resetForm = () => {
+        form.sales_order_id = null;
+        form.batch_no = props.nextBatchNo;
+        form.batch_size = 1;
+        form.truck_id = null;
+        form.transport_id = null;
+        form.driver_id = null;
+        form.sales_executive_id = null;
+        form.concrete_pump = null;
+        form.empty_weight_truck = 0;
+        form.empty_weight_photo = null;
+        form.status = 1;
+        form.start_time = new Date();
+        form.end_time = null;
+        form.empty_time = new Date();
+        form.load_time = new Date();
+        form.materials = [blankMaterial()];
+        isTimeManuallySet.value = false;
+        if (!liveTimerInterval) {
+            startLiveTimer();
+        }
+        form.clearErrors();
+    };
+
     // Check if browser is offline
     if (!navigator.onLine) {
         const formattedBatch = {
@@ -514,17 +539,7 @@ const submit = () => {
             timer: 3000
         });
 
-        form.reset();
-        isTimeManuallySet.value = false;
-        if (!liveTimerInterval) {
-            startLiveTimer();
-        }
-        form.start_time = new Date();
-        form.clearErrors();
-        form.status = 1;
-        form.concrete_pump = null;
-        form.batch_size = 1;
-        form.materials = [blankMaterial()];
+        resetForm();
         return;
     }
 
@@ -548,17 +563,7 @@ const submit = () => {
                 timer: 1500,
                 showConfirmButton: false,
             });
-            form.reset();
-            isTimeManuallySet.value = false;
-            if (!liveTimerInterval) {
-                startLiveTimer();
-            }
-            form.start_time = new Date();
-            form.clearErrors();
-            form.status = 1;
-            form.concrete_pump = null;
-            form.batch_size = 1;
-            form.materials = [blankMaterial()];
+            resetForm();
              // Force reload props from server to get latest batches/nextBatchNo
             emit('created') // trigger parent to refresh
         },

@@ -295,33 +295,35 @@ class FlowAndRelationshipTest extends TestCase
     public function test_sales_order_crud_lifecycle(): void
     {
         $mixDesign = MixDesign::factory()->create(['plant_id' => $this->plant->id]);
+        $product = Product::factory()->create(['plant_id' => $this->plant->id, 'unit_id' => $this->unit->id]);
 
         // CREATE
         $salesOrder = SalesOrder::create([
             'plant_id' => $this->plant->id,
-            'patron_id' => $this->customer->id,
+            'customer_id' => $this->customer->id,
             'site_id' => $this->site->id,
+            'mix_design_id' => $mixDesign->id,
             'order_date' => '2026-06-18',
             'status' => SalesOrder::STATUS_DRAFT,
         ]);
 
         $item = SalesOrderItem::create([
             'sales_order_id' => $salesOrder->id,
-            'mix_design_id' => $mixDesign->id,
-            'quantity' => 10,
-            'rate' => 500,
-            'amount_total' => 5000,
+            'material_id' => $product->id,
+            'required_qty' => 10,
+            'uom_id' => $this->unit->id,
         ]);
 
         $this->assertDatabaseHas('mm_sales_orders', [
             'id' => $salesOrder->id,
-            'patron_id' => $this->customer->id,
+            'customer_id' => $this->customer->id,
+            'mix_design_id' => $mixDesign->id,
         ]);
 
         // READ
         $found = SalesOrder::find($salesOrder->id);
         $this->assertCount(1, $found->items);
-        $this->assertEquals($mixDesign->id, $found->items->first()->mix_design_id);
+        $this->assertEquals($product->id, $found->items->first()->material_id);
 
         // UPDATE
         $found->update(['status' => SalesOrder::STATUS_CONFIRMED]);
@@ -399,22 +401,63 @@ class FlowAndRelationshipTest extends TestCase
 
     public function test_policy_prevents_deletion_of_product_in_use(): void
     {
+        // Create a regular user with PRODUCT.delete permission but not system admin
+        $regularUser = User::factory()->create();
+        $regularRole = \App\Models\Role::firstOrCreate(
+            ['name' => 'Operator', 'guard_name' => 'web'],
+            ['code' => 'OPERATOR']
+        );
+        $deletePermission = \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'PRODUCT.delete', 'guard_name' => 'web']);
+        $regularRole->givePermissionTo($deletePermission);
+        $regularUser->assignRole($regularRole);
+
+        \App\Models\EntityUser::create([
+            'user_id' => $regularUser->id,
+            'entity_id' => $this->plant->entity_id,
+            'plant_id' => $this->plant->id,
+            'role_id' => $regularRole->id,
+        ]);
+
+        $this->actingAs($regularUser);
+
         $product = Product::factory()->create([
             'plant_id' => $this->plant->id,
             'unit_id' => $this->unit->id,
         ]);
 
-        // Link the product to a Quantity record (representing inventory)
-        $quantity = Quantity::create([
+        // Link the product to an active MixDesign that is used in a batch
+        $mixDesign = MixDesign::create([
             'plant_id' => $this->plant->id,
+            'partner_id' => Patron::factory()->create(['plant_id' => $this->plant->id])->id,
+            'concrete_grade_id' => ConcreteGrade::create(['plant_id' => $this->plant->id, 'name' => 'M20', 'status' => 1])->id,
+            'design_name' => 'Test Mix 10',
+            'design_type' => 'M20',
+        ]);
+
+        MixDesignItem::create([
+            'plant_id' => $this->plant->id,
+            'mix_design_id' => $mixDesign->id,
             'product_id' => $product->id,
             'uom_id' => $this->unit->id,
-            'quantity' => 50,
-            'date' => '2026-06-18',
-            'is_warehouse' => true,
+            'rate' => 10.0,
+            'actual_quantity' => 100,
+        ]);
+
+        $salesOrder = SalesOrder::create([
+            'plant_id' => $this->plant->id,
+            'customer_id' => $mixDesign->partner_id,
+            'mix_design_id' => $mixDesign->id,
+            'total_qty' => 1000,
+            'order_no' => 'SO-12345',
             'status' => 1,
-            'created_by' => $this->user->id,
-            'updated_by' => $this->user->id,
+        ]);
+
+        \App\Models\Batch::create([
+            'plant_id' => $this->plant->id,
+            'sales_order_id' => $salesOrder->id,
+            'batch_no' => 1,
+            'batch_size' => 1.5,
+            'status' => 1,
         ]);
 
         // Assert getIsInUseAttribute evaluates to true
@@ -423,14 +466,108 @@ class FlowAndRelationshipTest extends TestCase
         // Attempt deletion via controller endpoint to simulate user request
         $response = $this->delete(route('products.destroy', $product->id));
 
-        // Assert failure due to validation error redirect with 'error' message
+        // Assert failure due to validation error redirect with validation errors
         $response->assertStatus(302);
-        $response->assertSessionHas('error');
+        $response->assertSessionHasErrors(['product']);
 
         // Verify that the product is still in database and not deleted
         $this->assertDatabaseHas('mm_products', [
             'id' => $product->id,
             'deleted_at' => null,
         ]);
+    }
+
+    public function test_regular_user_can_update_exempted_fields_on_restricted_product(): void
+    {
+        $this->withoutExceptionHandling();
+        $regularUser = User::factory()->create();
+        $regularRole = \App\Models\Role::firstOrCreate(
+            ['name' => 'Operator', 'guard_name' => 'web'],
+            ['code' => 'OPERATOR']
+        );
+        $editPermission = \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'PRODUCT.edit', 'guard_name' => 'web']);
+        $regularRole->givePermissionTo($editPermission);
+        $regularUser->assignRole($regularRole);
+
+        \App\Models\EntityUser::create([
+            'user_id' => $regularUser->id,
+            'entity_id' => $this->plant->entity_id,
+            'plant_id' => $this->plant->id,
+            'role_id' => $regularRole->id,
+        ]);
+
+        $this->actingAs($regularUser);
+
+        $product = Product::factory()->create([
+            'plant_id' => $this->plant->id,
+            'unit_id' => $this->unit->id,
+            'hsn_code' => 'OLD-HSN',
+            'material_code' => 'OLD-MAT',
+        ]);
+
+        $mixDesign = MixDesign::create([
+            'plant_id' => $this->plant->id,
+            'partner_id' => Patron::factory()->create(['plant_id' => $this->plant->id])->id,
+            'concrete_grade_id' => ConcreteGrade::create(['plant_id' => $this->plant->id, 'name' => 'M20', 'status' => 1])->id,
+            'design_name' => 'Test Mix 10',
+            'design_type' => 'M20',
+        ]);
+
+        MixDesignItem::create([
+            'plant_id' => $this->plant->id,
+            'mix_design_id' => $mixDesign->id,
+            'product_id' => $product->id,
+            'uom_id' => $this->unit->id,
+            'rate' => 10.0,
+            'actual_quantity' => 100,
+        ]);
+
+        $salesOrder = SalesOrder::create([
+            'plant_id' => $this->plant->id,
+            'customer_id' => $mixDesign->partner_id,
+            'mix_design_id' => $mixDesign->id,
+            'total_qty' => 1000,
+            'order_no' => 'SO-12345',
+            'status' => 1,
+        ]);
+
+        \App\Models\Batch::create([
+            'plant_id' => $this->plant->id,
+            'sales_order_id' => $salesOrder->id,
+            'batch_no' => 1,
+            'batch_size' => 1.5,
+            'status' => 1,
+        ]);
+
+        $newCategory = \App\Models\ProductCategory::factory()->create(['plant_id' => $this->plant->id]);
+        $product = $product->fresh();
+
+        // Attempt updating only exempted fields (category_id, hsn_code, material_code)
+        $response = $this->put(route('products.update', $product->id), [
+            'title' => $product->title,
+            'code' => $product->code,
+            'category_id' => $newCategory->id,
+            'unit_id' => $product->unit_id,
+            'purchase_price' => $product->purchase_price,
+            'sales_price' => $product->sales_price,
+            'status' => $product->status,
+            'hsn_code' => 'NEW-HSN',
+            'material_code' => 'NEW-MAT',
+            'tax_mode' => $product->tax_mode,
+            'purchase_tax_id' => $product->purchase_tax_id,
+            'sale_tax_id' => $product->sale_tax_id,
+            'is_service' => $product->is_service,
+            'product_type' => $product->product_type,
+            'stock_alert' => $product->stock_alert,
+            'conversion_quantity' => $product->conversion_quantity,
+        ]);
+
+        $response->assertStatus(302);
+        $response->assertSessionHasNoErrors();
+        $response->assertSessionHas('success');
+
+        $this->assertEquals('New-hsn', $product->fresh()->hsn_code);
+        $this->assertEquals('New-mat', $product->fresh()->material_code);
+        $this->assertEquals($newCategory->id, $product->fresh()->category_id);
     }
 }

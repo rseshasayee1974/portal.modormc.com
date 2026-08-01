@@ -328,8 +328,8 @@ const handlePreviewClose = async (batchId: number | null) => {
 const handleBatchCreated = () => {
     router.reload({ 
         only: ['batches', 'nextBatchNo', 'salesOrders'],
+        preserveState: false,
         preserveScroll: true,
-        preserveState: true
     })
 }
 const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => {
@@ -337,7 +337,7 @@ const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 
         only: ['batches', 'nextBatchNo', 'salesOrders'],
         // only: ['batches', 'nextBatchNo', 'salesOrders' ,'dispatch'],
         preserveScroll: true,
-        preserveState: true
+        preserveState: false
     });
     if (payload) {
         const { batchId, type } = payload;
@@ -354,6 +354,8 @@ const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 
         await nextTick();
     }
 };
+
+const batchFormKey = ref(0);
 
 // ── Token Preview ─────────────────────────────────────────────────────
 const {
@@ -373,7 +375,10 @@ const {
         // This replaces your old emits + onPreviewClose
         if (batchId) refreshBatchRow(batchId);
         
-        if (reason === 'print' || reason === 'manual') {
+        // Reset the BatchCreateForm by incrementing its key
+        batchFormKey.value++;
+
+        if (reason === 'print' || 'close') {
             router.reload({ 
                 only: ['batches', 'nextBatchNo'], 
                 preserveScroll: true,
@@ -495,6 +500,7 @@ const shareBatchEmail = () => {
                 </div>
 
                 <BatchCreateForm
+                    :key="batchFormKey"
                     v-if="!hideBatchForm"
                     :salesOrders="salesOrders"
                     :trucks="trucks"
@@ -509,8 +515,7 @@ const shareBatchEmail = () => {
                     :statuses="statuses"
                     :nextBatchNo="nextBatchNo"
                     :concretePumpOptions="concretePumpOptions"
-                            @created="handleBatchCreated"
-
+                    @created="handleBatchCreated"
                     @offline-batch-added="handleOfflineBatchAdded"
                 />
 

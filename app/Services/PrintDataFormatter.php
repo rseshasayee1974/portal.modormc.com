@@ -54,7 +54,7 @@ class PrintDataFormatter
         ];
     }
 
-    public static function dummy(string $category = 'invoice'): array
+    public static function dummy(string $category = 'invoice', ?array $customSettings = null): array
     {
         $plantId = session('active_plant_id') ?: 1;
 
@@ -88,7 +88,26 @@ class PrintDataFormatter
                     $quotation = \App\Models\Quotation::where('plant_id', $plantId)->latest()->first()
                         ?? \App\Models\Quotation::latest()->first();
                     if ($quotation) {
-                        return self::fromQuotation($quotation);
+                        $hasRates = false;
+                        foreach ($quotation->items as $item) {
+                            if ($item->pumpRates && $item->pumpRates->isNotEmpty()) {
+                                $hasRates = true;
+                            }
+                        }
+                        if (!$hasRates && function_exists('PumpTypeDropdown')) {
+                            $pts = PumpTypeDropdown();
+                            foreach ($quotation->items as $item) {
+                                $mockRates = [];
+                                foreach ($pts as $idx => $pt) {
+                                    $mockRates[] = new \App\Models\QuotationItemPumpRate([
+                                        'pump_type' => $pt['value'],
+                                        'pump_rate' => ($idx + 1) * 1200 + 350
+                                    ]);
+                                }
+                                $item->setRelation('pumpRates', collect($mockRates));
+                            }
+                        }
+                        return self::fromQuotation($quotation, $customSettings);
                     }
                     break;
 
@@ -96,7 +115,26 @@ class PrintDataFormatter
                     $cpo = \App\Models\CustomerPO::where('plant_id', $plantId)->latest()->first()
                         ?? \App\Models\CustomerPO::latest()->first();
                     if ($cpo) {
-                        return self::fromCustomerPO($cpo);
+                        $hasRates = false;
+                        foreach ($cpo->items as $item) {
+                            if ($item->pumpRates && $item->pumpRates->isNotEmpty()) {
+                                $hasRates = true;
+                            }
+                        }
+                        if (!$hasRates && function_exists('PumpTypeDropdown')) {
+                            $pts = PumpTypeDropdown();
+                            foreach ($cpo->items as $item) {
+                                $mockRates = [];
+                                foreach ($pts as $idx => $pt) {
+                                    $mockRates[] = new \App\Models\CustomerPOItemPumpRate([
+                                        'pump_type' => $pt['value'],
+                                        'pump_rate' => ($idx + 1) * 1400 + 450
+                                    ]);
+                                }
+                                $item->setRelation('pumpRates', collect($mockRates));
+                            }
+                        }
+                        return self::fromCustomerPO($cpo, $customSettings);
                     }
                     break;
 
@@ -626,7 +664,7 @@ class PrintDataFormatter
         return $data;
     }
 
-    public static function fromQuotation($quotation): array
+    public static function fromQuotation($quotation, ?array $customSettings = null): array
     {
         $statusLabels = [
             0 => 'DRAFT',
@@ -643,11 +681,12 @@ class PrintDataFormatter
             $quotation->reference ?? $quotation->id,
             $quotation->quote_date?->format('d/m/Y'),
             $quotation->validity_date?->format('d/m/Y'),
-            $state
+            $state,
+            $customSettings
         );
     }
 
-    public static function fromCustomerPO($customerPO): array
+    public static function fromCustomerPO($customerPO, ?array $customSettings = null): array
     {
         $statusLabels = [
             0 => 'DRAFT',
@@ -663,11 +702,12 @@ class PrintDataFormatter
             $customerPO->reference ?? $customerPO->id,
             $customerPO->order_date?->format('d/m/Y'),
             $customerPO->due_date?->format('d/m/Y'),
-            $state
+            $state,
+            $customSettings
         );
     }
 
-    private static function fromQuotationOrCustomerPO($model, string $module, string $defaultTitle, string $docNo, ?string $docDate, ?string $dueDate, string $state): array
+    private static function fromQuotationOrCustomerPO($model, string $module, string $defaultTitle, string $docNo, ?string $docDate, ?string $dueDate, string $state, ?array $customSettings = null): array
     {
         $model->loadMissing([
             'items.mixDesign',
@@ -690,8 +730,8 @@ class PrintDataFormatter
         ]);
 
         $data = self::base();
-        $data['settings'] = self::getCustomSettings($model->plant_id, $module);
-        if ($module === 'customer_pos' && empty(\App\Models\CustomSetting::getForModule($model->plant_id, 'customer_pos'))) {
+        $data['settings'] = $customSettings ?? self::getCustomSettings($model->plant_id, $module);
+        if (!$customSettings && $module === 'customer_pos' && empty(\App\Models\CustomSetting::getForModule($model->plant_id, 'customer_pos'))) {
             $data['settings'] = self::getCustomSettings($model->plant_id, 'quotations');
         }
 
@@ -750,21 +790,19 @@ class PrintDataFormatter
             $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
 
             // Calculate lump sum pump rate for this item (if configured per mix design)
+            // Placed post-tax, so linePumpTotal is now 0 for line item pricing
             $linePumpTotal = 0.0;
-            if ($item->relationLoaded('pumpRates') && $item->pumpRates->isNotEmpty()) {
-                $linePumpTotal = (float) $item->pumpRates->sum('pump_rate');
-            }
 
             $lineTotal = 0.0;
             $lineTax = 0.0;
             $lineUntaxed = 0.0;
 
             if ($isTaxInclusive) {
-                $lineTotal = ($rate * $qty) + $linePumpTotal;
+                $lineTotal = ($rate * $qty);
                 $lineTax = $lineTotal - ($lineTotal / (1 + $taxRate / 100));
                 $lineUntaxed = $lineTotal - $lineTax;
             } else {
-                $lineUntaxed = ($rate * $qty) + $linePumpTotal;
+                $lineUntaxed = ($rate * $qty);
                 $lineTax = ($lineUntaxed * $taxRate) / 100;
                 $lineTotal = $lineUntaxed + $lineTax;
             }
@@ -808,35 +846,8 @@ class PrintDataFormatter
             ];
         })->toArray();
 
-        // Calculate quotation level pouring rate concrete pump charges
-        $chargeType = strtolower($settings['pouring_rate_charge_type'] ?? 'per_m3');
-        $totalQty = (float) $model->items->sum('quantity');
-
-        if ($chargeType === 'flat_rate') {
-            $pouringCharge = $selectedRate;
-        } else {
-            $pouringCharge = $selectedRate * $totalQty;
-        }
-
-        if ($addPouringRatesToTotal && $pouringCharge > 0) {
-            $data['items'][] = [
-                'no' => count($data['items']) + 1,
-                'name' => 'Concrete Pump / Pouring Charges' . ($model->concretePump ? ' (' . ($model->concretePump->registration ?? 'Pump') . ')' : ' (Manual)'),
-                'description' => $chargeType === 'flat_rate' ? 'Flat rate pouring charges' : 'Pouring charges at ₹' . number_format($selectedRate, 2) . ' per m³',
-                'hsn' => '-',
-                'qty' => $chargeType === 'flat_rate' ? 1 : $totalQty,
-                'received_qty' => 0,
-                'unit' => $chargeType === 'flat_rate' ? 'Qty' : 'm³',
-                'unit_price' => $selectedRate,
-                'tax_name' => '-',
-                'tax_rate' => 0,
-                'tax_group' => '',
-                'tax_amount' => 0.0,
-                'total' => $pouringCharge,
-            ];
-            $grandTotalAmt += $pouringCharge;
-            $subtotalAmt += $pouringCharge;
-        }
+        // Quotation level pouring rates/settings are obsolete, removed to prevent duplicates.
+        $pouringCharge = 0;
 
         // Compile tax lines
         $taxLines = [];
@@ -857,33 +868,85 @@ class PrintDataFormatter
         $adjustment = (float)($model->adjustment ?? 0);
         $finalGrandTotal = $grandTotalAmt + $adjustment;
 
-        // Generate Pouring Option Rates Table HTML if any rate is greater than 0
-        $ratesTableHtml = '';
-        $manualRate = (float)($model->manual_rate ?? 0);
-        $pumpRate = (float)($model->pump_rate ?? 0);
-        $boomPumpRate = (float)($model->boom_pump_rate ?? 0);
+        // Parse settings
+        $settings = \App\Models\CustomSetting::getForModule($model->plant_id ?? $model->entity_id ?? session('active_entity_id') ?? 1, 'batching');
+        $isFlatRate = (bool)($settings['add_pouring_rates_to_total'] ?? false);
+        $chargeTypeLabel = $isFlatRate ? 'Flat Rate' : 'per m³';
 
-        if ($manualRate > 0 || $pumpRate > 0 || $boomPumpRate > 0) {
-            $ratesTableHtml .= '<div style="margin-top: 15px; margin-bottom: 15px; page-break-inside: avoid;">';
-            $ratesTableHtml .= '<h4 style="font-size: 11px; font-weight: bold; color: #1e293b; margin-bottom: 8px; text-transform: uppercase;">Pouring Option Rates</h4>';
-            $ratesTableHtml .= '<table style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: center; border: 1px solid #cbd5e1;">';
-            $ratesTableHtml .= '<thead style="background-color: #f1f5f9; font-weight: bold; color: #334155; border-bottom: 2px solid #cbd5e1;">';
-            $ratesTableHtml .= '<tr>';
-            $ratesTableHtml .= '<th style="padding: 6px; border: 1px solid #cbd5e1;">MANUAL</th>';
-            $ratesTableHtml .= '<th style="padding: 6px; border: 1px solid #cbd5e1;">PUMP</th>';
-            $ratesTableHtml .= '<th style="padding: 6px; border: 1px solid #cbd5e1;">BOOM PUMP</th>';
-            $ratesTableHtml .= '</tr>';
-            $ratesTableHtml .= '</thead>';
-            $ratesTableHtml .= '<tbody>';
-            $suffix = $chargeType === 'flat_rate' ? ' (Flat)' : ' / m³';
-            $ratesTableHtml .= '<tr>';
-            $ratesTableHtml .= '<td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: bold;">₹' . number_format($manualRate, 2) . $suffix . '</td>';
-            $ratesTableHtml .= '<td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: bold;">₹' . number_format($pumpRate, 2) . $suffix . '</td>';
-            $ratesTableHtml .= '<td style="padding: 8px; border: 1px solid #cbd5e1; font-weight: bold;">₹' . number_format($boomPumpRate, 2) . $suffix . '</td>';
-            $ratesTableHtml .= '</tr>';
-            $ratesTableHtml .= '</tbody>';
-            $ratesTableHtml .= '</table>';
-            $ratesTableHtml .= '</div>';
+        // Retrieve pump types for the headers
+        $allPumpTypes = function_exists('PumpTypeDropdown') ? PumpTypeDropdown() : [];
+
+        // Only display pump columns that hold actual rates > 0 in any of the items
+        $pumpTypes = [];
+        foreach ($allPumpTypes as $pt) {
+            $hasValue = false;
+            foreach ($model->items as $item) {
+                $pr = $item->pumpRates->first(fn($r) => (string)$r->pump_type === (string)$pt['value']);
+                if ($pr && (float)$pr->pump_rate > 0) {
+                    $hasValue = true;
+                    break;
+                }
+            }
+            if ($hasValue) {
+                $pumpTypes[] = $pt;
+            }
+        }
+
+        $headersHtml = '';
+        foreach ($pumpTypes as $pt) {
+            $headersHtml .= "<th style='text-align: center; text-transform: uppercase;'>{$pt['label']}</th>";
+        }
+
+        $rowsHtml = '';
+        $hasPumpRates = false;
+        foreach ($model->items as $item) {
+            if ($item->relationLoaded('pumpRates') && $item->pumpRates->isNotEmpty() && $item->pumpRates->sum('pump_rate') > 0) {
+                $hasPumpRates = true;
+            }
+            $grade = $item->mixDesign->design_name ?? $item->mixDesign->title ?? 'N/A';
+            
+            $ratesHtml = '';
+            foreach ($pumpTypes as $pt) {
+                $pr = $item->pumpRates->first(fn($r) => (string)$r->pump_type === (string)$pt['value']);
+                $rateVal = $pr ? (float)$pr->pump_rate : 0.0;
+                $rateText = $rateVal > 0 ? '₹ ' . number_format($rateVal, 2) : '-';
+                $ratesHtml .= "<td style='text-align: center;'>{$rateText}</td>";
+            }
+            
+            $rowsHtml .= "
+                <tr>
+                    <td style='font-weight: bold; text-align: center;'>{$grade}</td>
+                    {$ratesHtml}
+                </tr>
+            ";
+        }
+
+        $showMatrix = !isset($data['settings']['pdf']['pump_rates_matrix']) || $data['settings']['pdf']['pump_rates_matrix'];
+
+        $ratesTableHtml = '';
+        if ($showMatrix && $hasPumpRates && !empty($rowsHtml) && !empty($pumpTypes)) {
+            $ratesTableHtml .= "
+                <div style='margin-top: 20px; margin-bottom: 20px; page-break-inside: avoid;'>
+                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px;'>
+                        <span style='font-size: 10px; font-weight: bold; text-transform: uppercase; color: #1e293b; letter-spacing: 0.12em;'>Additional Operation / Pump Charges Matrix</span>
+                        <span style='font-size: 8.5px; font-weight: bold; color: #64748b;'>Charges basis: {$chargeTypeLabel} (not included in total)</span>
+                    </div>
+                    <table class='items-table'>
+                        <thead>
+                            <tr>
+                                <th style='width: 30%; text-align: center; border-bottom: 1px solid #1e293b; border-top: 1.5px solid #1e293b; font-weight: bold;' rowspan='2'>Mix Design</th>
+                                <th style='text-align: center; border-bottom: 1px solid #1e293b; border-top: 1.5px solid #1e293b; font-weight: bold;' colspan='" . count($pumpTypes) . "'>Rate/{$chargeTypeLabel} (Rs)</th>
+                            </tr>
+                            <tr style='background: #f1f5f9; color: #475569;'>
+                                {$headersHtml}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {$rowsHtml}
+                        </tbody>
+                    </table>
+                </div>
+            ";
         }
 
         $data['totals'] = [
@@ -893,8 +956,11 @@ class PrintDataFormatter
             'shipping'    => 0,
             'adjustment'  => $adjustment,
             'round_off'   => 0,
+            'pump_rate'   => 0.0, // Set to 0 so it is not added to totals breakdown list
+            'pump_charges_total' => 0.0,
+            'add_pouring_rates_to_total' => false, // Set to false to avoid adding to grand total
             'grand_total' => (float)$finalGrandTotal,
-            'rates_table_html' => $ratesTableHtml, // Stored here so your PDF template can cleanly load it right above or in your totals section!
+            'rates_table_html' => $ratesTableHtml,
         ];
 
         $termsText = self::resolveTermsCondition($data['settings'], ($module === 'customer_pos' ? 'Customer PO' : 'Quotation'), $model->plant_id, $model->terms_conditions ?? '');
@@ -1234,21 +1300,7 @@ class PrintDataFormatter
     {
         $defaults = self::getDefaultSettings($module);
         $baseStored = \App\Models\CustomSetting::getForModule($plantId, $module);
-        $merged = array_replace_recursive($defaults, $baseStored);
-
-        if (!$templateKey) {
-            $templateKey = self::resolveTemplateKey($module, $plantId);
-        }
-
-        if ($templateKey) {
-            $designSpecificKey = $module . '_' . strtolower($templateKey);
-            $designStored = \App\Models\CustomSetting::getForModule($plantId, $designSpecificKey);
-            if (!empty($designStored)) {
-                $merged = array_replace_recursive($merged, $designStored);
-            }
-        }
-
-        return $merged;
+        return array_replace_recursive($defaults, $baseStored);
     }
 
     public static function getDefaultSettings(string $module): array

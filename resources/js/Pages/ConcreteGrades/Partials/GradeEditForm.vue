@@ -168,7 +168,7 @@ const submit = () => {
                     <span>Identification</span>
                 </div>
                 <BaseInput v-model="form.name" label="Grade Name" placeholder="Mix Name" :error="form.errors.name" />
-                <BaseInput v-model="form.concrete_code" label="HSN Code" placeholder="HSN Code" :error="form.errors.concrete_code" />
+                <!-- <BaseInput v-model="form.concrete_code" label="HSN Code" placeholder="HSN Code" :error="form.errors.concrete_code" /> -->
 
                 <div class="ratio-calc-compact">
                     <div class="flex items-center justify-between mb-3">

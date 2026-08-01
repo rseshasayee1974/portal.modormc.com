@@ -46,7 +46,7 @@ class BatchController extends Controller
         'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
         'materials.product:id,title',
         'materials.uom:id,unit_code',
-        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id,customer_po_id',
+        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id,customer_po_id,concrete_pump,pump_rate',
         'salesOrder.plant:id,name,mixer_capacity',
         'salesOrder.customer:id,legal_name',
         'salesOrder.mixDesign:id,design_name,design_code',

@@ -206,11 +206,11 @@
     @endif --}}
 
     <div class="header">
-        @if ($batch->workOrder?->plant?->logo_path)
+        @if ($batch->salesOrder?->plant?->logo_path)
             <div style="text-align: center; margin-bottom: 4px;">
                 @php
                     $cleanLogoPath = ltrim(
-                        str_replace(['public/', 'storage/', '/storage/'], '', $batch->workOrder->plant->logo_path),
+                        str_replace(['public/', 'storage/', '/storage/'], '', $batch->salesOrder->plant->logo_path),
                         '/',
                     );
                     $logoUrl = !empty($isPreview)
@@ -220,9 +220,9 @@
                 <img src="{{ $logoUrl }}" style="max-height: 40px; max-width: 130px; object-fit: contain;" />
             </div>
         @endif
-        <div class="company-name">{{ $batch->workOrder?->plant?->name }}</div>
-        @if ($batch->workOrder?->plant && $batch->workOrder->plant->addresses->isNotEmpty())
-            @php $plAddr = $batch->workOrder->plant->addresses->first(); @endphp
+        <div class="company-name">{{ $batch->salesOrder?->plant?->name }}</div>
+        @if ($batch->salesOrder?->plant && $batch->salesOrder->plant->addresses->isNotEmpty())
+            @php $plAddr = $batch->salesOrder->plant->addresses->first(); @endphp
             <div class="company-address">
                 {{ $plAddr->line_1 ?? '' }}, {{ $plAddr->city ?? '' }},
                 {{ $plAddr->state->state_name ?? ($plAddr->state_code ?? '') }} - {{ $plAddr->zipcode ?? '' }}
@@ -256,15 +256,15 @@
     <table class="meta-table">
         <tr>
             <td class="meta-label">Customer:</td>
-            <td class="meta-value">{{ $batch->workOrder?->customer?->legal_name ?? '-' }}</td>
+            <td class="meta-value">{{ $batch->salesOrder?->customer?->legal_name ?? '-' }}</td>
         </tr>
         <tr>
             <td class="meta-label">Site:</td>
-            <td class="meta-value">{{ $batch->workOrder?->site?->name ?? '-' }}</td>
+            <td class="meta-value">{{ $batch->salesOrder?->site?->name ?? '-' }}</td>
         </tr>
         <tr>
             <td class="meta-label">Order No:</td>
-            <td class="meta-value font-mono">{{ $batch->workOrder?->order_no ?? '-' }}</td>
+            <td class="meta-value font-mono">{{ $batch->salesOrder?->order_no ?? '-' }}</td>
         </tr>
     </table>
 
@@ -274,12 +274,12 @@
         <tr>
             <td class="meta-label">Recipe:</td>
             <td class="meta-value">
-                {{ $batch->workOrder?->mixDesign?->concrete_grade?->name ?? ($batch->workOrder?->mixDesign?->design_name ?? '-') }}
+                {{ $batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->design_name ?? '-') }}
             </td>
         </tr>
         <tr>
             <td class="meta-label">Code:</td>
-            <td class="meta-value font-mono">{{ $batch->workOrder?->mixDesign?->design_code ?? '-' }}</td>
+            <td class="meta-value font-mono">{{ $batch->salesOrder?->mixDesign?->design_code ?? '-' }}</td>
         </tr>
         <tr>
             <td class="meta-label">Batch Size:</td>
@@ -294,7 +294,7 @@
         $dispatchInstance = $batch->dispatches->first();
         $tripsDoneCount = 0;
         if ($dispatchInstance && $dispatchInstance->truck_id) {
-            $unloadSiteId = $dispatchInstance->unload_site_id ?? $batch->workOrder?->site_id;
+            $unloadSiteId = $dispatchInstance->unload_site_id ?? $batch->salesOrder?->site_id;
             if ($unloadSiteId) {
                 $dispatchDate = $dispatchInstance->dispatch_time ?? $dispatchInstance->created_at;
                 $dateString = $dispatchDate ? $dispatchDate->toDateString() : date('Y-m-d');
@@ -303,7 +303,7 @@
                         $q->where('unload_site_id', $unloadSiteId)->orWhere(
                             fn($sq) => $sq
                                 ->whereNull('unload_site_id')
-                                ->whereHas('workOrder', fn($ssq) => $ssq->where('site_id', $unloadSiteId)),
+                                ->whereHas('salesOrder', fn($ssq) => $ssq->where('site_id', $unloadSiteId)),
                         );
                     })
                     ->where(function ($q) use ($dateString) {
@@ -382,7 +382,7 @@
         </tr>
     </table>
 
-    @if ($batch->workOrder?->mixDesign?->items?->count() > 0)
+    {{-- @if ($batch->salesOrder?->mixDesign?->items?->count() > 0)
         <div class="divider"></div>
         <div
             style="font-weight: bold; text-align: center; margin-bottom: 4px; font-size: 10px; color: #000000 !important; letter-spacing: 0.05em;">
@@ -401,7 +401,7 @@
                     // Group batch materials by product_id for quick lookup of actual_qty
                     $batchActuals = $batch->materials->groupBy('product_id')->map(fn($g) => $g->sum('actual_qty'));
                 @endphp
-                @foreach ($batch->workOrder->mixDesign->items as $item)
+                @foreach ($batch->salesOrder->mixDesign->items as $item)
                     @php
                         $recipe  = (float) $item->actual_quantity;                            // raw mix design qty per m³
                         $actual  = (float) ($batchActuals[$item->product_id] ?? 0);           // what was actually dispensed
@@ -418,7 +418,7 @@
                 @endforeach
             </tbody>
         </table>
-    @endif
+    @endif --}}
 
     <div class="footer">
         <div>Dispatch Token - v1</div>

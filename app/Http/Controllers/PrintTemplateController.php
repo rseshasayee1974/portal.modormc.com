@@ -85,13 +85,16 @@ class PrintTemplateController extends Controller
     {
         $this->authorizeModule('menu');
         $plantId = session('active_plant_id') ?: 1;
-        $data = \App\Services\PrintDataFormatter::dummy($module);
-
+        $settings = null;
         if ($request->has('settings') && is_array($request->settings)) {
-            $data['settings'] = array_replace_recursive($data['settings'], $request->settings);
-            
-            if (!empty($request->settings['pdf']['labels']['invoice_title'])) {
-                $data['doc_title'] = $request->settings['pdf']['labels']['invoice_title'];
+            $settings = $request->settings;
+        }
+
+        $data = \App\Services\PrintDataFormatter::dummy($module, $settings);
+
+        if ($settings) {
+            if (!empty($settings['pdf']['labels']['invoice_title'])) {
+                $data['doc_title'] = $settings['pdf']['labels']['invoice_title'];
             }
         }
 
@@ -144,20 +147,12 @@ class PrintTemplateController extends Controller
         $plantId = session('active_plant_id');
         $entityId = session('active_entity_id');
 
-        // Save per-template settings map if supplied
-        if ($request->has('template_settings_map') && is_array($request->template_settings_map)) {
-            foreach ($request->template_settings_map as $tKey => $tSettings) {
-                \App\Models\CustomSetting::updateOrCreate(
-                    [
-                        'plant_id'    => $plantId,
-                        'module_name' => $module . '_' . strtolower($tKey),
-                    ],
-                    [
-                        'settings'  => $tSettings,
-                        'module_id' => 0,
-                    ]
-                );
-            }
+        // Delete any existing design-specific template settings for this module to clean up
+        $availableTemplates = ['standard', 'elite', 'modern', 'compact', 'indian_gst', 'spreadsheet', 'tallysheet', 'formal_gst', 'standard_indigo', 'minimalist_lite', 'delivery_challan_a4'];
+        foreach ($availableTemplates as $tKey) {
+            \App\Models\CustomSetting::where('plant_id', $plantId)
+                ->where('module_name', $module . '_' . strtolower($tKey))
+                ->delete();
         }
 
         // Save base module custom settings

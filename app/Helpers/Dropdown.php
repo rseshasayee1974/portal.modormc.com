@@ -554,9 +554,16 @@ if (!function_exists('Productunit')) {
         }
 
         return $query->whereNull('deleted_at')
-            ->orderByRaw("CASE WHEN unit_code = 'MTR' THEN 0 ELSE 1 END")
-            ->orderBy('unit_name')
-            ->get();
+    ->orderByRaw("
+        CASE
+            WHEN unit_code = 'KGS' THEN 0
+            WHEN unit_code = 'MTR' THEN 1
+            WHEN unit_code = 'CBM' THEN 2
+            ELSE 3
+        END
+    ")
+    ->orderBy('unit_name')
+    ->get();
     }
 }
 

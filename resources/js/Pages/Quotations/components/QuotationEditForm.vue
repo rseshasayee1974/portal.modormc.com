@@ -106,7 +106,7 @@ const form = useForm({
         amount_total: Number(item.amount_total || 0),
         // Load saved pump rates, backfilling any missing pump types at 0
         pump_rates: (props.pumpTypeOptions || []).map(pt => {
-            const saved = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.pump_type === pt.value);
+            const saved = (item.pump_rates || item.pumpRates || []).find((pr: any) => String(pr.pump_type) === String(pt.value));
             return { pump_type: pt.value, pump_rate: saved ? Number(saved.pump_rate) : 0 };
         }),
     })) as QuotationItemPayload[],
@@ -510,8 +510,8 @@ const sendEmail = () => {
             <!-- ── Pump Rates per Mix Design ── -->
          <div v-if="uniqueSelectedMixDesignIds.length && pumpTypeOptions && pumpTypeOptions.length" class="mt-4 rounded-xl border border-indigo-200 bg-indigo-100/30 p-4 shadow-sm">
     <div class="flex items-center gap-2 mb-4">
-        <span class="text-[11px] font-black text-indigo-700 uppercase tracking-[0.18em]">⚙ Pump Rates per Mix Design</span>
-        <span class="text-[10px] text-indigo-500 font-medium">(enter rate per m³ for each pump type)</span>
+        <span class="text-[11px] font-black text-indigo-700 uppercase tracking-[0.18em]">⚙ Operation Charges per Mix Design</span>
+        <!-- <span class="text-[10px] text-indigo-500 font-medium">(enter rate per m³ for each operation type)</span> -->
     </div>
 
     <div class="flex flex-col lg:flex-row lg:flex-wrap gap-6 w-full items-start">
@@ -538,7 +538,7 @@ const sendEmail = () => {
                 <table class="w-full text-xs">
                     <thead>
                         <tr class="bg-indigo-50/60 border-b border-indigo-100 text-[10px] uppercase font-bold text-indigo-700 tracking-wider">
-                            <th class="px-4 py-2.5 text-left">Pump Type</th>
+                            <th class="px-4 py-2.5 text-left">Operation Type</th>
                             <th class="px-4 py-2.5 text-right w-36">Rate (₹ / m³)</th>
                         </tr>
                     </thead>

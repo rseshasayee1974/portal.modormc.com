@@ -223,31 +223,31 @@ const submitConversion = () => {
             conversionErrors.value[`quantity_${item.item_id}`] = 'Quantity cannot be negative';
             hasErrors = true;
         }
-        if (qty >= 9) {
-            conversionErrors.value[`quantity_${item.item_id}`] = 'Quantity cannot exceed 9 m³';
-            hasErrors = true;
-        }
+        // if (qty >= 9) {
+        //     conversionErrors.value[`quantity_${item.item_id}`] = 'Quantity cannot exceed 9 m³';
+        //     hasErrors = true;
+        // }
         if (Number(qty.toFixed(3)) > Number(remaining.toFixed(3))) {
             conversionErrors.value[`quantity_${item.item_id}`] = `Cannot exceed remaining (${remaining.toFixed(3)} m³)`;
             hasErrors = true;
         }
-        if (qty > 0) {
-            hasSelectedItems = true;
-            if (item.concrete_pump === null || item.concrete_pump === undefined || item.concrete_pump === '') {
-                conversionErrors.value[`concrete_pump_${item.item_id}`] = 'Concrete Pump is required';
-                hasErrors = true;
-            }
-        }
+        // if (qty > 0) {
+        //     hasSelectedItems = true;
+        //     if (item.concrete_pump === null || item.concrete_pump === undefined || item.concrete_pump === '') {
+        //         conversionErrors.value[`concrete_pump_${item.item_id}`] = 'Concrete Pump is required';
+        //         hasErrors = true;
+        //     }
+        // }
     }
 
     if (hasErrors) {
         return;
     }
 
-    if (!hasSelectedItems) {
-        Swal.fire('Error', 'Please enter a quantity greater than 0 for at least one mix design.', 'error');
-        return;
-    }
+    // if (!hasSelectedItems) {
+    //     Swal.fire('Error', 'Please enter a quantity greater than 0 for at least one mix design.', 'error');
+    //     return;
+    // }
 
     const payload = {
         items: convertItems.value.map(item => ({
@@ -596,7 +596,7 @@ watch(() => props.customerPOs, () => {
                                     <th class="p-3 font-semibold text-slate-500 text-center">Converted</th>
                                     <th class="p-3 font-semibold text-slate-500 text-center">Remaining</th>
                                     <th class="p-3 font-semibold text-slate-500" style="width: 140px;">SO Qty (m³)</th>
-                                    <th class="p-3 font-semibold text-slate-500" style="width: 200px;">Concrete Pump / Type <span class="text-rose-500">*</span></th>
+                                    <th class="p-3 font-semibold text-slate-500" style="width: 200px;">Concrete Pump / Type</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">

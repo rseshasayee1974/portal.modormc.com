@@ -68,12 +68,11 @@ export function useBatchTokenPreview({
         tokenPreviewVisible.value = true;
     };
 
-    // ── Close Token Dialog ───────────────────────────────────────────────────
     const closeTokenPreview = () => {
         tokenPreviewVisible.value = false;
+        tokenPreviewUrl.value = '';
+        iframeHeight.value = '300px';
         setTimeout(() => {
-            tokenPreviewUrl.value = '';
-            iframeHeight.value = '300px';
             onClose?.(currentBatchId.value, 'manual');
         }, 350);
     };

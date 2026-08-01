@@ -9,15 +9,15 @@ trait ProtectsSystemItems
 {
     public static function bootProtectsSystemItems()
     {
-        static::updating(function ($model) {
-            if ($model->is_system && $model->isDirty(['name', 'title', 'legal_name', 'site_name', 'template_name'])) {
-                if (!self::isAuthorizedToModifySystemItems()) {
-                    throw ValidationException::withMessages([
-                        'name' => ['This is a system-generated item and cannot be renamed.'],
-                    ]);
-                }
-            }
-        });
+        // static::updating(function ($model) {
+        //     if ($model->is_system && $model->isDirty(['name', 'title', 'legal_name', 'site_name', 'template_name'])) {
+        //         if (!self::isAuthorizedToModifySystemItems()) {
+        //             throw ValidationException::withMessages([
+        //                 'name' => ['This is a system-generated item and cannot be renamed.'],
+        //             ]);
+        //         }
+        //     }
+        // });
 
         static::deleting(function ($model) {
             if ($model->is_system) {

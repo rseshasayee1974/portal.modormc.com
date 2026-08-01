@@ -6,14 +6,20 @@ use App\Models\InventoryAuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 
 class InventoryAuditLogController extends Controller
 {
+    use AuthorizesModule;
+
+    protected string $module = 'inventory_audit_logs';
+
     /**
      * Display a listing of the inventory audit logs.
      */
     public function index(Request $request)
     {
+        $this->authorizeModule('view');
         $query = InventoryAuditLog::query()
             ->with(['user:id,username,email', 'plant:id,name'])
             ->latest();
@@ -108,6 +114,7 @@ class InventoryAuditLogController extends Controller
      */
     public function store(Request $request)
     {
+        $this->authorizeModule('create');
         $validated = $request->validate([
             'transaction_type' => 'required|string|max:255',
             'reference_type' => 'nullable|string|max:255',
@@ -133,6 +140,7 @@ class InventoryAuditLogController extends Controller
      */
     public function show(InventoryAuditLog $inventoryAuditLog)
     {
+        $this->authorizeModule('view');
         $inventoryAuditLog->load(['user:id,username,email', 'plant:id,name']);
         
         $reference = null;
@@ -172,6 +180,7 @@ class InventoryAuditLogController extends Controller
     }
     public function destroy(InventoryAuditLog $inventoryAuditLog)
     {
+        $this->authorizeModule('delete');
         $inventoryAuditLog->delete();
 
         return redirect()->back()->with('success', 'Inventory audit log deleted successfully.');
