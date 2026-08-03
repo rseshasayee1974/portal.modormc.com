@@ -90,4 +90,9 @@ class DashboardService
     {
         return $this->repository->getDispatchDetailsByTruck($filters);
     }
+
+    public function getDispatchDetails(array $filters)
+    {
+        return $this->repository->getDispatchDetails($filters);
+    }
 }

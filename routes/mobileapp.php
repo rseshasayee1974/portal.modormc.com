@@ -21,6 +21,7 @@ Route::post('/verify-otp', [MobileApiController::class, 'verifyOtp'])->middlewar
 
 // Authenticated routes
 Route::middleware('auth:sanctum')->group(function () {
+            Route::resource('users', \App\Http\Controllers\UserController::class);
     Route::get('/user', [MobileApiController::class, 'user']);
     Route::get('/dashboard', [MobileApiController::class, 'dashboard']);
     Route::get('/sales-summary', [MobileApiController::class, 'salesSummary']);

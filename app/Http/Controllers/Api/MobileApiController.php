@@ -278,7 +278,7 @@ class MobileApiController extends Controller
     #[OA\Response(response: 200, description: "Success")]
     public function dispatchDetails(Request $request)
     {
-        $data = $this->dashboardService->getDispatchDetailsByTruck($this->getFilters($request));
+        $data = $this->dashboardService->getDispatchDetails($this->getFilters($request));
         return response()->json(['success' => true, 'data' => $data]);
     }
 

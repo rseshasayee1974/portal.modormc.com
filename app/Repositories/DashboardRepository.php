@@ -243,6 +243,57 @@ class DashboardRepository
         })->values();
     }
 
+    public function getDispatchDetails(array $filters)
+    {
+        $query = Dispatch::query()
+            ->with(['customer', 'driver', 'truck', 'mixDesign', 'unloadSite', 'uom'])
+            ->orderBy('dispatch_time', 'desc');
+
+        $this->applyFilters($query, $filters, 'dispatch_time');
+
+        return $query->get()->map(function ($d) {
+            return [
+                'id' => $d->id,
+                'dispatch_no' => $d->dispatch_no,
+                'dispatch_time' => $d->dispatch_time?->toDateTimeString(),
+                'dispatch_status' => $d->dispatch_status,
+                'payment_mode' => $d->payment_mode,
+                'customer' => [
+                    'id' => $d->customer_id,
+                    'name' => $d->customer?->legal_name,
+                ],
+                'unload_site' => [
+                    'id' => $d->unload_site_id,
+                    'name' => $d->unloadSite?->name,
+                ],
+                'mix_design' => [
+                    'id' => $d->mixdesign_id,
+                    'name' => $d->mixDesign?->design_name,
+                    'code' => $d->mixDesign?->design_code,
+                ],
+                'delivered_qty' => [
+                    'qty' => round((float) $d->delivered_qty, 3),
+                    'unit' => $d->uom?->unit_code ?: ($d->mixDesign?->uom?->unit_code ?: 'm³'),
+                ],
+                'truck' => [
+                    'id' => $d->truck_id,
+                    'registration' => $d->truck?->registration ?: $d->truck?->name,
+                ],
+                'driver' => [
+                    'id' => $d->driver_id,
+                    'name' => $d->driver ? trim($d->driver->first_name . ' ' . $d->driver->last_name) : null,
+                ],
+                'financials' => [
+                    'load_rate' => round((float) $d->load_rate, 2),
+                    'load_untax_amount' => round((float) $d->load_untax_amount, 2),
+                    'load_tax_amount' => round((float) $d->load_tax_amount, 2),
+                    'load_total_amount' => round((float) $d->load_total_amount, 2),
+                ]
+            ];
+        })->values();
+    }
+
+
     public function getTopProducts(array $filters)
     {
         $query = DB::table('mm_dispatches as d')

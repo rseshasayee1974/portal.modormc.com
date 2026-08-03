@@ -44,13 +44,13 @@ class UserController extends Controller
                 $q->where('code', 'SAAS_OWNER');
             });
 
-            $activePlantId = session('active_plant_id');
+            $activePlantId = app(\App\Services\PlantContextService::class)->plantId();
             if ($activePlantId) {
                 $query->whereHas('entityUsers', function ($q) use ($activePlantId) {
                     $q->where('plant_id', $activePlantId);
                 });
             } else {
-                $activeEntityId = session('active_entity_id');
+                $activeEntityId = app(\App\Services\PlantContextService::class)->entityId();
                 if ($activeEntityId) {
                     $query->whereHas('entityUsers', function ($q) use ($activeEntityId) {
                         $q->where('entity_id', $activeEntityId);
@@ -108,7 +108,7 @@ class UserController extends Controller
         }
 
         $plantsQuery = Plant::where('is_active', 1);
-        $activePlantId = session('active_plant_id');
+        $activePlantId = app(\App\Services\PlantContextService::class)->plantId();
         if ($activePlantId && !$isSuperUser) {
             $plantsQuery->where('id', $activePlantId);
         }
@@ -117,6 +117,21 @@ class UserController extends Controller
             'label' => $p->name,
             'entity_id' => $p->entity_id
         ]);
+
+        if ($request->wantsJson() || $request->is('api/*')) {
+            $currentUser = User::with(['entityUsers.entity', 'entityUsers.plant', 'entityUsers.role'])
+                ->find($user->id);
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'user' => $currentUser,
+                    'entities' => $entities,
+                    'plants' => $plants,
+                    'userGroups' => $userGroups,
+                ]
+            ]);
+        }
 
         return Inertia::render('Users/Index', [
             'users' => $users,
@@ -202,6 +217,10 @@ class UserController extends Controller
         $user->entityUsers()->delete(); // Clean relationships
         $user->delete();
 
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json(['success' => true, 'message' => 'User deleted successfully.']);
+        }
+
         return redirect()->back()->with('success', 'User deleted successfully.');
     }
 
@@ -258,6 +277,10 @@ class UserController extends Controller
         $targetUser = User::onlyTrashed()->findOrFail($id);
         $targetUser->restore();
 
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json(['success' => true, 'message' => 'User restored successfully.']);
+        }
+
         return redirect()->back()->with('success', 'User restored successfully.');
     }
 
@@ -275,6 +298,10 @@ class UserController extends Controller
 
         $targetUser->entityUsers()->forceDelete(); // Clean relationships permanently
         $targetUser->forceDelete();
+
+        if (request()->wantsJson() || request()->is('api/*')) {
+            return response()->json(['success' => true, 'message' => 'User permanently deleted.']);
+        }
 
         return redirect()->back()->with('success', 'User permanently deleted.');
     }
