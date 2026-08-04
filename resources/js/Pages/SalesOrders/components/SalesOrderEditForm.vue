@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useForm, router } from '@inertiajs/vue3';
-import { computed, watch, onMounted, ref } from 'vue';
+import { useForm, router, usePage } from '@inertiajs/vue3';
+import { computed, watch, ref, onMounted } from 'vue';
 import axios from 'axios';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
@@ -10,11 +10,11 @@ import Dialog from 'primevue/dialog';
 import Swal from 'sweetalert2';
 import { 
     PencilSquareIcon, 
-    InformationCircleIcon, 
     DocumentCheckIcon,
     LockClosedIcon,
     SparklesIcon
 } from '@heroicons/vue/24/outline';
+import RecipePopover from '@/Components/Base/RecipePopover.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 import MixDesignCreateForm from '@/Pages/MixDesigns/Partials/MixDesignCreateForm.vue';
 
@@ -31,6 +31,7 @@ const props = withDefaults(defineProps<{
     products?: any[];
     units?: any[];
     designTypes?: any[];
+    pumpRates?: any[];
 }>(), {
     salesOrder: () => ({}),
     customers: () => [],
@@ -44,6 +45,7 @@ const props = withDefaults(defineProps<{
     products: () => [],
     units: () => [],
     designTypes: () => [],
+    pumpRates: () => [],
 });
 
 const emit = defineEmits<{
@@ -124,7 +126,7 @@ const form = useForm({
     is_tax_inclusive: props.salesOrder?.is_tax_inclusive ? true : false,
     produced_qty: Number(props.salesOrder?.produced_qty ?? 0),
     status: Number(props.salesOrder?.status ?? 1),
-    concrete_pump: props.salesOrder?.concrete_pump ? Number(props.salesOrder.concrete_pump) : null,
+    pump_type: props.salesOrder?.pump_type ? Number(props.salesOrder.pump_type) : null,
     pump_rate: Number(props.salesOrder?.pump_rate ?? 0),
     scheduled_start: props.salesOrder?.scheduled_start ? new Date(props.salesOrder.scheduled_start) : defaultStart,
     scheduled_end: props.salesOrder?.scheduled_end ? new Date(props.salesOrder.scheduled_end) : null,
@@ -195,11 +197,19 @@ const customerPOOptions = computed(() => {
     ];
 });
 
+const page = usePage();
+const customSettings = page.props.custom_settings as any;
+const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
+
+
+
 const subtotal = computed(() => {
     const qty = Number(form.total_qty || 0);
     const rate = Number(form.rate || 0);
     const pumpRate = Number(form.pump_rate || 0);
-    return (qty * rate) + pumpRate;
+    // Flat rate mode: pump_rate is fixed amount; per-m³ mode: pump_rate × qty
+    const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
+    return (qty * rate) + pumpCharge;
 });
 
 const selectedTaxRate = computed(() => {
@@ -248,7 +258,7 @@ onMounted(async () => {
             form.is_tax_inclusive = fullData.is_tax_inclusive ? true : false;
             form.produced_qty = Number(fullData.produced_qty ?? 0);
             form.status = Number(fullData.status ?? 1);
-            form.concrete_pump = fullData.concrete_pump ? Number(fullData.concrete_pump) : null;
+            form.pump_type = fullData.pump_type ? Number(fullData.pump_type) : null;
             form.pump_rate = Number(fullData.pump_rate ?? 0);
             form.scheduled_start = fullData.scheduled_start ? new Date(fullData.scheduled_start) : defaultStart;
             form.scheduled_end = fullData.scheduled_end ? new Date(fullData.scheduled_end) : null;
@@ -273,7 +283,7 @@ watch(() => form.customer_po_id, (newVal) => {
         if (salesOrder) {
             form.customer_id = salesOrder.patron_id;
             form.site_id = salesOrder.site_id;
-            form.concrete_pump = salesOrder.concrete_pump;
+            form.pump_type = salesOrder.pump_type;
             form.sales_executive_id = salesOrder.sales_executive_id;
             form.is_tax_inclusive = salesOrder.is_tax_inclusive ? true : false;
             
@@ -290,7 +300,7 @@ watch(() => form.customer_po_id, (newVal) => {
     } else {
         form.customer_id = null;
         form.site_id = null;
-        form.concrete_pump = null;
+        form.pump_type = null;
         form.pump_rate = 0;
         form.mix_design_id = null;
         form.total_qty = 0;
@@ -301,31 +311,99 @@ watch(() => form.customer_po_id, (newVal) => {
     }
 });
 
+
+
+const resolvePumpRatesLocally = (customerId: number | null, siteId: number | null) => {
+    const activeRates = props.pumpRates || [];
+    const scoredRates = activeRates.map(rate => {
+        let score = 0;
+        if (rate.customer_id !== null && Number(rate.customer_id) === Number(customerId)) {
+            if (siteId !== null && Number(rate.site_id) === Number(siteId)) {
+                score = 3;
+            } else if (rate.site_id === null || rate.site_id === undefined) {
+                score = 2;
+            }
+        } else if (rate.customer_id === null || rate.customer_id === undefined) {
+            score = 1;
+        }
+        return { ...rate, score };
+    }).filter(rate => rate.score > 0);
+
+    const resolved: Record<string, any> = {};
+    scoredRates.forEach(rate => {
+        const type = rate.pump_type;
+        if (!resolved[type] || resolved[type].score < rate.score) {
+            resolved[type] = rate;
+        }
+    });
+
+    return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
+};
+
 const updatePumpRate = () => {
+    console.log('updatePumpRate (Edit, Local) called:', {
+        customer_po_id: form.customer_po_id,
+        pump_type: form.pump_type,
+        customer_id: form.customer_id,
+        site_id: form.site_id
+    });
     if (form.customer_po_id) {
         const customerPO = props.customerPOs.find((so) => Number(so.id) === Number(form.customer_po_id));
         if (customerPO) {
             // Find the PO item for the selected mix design
             const poItem = (customerPO.items || []).find((item: any) => Number(item.mix_design_id) === Number(form.mix_design_id));
-            if (poItem && form.concrete_pump) {
-                const pr = (poItem.pump_rates || poItem.pumpRates || []).find(
-                    (p: any) => String(p.pump_type) === String(form.concrete_pump)
-                );
-                if (pr) {
-                    form.pump_rate = Number(pr.pump_rate || 0);
+            if (poItem) {
+                let matched = null;
+                if (form.pump_type) {
+                    matched = (poItem.pump_rates || poItem.pumpRates || []).find(
+                        (p: any) => String(p.pump_type) === String(form.pump_type)
+                    );
+                }
+                if (!matched) {
+                    matched = (poItem.pump_rates || poItem.pumpRates || []).find((p: any) => Number(p.pump_rate) > 0);
+                }
+                if (matched) {
+                    form.pump_type = Number(matched.pump_type);
+                    form.pump_rate = Number(matched.pump_rate || 0);
                     return;
                 }
             }
         }
+    } else {
+        const resolved = resolvePumpRatesLocally(form.customer_id, form.site_id);
+        console.log('Resolved rates locally (Edit):', resolved);
+        let matched = null;
+        if (form.pump_type) {
+            matched = resolved.find((r: any) => String(r.pump_type) === String(form.pump_type));
+        }
+        if (!matched && resolved.length > 0) {
+            matched = resolved[0];
+        }
+        if (matched) {
+            form.pump_type = Number(matched.pump_type);
+            form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
+            return;
+        }
     }
+    form.pump_type = null;
     form.pump_rate = 0;
 };
 
-watch(() => [form.concrete_pump, form.mix_design_id], () => {
+watch(() => form.pump_type, () => {
     if (isInitializing.value) return;
-    if (form.customer_po_id) {
-        updatePumpRate();
-    }
+    updatePumpRate();
+});
+watch(() => form.mix_design_id, () => {
+    if (isInitializing.value) return;
+    updatePumpRate();
+});
+watch(() => form.customer_id, () => {
+    if (isInitializing.value) return;
+    updatePumpRate();
+});
+watch(() => form.site_id, () => {
+    if (isInitializing.value) return;
+    updatePumpRate();
 });
 
 const submit = () => {
@@ -559,28 +637,35 @@ const handleMixCreated = () => {
                                 <span>Create New</span>
                             </button>
                         </div>
-                        <BaseSelect
-                            v-model="form.mix_design_id"
-                            :options="safeMixDesigns"
-                            optionLabel="design_name"
-                            optionValue="id"
-                            filter
-                            placeholder="Select Mix Design"
-                            :error="form.errors.mix_design_id"
-                            :disabled="isMixDesignLocked"
-                        />
+                        <div class="flex items-center gap-2 overflow-visible relative popover-container">
+                            <div class="flex-1 min-w-0">
+                                <BaseSelect
+                                    v-model="form.mix_design_id"
+                                    :options="safeMixDesigns"
+                                    optionLabel="design_name"
+                                    optionValue="id"
+                                    filter
+                                    placeholder="Select Mix Design"
+                                    :error="form.errors.mix_design_id"
+                                    :disabled="isMixDesignLocked"
+                                    class="w-full"
+                                />
+                            </div>
+                            <!-- Info Button Popover -->
+                            <RecipePopover :mixDesignId="form.mix_design_id" :mixDesigns="props.mixDesigns" />
+                        </div>
                     </div>
 
                     <!-- Pump Type -->
                     <div>
                         <BaseSelect
-                            v-model="form.concrete_pump"
+                            v-model="form.pump_type"
                             :options="concretePumpOptions"
                             optionLabel="label"
                             optionValue="value"
                             label="Pump Type"
                             placeholder="Select Type"
-                            :error="form.errors.concrete_pump"
+                            :error="form.errors.pump_type"
                             :disabled="isRestrictedFieldLocked"
                         />
                     </div>

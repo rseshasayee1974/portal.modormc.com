@@ -52,12 +52,12 @@ class MixDesignController extends Controller
 
         $validated = $request->validate([
             'partner_id' => 'nullable|exists:mm_patrons,id',
-            'design_name' => 'required|string|max:255|unique:mm_mix_designs,design_name,NULL,id,plant_id,' . $plantId . ',partner_id,' . $request->partner_id,
-            'design_code' => 'nullable|string|max:100',
-            // 'design_type' => 'required|string|exists:mm_concrete_grades,name,plant_id,' . $plantId,
+            'design_name' => 'required|string|max:255|unique:mm_mix_designs,design_name,NULL,id,plant_id,' . $plantId,
+            'design_code' => 'nullable|string|max:100|unique:mm_mix_designs,design_code,NULL,id,plant_id,' . $plantId,
             'design_type' => 'nullable|exists:mm_concrete_grades,name,plant_id,' . $plantId,
             'unit_id' => 'nullable|exists:mm_product_units,id',
             'rate_per_qty' => 'nullable|numeric',
+            'is_active' => 'nullable|boolean',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:mm_products,id',
             'items.*.uom_id' => 'required|exists:mm_product_units,id',
@@ -82,9 +82,9 @@ class MixDesignController extends Controller
                 'design_name' => $validated['design_name'],
                 'design_code' => $validated['design_code'],
                 'design_type' => $validated['design_type'],
-
                 'unit_id' => $validated['unit_id'],
                 'rate_per_qty' => $validated['rate_per_qty'],
+                'is_active' => isset($validated['is_active']) ? ($validated['is_active'] ? 1 : 0) : 1,
                 'created_by' => Auth::id(),
             ]);
 
@@ -118,11 +118,12 @@ class MixDesignController extends Controller
 
         $validated = $request->validate([
             'partner_id' => 'required|exists:mm_patrons,id',
-            'design_name' => 'required|string|max:255|unique:mm_mix_designs,design_name,' . $mixdesign->id . ',id,plant_id,' . $plantId . ',partner_id,' . $request->partner_id,
-            'design_code' => 'nullable|string|max:100',
+            'design_name' => 'required|string|max:255|unique:mm_mix_designs,design_name,' . $mixdesign->id . ',id,plant_id,' . $plantId,
+            'design_code' => 'nullable|string|max:100|unique:mm_mix_designs,design_code,' . $mixdesign->id . ',id,plant_id,' . $plantId,
             'design_type' => 'nullable|exists:mm_concrete_grades,name,plant_id,' . $plantId,
             'unit_id' => 'nullable|exists:mm_product_units,id',
             'rate_per_qty' => 'nullable|numeric',
+            'is_active' => 'nullable|boolean',
             'items' => 'required|array|min:1',
             'items.*.id' => 'nullable|exists:mm_mix_design_items,id',
             'items.*.product_id' => 'required|exists:mm_products,id',
@@ -149,6 +150,7 @@ class MixDesignController extends Controller
                 'design_type' => $validated['design_type'],
                 'unit_id' => $validated['unit_id'],
                 'rate_per_qty' => $validated['rate_per_qty'],
+                'is_active' => isset($validated['is_active']) ? ($validated['is_active'] ? 1 : 0) : $mixdesign->is_active,
                 'updated_by' => Auth::id(),
             ]);
 
@@ -214,6 +216,13 @@ class MixDesignController extends Controller
         }
         $mixdesign->delete();
         return redirect()->back()->with('success', 'Mix Design deleted successfully.');
+    }
+
+    public function toggleActive(MixDesign $mixdesign)
+    {
+        $this->authorizeModule('edit');
+        $mixdesign->update(['is_active' => !$mixdesign->is_active]);
+        return redirect()->back()->with('success', 'Mix Design status updated.');
     }
 
     public function getGradeIngredients($gradeId)

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('mm_sales_orders', function (Blueprint $table) {
             if (!Schema::hasColumn('mm_sales_orders', 'pump_rate')) {
-                $table->decimal('pump_rate', 15, 2)->nullable()->default(0.00)->after('concrete_pump');
+                $table->decimal('pump_rate', 15, 2)->nullable()->default(0.00)->after('pump_type');
             }
         });
     }

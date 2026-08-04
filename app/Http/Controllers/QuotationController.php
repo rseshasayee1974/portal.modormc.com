@@ -37,6 +37,7 @@ class QuotationController extends Controller
             'unitOptions' => Productunit(),
             'concretePumpOptions' => PumpTypeDropdown(),
             'pumpTypeOptions' => PumpTypeDropdown(),
+            'pumpRates' => \App\Models\PumpRate::where('status', true)->where('plant_id', $plantId)->get(),
             'instant_customer' => CustomSetting::getForModule(session('active_entity_id'), 'quotation')['instant_customer'] ?? 0,
         ]);
     }
@@ -121,7 +122,7 @@ class QuotationController extends Controller
                     'patron_id' => $quotation->patron_id,
                     'site_id' => $quotation->site_id,
                     'sales_executive_id' => $quotation->sales_executive_id,
-                    'concrete_pump' => $quotation->concrete_pump,
+                    'pump_type' => $quotation->pump_type,
                     'pump_rate' => $quotation->pump_rate,
                     'manual_rate' => $quotation->manual_rate,
                     'boom_pump_rate' => $quotation->boom_pump_rate,

@@ -37,7 +37,7 @@ class BatchController extends Controller
         $activePlantId = session('active_plant_id');
 
      $batches = Batch::with([
-        'dispatches:id,batch_id,truck_id,transport_id,driver_id,sales_executive_id,concrete_pump,empty_weight_truck,loaded_weight_truck,empty_time,load_time',
+        'dispatches:id,batch_id,truck_id,transport_id,driver_id,sales_executive_id,pump_type,empty_weight_truck,loaded_weight_truck,empty_time,load_time',
         'dispatches.truck',
         'dispatches.transport', 
         'dispatches.driver',
@@ -46,7 +46,7 @@ class BatchController extends Controller
         'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
         'materials.product:id,title',
         'materials.uom:id,unit_code',
-        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id,customer_po_id,concrete_pump,pump_rate',
+        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id,customer_po_id,pump_type,pump_rate',
         'salesOrder.plant:id,name,mixer_capacity',
         'salesOrder.customer:id,legal_name',
         'salesOrder.mixDesign:id,design_name,design_code',
@@ -103,7 +103,7 @@ class BatchController extends Controller
                 'customerPO.site',
                 'customerPO.quotation.items.mixDesign',
                 'customerPO.quotation',
-                'latestDispatch:id,sales_order_id,truck_id,transport_id,driver_id,concrete_pump,sales_executive_id,empty_weight_truck'
+                'latestDispatch:id,sales_order_id,truck_id,transport_id,driver_id,pump_type,sales_executive_id,empty_weight_truck'
             ])
             ->withCount('batches')
             ->where('plant_id', $activePlantId)
@@ -118,7 +118,7 @@ class BatchController extends Controller
                 $po = $so->customerPO;
                 $so->customer_id = $so->customer_id ?? $po->patron_id;
                 $so->site_id = $so->site_id ?? $po->site_id;
-                $so->concrete_pump = $so->concrete_pump ?? $po->concrete_pump;
+                $so->pump_type = $so->pump_type ?? $po->pump_type;
                 $so->sales_executive_id = $so->sales_executive_id ?? $po->sales_executive_id;
                 
                 if ($po->quotation && $po->quotation->items && $po->quotation->items->isNotEmpty()) {
@@ -326,7 +326,7 @@ class BatchController extends Controller
                     'transport_id'        => $payload['transport_id'] ?? null,
                     'driver_id'           => $payload['driver_id'] ?? null,
                     'sales_executive_id'  => $payload['sales_executive_id'] ?? null,
-                    'concrete_pump'       => $payload['concrete_pump'] ?? null,
+                    'pump_type'       => $payload['pump_type'] ?? null,
                     'empty_weight_truck'  => $payload['empty_weight_truck'] ?? 0,
                     'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? 0,
                     'net_weight'          => $payload['net_weight'] ?? 0,
@@ -531,7 +531,7 @@ class BatchController extends Controller
             $po = $batch->salesOrder->customerPO;
             $batch->salesOrder->customer_id = $batch->salesOrder->customer_id ?? $po->patron_id;
             $batch->salesOrder->site_id = $batch->salesOrder->site_id ?? $po->site_id;
-            $batch->salesOrder->concrete_pump = $batch->salesOrder->concrete_pump ?? $po->concrete_pump;
+            $batch->salesOrder->pump_type = $batch->salesOrder->pump_type ?? $po->pump_type;
             $batch->salesOrder->sales_executive_id = $batch->salesOrder->sales_executive_id ?? $po->sales_executive_id;
             
             if ($po->quotation && $po->quotation->items && $po->quotation->items->isNotEmpty()) {
@@ -572,11 +572,11 @@ class BatchController extends Controller
 
         if (!$isAdmin) {
             $dispatch = $batch->dispatches()->first();
-            $dispatchPump = $dispatch ? $dispatch->concrete_pump : null;
+            $dispatchPump = $dispatch ? $dispatch->pump_type : null;
             if (
                 ($request->has('batch_size') && (float)$request->batch_size !== (float)$batch->batch_size) ||
                 ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$batch->sales_order_id) ||
-                ($request->has('concrete_pump') && $request->concrete_pump !== $dispatchPump)
+                ($request->has('pump_type') && $request->pump_type !== $dispatchPump)
             ) {
                 return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Sales Order, Batch Size, or Concrete Pump.']);
             }
@@ -651,7 +651,7 @@ class BatchController extends Controller
                         'transport_id' => array_key_exists('transport_id', $payload) ? $payload['transport_id'] : $dispatch->transport_id,
                         'driver_id' => array_key_exists('driver_id', $payload) ? $payload['driver_id'] : $dispatch->driver_id,
                         'sales_executive_id' => array_key_exists('sales_executive_id', $payload) ? $payload['sales_executive_id'] : $dispatch->sales_executive_id,
-                        'concrete_pump' => array_key_exists('concrete_pump', $payload) ? $payload['concrete_pump'] : $dispatch->concrete_pump,
+                        'pump_type' => array_key_exists('pump_type', $payload) ? $payload['pump_type'] : $dispatch->pump_type,
                         'empty_weight_truck' => array_key_exists('empty_weight_truck', $payload) ? $payload['empty_weight_truck'] : $dispatch->empty_weight_truck,
                         'loaded_weight_truck' => array_key_exists('loaded_weight_truck', $payload) ? $payload['loaded_weight_truck'] : $dispatch->loaded_weight_truck,
                         'net_weight' => array_key_exists('net_weight', $payload) ? $payload['net_weight'] : $dispatch->net_weight,

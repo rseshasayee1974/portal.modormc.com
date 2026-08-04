@@ -87,7 +87,7 @@ const getInitialForm = () => ({
     engine_no: '',
     chassis_no: '',
     vehicle_type: null as string | null,
-    concrete_pump: null as string | null,
+    pump_type: null as string | null,
     pump_rate: null as number | null,
     capacity: null as number | null,
     is_active: true,
@@ -116,7 +116,7 @@ const openEdit = (m: Machine) => {
     editForm.engine_no = m.engine_no || '';
     editForm.chassis_no = m.chassis_no || '';
     editForm.vehicle_type = m.vehicle_type;
-    editForm.concrete_pump = (m as any).concrete_pump || null;
+    editForm.pump_type = (m as any).pump_type || null;
     editForm.pump_rate = (m as any).pump_rate ? Number((m as any).pump_rate) : null;
     editForm.capacity = m.capacity ? Number(m.capacity) : null;
     editForm.is_active = m.is_active !== undefined ? Boolean(m.is_active) : true;

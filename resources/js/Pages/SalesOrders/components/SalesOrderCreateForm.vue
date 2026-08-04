@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { useForm, router } from '@inertiajs/vue3';
+import { useForm, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
+import axios from 'axios';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Button from 'primevue/button';
@@ -8,10 +9,10 @@ import Dialog from 'primevue/dialog';
 import Swal from 'sweetalert2';
 import { 
     PlusCircleIcon, 
-    InformationCircleIcon, 
     DocumentCheckIcon,
     SparklesIcon
 } from '@heroicons/vue/24/outline';
+import RecipePopover from '@/Components/Base/RecipePopover.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import MixDesignCreateForm from '@/Pages/MixDesigns/Partials/MixDesignCreateForm.vue';
 
@@ -29,6 +30,7 @@ const props = withDefaults(defineProps<{
     designTypes?: any[];
     salesExecutives?: any[];
     taxes?: any[];
+    pumpRates?: any[];
 }>(), {
     customers: () => [],
     sites: () => [],
@@ -43,6 +45,7 @@ const props = withDefaults(defineProps<{
     designTypes: () => [],
     salesExecutives: () => [],
     taxes: () => [],
+    pumpRates: () => [],
 });
 
 const showMixDesignModal = ref(false);
@@ -132,7 +135,7 @@ const form = useForm({
     is_tax_inclusive: false,
     produced_qty: 0,
     status: 1,
-    concrete_pump: null as number | null,
+    pump_type: null as number | null,
     pump_rate: 0,
     scheduled_start: defaultStart as Date | null,
     scheduled_end: null as Date | null,
@@ -145,11 +148,19 @@ const taxOptions = computed(() => {
     }));
 });
 
+const page = usePage();
+const customSettings = page.props.custom_settings as any;
+const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
+
+
+
 const subtotal = computed(() => {
     const qty = Number(form.total_qty || 0);
     const rate = Number(form.rate || 0);
     const pumpRate = Number(form.pump_rate || 0);
-    return (qty * rate) + pumpRate;
+    // Flat rate mode: pump_rate is fixed amount; per-m³ mode: pump_rate × qty
+    const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
+    return (qty * rate) + pumpCharge;
 });
 
 const selectedTaxRate = computed(() => {
@@ -185,7 +196,7 @@ watch(() => form.customer_po_id, (newVal) => {
             form.site_id = customerPO.site_id;
             form.sales_executive_id = customerPO.sales_executive_id;
             form.is_tax_inclusive = !!customerPO.is_tax_inclusive;
-            const firstItem = customerPO.quotation?.items?.[0];
+            const firstItem = customerPO.items?.[0] || customerPO.quotation?.items?.[0];
             if (firstItem) {
                 form.mix_design_id = firstItem.mix_design_id;
                 form.total_qty = Number(firstItem.quantity || 0);
@@ -206,34 +217,97 @@ watch(() => form.customer_po_id, (newVal) => {
         form.tax_id = null;
         form.is_tax_inclusive = false;
         form.sales_executive_id = null;
-        form.concrete_pump = null;
+        form.pump_type = null;
     }
 });
 
+const resolvePumpRatesLocally = (customerId: number | null, siteId: number | null) => {
+    const activeRates = props.pumpRates || [];
+    const scoredRates = activeRates.map(rate => {
+        let score = 0;
+        if (rate.customer_id !== null && Number(rate.customer_id) === Number(customerId)) {
+            if (siteId !== null && Number(rate.site_id) === Number(siteId)) {
+                score = 3;
+            } else if (rate.site_id === null || rate.site_id === undefined) {
+                score = 2;
+            }
+        } else if (rate.customer_id === null || rate.customer_id === undefined) {
+            score = 1;
+        }
+        return { ...rate, score };
+    }).filter(rate => rate.score > 0);
+
+    const resolved: Record<string, any> = {};
+    scoredRates.forEach(rate => {
+        const type = rate.pump_type;
+        if (!resolved[type] || resolved[type].score < rate.score) {
+            resolved[type] = rate;
+        }
+    });
+
+    return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
+};
+
 const updatePumpRate = () => {
+    console.log('updatePumpRate (Create, Local) called:', {
+        customer_po_id: form.customer_po_id,
+        pump_type: form.pump_type,
+        customer_id: form.customer_id,
+        site_id: form.site_id
+    });
     if (form.customer_po_id) {
         const customerPO = props.customerPOs.find((so) => Number(so.id) === Number(form.customer_po_id));
         if (customerPO) {
             // Check po items for the selected mix design
             const poItem = (customerPO.items || []).find((item: any) => Number(item.mix_design_id) === Number(form.mix_design_id));
-            if (poItem && form.concrete_pump) {
-                const pr = (poItem.pump_rates || poItem.pumpRates || []).find(
-                    (p: any) => String(p.pump_type) === String(form.concrete_pump)
-                );
-                if (pr) {
-                    form.pump_rate = Number(pr.pump_rate || 0);
+            if (poItem) {
+                let matched = null;
+                if (form.pump_type) {
+                    matched = (poItem.pump_rates || poItem.pumpRates || []).find(
+                        (p: any) => String(p.pump_type) === String(form.pump_type)
+                    );
+                }
+                if (!matched) {
+                    matched = (poItem.pump_rates || poItem.pumpRates || []).find((p: any) => Number(p.pump_rate) > 0);
+                }
+                if (matched) {
+                    form.pump_type = Number(matched.pump_type);
+                    form.pump_rate = Number(matched.pump_rate || 0);
                     return;
                 }
             }
         }
+    } else {
+        const resolved = resolvePumpRatesLocally(form.customer_id, form.site_id);
+        console.log('Resolved rates locally (Create):', resolved);
+        let matched = null;
+        if (form.pump_type) {
+            matched = resolved.find((r: any) => String(r.pump_type) === String(form.pump_type));
+        }
+        if (!matched && resolved.length > 0) {
+            matched = resolved[0];
+        }
+        if (matched) {
+            form.pump_type = Number(matched.pump_type);
+            form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
+            return;
+        }
     }
+    form.pump_type = null;
     form.pump_rate = 0;
 };
 
-watch(() => [form.concrete_pump, form.mix_design_id], () => {
-    if (form.customer_po_id) {
-        updatePumpRate();
-    }
+watch(() => form.pump_type, () => {
+    updatePumpRate();
+});
+watch(() => form.mix_design_id, () => {
+    updatePumpRate();
+});
+watch(() => form.customer_id, () => {
+    updatePumpRate();
+});
+watch(() => form.site_id, () => {
+    updatePumpRate();
 });
 
 const submit = () => {
@@ -439,28 +513,34 @@ const handleMixCreated = () => {
                                 <span>Create New</span>
                             </button>
                         </div>
-                        <BaseSelect
-                            v-model="form.mix_design_id"
-                            :options="safeMixDesigns"
-                            optionLabel="design_name"
-                            optionValue="id"
-                            filter
-                            placeholder="Select Mix Design"
-                            :error="form.errors.mix_design_id"
-                            :disabled="!!form.customer_po_id"
-                        />
+                        <div class="flex items-center gap-2 overflow-visible relative popover-container">
+                            <div class="flex-1 min-w-0">
+                                <BaseSelect
+                                    v-model="form.mix_design_id"
+                                    :options="safeMixDesigns"
+                                    optionLabel="design_name"
+                                    optionValue="id"
+                                    filter
+                                    placeholder="Select Mix Design"
+                                    :error="form.errors.mix_design_id"
+                                    class="w-full"
+                                />
+                            </div>
+                            <!-- Info Button Popover -->
+                            <RecipePopover :mixDesignId="form.mix_design_id" :mixDesigns="props.mixDesigns" />
+                        </div>
                     </div>
 
                     <!-- Pump Type -->
                     <div>
                         <BaseSelect
-                            v-model="form.concrete_pump"
+                            v-model="form.pump_type"
                             :options="concretePumpOptions"
                             optionLabel="label"
                             optionValue="value"
                             label="Pump Type"
                             placeholder="Select Type"
-                            :error="form.errors.concrete_pump"
+                            :error="form.errors.pump_type"
                         />
                     </div>
 

@@ -53,7 +53,6 @@ export function usePermissions() {
             'plan',
             'subscription_status',
             'state_code',
-            'terms_condition',
             'menu',
             'role',
             'permission'

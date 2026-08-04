@@ -7,6 +7,7 @@ import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
+import ToggleSwitch from 'primevue/toggleswitch';
 import {
     PlusIcon,
     BeakerIcon,
@@ -21,9 +22,10 @@ const props = defineProps<{
     partners: any[];
     defaultUomId?: number | null;
     designTypes: any[];
+    initialDesign?: any;
 }>();
 
-const emit = defineEmits(['created']);
+const emit = defineEmits(['created', 'cancel']);
 
 const isOpen = ref(true);
 const toggle = () => { isOpen.value = !isOpen.value; };
@@ -44,13 +46,23 @@ const blankItem = () => ({
 });
 
 const form = useForm({
-    partner_id: null as number | null,
-    design_name: '',
-    design_code: '',
-    design_type: '',
-    unit_id: fallbackUomId.value,
-    rate_per_qty: 0,
-    items: [blankItem()] as any[]
+    partner_id: props.initialDesign?.partner_id ?? null as number | null,
+    design_name: props.initialDesign ? `${props.initialDesign.design_name} (Copy)` : '',
+    design_code: props.initialDesign ? (props.initialDesign.design_code ? `${props.initialDesign.design_code}-COPY` : '') : '',
+    design_type: props.initialDesign?.design_type ?? '',
+    unit_id: props.initialDesign?.unit_id ?? fallbackUomId.value,
+    rate_per_qty: props.initialDesign ? parseFloat(props.initialDesign.rate_per_qty || '0') : 0,
+    is_active: props.initialDesign ? (props.initialDesign.is_active ? true : false) : true,
+    items: props.initialDesign 
+        ? props.initialDesign.items.map((item: any) => ({
+            product_id: item.product_id,
+            uom_id: item.uom_id ?? fallbackUomId.value,
+            rate: parseFloat(item.rate || 0),
+            actual_quantity: parseFloat(item.actual_quantity || 0),
+            cross_quantity: parseFloat(item.cross_quantity || 0),
+            variation_quantity: parseFloat(item.variation_quantity || 0)
+          }))
+        : [blankItem()] as any[]
 });
 
 const addItem = () => form.items.push(blankItem());
@@ -112,7 +124,7 @@ const submit = () => {
 
 <template>
     <div class="create-panel" :class="{ 'create-panel--open': isOpen }">
-        <button class="create-panel__header" @click="toggle" type="button">
+        <button v-if="!initialDesign" class="create-panel__header" @click="toggle" type="button">
             <div class="flex items-center gap-3">
                 <div class="create-panel__icon">
                     <BeakerIcon class="w-5 h-5 text-indigo-500" />
@@ -127,7 +139,7 @@ const submit = () => {
             </div>
         </button>
 
-        <div class="create-panel__body" v-show="isOpen">
+        <div class="create-panel__body" v-show="initialDesign || isOpen">
             <div class="grid grid-cols-12 gap-6 mb-8">
                 <div class="col-span-12 lg:col-span-4">
                     <div class="section-title"><VariableIcon class="w-3.5 h-3.5" /><span>Identification</span></div>
@@ -146,6 +158,10 @@ const submit = () => {
                                 <BaseSelect v-model="form.unit_id" :options="unitOptions" optionLabel="label" label="UOM"  optionValue="value" placeholder="Selling Unit" fluid />
                             </div>
                             <BaseInputNumber v-model="form.rate_per_qty" label="Rate per m³"  :minFractionDigits="2" placeholder="0.00" fluid />
+                        </div>
+                        <div class="flex items-center gap-3 pt-2">
+                            <ToggleSwitch v-model="form.is_active" />
+                            <span class="text-xs font-semibold text-slate-600">Active Status</span>
                         </div>
                     </div>
                 </div>
@@ -219,7 +235,14 @@ const submit = () => {
             
         </div>
         <div class="flex justify-end p-4 border-t border-slate-100">
-                <BaseFormActions label="Save Mix Design" :loading="form.processing" @submit="submit" @reset="() => { form.reset(); form.items = [blankItem()]; }" />
+                <BaseFormActions 
+                    :label="initialDesign ? 'Duplicate Mix Design' : 'Save Mix Design'" 
+                    :cancelLabel="initialDesign ? 'Cancel' : 'Reset'"
+                    :loading="form.processing" 
+                    @submit="submit" 
+                    @cancel="initialDesign ? emit('cancel') : null"
+                    @reset="() => { if (!initialDesign) { form.reset(); form.items = [blankItem()]; } }" 
+                />
             </div>
     </div>
 </template>

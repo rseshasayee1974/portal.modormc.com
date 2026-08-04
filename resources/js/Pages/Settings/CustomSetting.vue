@@ -602,8 +602,8 @@ const deleteModule = (id: number) => {
                                 <div>
                                     <h4 class="font-bold text-amber-700 text-sm">Add Pump Charges to Total <code class="text-[9px] text-amber-400 ml-1 font-normal">[add_pouring_rates_to_total]</code></h4>
                                     <p class="text-xs text-slate-500 mt-0.5">
-                                        <span class="font-semibold text-slate-600">OFF</span> — Pump charge = Quantity (m³ / MT) × Pump Rate from Sales Order.<br/>
-                                        <span class="font-semibold text-amber-600">ON</span> — Pump charge = Flat Pump Rate from Sales Order + (Qty × Load Rate).
+                                        <span class="font-semibold text-slate-600">OFF (per m³)</span> — Pump rate is taxable. Total = Quantity × (Rate + Pump Rate) + Tax calculated on that total.<br/>
+                                        <span class="font-semibold text-amber-600">ON (Flat Rate)</span> — Pump rate is a flat/lump-sum charge added post-tax. Total = (Quantity × Rate) + Tax calculated on material + Flat Pump Rate.
                                     </p>
                                 </div>
                                 <InputSwitch v-model="form.settings.add_pouring_rates_to_total" />

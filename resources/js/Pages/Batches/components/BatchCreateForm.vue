@@ -71,7 +71,7 @@ const form = useForm({
     transport_id: null as number | null,
     driver_id: null as number | null,
     sales_executive_id: null as number | null,
-    concrete_pump: null as number | null,
+    pump_type: null as number | null,
     empty_weight_truck: 0,
     uom_id: null as number | null,
     site_id: null as number | null,
@@ -168,17 +168,17 @@ watch(() => form.sales_order_id, (newVal) => {
         const quotation = po?.quotation;
         const latestDispatch = selectedSalesOrder.value.latest_dispatch;
 
-        // Fallbacks for concrete_pump and sales_executive_id
-        const concretePumpVal = selectedSalesOrder.value.concrete_pump
-            ?? po?.concrete_pump
-            ?? quotation?.concrete_pump
-            ?? latestDispatch?.concrete_pump
+        // Fallbacks for pump_type and sales_executive_id
+        const concretePumpVal = selectedSalesOrder.value.pump_type
+            ?? po?.pump_type
+            ?? quotation?.pump_type
+            ?? latestDispatch?.pump_type
             ?? null;
         if (concretePumpVal !== null) {
             const num = Number(concretePumpVal);
-            form.concrete_pump = isNaN(num) ? concretePumpVal : num;
+            form.pump_type = isNaN(num) ? concretePumpVal : num;
         } else {
-            form.concrete_pump = null;
+            form.pump_type = null;
         }
 
         const salesExecVal = selectedSalesOrder.value.sales_executive_id
@@ -227,7 +227,7 @@ watch(() => form.sales_order_id, (newVal) => {
     } else {
         form.materials = [blankMaterial()];
         form.batch_no = props.nextBatchNo;
-        form.concrete_pump = null;
+        form.pump_type = null;
         form.sales_executive_id = null;
         form.truck_id = null;
         form.driver_id = null;
@@ -477,7 +477,7 @@ const submit = () => {
         form.transport_id = null;
         form.driver_id = null;
         form.sales_executive_id = null;
-        form.concrete_pump = null;
+        form.pump_type = null;
         form.empty_weight_truck = 0;
         form.empty_weight_photo = null;
         form.status = 1;
@@ -507,7 +507,7 @@ const submit = () => {
             driver_id: form.driver_id,
             sales_executive_id: form.sales_executive_id,
             empty_weight_truck: form.empty_weight_truck,
-            concrete_pump: form.concrete_pump,
+            pump_type: form.pump_type,
             uom_id: form.uom_id,
             site_id: form.site_id,
             status: 1,
@@ -675,7 +675,7 @@ const submit = () => {
                         <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear />
                     </div>
                     <div>
-                        <BaseSelect v-model="form.concrete_pump" :options="concretePumpOptions" optionLabel="label" optionValue="value" label="Concrete Type" placeholder="Select Concrete Type" :error="form.errors.concrete_pump" />
+                        <BaseSelect v-model="form.pump_type" :options="concretePumpOptions" optionLabel="label" optionValue="value" label="Concrete Type" placeholder="Select Concrete Type" :error="form.errors.pump_type" />
                     </div>
                     <div>
                         <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :minFractionDigits="1" :maxFractionDigits="1" :max="9.9" required :error="form.errors.batch_size" />

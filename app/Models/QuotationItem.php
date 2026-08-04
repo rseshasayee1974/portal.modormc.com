@@ -39,16 +39,14 @@ class QuotationItem extends Model
             if (empty($pr['pump_type'])) continue;
             $rate = (float)($pr['pump_rate'] ?? 0);
             
-            if ($rate > 0) {
-                $keepTypes[] = $pr['pump_type'];
-                $this->pumpRates()->updateOrCreate(
-                    ['pump_type' => $pr['pump_type']],
-                    [
-                        'pump_rate' => $rate,
-                        'quotation_id' => $this->quotation_id,
-                    ]
-                );
-            }
+            $keepTypes[] = $pr['pump_type'];
+            $this->pumpRates()->updateOrCreate(
+                ['pump_type' => $pr['pump_type']],
+                [
+                    'pump_rate' => $rate,
+                    'quotation_id' => $this->quotation_id,
+                ]
+            );
         }
         // Remove stale or zero entries
         if (!empty($keepTypes)) {

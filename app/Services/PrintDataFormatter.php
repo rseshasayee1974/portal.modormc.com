@@ -764,7 +764,7 @@ class PrintDataFormatter
         }
 
         $selectedRate = 0.0;
-        if ($model->concrete_pump) {
+        if ($model->pump_type) {
             if ($isManual) {
                 $selectedRate = (float)($model->manual_rate ?? 0);
             } else {
@@ -783,15 +783,52 @@ class PrintDataFormatter
         $totalTaxAmt = 0.0;
         $grandTotalAmt = 0.0;
 
-        $data['items'] = $model->items->map(function ($item, $idx) use ($isIntra, $isTaxInclusive, $itemPumpRate, &$subtotalAmt, &$totalTaxAmt, &$grandTotalAmt) {
-            $rate = (float)$item->rate + $itemPumpRate;
+        $data['items'] = $model->items->map(function ($item, $idx) use ($model, $isIntra, $isTaxInclusive, $selectedRate, $addPouringRatesToTotal, &$subtotalAmt, &$totalTaxAmt, &$grandTotalAmt) {
+            $actualItemPumpRate = 0.0;
+            $pumpTypeLabel = '-';
+            
+            if ($model->pump_type) {
+                $pr = $item->pumpRates->first(fn($r) => (string)$r->pump_type === (string)$model->pump_type);
+                if ($pr) {
+                    $actualItemPumpRate = (float)$pr->pump_rate;
+                }
+                if ($actualItemPumpRate === 0.0) {
+                    $actualItemPumpRate = $selectedRate;
+                }
+                if ($model->concretePump) {
+                    $pumpTypeLabel = $model->concretePump->registration;
+                } elseif ($model->pump_type) {
+                    $pumpTypeLabel = 'Pump';
+                }
+            } else {
+                // Fallback to the first non-zero pump rate defined on the item
+                $activeRates = $item->pumpRates->filter(fn($r) => (float)$r->pump_rate > 0);
+                if ($activeRates->isNotEmpty()) {
+                    $pr = $activeRates->first();
+                    $actualItemPumpRate = (float)$pr->pump_rate;
+                    if ($pr->pump) {
+                        $pumpTypeLabel = $pr->pump->registration;
+                    } else {
+                        $rawType = $pr->pump_type;
+                        $pumpTypeLabel = match(strtolower($rawType)) {
+                            'line_pump' => 'Line Pump',
+                            'boom_pump' => 'Boom Pump',
+                            'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
+                            default => ucwords(str_replace('_', ' ', $rawType))
+                        };
+                    }
+                }
+            }
+
+            $itemPumpRateForCalc = !$addPouringRatesToTotal ? $actualItemPumpRate : 0.0;
+            $rate = (float)$item->rate + $itemPumpRateForCalc;
             $qty = (float)$item->quantity;
             $taxModel = $item->tax;
             $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
 
             // Calculate lump sum pump rate for this item (if configured per mix design)
             // Placed post-tax, so linePumpTotal is now 0 for line item pricing
-            $linePumpTotal = 0.0;
+            $linePumpTotal = $addPouringRatesToTotal ? $actualItemPumpRate : 0.0;
 
             $lineTotal = 0.0;
             $lineTax = 0.0;
@@ -800,11 +837,13 @@ class PrintDataFormatter
             if ($isTaxInclusive) {
                 $lineTotal = ($rate * $qty);
                 $lineTax = $lineTotal - ($lineTotal / (1 + $taxRate / 100));
-                $lineUntaxed = $lineTotal - $lineTax;
+                $lineUntaxed = $lineTotal - $lineTax + $linePumpTotal;
+                $lineTotal = $lineTotal + $linePumpTotal;
             } else {
                 $lineUntaxed = ($rate * $qty);
                 $lineTax = ($lineUntaxed * $taxRate) / 100;
-                $lineTotal = $lineUntaxed + $lineTax;
+                $lineTotal = $lineUntaxed + $lineTax + $linePumpTotal;
+                $lineUntaxed = $lineUntaxed + $linePumpTotal;
             }
 
             $subtotalAmt += $lineUntaxed;
@@ -813,6 +852,17 @@ class PrintDataFormatter
 
             $taxDetails = self::resolveTaxDetails($taxModel, $isIntra, $lineTax, $lineUntaxed);
             $unitPrice = $isTaxInclusive ? (float)($qty > 0 ? ($lineUntaxed / $qty) : $rate) : $rate;
+
+            $showPumpCharges = !isset($data['settings']['pdf']['show_pump_charges']) || $data['settings']['pdf']['show_pump_charges'];
+
+            if ($showPumpCharges) {
+                $displayUnitPrice = $unitPrice - ($isTaxInclusive ? (float)($itemPumpRateForCalc / (1 + $taxRate / 100)) : (float)$itemPumpRateForCalc);
+                $displayPumpCharge = $actualItemPumpRate;
+            } else {
+                $displayUnitPrice = $unitPrice;
+                $displayPumpCharge = 0.0;
+                $pumpTypeLabel = '-';
+            }
 
             $itemDescription = self::formatMixDesignDescription($item->description, $item->mixDesign);
 
@@ -824,7 +874,9 @@ class PrintDataFormatter
                 'qty' => $qty,
                 'received_qty' => 0,
                 'unit' => $item->mixDesign->unit->unit_code ?? 'm³',
-                'unit_price' => $unitPrice,
+                'unit_price' => $displayUnitPrice,
+                'operation_type' => $pumpTypeLabel,
+                'pump_charge' => $displayPumpCharge,
                 'tax_name' => $taxDetails['name'] ?: '-',
                 'tax_rate' => $taxDetails['rate'],
                 'tax_group' => $taxDetails['group'],
@@ -921,33 +973,7 @@ class PrintDataFormatter
             ";
         }
 
-        $showMatrix = !isset($data['settings']['pdf']['pump_rates_matrix']) || $data['settings']['pdf']['pump_rates_matrix'];
-
         $ratesTableHtml = '';
-        if ($showMatrix && $hasPumpRates && !empty($rowsHtml) && !empty($pumpTypes)) {
-            $ratesTableHtml .= "
-                <div style='margin-top: 20px; margin-bottom: 20px; page-break-inside: avoid;'>
-                    <div style='display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px;'>
-                        <span style='font-size: 10px; font-weight: bold; text-transform: uppercase; color: #1e293b; letter-spacing: 0.12em;'>Additional Operation / Pump Charges Matrix</span>
-                        <span style='font-size: 8.5px; font-weight: bold; color: #64748b;'>Charges basis: {$chargeTypeLabel} (not included in total)</span>
-                    </div>
-                    <table class='items-table'>
-                        <thead>
-                            <tr>
-                                <th style='width: 30%; text-align: center; border-bottom: 1px solid #1e293b; border-top: 1.5px solid #1e293b; font-weight: bold;' rowspan='2'>Mix Design</th>
-                                <th style='text-align: center; border-bottom: 1px solid #1e293b; border-top: 1.5px solid #1e293b; font-weight: bold;' colspan='" . count($pumpTypes) . "'>Rate/{$chargeTypeLabel} (Rs)</th>
-                            </tr>
-                            <tr style='background: #f1f5f9; color: #475569;'>
-                                {$headersHtml}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {$rowsHtml}
-                        </tbody>
-                    </table>
-                </div>
-            ";
-        }
 
         $data['totals'] = [
             'sub_total'   => (float)$subtotalAmt,

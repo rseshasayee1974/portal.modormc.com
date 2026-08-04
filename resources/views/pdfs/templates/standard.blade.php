@@ -368,6 +368,10 @@
                 <tr>
                     <th class="text-center" style="width:28px">#</th>
                     <th class="text-left">Item &amp; Description</th>
+                    @if ($pdfSettings['show_pump_charges'] ?? true)
+                        <th class="text-left" style="width:120px">Operation Type</th>
+                        <th class="text-right" style="width:90px">Pump Charges</th>
+                    @endif
                     @if ($pdfSettings['qty'] ?? true)
                         <th class="text-right" style="width:55px">Qty</th>
                     @endif
@@ -398,6 +402,10 @@
                                 <div class="small muted">HSN: {{ $item['hsn'] }}</div>
                             @endif
                         </td>
+                        @if ($pdfSettings['show_pump_charges'] ?? true)
+                            <td class="text-left">{{ $item['operation_type'] ?? '-' }}</td>
+                            <td class="text-right">{{ isset($item['pump_charge']) && $item['pump_charge'] > 0 ? number_format($item['pump_charge'], 2) : '-' }}</td>
+                        @endif
                         @if ($pdfSettings['qty'] ?? true)
                             <td class="text-right bold">{{ number_format($item['qty'], 2) }}</td>
                         @endif
@@ -522,19 +530,9 @@
             </div>
         </div>
 
-        {{-- PUMP CHARGES MATRIX --}}
-        @if (($pdfSettings['pump_rates_matrix'] ?? true) && !empty($data['totals']['rates_table_html']))
-            <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;">
-                {!! $data['totals']['rates_table_html'] !!}
-            </div>
-        @endif
-
         {{-- TERMS --}}
         @php
             $termsText = !empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? '');
-            if (!empty($data['totals']['rates_table_html'])) {
-                $termsText = str_replace($data['totals']['rates_table_html'], '', $termsText);
-            }
         @endphp
         @if (($pdfSettings['terms'] ?? true) && !empty($termsText))
             <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;font-size:11px">

@@ -53,7 +53,7 @@ class UpdateSalesOrderRequest extends FormRequest
             'scheduled_start' => ['nullable', 'date'],
             // 'scheduled_end' => ['nullable', 'date', 'after_or_equal:scheduled_start'],
             'customer_po_id' => ['nullable', 'integer', 'exists:mm_customer_pos,id'],
-            'concrete_pump' => ['nullable','integer','exists:mm_machines,id'],
+            'pump_type' => ['nullable','integer','exists:mm_machines,id'],
             'pump_rate' => ['nullable', 'numeric', 'gte:0'],
         ];
     }

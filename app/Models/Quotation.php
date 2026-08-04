@@ -27,7 +27,8 @@ class Quotation extends Model
         'notes',
         'site_id',
         'sales_executive_id',
-        'concrete_pump',
+        'pump_type',
+        'pump_rate',
         'is_tax_inclusive',
         'quote_date',
         'validity_date',
@@ -38,7 +39,6 @@ class Quotation extends Model
         'amount_total',
         'status',
         'is_customer_po',
-        'sales_executive_id',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -48,6 +48,7 @@ class Quotation extends Model
         'is_customer_po' => 'integer',
         'sales_executive_id' => 'integer',
         'is_tax_inclusive' => 'boolean',
+        'pump_rate' => 'decimal:2',
         'amount_untaxed' => 'decimal:2',
         'amount_tax' => 'decimal:2',
         'adjustment' => 'decimal:2',
@@ -200,7 +201,7 @@ class Quotation extends Model
 
     public function concretePump()
     {
-        return $this->belongsTo(Machine::class, 'concrete_pump');
+        return $this->belongsTo(Machine::class, 'pump_type');
     }
 
     // Business Logic

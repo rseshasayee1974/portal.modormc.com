@@ -12,11 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('mm_customer_pos', function (Blueprint $table) {
-            $table->boolean('is_tax_inclusive')->default(false)->after('concrete_pump');
+            $table->boolean('is_tax_inclusive')->default(false)->after('pump_type');
         });
 
         Schema::table('mm_sales_orders', function (Blueprint $table) {
-            $table->boolean('is_tax_inclusive')->default(false)->after('concrete_pump');
+            $table->boolean('is_tax_inclusive')->default(false)->after('pump_type');
         });
     }
 

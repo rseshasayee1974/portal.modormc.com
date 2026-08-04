@@ -212,7 +212,14 @@ if (!function_exists('SitesDropdown')) {
      */
     function SitesDropdown($type = null, $excludeId = null)
     {
-        $query = Site::where('plant_id', _activePlantId())
+        $plantId = _activePlantId();
+
+        if (is_numeric($type)) {
+            $plantId = (int)$type;
+            $type = null;
+        }
+
+        $query = Site::where('plant_id', $plantId)
             ->select('id', 'name', 'code', 'plant_id', 'patron_id', 'type');
 
         if ($type != null) {
@@ -816,5 +823,19 @@ if (!function_exists('toSelectOptions')) {
                 'value' => data_get($item, $valueField),
             ];
         })->values();
+    }
+}
+
+if (!function_exists('PumpRatesDropdown')) {
+    /**
+     * Retrieve configured pump rates.
+     */
+    function PumpRatesDropdown($plantId = null)
+    {
+        $plantId = $plantId ?: _activePlantId();
+        return \App\Models\PumpRate::where('plant_id', $plantId)
+            ->where('status', true)
+            ->with(['customer:id,legal_name', 'pump:id,registration', 'site:id,name', 'uom:id,unit_code,unit_name'])
+            ->get();
     }
 }

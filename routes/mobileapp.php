@@ -28,6 +28,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/sales-details', [MobileApiController::class, 'salesDetails']);
     Route::get('/customer-details', [MobileApiController::class, 'customerDetails']);
     Route::get('/top-mix-designs', [MobileApiController::class, 'topMixDesigns']);
+    Route::get('/truck-dispatch-details', [MobileApiController::class, 'dispatchDetailsByTruck']);
     Route::get('/dispatch-details', [MobileApiController::class, 'dispatchDetails']);
     Route::get('/dispatch-batching-summary', [MobileApiController::class, 'dispatchBatchingSummary']);
     Route::get('/stock-details', [MobileApiController::class, 'stockDetails']);

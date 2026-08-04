@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('mm_quotations', function (Blueprint $table) {
-            $table->boolean('is_tax_inclusive')->default(false)->after('concrete_pump');
+            $table->boolean('is_tax_inclusive')->default(false)->after('pump_type');
         });
     }
 

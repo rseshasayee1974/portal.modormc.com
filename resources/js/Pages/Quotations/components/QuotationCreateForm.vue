@@ -11,6 +11,7 @@ import {
     UserIcon,
     MapPinIcon
 } from '@heroicons/vue/24/outline';
+import RecipePopover from '@/Components/Base/RecipePopover.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseCreatableSelect from '@/Components/Base/BaseCreatableSelect.vue';
@@ -34,10 +35,12 @@ interface QuotationItemPayload {
     // tax_amount: number;
     untaxed_amount: number;
     amount_total: number;
+    pump_type: number | null;
+    pump_rate: number;
     pump_rates: { pump_type: string; pump_rate: number }[];
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     patrons: { id: number; legal_name: string }[];
     sites: any[];
     unitOptions : {id: number, unit_code: string}[];
@@ -48,13 +51,16 @@ const props = defineProps<{
     salesExecutives?: { id: number; label: string; value: number }[];
     concretePumpOptions?: { label: string; value: number }[];
     pumpTypeOptions?: { label: string; value: string }[];
-    
-}>();
+    pumpRates?: any[];
+}>(), {
+    pumpRates: () => [],
+});
 // console.log(props.taxes);
 const isOpen = ref(true);
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
+const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
 
 const getDefaultValidityDate = (quoteDateStr: string) => {
     if (!quoteDateStr) return null;
@@ -70,7 +76,6 @@ const form = useForm({
     patron_id: null as number | null,
     site_id: null as number | null,
     sales_executive_id: null as number | null,
-    // concrete_pump: null as number | null,
     new_site_name: '' as string,
     is_new_site: false,
     is_tax_inclusive: false,
@@ -111,7 +116,9 @@ function createNewItem(): QuotationItemPayload {
         notes: '',
         untaxed_amount: 0,
         amount_total: 0,
-        pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })),
+        pump_type: null,
+        pump_rate: 0,
+        pump_rates: [],
     };
 }
 
@@ -148,17 +155,7 @@ const uniqueSelectedMixDesignIds = computed(() => {
     return Array.from(ids);
 });
 
-const getMixDesignMaterials = (mixDesignId: number | null) => {
-    if (!mixDesignId) return [];
-    const design = props.mixDesigns.find(md => Number(md.id) === Number(mixDesignId));
-    if (!design || !design.items) return [];
-    return design.items.map((it: any) => ({
-        id: it.id,
-        name: it.product?.title || 'Unknown Material',
-        qty: Number(it.actual_quantity || 0),
-        uom: it.uom?.unit_code || '',
-    }));
-};
+
 
 const siteSuggestions = ref<any[]>([]);
 const searchSites = (event: any) => {
@@ -179,6 +176,10 @@ const calculateTotals = () => {
     form.items.forEach(item => {
         const rate = Number(item.rate || 0);
         const qty = Number(item.quantity || 0);
+        const pumpRate = Number(item.pump_rate || 0);
+
+        // Pump charge: flat rate when enabled, per-m³ when disabled
+        const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
         
         // Find line tax rate
         const tax = props.taxes.find(t => t.id === item.tax_id);
@@ -188,14 +189,32 @@ const calculateTotals = () => {
         let lineTax = 0;
         let lineTotal = 0;
 
-        if (form.is_tax_inclusive) {
-            lineTotal = rate * qty;
-            lineTax = lineTotal - (lineTotal / (1 + taxRate / 100));
-            untaxed = lineTotal - lineTax;
+        if (addPouringRatesToTotal) {
+            // Flat rate mode: Tax is calculated only on (qty * rate). Pump rate is added directly to total afterwards without tax.
+            if (form.is_tax_inclusive) {
+                const materialTotal = rate * qty;
+                const materialTax = materialTotal - (materialTotal / (1 + taxRate / 100));
+                lineTax = materialTax;
+                untaxed = (materialTotal - materialTax) + pumpCharge;
+                lineTotal = materialTotal + pumpCharge;
+            } else {
+                const materialUntaxed = rate * qty;
+                const materialTax = (materialUntaxed * taxRate) / 100;
+                lineTax = materialTax;
+                untaxed = materialUntaxed + pumpCharge;
+                lineTotal = materialUntaxed + materialTax + pumpCharge;
+            }
         } else {
-            untaxed = rate * qty;
-            lineTax = (untaxed * taxRate) / 100;
-            lineTotal = untaxed + lineTax;
+            // Per m³ mode: Pump charge is taxed alongside the mix rate.
+            if (form.is_tax_inclusive) {
+                lineTotal = rate * qty + pumpCharge;
+                lineTax = lineTotal - (lineTotal / (1 + taxRate / 100));
+                untaxed = lineTotal - lineTax;
+            } else {
+                untaxed = rate * qty + pumpCharge;
+                lineTax = (untaxed * taxRate) / 100;
+                lineTotal = untaxed + lineTax;
+            }
         }
 
         // Update Item Internal State (for SQL Insertion)
@@ -226,6 +245,69 @@ watch(() => form.patron_id, (newPatronId) => {
     }
 });
 
+const resolvePumpRatesLocally = (customerId: number | null, siteId: number | null) => {
+    const activeRates = props.pumpRates || [];
+    const scoredRates = activeRates.map(rate => {
+        let score = 0;
+        if (rate.customer_id !== null && Number(rate.customer_id) === Number(customerId)) {
+            if (siteId !== null && Number(rate.site_id) === Number(siteId)) {
+                score = 3;
+            } else if (rate.site_id === null || rate.site_id === undefined) {
+                score = 2;
+            }
+        } else if (rate.customer_id === null || rate.customer_id === undefined) {
+            score = 1;
+        }
+        return { ...rate, score };
+    }).filter(rate => rate.score > 0);
+
+    const resolved: Record<string, any> = {};
+    scoredRates.forEach(rate => {
+        const type = rate.pump_type;
+        if (!resolved[type] || resolved[type].score < rate.score) {
+            resolved[type] = rate;
+        }
+    });
+
+    return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
+};
+
+const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
+    if (!item.mix_design_id) return;
+    const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
+    
+    if (item.pump_type) {
+        const matched = resolved.find((r: any) => String(r.pump_type) === String(item.pump_type));
+        if (matched) {
+            if (isDropdownChange) {
+                item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
+            }
+        } else {
+            if (isDropdownChange) {
+                item.pump_type = null;
+                item.pump_rate = 0;
+            }
+        }
+    } else {
+        if (resolved.length > 0) {
+            const matched = resolved[0];
+            item.pump_type = Number(matched.pump_type);
+            item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
+        } else {
+            item.pump_type = null;
+            item.pump_rate = 0;
+        }
+    }
+};
+
+const resolveAllItemsPumpRates = () => {
+    for (const item of form.items) {
+        resolveItemPumpRate(item, true);
+    }
+};
+
+watch([() => form.patron_id, () => form.site_id], resolveAllItemsPumpRates);
+
 const onMixDesignChange = (index: number) => {
     const item = form.items[index];
     const design = props.mixDesigns.find(p => p.id === item.mix_design_id);
@@ -236,6 +318,8 @@ const onMixDesignChange = (index: number) => {
         // Remove from excluded list if re-selected/changed
         const designId = Number(item.mix_design_id);
         excludedMixDesignPumpRates.value = excludedMixDesignPumpRates.value.filter(id => id !== designId);
+
+        resolveItemPumpRate(item, true);
     }
 };
 
@@ -360,10 +444,10 @@ const submit = () => {
         hasErrors = true;
     }
 
-    if (!form.sales_executive_id) {
-        form.setError('sales_executive_id', 'Sales Executive is required.');
-        hasErrors = true;
-    }
+    // if (!form.sales_executive_id) {
+    //     form.setError('sales_executive_id', 'Sales Executive is required.');
+    //     hasErrors = true;
+    // }
 
     if (!form.quote_date) {
         form.setError('quote_date', 'Quote Date is required.');
@@ -446,6 +530,9 @@ const submit = () => {
             ? Number(data.sales_executive_id)
             : null,
 
+        pump_type: null,
+        pump_rate: 0,
+
         quote_date: data.quote_date
             ? new Date(data.quote_date).toISOString().substring(0, 10)
             : null,
@@ -453,6 +540,13 @@ const submit = () => {
         validity_date: data.validity_date
             ? new Date(data.validity_date).toISOString().substring(0, 10)
             : null,
+
+        items: data.items.map((item: any) => ({
+            ...item,
+            pump_rates: item.pump_type 
+                ? [{ pump_type: item.pump_type, pump_rate: item.pump_rate }]
+                : []
+        }))
     }))
     .post(route('quotations.store'), {
         preserveScroll: true,
@@ -563,23 +657,13 @@ const submit = () => {
                             v-model="form.sales_executive_id" 
                             :options="salesExecutiveOptions" 
                             optionLabel="label" 
-                            optionValue="value" required
+                            optionValue="value"
                             label="Sales Executive" 
                             placeholder="Select Sales Executive" 
                             filter
                             :error="form.errors.sales_executive_id"
                         />
  
-                        <!-- <BaseSelect 
-                            v-model="form.concrete_pump" 
-                            :options="concretePumpOptions || []" 
-                            optionLabel="label" 
-                            optionValue="value" 
-                            label="Concrete Type" 
-                            placeholder="Select Concrete Type" 
-                            :error="form.errors.concrete_pump"
-                        />
-  -->
                         <BaseDatePicker v-model="form.quote_date" label="Quote Date" required />
                         <BaseDatePicker v-model="form.validity_date" label="Valid Until" />
                         <BaseSelect 
@@ -596,23 +680,25 @@ const submit = () => {
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
                                 <CalculatorIcon class="w-3.5 h-3.5" />
-                                Line Items
+                                Estimation Details
                             </h3>
-                            <div class="flex items-center gap-3 bg-slate-50 border border-slate-200/50 rounded-xl px-4 py-1.5 shadow-sm">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
-                                <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_create" class="peer hidden" />
-                                <label for="is_tax_inclusive_create" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
-                            </div>
+                                <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
+                                    <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
+                                    <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_create" class="peer hidden" />
+                                    <label for="is_tax_inclusive_create" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
+                                </div>
                         </div>
 
-                        <div class="rounded-md border border-slate-200 shadow-sm overflow-hidden">
-                            <table class="w-full">
+                        <div class="rounded-md border border-slate-200 shadow-sm overflow-visible" @click.self="activeRecipePopover = null">
+                            <table class="w-full" @click.self="activeRecipePopover = null">
                                 <thead class="bg-slate-50 border-b border-slate-200">
                                     <tr class="text-[10px] uppercase font-bold text-slate-500">
                                         <th class="px-4 py-3 text-left w-64">Mix Design</th>
-                                         <th class="px-4 py-3 text-center w-24">UOM</th>
+                                        <th class="px-4 py-3 text-center w-24">UOM</th>
                                         <th class="px-4 py-3 text-center w-24">QTY</th>
                                         <th class="px-4 py-3 text-center w-32">Rate</th>
+                                        <th class="px-4 py-3 text-center w-40">Pump Type</th>
+                                        <th class="px-4 py-3 text-center w-32">Pump Rate</th>
                                         <th class="px-4 py-3 text-center w-40">Tax </th>
                                         <th class="px-4 py-3 text-right w-36">Total (Incl. Tax)</th>
                                         <th class="px-4 py-3 w-12">
@@ -624,17 +710,28 @@ const submit = () => {
                                 </thead>
                                 <tbody class="divide-y divide-slate-100 bg-white">
                                     <tr v-for="(item, index) in form.items" :key="index" class="group hover:bg-slate-50/50 transition-colors">
-                                        <td class="p-3">
-                                            <BaseSelect 
-                                                v-model="item.mix_design_id" 
-                                                :options="mixDesignOptions" 
-                                                optionLabel="label"
-                                                optionValue="value"
-                                                placeholder="Search design..." 
-                                                filter 
-                                                @update:modelValue="onMixDesignChange(index)"
-                                            />
-                                        </td>
+                                       <td class="relative p-2 max-w-[260px] overflow-visible">
+    <div class="flex items-center gap-2">
+
+        <!-- Mix Design -->
+        <div class="flex-1 min-w-0">
+            <BaseSelect
+                v-model="item.mix_design_id"
+                :options="mixDesignOptions"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Search design..."
+                filter
+                class="w-full"
+                @update:modelValue="onMixDesignChange(index)"
+            />
+        </div>
+
+        <!-- Info Button Popover -->
+        <RecipePopover :mixDesignId="item.mix_design_id" :mixDesigns="props.mixDesigns" />
+
+    </div>
+</td>
                                         <td class="p-2">
                                             <BaseSelect
                                                 v-model="item.uom_id"
@@ -643,7 +740,6 @@ const submit = () => {
                                                 optionValue="value"
                                                 placeholder="UOM" 
                                                 filter
-                                                 
                                             />
                                         </td>
                                         <td class="p-3">
@@ -651,6 +747,23 @@ const submit = () => {
                                         </td>
                                         <td class="p-3">
                                             <BaseInputNumber v-model="item.rate" prefix="₹" />
+                                        </td>
+                                        <td class="p-2">
+                                            <BaseSelect 
+                                                v-model="item.pump_type" 
+                                                :options="props.concretePumpOptions || []" 
+                                                optionLabel="label" 
+                                                optionValue="value" 
+                                                placeholder="Select Type" 
+                                                showClear
+                                                @update:modelValue="resolveItemPumpRate(item, true)"
+                                            />
+                                        </td>
+                                        <td class="p-2">
+                                            <BaseInputNumber 
+                                                v-model="item.pump_rate" 
+                                                :minFractionDigits="2"
+                                            />
                                         </td>
                                         <td class="p-3">
                                             <BaseSelect v-model="item.tax_id" :options="taxOptions" optionLabel="label" optionValue="value" placeholder="None" clearable />
@@ -670,10 +783,9 @@ const submit = () => {
                     </div>
 
                     <!-- ── Pump Rates per Mix Design ── -->
-                    <div v-if="uniqueSelectedMixDesignIds.length && pumpTypeOptions && pumpTypeOptions.length" class="mt-4 rounded-xl border border-indigo-200 bg-indigo-100/30 p-5 shadow-sm ">
+                    <!-- <div v-if="uniqueSelectedMixDesignIds.length && pumpTypeOptions && pumpTypeOptions.length" class="mt-4 rounded-xl border border-indigo-200 bg-indigo-100/30 p-5 shadow-sm ">
     <div class="flex items-center gap-2 mb-4">
         <span class="text-[11px] font-black text-indigo-700 uppercase tracking-[0.18em]">⚙ Operation Charges per Mix Design</span>
-        <!-- <span class="text-[10px] text-indigo-500 font-medium">(enter rate per m³ for each operation type)</span> -->
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-3 gap-3 w-full items-start">
@@ -724,47 +836,15 @@ const submit = () => {
             </div>
         </div>
     </div>
-</div>
+</div> -->
 
                     <!-- Footer Summary -->
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div class="space-y-4">
                             <label class="text-[11px] font-bold text-slate-500 uppercase tracking-widest pl-1">Internal Notes / Terms</label>
                             <textarea v-model="form.notes" placeholder="Specify any additional conditions..." class="w-full h-32 rounded-2xl border-slate-200 text-sm focus:border-indigo-300 focus:ring-4 focus:ring-indigo-100 transition-all p-4" />
-                            
-                            <!-- Recipe Details -->
-                            <div v-if="uniqueSelectedMixDesignIds.length" class="space-y-3 mt-4">
-                                <div 
-                                    v-for="designId in uniqueSelectedMixDesignIds" 
-                                    :key="designId"
-                                    class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 text-left"
-                                >
-                                    <div class="flex items-center justify-between">
-                                        <label class="text-[10px] font-bold uppercase tracking-[0.1em] text-indigo-500">
-                                            Recipe Details
-                                        </label>
-                                        <span class="rounded bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
-                                            {{ props.mixDesigns.find(d => Number(d.id) === Number(designId))?.title || props.mixDesigns.find(d => Number(d.id) === Number(designId))?.design_name || '-' }}
-                                        </span>
-                                    </div>
-                                    <div class="mt-3 flex flex-wrap gap-2">
-                                        <div 
-                                            v-for="item in getMixDesignMaterials(designId)" 
-                                            :key="item.id" 
-                                            class="flex items-center gap-2 rounded-md border border-indigo-100 bg-white px-3 py-2"
-                                        >
-                                            <span class="text-xs text-slate-700">{{ item.name }}</span>
-                                            <span class="font-semibold text-indigo-600">
-                                                {{ item.qty }}
-                                                <span class="text-slate-400 text-[10px]">{{ item.uom }}</span>
-                                            </span>
-                                        </div>
-                                        <div v-if="!getMixDesignMaterials(designId).length" class="text-xs text-slate-400 italic">
-                                            No materials configured for this recipe.
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <!-- Recipe Details removed – now shown as inline popover per row -->
+
                         </div>
 
                         <div class="bg-indigo-50/30 rounded-md p-8 border border-indigo-100/50 shadow-inner">

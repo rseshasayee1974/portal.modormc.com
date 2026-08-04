@@ -14,6 +14,7 @@ import {
 } from '@heroicons/vue/24/outline';
 import Swal from 'sweetalert2';
 import { usePermissions } from '@/Composables/usePermissions';
+import ToggleSwitch from 'primevue/toggleswitch';
 
 const props = defineProps<{
     design: any;
@@ -57,6 +58,7 @@ const form = useForm({
     design_type: props.design.design_type || '',
     unit_id: props.design.unit_id,
     rate_per_qty: parseFloat(props.design.rate_per_qty || '0'),
+    is_active: props.design.is_active ? true : false,
     items: props.design.items.map((item: any) => ({
             id: item.id,
             isLocked: isLocked.value,
@@ -157,6 +159,10 @@ const submit = () => {
                     
                     <BaseSelect v-model="form.unit_id" label="Unit" :options="unitOptions" class="!h-8" optionLabel="label" optionValue="value" placeholder="Selling Unit" fluid :disabled="isLocked" />
                     <BaseInputNumber v-model="form.rate_per_qty" label="Rate per m³"  :minFractionDigits="2" placeholder="0.00" fluid :disabled="isLocked" />
+                </div>
+                <div class="flex items-center gap-3 pt-2">
+                    <ToggleSwitch v-model="form.is_active" :disabled="isLocked" />
+                    <span class="text-xs font-semibold text-slate-600">Active Status</span>
                 </div>
             </div>
 

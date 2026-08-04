@@ -69,6 +69,7 @@ class PermissionSeeder extends Seeder
             'PURCHASE_BILL' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'INVOICE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'PARTY_RATE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
+            'PUMP_RATE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
             'BATCH' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'INWARD' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             

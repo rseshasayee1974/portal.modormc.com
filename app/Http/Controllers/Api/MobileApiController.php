@@ -281,6 +281,13 @@ class MobileApiController extends Controller
         $data = $this->dashboardService->getDispatchDetails($this->getFilters($request));
         return response()->json(['success' => true, 'data' => $data]);
     }
+    #[OA\Get(path: "/api/mobile/truck-dispatch-details", summary: "Get dispatch details by truck", tags: ["Mobile API"], security: [["bearerAuth" => []]])]
+    #[OA\Response(response: 200, description: "Success")]
+    public function dispatchDetailsByTruck(Request $request)
+    {
+        $data = $this->dashboardService->getDispatchDetailsByTruck($this->getFilters($request));
+        return response()->json(['success' => true, 'data' => $data]);
+    }
 
     /**
      * Get dispatch batching summary.

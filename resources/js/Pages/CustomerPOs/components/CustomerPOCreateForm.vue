@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3';
+import { useForm, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref } from 'vue';
+import axios from 'axios';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import Button from 'primevue/button';
 import Swal from 'sweetalert2';
-import { PlusCircleIcon, DocumentTextIcon, TrashIcon } from '@heroicons/vue/24/outline';
+import { PlusCircleIcon, DocumentTextIcon, TrashIcon, PlusIcon } from '@heroicons/vue/24/outline';
+import RecipePopover from '@/Components/Base/RecipePopover.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 
@@ -19,6 +21,7 @@ const props = withDefaults(defineProps<{
     concretePumpOptions?: any[];
     taxes?: any[];
     pumpTypeOptions?: { label: string; value: string }[];
+    pumpRates?: any[];
 }>(), {
     patrons: () => [],
     sites: () => [],
@@ -28,6 +31,7 @@ const props = withDefaults(defineProps<{
     concretePumpOptions: () => [],
     taxes: () => [],
     pumpTypeOptions: () => [],
+    pumpRates: () => [],
 });
 
 const form = useForm({
@@ -38,13 +42,12 @@ const form = useForm({
     status: 0 as number | null,
     site_id: null as number | null,
     sales_executive_id: null as number | null,
-    // concrete_pump: null as number | null,
     is_tax_inclusive: false,
     order_date: new Date().toISOString().split('T')[0],
     notes: '',
     items: [
-        { mix_design_id: null as number | null, quantity: null as number | null, rate: null as number | null, tax_id: null as number | null, tax_amount: 0, pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })) }
-    ] as Array<{ mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number, pump_rates: { pump_type: string; pump_rate: number }[] }>,
+        { mix_design_id: null as number | null, quantity: null as number | null, rate: null as number | null, tax_id: null as number | null, tax_amount: 0, pump_type: null as number | null, pump_rate: 0, pump_rates: [] }
+    ] as Array<{ mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number, pump_type: number | null, pump_rate: number, pump_rates: any[] }>,
 });
 
 // Watch quotation selection to auto-fill patron, site, and sales executive
@@ -56,33 +59,95 @@ watch(() => form.quotation_id, (newVal) => {
             form.patron_id = quote.patron_id;
             form.site_id = quote.site_id;
             form.sales_executive_id = quote.sales_executive_id;
-            // form.concrete_pump = quote.concrete_pump !== null ? (isNaN(Number(quote.concrete_pump)) ? quote.concrete_pump : Number(quote.concrete_pump)) : null;
             form.is_tax_inclusive = quote.is_tax_inclusive ? true : false;
             const quoteItems = quote.items || [];
-            form.items = quoteItems.map((item: any) => ({
-                mix_design_id: item.mix_design_id,
-                quantity: Number(item.quantity),
-                rate: Number(item.rate),
-                tax_id: item.tax_id ?? null,
-                tax_amount: Number(item.tax_amount ?? 0),
-                pump_rates: (props.pumpTypeOptions || []).map(pt => {
-                    const saved = (item.pump_rates || item.pumpRates || []).find((pr: any) => String(pr.pump_type) === String(pt.value));
-                    return { pump_type: pt.value, pump_rate: saved ? Number(saved.pump_rate) : 0 };
-                }),
-            }));
+            form.items = quoteItems.map((item: any) => {
+                const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => Number(pr.pump_rate) > 0);
+                return {
+                    mix_design_id: item.mix_design_id,
+                    quantity: Number(item.quantity),
+                    rate: Number(item.rate),
+                    tax_id: item.tax_id ?? null,
+                    tax_amount: Number(item.tax_amount ?? 0),
+                    pump_type: savedPumpRate ? Number(savedPumpRate.pump_type) : null,
+                    pump_rate: savedPumpRate ? Number(savedPumpRate.pump_rate) : 0,
+                    pump_rates: [],
+                };
+            });
         }
     } else {
         form.patron_id = null;
         form.site_id = null;
         form.sales_executive_id = null;
-        // form.concrete_pump = null;
         form.is_tax_inclusive = false;
-        form.items = [{ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })) }];
+        form.items = [{ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_type: null, pump_rate: 0, pump_rates: [] }];
     }
 });
 
+const resolvePumpRatesLocally = (customerId: number | null, siteId: number | null) => {
+    const activeRates = props.pumpRates || [];
+    const scoredRates = activeRates.map(rate => {
+        let score = 0;
+        if (rate.customer_id !== null && Number(rate.customer_id) === Number(customerId)) {
+            if (siteId !== null && Number(rate.site_id) === Number(siteId)) {
+                score = 3;
+            } else if (rate.site_id === null || rate.site_id === undefined) {
+                score = 2;
+            }
+        } else if (rate.customer_id === null || rate.customer_id === undefined) {
+            score = 1;
+        }
+        return { ...rate, score };
+    }).filter(rate => rate.score > 0);
+
+    const resolved: Record<string, any> = {};
+    scoredRates.forEach(rate => {
+        const type = rate.pump_type;
+        if (!resolved[type] || resolved[type].score < rate.score) {
+            resolved[type] = rate;
+        }
+    });
+
+    return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
+};
+
+const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
+    if (!item.mix_design_id) return;
+    const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
+    
+    if (item.pump_type) {
+        const matched = resolved.find((r: any) => String(r.pump_type) === String(item.pump_type));
+        if (matched) {
+            if (isDropdownChange) {
+                item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
+            }
+        } else {
+            if (isDropdownChange) {
+                item.pump_rate = 0;
+            }
+        }
+    } else {
+        if (resolved.length > 0) {
+            const matched = resolved[0];
+            item.pump_type = Number(matched.pump_type);
+            item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
+        } else {
+            item.pump_type = null;
+            item.pump_rate = 0;
+        }
+    }
+};
+
+const resolveAllItemsPumpRates = () => {
+    for (const item of form.items) {
+        resolveItemPumpRate(item, true);
+    }
+};
+
+watch([() => form.patron_id, () => form.site_id], resolveAllItemsPumpRates);
+
 const addItem = () => {
-    form.items.push({ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })) });
+    form.items.push({ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_type: null, pump_rate: 0, pump_rates: [] });
 };
 
 const removeItem = (index: number) => {
@@ -172,6 +237,12 @@ const removePumpRatesForDesign = (designId: number) => {
     });
 };
 
+const page = usePage();
+const customSettings = page.props.custom_settings as any;
+const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
+
+
+
 const calculatedTotals = computed(() => {
     let subtotal = 0;
     let taxAmount = 0;
@@ -181,16 +252,18 @@ const calculatedTotals = computed(() => {
         (selectedQuotation.value.items || []).forEach((item: any) => {
             const qty = Number(item.quantity || 0);
             const rate = Number(item.rate || 0);
+            const pumpRate = Number(item.pump_rate || 0);
+            const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
             const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
             const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
 
             if (form.is_tax_inclusive) {
-                const total = qty * rate;
+                const total = qty * rate + pumpCharge;
                 const lineTax = total - (total / (1 + taxRate / 100));
                 taxAmount += lineTax;
                 subtotal += (total - lineTax);
             } else {
-                const lineUntaxed = qty * rate;
+                const lineUntaxed = qty * rate + pumpCharge;
                 subtotal += lineUntaxed;
                 taxAmount += (lineUntaxed * taxRate) / 100;
             }
@@ -200,16 +273,18 @@ const calculatedTotals = computed(() => {
         (form.items || []).forEach((item: any) => {
             const qty = Number(item.quantity || 0);
             const rate = Number(item.rate || 0);
+            const pumpRate = Number(item.pump_rate || 0);
+            const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
             const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
             const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
 
             if (form.is_tax_inclusive) {
-                const total = qty * rate;
+                const total = qty * rate + pumpCharge;
                 const lineTax = total - (total / (1 + taxRate / 100));
                 taxAmount += lineTax;
                 subtotal += (total - lineTax);
             } else {
-                const lineUntaxed = qty * rate;
+                const lineUntaxed = qty * rate + pumpCharge;
                 subtotal += lineUntaxed;
                 taxAmount += (lineUntaxed * taxRate) / 100;
             }
@@ -223,17 +298,21 @@ const calculatedTotals = computed(() => {
     };
 });
 
-const getMixDesignMaterials = (mixDesignId: number | null) => {
-    if (!mixDesignId) return [];
-    const design = props.mixDesigns.find(md => Number(md.id) === Number(mixDesignId));
-    if (!design || !design.items) return [];
-    return design.items.map((it: any) => ({
-        id: it.id,
-        name: it.product?.title || 'Unknown Material',
-        qty: Number(it.actual_quantity || 0),
-        uom: it.uom?.unit_code || '',
-    }));
+const onMixDesignChange = (index: number) => {
+    const item = form.items[index];
+    const design = props.mixDesigns?.find((p: any) => p.id === item.mix_design_id);
+    if (design) {
+        if (!item.rate) item.rate = Number(design.rate || 0);
+        
+        // Remove from excluded list if re-selected/changed
+        const designId = Number(item.mix_design_id);
+        excludedMixDesignPumpRates.value = excludedMixDesignPumpRates.value.filter(id => id !== designId);
+
+        resolveItemPumpRate(item, true);
+    }
 };
+
+
 
 // Quotation dropdown options with labels
 const quotationOptions = computed(() => {
@@ -294,7 +373,17 @@ const submit = () => {
         }
     }
 
-    form.post(route('customer-po.store'), {
+    form.transform((data) => ({
+        ...data,
+        pump_type: null,
+        pump_rate: 0,
+        items: data.items.map((item: any) => ({
+            ...item,
+            pump_rates: item.pump_type 
+                ? [{ pump_type: item.pump_type, pump_rate: item.pump_rate }]
+                : []
+        }))
+    })).post(route('customer-po.store'), {
         onSuccess: () => {
             Swal.fire({
                 toast: true,
@@ -386,6 +475,7 @@ const submit = () => {
         />
     </div>
 
+
     <!-- Order Date -->
     <div>
         <BaseDatePicker
@@ -396,122 +486,120 @@ const submit = () => {
             :error="form.errors.order_date"
         />
     </div>
-
+         <div class="col-span-12 md:col-span-1">
+                <BaseSelect
+                    v-model="form.status"
+                    :options="[
+                        { label: 'Draft', value: 0 },
+                        { label: 'Confirmed', value: 1 },
+                        { label: 'Completed', value: 2 }
+                    ]"
+                    optionLabel="label"
+                    optionValue="value"
+                    label="Status"
+                    placeholder="Select Status"
+                    :error="form.errors.status"
+                />
+            </div>
     <!-- Mix Design Section -->
     <template v-if="!form.quotation_id">
-
-        <div class="col-span-full border-t pt-3">
-            <div class="flex items-center justify-between">
-                <h3 class="text-sm font-semibold flex items-center gap-4">
-                    Mix Design Items
+        <div class="col-span-full  pt-4">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                    Estimation Details
                     <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
                         <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
                         <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_create" class="peer hidden" />
                         <label for="is_tax_inclusive_po_create" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
                     </div>
                 </h3>
+            </div>
 
-                <BaseButton
-                    icon="pi pi-plus"
-                    label="Add Item"
-                    severity="primary"
-                    size="small"
-                    @click="addItem"
-                />
+            <div class="rounded-md border border-slate-200 shadow-sm overflow-visible">
+                <table class="w-full">
+                    <thead class="bg-slate-50 border-b border-slate-200">
+                        <tr class="text-[10px] uppercase font-bold text-slate-500">
+                            <th class="px-4 py-3 text-left w-64">Mix Design</th>
+                            <th class="px-4 py-3 text-center w-24">QTY (m³)</th>
+                            <th class="px-4 py-3 text-center w-32">Rate (₹)</th>
+                            <th class="px-4 py-3 text-center w-40">Pump Type</th>
+                            <th class="px-4 py-3 text-center w-32">Pump Rate (₹)</th>
+                            <th class="px-4 py-3 text-center w-40">Tax</th>
+                            <th class="px-4 py-3 text-right w-36">Total (Incl. Tax)</th>
+                            <th class="px-4 py-3 w-12">
+                                <button type="button" @click="addItem" class="text-indigo-600 font-bold text-[10px] uppercase hover:text-indigo-700 flex items-center gap-1">
+                                    <PlusIcon class="w-5 h-5 m-1 border shadow-sm hover:bg-indigo-100 border-gray-400 rounded-md" />
+                                </button>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                        <tr v-for="(item, idx) in form.items" :key="idx" class="group hover:bg-slate-50/50 transition-colors">
+                            <td class="relative p-2 max-w-[260px] overflow-visible">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 min-w-0">
+                                        <BaseSelect
+                                            v-model="item.mix_design_id"
+                                            :options="mixDesignOptions"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            placeholder="Search design..."
+                                            filter
+                                            @update:modelValue="onMixDesignChange(idx)"
+                                            class="w-full"
+                                        />
+                                    </div>
+                                    <!-- Info Button Popover -->
+                                    <RecipePopover :mixDesignId="item.mix_design_id" :mixDesigns="props.mixDesigns" />
+                                </div>
+                            </td>
+                            <td class="p-3">
+                                <BaseInputNumber v-model="item.quantity" :min="0.001" :minFractionDigits="3" placeholder="0.00" />
+                            </td>
+                            <td class="p-3">
+                                <BaseInputNumber v-model="item.rate" prefix="₹" :minFractionDigits="2" placeholder="0.00"/>
+                            </td>
+                            <td class="p-2">
+                                <BaseSelect
+                                    v-model="item.pump_type"
+                                    :options="props.concretePumpOptions || []"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="Select Type"
+                                    showClear
+                                    @update:modelValue="resolveItemPumpRate(item, true)"
+                                />
+                            </td>
+                            <td class="p-2">
+                                <BaseInputNumber
+                                    v-model="item.pump_rate"
+                                    prefix="₹"
+                                    :minFractionDigits="2"
+                                />
+                            </td>
+                            <td class="p-3">
+                                <BaseSelect
+                                    v-model="item.tax_id"
+                                    :options="taxOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="None"
+                                    clearable
+                                />
+                            </td>
+                            <td class="p-3 text-right font-bold text-slate-800 text-sm">
+                                <span>₹ {{ ((Number(item.quantity || 0) * Number(item.rate || 0)) + Number(item.tax_amount || 0) + (addPouringRatesToTotal ? Number(item.pump_rate || 0) : (Number(item.pump_rate || 0) * Number(item.quantity || 0)))).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                            </td>
+                            <td class="p-3 text-center">
+                                <button type="button" @click="removeItem(idx)" class="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-all" :disabled="form.items.length === 1">
+                                    <TrashIcon class="w-4 h-4" />
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
-
-        <div
-    v-for="(item, idx) in form.items"
-    :key="idx"
-    class="col-span-full pb-0 last:border-0 last:pb-0"
->
-    <div class="grid grid-cols-12 gap-3 items-start">
-        <!-- Mix Design -->
-        <div class="col-span-12 md:col-span-3">
-            <BaseSelect
-                v-model="item.mix_design_id"
-                :options="mixDesignOptions"
-                optionLabel="label"
-                optionValue="value"
-                filter
-                label="Mix Design"
-                placeholder="Select Mix Design"
-                :error="form.errors[`items.${idx}.mix_design_id`]"
-            />
-        </div>
-
-        <!-- Quantity -->
-        <div class="col-span-6 md:col-span-2">
-            <BaseInput
-                v-model="item.quantity"
-                type="number"
-                step="0.001"
-                min="0.001"
-                label="Qty (m³)"
-                placeholder="0.000"
-                :error="form.errors[`items.${idx}.quantity`]"
-            />
-        </div>
-
-        <!-- Rate -->
-        <div class="col-span-6 md:col-span-2">
-            <BaseInput
-                v-model="item.rate"
-                type="number"
-                step="0.01"
-                min="0"
-                label="Rate (₹)"
-                placeholder="0.00"
-                :error="form.errors[`items.${idx}.rate`]"
-            />
-        </div>
-
-        <!-- Tax -->
-        <div class="col-span-6 md:col-span-2">
-            <BaseSelect
-                v-model="item.tax_id"
-                :options="taxOptions"
-                optionLabel="label"
-                optionValue="value"
-                label="Tax"
-                placeholder="None"
-                clearable
-                :error="form.errors[`items.${idx}.tax_id`]"
-            />
-        </div>
-
-        <!-- Tax Amount -->
-        <div class="col-span-6 md:col-span-1">
-            <label class="block text-xs font-medium text-gray-700">Tax Amt</label>
-            <div class="h-8 flex items-center px-2 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-md">
-                ₹{{ Number(item.tax_amount || 0).toFixed(2) }}
-            </div>
-        </div>
-
-        <!-- Amount -->
-        <div class="col-span-10 md:col-span-1">
-            <label class="block text-xs font-medium text-gray-700">Amount</label>
-            <div class="h-8 flex items-center px-2 text-xs font-semibold text-indigo-700 bg-indigo-50 rounded-md">
-                ₹{{ ((Number(item.quantity || 0) * Number(item.rate || 0)) + Number(item.tax_amount || 0)).toFixed(2) }}
-            </div>
-        </div>
-
-        <!-- Delete - 4% -->
-        <div class="col-span-2 md:col-span-1 flex justify-end pt-6">
-            <Button
-                icon="pi pi-trash"
-                severity="danger"
-                rounded
-                text
-                size="small"
-                :disabled="form.items.length === 1"
-                @click="removeItem(idx)"
-                v-tooltip.top="'Remove item'"
-            />
-        </div>
-    </div>
-</div>
     </template>
     <template v-else>
         <div class="col-span-full border-t pt-3">
@@ -550,42 +638,10 @@ const submit = () => {
         </div>
     </template>
 
-    <!-- Recipe Details -->
-    <div v-if="uniqueSelectedMixDesignIds.length" class="col-span-full mt-4 space-y-3">
-        <div 
-            v-for="designId in uniqueSelectedMixDesignIds" 
-            :key="designId"
-            class="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 text-left"
-        >
-            <div class="flex items-center justify-between">
-                <label class="text-[10px] font-bold uppercase tracking-[0.1em] text-indigo-500">
-                    Recipe Details
-                </label>
-                <span class="rounded bg-indigo-100 px-2 py-1 text-[10px] font-bold text-indigo-700">
-                    {{ props.mixDesigns.find(d => Number(d.id) === Number(designId))?.title || props.mixDesigns.find(d => Number(d.id) === Number(designId))?.design_name || '-' }}
-                </span>
-            </div>
-            <div class="mt-3 flex flex-wrap gap-2">
-                <div 
-                    v-for="item in getMixDesignMaterials(designId)" 
-                    :key="item.id" 
-                    class="flex items-center gap-2 rounded-md border border-indigo-100 bg-white px-3 py-2"
-                >
-                    <span class="text-xs text-slate-700">{{ item.name }}</span>
-                    <span class="font-semibold text-indigo-600">
-                        {{ item.qty }}
-                        <span class="text-slate-400 text-[10px]">{{ item.uom }}</span>
-                    </span>
-                </div>
-                <div v-if="!getMixDesignMaterials(designId).length" class="text-xs text-slate-400 italic">
-                    No materials configured for this recipe.
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- ── Pump Rates per Mix Design ── -->
-    <div v-if="uniqueSelectedMixDesignIds.length && pumpTypeOptions && pumpTypeOptions.length" class="col-span-full mt-4 rounded-xl border border-indigo-200 bg-indigo-100/30 p-5 shadow-sm">
+    <!-- <div v-if="uniqueSelectedMixDesignIds.length && pumpTypeOptions && pumpTypeOptions.length" class="col-span-full mt-4 rounded-xl border border-indigo-200 bg-indigo-100/30 p-5 shadow-sm">
         <div class="flex items-center gap-2 mb-4">
             <span class="text-[11px] font-black text-indigo-700 uppercase tracking-[0.18em]">⚙ Operation Charges per Mix Design</span>
             <span class="text-[10px] text-indigo-500 font-medium">(enter rate per m³ for each operation type)</span>
@@ -639,7 +695,7 @@ const submit = () => {
                 </div>
             </div>
         </div>
-    </div>
+    </div> -->
 
     <!-- Totals & Summary Block -->
     <div class="col-span-full flex flex-col md:flex-row justify-between items-start gap-8 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">

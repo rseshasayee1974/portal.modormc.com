@@ -66,7 +66,7 @@ class SalesOrder extends Model
         'scheduled_end',
         'status',
         'customer_po_id',
-        'concrete_pump',
+        'pump_type',
         'pump_rate',
         'created_by',
         'updated_by',
@@ -196,13 +196,13 @@ class SalesOrder extends Model
             return (float)$value;
         }
 
-        if ($this->customerPO && $this->concrete_pump) {
+        if ($this->customerPO && $this->pump_type) {
             $item = $this->customerPO->items()
                 ->where('mix_design_id', $this->mix_design_id)
                 ->first();
             if ($item) {
                 $pumpRate = $item->pumpRates()
-                    ->where('pump_type', (string)$this->concrete_pump)
+                    ->where('pump_type', (string)$this->pump_type)
                     ->value('pump_rate');
                 if ($pumpRate) {
                     return (float)$pumpRate;

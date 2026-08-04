@@ -234,6 +234,8 @@ Route::middleware([
         Route::resource('dispatches', \App\Http\Controllers\DispatchController::class);
         
         Route::resource('partyrates', \App\Http\Controllers\PartyRateController::class)->except(['create', 'edit', 'show']);
+        Route::get('pumprates/resolve', [\App\Http\Controllers\PumpRateController::class, 'resolve'])->name('pumprates.resolve');
+        Route::resource('pumprates', \App\Http\Controllers\PumpRateController::class)->except(['create', 'edit', 'show']);
     });
 
     // 7. Inventory & Production
@@ -256,6 +258,7 @@ Route::middleware([
         Route::resource('inventory-audit-logs', \App\Http\Controllers\InventoryAuditLogController::class);
         
         Route::get('mixdesigns/gradeingredients/{gradeId}', [\App\Http\Controllers\MixDesignController::class, 'getGradeIngredients'])->name('mixdesigns.gradeingredients');
+        Route::post('mixdesigns/{mixdesign}/toggle-active', [\App\Http\Controllers\MixDesignController::class, 'toggleActive'])->name('mixdesigns.toggle-active');
         Route::resource('mixdesigns', \App\Http\Controllers\MixDesignController::class);
         Route::resource('concretegrades', \App\Http\Controllers\ConcreteGradeController::class);
         Route::resource('concrete-quality-tests', \App\Http\Controllers\ConcreteQualityTestController::class);

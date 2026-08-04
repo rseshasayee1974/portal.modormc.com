@@ -51,7 +51,7 @@ class QuotationTest extends TestCase
             'patron_id' => $patron->id,
             'site_id' => \App\Models\Site::factory()->create(['plant_id' => $plant->id])->id,
             'sales_executive_id' => null,
-            'concrete_pump' => null,
+            'pump_type' => null,
             'quote_date' => now()->toDateString(),
             'validity_date' => now()->addDays(5)->toDateString(),
             'is_tax_inclusive' => true,

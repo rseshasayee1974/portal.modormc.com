@@ -37,6 +37,7 @@ class SalesOrderIndexDataFactory
                 ->toArray() : [],
             'statuses' => SalesOrder::statusOptions(),
             'concretePumpOptions' => PumpTypeDropdown(),
+            'pumpRates' => \App\Models\PumpRate::where('status', true)->where('plant_id', $activePlantId)->get()->toArray(),
             'salesExecutives' => SalesExecutivesDropdown(),
             'taxes'    => TaxesDropdown('Sales', ['GST', 'IGST']),
             'activePlantId' => $activePlantId,

@@ -59,10 +59,10 @@ const ensurePdfStructure = (rawSettings: any) => {
     if (s.pdf.terms_text === undefined) {
         s.pdf.terms_text = "1. Payment within 15 days of invoice date.\n2. Goods once sold will not be returned.\n3. All disputes subject to local jurisdiction.";
     }
-    if (s.pdf.pump_rates_matrix === undefined || s.pdf.pump_rates_matrix === null) {
-        s.pdf.pump_rates_matrix = true;
+    if (s.pdf.show_pump_charges === undefined || s.pdf.show_pump_charges === null) {
+        s.pdf.show_pump_charges = true;
     } else {
-        s.pdf.pump_rates_matrix = s.pdf.pump_rates_matrix === 1 || s.pdf.pump_rates_matrix === true || s.pdf.pump_rates_matrix === '1';
+        s.pdf.show_pump_charges = s.pdf.show_pump_charges === 1 || s.pdf.show_pump_charges === true || s.pdf.show_pump_charges === '1';
     }
     return s;
 };
@@ -98,6 +98,7 @@ const previewHtml = ref('');
 const isLoadingPreview = ref(false);
 
 let fetchTimer: any = null;
+
 
 const refreshPreview = () => {
     if (fetchTimer) clearTimeout(fetchTimer);
@@ -381,10 +382,10 @@ const downloadSample = () => {
 
                                 <div class="setting-row">
                                     <div>
-                                        <label class="setting-title">Operation Charges Matrix</label>
-                                        <p class="setting-desc">Display additional operation / pump charges matrix table</p>
+                                        <label class="setting-title">Operation & Pump Columns</label>
+                                        <p class="setting-desc">Display Operation Type and Pump Charges columns in items table</p>
                                     </div>
-                                    <InputSwitch v-model="activeSettings.pdf.pump_rates_matrix" />
+                                    <InputSwitch v-model="activeSettings.pdf.show_pump_charges" />
                                 </div>
                             </div>
                         </div>

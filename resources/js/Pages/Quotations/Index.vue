@@ -30,6 +30,7 @@ const props = defineProps<{
     salesExecutives: any[];
     concretePumpOptions?: any[];
     pumpTypeOptions?: any[];
+    pumpRates?: any[];
 }>();
 
 // console.log('quotations', props.quotations);
@@ -228,6 +229,7 @@ const updateConversion = (quotation: any) => {
                     :salesExecutives="salesExecutives"
                     :concretePumpOptions="concretePumpOptions"
                     :pumpTypeOptions="pumpTypeOptions"
+                    :pumpRates="pumpRates"
                 />
 
                 <hr class="border-slate-200 border-dashed" />
@@ -364,6 +366,7 @@ const updateConversion = (quotation: any) => {
                                     :salesExecutives="salesExecutives"
                                     :concretePumpOptions="concretePumpOptions"
                                     :pumpTypeOptions="pumpTypeOptions"
+                                    :pumpRates="pumpRates"
                                     @updated="collapseExpandedRows"
                                 />
                             </BaseExpansionPanel>

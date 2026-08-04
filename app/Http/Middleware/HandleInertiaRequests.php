@@ -191,7 +191,6 @@ class HandleInertiaRequests extends Middleware
                         'plan',
                         'subscription_status',
                         'state_code',
-                        'terms_condition',
                         'menu',
                         'role',
                         'permission'

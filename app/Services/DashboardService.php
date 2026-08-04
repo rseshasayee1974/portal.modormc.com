@@ -95,4 +95,5 @@ class DashboardService
     {
         return $this->repository->getDispatchDetails($filters);
     }
+    
 }

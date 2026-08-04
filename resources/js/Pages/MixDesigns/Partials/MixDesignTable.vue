@@ -3,10 +3,16 @@ import { ref, computed } from 'vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
 import Tag from 'primevue/tag';
-import { BeakerIcon, UserIcon, CubeIcon, TableCellsIcon } from '@heroicons/vue/24/outline';
+import Dialog from 'primevue/dialog';
+import ToggleSwitch from 'primevue/toggleswitch';
+import { BeakerIcon, UserIcon, CubeIcon, TableCellsIcon, DocumentDuplicateIcon } from '@heroicons/vue/24/outline';
 import MixDesignEditForm from './MixDesignEditForm.vue';
+import MixDesignCreateForm from './MixDesignCreateForm.vue';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
 import { usePermissions } from '@/Composables/usePermissions.js';
+import { router } from '@inertiajs/vue3';
+import Swal from 'sweetalert2';
+
 const props = defineProps<{
     mixDesigns: any[];
     products: any[];
@@ -21,11 +27,35 @@ const expandedRows = ref<Record<number, boolean>>({});
 const perPage = ref(30);
 const filters = ref({ global: { value: null, matchMode: 'contains' } });
 
+const showDuplicateModal = ref(false);
+const selectedDesignForDuplication = ref<any>(null);
+
 const filteredDesigns = computed(() => props.mixDesigns);
 
 const onSaved = () => { expandedRows.value = {}; };
-// console.log('log:',props.mixDesigns);
-// console.table(props.mixDesigns);
+
+const openDuplicateModal = (mixDesign: any) => {
+    selectedDesignForDuplication.value = mixDesign;
+    showDuplicateModal.value = true;
+};
+
+const closeDuplicateModal = () => {
+    showDuplicateModal.value = false;
+    selectedDesignForDuplication.value = null;
+};
+
+const onDuplicateCreated = () => {
+    closeDuplicateModal();
+};
+
+const toggleActive = (mixDesign: any) => {
+    router.post(route('mixdesigns.toggle-active', mixDesign.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => {
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Status updated', timer: 1500, showConfirmButton: false });
+        }
+    });
+};
 
 const getDeleteTooltip = (mixDesign) => {
     const reasons = [];
@@ -126,6 +156,20 @@ const getDeleteTooltip = (mixDesign) => {
                 </template>
             </Column>
             
+            <!-- Status -->
+            <!-- <Column header="Status" style="width: 130px">
+                <template #body="slotProps">
+                    <div class="flex items-center gap-2" @click.stop>
+                        <ToggleSwitch 
+                            :modelValue="Boolean(slotProps.data.is_active)"
+                            @change="toggleActive(slotProps.data)"
+                        />
+                        <span class="text-[10px] font-bold uppercase tracking-widest" :class="slotProps.data.is_active ? 'text-emerald-600' : 'text-slate-400'">
+                            {{ slotProps.data.is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                    </div>
+                </template>
+            </Column> -->
 
             <!-- Unit -->
             <!-- <Column header="Unit" style="width: 80px">
@@ -134,9 +178,17 @@ const getDeleteTooltip = (mixDesign) => {
                 </template>
             </Column> -->
 
-            <Column header="Actions" style="width: 70px; text-align: right">
+            <Column header="Actions" style="width: 100px; text-align: right">
                 <template #body="slotProps">
-                    <div class="flex justify-end">
+                    <div class="flex justify-end items-center gap-2">
+                        <button 
+                            type="button" 
+                            @click.stop="openDuplicateModal(slotProps.data)" 
+                            class="p-1 hover:bg-slate-100 rounded-md text-slate-500 hover:text-indigo-600 transition"
+                            title="Duplicate Mix Design"
+                        >
+                            <DocumentDuplicateIcon class="w-4 h-4" />
+                        </button>
                         <!-- :disabled="slotProps.data.is_used_in_quotations || slotProps.data.is_used_in_batching" -->
                         <!-- v-tooltip.right="getDeleteTooltip(slotProps.data)"                         -->
                         <BaseDeleteButton
@@ -167,6 +219,29 @@ const getDeleteTooltip = (mixDesign) => {
                 </div>
             </template>
         </BaseDataTable>
+
+        <!-- Duplicate Mix Design Dialog Modal -->
+        <Dialog 
+            v-model:visible="showDuplicateModal" 
+            modal 
+            header="Duplicate Mix Design" 
+            :style="{ width: '90vw', maxWidth: '1200px' }"
+            @hide="closeDuplicateModal"
+        >
+            <div class="p-1">
+                <MixDesignCreateForm
+                    v-if="showDuplicateModal && selectedDesignForDuplication"
+                    :products="products"
+                    :units="units"
+                    :partners="partners"
+                    :defaultUomId="defaultUomId"
+                    :designTypes="designTypes"
+                    :initialDesign="selectedDesignForDuplication"
+                    @created="onDuplicateCreated"
+                    @cancel="closeDuplicateModal"
+                />
+            </div>
+        </Dialog>
     </div>
 </template>
 

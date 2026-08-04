@@ -99,14 +99,14 @@ const form = useForm({
         const val = so?.sales_executive_id ?? so?.customer_p_o?.sales_executive_id ?? so?.customer_p_o?.quotation?.sales_executive_id ?? so?.latest_dispatch?.sales_executive_id ?? null;
         return val ? Number(val) : null;
     })(),
-    concrete_pump: (() => {
-        const direct = props.batch?.dispatches?.[0]?.concrete_pump || props.batch?.concrete_pump;
+    pump_type: (() => {
+        const direct = props.batch?.dispatches?.[0]?.pump_type || props.batch?.pump_type;
         if (direct) {
             const num = Number(direct);
             return isNaN(num) ? direct : num;
         }
         const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
-        const val = so?.concrete_pump ?? so?.customer_p_o?.concrete_pump ?? so?.customer_p_o?.quotation?.concrete_pump ?? so?.latest_dispatch?.concrete_pump ?? null;
+        const val = so?.pump_type ?? so?.customer_p_o?.pump_type ?? so?.customer_p_o?.quotation?.pump_type ?? so?.latest_dispatch?.pump_type ?? null;
         if (val) {
             const num = Number(val);
             return isNaN(num) ? val : num;
@@ -340,17 +340,17 @@ const applyBatchToForm = (newBatch: any) => {
               : (quotation?.sales_executive_id ? Number(quotation.sales_executive_id)
                  : (latestDispatch?.sales_executive_id ? Number(latestDispatch.sales_executive_id) : null))));
 
-    const rawPump = dispatch?.concrete_pump 
-        ?? so?.concrete_pump 
-        ?? po?.concrete_pump 
-        ?? quotation?.concrete_pump 
-        ?? latestDispatch?.concrete_pump 
+    const rawPump = dispatch?.pump_type 
+        ?? so?.pump_type 
+        ?? po?.pump_type 
+        ?? quotation?.pump_type 
+        ?? latestDispatch?.pump_type 
         ?? null;
     if (rawPump !== null) {
         const num = Number(rawPump);
-        form.concrete_pump = isNaN(num) ? rawPump : num;
+        form.pump_type = isNaN(num) ? rawPump : num;
     } else {
-        form.concrete_pump = null;
+        form.pump_type = null;
     }
     form.empty_weight_truck = Number(dispatch?.empty_weight_truck ?? 0);
     form.loaded_weight_truck = Number(dispatch?.loaded_weight_truck ?? 0);
@@ -918,14 +918,14 @@ const submit = () => {
                                 </div>
                                 <div>
                                     <BaseSelect
-                                        v-model="form.concrete_pump"
+                                        v-model="form.pump_type"
                                         :options="concretePumpOptions"
                                         label="Operation Type"
                                         placeholder="Select Operation Type"
                                         optionLabel="label"
                                         optionValue="value"
                                         :fluid="true"
-                                        :error="form.errors.concrete_pump"
+                                        :error="form.errors.pump_type"
                                         :disabled="isRestrictedFieldLocked"
                                     />
                                 </div>

@@ -28,6 +28,7 @@ const props = defineProps<{
     concretePumpOptions?: any[];
     taxes?: any[];
     pumpTypeOptions?: any[];
+    pumpRates?: any[];
 }>();
 
 const filters = ref({
@@ -204,7 +205,7 @@ const convertToSalesOrder = (customerPO: any) => {
             completed_qty: completed,
             remaining_qty: remaining,
             quantity: remaining > 0 ? remaining : 0,
-            concrete_pump: item.concrete_pump || null,
+            pump_type: item.pump_type || null,
         };
     });
     showConvertModal.value = true;
@@ -233,7 +234,7 @@ const submitConversion = () => {
         }
         // if (qty > 0) {
         //     hasSelectedItems = true;
-        //     if (item.concrete_pump === null || item.concrete_pump === undefined || item.concrete_pump === '') {
+        //     if (item.pump_type === null || item.pump_type === undefined || item.pump_type === '') {
         //         conversionErrors.value[`concrete_pump_${item.item_id}`] = 'Concrete Pump is required';
         //         hasErrors = true;
         //     }
@@ -253,7 +254,7 @@ const submitConversion = () => {
         items: convertItems.value.map(item => ({
             item_id: item.item_id,
             quantity: Number(item.quantity),
-            concrete_pump: item.concrete_pump,
+            pump_type: item.pump_type,
         }))
     };
 
@@ -327,6 +328,7 @@ watch(() => props.customerPOs, () => {
                 :concretePumpOptions="concretePumpOptions"
                 :taxes="taxes"
                 :pumpTypeOptions="pumpTypeOptions"
+                :pumpRates="pumpRates"
             />
 
             <!-- List Of Sales Orders -->
@@ -486,6 +488,7 @@ watch(() => props.customerPOs, () => {
                                 :concretePumpOptions="concretePumpOptions"
                                 :taxes="taxes"
                                 :pumpTypeOptions="pumpTypeOptions"
+                                :pumpRates="pumpRates"
                                 @saved="expandedRows = {}"
                                 @cancel="expandedRows = {}"
                             />
@@ -621,7 +624,7 @@ watch(() => props.customerPOs, () => {
                                     </td>
                                     <td class="p-3">
                                         <BaseSelect
-                                            v-model="item.concrete_pump"
+                                            v-model="item.pump_type"
                                             :options="props.pumpTypeOptions || []"
                                             optionLabel="label"
                                             optionValue="value"
