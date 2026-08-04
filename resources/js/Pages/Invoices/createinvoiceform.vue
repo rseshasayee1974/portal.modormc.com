@@ -297,23 +297,18 @@ const taxOptions = computed(() => props.taxes);
 
 <template>
     <div class="create-panel" :class="{ 'create-panel--open': isOpen }">
-        <button class="create-panel__header" @click="toggle" type="button">
-            <div class="flex items-center gap-3">
-                <div class="create-panel__icon">
-                    <DocumentChartBarIcon class="w-5 h-5 text-indigo-600" />
+        <div class="create-panel__header" @click="toggle">
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center gap-3">
+                    <div class="create-panel__icon">
+                        <DocumentChartBarIcon class="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div class="text-left">
+                        <p class="text-xs font-semibold text-gray-700 uppercase ">Generate Invoices</p>
+                        <p class="text-[11px] text-gray-400 font-medium mt-0.5">Manual Invoice & Logistics Reconciliation Module</p>
+                    </div>
                 </div>
-                <div class="text-left">
-                    <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">Generate Invoices</p>
-                    <p class="text-[11px] text-gray-400 font-medium mt-0.5">Manual Invoice & Logistics Reconciliation Module</p>
-                </div>
-            </div>
-        </button>
-
-        <Transition name="panel-slide">
-            <div v-if="isOpen" class="create-panel__body">
-                <!-- Mode Selector -->
-                <div class="flex items-center gap-4 mb-8 bg-slate-50/50 p-2 rounded-2xl border border-slate-100 w-fit">
-                    <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-3">Invoicing Strategy:</span>
+                <div class="flex items-center gap-4 w-fit" @click.stop>
                     <div class="flex bg-white rounded-xl p-1 shadow-sm border border-slate-200">
                         <button 
                             type="button" 
@@ -335,10 +330,17 @@ const taxOptions = computed(() => props.taxes);
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <Transition name="panel-slide">
+            <div   class="create-panel__body">
+                <!-- Mode Selector -->
+                
 
                 <form @submit.prevent="submit" class="space-y-6">
                     <!-- Top Info Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 px-1">
+                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4 px-1">
                         <BaseCreatableSelect
                             v-if="isInstantPartnerEnabled"
                             v-model="form.partner_id" 
@@ -373,6 +375,7 @@ const taxOptions = computed(() => props.taxes);
                             placeholder="Select Account"
                             :error="form.errors.account_id"
                             filter
+                             required
                         />
                         <BaseSelect 
                             v-model="form.invoice_type" 
@@ -422,16 +425,16 @@ const taxOptions = computed(() => props.taxes);
                         <div class="flex flex-col lg:flex-row lg:items-end gap-4 mb-6">
                             <BaseDatePicker v-model="dispatchFilters.startDate" label="From Date" size="small" class="w-44" />
                             <BaseDatePicker v-model="dispatchFilters.endDate" label="To Date" size="small" class="w-44" />
-                            <BaseButton variant="filled" severity="info" label="Find Dispatches" :loading="isFetchingDispatches" @click="fetchDispatches" class="!bg-emerald-600 !border-emerald-600 !h-10 !px-6 text-[10px] uppercase font-black tracking-widest shadow-md" />
+                            <BaseButton variant="filled" severity="info" label="Find Dispatches" :loading="isFetchingDispatches" @click="fetchDispatches" class="!bg-emerald-600 !border-emerald-600 !h-10 !px-6 text-[10px] uppercase font-black  shadow-md" />
                             
                             <div class="ml-auto" v-if="uninvoicedDispatches.length > 0">
-                                <BaseButton variant="filled" severity="primary" label="Merge Into Invoice" icon="pi pi-sync" @click="mergeSelectedDispatches" :disabled="selectedDispatches.length === 0" class="!bg-indigo-600 !h-10 !px-6 text-[10px] uppercase font-black tracking-widest shadow-md" />
+                                <BaseButton variant="filled" severity="primary" label="Merge Into Invoice" icon="pi pi-sync" @click="mergeSelectedDispatches" :disabled="selectedDispatches.length === 0" class="!bg-indigo-600 !h-10 !px-6 text-[10px] uppercase font-black  shadow-md" />
                             </div>
                         </div>
 
                         <div v-if="uninvoicedDispatches.length > 0" class="overflow-hidden border border-emerald-100 rounded-xl bg-white shadow-inner">
                             <table class="w-full text-left text-xs">
-                                <thead class="bg-emerald-50/50 text-[10px] font-black uppercase text-emerald-700 tracking-widest border-b border-emerald-100">
+                                <thead class="bg-emerald-50/50 text-[10px] font-black uppercase text-emerald-700  border-b border-emerald-100">
                                     <tr>
                                         <th class="p-4 w-12 text-center">
                                             <input type="checkbox" :checked="selectedDispatches.length === uninvoicedDispatches.length" @change="selectAllDispatches" class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" />
@@ -450,7 +453,7 @@ const taxOptions = computed(() => props.taxes);
                                         </td>
                                         <td class="p-4 font-black text-emerald-700">{{ d.dispatch_no }}</td>
                                         <td class="p-4 text-center text-slate-500">{{ new Date(d.dispatch_date).toLocaleDateString('en-GB') }}</td>
-                                        <td class="p-4 font-bold text-slate-700">{{ d.mix_design?.design_name || 'RMC' }}</td>
+                                        <td class="p-4  text-slate-700">{{ d.mix_design?.design_name || 'RMC' }}</td>
                                         <td class="p-4 font-medium text-slate-500">{{ d.truck?.registration || '-' }}</td>
                                         <td class="p-4 text-right font-black text-slate-900 pr-8">{{ d.delivered_qty }}</td>
                                     </tr>
@@ -468,18 +471,18 @@ const taxOptions = computed(() => props.taxes);
                     <div class="mt-6 border border-slate-100 rounded-sm shadow-sm overflow-hidden bg-white">
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse min-w-[900px]">
-                                <thead class="bg-slate-50 border-b border-slate-100 uppercase tracking-tighter text-[10px] font-bold text-slate-500">
+                                <thead class="bg-slate-50 border-b border-slate-100 uppercase tracking-tighter text-[10px] font-semibold text-slate-500">
                                     <tr>
-                                        <th class="px-4 py-3" style="width: 250px;">Product / Service</th>
-                                        <!-- <th class="px-4 py-3" style="width: 200px;">Description</th> -->
-                                        <th class="px-4 py-3 text-center" style="width: 100px;">Qty</th>
-                                        <th class="px-4 py-3 text-center" style="width: 100px;">UOM</th>
-                                        <th class="px-4 py-3 text-center" style="width: 140px;">Rate</th>
-                                        <th class="px-4 py-3 text-center" style="width: 120px;">TAX</th>
-                                        <th class="px-4 py-3 text-center" style="width: 180px;">Discount</th>
-                                        <th class="px-4 py-3 text-right">Net Amount</th>
+                                        <th class="px-4 py-1" style="width: 250px;">Product / Service</th>
+                                        <!-- <th class="px-4 py-1" style="width: 200px;">Description</th> -->
+                                        <th class="px-4 py-1 text-center" style="width: 100px;">Qty</th>
+                                        <th class="px-4 py-1 text-center" style="width: 100px;">UOM</th>
+                                        <th class="px-4 py-1 text-center" style="width: 140px;">Rate</th>
+                                        <th class="px-4 py-1 text-center" style="width: 120px;">TAX</th>
+                                        <th class="px-4 py-1 text-center" style="width: 180px;">Discount</th>
+                                        <th class="px-4 py-1 text-right">Net Amount</th>
                                         <th class="px-1 py-1" style="width: 50px;">
-                                            <button type="button" @click="addItem" class="text-indigo-600 font-bold hover:text-indigo-700">
+                                            <button type="button" @click="addItem" class="text-indigo-600 font-semibold hover:text-indigo-700">
                                                 <PlusIcon class="w-5 h-5 m-2 shadow-sm border border-slate-200 bg-indigo-50 hover:bg-indigo-600 hover:text-white rounded transition-colors" />
                                             </button>
                                         </th>
@@ -540,7 +543,7 @@ const taxOptions = computed(() => props.taxes);
                                                     />
                                                     <BaseInputNumber v-model="item.discount" size="small" class="flex-grow" />
                                                 </div>
-                                                <div v-if="item.discount > 0" class="text-[10px] text-right text-rose-500 font-bold px-1">
+                                                <div v-if="item.discount > 0" class="text-[10px] text-right text-rose-500 font-semibold px-1">
                                                     -{{ (item.discount_type === '₹' ? item.discount : (item.quantity * item.price_unit * (item.discount / 100))).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                                                 </div>
                                             </div>
@@ -561,58 +564,57 @@ const taxOptions = computed(() => props.taxes);
 
                     <!-- Footer Summary Section -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10 px-1">
-                        <div class="space-y-4 pt-4">
+                        <div class="space-y-4 ">
                             <div class="field-group">
-                                <label class="text-[10px] uppercase font-black text-slate-400 tracking-widest block mb-2 px-1">Invoice Remarks / Period Info</label>
-                                <Textarea v-model="form.period" rows="4" placeholder="Billing period, reference notes..." class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500" />
+                                <label class="text-[10px]  font-semibold text-slate-600  block">Invoice Remarks / Period Info</label>
+                                <Textarea v-model="form.period" rows="3" placeholder="Billing period, reference notes..." class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500" />
                             </div>
                             <div class="grid grid-cols-2 gap-4">
                                 <BaseInput v-model="form.ref_title" label="Reference Title" placeholder="PO Ref, etc." />
                             </div>
                         </div>
 
-                        <div class="bg-indigo-50/30 rounded-2xl p-8 border border-indigo-100 shadow-inner">
+                        <div class="bg-indigo-50/30 rounded-xl p-4 border border-indigo-100 shadow-inner">
                             <div class="space-y-4">
-                                <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
+                                <div class="flex justify-between items-center text-[11px]  text-slate-600 uppercase ">
                                     <span>Subtotal (Untaxed)</span>
                                     <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                                 </div>
-                                <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
+                                <div class="flex justify-between items-center text-[11px]  text-slate-600 uppercase ">
                                     <span>Tax Amount (+)</span>
                                     <span class="text-slate-900">{{ form.amount_tax.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center gap-4">
-                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Global Discount (-)</span>
-                                    <div class="flex gap-1 w-44">
+                                    <span class="text-[11px]  text-slate-600 uppercase ">Global Discount (-)</span>
+                                    <div class="flex gap-1 w-1/4">
                                       
                                         <BaseInputNumber v-model="form.global_discount" size="small" class="flex-grow" />
                                     </div>
                                 </div>
                                 <div class="flex justify-between items-center gap-4">
-                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Shipping Charges (+)</span>
+                                    <span class="text-[11px]  text-slate-600 uppercase ">Shipping Charges (+)</span>
                                     <BaseInputNumber v-model="form.shipping_charges" size="small" class="w-28" />
                                 </div>
-                                <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-4">
-                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off / Adj (+/-)</span>
+                                <div class="flex justify-between items-center gap-4 border-slate-200/50 pt-4">
+                                    <span class="text-[11px]  text-slate-600 uppercase ">Round Off / Adj (+/-)</span>
                                     <BaseInputNumber v-model="form.adjustment" size="small" class="w-28" />
                                 </div>
 
-                                <div class="flex justify-between items-center border-t border-slate-200 pt-6 mt-6">
+                                <div class="flex justify-between items-center border-slate-200">
                                     <div class="flex flex-col">
-                                        <span class="text-[14px] font-black text-indigo-700 uppercase tracking-[0.2em]">Payable Amount</span>
-                                        <span class="text-[9px] text-slate-400 font-bold uppercase mt-1">Inclusive of all manual adjustments</span>
+                                        <span class="text-[14px] text-indigo-700 uppercase ">Total Amount</span>
                                     </div>
                                     <div class="text-right flex items-baseline gap-1">
                                         <span class="text-xs text-indigo-700 font-black">₹</span>
-                                        <span class="text-3xl font-black text-slate-800 tracking-tight">
+                                        <span class=" font-black text-slate-800 tracking-tight">
                                              {{ form.amount_total.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                                         </span>
                                     </div>
                                 </div>
                                 
-                                <div class="pt-8">
+                                <div class="pt-4">
                                     <BaseFormActions
-                                        label="Commit Invoice"
+                                        label="Invoice"
                                         :loading="form.processing"
                                         @submit="submit"
                                         @reset="form.reset()"
@@ -630,19 +632,7 @@ const taxOptions = computed(() => props.taxes);
 </template>
 
 <style scoped>
-.create-panel {
-    @apply bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xl shadow-indigo-900/5 overflow-hidden transition-all duration-500 ease-in-out;
-}
- 
-.create-panel__header {
-    @apply w-full p-3 px-8 bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex justify-between items-center border-b border-slate-100 dark:border-slate-700 hover:bg-slate-100/50 transition-colors;
-}
-.create-panel__icon {
-    @apply w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center shadow-inner;
-}
-.create-panel__body {
-    @apply p-8;
-}
+
 
 /* Panel Slide Animation */
 .panel-slide-enter-active, .panel-slide-leave-active {

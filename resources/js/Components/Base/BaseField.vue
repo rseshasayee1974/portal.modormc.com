@@ -37,7 +37,7 @@ const inputId = computed(() => props.forId ?? (attrs.id as string | undefined));
         <label
             v-if="label"
             :for="inputId"
-            class="text-[10px] font-bold uppercase tracking-widest text-gray-700"
+            class="text-[10px] font-semibold capitalize text-gray-700"
             :class="{ 'opacity-60': disabled }"
         >
             {{ label }} <span v-if="required" class="text-red-500">*</span>
@@ -45,10 +45,10 @@ const inputId = computed(() => props.forId ?? (attrs.id as string | undefined));
 
         <slot :invalid="invalid" :inputId="inputId" />
 
-        <p v-if="hint && !invalid" class="text-[11px] text-gray-700">
+        <p v-if="hint && !invalid" class="text-[10px] text-gray-700">
             {{ hint }}
         </p>
-        <p v-if="invalid" class="text-[11px] text-red-600">
+        <p v-if="invalid" class="text-[10px] text-red-600">
             {{ errorText }}
         </p>
     </div>

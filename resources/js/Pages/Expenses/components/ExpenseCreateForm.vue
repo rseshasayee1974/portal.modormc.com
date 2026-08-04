@@ -214,19 +214,7 @@ const submit = () => {
 </template>
 
 <style scoped>
-.create-panel {
-    @apply bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xl shadow-indigo-900/5 overflow-hidden transition-all duration-500 ease-in-out;
-}
- 
-.create-panel__header {
-    @apply w-full p-4 px-8 bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 flex justify-between items-center border-b border-slate-100 dark:border-slate-700 hover:bg-slate-100/50 transition-colors;
-}
-.create-panel__icon {
-    @apply w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center shadow-inner;
-}
-.create-panel__body {
-    @apply p-8;
-}
+
 
 /* Panel Slide Animation */
 .panel-slide-enter-active, .panel-slide-leave-active {
