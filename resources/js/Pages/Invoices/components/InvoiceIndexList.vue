@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import axios from 'axios';
+import Popover from 'primevue/popover';
 import { router } from '@inertiajs/vue3';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
@@ -27,6 +28,14 @@ const props = defineProps<{
     units: any[];
     machines: any[];
 }>();
+
+const actionsPopover = ref();
+const selectedRow = ref<any>(null);
+
+const toggleActions = (event: any, row: any) => {
+    selectedRow.value = row;
+    actionsPopover.value.toggle(event);
+};
 
 const { can,isAdmin, isSuperAdmin } = usePermissions();
 
@@ -208,10 +217,16 @@ const shareEmail = () => {
     window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
 };
 
+const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return isNaN(date.getTime()) ? dateString : date.toLocaleDateString('en-GB');
+};
+
 </script>
 
 <template>
-    <div class="bg-white dark:bg-slate-800 shadow-xl rounded-lg border border-slate-200 dark:border-slate-700  overflow-hidden transition-all duration-300">
+    <div class="bg-white dark:bg-slate-800 shadow-xl rounded-lg border border-slate-200 dark:border-slate-700 transition-all duration-300">
         <BaseDataTable
             :value="invoices" 
             v-model:expandedRows="expandedRows"
@@ -235,11 +250,11 @@ const shareEmail = () => {
                     <div class="flex flex-col">
                         <div class="flex items-center gap-2">
                             <span 
-                                class="text-sm font-bold text-indigo-600 hover:underline uppercase"
+                                class="text-sm font-semibold text-indigo-800 hover:underline"
                             >
                                 {{ slotProps.data.full_number }}
                             </span>
-                            <Tag v-if="slotProps.data.is_duplicate" value="DUPE" severity="danger" class="!text-[7px] !px-1" />
+                            <!-- <Tag v-if="slotProps.data.is_duplicate" value="DUPE" severity="danger" class="!text-[7px] !px-1" /> -->
                         </div>
                         <div class="flex items-center gap-1.5 mt-1">
                              <Tag 
@@ -253,7 +268,6 @@ const shareEmail = () => {
                     </div>
                 </template>
             </Column>
-
             <Column field="partner.legal_name" header="Patron" sortable>
                 <template #body="slotProps">
                     <span class="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight block truncate max-w-[200px]">{{ slotProps.data.partner?.legal_name }}</span>
@@ -284,6 +298,12 @@ const shareEmail = () => {
                             />
                         </div>
                     </div>
+                </template>
+            </Column>
+
+            <Column field="invoice_date" header="Invoice Date" sortable>
+                <template #body="slotProps">
+                    <span class="text-sm font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight block truncate max-w-[200px]">{{ formatDate(slotProps.data.invoice_date) }}</span>
                 </template>
             </Column>
 
@@ -336,50 +356,16 @@ const shareEmail = () => {
                 </template>
             </Column>
 
-            <Column header="Actions" class="text-right">
+            <Column header="Actions" class="text-right w-24">
                 <template #body="slotProps">
-                    <div class="flex justify-end gap-1">
-                        <template v-if="isAdmin">
-                            <Button 
-                                icon="pi pi-file" 
-                                text rounded severity="secondary" 
-                                @click.stop="printOriginal(slotProps.data)"
-                                title="Print Original"
-                            />
-                            <Button 
-                                icon="pi pi-copy" 
-                                text rounded severity="secondary" 
-                                @click.stop="printDuplicate(slotProps.data)"
-                                title="Print Duplicate"
-                            />
-                        </template>
-                        <Button 
-                            v-else
-                            icon="pi pi-print" 
-                            text rounded severity="secondary" 
-                            @click.stop="slotProps.data.is_duplicate ? printDuplicate(slotProps.data) : printInvoice(slotProps.data)"
-                            title="Print Invoice"
-                        />
-                        <Button 
-                            icon="pi pi-share-alt" 
-                            text rounded severity="info" 
-                            @click.stop="openShareInvoice(slotProps.data)"
-                            title="Share Invoice"
-                        />
-                        <Button 
-                            icon="pi pi-pencil" 
-                            text rounded severity="info" 
-                            @click.stop="toggleEdit(slotProps.data)" 
-                            :disabled="slotProps.data.status !== 'draft'"
-                        />
-                          <!-- :disabled="['approved', 'paid'].includes(slotProps.data.status)" -->
-                        <Button 
-                            icon="pi pi-trash" 
-                            text rounded severity="danger" 
-                            @click.stop="deleteInvoice(slotProps.data)"
-                          
-                        />
-                    </div>
+                    <Button 
+                        icon="pi pi-ellipsis-v" 
+                        text 
+                        rounded 
+                        severity="secondary" 
+                        @click.stop="toggleActions($event, slotProps.data)" 
+                        title="Actions"
+                    />
                 </template>
             </Column>
 
@@ -495,5 +481,70 @@ const shareEmail = () => {
                 </div>
             </div>
         </Dialog>
+
+        <!-- Actions Popover (Appends to body to bypass overflow-hidden boundaries) -->
+        <Popover ref="actionsPopover" class="!shadow-xl !border !border-slate-200 !rounded-xl overflow-hidden">
+            <div class="flex flex-col w-48 py-1" v-if="selectedRow">
+                <!-- Edit -->
+                <button 
+                    @click="toggleEdit(selectedRow); actionsPopover.hide()" 
+                    :disabled="selectedRow.status !== 'draft'"
+                    class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <span class="pi pi-pencil text-indigo-500"></span>
+                    Edit Invoice
+                </button>
+
+                <!-- Share -->
+                <button 
+                    @click="openShareInvoice(selectedRow); actionsPopover.hide()" 
+                    class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
+                >
+                    <span class="pi pi-share-alt text-cyan-500"></span>
+                    Share Invoice
+                </button>
+
+                <!-- Divider -->
+                <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+
+                <!-- Print Options -->
+                <template v-if="isAdmin">
+                    <button 
+                        @click="printOriginal(selectedRow); actionsPopover.hide()" 
+                        class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
+                    >
+                        <span class="pi pi-file text-slate-500"></span>
+                        Print Original
+                    </button>
+                    <button 
+                        @click="printDuplicate(selectedRow); actionsPopover.hide()" 
+                        class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
+                    >
+                        <span class="pi pi-copy text-slate-500"></span>
+                        Print Duplicate
+                    </button>
+                </template>
+                <button 
+                    v-else
+                    @click="(selectedRow.is_duplicate ? printDuplicate(selectedRow) : printInvoice(selectedRow)); actionsPopover.hide()" 
+                    class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
+                >
+                    <span class="pi pi-print text-slate-500"></span>
+                    Print Invoice
+                </button>
+
+                <!-- Divider -->
+                <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+
+                <!-- Void/Delete -->
+                <button 
+                    @click="deleteInvoice(selectedRow); actionsPopover.hide()" 
+                    class="w-full text-left px-4 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 flex items-center gap-2"
+                >
+                    <span class="pi pi-trash text-rose-500"></span>
+                    Void Invoice
+                </button>
+            </div>
+        </Popover>
     </div>
 </template>

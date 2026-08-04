@@ -275,7 +275,7 @@ const submit = () => {
 .create-panel__icon { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #eef2ff, #e0e7ff); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: inset 0 2px 4px rgba(255,255,255,0.8); }
 .create-panel__toggle { width: 28px; height: 28px; border-radius: 50%; background: #eef2ff; display: flex; align-items: center; justify-content: center; color: #6366f1; transition: all 0.3s ease; }
 .create-panel__toggle--open { transform: rotate(45deg); background: #6366f1; color: white; box-shadow: 0 4px 12px rgba(99,102,241,0.4); }
-.create-panel__body { padding: 32px 24px; border-top: 1px solid #f1f5f9; background: linear-gradient(180deg, #fcfdff 0%, #ffffff 100%); }
+.create-panel__body { padding: 32px 24px; border-top: 1px solid #f1f5f9; background: linear-gradient(180deg, #fff 0%, #ffffff 100%); }
 
 .section-title { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #94a3b8; margin-bottom: 20px; }
 

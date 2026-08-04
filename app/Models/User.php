@@ -247,10 +247,7 @@ class User extends Authenticatable implements MustVerifyEmail
 			'Saas Owner',
 			'Platform Admin',
 			'Super Admin',
-			'Super Administrator',
-			'super-admin',
-			'Administrator',
-			'Admin',
+			'Super Administrator'
 		]);
 	}
 
