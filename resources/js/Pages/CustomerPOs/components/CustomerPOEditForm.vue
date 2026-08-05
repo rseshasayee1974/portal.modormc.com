@@ -10,7 +10,7 @@ import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import Button from 'primevue/button';
 import { usePermissions } from '@/Composables/usePermissions';
-import { TrashIcon, PlusIcon } from '@heroicons/vue/24/outline';
+import { TrashIcon, PlusIcon, CalculatorIcon } from '@heroicons/vue/24/outline';
 import RecipePopover from '@/Components/Base/RecipePopover.vue';
 const props = withDefaults(defineProps<{
     customerPO?: any;
@@ -277,7 +277,7 @@ const taxOptions = computed(() => (props.taxes || []).map(t => ({
     value: t.id
 })));
 
-console.log('sdfsdf',props.customerPO);
+// console.log('sdfsdf',props.customerPO);
 
 // Watch form items and is_tax_inclusive status to dynamically update tax_amount
 watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) => {
@@ -658,18 +658,7 @@ const performSubmit = (customerPOId: any) => {
                     :error="form.errors.reference"
                 />
             </div> -->
-            <div class="col-span-12 md:col-span-1">
-                <BaseSelect
-                    v-model="form.sales_executive_id"
-                    :options="salesExecutiveOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    filter
-                    label="Sales Executive"
-                    placeholder="Select Sales Executive"
-                    :error="form.errors.sales_executive_id"
-                />
-            </div>
+           
 
             <div class="col-span-12 md:col-span-1">
                 <BaseSelect
@@ -700,7 +689,18 @@ const performSubmit = (customerPOId: any) => {
                 />
                 <span v-if="form.quotation_id" class="text- text-indigo-600 mt-1 block font-medium">Locked to Quotation Site</span>
             </div>
-
+ <div class="col-span-12 md:col-span-1">
+                <BaseSelect
+                    v-model="form.sales_executive_id"
+                    :options="salesExecutiveOptions"
+                    optionLabel="label"
+                    optionValue="value"
+                    filter
+                    label="Sales Executive"
+                    placeholder="Select Sales Executive"
+                    :error="form.errors.sales_executive_id"
+                />
+            </div>
             <div class="col-span-12 md:col-span-1">
                 <BaseDatePicker
                     fluid
@@ -732,13 +732,15 @@ const performSubmit = (customerPOId: any) => {
                 <div class="col-span-12 md:col-span-5 border-t border-gray-200 pt-4 mt-2">
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                            <CalculatorIcon class="w-3.5 h-3.5" />
+
                             Estimation Details
+                        </span>
                             <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
                                 <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
                                 <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_1" :disabled="!!form.quotation_id" class="peer hidden" />
                                 <label for="is_tax_inclusive_po_edit_1" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
                             </div>
-                        </span>
                     </div>
 
                     <div class="rounded-md border border-slate-200 shadow-sm overflow-visible">
@@ -748,9 +750,9 @@ const performSubmit = (customerPOId: any) => {
                                     <th class="px-4 py-3 text-left w-64">Mix Design</th>
                                     <th class="px-4 py-3 text-center w-24">QTY (m³)</th>
                                     <th class="px-4 py-3 text-center w-32">Rate (₹)</th>
+                                    <th class="px-4 py-3 text-center w-40">Tax</th>
                                     <th class="px-4 py-3 text-center w-40">Pump Type</th>
                                     <th class="px-4 py-3 text-center w-32">Pump Rate (₹)</th>
-                                    <th class="px-4 py-3 text-center w-40">Tax</th>
                                     <th class="px-4 py-3 text-right w-36">Total (Incl. Tax)</th>
                                     <th class="px-4 py-3 w-12">
                                         <button type="button" @click="addItem" class="text-indigo-600 font-bold text-[10px] uppercase hover:text-indigo-700 flex items-center gap-1">
@@ -785,6 +787,16 @@ const performSubmit = (customerPOId: any) => {
                                     <td class="p-3">
                                         <BaseInputNumber v-model="item.rate" prefix="₹" :minFractionDigits="2" />
                                     </td>
+                                       <td class="p-3">
+                                        <BaseSelect
+                                            v-model="item.tax_id"
+                                            :options="taxOptions"
+                                            optionLabel="label"
+                                            optionValue="value"
+                                            placeholder="None"
+                                            clearable
+                                        />
+                                    </td>
                                     <td class="p-2">
                                         <BaseSelect
                                             v-model="item.pump_type"
@@ -803,16 +815,7 @@ const performSubmit = (customerPOId: any) => {
                                             :minFractionDigits="2"
                                         />
                                     </td>
-                                    <td class="p-3">
-                                        <BaseSelect
-                                            v-model="item.tax_id"
-                                            :options="taxOptions"
-                                            optionLabel="label"
-                                            optionValue="value"
-                                            placeholder="None"
-                                            clearable
-                                        />
-                                    </td>
+                                 
                                     <td class="p-3 text-right font-bold text-slate-800 text-sm">
                                         <span>₹ {{ ((Number(item.quantity || 0) * Number(item.rate || 0)) + Number(item.tax_amount || 0) + (addPouringRatesToTotal ? Number(item.pump_rate || 0) : (Number(item.pump_rate || 0) * Number(item.quantity || 0)))).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                                     </td>
@@ -951,12 +954,12 @@ const performSubmit = (customerPOId: any) => {
                 <div class="col-span-12 md:col-span-5 mt-2 border-t border-gray-200 pt-4 flex items-center justify-between">
                     <span class="text-xs font-bold uppercase tracking-wide text-indigo-800 flex items-center gap-4">
                         Mix Design Items (Loaded from Quotation)
+                    </span>
                         <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
                             <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
                             <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_3" :disabled="!!form.quotation_id" class="peer hidden" />
                             <label for="is_tax_inclusive_po_edit_3" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
                         </div>
-                    </span>
                 </div>
                 
                 <div class="col-span-12 md:col-span-5">

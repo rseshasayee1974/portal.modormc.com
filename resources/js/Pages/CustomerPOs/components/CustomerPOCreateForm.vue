@@ -7,7 +7,7 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import Button from 'primevue/button';
 import Swal from 'sweetalert2';
-import { PlusCircleIcon, DocumentTextIcon, TrashIcon, PlusIcon } from '@heroicons/vue/24/outline';
+import { PlusCircleIcon, DocumentTextIcon, TrashIcon, PlusIcon, CalculatorIcon } from '@heroicons/vue/24/outline';
 import RecipePopover from '@/Components/Base/RecipePopover.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
@@ -506,13 +506,15 @@ const submit = () => {
         <div class="col-span-full  pt-4">
             <div class="flex justify-between items-center mb-3">
                 <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                                    <CalculatorIcon class="w-3.5 h-3.5" />
+
                     Estimation Details
+                </h3>
                     <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
                         <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
                         <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_create" class="peer hidden" />
                         <label for="is_tax_inclusive_po_create" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
                     </div>
-                </h3>
             </div>
 
             <div class="rounded-md border border-slate-200 shadow-sm overflow-visible">
@@ -522,9 +524,9 @@ const submit = () => {
                             <th class="px-4 py-3 text-left w-64">Mix Design</th>
                             <th class="px-4 py-3 text-center w-24">QTY (m³)</th>
                             <th class="px-4 py-3 text-center w-32">Rate (₹)</th>
+                            <th class="px-4 py-3 text-center w-40">Tax</th>
                             <th class="px-4 py-3 text-center w-40">Pump Type</th>
                             <th class="px-4 py-3 text-center w-32">Pump Rate (₹)</th>
-                            <th class="px-4 py-3 text-center w-40">Tax</th>
                             <th class="px-4 py-3 text-right w-36">Total (Incl. Tax)</th>
                             <th class="px-4 py-3 w-12">
                                 <button type="button" @click="addItem" class="text-indigo-600 font-bold text-[10px] uppercase hover:text-indigo-700 flex items-center gap-1">
@@ -559,6 +561,16 @@ const submit = () => {
                             <td class="p-3">
                                 <BaseInputNumber v-model="item.rate" prefix="₹" :minFractionDigits="2" placeholder="0.00"/>
                             </td>
+                              <td class="p-3">
+                                <BaseSelect
+                                    v-model="item.tax_id"
+                                    :options="taxOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="None"
+                                    clearable
+                                />
+                            </td>
                             <td class="p-2">
                                 <BaseSelect
                                     v-model="item.pump_type"
@@ -577,16 +589,7 @@ const submit = () => {
                                     :minFractionDigits="2"
                                 />
                             </td>
-                            <td class="p-3">
-                                <BaseSelect
-                                    v-model="item.tax_id"
-                                    :options="taxOptions"
-                                    optionLabel="label"
-                                    optionValue="value"
-                                    placeholder="None"
-                                    clearable
-                                />
-                            </td>
+                          
                             <td class="p-3 text-right font-bold text-slate-800 text-sm">
                                 <span>₹ {{ ((Number(item.quantity || 0) * Number(item.rate || 0)) + Number(item.tax_amount || 0) + (addPouringRatesToTotal ? Number(item.pump_rate || 0) : (Number(item.pump_rate || 0) * Number(item.quantity || 0)))).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                             </td>

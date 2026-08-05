@@ -21,6 +21,7 @@ defineProps<{
     designTypes?: any[];
     salesExecutives?: any[];
     taxes?: any[];
+    pumpRates?: any[];
 }>();
 </script>
 
@@ -57,6 +58,7 @@ defineProps<{
                 :designTypes="designTypes"
                 :salesExecutives="salesExecutives"
                 :taxes="taxes"
+                :pumpRates="pumpRates"
             />
 
             <SalesOrderDataTable
@@ -69,6 +71,7 @@ defineProps<{
                 :concretePumpOptions="concretePumpOptions"
                 :salesExecutives="salesExecutives"
                 :taxes="taxes"
+                :pumpRates="pumpRates"
             />
         </div>
     </AppLayout>

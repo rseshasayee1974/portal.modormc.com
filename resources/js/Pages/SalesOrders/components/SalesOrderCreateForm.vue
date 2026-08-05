@@ -204,7 +204,7 @@ watch(() => form.customer_po_id, (newVal) => {
                 form.tax_id = firstItem.tax_id ? Number(firstItem.tax_id) : null;
                 
                 // Set initial pump rate
-                updatePumpRate();
+                resolveSinglePumpRate();
             }
         }
     } else {
@@ -248,66 +248,43 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
     return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
 };
 
-const updatePumpRate = () => {
-    console.log('updatePumpRate (Create, Local) called:', {
-        customer_po_id: form.customer_po_id,
-        pump_type: form.pump_type,
-        customer_id: form.customer_id,
-        site_id: form.site_id
-    });
-    if (form.customer_po_id) {
-        const customerPO = props.customerPOs.find((so) => Number(so.id) === Number(form.customer_po_id));
-        if (customerPO) {
-            // Check po items for the selected mix design
-            const poItem = (customerPO.items || []).find((item: any) => Number(item.mix_design_id) === Number(form.mix_design_id));
-            if (poItem) {
-                let matched = null;
-                if (form.pump_type) {
-                    matched = (poItem.pump_rates || poItem.pumpRates || []).find(
-                        (p: any) => String(p.pump_type) === String(form.pump_type)
-                    );
-                }
-                if (!matched) {
-                    matched = (poItem.pump_rates || poItem.pumpRates || []).find((p: any) => Number(p.pump_rate) > 0);
-                }
-                if (matched) {
-                    form.pump_type = Number(matched.pump_type);
-                    form.pump_rate = Number(matched.pump_rate || 0);
-                    return;
-                }
+const resolveSinglePumpRate = (isDropdownChange = false) => {
+    const resolved = resolvePumpRatesLocally(form.customer_id, form.site_id);
+    if (form.pump_type) {
+        const matched = resolved.find((r: any) => String(r.pump_type) === String(form.pump_type));
+        if (matched) {
+            if (isDropdownChange) {
+                form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
+            }
+        } else {
+            if (isDropdownChange) {
+                form.pump_rate = 0;
             }
         }
     } else {
-        const resolved = resolvePumpRatesLocally(form.customer_id, form.site_id);
-        console.log('Resolved rates locally (Create):', resolved);
-        let matched = null;
-        if (form.pump_type) {
-            matched = resolved.find((r: any) => String(r.pump_type) === String(form.pump_type));
-        }
-        if (!matched && resolved.length > 0) {
-            matched = resolved[0];
-        }
-        if (matched) {
+        if (resolved.length > 0) {
+            const matched = resolved[0];
             form.pump_type = Number(matched.pump_type);
             form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
-            return;
+        } else {
+            form.pump_type = null;
+            form.pump_rate = 0;
         }
     }
-    form.pump_type = null;
-    form.pump_rate = 0;
 };
 
 watch(() => form.pump_type, () => {
-    updatePumpRate();
-});
-watch(() => form.mix_design_id, () => {
-    updatePumpRate();
+    resolveSinglePumpRate(true);
 });
 watch(() => form.customer_id, () => {
-    updatePumpRate();
+    if (form.customer_po_id) return;
+    form.pump_type = null;
+    resolveSinglePumpRate(true);
 });
 watch(() => form.site_id, () => {
-    updatePumpRate();
+    if (form.customer_po_id) return;
+    form.pump_type = null;
+    resolveSinglePumpRate(true);
 });
 
 const submit = () => {
@@ -541,6 +518,8 @@ const handleMixCreated = () => {
                             label="Pump Type"
                             placeholder="Select Type"
                             :error="form.errors.pump_type"
+                                                            @update:modelValue="resolveSinglePumpRate(true)"
+
                         />
                     </div>
 
@@ -607,7 +586,7 @@ const handleMixCreated = () => {
             </div>
 
             <!-- Mix Design Specifications Breakdown -->
-            <div v-if="selectedMixDesign" class="rounded-xl border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/20 p-4 space-y-3">
+            <!-- <div v-if="selectedMixDesign" class="rounded-xl border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/20 p-4 space-y-3">
                 <div class="flex items-center justify-between border-b border-indigo-100 dark:border-indigo-900/50 pb-2">
                     <span class="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">Mix Specifications</span>
                     <span class="text-xs font-semibold text-slate-700 dark:text-slate-200">{{ selectedMixDesign.design_name }}</span>
@@ -628,7 +607,7 @@ const handleMixCreated = () => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> -->
 
             <!-- Totals & Actions Footer -->
             <div class="flex flex-col md:flex-row justify-end items-end gap-6 border-t border-slate-100 dark:border-slate-800 pt-5">

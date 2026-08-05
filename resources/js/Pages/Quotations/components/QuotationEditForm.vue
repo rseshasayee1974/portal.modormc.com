@@ -506,12 +506,12 @@ const sendEmail = () => {
                     <thead class="bg-slate-50/80 border-y border-slate-100 uppercase tracking-[0.15em] text-[9.5px] font-semibold text-slate-400">
                         <tr>
                             <th class="px-3 py-3" style="width: 320px;">Mix Design</th>
-                            <th class="px-3 py-3 text-center" style="width: 100px;">UOM</th>
                             <th class="px-3 py-3 text-center" style="width: 120px;">Qty</th>
+                            <th class="px-3 py-3 text-center" style="width: 100px;">UOM</th>
                             <th class="px-3 py-3 text-center" style="width: 140px;">Rate</th>
+                            <th class="px-3 py-3 text-center" style="width: 140px;">Tax</th>
                             <th class="px-3 py-3 text-center" style="width: 180px;">Pump Type</th>
                             <th class="px-3 py-3 text-center" style="width: 140px;">Pump Rate</th>
-                            <th class="px-3 py-3 text-center" style="width: 140px;">Tax</th>
                             <th class="px-3 py-3 text-right" style="width: 140px;">Amount</th>
                             <th class="px-1 py-1" style="width: 50px;">
                                 <button v-if="!isLocked" type="button" @click="addItem" class="text-indigo-600 font-bold text-[10px] uppercase hover:text-indigo-700 flex items-center gap-1">
@@ -541,6 +541,14 @@ const sendEmail = () => {
                                     <!-- Info Button Popover -->
                                     <RecipePopover :mixDesignId="item.mix_design_id" :mixDesigns="props.mixDesigns" />
                                 </div>
+                            </td> 
+                             <td class="p-2">
+                                <BaseInputNumber
+                                    v-model="item.quantity"
+                                    :minFractionDigits="2"
+                                    :error="form.errors[`items.${index}.quantity`]"
+                                    :disabled="isLocked"
+                                />
                             </td>
                             <td class="p-2">
                                 <BaseSelect
@@ -553,19 +561,23 @@ const sendEmail = () => {
                                     :disabled="isLocked"
                                 />
                             </td>
-                            <td class="p-2">
-                                <BaseInputNumber
-                                    v-model="item.quantity"
-                                    :minFractionDigits="2"
-                                    :error="form.errors[`items.${index}.quantity`]"
-                                    :disabled="isLocked"
-                                />
-                            </td>
+                          
                             <td class="p-2">
                                 <BaseInputNumber
                                     v-model="item.rate"
                                     :minFractionDigits="2"
                                     :error="form.errors[`items.${index}.rate`]"
+                                    :disabled="isLocked"
+                                />
+                            </td>
+                             <td class="p-2">
+                                <BaseSelect
+                                    v-model="item.tax_id"
+                                    :options="taxOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="None"
+                                    clearable
                                     :disabled="isLocked"
                                 />
                             </td>
@@ -588,17 +600,7 @@ const sendEmail = () => {
                                     :disabled="isLocked"
                                 />
                             </td>
-                            <td class="p-2">
-                                <BaseSelect
-                                    v-model="item.tax_id"
-                                    :options="taxOptions"
-                                    optionLabel="label"
-                                    optionValue="value"
-                                    placeholder="None"
-                                    clearable
-                                    :disabled="isLocked"
-                                />
-                            </td>
+                           
                             <td class="p-2 text-right font-bold text-slate-800 text-sm">
                                 <span>₹ {{ Number(item.amount_total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                             </td>

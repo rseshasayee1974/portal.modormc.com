@@ -273,7 +273,7 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 };
 
 const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
-    if (!item.mix_design_id) return;
+    // if (!item.mix_design_id) return;
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
     if (item.pump_type) {
@@ -284,7 +284,7 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
             }
         } else {
             if (isDropdownChange) {
-                item.pump_type = null;
+                // item.pump_type = null;
                 item.pump_rate = 0;
             }
         }
@@ -694,12 +694,12 @@ const submit = () => {
                                 <thead class="bg-slate-50 border-b border-slate-200">
                                     <tr class="text-[10px] uppercase font-bold text-slate-500">
                                         <th class="px-4 py-3 text-left w-64">Mix Design</th>
-                                        <th class="px-4 py-3 text-center w-24">UOM</th>
                                         <th class="px-4 py-3 text-center w-24">QTY</th>
+                                        <th class="px-4 py-3 text-center w-24">UOM</th>
                                         <th class="px-4 py-3 text-center w-32">Rate</th>
+                                        <th class="px-4 py-3 text-center w-40">Tax </th>
                                         <th class="px-4 py-3 text-center w-40">Pump Type</th>
                                         <th class="px-4 py-3 text-center w-32">Pump Rate</th>
-                                        <th class="px-4 py-3 text-center w-40">Tax </th>
                                         <th class="px-4 py-3 text-right w-36">Total (Incl. Tax)</th>
                                         <th class="px-4 py-3 w-12">
                                             <button type="button" @click="addItem" class="text-indigo-600 font-bold text-[10px] uppercase hover:text-indigo-700 flex items-center gap-1">
@@ -731,7 +731,9 @@ const submit = () => {
         <RecipePopover :mixDesignId="item.mix_design_id" :mixDesigns="props.mixDesigns" />
 
     </div>
-</td>
+</td><td class="p-3">
+                                            <BaseInputNumber v-model="item.quantity" :min="1" />
+                                        </td>
                                         <td class="p-2">
                                             <BaseSelect
                                                 v-model="item.uom_id"
@@ -742,11 +744,12 @@ const submit = () => {
                                                 filter
                                             />
                                         </td>
-                                        <td class="p-3">
-                                            <BaseInputNumber v-model="item.quantity" :min="1" />
-                                        </td>
+                                        
                                         <td class="p-3">
                                             <BaseInputNumber v-model="item.rate" prefix="₹" />
+                                        </td>
+                                           <td class="p-3">
+                                            <BaseSelect v-model="item.tax_id" :options="taxOptions" optionLabel="label" optionValue="value" placeholder="None" clearable />
                                         </td>
                                         <td class="p-2">
                                             <BaseSelect 
@@ -765,9 +768,7 @@ const submit = () => {
                                                 :minFractionDigits="2"
                                             />
                                         </td>
-                                        <td class="p-3">
-                                            <BaseSelect v-model="item.tax_id" :options="taxOptions" optionLabel="label" optionValue="value" placeholder="None" clearable />
-                                        </td>
+                                     
                                         <td class="p-3 text-right font-bold text-slate-800 text-sm w-30">
                                             <span class="">₹ {{ Number(item.amount_total).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                                         </td>
