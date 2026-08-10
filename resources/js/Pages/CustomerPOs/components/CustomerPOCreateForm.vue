@@ -112,7 +112,6 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 };
 
 const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
-    if (!item.mix_design_id) return;
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
     if (item.pump_type) {
@@ -140,6 +139,7 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
 
 const resolveAllItemsPumpRates = () => {
     for (const item of form.items) {
+        item.pump_type = null;
         resolveItemPumpRate(item, true);
     }
 };
@@ -147,7 +147,9 @@ const resolveAllItemsPumpRates = () => {
 watch([() => form.patron_id, () => form.site_id], resolveAllItemsPumpRates);
 
 const addItem = () => {
-    form.items.push({ mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_type: null, pump_rate: 0, pump_rates: [] });
+    const newItem = { mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_type: null, pump_rate: 0, pump_rates: [] };
+    resolveItemPumpRate(newItem, true);
+    form.items.push(newItem);
 };
 
 const removeItem = (index: number) => {

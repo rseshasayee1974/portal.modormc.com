@@ -302,6 +302,7 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
 
 const resolveAllItemsPumpRates = () => {
     for (const item of form.items) {
+        item.pump_type = null;
         resolveItemPumpRate(item, true);
     }
 };
@@ -335,7 +336,11 @@ const removePumpRatesForDesign = (designId: number) => {
     });
 };
 
-const addItem = () => form.items.push(createNewItem());
+const addItem = () => {
+    const newItem = createNewItem();
+    resolveItemPumpRate(newItem, true);
+    form.items.push(newItem);
+};
 const removeItem = (index: number) => {
     if (form.items.length > 1) form.items.splice(index, 1);
     else Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'At least one item required' });

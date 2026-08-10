@@ -253,15 +253,20 @@ const resolveSinglePumpRate = (isDropdownChange = false) => {
     }
 };
 
+// Auto pump rate resolution on Edit Form disabled per requirement (enable later if needed):
+/*
 watch(() => form.pump_type, () => {
     resolveSinglePumpRate(true);
 });
 watch(() => form.patron_id, () => {
+    form.pump_type = null;
     resolveSinglePumpRate(true);
 });
 watch(() => form.site_id, () => {
+    form.pump_type = null;
     resolveSinglePumpRate(true);
 });
+*/
 
 const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 

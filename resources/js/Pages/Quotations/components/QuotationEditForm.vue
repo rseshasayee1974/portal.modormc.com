@@ -208,11 +208,13 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
 
 const resolveAllItemsPumpRates = () => {
     for (const item of form.items) {
+        item.pump_type = null;
         resolveItemPumpRate(item, true);
     }
 };
 
-watch([() => form.patron_id, () => form.site_id], resolveAllItemsPumpRates);
+// Auto pump rate resolution on Edit Form disabled per requirement (enable later if needed):
+// watch([() => form.patron_id, () => form.site_id], resolveAllItemsPumpRates);
 
 const excludedMixDesignPumpRates = ref<number[]>([]);
 
@@ -337,7 +339,9 @@ function createNewItem(): QuotationItemPayload {
 }
 
 const addItem = () => {
-    form.items.push(createNewItem());
+    const newItem = createNewItem();
+    resolveItemPumpRate(newItem, true);
+    form.items.push(newItem);
 };
 
 const removeItem = (index: number) => {

@@ -365,6 +365,8 @@ const resolveSinglePumpRate = (isDropdownChange = false) => {
     }
 };
 
+// Auto pump rate resolution on Edit Form disabled per requirement (enable later if needed):
+/*
 watch(() => form.pump_type, () => {
     if (isInitializing.value) return;
     resolveSinglePumpRate(true);
@@ -381,6 +383,7 @@ watch(() => form.site_id, () => {
     form.pump_type = null;
     resolveSinglePumpRate(true);
 });
+*/
 
 const submit = () => {
     const salesOrderId = props.salesOrder?.id ?? props.salesOrder?.work_order_id ?? null;
