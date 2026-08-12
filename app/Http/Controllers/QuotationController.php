@@ -123,6 +123,7 @@ class QuotationController extends Controller
                     'site_id' => $quotation->site_id,
                     'sales_executive_id' => $quotation->sales_executive_id,
                     'pump_type' => $quotation->pump_type,
+                    'is_tax_inclusive' => $quotation->is_tax_inclusive,
                     'pump_rate' => $quotation->pump_rate,
                     'manual_rate' => $quotation->manual_rate,
                     'boom_pump_rate' => $quotation->boom_pump_rate,
