@@ -145,6 +145,11 @@ class Dispatch extends Model
         return $this->belongsTo(Personnel::class, 'sales_executive_id');
     }
 
+    public function concretePump(): BelongsTo
+    {
+        return $this->belongsTo(Machine::class, 'pump_type');
+    }
+
     public function status(): HasOne
     {
         return $this->hasOne(DispatchStatus::class, 'dispatch_id');

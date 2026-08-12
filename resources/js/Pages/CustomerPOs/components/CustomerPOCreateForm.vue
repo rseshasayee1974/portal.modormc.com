@@ -37,6 +37,7 @@ const props = withDefaults(defineProps<{
 const form = useForm({
     prefix: null as string | null,
     reference: null as string | null,
+    customer_po_reference: null as string | null,
     quotation_id: null as number | null,
     patron_id: null as number | null,
     status: 0 as number | null,
@@ -486,6 +487,16 @@ const submit = () => {
             fluid
             hourFormat="24"
             :error="form.errors.order_date"
+        />
+    </div>
+
+    <!-- Customer PO Reference -->
+    <div>
+        <BaseInput
+            v-model="form.customer_po_reference"
+            label="Customer PO Ref No"
+            placeholder="Customer's PO / order reference"
+            :error="form.errors.customer_po_reference"
         />
     </div>
          <div class="col-span-12 md:col-span-1">

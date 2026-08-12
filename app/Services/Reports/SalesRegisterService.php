@@ -86,6 +86,20 @@ class SalesRegisterService
         $invoice = $item->invoice;
         $partner = $invoice?->partner;
 
+        if (!$partner && $invoice && $invoice->invoice_label === 'Dispatch' && $invoice->ref_id) {
+            $dispatch = \Illuminate\Support\Facades\DB::table('mm_dispatches')->where('id', $invoice->ref_id)->first();
+            if ($dispatch) {
+                $customerId = $dispatch->customer_id;
+                if (!$customerId && !empty($dispatch->sales_order_id)) {
+                    $so = \Illuminate\Support\Facades\DB::table('mm_sales_orders')->where('id', $dispatch->sales_order_id)->first();
+                    $customerId = $so?->customer_id;
+                }
+                if ($customerId) {
+                    $partner = \App\Models\Patron::withoutGlobalScopes()->find($customerId);
+                }
+            }
+        }
+
         $invoiceNo = $invoice
             ? (($invoice->prefix ?? '') . ($invoice->invoice_number ?? ''))
             : '';

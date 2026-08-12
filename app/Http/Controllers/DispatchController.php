@@ -258,10 +258,11 @@ Log::info($dispatch);
             'invoice_date' => 'required|date',
         ]);
         return DB::transaction(function () use ($dispatch, $validated) {
+            $partnerId = $dispatch->customer_id ?: $dispatch->salesOrder?->customer_id;
             $invoice = \App\Models\Invoice::createFromSource($dispatch, 'sales', [
                 'account_id'    => $validated['ledger_id'],
                 'invoice_date'  => $validated['invoice_date'],
-                'partner_id'    => $dispatch->customer_id,
+                'partner_id'    => $partnerId,
                 'plant_id'      => $dispatch->plant_id,
                 'invoice_label' => 'Dispatch'
             ]);

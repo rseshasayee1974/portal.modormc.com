@@ -20,6 +20,7 @@ class CustomerPO extends Model
         'plant_id',
         'prefix',
         'reference',
+        'customer_po_reference',
         'quotation_id',
         'patron_id',
         'site_id',

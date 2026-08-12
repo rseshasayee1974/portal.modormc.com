@@ -128,7 +128,7 @@
             <tr>
                 <th class="text-center" style="width:28px">#</th>
                 <th class="text-left">Item &amp; Description</th>
-                @if ($pdfSettings['show_pump_charges'] ?? true)
+                @if (($pdfSettings['show_pump_charges'] ?? true) && !($data['totals']['add_pouring_rates_to_total'] ?? false))
                     <th class="text-left" style="width:120px">Operation Type</th>
                     <th class="text-right" style="width:90px">Pump Charges</th>
                 @endif
@@ -162,7 +162,7 @@
                             <div class="small muted">HSN: {{ $item['hsn'] }}</div>
                         @endif
                     </td>
-                    @if ($pdfSettings['show_pump_charges'] ?? true)
+                    @if (($pdfSettings['show_pump_charges'] ?? true) && !($data['totals']['add_pouring_rates_to_total'] ?? false))
                         <td class="text-left">{{ $item['operation_type'] ?? '-' }}</td>
                         <td class="text-right">{{ isset($item['pump_charge']) && $item['pump_charge'] > 0 ? number_format($item['pump_charge'], 2) : '-' }}</td>
                     @endif
@@ -212,7 +212,7 @@
                         <td style="font-weight:bold; color:#64748b;">Sub Total</td>
                         <td class="text-right">{{ number_format($data['totals']['sub_total'], 2) }}</td>
                     </tr>
-                    @if (($pdfSettings['pump_rates'] ?? true) && isset($data['totals']['pump_rate']) && $data['totals']['pump_rate'] > 0)
+                    @if ((($pdfSettings['show_pump_charges'] ?? true) || ($pdfSettings['pump_rates'] ?? true)) && isset($data['totals']['pump_rate']) && $data['totals']['pump_rate'] > 0)
                     <tr>
                         <td style="font-weight:bold; color:#64748b;">Concrete Pump Charges</td>
                         <td class="text-right">{{ number_format($data['totals']['pump_rate'], 2) }}</td>

@@ -138,6 +138,20 @@ class SalesRegisterExport
                 $invoice = $item->invoice;
                 $partner = $invoice?->partner;
 
+                if (!$partner && $invoice && $invoice->invoice_label === 'Dispatch' && $invoice->ref_id) {
+                    $dispatch = DB::table('mm_dispatches')->where('id', $invoice->ref_id)->first();
+                    if ($dispatch) {
+                        $customerId = $dispatch->customer_id;
+                        if (!$customerId && !empty($dispatch->sales_order_id)) {
+                            $so = DB::table('mm_sales_orders')->where('id', $dispatch->sales_order_id)->first();
+                            $customerId = $so?->customer_id;
+                        }
+                        if ($customerId) {
+                            $partner = \App\Models\Patron::withoutGlobalScopes()->find($customerId);
+                        }
+                    }
+                }
+
                 $cgst = $item->itemTaxes->where('name', 'LIKE', '%CGST%')->sum('amount');
                 $sgst = $item->itemTaxes->where('name', 'LIKE', '%SGST%')->sum('amount') + $item->itemTaxes->where('name', 'LIKE', '%UTGST%')->sum('amount');
                 $igst = $item->itemTaxes->where('name', 'LIKE', '%IGST%')->sum('amount');

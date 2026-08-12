@@ -40,7 +40,7 @@ class ReportRepository
             })
             ->with([
                 'invoice' => function ($q) {
-                    $q->select([
+                    $q->withoutGlobalScopes()->select([
                         'id',
                         'prefix',
                         'invoice_number',
@@ -51,10 +51,12 @@ class ReportRepository
                         'balance_amount',
                         'created_by',
                         'plant_id',
+                        'invoice_label',
+                        'ref_id',
                     ]);
                 },
                 'invoice.partner' => function ($q) {
-                    $q->select(['id', 'legal_name', 'gstin']);
+                    $q->withoutGlobalScopes()->select(['id', 'legal_name', 'gstin']);
                 },
                 'uom' => function ($q) {
                     $q->select(['id', 'unit_name', 'unit_code']);
@@ -167,7 +169,7 @@ class ReportRepository
             ])
             ->with([
                 'order' => function ($q) {
-                    $q->select([
+                    $q->withoutGlobalScopes()->select([
                         'id',
                         'po_number',
                         'bill_number',
@@ -178,7 +180,7 @@ class ReportRepository
                     ]);
                 },
                 'order.vendor' => function ($q) {
-                    $q->select(['id', 'legal_name', 'gstin']);
+                    $q->withoutGlobalScopes()->select(['id', 'legal_name', 'gstin']);
                 },
                 'order.plant' => function ($q) {
                     $q->select(['id', 'gstin']);

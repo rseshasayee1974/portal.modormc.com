@@ -549,13 +549,13 @@ class PrintDataFormatter
         $partner = $invoice->partner;
         $dispatch = \App\Models\Dispatch::whereHas('status', function ($q) use ($invoice) {
             $q->where('invoice_id', $invoice->id);
-        })->with(['salesOrder.customer', 'salesOrder.site', 'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site'])->first();
+        })->with(['salesOrder.customer', 'salesOrder.site', 'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site', 'concretePump'])->first();
 
         if (!$dispatch && !empty($invoice->ref_id)) {
             $refIds = explode(',', $invoice->ref_id);
             $firstRefId = trim($refIds[0] ?? '');
             if (is_numeric($firstRefId)) {
-                $dispatch = \App\Models\Dispatch::with(['salesOrder.customer', 'salesOrder.site', 'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site'])->find($firstRefId);
+                $dispatch = \App\Models\Dispatch::with(['salesOrder.customer', 'salesOrder.site', 'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site', 'concretePump'])->find($firstRefId);
             }
         }
 
@@ -616,7 +616,19 @@ class PrintDataFormatter
         $data['ship_to'] = self::formatShipTo($site, $data['bill_to']);
 
         $isIntra = self::isIntraState($invoice->plant->gstin ?? '', $partner?->gstin ?? '');
-        $data['items'] = $invoice->items->map(function ($item, $idx) use ($isIntra) {
+
+        $batchingSettings = \App\Models\CustomSetting::getForModule($invoice->plant_id, 'batching');
+        $addPouringRatesToTotal = !empty($batchingSettings['add_pouring_rates_to_total']) && $batchingSettings['add_pouring_rates_to_total'] == 1;
+
+        $showPumpCharges = !isset($data['settings']['pdf']['show_pump_charges']) || $data['settings']['pdf']['show_pump_charges'];
+
+        $pumpChargesTotal = 0.0;
+        $dispatchPumpCharge = 0.0;
+        if ($dispatch) {
+            $dispatchPumpCharge = (float)($dispatch->pump_charges ?? 0.0);
+        }
+
+        $data['items'] = $invoice->items->map(function ($item, $idx) use ($isIntra, $showPumpCharges, $addPouringRatesToTotal, $dispatch, $dispatchPumpCharge, &$pumpChargesTotal) {
             $taxModel = $item->tax;
             $lineTaxAmount = (float)$item->line_tax_amount;
 
@@ -641,9 +653,37 @@ class PrintDataFormatter
                 $taxDetails = self::resolveTaxDetails($taxModel, $isIntra, $lineTaxAmount, (float)$item->subtotal);
             }
 
+            $operationType = '-';
+            $pumpCharge = 0.0;
+            if ($showPumpCharges && $dispatch) {
+                if ($dispatch->concretePump) {
+                    $operationType = $dispatch->concretePump->registration;
+                } elseif (!empty($dispatch->pump_type)) {
+                    if (is_numeric($dispatch->pump_type)) {
+                        $pumpMachine = \App\Models\Machine::find($dispatch->pump_type);
+                        $operationType = $pumpMachine?->registration ?? (string)$dispatch->pump_type;
+                    } else {
+                        $operationType = match(strtolower($dispatch->pump_type)) {
+                            'line_pump' => 'Line Pump',
+                            'boom_pump' => 'Boom Pump',
+                            'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
+                            default => ucwords(str_replace('_', ' ', $dispatch->pump_type))
+                        };
+                    }
+                }
+                // When add_pouring_rates_to_total is OFF, pump charges are displayed in the items table column
+                // When add_pouring_rates_to_total is ON, pump charges are displayed in the subtotal/totals section instead
+                if (!$addPouringRatesToTotal) {
+                    $pumpCharge = $dispatchPumpCharge;
+                }
+            }
+
+            $pumpChargesTotal += $dispatchPumpCharge;
+
             return [
                 'no' => $idx + 1, 'name' => $item->item_name, 'description' => '', 'hsn' => $item->hsn_code ?? '-',
                 'qty' => (float)$item->quantity, 'unit' => $item->uom->unit_code ?? 'm³', 'unit_price' => (float)$item->price_unit,
+                'operation_type' => $operationType, 'pump_charge' => $pumpCharge,
                 'tax_name' => $taxDetails['name'] ?: '-', 'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => $lineTaxAmount,
                 'total' => (float)($item->line_total ?? ($item->quantity * $item->price_unit)),
             ];
@@ -653,7 +693,10 @@ class PrintDataFormatter
         $data['totals'] = [
             'sub_total' => (float)$invoice->subtotal, 'discount' => (float)($invoice->discount_total ?? $invoice->global_discount),
             'tax_lines' => $taxLines, 'shipping' => (float)$invoice->shipping_charges, 'adjustment' => (float)$invoice->adjustment,
-            'round_off' => (float)$invoice->round_off, 'grand_total' => (float)$invoice->total_amount,
+            'round_off' => (float)$invoice->round_off,
+            'pump_rate' => ($showPumpCharges && $addPouringRatesToTotal) ? $pumpChargesTotal : 0.0,
+            'add_pouring_rates_to_total' => $addPouringRatesToTotal,
+            'grand_total' => (float)$invoice->total_amount,
         ];
         $orderTypeForTerms = $invoice->invoice_type === 'bill' ? 'Purchase Bill' : [($invoice->invoice_label ?? 'Tax Invoice'), 'Tax Invoice'];
         $data['meta'] = [

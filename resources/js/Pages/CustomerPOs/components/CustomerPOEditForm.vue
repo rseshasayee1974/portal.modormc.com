@@ -46,6 +46,7 @@ const admin = isAdmin.value || isSuperAdmin.value || isSassOwner.value;
 const form = useForm({
     prefix: props.customerPO?.prefix ?? 'CPO',
     reference: props.customerPO?.reference ?? '',
+    customer_po_reference: props.customerPO?.customer_po_reference ?? '',
     quotation_id: props?.customerPO?.quotation_id ?? null,
     patron_id: props.customerPO?.patron_id ?? null,
     site_id: props.customerPO?.site_id ?? null,
@@ -729,6 +730,16 @@ const performSubmit = (customerPOId: any) => {
                     label="Status"
                     placeholder="Select Status"
                     :error="form.errors.status"
+                />
+            </div>
+
+            <!-- Customer PO Reference -->
+            <div class="col-span-12 md:col-span-1">
+                <BaseInput
+                    v-model="form.customer_po_reference"
+                    label="Customer PO Ref No"
+                    placeholder="Customer's PO / order reference"
+                    :error="form.errors.customer_po_reference"
                 />
             </div>
 
