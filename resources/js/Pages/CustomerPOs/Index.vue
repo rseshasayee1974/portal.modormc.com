@@ -615,7 +615,6 @@ watch(() => props.customerPOs, () => {
                                             v-model="item.quantity" 
                                             :disabled="item.remaining_qty <= 0"
                                             :min="0"
-                                            :max="Math.min(item.remaining_qty, 9.99)"
                                             :minFractionDigits="1"
                                             :maxFractionDigits="3"
                                             placeholder="Qty"
