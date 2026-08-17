@@ -1,6 +1,7 @@
 @php
     $pdfSettings = $data['settings']['pdf'] ?? [];
     $labels = $pdfSettings['labels'] ?? [];
+    $copyType = $copy_type ?? 'ORIGINAL';
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -9,395 +10,299 @@
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
-       
-        .inv-root { width: 100%; }
-        .gst-header { display: table; width: 100%; border-bottom: 3px solid #4f46e5; padding: 0 0 15px 0; margin-bottom: 15px; }
-        .gh-left  { display: table-cell; vertical-align: bottom; }
-        .gh-right { display: table-cell; vertical-align: bottom; text-align: right; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #000; font-size: 9.5pt; margin: 0; padding: 0; line-height: 1.25; }
+        .inv-root { width: 100%; border: 1px solid #000; box-sizing: border-box; }
         
-        .co-name  { font-size: 18px; font-weight: 800; color: #4f46e5; text-transform: uppercase; margin-bottom: 4px; }
-        .co-det   { font-size: 10px; color: #64748b; line-height: 1.4; }
-        .gst-title { font-size: 22px; font-weight: 900; text-transform: uppercase; color: #1e293b; letter-spacing: -0.02em; }
-        .gst-orig  { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
+        .header-table { width: 100%; border-collapse: collapse; }
+        .header-table td { vertical-align: top; padding: 8px 10px; }
+        .header-title { text-align: right; text-transform: uppercase; font-size: 13pt; font-weight: bold; }
+        .header-subtitle { text-align: right; text-transform: uppercase; font-size: 9pt; color: #333; margin-top: 2px; }
 
-        .gst-meta { display: table; width: 100%; border-collapse: collapse; margin-bottom: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; }
-        .gmt-cell { display: table-cell; padding: 8px 12px; border-right: 1px solid #e2e8f0; font-size: 10px; vertical-align: top; }
-        .gmt-cell:last-child { border-right: none; }
-        .gmt-key  { color: #64748b; font-size: 9px; font-weight: 600; text-transform: uppercase; margin-bottom: 2px; }
-        .gmt-val  { font-weight: 700; color: #1e293b; font-size: 11px; }
+        .irn-bar { border-top: 1px solid #000; padding: 6px 10px; font-size: 8.5pt; width: 100%; box-sizing: border-box; }
+        .irn-bar table { width: 100%; border-collapse: collapse; }
+        .irn-bar td { vertical-align: middle; padding: 0; }
 
-        .party-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        .party-table td { vertical-align: top; padding: 0 10px 0 0; }
-        .party-table td:last-child { padding-right: 0; }
-        .pr-hdr    { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #4f46e5; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-        .pr-name   { font-weight: 800; font-size: 12px; color: #1e293b; margin-bottom: 4px; }
-        .pr-det    { color: #64748b; font-size: 10px; line-height: 1.5; }
+        .block-table { width: 100%; border-collapse: collapse; border-top: 1px solid #000; }
+        .block-th { background: #f2f2f2; border-bottom: 1px solid #000; border-right: 1px solid #000; font-size: 9pt; font-weight: bold; padding: 4px 8px; text-align: left; }
+        .block-th:last-child { border-right: none; }
+        .block-td { border-right: 1px solid #000; padding: 6px 8px; vertical-align: top; font-size: 8.5pt; }
+        .block-td:last-child { border-right: none; }
 
-        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        .items-table th { background: #1e293b; color: #fff; padding: 8px 10px; font-size: 9px; text-transform: uppercase; font-weight: 700; border: 1px solid #1e293b; }
-        .items-table td { border: 1px solid #e2e8f0; padding: 8px 10px; font-size: 10px; color: #1e293b; }
-        .items-table tr:nth-child(even) { background: #f8fafc; }
+        .kv-line { margin-bottom: 3px; }
+        .kv-label { font-weight: normal; color: #111; }
+        .kv-val { font-weight: bold; color: #000; }
 
-        .gst-totals { display: table; width: 100%; margin-top: 10px; }
-        .gt-left  { display: table-cell; width: 55%; padding-right: 20px; vertical-align: top; }
-        .gt-right { display: table-cell; width: 45%; vertical-align: top; }
-        
-        .gst-summary { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-        .gst-summary th { background: #f8fafc; padding: 6px 8px; font-size: 9px; font-weight: 700; border: 1px solid #e2e8f0; color: #64748b; }
-        .gst-summary td { padding: 6px 8px; border: 1px solid #e2e8f0; font-size: 10px; }
-        
-        .total-payable { background: #4f46e5; color: #fff; font-weight: 800; font-size: 16px; padding: 12px 15px; border-radius: 6px; text-align: right; margin-top: 5px; }
+        .carrier-bar { border-top: 1px solid #000; padding: 5px 8px; font-size: 9pt; background: #fff; }
 
-        .declaration { font-size: 9px; color: #64748b; line-height: 1.6; padding: 12px; background: #f8fafc; border-radius: 6px; margin-bottom: 15px; border-left: 3px solid #cbd5e1; }
-        .terms-box { font-size: 9.5px; color: #1e293b; margin-bottom: 15px; }
-        .terms-hdr { font-weight: 800; font-size: 10px; text-transform: uppercase; color: #64748b; margin-bottom: 5px; }
-        
-        .sig-row  { display: table; width: 100%; margin-top: 20px; }
-        .sig-left  { display: table-cell; vertical-align: bottom; font-size: 9px; color: #94a3b8; }
-        .sig-right { display: table-cell; vertical-align: bottom; text-align: right; }
-        .sig-line  { display: inline-block; width: 200px; border-top: 2px solid #1e293b; padding-top: 8px; font-size: 11px; font-weight: 800; color: #1e293b; text-align: center; }
+        .items-table { width: 100%; border-collapse: collapse; border-top: 1px solid #000; border-bottom: 1px solid #000; }
+        .items-table th { border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 4px 6px; font-size: 8.5pt; font-weight: bold; text-align: center; background: #f9f9f9; }
+        .items-table th:last-child { border-right: none; }
+        .items-table td { border-right: 1px solid #000; border-bottom: 1px solid #ddd; padding: 5px 6px; font-size: 8.5pt; vertical-align: middle; }
+        .items-table td:last-child { border-right: none; }
+        .items-table tr:last-child td { border-bottom: none; }
+
+        .tax-table { width: 100%; border-collapse: collapse; }
+        .tax-table td { border-bottom: 1px solid #000; border-right: 1px solid #000; padding: 3px 6px; font-size: 8pt; }
+        .tax-table td:last-child { border-right: none; }
+        .tax-table tr:last-child td { border-bottom: none; }
+
+        .totals-table { width: 100%; border-collapse: collapse; border-top: 1px solid #000; }
+        .totals-table td { padding: 5px 8px; vertical-align: top; font-size: 8.5pt; }
+
+        .terms-block { border-top: 1px solid #000; border-right: 1px solid #000; width: 60%; padding: 6px 8px; vertical-align: top; font-size: 8pt; }
+        .bank-block { border-top: 1px solid #000; width: 40%; padding: 6px 8px; vertical-align: top; font-size: 8pt; }
+
+        .footer-cert { border-top: 1px solid #000; border-right: 1px solid #000; width: 40%; padding: 5px 8px; font-size: 7.5pt; color: #222; vertical-align: top; }
+        .footer-sig-cust { border-top: 1px solid #000; border-right: 1px solid #000; width: 25%; padding: 5px 8px; vertical-align: bottom; text-align: center; font-size: 8.5pt; }
+        .footer-sig-auth { border-top: 1px solid #000; width: 35%; padding: 5px 8px; vertical-align: bottom; text-align: center; font-size: 8.5pt; }
     </style>
 </head>
 <body>
 @include('pdfs.partials._print_actions')
 <div class="inv-root">
-
-    @if (($pdfSettings['show_einvoice_details'] ?? true) && (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
-        <div style="display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 6px 12px; font-size: 9.5px; background: #fafafa; margin-bottom: 12px;">
-            <div style="display: table-cell; vertical-align: middle;">
-                @if(!empty($data['meta']['irn'])) <div><strong>IRN :</strong> {{ $data['meta']['irn'] }}</div> @endif
-                @if(!empty($data['meta']['ack_no'])) <div><strong>Ack No. :</strong> {{ $data['meta']['ack_no'] }}</div> @endif
-                @if(!empty($data['meta']['ack_date'])) <div><strong>Ack Date :</strong> {{ $data['meta']['ack_date'] }}</div> @endif
-            </div>
-            @if(!empty($data['meta']['qr_code']))
-                <div style="display: table-cell; vertical-align: middle; text-align: right; width: 70px;">
-                    <img src="{{ $data['meta']['qr_code'] }}" style="max-height: 60px; max-width: 60px; object-fit: contain;" />
-                </div>
-            @endif
-        </div>
-    @endif
-
-    {{-- GST HEADER (3-col: company | doc title | brand) --}}
-    <div class="gst-header">
-        <div class="gh-left">
-            @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
-                @php
-                    $cleanLogoPath = ltrim(
-                        str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
-                        '/',
-                    );
-                    $logoUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
-                        ? asset('storage/' . $cleanLogoPath)
-                        : public_path('storage/' . $cleanLogoPath);
-                @endphp
-                <div style="margin-bottom: 6px;">
-                    <img src="{{ $logoUrl }}" style="max-height: 50px; max-width: 180px; object-fit: contain;" />
-                </div>
-            @endif
-            @if($pdfSettings['company_name'] ?? true) <div class="co-name">{{ $data['company']['name'] }}</div> @endif
-            @if($pdfSettings['address'] ?? true)
-                <div class="co-det">
-                    {{ $data['company']['address'] }}<br>
-                    {{ $data['company']['city'] }}, {{ $data['company']['state'] }} - {{ $data['company']['pin'] }}<br>
-                    @if($data['company']['phone']) Phone: {{ $data['company']['phone'] }} &bull; @endif
-                    @if($data['company']['email']) Email: {{ $data['company']['email'] }} @endif
-                </div>
-            @endif
-            @if(($pdfSettings['gstin'] ?? true) && $data['company']['gstin']) 
-                <div class="co-det" style="margin-top:5px; font-weight:700; color:#1e293b">GSTIN: {{ $data['company']['gstin'] }}</div> 
-            @endif
-        </div>
-        <div class="gh-right">
-            <div class="gst-title">{{ $data['doc_title'] }}</div>
-            <div class="gst-orig">Original for Recipient</div>
-            <div class="co-det" style="margin-top:5px">PAN: {{ $data['company']['pan'] ?? ($data['meta']['pan'] ?? 'XXXXX0000X') }}</div>
-            @if(!empty($data['company']['msme_no'])) <div class="co-det" style="margin-top:2px">MSME/Udyam No : {{ $data['company']['msme_no'] }}</div> @endif
-        </div>
-    </div>
-
-    {{-- DOC META STRIP --}}
-    <div class="gst-meta">
-        <div class="gmt-cell"><div class="gmt-key">Invoice No.</div><div class="gmt-val">{{ $data['doc_no'] }}</div></div>
-        <div class="gmt-cell"><div class="gmt-key">Date</div><div class="gmt-val">{{ $data['doc_date'] }}</div></div>
-        @if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') <div class="gmt-cell"><div class="gmt-key">Due Date</div><div class="gmt-val">{{ $data['due_date'] }}</div></div> @endif
-        @if(!empty($data['meta']['so_no'])) <div class="gmt-cell"><div class="gmt-key">SO No</div><div class="gmt-val">{{ $data['meta']['so_no'] }}</div></div> @endif
-        @if(($pdfSettings['show_einvoice_details'] ?? true) && !empty($data['meta']['eway_bill_no'])) <div class="gmt-cell"><div class="gmt-key">EWayBillNo</div><div class="gmt-val">{{ $data['meta']['eway_bill_no'] }}</div></div> @endif
-        <div class="gmt-cell"><div class="gmt-key">State of Supply</div><div class="gmt-val">{{ $data['bill_to']['state'] ?? 'Tamil Nadu' }}</div></div>
-        @if(!empty($data['meta']['sales_executive_name'])) <div class="gmt-cell"><div class="gmt-key">Sales Exec</div><div class="gmt-val">{{ $data['meta']['sales_executive_name'] }}</div></div> @endif
-        <div class="gmt-cell"><div class="gmt-key">Project</div><div class="gmt-val">{{ $data['meta']['project_name'] ?: '---' }}</div></div>
-    </div>
-
-    {{-- PARTY (Bill To | Ship To | Customer Ref) --}}
-    @php
-        $showCustRef = ($pdfSettings['show_customer_ref'] ?? true) && (!empty($data['meta']['acc_no']) || !empty($data['meta']['sales_person']) || !empty($data['meta']['pump']) || !empty($data['meta']['design_mix_ref']));
-        $colWidth = $showCustRef ? '33.33%' : '50%';
-    @endphp
-    <table class="party-table">
+    {{-- TOP LOGO & TITLE HEADER --}}
+    <table class="header-table">
         <tr>
-            <td style="width: {{ $colWidth }};">
-                @if($pdfSettings['bill_to'] ?? true)
-                    <div class="pr-hdr">{{ $labels['bill_to'] ?? 'Bill To (Customer)' }}</div>
-                    <div class="pr-name">{{ $data['bill_to']['name'] }}</div>
-                    <div class="pr-det">
-                        @if(!empty($data['bill_to']['address'])) {{ $data['bill_to']['address'] }}<br> @endif
-                        @if(!empty($data['bill_to']['city']) || !empty($data['bill_to']['state'])) {{ $data['bill_to']['city'] }}, {{ $data['bill_to']['state'] }} - {{ $data['bill_to']['pin'] }}<br> @endif
-                        @if(($pdfSettings['gstin'] ?? true) && $data['bill_to']['gstin']) 
-                            <div style="margin-top:4px; color:#1e293b">GSTIN: <strong>{{ $data['bill_to']['gstin'] }}</strong></div> 
-                        @endif
-                    </div>
+            <td style="width: 65%;">
+                @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
+                    @php
+                        $cleanLogoPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']), '/');
+                        $logoUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false)) ? asset('storage/' . $cleanLogoPath) : public_path('storage/' . $cleanLogoPath);
+                    @endphp
+                    <img src="{{ $logoUrl }}" style="max-height: 45px; max-width: 180px; object-fit: contain; vertical-align: middle; margin-right: 8px;" />
                 @endif
+                <span style="font-size: 13pt; font-weight: bold; text-transform: uppercase; vertical-align: middle;">{{ $data['company']['name'] }}</span>
             </td>
-            <td style="width: {{ $colWidth }};">
-                @if($pdfSettings['ship_to'] ?? true)
-                    <div class="pr-hdr">{{ $labels['ship_to'] ?? 'Ship To (Site Location)' }}</div>
-                    <div class="pr-name">{{ $data['ship_to']['name'] }}</div>
-                    <div class="pr-det">
-                        @if(!empty($data['ship_to']['address'])) {{ $data['ship_to']['address'] }}<br> @endif
-                        @if(!empty($data['ship_to']['city']) || !empty($data['ship_to']['state'])) {{ $data['ship_to']['city'] }}, {{ $data['ship_to']['state'] }} - {{ $data['ship_to']['pin'] }} @endif
-                    </div>
-                @endif
+            <td style="width: 35%; text-align: right;">
+                <div class="header-subtitle">{{ $copyType }}</div>
+                <div class="header-title">{{ $data['doc_title'] }}</div>
             </td>
-            @if($showCustRef)
-                <td style="width: 33.33%;">
-                    <div class="pr-hdr">Customer Ref</div>
-                    <div class="pr-det" style="font-size:10px; color:#1e293b;">
-                        @if(!empty($data['meta']['acc_no'])) <div>Acc No: <strong>{{ $data['meta']['acc_no'] }}</strong></div> @endif
-                        @if(!empty($data['meta']['po_number'])) <div>PO: <strong>{{ $data['meta']['po_number'] }}</strong></div> @endif
-                        @if(!empty($data['meta']['sales_person'])) <div>Sales Person: <strong>{{ $data['meta']['sales_person'] }}</strong></div> @endif
-                        @if(!empty($data['meta']['pump'])) <div>Pump: <strong>{{ $data['meta']['pump'] }}</strong></div> @endif
-                        @if(!empty($data['meta']['quality_incharge'])) <div>Quality InCharge: <strong>{{ $data['meta']['quality_incharge'] }}</strong></div> @endif
-                        @if(!empty($data['meta']['design_mix_ref'])) <div>Design Mix Ref: <strong>{{ $data['meta']['design_mix_ref'] }}</strong></div> @endif
-                    </div>
-                </td>
-            @endif
         </tr>
     </table>
 
-    @if (($pdfSettings['show_carrier_driver'] ?? true) && !empty($data['meta']['carrier_driver']) && $data['meta']['carrier_driver'] !== '-')
-        <div style="padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-size: 10.5px; background: #f8fafc; margin-bottom: 15px; border-radius: 4px;">
-            <strong>Carrier - Driver :</strong> {{ $data['meta']['carrier_driver'] }}
+    {{-- E-INVOICE / IRN BAR --}}
+    @if (($pdfSettings['show_einvoice_details'] ?? true) && (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
+        <div class="irn-bar">
+            <table>
+                <tr>
+                    <td style="vertical-align: top;">
+                        @if(!empty($data['meta']['irn'])) <div>IRN : {{ $data['meta']['irn'] }}</div> @endif
+                        @if(!empty($data['meta']['ack_no'])) <div>Ack No. : {{ $data['meta']['ack_no'] }}</div> @endif
+                        @if(!empty($data['meta']['ack_date'])) <div>Ack Date : {{ $data['meta']['ack_date'] }}</div> @endif
+                    </td>
+                    @if(!empty($data['meta']['qr_code']))
+                        <td style="width: 70px; text-align: right; vertical-align: top;">
+                            <img src="{{ $data['meta']['qr_code'] }}" style="max-height: 65px; max-width: 65px; object-fit: contain;" />
+                        </td>
+                    @endif
+                </tr>
+            </table>
         </div>
     @endif
-    
+
+    {{-- ADDRESS & INVOICE INFO BLOCK (3-COL) --}}
+    <table class="block-table">
+        <tr>
+            <td class="block-th" style="width: 38%;">Reg. Address</td>
+            <td class="block-th" style="width: 30%;">Plant Address</td>
+            <td class="block-th" style="width: 32%;">Invoice Information</td>
+        </tr>
+        <tr>
+            <td class="block-td">
+                <div>{{ $data['company']['address'] }}</div>
+                <div>{{ $data['company']['city'] }} - {{ $data['company']['pin'] }}</div>
+                <div>{{ strtoupper($data['company']['state']) }}</div>
+                @if(!empty($data['company']['phone'])) <div>Mobile Number : {{ $data['company']['phone'] }}</div> @endif
+                @if(!empty($data['company']['gstin'])) <div>GSTIN : <strong>{{ $data['company']['gstin'] }}</strong></div> @endif
+                <div>STATE : {{ strtoupper($data['company']['state']) }}</div>
+                @if(!empty($data['company']['state_code'])) <div>STATE CODE : {{ $data['company']['state_code'] }}</div> @endif
+                @if(!empty($data['company']['pan'])) <div>PAN : {{ $data['company']['pan'] }}</div> @endif
+                @if(!empty($data['company']['msme_no'])) <div>MSME/Udyam No : {{ $data['company']['msme_no'] }}</div> @endif
+            </td>
+            <td class="block-td">
+                <div>{{ $data['company']['address'] }}</div>
+                <div>{{ $data['company']['city'] }} - {{ $data['company']['pin'] }}</div>
+                <div>{{ $data['company']['state'] }}</div>
+            </td>
+            <td class="block-td">
+                <div class="kv-line">Invoice No : <strong>{{ $data['doc_no'] }}</strong></div>
+                <div class="kv-line">Date : <strong>{{ $data['doc_date'] }}</strong></div>
+                @if(!empty($data['meta']['so_no'])) <div class="kv-line">SO No : <strong>{{ $data['meta']['so_no'] }}</strong></div> @endif
+                @if(!empty($data['meta']['eway_bill_no'])) <div class="kv-line">EWayBillNo : <strong>{{ $data['meta']['eway_bill_no'] }}</strong></div> @endif
+            </td>
+        </tr>
+    </table>
+
+    {{-- CUSTOMER BILLING, SHIPPING & REF BLOCK (3-COL) --}}
+    <table class="block-table">
+        <tr>
+            <td class="block-th" style="width: 38%;">Customer Billing Address</td>
+            <td class="block-th" style="width: 30%;">Customer Shipping Address</td>
+            <td class="block-th" style="width: 32%;">Customer Ref</td>
+        </tr>
+        <tr>
+            <td class="block-td">
+                @if($pdfSettings['bill_to'] ?? true)
+                    <div style="font-weight: bold; text-transform: uppercase;">{{ $data['bill_to']['name'] }}</div>
+                    <div>{{ $data['bill_to']['address'] }}</div>
+                    <div>{{ $data['bill_to']['city'] }} - {{ $data['bill_to']['pin'] }}</div>
+                    @if(($pdfSettings['gstin'] ?? true) && !empty($data['bill_to']['gstin']))
+                        <div style="margin-top: 3px;">GSTIN : <strong>{{ $data['bill_to']['gstin'] }}</strong></div>
+                    @endif
+                @endif
+            </td>
+            <td class="block-td">
+                @if($pdfSettings['ship_to'] ?? true)
+                    <div style="font-weight: bold; text-transform: uppercase;">{{ $data['ship_to']['name'] }}</div>
+                    <div>{{ $data['ship_to']['address'] }}</div>
+                    <div>{{ $data['ship_to']['city'] }} - {{ $data['ship_to']['pin'] }}</div>
+                    @if(($pdfSettings['gstin'] ?? true) && !empty($data['ship_to']['gstin']))
+                        <div style="margin-top: 3px;">GSTIN : <strong>{{ $data['ship_to']['gstin'] }}</strong></div>
+                    @endif
+                @endif
+            </td>
+            <td class="block-td">
+                @if($pdfSettings['show_customer_ref'] ?? true)
+                    <div class="kv-line">Acc No : <strong>{{ $data['meta']['acc_no'] ?? '-' }}</strong></div>
+                    <div class="kv-line">PO : <strong>{{ $data['meta']['po_number'] ?? '-' }}</strong></div>
+                    <div class="kv-line">Sales Person : <strong>{{ $data['meta']['sales_person'] ?? '-' }}</strong></div>
+                    <div class="kv-line">Pump : <strong>{{ $data['meta']['pump'] ?? '-' }}</strong></div>
+                    <div class="kv-line">Quality InCharge :-</div>
+                    <div class="kv-line">Design Mix Ref : <strong>{{ $data['meta']['design_mix_ref'] ?? '-' }}</strong></div>
+                @endif
+            </td>
+        </tr>
+    </table>
+
+    {{-- CARRIER - DRIVER BAR --}}
+    @if(($pdfSettings['show_carrier_driver'] ?? true) && !empty($data['meta']['carrier_driver']))
+        <div class="carrier-bar">
+            <strong>Carrier - Driver</strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{ $data['meta']['carrier_driver'] }}
+        </div>
+    @endif
+
     {{-- ITEMS TABLE --}}
     <table class="items-table">
         <thead>
             <tr>
-                <th class="text-center" style="width:28px">#</th>
-                <th class="text-left">Item &amp; Description</th>
-                @if (($pdfSettings['show_pump_charges'] ?? true) && !($data['totals']['add_pouring_rates_to_total'] ?? false))
-                    <th class="text-left" style="width:120px">Operation Type</th>
-                    <th class="text-right" style="width:90px">Pump Charges</th>
-                @endif
-                @if ($pdfSettings['qty'] ?? true)
-                    <th class="text-right" style="width:55px">Qty</th>
-                @endif
-                @if ($pdfSettings['unit'] ?? true)
-                    <th class="text-center" style="width:50px">Unit</th>
-                @endif
-                <th class="text-right" style="width:80px">{{ $labels['rate'] ?? 'Rate' }}</th>
-                @if ($pdfSettings['tax_rate'] ?? true)
-                    <th class="text-right" style="width:55px">Tax %</th>
-                @endif
-                @if ($pdfSettings['tax_amount'] ?? true)
-                    <th class="text-right" style="width:70px">Tax Amt</th>
-                @endif
-                <th class="text-right" style="width:80px">{{ $labels['amount'] ?? 'Amount' }}</th>
+                <th style="width: 8%;">Code</th>
+                <th style="width: 12%;">Grade</th>
+                <th style="width: 20%;">Description</th>
+                <th style="width: 10%;">QTY.in CU.M</th>
+                <th style="width: 10%;">Unit Price</th>
+                <th style="width: 12%;">Taxable Amount</th>
+                <th style="width: 18%;">Tax</th>
+                <th style="width: 10%;">Total</th>
             </tr>
         </thead>
         <tbody>
-            @foreach ($data['items'] as $item)
+            @foreach($data['items'] as $item)
                 <tr>
-                    <td class="text-center">{{ $item['no'] }}</td>
-                    <td>
-                        <div class="item-name">{{ $item['name'] }}</div>
-                        @if (($pdfSettings['description'] ?? true) && $item['description'])
-                            <div class="item-sub">{{ $item['description'] }}</div>
-                        @endif
-                        @include('pdfs.partials._pump_rates_table', ['item' => $item])
-                        @if (($pdfSettings['hsn_code'] ?? true) && ($item['hsn'] ?? false))
-                            <div class="small muted">HSN: {{ $item['hsn'] }}</div>
-                        @endif
+                    <td style="text-align: center;">HSN :<br><strong>{{ $item['hsn'] ?? '38245010' }}</strong></td>
+                    <td style="text-align: center; font-weight: bold;">{{ $item['name'] }}</td>
+                    <td>{{ $item['description'] }}</td>
+                    <td style="text-align: right; font-weight: bold;">{{ number_format($item['qty'], 2) }}</td>
+                    <td style="text-align: right;">{{ number_format($item['unit_price'], 2) }}</td>
+                    <td style="text-align: right; font-weight: bold;">{{ number_format($item['taxable_amount'] ?? ($item['qty'] * $item['unit_price']), 2) }}</td>
+                    <td style="padding: 0;">
+                        <table class="tax-table">
+                            @php
+                                $cgstRate = ($item['tax_rate'] ?? 18) / 2;
+                                $cgstAmt = ($item['tax_amount'] ?? 0) / 2;
+                            @endphp
+                            <tr>
+                                <td style="width: 40%;">CGST@ {{ $cgstRate }}%</td>
+                                <td style="width: 30%; text-align: right;">{{ number_format($cgstRate, 2) }}%</td>
+                                <td style="width: 30%; text-align: right;">{{ number_format($cgstAmt, 2) }}</td>
+                            </tr>
+                            <tr>
+                                <td style="width: 40%;">SGST@ {{ $cgstRate }}%</td>
+                                <td style="width: 30%; text-align: right;">{{ number_format($cgstRate, 2) }}%</td>
+                                <td style="width: 30%; text-align: right;">{{ number_format($cgstAmt, 2) }}</td>
+                            </tr>
+                        </table>
                     </td>
-                    @if (($pdfSettings['show_pump_charges'] ?? true) && !($data['totals']['add_pouring_rates_to_total'] ?? false))
-                        <td class="text-left">{{ $item['operation_type'] ?? '-' }}</td>
-                        <td class="text-right">{{ isset($item['pump_charge']) && $item['pump_charge'] > 0 ? number_format($item['pump_charge'], 2) : '-' }}</td>
-                    @endif
-                    @if ($pdfSettings['qty'] ?? true)
-                        <td class="text-right bold">{{ number_format($item['qty'], 2) }}</td>
-                    @endif
-                    @if ($pdfSettings['unit'] ?? true)
-                        <td class="text-center">{{ $item['unit'] }}</td>
-                    @endif
-                    <td class="text-right">{{ number_format($item['unit_price'], 2) }}</td>
-                    @if ($pdfSettings['tax_rate'] ?? true)
-                        <td class="text-right muted">
-                            {{ $item['tax_rate'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? number_format($item['tax_rate'], 0) . '%' : '-' }}
-                        </td>
-                    @endif
-                    @if ($pdfSettings['tax_amount'] ?? true)
-                        <td class="text-right muted">
-                            {{ $item['tax_amount'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? number_format($item['tax_amount'], 2) : '-' }}
-                        </td>
-                    @endif
-                    <td class="text-right bold">
-                        {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($item['total'], 2) }}</td>
+                    <td style="text-align: right; font-weight: bold;">{{ number_format($item['total'], 2) }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
-    {{-- GST TOTALS --}}
-    <div class="gst-totals">
-        <div class="gt-left">
-            <div class="declaration">
-                <strong>Declaration:</strong><br>
-                I/We hereby certify that my/our registration under the GST Act has not been cancelled and my/our registration is in force as on the date on which the supply of goods/services as detailed above is made by me/us and that the transaction of supply covered under this tax invoice shall be accounted for in the turnover and the due tax, if any, payable on such supply has been paid or shall be paid.
-            </div>
-            
-            @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? ''))
-            <div class="terms-box">
-                <div class="terms-hdr">Terms &amp; Conditions</div>
-                <div class="terms-text-content" style="line-height:1.5;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $data['meta']['terms_text'] !!}</div>
-            </div>
-            @endif
-        </div>
-        <div class="gt-right">
-            <table class="gst-summary">
-                <tbody>
-                    <tr>
-                        <td style="font-weight:bold; color:#64748b;">Sub Total</td>
-                        <td class="text-right">{{ number_format($data['totals']['sub_total'], 2) }}</td>
-                    </tr>
-                    @if ((($pdfSettings['show_pump_charges'] ?? true) || ($pdfSettings['pump_rates'] ?? true)) && isset($data['totals']['pump_rate']) && $data['totals']['pump_rate'] > 0)
-                    <tr>
-                        <td style="font-weight:bold; color:#64748b;">Concrete Pump Charges</td>
-                        <td class="text-right">{{ number_format($data['totals']['pump_rate'], 2) }}</td>
-                    </tr>
-                    @endif
-                    @if (($pdfSettings['discount'] ?? true) && $data['totals']['discount'] > 0)
-                    <tr>
-                        <td style="font-weight:bold; color:#ef4444;">Discount (-)</td>
-                        <td class="text-right" style="color:#ef4444;">{{ number_format($data['totals']['discount'], 2) }}</td>
-                    </tr>
-                    @endif
-                    @foreach($data['totals']['tax_lines'] as $tax)
-                        @php
-                            $showTax = true;
-                            if (str_contains($tax['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) {
-                                $showTax = false;
-                            }
-                            if (str_contains($tax['label'], 'SGST') && !($pdfSettings['sgst'] ?? true)) {
-                                $showTax = false;
-                            }
-                            if (str_contains($tax['label'], 'IGST') && !($pdfSettings['igst'] ?? true)) {
-                                $showTax = false;
-                            }
-                        @endphp
-                        @if ($showTax)
-                        <tr>
-                            <td style="color:#64748b;">{{ $tax['label'] }}</td>
-                            <td class="text-right">{{ number_format($tax['amount'], 2) }}</td>
-                        </tr>
-                        @endif
-                    @endforeach
-                    @if(($pdfSettings['shipping'] ?? true) && $data['totals']['shipping'] > 0)
-                    <tr>
-                        <td style="color:#64748b;">Shipping/Freight</td>
-                        <td class="text-right">{{ number_format($data['totals']['shipping'], 2) }}</td>
-                    </tr>
-                    @endif
-                    @if (($pdfSettings['adjustment'] ?? true) && ($data['totals']['adjustment'] ?? 0) != 0)
-                        <tr>
-                            <td style="color:#64748b;">Adjustment</td>
-                            <td class="text-right">
-                                {{ $data['totals']['adjustment'] > 0 ? '+' : '' }}{{ number_format($data['totals']['adjustment'], 2) }}
-                            </td>
-                        </tr>
-                    @endif
+    {{-- AMOUNT IN WORDS & GRAND TOTAL SUMMARY --}}
+    <table class="totals-table">
+        <tr>
+            <td style="width: 65%; border-right: 1px solid #000;">
+                <div style="font-weight: bold; margin-bottom: 4px;">Amount in Words :</div>
+                @php
+                    $cgstAmt = ($data['totals']['tax_amount'] ?? 0) / 2;
+                    $cgstRate = ($data['items'][0]['tax_rate'] ?? 18) / 2;
+                @endphp
+                <div>CGST@ {{ $cgstRate }}% Rs. {{ number_format($cgstAmt, 2) }}</div>
+                <div>SGST@ {{ $cgstRate }}% Rs. {{ number_format($cgstAmt, 2) }}</div>
+                <div style="margin-top: 4px;">Grand Total <strong>{{ $data['meta']['total_words'] ?: 'Rs. ' . number_format($data['totals']['grand_total'], 2) . ' Only' }}</strong></div>
+            </td>
+            <td style="width: 35%; padding: 0;">
+                <table style="width: 100%; border-collapse: collapse;">
                     @if (($pdfSettings['round_off'] ?? true) && ($data['totals']['round_off'] ?? 0) != 0)
                         <tr>
-                            <td style="color:#64748b;">Round Off</td>
-                            <td class="text-right">
-                                {{ $data['totals']['round_off'] > 0 ? '+' : '' }}{{ number_format($data['totals']['round_off'], 2) }}
-                            </td>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px;">Rounding off</td>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; width: 80px;">{{ number_format($data['totals']['round_off'], 2) }}</td>
                         </tr>
                     @endif
-                </tbody>
-            </table>
-            <div class="total-payable">
-                <div style="font-size:10px; font-weight:600; opacity:0.8; margin-bottom:2px">Total Payable</div>
-                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['grand_total'], 2) }}
-            </div>
-            <div style="margin-top:10px; font-size:10px; font-weight:700; color:#1e293b; text-align:right">
-                {{ $data['meta']['total_words'] }}
-            </div>
-        </div>
-    </div>
+                    <tr>
+                        <td style="text-align: right; font-weight: bold; font-size: 10pt; padding: 6px 8px;">Grand Total</td>
+                        <td style="text-align: right; font-weight: bold; font-size: 10pt; padding: 6px 8px; width: 80px;">{{ number_format($data['totals']['grand_total'], 2) }}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 
-    @if($pdfSettings['signature'] ?? true)
-    <div class="sig-row">
-        <div class="sig-left">
-            @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))
-                <div style="margin-bottom: 8px; font-size: 9.5px; color: #1e293b;">
-                    <div style="font-weight: bold; text-transform: uppercase; color: #4f46e5; margin-bottom: 2px;">BANK INFORMATION:</div>
-                    <div>ACCOUNT NAME: <strong>{{ $data['company']['bank']['account_name'] }}</strong></div>
-                    <div>ACCOUNT NUMBER: <strong>{{ $data['company']['bank']['account_number'] }}</strong></div>
-                    <div>BANK: <strong>{{ $data['company']['bank']['bank_name'] }}</strong> (BRANCH: {{ $data['company']['bank']['branch'] }})</div>
-                    <div>IFSC CODE: <strong>{{ $data['company']['bank']['ifsc_code'] }}</strong></div>
+    {{-- TERMS & CONDITIONS + BANK INFORMATION --}}
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td class="terms-block">
+                <div style="font-weight: bold; margin-bottom: 3px; text-transform: uppercase;">TERMS OF SALES :</div>
+                <div style="font-size: 7.5pt; line-height: 1.35;">
+                    • Goods once sold will not be taken or exchanged<br>
+                    • Seller is not responsible for any loss or damaged of goods in transit<br>
+                    • Buyer undertakes to submit prescribed s.t.decln. to the seller on demand or wholly unpaid after due date<br>
+                    • Dispute, if any subject to coimbatore jurisdication<br>
+                    • Pay us within 45 days from the date of invoice to avoid disallowance u/s.43B(h) of Income Tax Act, 1961.<br>
+                    • As per MSME Act 2006, any delayed payments to MSMEs will attract interest at 3 times the bank rate notified by RBI.
                 </div>
-            @endif
-            @if (($pdfSettings['upi_qr'] ?? true) && !empty($data['company']['upi_qr_path']))
-                @php
-                    $qrPath = ltrim(
-                        str_replace(
-                            ['public/', 'storage/', '/storage/'],
-                            '',
-                            $data['company']['upi_qr_path'],
-                        ),
-                        '/',
-                    );
-                    $qrUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
-                        ? asset('storage/' . $qrPath)
-                        : public_path('storage/' . $qrPath);
-                @endphp
-                <div style="display: inline-block; text-align: left; vertical-align: top; margin-bottom: 8px;">
-                    <div style="font-size: 8px; color: #64748b; font-weight: bold; margin-bottom: 2px;">Scan to Pay (UPI)</div>
-                    <img src="{{ $qrUrl }}" style="max-height: 80px; max-width: 80px; object-fit: contain; border: 1px solid #cbd5e1; padding: 2px; background: #fff;" />
-                </div>
-                <br>
-            @endif
-            E. &amp; O.E.<br>
-            <span style="font-size:8px">This is a computer generated document.</span>
-        </div>
-        <div class="sig-right" style="position: relative;">
-            @if (!empty($data['company']['seal_sign_path']))
-                @php
-                    $sealPath = ltrim(
-                        str_replace(
-                            ['public/', 'storage/', '/storage/'],
-                            '',
-                            $data['company']['seal_sign_path'],
-                        ),
-                        '/',
-                    );
-                    $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
-                        ? asset('storage/' . $sealPath)
-                        : public_path('storage/' . $sealPath);
-                @endphp
-                <div style="margin-bottom: -20px; text-align: center;">
-                    <img src="{{ $sealUrl }}" style="margin-left:150px;max-height: 100px; max-width: 120px; object-fit: contain;" />
-                </div>
-            @endif
-            <div class="sig-line">
-                Authorized Signatory<br>
-                <span style="font-size:9px; font-weight:normal">For {{ $data['company']['name'] }}</span>
-            </div>
-        </div>
-    </div>
-    @endif
+            </td>
+            <td class="bank-block">
+                @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))
+                    <div style="font-weight: bold; margin-bottom: 3px; text-transform: uppercase;">BANK INFORMATION:</div>
+                    <div style="font-size: 8pt; line-height: 1.4;">
+                        ACCOUNT NAME: <strong>{{ strtoupper($data['company']['bank']['account_name']) }}</strong><br>
+                        ACCOUNT NUMBER: <strong>{{ $data['company']['bank']['account_number'] }}</strong><br>
+                        BANK: <strong>{{ strtoupper($data['company']['bank']['bank_name']) }}</strong><br>
+                        BRANCH: <strong>{{ strtoupper($data['company']['bank']['branch']) }}</strong><br>
+                        IFSC CODE: <strong>{{ strtoupper($data['company']['bank']['ifsc_code']) }}</strong>
+                    </div>
+                @endif
+            </td>
+        </tr>
+    </table>
 
-    @include('pdfs.partials._footer')
+    {{-- FOOTER SIGNATURE & CERTIFICATE SECTION --}}
+    <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td class="footer-cert">
+                Certificate that the goods on which the GST tax has been charged have not been exempted under the GST Tax Act or the rules made thereunder and the amount charged on Account of GST Tax on these goods are not more than that what is payable under the provisions of the relevant Act or the Rules made thereunder<br>
+                <strong style="margin-top: 6px; display: inline-block;">E. & O. E.</strong>
+            </td>
+            <td class="footer-sig-cust">
+                Customer Signature
+            </td>
+            <td class="footer-sig-auth">
+                <div style="font-size: 8pt; margin-bottom: 25px;">For <strong>{{ strtoupper($data['company']['name']) }}</strong></div>
+                <div>Authorised Signatory</div>
+            </td>
+        </tr>
+    </table>
 </div>
 </body>
 </html>

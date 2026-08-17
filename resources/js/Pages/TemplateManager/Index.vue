@@ -62,6 +62,15 @@ const getSelectedTemplateName = (moduleKey: string) => {
                         <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Configure document aesthetics & layouts</p>
                     </div>
                 </div>
+
+                <Link
+                    v-if="isSuperAdmin"
+                    :href="route('templates.create')"
+                    class="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm transition-colors flex items-center gap-2"
+                >
+                    <PaintBrushIcon class="w-4 h-4" />
+                    + Create Template
+                </Link>
             </div>
         </template>
 

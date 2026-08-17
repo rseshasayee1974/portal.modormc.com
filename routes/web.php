@@ -138,7 +138,9 @@ Route::middleware([
         
         Route::resource('productcategories', \App\Http\Controllers\ProductCategoryController::class);
         // Template Management
-        Route::resource('templates', \App\Http\Controllers\PrintTemplateController::class);
+        Route::get('templates/create', [\App\Http\Controllers\PrintTemplateController::class, 'create'])->name('templates.create');
+        Route::post('templates', [\App\Http\Controllers\PrintTemplateController::class, 'store'])->name('templates.store');
+        Route::resource('templates', \App\Http\Controllers\PrintTemplateController::class)->except(['create', 'store']);
         Route::post('templates/assign', [\App\Http\Controllers\PrintTemplateController::class, 'assign'])->name('templates.assign');
         Route::get('templates/{template}/preview', [\App\Http\Controllers\PrintTemplateController::class, 'preview'])->name('templates.preview');
         Route::get('templates/{module}/customize', [\App\Http\Controllers\PrintTemplateController::class, 'customize'])->name('templates.customize');

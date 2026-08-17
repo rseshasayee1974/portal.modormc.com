@@ -36,6 +36,7 @@ const selectedTemplateKey = ref(props.assignedTemplateKey || 'standard');
 
 const designs = [
     { id: 'standard', name: 'Standard', description: 'Classic bordered grid layout with comprehensive details' },
+    { id: 'box_layout', name: '3-Block Box Layout', description: 'Exact 3-block bordered tax invoice format with plant & company details' },
     { id: 'elite', name: 'Elite', description: 'Two-section modern corporate format with split metadata' },
     { id: 'modern', name: 'Modern', description: 'Clean borderless layout with subtle slate accents' },
     { id: 'compact', name: 'Compact', description: 'Ultra-dense minimal invoice format for quick receipts' },
@@ -141,6 +142,8 @@ const submit = () => {
     form.template_key = selectedTemplateKey.value;
     form.settings = activeSettings.value;
     form.template_settings_map = templateSettingsMap.value;
+    console.log('asdsd',);
+    
     form.post(route('templates.save-customization', props.moduleKey), {
         preserveScroll: true,
         onSuccess: () => {

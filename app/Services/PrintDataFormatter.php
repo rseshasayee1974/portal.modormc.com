@@ -303,9 +303,43 @@ class PrintDataFormatter
         return $fallbackTerms ?? '';
     }
 
-    // ─────────────────────────────────────────────────────
-    //  DRY HELPERS
-    // ─────────────────────────────────────────────────────
+    public static function resolveBankDetails($plant, $entity = null): array
+    {
+        // 1. Direct plant bank details if configured
+        if (!empty($plant?->bank_name)) {
+            return [
+                'account_name'   => $plant?->bank_account_name ?? ($plant?->name ?? ''),
+                'account_number' => $plant?->bank_account_number ?? '',
+                'bank_name'      => $plant?->bank_name ?? '',
+                'branch'         => $plant?->bank_branch ?? '',
+                'ifsc_code'      => $plant?->ifsc_code ?? '',
+            ];
+        }
+
+        // 2. Entity primary bank account fallback
+        $legalEntity = $entity ?? $plant?->entity;
+        $primaryBank = $legalEntity?->bankAccounts?->firstWhere('is_primary', 1) 
+            ?? $legalEntity?->bankAccounts?->first();
+
+        if ($primaryBank) {
+            return [
+                'account_name'   => $primaryBank->account_name ?? ($legalEntity?->legal_name ?? $legalEntity?->entity_name ?? ''),
+                'account_number' => $primaryBank->account_number ?? '',
+                'bank_name'      => $primaryBank->bank_name ?? '',
+                'branch'         => $primaryBank->bank_branch ?? '',
+                'ifsc_code'      => $primaryBank->ifsc_code ?? '',
+            ];
+        }
+
+        return [
+            'account_name'   => $plant?->bank_account_name ?? ($plant?->name ?? ''),
+            'account_number' => $plant?->bank_account_number ?? '',
+            'bank_name'      => $plant?->bank_name ?? '',
+            'branch'         => $plant?->bank_branch ?? '',
+            'ifsc_code'      => $plant?->ifsc_code ?? '',
+        ];
+    }
+
     public static function formatCompany($plant): array
     {
         $plAddr = $plant?->addresses?->first();
@@ -329,13 +363,7 @@ class PrintDataFormatter
             'logo_path'      => $plant?->logo_path ?? '',
             'seal_sign_path' => $plant?->seal_sign_path ?? '',
             'upi_qr_path'    => $plant?->upi_qr_path ?? '',
-            'bank' => [
-                'account_name'   => $plant?->bank_account_name ?? ($plant?->name ? $plant->name : ''),
-                'account_number' => $plant?->bank_account_number ?? '',
-                'bank_name'      => $plant?->bank_name ?? '',
-                'branch'         => $plant?->bank_branch ?? '',
-                'ifsc_code'      => $plant?->ifsc_code ?? '',
-            ],
+            'bank'           => self::resolveBankDetails($plant),
         ];
     }
 
@@ -672,7 +700,7 @@ class PrintDataFormatter
         $designMixRef = $mixDesignObj?->design_name ?: ($mixDesignObj?->design_code ?? '-');
 
         // Resolve carrier / driver details
-        $transportName = $dispatch?->transport?->name ?? ($invoice->plant?->name ?? 'SRI GANESHA TRANSPORT');
+        $transportName = $dispatch?->transport?->name ?? ($invoice->plant?->name ?? '');
         $truckReg = $dispatch?->truck?->registration ?? '';
         $driverName = $dispatch?->driver ? trim(($dispatch->driver->first_name ?? '') . ' ' . ($dispatch->driver->last_name ?? '')) : '';
         
@@ -764,6 +792,9 @@ class PrintDataFormatter
 
         $poNumber = $customerPO?->customer_po_reference ?: ($customerPO?->reference ?: ($invoice->ref_id ?? ''));
 
+        // TODO: Remove $testDummyQrPath before pushing to production
+        $testDummyQrPath = asset('storage/plants/demo-mining-corp/parker-llc-plant/upi_qr_1784092752.png');
+
         $data['meta'] = [
             'currency_code'         => 'INR',
             'currency_symbol'       => '₹',
@@ -772,10 +803,18 @@ class PrintDataFormatter
             'total_words'           => self::numberToWords($invoice->total_amount, 'INR'),
             'po_number'             => $poNumber,
             'project_name'          => $invoice->ref_title ?? '',
-            'irn'                  => $invoice->einvoice_irn ?? '',
-            'ack_no'                => $invoice->einvoice_ack_no ?? '',
-            'ack_date'              => $invoice->einvoice_ack_date?->format('d/m/Y') ?? '',
-            'qr_code'               => $invoice->einvoice_qr_code ?? '',
+            'irn'                  => $invoice->einvoice_irn ?? '456',
+            'ack_no'                => $invoice->einvoice_ack_no ?? '56465465',
+            'ack_date'              => $invoice->einvoice_ack_date?->format('d/m/Y') ?? '56/25/645',
+            'qr_code'               => $invoice->einvoice_qr_code ? (
+                str_starts_with($invoice->einvoice_qr_code, 'data:image') || str_starts_with($invoice->einvoice_qr_code, 'http')
+                    ? $invoice->einvoice_qr_code
+                    : asset('storage/' . ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $invoice->einvoice_qr_code), '/'))
+            ) : (
+                !empty($plant?->upi_qr_path)
+                    ? asset('storage/' . ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $plant->upi_qr_path), '/'))
+                    : $testDummyQrPath
+            ),
             'eway_bill_no'          => $invoice->eway_bill_no ?? '',
             'so_no'                 => $salesOrder ? $salesOrder->full_number : '',
             'acc_no'                => $partner?->account_number ?? $partner?->code ?? ($partner ? 'AC-' . $partner->id : ''),
@@ -1437,7 +1476,7 @@ class PrintDataFormatter
 
     public static function supportedTemplates(): array
     {
-        return ['standard','elite','modern','spreadsheet','tallysheet','compact','indian_gst','formal_gst','standard_indigo','minimalist_lite','delivery_challan_a4'];
+        return ['standard','box_layout','elite','modern','spreadsheet','tallysheet','compact','indian_gst','formal_gst','standard_indigo','minimalist_lite','delivery_challan_a4'];
     }
 
     public static function resolveView(string $templateKey): string
