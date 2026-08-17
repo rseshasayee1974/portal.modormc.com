@@ -52,11 +52,13 @@ class MachineController extends Controller
         
         DB::transaction(function () use ($request) {
             $plant = Plant::findOrFail(session('active_plant_id'));
+            $entityId = session('active_entity_id') ?? $plant->entity_id;
             
             $machine = Machine::create(array_merge(
                 $request->safe()->except(['documents', 'loans']),
                 [
-                    'plant_id' => $plant->id
+                    'plant_id' => $plant->id,
+                    'entity_id' => $entityId,
                 ]
             ));
 
@@ -71,7 +73,14 @@ class MachineController extends Controller
         $this->authorizeModule('edit');
         
         DB::transaction(function () use ($request, $machine) {
-            $machine->update($request->safe()->except(['documents', 'loans']));
+            $entityId = session('active_entity_id') ?? Plant::find(session('active_plant_id'))?->entity_id ?? $machine->entity_id;
+
+            $data = $request->safe()->except(['documents', 'loans']);
+            if (empty($machine->entity_id) && $entityId) {
+                $data['entity_id'] = $entityId;
+            }
+
+            $machine->update($data);
             $machine->syncFleetRelations($request->validated());
         });
 

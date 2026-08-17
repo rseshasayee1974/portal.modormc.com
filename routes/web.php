@@ -312,6 +312,15 @@ Route::middleware([
         Route::resource('pettycash', \App\Http\Controllers\PettyCashController::class)->except(['create', 'edit', 'show']);
         Route::post('pettycash/{petty_cash}/close', [\App\Http\Controllers\PettyCashController::class, 'close'])->name('pettycash.close');
         
+        // Bank Reconciliation
+        Route::get('reconciliation', [\App\Http\Controllers\BankReconciliationController::class, 'index'])->name('reconciliation.index');
+        Route::post('reconciliation/upload', [\App\Http\Controllers\BankReconciliationController::class, 'upload'])->name('reconciliation.upload');
+        Route::get('reconciliation/lines', [\App\Http\Controllers\BankReconciliationController::class, 'getLines'])->name('reconciliation.lines');
+        Route::post('reconciliation/reconcile', [\App\Http\Controllers\BankReconciliationController::class, 'reconcile'])->name('reconciliation.reconcile');
+        Route::post('reconciliation/unreconcile', [\App\Http\Controllers\BankReconciliationController::class, 'unreconcile'])->name('reconciliation.unreconcile');
+        Route::post('reconciliation/create-voucher', [\App\Http\Controllers\BankReconciliationController::class, 'createVoucher'])->name('reconciliation.create-voucher');
+        Route::get('reconciliation/template', [\App\Http\Controllers\BankReconciliationController::class, 'downloadTemplate'])->name('reconciliation.template');
+
         Route::get('payments/next-reference', [\App\Http\Controllers\PaymentController::class, 'getNextReferenceNumber'])->name('payments.next-reference');
         Route::get('payments/patron-advance-balance', [\App\Http\Controllers\PaymentController::class, 'getPatronAdvanceBalance'])->name('payments.patron-advance-balance');
         Route::resource('payments', \App\Http\Controllers\PaymentController::class)->except(['create', 'edit', 'show']);
