@@ -44,8 +44,37 @@
 <body>
 @include('pdfs.partials._print_actions')
 <div class="inv-root">
+    @if (($pdfSettings['show_einvoice_details'] ?? true) && (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
+        <div style="display: table; width: 100%; border-bottom: 2px solid #111; padding: 6px 12px; font-size: 9.5px; background: #f7f7f7;">
+            <div style="display: table-cell; vertical-align: middle;">
+                @if(!empty($data['meta']['irn'])) <div><strong>IRN :</strong> {{ $data['meta']['irn'] }}</div> @endif
+                @if(!empty($data['meta']['ack_no'])) <div><strong>Ack No. :</strong> {{ $data['meta']['ack_no'] }}</div> @endif
+                @if(!empty($data['meta']['ack_date'])) <div><strong>Ack Date :</strong> {{ $data['meta']['ack_date'] }}</div> @endif
+            </div>
+            @if(!empty($data['meta']['qr_code']))
+                <div style="display: table-cell; vertical-align: middle; text-align: right; width: 70px;">
+                    <img src="{{ $data['meta']['qr_code'] }}" style="max-height: 50px; max-width: 50px; object-fit: contain;" />
+                </div>
+            @endif
+        </div>
+    @endif
+
     <div class="ledger-header">
         <div class="lh-left">
+            @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
+                @php
+                    $cleanLogoPath = ltrim(
+                        str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
+                        '/',
+                    );
+                    $logoUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                        ? asset('storage/' . $cleanLogoPath)
+                        : public_path('storage/' . $cleanLogoPath);
+                @endphp
+                <div style="margin-bottom: 4px;">
+                    <img src="{{ $logoUrl }}" style="max-height: 45px; max-width: 160px; object-fit: contain;" />
+                </div>
+            @endif
             <div class="co-name">{{ $data['company']['name'] }}</div>
             <div class="co-det">{{ $data['company']['address'] }}, {{ $data['company']['city'] }} | GSTIN: {{ $data['company']['gstin'] ?? 'N/A' }}</div>
         </div>
@@ -64,17 +93,33 @@
                 'Party' => $data['bill_to']['name'],
                 'Project' => ($data['meta']['project_name'] ?? '')
             ];
+            if(!empty($data['meta']['so_no'])) $metaBarFields['SO#'] = $data['meta']['so_no'];
+            $metaBarFields['PO#'] = ($data['meta']['po_number'] ?? '');
+            if(($pdfSettings['show_einvoice_details'] ?? true) && !empty($data['meta']['eway_bill_no'])) $metaBarFields['EWayBill'] = $data['meta']['eway_bill_no'];
             if (!empty($data['meta']['sales_executive_name'])) {
                 $metaBarFields['Sales Exec'] = $data['meta']['sales_executive_name'];
-            }
-            if (!empty($data['meta']['sales_executive_mobile'])) {
-                $metaBarFields['Contact No'] = $data['meta']['sales_executive_mobile'];
             }
         @endphp
         @foreach($metaBarFields as $k=>$v)
             @if($v) <div class="mb-cell"><span class="mb-key">{{ $k }}</span><span class="mb-val">{{ $v }}</span></div> @endif
         @endforeach
     </div>
+
+    @if(($pdfSettings['show_customer_ref'] ?? true) && (!empty($data['meta']['acc_no']) || !empty($data['meta']['sales_person']) || !empty($data['meta']['pump']) || !empty($data['meta']['design_mix_ref'])))
+        <div style="padding: 5px 10px; border-bottom: 1px solid #cbd5e1; font-size: 10px; background: #fff;">
+            <strong>Customer Ref:</strong>
+            @if(!empty($data['meta']['acc_no'])) Acc No: <strong>{{ $data['meta']['acc_no'] }}</strong> &bull; @endif
+            @if(!empty($data['meta']['sales_person'])) Sales Person: <strong>{{ $data['meta']['sales_person'] }}</strong> &bull; @endif
+            @if(!empty($data['meta']['pump'])) Pump: <strong>{{ $data['meta']['pump'] }}</strong> &bull; @endif
+            @if(!empty($data['meta']['design_mix_ref'])) Design Mix Ref: <strong>{{ $data['meta']['design_mix_ref'] }}</strong> @endif
+        </div>
+    @endif
+
+    @if (($pdfSettings['show_carrier_driver'] ?? true) && !empty($data['meta']['carrier_driver']) && $data['meta']['carrier_driver'] !== '-')
+        <div style="padding: 5px 10px; border-bottom: 1px solid #cbd5e1; font-size: 10px; background: #f7f7f7;">
+            <strong>Carrier - Driver:</strong> {{ $data['meta']['carrier_driver'] }}
+        </div>
+    @endif
 
     <table class="ledger-table">
         <thead>
@@ -143,7 +188,17 @@
     @endif
 
     <div class="sig-row" style="margin-top:auto">
-        <div class="sig-left"></div>
+        <div class="sig-left">
+            @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))
+                <div style="margin-bottom: 8px; font-size: 9.5px; color: #334155;">
+                    <div style="font-weight: bold; text-transform: uppercase; color: #4f46e5; margin-bottom: 2px;">Bank Information</div>
+                    <div>Account Name: <strong>{{ $data['company']['bank']['account_name'] }}</strong></div>
+                    <div>Account Number: <strong>{{ $data['company']['bank']['account_number'] }}</strong></div>
+                    <div>Bank: <strong>{{ $data['company']['bank']['bank_name'] }}</strong> (Branch: {{ $data['company']['bank']['branch'] }})</div>
+                    <div>IFSC Code: <strong>{{ $data['company']['bank']['ifsc_code'] }}</strong></div>
+                </div>
+            @endif
+        </div>
         <div class="sig-right" style="padding-bottom:10px"><div class="sig-line">Authorized Signatory<br><span style="font-size:9px">For {{ $data['company']['name'] }}</span></div></div>
     </div>
 

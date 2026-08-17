@@ -65,8 +65,38 @@
 <body>
 @include('pdfs.partials._print_actions')
 <div class="inv-root">
+
+    @if (($pdfSettings['show_einvoice_details'] ?? true) && (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
+        <div style="display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 6px 12px; font-size: 9.5px; background: #fafafa;">
+            <div style="display: table-cell; vertical-align: middle;">
+                @if(!empty($data['meta']['irn'])) <div><strong>IRN :</strong> {{ $data['meta']['irn'] }}</div> @endif
+                @if(!empty($data['meta']['ack_no'])) <div><strong>Ack No. :</strong> {{ $data['meta']['ack_no'] }}</div> @endif
+                @if(!empty($data['meta']['ack_date'])) <div><strong>Ack Date :</strong> {{ $data['meta']['ack_date'] }}</div> @endif
+            </div>
+            @if(!empty($data['meta']['qr_code']))
+                <div style="display: table-cell; vertical-align: middle; text-align: right; width: 70px;">
+                    <img src="{{ $data['meta']['qr_code'] }}" style="max-height: 60px; max-width: 60px; object-fit: contain;" />
+                </div>
+            @endif
+        </div>
+    @endif
+
     <div class="inv-header">
         <div class="header-left">
+            @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
+                @php
+                    $cleanLogoPath = ltrim(
+                        str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
+                        '/',
+                    );
+                    $logoUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                        ? asset('storage/' . $cleanLogoPath)
+                        : public_path('storage/' . $cleanLogoPath);
+                @endphp
+                <div style="margin-bottom: 6px;">
+                    <img src="{{ $logoUrl }}" style="max-height: 50px; max-width: 180px; object-fit: contain;" />
+                </div>
+            @endif
             @if($pdfSettings['company_name'] ?? true) <div class="co-name">{{ $data['company']['name'] }}</div> @endif
             @if($pdfSettings['address'] ?? true)
                 <div class="co-detail">{{ $data['company']['address'] }}</div>
@@ -80,7 +110,7 @@
         </div>
     </div>
 
-    {{-- Bill To / Ship To — borderless --}}
+    {{-- Bill To / Ship To / Customer Ref — borderless --}}
     <div class="addr-section">
         <div class="addr-col">
             @if($pdfSettings['bill_to'] ?? true)
@@ -97,12 +127,24 @@
                 <div class="addr-line">{{ $data['ship_to']['address'] }}, {{ $data['ship_to']['city'] }}</div>
             @endif
         </div>
+        @if(($pdfSettings['show_customer_ref'] ?? true) && (!empty($data['meta']['acc_no']) || !empty($data['meta']['sales_person']) || !empty($data['meta']['pump']) || !empty($data['meta']['design_mix_ref'])))
+            <div class="addr-col">
+                <div class="addr-label">Customer Ref</div>
+                <div class="addr-line" style="font-size: 10px; color: #1e293b;">
+                    @if(!empty($data['meta']['acc_no'])) <div>Acc No: <strong>{{ $data['meta']['acc_no'] }}</strong></div> @endif
+                    @if(!empty($data['meta']['sales_person'])) <div>Sales Person: <strong>{{ $data['meta']['sales_person'] }}</strong></div> @endif
+                    @if(!empty($data['meta']['pump'])) <div>Pump: <strong>{{ $data['meta']['pump'] }}</strong></div> @endif
+                    @if(!empty($data['meta']['design_mix_ref'])) <div>Design Mix Ref: <strong>{{ $data['meta']['design_mix_ref'] }}</strong></div> @endif
+                </div>
+            </div>
+        @endif
     </div>
 
-    <div class="subject-block">
-        <div class="subject-label">Subject :</div>
-        <div class="subject-value">{{ $data['meta']['project_name'] ?? 'Description' }}</div>
-    </div>
+    @if (($pdfSettings['show_carrier_driver'] ?? true) && !empty($data['meta']['carrier_driver']) && $data['meta']['carrier_driver'] !== '-')
+        <div style="padding: 5px 18px; font-size: 10.5px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+            <strong>Carrier - Driver:</strong> {{ $data['meta']['carrier_driver'] }}
+        </div>
+    @endif
 
     {{-- Details bar --}}
     <table class="details-bar">
@@ -111,9 +153,10 @@
                 <th class="dbar-th">Date</th>
                 @if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') <th class="dbar-th">Due Date</th> @endif
                 <th class="dbar-th">Delivery</th>
+                @if(!empty($data['meta']['so_no'])) <th class="dbar-th">SO No</th> @endif
                 @if(!empty($data['meta']['po_number']) && $data['meta']['po_number'] !== '-') <th class="dbar-th">PO#</th> @endif
+                @if(($pdfSettings['show_einvoice_details'] ?? true) && !empty($data['meta']['eway_bill_no'])) <th class="dbar-th">EWayBillNo</th> @endif
                 @if(!empty($data['meta']['sales_executive_name'])) <th class="dbar-th">Sales Exec</th> @endif
-                @if(!empty($data['meta']['sales_executive_mobile'])) <th class="dbar-th">Contact No</th> @endif
                 <th class="dbar-th">Project</th>
             </tr>
         </thead>
@@ -122,9 +165,10 @@
                 <td class="dbar-td">{{ $data['doc_date'] }}</td>
                 @if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') <td class="dbar-td">{{ $data['due_date'] }}</td> @endif
                 <td class="dbar-td">{{ $data['delivery_date'] }}</td>
+                @if(!empty($data['meta']['so_no'])) <td class="dbar-td">{{ $data['meta']['so_no'] }}</td> @endif
                 @if(!empty($data['meta']['po_number']) && $data['meta']['po_number'] !== '-') <td class="dbar-td">{{ $data['meta']['po_number'] }}</td> @endif
+                @if(($pdfSettings['show_einvoice_details'] ?? true) && !empty($data['meta']['eway_bill_no'])) <td class="dbar-td">{{ $data['meta']['eway_bill_no'] }}</td> @endif
                 @if(!empty($data['meta']['sales_executive_name'])) <td class="dbar-td">{{ $data['meta']['sales_executive_name'] }}</td> @endif
-                @if(!empty($data['meta']['sales_executive_mobile'])) <td class="dbar-td">{{ $data['meta']['sales_executive_mobile'] }}</td> @endif
                 <td class="dbar-td">{{ $data['meta']['project_name'] ?? '-' }}</td>
             </tr>
         </tbody>

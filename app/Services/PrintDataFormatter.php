@@ -309,17 +309,33 @@ class PrintDataFormatter
     public static function formatCompany($plant): array
     {
         $plAddr = $plant?->addresses?->first();
+        $stateName = $plAddr?->state?->state_name ?? $plAddr?->state_code ?? '';
+        $stateCode = $plAddr?->state?->state_code ?? ($plant?->gstin && strlen($plant->gstin) >= 2 ? substr($plant->gstin, 0, 2) : '');
+        $gstin = $plant?->gstin ?? '';
+        $pan = strlen($gstin) >= 14 ? substr($gstin, 2, 10) : ($plant?->pan ?? '');
+
         return [
-            'name'    => $plant?->entity?->entity_name ?? $plant?->name ?? 'Company',
-            'address' => $plAddr?->line_1 ?? '',
-            'city'    => $plAddr?->city ?? '',
-            'state'   => $plAddr?->state?->state_name ?? $plAddr?->state_code ?? '',
-            'pin'     => $plAddr?->zipcode ?? '',
-            'gstin'   => $plant?->gstin ?? '',
-            'phone'   => $plant?->phone ?? '',
-            'email'   => $plant?->email ?? '',
+            'name'           => $plant?->entity?->legal_name ?? $plant?->entity?->entity_name ?? $plant?->name ?? 'Company',
+            'address'        => $plAddr?->line_1 ?? '',
+            'city'           => $plAddr?->city ?? '',
+            'state'          => $stateName,
+            'state_code'     => $stateCode,
+            'pin'            => $plAddr?->zipcode ?? '',
+            'gstin'          => $gstin,
+            'pan'            => $pan,
+            'msme_no'        => $plant?->msme_no ?? $plant?->udyam_no ?? '',
+            'phone'          => $plant?->phone ?? $plant?->mobile_number ?? '',
+            'email'          => $plant?->email ?? $plant?->email_address ?? '',
+            'logo_path'      => $plant?->logo_path ?? '',
             'seal_sign_path' => $plant?->seal_sign_path ?? '',
-            'upi_qr_path' => $plant?->upi_qr_path ?? '',
+            'upi_qr_path'    => $plant?->upi_qr_path ?? '',
+            'bank' => [
+                'account_name'   => $plant?->bank_account_name ?? ($plant?->name ? $plant->name : ''),
+                'account_number' => $plant?->bank_account_number ?? '',
+                'bank_name'      => $plant?->bank_name ?? '',
+                'branch'         => $plant?->bank_branch ?? '',
+                'ifsc_code'      => $plant?->ifsc_code ?? '',
+            ],
         ];
     }
 
@@ -549,13 +565,21 @@ class PrintDataFormatter
         $partner = $invoice->partner;
         $dispatch = \App\Models\Dispatch::whereHas('status', function ($q) use ($invoice) {
             $q->where('invoice_id', $invoice->id);
-        })->with(['salesOrder.customer', 'salesOrder.site', 'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site', 'concretePump'])->first();
+        })->with([
+            'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign',
+            'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site',
+            'concretePump', 'truck', 'transport', 'driver', 'mixDesign', 'salesExecutive'
+        ])->first();
 
         if (!$dispatch && !empty($invoice->ref_id)) {
             $refIds = explode(',', $invoice->ref_id);
             $firstRefId = trim($refIds[0] ?? '');
             if (is_numeric($firstRefId)) {
-                $dispatch = \App\Models\Dispatch::with(['salesOrder.customer', 'salesOrder.site', 'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site', 'concretePump'])->find($firstRefId);
+                $dispatch = \App\Models\Dispatch::with([
+                    'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign',
+                    'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site',
+                    'concretePump', 'truck', 'transport', 'driver', 'mixDesign', 'salesExecutive'
+                ])->find($firstRefId);
             }
         }
 
@@ -566,22 +590,18 @@ class PrintDataFormatter
         }
 
         $customerPO = null;
-        if (!$partner || empty($partner->name)) {
-            if (!empty($invoice->ref_id) && is_numeric($invoice->ref_id)) {
-                $customerPO = \App\Models\CustomerPO::with(['patron', 'site'])->find($invoice->ref_id);
-                if ($customerPO) {
-                    $partner = $customerPO->patron;
-                }
+        if (!empty($invoice->ref_id) && is_numeric($invoice->ref_id)) {
+            $customerPO = \App\Models\CustomerPO::with(['patron', 'site'])->find($invoice->ref_id);
+            if ($customerPO && (!$partner || empty($partner->name))) {
+                $partner = $customerPO->patron;
             }
         }
 
         $salesOrder = null;
-        if (!$partner || empty($partner->name)) {
-            if (!empty($invoice->ref_id) && is_numeric($invoice->ref_id)) {
-                $salesOrder = \App\Models\SalesOrder::with(['customer', 'site'])->find($invoice->ref_id);
-                if ($salesOrder) {
-                    $partner = $salesOrder->customer;
-                }
+        if (!empty($invoice->ref_id) && is_numeric($invoice->ref_id)) {
+            $salesOrder = \App\Models\SalesOrder::with(['customer', 'site', 'salesExecutive', 'mixDesign'])->find($invoice->ref_id);
+            if ($salesOrder && (!$partner || empty($partner->name))) {
+                $partner = $salesOrder->customer;
             }
         }
 
@@ -614,6 +634,50 @@ class PrintDataFormatter
         }
 
         $data['ship_to'] = self::formatShipTo($site, $data['bill_to']);
+
+        // Resolve additional reference models if linked via dispatch
+        $salesOrder = $salesOrder ?: $dispatch?->salesOrder;
+        $customerPO = $customerPO ?: $dispatch?->customerPO ?: $salesOrder?->customerPO;
+
+        // Resolve sales person
+        $salesExec = $dispatch?->salesExecutive ?: ($salesOrder?->salesExecutive ?: null);
+        $salesPersonName = '';
+        if ($salesExec) {
+            $salesPersonName = trim(($salesExec->first_name ?? '') . ' ' . ($salesExec->last_name ?? ''));
+        }
+
+        // Resolve pump type / registration
+        $pumpName = '-';
+        if ($dispatch?->concretePump) {
+            $pumpName = $dispatch->concretePump->registration ?: ($dispatch->concretePump->name ?? 'Dumping');
+        } elseif (!empty($dispatch?->pump_type)) {
+            if (is_numeric($dispatch->pump_type)) {
+                $pumpMachine = \App\Models\Machine::find($dispatch->pump_type);
+                $pumpName = $pumpMachine?->registration ?? (string)$dispatch->pump_type;
+            } else {
+                $pumpName = match(strtolower($dispatch->pump_type)) {
+                    'line_pump' => 'Line Pump',
+                    'boom_pump' => 'Boom Pump',
+                    'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
+                    'dumping' => 'Dumping',
+                    default => ucwords(str_replace('_', ' ', $dispatch->pump_type))
+                };
+            }
+        } elseif ($salesOrder?->pump_type) {
+            $pumpName = ucwords(str_replace('_', ' ', $salesOrder->pump_type));
+        }
+
+        // Resolve design mix reference
+        $mixDesignObj = $dispatch?->mixDesign ?: ($salesOrder?->mixDesign ?: null);
+        $designMixRef = $mixDesignObj?->design_name ?: ($mixDesignObj?->design_code ?? '-');
+
+        // Resolve carrier / driver details
+        $transportName = $dispatch?->transport?->name ?? ($invoice->plant?->name ?? 'SRI GANESHA TRANSPORT');
+        $truckReg = $dispatch?->truck?->registration ?? '';
+        $driverName = $dispatch?->driver ? trim(($dispatch->driver->first_name ?? '') . ' ' . ($dispatch->driver->last_name ?? '')) : '';
+        
+        $carrierDriverParts = array_filter([$transportName, $truckReg, $driverName]);
+        $carrierDriverText = !empty($carrierDriverParts) ? implode(' , ', $carrierDriverParts) : '-';
 
         $isIntra = self::isIntraState($invoice->plant->gstin ?? '', $partner?->gstin ?? '');
 
@@ -671,8 +735,6 @@ class PrintDataFormatter
                         };
                     }
                 }
-                // When add_pouring_rates_to_total is OFF, pump charges are displayed in the items table column
-                // When add_pouring_rates_to_total is ON, pump charges are displayed in the subtotal/totals section instead
                 if (!$addPouringRatesToTotal) {
                     $pumpCharge = $dispatchPumpCharge;
                 }
@@ -699,11 +761,33 @@ class PrintDataFormatter
             'grand_total' => (float)$invoice->total_amount,
         ];
         $orderTypeForTerms = $invoice->invoice_type === 'bill' ? 'Purchase Bill' : [($invoice->invoice_label ?? 'Tax Invoice'), 'Tax Invoice'];
+
+        $poNumber = $customerPO?->customer_po_reference ?: ($customerPO?->reference ?: ($invoice->ref_id ?? ''));
+
         $data['meta'] = [
-            'currency_code' => 'INR', 'currency_symbol' => '₹', 'notes' => '',
-            'terms_text' => self::resolveTermsCondition($data['settings'], $orderTypeForTerms, $invoice->plant_id, "1. Goods once sold will not be taken back.\n2. Interest @ 18% will be charged if not paid within due date.\n3. All disputes are subject to local jurisdiction."),
-            'total_words' => self::numberToWords($invoice->total_amount, 'INR'), 'po_number' => $invoice->ref_id ?? '', 'project_name' => $invoice->ref_title ?? '',
+            'currency_code'         => 'INR',
+            'currency_symbol'       => '₹',
+            'notes'                 => $invoice->notes ?? '',
+            'terms_text'            => self::resolveTermsCondition($data['settings'], $orderTypeForTerms, $invoice->plant_id, "1. Goods once sold will not be taken back.\n2. Interest @ 18% will be charged if not paid within due date.\n3. All disputes are subject to local jurisdiction."),
+            'total_words'           => self::numberToWords($invoice->total_amount, 'INR'),
+            'po_number'             => $poNumber,
+            'project_name'          => $invoice->ref_title ?? '',
+            'irn'                  => $invoice->einvoice_irn ?? '',
+            'ack_no'                => $invoice->einvoice_ack_no ?? '',
+            'ack_date'              => $invoice->einvoice_ack_date?->format('d/m/Y') ?? '',
+            'qr_code'               => $invoice->einvoice_qr_code ?? '',
+            'eway_bill_no'          => $invoice->eway_bill_no ?? '',
+            'so_no'                 => $salesOrder ? $salesOrder->full_number : '',
+            'acc_no'                => $partner?->account_number ?? $partner?->code ?? ($partner ? 'AC-' . $partner->id : ''),
+            'sales_person'          => $salesPersonName,
+            'pump'                  => $pumpName,
+            'quality_incharge'      => $dispatch?->quality_incharge ?? '',
+            'design_mix_ref'        => $designMixRef,
+            'carrier_driver'        => $carrierDriverText,
+            'sales_executive_name'   => $salesPersonName,
+            'sales_executive_mobile' => $salesExec?->mobile_number ?? $salesExec?->phone ?? '',
         ];
+
         return $data;
     }
 

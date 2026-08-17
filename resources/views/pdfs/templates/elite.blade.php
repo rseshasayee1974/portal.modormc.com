@@ -69,9 +69,39 @@
 <body>
 @include('pdfs.partials._print_actions')
 <div class="inv-root">
+
+    @if (($pdfSettings['show_einvoice_details'] ?? true) && (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
+        <div style="display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 6px 12px; font-size: 9.5px; background: #fafafa;">
+            <div style="display: table-cell; vertical-align: middle;">
+                @if(!empty($data['meta']['irn'])) <div><strong>IRN :</strong> {{ $data['meta']['irn'] }}</div> @endif
+                @if(!empty($data['meta']['ack_no'])) <div><strong>Ack No. :</strong> {{ $data['meta']['ack_no'] }}</div> @endif
+                @if(!empty($data['meta']['ack_date'])) <div><strong>Ack Date :</strong> {{ $data['meta']['ack_date'] }}</div> @endif
+            </div>
+            @if(!empty($data['meta']['qr_code']))
+                <div style="display: table-cell; vertical-align: middle; text-align: right; width: 70px;">
+                    <img src="{{ $data['meta']['qr_code'] }}" style="max-height: 60px; max-width: 60px; object-fit: contain;" />
+                </div>
+            @endif
+        </div>
+    @endif
+
     {{-- HEADER --}}
     <div class="inv-header">
         <div class="header-left">
+            @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
+                @php
+                    $cleanLogoPath = ltrim(
+                        str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
+                        '/',
+                    );
+                    $logoUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                        ? asset('storage/' . $cleanLogoPath)
+                        : public_path('storage/' . $cleanLogoPath);
+                @endphp
+                <div style="margin-bottom: 6px;">
+                    <img src="{{ $logoUrl }}" style="max-height: 50px; max-width: 180px; object-fit: contain;" />
+                </div>
+            @endif
             @if($pdfSettings['company_name'] ?? true) <div class="co-name">{{ $data['company']['name'] }}</div> @endif
             @if($pdfSettings['address'] ?? true)
                 <div class="co-detail">{{ $data['company']['address'] }}</div>
@@ -94,9 +124,10 @@
                         $kv1 = ['Date' => $data['doc_date']];
                         if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') $kv1['Due Date'] = $data['due_date'];
                         $kv1['Delivery'] = $data['delivery_date'];
+                        if(!empty($data['meta']['so_no'])) $kv1['SO No'] = $data['meta']['so_no'];
                         $kv1['PO#'] = $data['meta']['po_number'] ?? '';
+                        if(($pdfSettings['show_einvoice_details'] ?? true) && !empty($data['meta']['eway_bill_no'])) $kv1['EWayBillNo'] = $data['meta']['eway_bill_no'];
                         if (!empty($data['meta']['sales_executive_name'])) $kv1['Sales Exec'] = $data['meta']['sales_executive_name'];
-                        if (!empty($data['meta']['sales_executive_mobile'])) $kv1['Contact No'] = $data['meta']['sales_executive_mobile'];
                     @endphp
                     @foreach($kv1 as $k => $v)
                         @if($v) <tr><td class="kv-key">{{ $k }}</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $v }}</td></tr> @endif
@@ -105,14 +136,27 @@
             </td>
             <td class="details-cell no-right">
                 <table class="kv-table">
-                    @if($data['meta']['project_name'] ?? false)
-                    <tr><td class="kv-key">Project</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['project_name'] }}</td></tr>
+                    @if(($pdfSettings['show_customer_ref'] ?? true) && (!empty($data['meta']['acc_no']) || !empty($data['meta']['sales_person']) || !empty($data['meta']['pump']) || !empty($data['meta']['design_mix_ref'])))
+                        @if(!empty($data['meta']['acc_no'])) <tr><td class="kv-key">Acc No</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['acc_no'] }}</td></tr> @endif
+                        @if(!empty($data['meta']['sales_person'])) <tr><td class="kv-key">Sales Person</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['sales_person'] }}</td></tr> @endif
+                        @if(!empty($data['meta']['pump'])) <tr><td class="kv-key">Pump</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['pump'] }}</td></tr> @endif
+                        @if(!empty($data['meta']['design_mix_ref'])) <tr><td class="kv-key">Design Mix Ref</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['design_mix_ref'] }}</td></tr> @endif
+                    @else
+                        @if($data['meta']['project_name'] ?? false)
+                        <tr><td class="kv-key">Project</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['project_name'] }}</td></tr>
+                        @endif
+                        <tr><td class="kv-key">Status</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['state'] }}</td></tr>
                     @endif
-                    <tr><td class="kv-key">Status</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['state'] }}</td></tr>
                 </table>
             </td>
         </tr>
     </table>
+
+    @if (($pdfSettings['show_carrier_driver'] ?? true) && !empty($data['meta']['carrier_driver']) && $data['meta']['carrier_driver'] !== '-')
+        <div style="padding: 5px 12px; border-bottom: 1px solid #cbd5e1; font-size: 10.5px; background: #fafafa;">
+            <strong>Carrier - Driver:</strong> {{ $data['meta']['carrier_driver'] }}
+        </div>
+    @endif
 
     {{-- BILL TO / SHIP TO --}}
     <table class="addr-table">
@@ -320,6 +364,15 @@
         <table style="width:100%; border-collapse: collapse; border: none; margin: 0; padding: 0;">
             <tr>
                 <td style="width: 50%; vertical-align: bottom; border: none; text-align: left; padding: 0;">
+                    @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))
+                        <div style="margin-bottom: 8px; font-size: 9.5px; color: #334155;">
+                            <div class="small muted" style="font-weight: bold; text-transform: uppercase; color: #4f46e5; margin-bottom: 2px;">Bank Information</div>
+                            <div>Account Name: <strong>{{ $data['company']['bank']['account_name'] }}</strong></div>
+                            <div>Account Number: <strong>{{ $data['company']['bank']['account_number'] }}</strong></div>
+                            <div>Bank: <strong>{{ $data['company']['bank']['bank_name'] }}</strong> (Branch: {{ $data['company']['bank']['branch'] }})</div>
+                            <div>IFSC Code: <strong>{{ $data['company']['bank']['ifsc_code'] }}</strong></div>
+                        </div>
+                    @endif
                     @if (($pdfSettings['upi_qr'] ?? true) && !empty($data['company']['upi_qr_path']))
                         @php
                             $qrPath = ltrim(

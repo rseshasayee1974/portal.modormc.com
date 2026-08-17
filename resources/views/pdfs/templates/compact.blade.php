@@ -44,8 +44,36 @@
 <body>
 @include('pdfs.partials._print_actions')
 <div class="inv-root">
+    @if (($pdfSettings['show_einvoice_details'] ?? true) && (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
+        <div style="display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 4px 8px; font-size: 8.5px; background: #fafafa;">
+            <div style="display: table-cell; vertical-align: middle;">
+                @if(!empty($data['meta']['irn'])) <div><strong>IRN:</strong> {{ $data['meta']['irn'] }}</div> @endif
+                @if(!empty($data['meta']['ack_no'])) <div><strong>Ack No:</strong> {{ $data['meta']['ack_no'] }}</div> @endif
+            </div>
+            @if(!empty($data['meta']['qr_code']))
+                <div style="display: table-cell; vertical-align: middle; text-align: right; width: 50px;">
+                    <img src="{{ $data['meta']['qr_code'] }}" style="max-height: 45px; max-width: 45px; object-fit: contain;" />
+                </div>
+            @endif
+        </div>
+    @endif
+
     <div class="compact-header">
         <div class="ch-left">
+            @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
+                @php
+                    $cleanLogoPath = ltrim(
+                        str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
+                        '/',
+                    );
+                    $logoUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                        ? asset('storage/' . $cleanLogoPath)
+                        : public_path('storage/' . $cleanLogoPath);
+                @endphp
+                <div style="margin-bottom: 4px;">
+                    <img src="{{ $logoUrl }}" style="max-height: 40px; max-width: 140px; object-fit: contain;" />
+                </div>
+            @endif
             @if($pdfSettings['company_name'] ?? true) <div class="co-name">{{ $data['company']['name'] }}</div> @endif
             @if($pdfSettings['address'] ?? true)
                 <div class="co-det">{{ $data['company']['address'] }}, {{ $data['company']['city'] }}</div>
@@ -63,10 +91,11 @@
             $metaFields = [];
             if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') $metaFields['Due'] = $data['due_date'];
             $metaFields['Delivery'] = $data['delivery_date'];
+            if(!empty($data['meta']['so_no'])) $metaFields['SO#'] = $data['meta']['so_no'];
             $metaFields['PO#'] = ($data['meta']['po_number'] ?? '');
+            if(($pdfSettings['show_einvoice_details'] ?? true) && !empty($data['meta']['eway_bill_no'])) $metaFields['EWayBill'] = $data['meta']['eway_bill_no'];
             $metaFields['Status'] = $data['state'];
             if (!empty($data['meta']['sales_executive_name'])) $metaFields['Sales Exec'] = $data['meta']['sales_executive_name'];
-            if (!empty($data['meta']['sales_executive_mobile'])) $metaFields['Contact No'] = $data['meta']['sales_executive_mobile'];
         @endphp
         @foreach($metaFields as $k => $v)
             @if($v) <div class="ms-cell"><span class="ms-key">{{ $k }}: </span><span class="ms-val">{{ $v }}</span></div> @endif
@@ -88,7 +117,23 @@
                 <div>{{ $data['ship_to']['address'] }}, {{ $data['ship_to']['city'] }}</div>
             @endif
         </div>
+        @if(($pdfSettings['show_customer_ref'] ?? true) && (!empty($data['meta']['acc_no']) || !empty($data['meta']['sales_person']) || !empty($data['meta']['pump']) || !empty($data['meta']['design_mix_ref'])))
+            <div class="as-cell">
+                <div class="as-hdr">Customer Ref</div>
+                <div style="font-size: 8.5px;">
+                    @if(!empty($data['meta']['acc_no'])) <div>Acc No: <strong>{{ $data['meta']['acc_no'] }}</strong></div> @endif
+                    @if(!empty($data['meta']['sales_person'])) <div>Sales: <strong>{{ $data['meta']['sales_person'] }}</strong></div> @endif
+                    @if(!empty($data['meta']['pump'])) <div>Pump: <strong>{{ $data['meta']['pump'] }}</strong></div> @endif
+                </div>
+            </div>
+        @endif
     </div>
+
+    @if (($pdfSettings['show_carrier_driver'] ?? true) && !empty($data['meta']['carrier_driver']) && $data['meta']['carrier_driver'] !== '-')
+        <div style="padding: 3px 6px; font-size: 8.5px; background: #f8fafc; border-bottom: 1px solid #cbd5e1;">
+            <strong>Carrier - Driver:</strong> {{ $data['meta']['carrier_driver'] }}
+        </div>
+    @endif
 
     <table class="items-table">
             <thead>
@@ -238,6 +283,12 @@
 
     @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? ''))
     <div class="terms-text-content" style="padding:5px 8px;font-size:8.5px;border-top:1px solid #ccc;color:#666;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $data['meta']['terms_text'] !!}</div>
+    @endif
+
+    @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))
+        <div style="padding:4px 8px;font-size:8.5px;border-top:1px solid #ccc;color:#334155;">
+            <strong>Bank:</strong> {{ $data['company']['bank']['bank_name'] }} &bull; <strong>A/C:</strong> {{ $data['company']['bank']['account_number'] }} &bull; <strong>IFSC:</strong> {{ $data['company']['bank']['ifsc_code'] }}
+        </div>
     @endif
 
     @if($pdfSettings['signature'] ?? true)

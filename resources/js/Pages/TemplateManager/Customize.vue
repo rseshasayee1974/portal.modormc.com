@@ -64,6 +64,10 @@ const ensurePdfStructure = (rawSettings: any) => {
     } else {
         s.pdf.show_pump_charges = s.pdf.show_pump_charges === 1 || s.pdf.show_pump_charges === true || s.pdf.show_pump_charges === '1';
     }
+    if (s.pdf.show_bank_details === undefined) s.pdf.show_bank_details = true;
+    if (s.pdf.show_einvoice_details === undefined) s.pdf.show_einvoice_details = true;
+    if (s.pdf.show_customer_ref === undefined) s.pdf.show_customer_ref = true;
+    if (s.pdf.show_carrier_driver === undefined) s.pdf.show_carrier_driver = true;
     return s;
 };
 
@@ -303,6 +307,22 @@ const downloadSample = () => {
 
                                 <div class="setting-row">
                                     <div>
+                                        <label class="setting-title">Bank Details Block</label>
+                                        <p class="setting-desc">Show plant bank account details in invoice</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.show_bank_details" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">e-Invoice & IRN Meta</label>
+                                        <p class="setting-desc">Show IRN, Ack No/Date & E-Way bill info</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.show_einvoice_details" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
                                         <label class="setting-title">Document Reference #</label>
                                         <p class="setting-desc">Show document number e.g. INV-2026-001</p>
                                     </div>
@@ -379,6 +399,22 @@ const downloadSample = () => {
                                     </div>
                                     <InputSwitch v-model="activeSettings.pdf.pump_rates" />
                                 </div> -->
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Customer Ref & Metadata</label>
+                                        <p class="setting-desc">Show Acc No, PO, Sales Person, Pump, Design Mix Ref</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.show_customer_ref" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Carrier & Driver Info</label>
+                                        <p class="setting-desc">Show transport, vehicle registration & driver details</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.show_carrier_driver" />
+                                </div>
 
                                 <div class="setting-row">
                                     <div>

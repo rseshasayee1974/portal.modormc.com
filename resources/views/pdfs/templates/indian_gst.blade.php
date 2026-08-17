@@ -9,8 +9,9 @@
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
+       
         .inv-root { width: 100%; }
-        .gst-header { display: table; width: 100%; border-bottom: 3px solid #4f46e5; padding: 0 0 15px 0; margin-bottom: 20px; }
+        .gst-header { display: table; width: 100%; border-bottom: 3px solid #4f46e5; padding: 0 0 15px 0; margin-bottom: 15px; }
         .gh-left  { display: table-cell; vertical-align: bottom; }
         .gh-right { display: table-cell; vertical-align: bottom; text-align: right; }
         
@@ -19,20 +20,20 @@
         .gst-title { font-size: 22px; font-weight: 900; text-transform: uppercase; color: #1e293b; letter-spacing: -0.02em; }
         .gst-orig  { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
 
-        .gst-meta { display: table; width: 100%; border-collapse: collapse; margin-bottom: 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
-        .gmt-cell { display: table-cell; padding: 10px 15px; border-right: 1px solid #e2e8f0; font-size: 10px; vertical-align: top; }
+        .gst-meta { display: table; width: 100%; border-collapse: collapse; margin-bottom: 15px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; }
+        .gmt-cell { display: table-cell; padding: 8px 12px; border-right: 1px solid #e2e8f0; font-size: 10px; vertical-align: top; }
         .gmt-cell:last-child { border-right: none; }
         .gmt-key  { color: #64748b; font-size: 9px; font-weight: 600; text-transform: uppercase; margin-bottom: 2px; }
         .gmt-val  { font-weight: 700; color: #1e293b; font-size: 11px; }
 
-        .party-row { display: table; width: 100%; margin-bottom: 25px; gap: 20px; }
-        .pr-cell   { display: table-cell; width: 50%; padding: 0 10px 0 0; font-size: 11px; vertical-align: top; }
-        .pr-cell:last-child { padding: 0 0 0 10px; }
+        .party-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+        .party-table td { vertical-align: top; padding: 0 10px 0 0; }
+        .party-table td:last-child { padding-right: 0; }
         .pr-hdr    { font-size: 9px; font-weight: 800; text-transform: uppercase; color: #4f46e5; margin-bottom: 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-        .pr-name   { font-weight: 800; font-size: 13px; color: #1e293b; margin-bottom: 4px; }
-        .pr-det    { color: #64748b; line-height: 1.5; }
+        .pr-name   { font-weight: 800; font-size: 12px; color: #1e293b; margin-bottom: 4px; }
+        .pr-det    { color: #64748b; font-size: 10px; line-height: 1.5; }
 
-        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
         .items-table th { background: #1e293b; color: #fff; padding: 8px 10px; font-size: 9px; text-transform: uppercase; font-weight: 700; border: 1px solid #1e293b; }
         .items-table td { border: 1px solid #e2e8f0; padding: 8px 10px; font-size: 10px; color: #1e293b; }
         .items-table tr:nth-child(even) { background: #f8fafc; }
@@ -47,11 +48,11 @@
         
         .total-payable { background: #4f46e5; color: #fff; font-weight: 800; font-size: 16px; padding: 12px 15px; border-radius: 6px; text-align: right; margin-top: 5px; }
 
-        .declaration { font-size: 9px; color: #64748b; line-height: 1.6; padding: 15px; background: #f8fafc; border-radius: 6px; margin-bottom: 20px; border-left: 3px solid #cbd5e1; }
-        .terms-box { font-size: 9.5px; color: #1e293b; margin-bottom: 25px; }
+        .declaration { font-size: 9px; color: #64748b; line-height: 1.6; padding: 12px; background: #f8fafc; border-radius: 6px; margin-bottom: 15px; border-left: 3px solid #cbd5e1; }
+        .terms-box { font-size: 9.5px; color: #1e293b; margin-bottom: 15px; }
         .terms-hdr { font-weight: 800; font-size: 10px; text-transform: uppercase; color: #64748b; margin-bottom: 5px; }
         
-        .sig-row  { display: table; width: 100%; margin-top: 30px; }
+        .sig-row  { display: table; width: 100%; margin-top: 20px; }
         .sig-left  { display: table-cell; vertical-align: bottom; font-size: 9px; color: #94a3b8; }
         .sig-right { display: table-cell; vertical-align: bottom; text-align: right; }
         .sig-line  { display: inline-block; width: 200px; border-top: 2px solid #1e293b; padding-top: 8px; font-size: 11px; font-weight: 800; color: #1e293b; text-align: center; }
@@ -61,9 +62,38 @@
 @include('pdfs.partials._print_actions')
 <div class="inv-root">
 
+    @if (($pdfSettings['show_einvoice_details'] ?? true) && (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
+        <div style="display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 6px 12px; font-size: 9.5px; background: #fafafa; margin-bottom: 12px;">
+            <div style="display: table-cell; vertical-align: middle;">
+                @if(!empty($data['meta']['irn'])) <div><strong>IRN :</strong> {{ $data['meta']['irn'] }}</div> @endif
+                @if(!empty($data['meta']['ack_no'])) <div><strong>Ack No. :</strong> {{ $data['meta']['ack_no'] }}</div> @endif
+                @if(!empty($data['meta']['ack_date'])) <div><strong>Ack Date :</strong> {{ $data['meta']['ack_date'] }}</div> @endif
+            </div>
+            @if(!empty($data['meta']['qr_code']))
+                <div style="display: table-cell; vertical-align: middle; text-align: right; width: 70px;">
+                    <img src="{{ $data['meta']['qr_code'] }}" style="max-height: 60px; max-width: 60px; object-fit: contain;" />
+                </div>
+            @endif
+        </div>
+    @endif
+
     {{-- GST HEADER (3-col: company | doc title | brand) --}}
     <div class="gst-header">
         <div class="gh-left">
+            @if (($pdfSettings['logo'] ?? true) && !empty($data['company']['logo_path']))
+                @php
+                    $cleanLogoPath = ltrim(
+                        str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
+                        '/',
+                    );
+                    $logoUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                        ? asset('storage/' . $cleanLogoPath)
+                        : public_path('storage/' . $cleanLogoPath);
+                @endphp
+                <div style="margin-bottom: 6px;">
+                    <img src="{{ $logoUrl }}" style="max-height: 50px; max-width: 180px; object-fit: contain;" />
+                </div>
+            @endif
             @if($pdfSettings['company_name'] ?? true) <div class="co-name">{{ $data['company']['name'] }}</div> @endif
             @if($pdfSettings['address'] ?? true)
                 <div class="co-det">
@@ -80,7 +110,8 @@
         <div class="gh-right">
             <div class="gst-title">{{ $data['doc_title'] }}</div>
             <div class="gst-orig">Original for Recipient</div>
-            <div class="co-det" style="margin-top:5px">PAN: {{ $data['meta']['pan'] ?? 'XXXXX0000X' }}</div>
+            <div class="co-det" style="margin-top:5px">PAN: {{ $data['company']['pan'] ?? ($data['meta']['pan'] ?? 'XXXXX0000X') }}</div>
+            @if(!empty($data['company']['msme_no'])) <div class="co-det" style="margin-top:2px">MSME/Udyam No : {{ $data['company']['msme_no'] }}</div> @endif
         </div>
     </div>
 
@@ -89,38 +120,64 @@
         <div class="gmt-cell"><div class="gmt-key">Invoice No.</div><div class="gmt-val">{{ $data['doc_no'] }}</div></div>
         <div class="gmt-cell"><div class="gmt-key">Date</div><div class="gmt-val">{{ $data['doc_date'] }}</div></div>
         @if(($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') <div class="gmt-cell"><div class="gmt-key">Due Date</div><div class="gmt-val">{{ $data['due_date'] }}</div></div> @endif
+        @if(!empty($data['meta']['so_no'])) <div class="gmt-cell"><div class="gmt-key">SO No</div><div class="gmt-val">{{ $data['meta']['so_no'] }}</div></div> @endif
+        @if(($pdfSettings['show_einvoice_details'] ?? true) && !empty($data['meta']['eway_bill_no'])) <div class="gmt-cell"><div class="gmt-key">EWayBillNo</div><div class="gmt-val">{{ $data['meta']['eway_bill_no'] }}</div></div> @endif
         <div class="gmt-cell"><div class="gmt-key">State of Supply</div><div class="gmt-val">{{ $data['bill_to']['state'] ?? 'Tamil Nadu' }}</div></div>
         @if(!empty($data['meta']['sales_executive_name'])) <div class="gmt-cell"><div class="gmt-key">Sales Exec</div><div class="gmt-val">{{ $data['meta']['sales_executive_name'] }}</div></div> @endif
-        @if(!empty($data['meta']['sales_executive_mobile'])) <div class="gmt-cell"><div class="gmt-key">Contact No</div><div class="gmt-val">{{ $data['meta']['sales_executive_mobile'] }}</div></div> @endif
         <div class="gmt-cell"><div class="gmt-key">Project</div><div class="gmt-val">{{ $data['meta']['project_name'] ?: '---' }}</div></div>
     </div>
 
-    {{-- PARTY (Bill To | Ship To) --}}
-    <div class="party-row">
-        <div class="pr-cell">
-            @if($pdfSettings['bill_to'] ?? true)
-                <div class="pr-hdr">{{ $labels['bill_to'] ?? 'Bill To (Customer)' }}</div>
-                <div class="pr-name">{{ $data['bill_to']['name'] }}</div>
-                <div class="pr-det">
-                    {{ $data['bill_to']['address'] }}, {{ $data['bill_to']['city'] }}<br>
-                    {{ $data['bill_to']['state'] }} - {{ $data['bill_to']['pin'] }}
-                    @if(($pdfSettings['gstin'] ?? true) && $data['bill_to']['gstin']) 
-                        <div style="margin-top:5px; color:#1e293b">GSTIN: <strong>{{ $data['bill_to']['gstin'] }}</strong></div> 
-                    @endif
-                </div>
+    {{-- PARTY (Bill To | Ship To | Customer Ref) --}}
+    @php
+        $showCustRef = ($pdfSettings['show_customer_ref'] ?? true) && (!empty($data['meta']['acc_no']) || !empty($data['meta']['sales_person']) || !empty($data['meta']['pump']) || !empty($data['meta']['design_mix_ref']));
+        $colWidth = $showCustRef ? '33.33%' : '50%';
+    @endphp
+    <table class="party-table">
+        <tr>
+            <td style="width: {{ $colWidth }};">
+                @if($pdfSettings['bill_to'] ?? true)
+                    <div class="pr-hdr">{{ $labels['bill_to'] ?? 'Bill To (Customer)' }}</div>
+                    <div class="pr-name">{{ $data['bill_to']['name'] }}</div>
+                    <div class="pr-det">
+                        @if(!empty($data['bill_to']['address'])) {{ $data['bill_to']['address'] }}<br> @endif
+                        @if(!empty($data['bill_to']['city']) || !empty($data['bill_to']['state'])) {{ $data['bill_to']['city'] }}, {{ $data['bill_to']['state'] }} - {{ $data['bill_to']['pin'] }}<br> @endif
+                        @if(($pdfSettings['gstin'] ?? true) && $data['bill_to']['gstin']) 
+                            <div style="margin-top:4px; color:#1e293b">GSTIN: <strong>{{ $data['bill_to']['gstin'] }}</strong></div> 
+                        @endif
+                    </div>
+                @endif
+            </td>
+            <td style="width: {{ $colWidth }};">
+                @if($pdfSettings['ship_to'] ?? true)
+                    <div class="pr-hdr">{{ $labels['ship_to'] ?? 'Ship To (Site Location)' }}</div>
+                    <div class="pr-name">{{ $data['ship_to']['name'] }}</div>
+                    <div class="pr-det">
+                        @if(!empty($data['ship_to']['address'])) {{ $data['ship_to']['address'] }}<br> @endif
+                        @if(!empty($data['ship_to']['city']) || !empty($data['ship_to']['state'])) {{ $data['ship_to']['city'] }}, {{ $data['ship_to']['state'] }} - {{ $data['ship_to']['pin'] }} @endif
+                    </div>
+                @endif
+            </td>
+            @if($showCustRef)
+                <td style="width: 33.33%;">
+                    <div class="pr-hdr">Customer Ref</div>
+                    <div class="pr-det" style="font-size:10px; color:#1e293b;">
+                        @if(!empty($data['meta']['acc_no'])) <div>Acc No: <strong>{{ $data['meta']['acc_no'] }}</strong></div> @endif
+                        @if(!empty($data['meta']['po_number'])) <div>PO: <strong>{{ $data['meta']['po_number'] }}</strong></div> @endif
+                        @if(!empty($data['meta']['sales_person'])) <div>Sales Person: <strong>{{ $data['meta']['sales_person'] }}</strong></div> @endif
+                        @if(!empty($data['meta']['pump'])) <div>Pump: <strong>{{ $data['meta']['pump'] }}</strong></div> @endif
+                        @if(!empty($data['meta']['quality_incharge'])) <div>Quality InCharge: <strong>{{ $data['meta']['quality_incharge'] }}</strong></div> @endif
+                        @if(!empty($data['meta']['design_mix_ref'])) <div>Design Mix Ref: <strong>{{ $data['meta']['design_mix_ref'] }}</strong></div> @endif
+                    </div>
+                </td>
             @endif
+        </tr>
+    </table>
+
+    @if (($pdfSettings['show_carrier_driver'] ?? true) && !empty($data['meta']['carrier_driver']) && $data['meta']['carrier_driver'] !== '-')
+        <div style="padding: 6px 12px; border-bottom: 1px solid #e2e8f0; font-size: 10.5px; background: #f8fafc; margin-bottom: 15px; border-radius: 4px;">
+            <strong>Carrier - Driver :</strong> {{ $data['meta']['carrier_driver'] }}
         </div>
-        <div class="pr-cell">
-            @if($pdfSettings['ship_to'] ?? true)
-                <div class="pr-hdr">{{ $labels['ship_to'] ?? 'Ship To (Site Location)' }}</div>
-                <div class="pr-name">{{ $data['ship_to']['name'] }}</div>
-                <div class="pr-det">
-                    {{ $data['ship_to']['address'] }}, {{ $data['ship_to']['city'] }}<br>
-                    {{ $data['ship_to']['state'] }} - {{ $data['ship_to']['pin'] }}
-                </div>
-            @endif
-        </div>
-    </div>
+    @endif
     
     {{-- ITEMS TABLE --}}
     <table class="items-table">
@@ -281,6 +338,15 @@
     @if($pdfSettings['signature'] ?? true)
     <div class="sig-row">
         <div class="sig-left">
+            @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))
+                <div style="margin-bottom: 8px; font-size: 9.5px; color: #1e293b;">
+                    <div style="font-weight: bold; text-transform: uppercase; color: #4f46e5; margin-bottom: 2px;">BANK INFORMATION:</div>
+                    <div>ACCOUNT NAME: <strong>{{ $data['company']['bank']['account_name'] }}</strong></div>
+                    <div>ACCOUNT NUMBER: <strong>{{ $data['company']['bank']['account_number'] }}</strong></div>
+                    <div>BANK: <strong>{{ $data['company']['bank']['bank_name'] }}</strong> (BRANCH: {{ $data['company']['bank']['branch'] }})</div>
+                    <div>IFSC CODE: <strong>{{ $data['company']['bank']['ifsc_code'] }}</strong></div>
+                </div>
+            @endif
             @if (($pdfSettings['upi_qr'] ?? true) && !empty($data['company']['upi_qr_path']))
                 @php
                     $qrPath = ltrim(
