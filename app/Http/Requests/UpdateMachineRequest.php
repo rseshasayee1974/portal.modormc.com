@@ -14,14 +14,22 @@ class UpdateMachineRequest extends FormRequest
 
     public function rules(): array
     {
-        $machineId = $this->route('machine')->id;
+        $machine = $this->route('machine');
+        $machineId = is_object($machine) ? $machine->id : $machine;
+        $entityId = session('active_entity_id') ?? ($machine instanceof \App\Models\Machine ? $machine->entity_id : null) ?? \App\Models\Plant::find(session('active_plant_id'))?->entity_id;
 
         return [
             'registration' => [
                 'required', 
                 'string', 
                 'max:20', 
-                Rule::unique('mm_machines')->ignore($machineId)->where(fn($q) => $q->whereNull('deleted_at'))
+                Rule::unique('mm_machines')->ignore($machineId)->where(function ($q) use ($entityId) {
+                    $q->whereNull('deleted_at');
+                    if ($entityId) {
+                        $q->where('entity_id', $entityId);
+                    }
+                    return $q;
+                })
             ],
             'vehicle_model' => 'nullable|string|max:100',
             'make_year' => 'nullable|integer|min:1900|max:'.date('Y'),

@@ -19,7 +19,14 @@ class StoreMachineRequest extends FormRequest
                 'required', 
                 'string', 
                 'max:20', 
-                Rule::unique('mm_machines')->where(fn($q) => $q->whereNull('deleted_at'))
+                Rule::unique('mm_machines')->where(function ($q) {
+                    $entityId = session('active_entity_id') ?? \App\Models\Plant::find(session('active_plant_id'))?->entity_id;
+                    $q->whereNull('deleted_at');
+                    if ($entityId) {
+                        $q->where('entity_id', $entityId);
+                    }
+                    return $q;
+                })
             ],
             'vehicle_model' => 'nullable|string|max:100',
             'make_year' => 'nullable|integer|min:1900|max:'.date('Y'),
