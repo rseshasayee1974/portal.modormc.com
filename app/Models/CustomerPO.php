@@ -26,8 +26,7 @@ class CustomerPO extends Model
         'site_id',
         'notes',
         'sales_executive_id',
-        'pump_type',
-        'pump_rate',
+        'concrete_pump',
         'is_tax_inclusive',
         'order_date',
         'status',
@@ -41,7 +40,6 @@ class CustomerPO extends Model
         'order_date' => 'date',
         'sales_executive_id' => 'integer',
         'is_tax_inclusive' => 'boolean',
-        'pump_rate' => 'decimal:2',
     ];
 
     protected $appends = ['has_salesorders', 'amount_untaxed', 'amount_tax', 'amount_total'];
@@ -121,7 +119,7 @@ class CustomerPO extends Model
 
     public function concretePump()
     {
-        return $this->belongsTo(Machine::class, 'pump_type');
+        return $this->belongsTo(Machine::class, 'concrete_pump');
     }
 
     protected static function booted()
