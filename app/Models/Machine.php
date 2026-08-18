@@ -70,7 +70,7 @@ class Machine extends Model
         'vehicle_model',
         'make_year',
         'engine_no',
-        'pump_type',
+        'concrete_pump',
         'chassis_no',
         'vehicle_type',
         'capacity',

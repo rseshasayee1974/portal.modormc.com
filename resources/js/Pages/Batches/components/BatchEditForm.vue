@@ -99,14 +99,14 @@ const form = useForm({
         const val = so?.sales_executive_id ?? so?.customer_p_o?.sales_executive_id ?? so?.customer_p_o?.quotation?.sales_executive_id ?? so?.latest_dispatch?.sales_executive_id ?? null;
         return val ? Number(val) : null;
     })(),
-    pump_type: (() => {
-        const direct = props.batch?.dispatches?.[0]?.pump_type || props.batch?.pump_type;
+    concrete_pump: (() => {
+        const direct = props.batch?.dispatches?.[0]?.concrete_pump || props.batch?.concrete_pump;
         if (direct) {
             const num = Number(direct);
             return isNaN(num) ? direct : num;
         }
         const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
-        const val = so?.pump_type ?? so?.customer_p_o?.pump_type ?? so?.customer_p_o?.quotation?.pump_type ?? so?.latest_dispatch?.pump_type ?? null;
+        const val = so?.concrete_pump ?? so?.customer_p_o?.concrete_pump ?? so?.customer_p_o?.quotation?.concrete_pump ?? so?.latest_dispatch?.concrete_pump ?? null;
         if (val) {
             const num = Number(val);
             return isNaN(num) ? val : num;
@@ -173,6 +173,8 @@ const form = useForm({
         });
     })(),
 });
+
+const activeTabIndex = ref(0);
 
 const selectedSalesOrder = computed(() => {
     if (props.batch?.sales_order && props.batch.sales_order.id === form.sales_order_id) {
@@ -340,17 +342,17 @@ const applyBatchToForm = (newBatch: any) => {
               : (quotation?.sales_executive_id ? Number(quotation.sales_executive_id)
                  : (latestDispatch?.sales_executive_id ? Number(latestDispatch.sales_executive_id) : null))));
 
-    const rawPump = dispatch?.pump_type 
-        ?? so?.pump_type 
-        ?? po?.pump_type 
-        ?? quotation?.pump_type 
-        ?? latestDispatch?.pump_type 
+    const rawPump = dispatch?.concrete_pump 
+        ?? so?.concrete_pump 
+        ?? po?.concrete_pump 
+        ?? quotation?.concrete_pump 
+        ?? latestDispatch?.concrete_pump 
         ?? null;
     if (rawPump !== null) {
         const num = Number(rawPump);
-        form.pump_type = isNaN(num) ? rawPump : num;
+        form.concrete_pump = isNaN(num) ? rawPump : num;
     } else {
-        form.pump_type = null;
+        form.concrete_pump = null;
     }
     form.empty_weight_truck = Number(dispatch?.empty_weight_truck ?? 0);
     form.loaded_weight_truck = Number(dispatch?.loaded_weight_truck ?? 0);
@@ -680,6 +682,31 @@ watch(numberOfRuns, (newVal) => {
         }
     });
 }, { immediate: true });
+const handleNextTab = () => {
+    form.clearErrors();
+    let hasErrors = false;
+    if (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0) {
+        form.setError('empty_weight_truck', 'Empty Weight is required');
+        hasErrors = true;
+    }
+    if (!form.empty_time) {
+        form.setError('empty_time', 'Empty Time is required');
+        hasErrors = true;
+    }
+    if (hasErrors) {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'warning',
+            title: 'Please check required fields in Details & Weights',
+            showConfirmButton: false,
+            timer: 2500,
+        });
+        return;
+    }
+    activeTabIndex.value = 1;
+};
+
 const submit = () => {
     form.clearErrors();
     let hasErrors = false;
@@ -838,13 +865,18 @@ const submit = () => {
 
             <!-- Section 2: Tabbed Workspace -->
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <TabView>
+                <TabView v-model:activeIndex="activeTabIndex" class="batch-tabview">
                     <!-- Tab 1: Production Details & Weights -->
                     <TabPanel>
                         <template #header>
-                            <div class="flex items-center gap-2 py-1">
-                                <ClockIcon class="w-4 h-4 text-cyan-600" />
-                                <span class="text-xs font-bold uppercase tracking-wider text-slate-700">1. Details & Weights</span>
+                            <div :class="[
+                                'flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 text-xs font-bold uppercase tracking-wider',
+                                activeTabIndex === 0 
+                                    ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/25 ring-1 ring-cyan-500' 
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-800'
+                            ]">
+                                <ClockIcon :class="['w-4 h-4 transition-colors', activeTabIndex === 0 ? 'text-white' : 'text-slate-500']" />
+                                <span>1. Details & Weights</span>
                             </div>
                         </template>
 
@@ -918,14 +950,14 @@ const submit = () => {
                                 </div>
                                 <div>
                                     <BaseSelect
-                                        v-model="form.pump_type"
+                                        v-model="form.concrete_pump"
                                         :options="concretePumpOptions"
                                         label="Operation Type"
                                         placeholder="Select Operation Type"
                                         optionLabel="label"
                                         optionValue="value"
                                         :fluid="true"
-                                        :error="form.errors.pump_type"
+                                        :error="form.errors.concrete_pump"
                                         :disabled="isRestrictedFieldLocked"
                                     />
                                 </div>
@@ -965,9 +997,14 @@ const submit = () => {
                     <!-- Tab 2: Material Reconciliation -->
                     <TabPanel>
                         <template #header>
-                            <div class="flex items-center gap-2 py-1">
-                                <ListBulletIcon class="w-4 h-4 text-cyan-600" />
-                                <span class="text-xs font-bold uppercase tracking-wider text-slate-700">2. Input Reconciliation</span>
+                            <div :class="[
+                                'flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 text-xs font-bold uppercase tracking-wider',
+                                activeTabIndex === 1 
+                                    ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/25 ring-1 ring-cyan-500' 
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-800'
+                            ]">
+                                <ListBulletIcon :class="['w-4 h-4 transition-colors', activeTabIndex === 1 ? 'text-white' : 'text-slate-500']" />
+                                <span>2. Input Reconciliation</span>
                             </div>
                         </template>
 
@@ -1233,26 +1270,78 @@ const submit = () => {
         </div>
 
         <!-- Update Actions Footer (Sticky) -->
-        <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-4 flex justify-end gap-3" v-if="form.status !== 3">
-            <Button 
-                label="Cancel" 
-                severity="secondary" 
-                text
-                class="!px-6 !py-2.5 !rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 hover:!bg-slate-100" 
-                @click="emit('cancel')" 
-            />
-            <Button 
-                label="Save Changes" 
-                icon="pi pi-check" 
-                class="!bg-cyan-600 hover:!bg-cyan-700 !border-cyan-600 !px-8 !py-2.5 !rounded-xl text-xs font-bold uppercase tracking-wider shadow-lg shadow-cyan-100" 
-                :loading="form.processing"
-                @click="submit" 
-            />
+        <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-4 flex items-center justify-between gap-3" v-if="form.status !== 3">
+            <div>
+                <Button 
+                    v-if="activeTabIndex === 1"
+                    label="Back to Details" 
+                    icon="pi pi-arrow-left"
+                    severity="secondary" 
+                    outlined
+                    class="!px-5 !py-2.5 !rounded-xl text-xs font-bold uppercase tracking-wider !text-slate-600 hover:!bg-slate-100" 
+                    @click="activeTabIndex = 0" 
+                />
+            </div>
+
+            <div class="flex items-center gap-3">
+                <Button 
+                    label="Cancel" 
+                    severity="secondary" 
+                    text
+                    class="!px-6 !py-2.5 !rounded-xl text-[13px] border border-gray-300 font-bold  tracking-wider text-slate-600 hover:!bg-slate-100" 
+                    @click="emit('cancel')" 
+                />
+
+                <!-- Tab 1: Save & Next Button -->
+                <Button 
+                    v-if="activeTabIndex === 0"
+                    label="Save & Next" 
+                    icon="pi pi-arrow-right" 
+                    iconPos="right" 
+                    class="!bg-cyan-600 hover:!bg-cyan-700 !border-cyan-600 !px-8 !py-2.5 !rounded-xl !text-[13px] font-bold uppercase tracking-wider shadow-lg shadow-cyan-100" 
+                    @click="handleNextTab" 
+                />
+
+                <!-- Tab 2: Save Changes Button -->
+                <Button 
+                    v-else
+                    label="Save Changes" 
+                    icon="pi pi-check" 
+                    class="!bg-cyan-600 hover:!bg-cyan-700 !border-cyan-600 !px-8 !py-2.5 !rounded-xl !text-[13px] font-bold uppercase tracking-wider shadow-lg shadow-cyan-100" 
+                    :loading="form.processing"
+                    @click="submit" 
+                />
+            </div>
         </div>
     </div>
 </template>
 
 <style scoped>
+:deep(.batch-tabview .p-tabview-nav) {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.75rem 1.25rem;
+    gap: 0.5rem;
+    display: flex;
+}
+:deep(.batch-tabview .p-tabview-header) {
+    margin: 0 !important;
+}
+:deep(.batch-tabview .p-tabview-nav-link) {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0.75rem !important;
+}
+:deep(.batch-tabview .p-tabview-ink-bar) {
+    display: none !important;
+}
+:deep(.batch-tabview .p-tabview-panels) {
+    padding: 0 !important;
+    background: transparent !important;
+}
+
 .ocr-fade-enter-active,
 .ocr-fade-leave-active {
     transition: opacity 0.2s ease, transform 0.2s ease;

@@ -44,7 +44,7 @@ class PumpRateTest extends TestCase
         PumpRate::create([
             'plant_id' => $this->plant->id,
             'customer_id' => $customer->id,
-            'pump_type' => $pump->id,
+            'concrete_pump' => $pump->id,
             'rate' => 1500,
             'rate_type' => 'Flat Rate',
             'name' => 'Test Pump Rate',
@@ -69,7 +69,7 @@ class PumpRateTest extends TestCase
 
         $response = $this->post(route('pumprates.store'), [
             'customer_id' => $customer->id,
-            'pump_type' => $pump->id,
+            'concrete_pump' => $pump->id,
             'rate' => 1250.50,
             'rate_type' => 'Per UOM',
             'uom_id' => $uom->id,
@@ -80,7 +80,7 @@ class PumpRateTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('mm_pump_rates', [
             'customer_id' => $customer->id,
-            'pump_type' => $pump->id,
+            'concrete_pump' => $pump->id,
             'rate' => 1250.50,
             'rate_type' => 'Per UOM',
         ]);
@@ -92,7 +92,7 @@ class PumpRateTest extends TestCase
 
         $response = $this->post(route('pumprates.store'), [
             'customer_id' => null,
-            'pump_type' => $pump->id,
+            'concrete_pump' => $pump->id,
             'rate' => 2000.00,
             'rate_type' => 'Flat Rate',
             'name' => 'Global Flat Rate Charge',
@@ -102,7 +102,7 @@ class PumpRateTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('mm_pump_rates', [
             'customer_id' => null,
-            'pump_type' => $pump->id,
+            'concrete_pump' => $pump->id,
             'rate' => 2000.00,
             'rate_type' => 'Flat Rate',
         ]);
@@ -116,7 +116,7 @@ class PumpRateTest extends TestCase
         $rate = PumpRate::create([
             'plant_id' => $this->plant->id,
             'customer_id' => $customer->id,
-            'pump_type' => $pump->id,
+            'concrete_pump' => $pump->id,
             'rate' => 1500,
             'rate_type' => 'Flat Rate',
             'name' => 'Initial Rate',
@@ -125,7 +125,7 @@ class PumpRateTest extends TestCase
 
         $response = $this->put(route('pumprates.update', $rate->id), [
             'customer_id' => $customer->id,
-            'pump_type' => $pump->id,
+            'concrete_pump' => $pump->id,
             'rate' => 1750,
             'rate_type' => 'Flat Rate',
             'name' => 'Updated Rate',
@@ -148,7 +148,7 @@ class PumpRateTest extends TestCase
         $rate = PumpRate::create([
             'plant_id' => $this->plant->id,
             'customer_id' => $customer->id,
-            'pump_type' => $pump->id,
+            'concrete_pump' => $pump->id,
             'rate' => 1500,
             'rate_type' => 'Flat Rate',
             'name' => 'To Delete',

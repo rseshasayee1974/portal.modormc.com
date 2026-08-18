@@ -93,11 +93,11 @@ class PrintController extends Controller
         // 3. Resolve Template (Either forced by request or from DB settings)
         // Request can override template for testing: ?template=elite
         $templateKey = $request->get('template') ?: PrintDataFormatter::resolveTemplateKey($module, session('active_plant_id'));
-        $view = PrintDataFormatter::resolveView($templateKey);
+        $view = ($module === 'invoices') ? 'pdfs.invoices.tax_invoice' : PrintDataFormatter::resolveView($templateKey);
 
         // 3. Render
         if ($action === 'view') {
-            return view($view, ['data' => $data]);
+            return view($view, ['data' => $data, 'invoice' => $data['invoice'] ?? null]);
         }
 
         // 4. Download PDF

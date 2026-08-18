@@ -91,7 +91,7 @@ class SalesOrderTest extends TestCase
             'mix_design_id' => $this->mixDesign->id,
             'total_qty' => 100,
             'status' => SalesOrder::STATUS_SCHEDULED,
-            'pump_type' => $this->machine->id,
+            'concrete_pump' => $this->machine->id,
             'pump_rate' => 1500,
         ];
 
@@ -100,7 +100,7 @@ class SalesOrderTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('mm_sales_orders', [
             'total_qty' => 100,
-            'pump_type' => $this->machine->id,
+            'concrete_pump' => $this->machine->id,
             'pump_rate' => 1500,
         ]);
     }
@@ -139,7 +139,7 @@ class SalesOrderTest extends TestCase
             'mix_design_id' => $this->mixDesign->id,
             'total_qty' => 150,
             'status' => SalesOrder::STATUS_SCHEDULED,
-            'pump_type' => $this->machine->id,
+            'concrete_pump' => $this->machine->id,
             'pump_rate' => 2000,
         ];
 
@@ -149,7 +149,7 @@ class SalesOrderTest extends TestCase
         $this->assertDatabaseHas('mm_sales_orders', [
             'id' => $salesOrder->id,
             'total_qty' => 150,
-            'pump_type' => $this->machine->id,
+            'concrete_pump' => $this->machine->id,
             'pump_rate' => 2000,
         ]);
     }

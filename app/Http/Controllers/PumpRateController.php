@@ -35,7 +35,7 @@ class PumpRateController extends Controller
 
         $validated = $request->validate([
             'customer_id' => 'nullable|exists:mm_patrons,id',
-            'pump_type'   => 'required|exists:mm_machines,id',
+            'concrete_pump'   => 'required|exists:mm_machines,id',
             'rate'        => 'required|numeric|min:0',
             'rate_type'   => 'nullable|string|max:100',
             'uom_id'      => 'required|exists:mm_product_units,id',
@@ -57,7 +57,7 @@ class PumpRateController extends Controller
 
         $validated = $request->validate([
             'customer_id' => 'nullable|exists:mm_patrons,id',
-            'pump_type'   => 'required|exists:mm_machines,id',
+            'concrete_pump'   => 'required|exists:mm_machines,id',
             'rate'        => 'required|numeric|min:0',
             'rate_type'   => 'nullable|string|max:100',
             'uom_id'      => 'required|exists:mm_product_units,id',
@@ -126,9 +126,9 @@ class PumpRateController extends Controller
         ->get();
 
         // Leveraging Laravel Collection's unique() tool to keep the highest specificity match (first match)
-        $resolvedRates = $rates->unique('pump_type')->map(function ($rate) {
+        $resolvedRates = $rates->unique('concrete_pump')->map(function ($rate) {
             return [
-                'pump_type' => $rate->pump_type,
+                'concrete_pump' => $rate->concrete_pump,
                 'pump_rate' => (float)$rate->rate,
                 'rate_type' => $rate->rate_type,
                 'uom_id' => $rate->uom_id,

@@ -71,7 +71,7 @@ const form = useForm({
     transport_id: null as number | null,
     driver_id: null as number | null,
     sales_executive_id: null as number | null,
-    pump_type: null as number | null,
+    concrete_pump: null as number | null,
     empty_weight_truck: 0,
     uom_id: null as number | null,
     site_id: null as number | null,
@@ -168,17 +168,17 @@ watch(() => form.sales_order_id, (newVal) => {
         const quotation = po?.quotation;
         const latestDispatch = selectedSalesOrder.value.latest_dispatch;
 
-        // Fallbacks for pump_type and sales_executive_id
-        const concretePumpVal = selectedSalesOrder.value.pump_type
-            ?? po?.pump_type
-            ?? quotation?.pump_type
-            ?? latestDispatch?.pump_type
+        // Fallbacks for concrete_pump and sales_executive_id
+        const concretePumpVal = selectedSalesOrder.value.concrete_pump
+            ?? po?.concrete_pump
+            ?? quotation?.concrete_pump
+            ?? latestDispatch?.concrete_pump
             ?? null;
         if (concretePumpVal !== null) {
             const num = Number(concretePumpVal);
-            form.pump_type = isNaN(num) ? concretePumpVal : num;
+            form.concrete_pump = isNaN(num) ? concretePumpVal : num;
         } else {
-            form.pump_type = null;
+            form.concrete_pump = null;
         }
 
         const salesExecVal = selectedSalesOrder.value.sales_executive_id
@@ -227,7 +227,7 @@ watch(() => form.sales_order_id, (newVal) => {
     } else {
         form.materials = [blankMaterial()];
         form.batch_no = props.nextBatchNo;
-        form.pump_type = null;
+        form.concrete_pump = null;
         form.sales_executive_id = null;
         form.truck_id = null;
         form.driver_id = null;
@@ -477,7 +477,7 @@ const submit = () => {
         form.transport_id = null;
         form.driver_id = null;
         form.sales_executive_id = null;
-        form.pump_type = null;
+        form.concrete_pump = null;
         form.empty_weight_truck = 0;
         form.empty_weight_photo = null;
         form.status = 1;
@@ -507,7 +507,7 @@ const submit = () => {
             driver_id: form.driver_id,
             sales_executive_id: form.sales_executive_id,
             empty_weight_truck: form.empty_weight_truck,
-            pump_type: form.pump_type,
+            concrete_pump: form.concrete_pump,
             uom_id: form.uom_id,
             site_id: form.site_id,
             status: 1,
@@ -581,30 +581,30 @@ const submit = () => {
 </script>
 
 <template>
-    <div class="no-print rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-100/50 overflow-hidden">
+    <div class="no-print rounded-2xl border border-slate-300 bg-white shadow-xl shadow-slate-100/50 overflow-hidden">
         <!-- Premium Header Banner -->
-        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-6 py-5 text-white">
+        <div class="bg-white px-6 py-5 text-gray-900 border-b border-slate-300">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
-                    <div class="rounded-xl bg-white/10 p-2.5 backdrop-blur-md ring-1 ring-white/20">
-                        <PlusCircleIcon class="h-6 w-6 text-indigo-300 animate-pulse" />
+                    <div class="rounded-xl bg-indigo-400 p-2.5">
+                        <PlusCircleIcon class="h-6 w-6 text-indigo-600 animate-pulse" />
                     </div>
                     <div>
-                        <h2 class="text-base font-bold uppercase tracking-wider text-white">Plan & Create Batch</h2>
-                        <p class="mt-0.5 text-xs text-slate-300">Set logistics, weights, and live target batch quantities.</p>
+                        <h2 class="text-base font-bold uppercase tracking-wider">Plan & Create Batch</h2>
+                        <p class="mt-0.5 text-xs text-slate-600">Set logistics, weights, and live target batch quantities.</p>
                     </div>
                 </div>
 
                 <div v-if="nextBatchNoDisplay" class="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-2 backdrop-blur-md border border-white/10 self-start sm:self-center">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-300">Batch Number</span>
-                    <span class="text-base font-black text-indigo-300">#{{ nextBatchNoDisplay }}</span>
+                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-900">Batch Number</span>
+                    <span class="text-base font-black text-gray-900">#{{ nextBatchNoDisplay }}</span>
                 </div>
             </div>
         </div>        
         
-        <div class="p-6 space-y-6">
+        <div class=" ">
             <!-- Section 1: Sales Order Link & Reference Info -->
-            <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 shadow-sm">
+            <div class=" bg-slate-50/50 p-5">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     <div class="flex flex-col justify-center">
                         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center gap-2">
@@ -645,23 +645,23 @@ const submit = () => {
             </div>
 
             <!-- Section 2: Logistics, Weights & Execution Parameters -->
-            <div class="rounded-2xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-                <div class="flex items-center gap-2 border-b border-slate-50 bg-slate-50/50 px-5 py-3">
-                    <div class="rounded-lg bg-indigo-50 p-1.5 text-indigo-600 ring-1 ring-indigo-100">
-                        <ClockIcon class="h-4 w-4" />
+            <div class=" bg-white overflow-hidden">
+                <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/50 px-5 py-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="rounded-lg bg-indigo-50 p-1.5 text-indigo-600 ring-1 ring-indigo-100">
+                            <ClockIcon class="h-4 w-4" />
+                        </div>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Batch Parameters</h3>
                     </div>
 
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Batch Parameters</h3>
                     <button @click="openTareModal" type="button" 
-                                class="p-2.5 rounded-xl transition-all duration-200 border bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100 flex items-center justify-center" 
-                                title="Register Tare Weight">
-                                <div class="flex flex-col items-center gap-0.5">
-                                    <ScaleIcon class="w-4 h-4 text-indigo-500" />   
-                                    <span class="text-[7px] font-black uppercase tracking-widest text-indigo-600">Register</span>
-                                </div>
-                            </button>
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-all text-xs font-semibold shadow-xs" 
+                        title="Register Tare Weight">
+                        <ScaleIcon class="w-3.5 h-3.5 text-indigo-600" />   
+                        <span>Register Tare</span>
+                    </button>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 p-4">
                     <div>
                         <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Assign Truck" required :error="form.errors.truck_id" />
                     </div>
@@ -674,9 +674,9 @@ const submit = () => {
                     <div>
                         <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear />
                     </div>
-                    <div>
-                        <BaseSelect v-model="form.pump_type" :options="concretePumpOptions" optionLabel="label" optionValue="value" label="Concrete Type" placeholder="Select Concrete Type" :error="form.errors.pump_type" />
-                    </div>
+                    <!-- <div>
+                        <BaseSelect v-model="form.concrete_pump" :options="concretePumpOptions" optionLabel="label" optionValue="value" label="Concrete Type" placeholder="Select Concrete Type" :error="form.errors.concrete_pump" />
+                    </div> -->
                     <div>
                         <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :minFractionDigits="1" :maxFractionDigits="1" :max="9.9" required :error="form.errors.batch_size" />
                     </div>
@@ -710,7 +710,7 @@ const submit = () => {
             </div>
 
             <!-- Section 3: Target Recipe Live Yield Visualization -->
-            <div v-if="selectedSalesOrder?.mix_design?.items?.length" class="rounded-2xl border border-indigo-100 bg-indigo-50/10 p-5 shadow-sm transition-all duration-300 hover:shadow-md">
+            <div v-if="selectedSalesOrder?.mix_design?.items?.length" class=" bg-indigo-50/10 p-5 ">
                 <div class="mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <BeakerIcon class="w-5 h-5 text-indigo-600" />

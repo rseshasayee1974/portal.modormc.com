@@ -113,7 +113,7 @@ const form = useForm({
     total_qty: 0,
     produced_qty: 0,
     status: 1,
-    pump_type: null as number | null,
+    concrete_pump: null as number | null,
     scheduled_start: null as Date | null,
     scheduled_end: null as Date | null,
 });
@@ -280,13 +280,13 @@ const handleMixCreated = () => {
     <!-- Row 2 -->
     <div>
         <BaseSelect
-            v-model="form.pump_type"
+            v-model="form.concrete_pump"
             :options="concretePumpOptions"
             optionLabel="label"
             optionValue="value"
             label="Concrete Type"
             placeholder="Select Concrete Type"
-            :error="form.errors.pump_type"
+            :error="form.errors.concrete_pump"
         />
     </div>
 

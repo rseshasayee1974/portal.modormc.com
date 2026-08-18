@@ -196,7 +196,7 @@ class SouthIndianMarketSeeder extends Seeder
             'sales_executive_id' => $salesExecutive->id,
             'order_date' => now()->subDays(5)->toDateString(),
             'status' => CustomerPO::STATUS_CONFIRMED,
-            'pump_type' => 1,
+            'concrete_pump' => 1,
             'created_by' => $user->id ?? 1
         ]);
 
@@ -215,7 +215,7 @@ class SouthIndianMarketSeeder extends Seeder
             'scheduled_end' => now()->addDays(5),
             'status' => SalesOrder::STATUS_IN_PROGRESS,
             'customer_po_id' => $customerPo->id,
-            'pump_type' => 1,
+            'concrete_pump' => 1,
             'created_by' => $user->id ?? 1
         ]);
 

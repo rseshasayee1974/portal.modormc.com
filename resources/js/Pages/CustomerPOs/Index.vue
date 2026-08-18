@@ -205,7 +205,7 @@ const convertToSalesOrder = (customerPO: any) => {
             completed_qty: completed,
             remaining_qty: remaining,
             quantity: remaining > 0 ? remaining : 0,
-            pump_type: item.pump_type || null,
+            concrete_pump: item.concrete_pump || null,
         };
     });
     showConvertModal.value = true;
@@ -234,7 +234,7 @@ const submitConversion = () => {
         }
         // if (qty > 0) {
         //     hasSelectedItems = true;
-        //     if (item.pump_type === null || item.pump_type === undefined || item.pump_type === '') {
+        //     if (item.concrete_pump === null || item.concrete_pump === undefined || item.concrete_pump === '') {
         //         conversionErrors.value[`concrete_pump_${item.item_id}`] = 'Concrete Pump is required';
         //         hasErrors = true;
         //     }
@@ -254,7 +254,7 @@ const submitConversion = () => {
         items: convertItems.value.map(item => ({
             item_id: item.item_id,
             quantity: Number(item.quantity),
-            pump_type: item.pump_type,
+            concrete_pump: item.concrete_pump,
         }))
     };
 
@@ -623,7 +623,7 @@ watch(() => props.customerPOs, () => {
                                     </td>
                                     <td class="p-3">
                                         <BaseSelect
-                                            v-model="item.pump_type"
+                                            v-model="item.concrete_pump"
                                             :options="props.pumpTypeOptions || []"
                                             optionLabel="label"
                                             optionValue="value"

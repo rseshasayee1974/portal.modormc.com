@@ -16,7 +16,7 @@ class PumpRate extends Model
     protected $fillable = [
         'plant_id',
         'customer_id',
-        'pump_type',
+        'concrete_pump',
         'rate',
         'rate_type',
         'uom_id',
@@ -47,7 +47,7 @@ class PumpRate extends Model
 
     public function pump()
     {
-        return $this->belongsTo(Machine::class, 'pump_type');
+        return $this->belongsTo(Machine::class, 'concrete_pump');
     }
 
     public function site()

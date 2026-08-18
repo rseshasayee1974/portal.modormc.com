@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('plant_id');
             $table->unsignedBigInteger('customer_id');
-            $table->unsignedBigInteger('pump_type'); // Machine ID
+            $table->unsignedBigInteger('concrete_pump'); // Machine ID
 
             $table->decimal('rate', 10, 2);
             $table->string('rate_type', 100); // flat_rate, or per_uom, etc.
@@ -36,7 +36,7 @@ return new class extends Migration
             // Foreign keys
             $table->foreign('plant_id')->references('id')->on('mm_plants')->cascadeOnDelete();
             $table->foreign('customer_id')->references('id')->on('mm_patrons')->cascadeOnDelete();
-            $table->foreign('pump_type')->references('id')->on('mm_machines')->cascadeOnDelete();
+            $table->foreign('concrete_pump')->references('id')->on('mm_machines')->cascadeOnDelete();
             $table->foreign('uom_id')->references('id')->on('mm_product_units')->nullOnDelete();
             $table->foreign('site_id')->references('id')->on('mm_sites')->nullOnDelete();
 
