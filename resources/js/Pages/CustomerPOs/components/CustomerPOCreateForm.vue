@@ -614,6 +614,10 @@ const submit = () => {
                             <th class="p-2">Mix Design</th>
                             <th class="p-2 text-right">Quantity</th>
                             <th class="p-2 text-right">Rate</th>
+                            <th class="p-2 text-center">Tax</th>
+                            <th class="p-2 text-center">Pump Type</th>
+                            <th class="p-2 text-right">Pump Rate</th>
+                            <th class="p-2 text-right">Tax Amt</th>
                             <th class="p-2 text-right">Total Amount</th>
                         </tr>
                     </thead>
@@ -624,7 +628,21 @@ const submit = () => {
                             </td>
                             <td class="p-2 text-right font-mono">{{ Number(item.quantity).toFixed(3) }} m³</td>
                             <td class="p-2 text-right font-mono">₹{{ Number(item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
-                            <td class="p-2 text-right font-mono font-bold text-indigo-900">₹{{ Number(item.amount_total || (item.quantity * item.rate)).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                            <td class="p-2 text-center font-mono">
+                                {{ props.taxes?.find(t => Number(t.id) === Number(item.tax_id)) ? `${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_name} (${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_rate}%)` : '-' }}
+                            </td>
+                            <td class="p-2 text-center font-mono">
+                                {{ props.concretePumpOptions?.find(opt => Number(opt.value) === Number(item.concrete_pump || item.pump_rates?.[0]?.concrete_pump))?.label || '-' }}
+                            </td>
+                            <td class="p-2 text-right font-mono">
+                                {{ (item.pump_rate || item.pump_rates?.[0]?.pump_rate) ? `₹${Number(item.pump_rate || item.pump_rates?.[0]?.pump_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-' }}
+                            </td>
+                            <td class="p-2 text-right font-mono">
+                                ₹{{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || item.pump_rates?.[0]?.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                            </td>
+                            <td class="p-2 text-right font-mono font-bold text-indigo-900">
+                                ₹{{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || item.pump_rates?.[0]?.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                            </td>
                         </tr>
                     </tbody>
                 </table>

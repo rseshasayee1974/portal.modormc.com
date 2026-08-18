@@ -58,7 +58,7 @@ const form = useForm({
     order_date: props.customerPO?.order_date ?? '',
     status: props.customerPO?.status ?? 1,
     notes: props.customerPO?.notes ?? '',
-    items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, pump_rates: Array<{ concrete_pump: string, pump_rate: number }> }>,
+    items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, concrete_pump?: number | string | null, pump_rate?: number | null, pump_rates: Array<{ concrete_pump: string, pump_rate: number }> }>,
     mix_design_id: null as number | null,
     quantity: null as number | null,
     rate: null as number | null,
@@ -958,11 +958,11 @@ const performSubmit = (customerPOId: any) => {
                     <span class="text-xs font-bold uppercase tracking-wide text-indigo-800 flex items-center gap-4">
                         Mix Design Items (Loaded from Quotation)
                     </span>
-                        <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
-                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
-                            <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_3" :disabled="!!form.quotation_id" class="peer hidden" />
-                            <label for="is_tax_inclusive_po_edit_3" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
-                        </div>
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
+                        <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_3" :disabled="!!form.quotation_id" class="peer hidden" />
+                        <label for="is_tax_inclusive_po_edit_3" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
+                    </div>
                 </div>
                 
                 <div class="col-span-12 md:col-span-5">
@@ -973,6 +973,10 @@ const performSubmit = (customerPOId: any) => {
                                     <th class="p-2">Mix Design</th>
                                     <th class="p-2 text-right">Quantity</th>
                                     <th class="p-2 text-right">Rate</th>
+                                    <th class="p-2 text-center">Tax</th>
+                                    <th class="p-2 text-center">Pump Type</th>
+                                    <th class="p-2 text-right">Pump Rate</th>
+                                    <th class="p-2 text-right">Tax Amt</th>
                                     <th class="p-2 text-right">Total Amount</th>
                                 </tr>
                             </thead>
@@ -983,7 +987,21 @@ const performSubmit = (customerPOId: any) => {
                                     </td>
                                     <td class="p-2 text-right font-mono">{{ Number(item.quantity).toFixed(3) }} m³</td>
                                     <td class="p-2 text-right font-mono">₹{{ Number(item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
-                                    <td class="p-2 text-right font-mono font-bold text-indigo-900">₹{{ Number(item.quantity * item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                                    <td class="p-2 text-center font-mono">
+                                        {{ props.taxes?.find(t => Number(t.id) === Number(item.tax_id)) ? `${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_name} (${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_rate}%)` : '-' }}
+                                    </td>
+                                    <td class="p-2 text-center font-mono">
+                                        {{ props.concretePumpOptions?.find(opt => Number(opt.value) === Number(item.concrete_pump))?.label || '-' }}
+                                    </td>
+                                    <td class="p-2 text-right font-mono">
+                                        {{ item.pump_rate ? `₹${Number(item.pump_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-' }}
+                                    </td>
+                                    <td class="p-2 text-right font-mono">
+                                        ₹{{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                    </td>
+                                    <td class="p-2 text-right font-mono font-bold text-indigo-900">
+                                        ₹{{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
