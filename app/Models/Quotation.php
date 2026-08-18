@@ -113,6 +113,14 @@ class Quotation extends Model
             foreach ($data['items'] as $itemData) {
                 $pumpRates = $itemData['pump_rates'] ?? [];
                 $itemPayload = collect($itemData)->except('pump_rates')->toArray();
+
+                if (empty($itemPayload['concrete_pump']) && !empty($pumpRates[0]['concrete_pump'])) {
+                    $itemPayload['concrete_pump'] = $pumpRates[0]['concrete_pump'];
+                }
+                if (!isset($itemPayload['pump_rate']) && isset($pumpRates[0]['pump_rate'])) {
+                    $itemPayload['pump_rate'] = $pumpRates[0]['pump_rate'];
+                }
+
                 $item = $quotation->items()->create($itemPayload);
                 if (!empty($pumpRates)) {
                     $item->syncPumpRates($pumpRates);
@@ -148,6 +156,13 @@ class Quotation extends Model
             foreach ($data['items'] as $itemData) {
                 $pumpRates = $itemData['pump_rates'] ?? [];
                 $itemPayload = collect($itemData)->except('pump_rates')->toArray();
+
+                if (empty($itemPayload['concrete_pump']) && !empty($pumpRates[0]['concrete_pump'])) {
+                    $itemPayload['concrete_pump'] = $pumpRates[0]['concrete_pump'];
+                }
+                if (!isset($itemPayload['pump_rate']) && isset($pumpRates[0]['pump_rate'])) {
+                    $itemPayload['pump_rate'] = $pumpRates[0]['pump_rate'];
+                }
 
                 if (isset($itemData['id'])) {
                     $item = $this->items()->find($itemData['id']);

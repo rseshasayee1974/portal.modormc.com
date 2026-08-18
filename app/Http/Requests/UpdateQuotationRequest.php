@@ -68,6 +68,8 @@ class UpdateQuotationRequest extends FormRequest
             'items.*.untaxed_amount' => 'nullable|numeric',
             'items.*.tax_amount' => 'nullable|numeric',
             'items.*.amount_total' => 'nullable|numeric',
+            'items.*.concrete_pump' => 'nullable',
+            'items.*.pump_rate' => 'nullable|numeric|min:0',
             'items.*.pump_rates' => 'nullable|array',
             'items.*.pump_rates.*.concrete_pump' => 'required|max:100',
             'items.*.pump_rates.*.pump_rate' => 'required|numeric|min:0',
