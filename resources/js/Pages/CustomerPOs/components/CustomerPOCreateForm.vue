@@ -360,9 +360,8 @@ const submit = () => {
         pump_rate: 0,
         items: data.items.map((item: any) => ({
             ...item,
-            pump_rates: item.concrete_pump 
-                ? [{ concrete_pump: item.concrete_pump, pump_rate: item.pump_rate }]
-                : []
+            concrete_pump: item.concrete_pump ?? null,
+            pump_rate: Number(item.pump_rate || 0),
         }))
     })).post(route('customer-po.store'), {
         onSuccess: () => {

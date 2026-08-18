@@ -22,13 +22,13 @@ class CustomerPOController extends Controller
         $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
 
-        $customerPOs = CustomerPO::with(['patron', 'site', 'items.mixDesign', 'items.pumpRates', 'quotation.items.mixDesign', 'quotation.items.pumpRates', 'converter:username,email,id,is_active,mobile', 'salesOrders', 'salesExecutive'])
+        $customerPOs = CustomerPO::with(['patron', 'site', 'items.mixDesign', 'quotation.items.mixDesign', 'converter:username,email,id,is_active,mobile', 'salesOrders', 'salesExecutive'])
             ->where('plant_id', $plantId)
             ->latest()
             ->get();
 
         $sites = SitesDropdown();
-        $quotations = Quotation::with(['items.mixDesign', 'items.pumpRates'])
+        $quotations = Quotation::with(['items.mixDesign'])
             ->select('id', 'reference', 'amount_total', 'patron_id', 'site_id', 'is_customer_po', 'sales_executive_id')
             ->where('plant_id', $plantId)
             ->where('is_customer_po', 0)
@@ -76,12 +76,8 @@ class CustomerPOController extends Controller
             'items.*.quantity' => 'required_without:quotation_id|numeric|min:0.001',
             'items.*.rate' => 'required_without:quotation_id|numeric|min:0',
             'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
-            'items.*.tax_amount' => 'nullable|numeric|min:0',
             'items.*.concrete_pump' => 'nullable',
             'items.*.pump_rate' => 'nullable|numeric|min:0',
-            'items.*.pump_rates' => 'nullable|array',
-            'items.*.pump_rates.*.concrete_pump' => 'required|max:100',
-            'items.*.pump_rates.*.pump_rate' => 'required|numeric|min:0',
         ]);
 
         $formattedDate = \Carbon\Carbon::parse($validated['order_date'])->format('Y-m-d');
@@ -190,15 +186,11 @@ class CustomerPOController extends Controller
                         'concrete_pump' => $item['concrete_pump'] ?? null,
                         'pump_rate' => $item['pump_rate'] ?? 0,
                     ]);
-                    // Sync pump rates if provided
-                    if (!empty($item['pump_rates'])) {
-                        $cpoItem->syncPumpRates($item['pump_rates']);
-                    }
                 }
             } else {
-                $customerPO->load('quotation.items.pumpRates');
+                $customerPO->load('quotation.items');
                 foreach ($customerPO->quotation->items as $item) {
-                    $createdItem = $customerPO->items()->create([
+                    $customerPO->items()->create([
                         'mix_design_id' => $item->mix_design_id,
                         'quantity' => $item->quantity,
                         'rate' => $item->rate,
@@ -209,14 +201,6 @@ class CustomerPOController extends Controller
                         'concrete_pump' => $item->concrete_pump,
                         'pump_rate' => $item->pump_rate,
                     ]);
-                    // Carry pump rates from quotation item → CPO item
-                    $sourcePumpRates = $item->pumpRates->map(fn($pr) => [
-                        'concrete_pump' => $pr->concrete_pump,
-                        'pump_rate' => $pr->pump_rate,
-                    ])->toArray();
-                    if (!empty($sourcePumpRates)) {
-                        $createdItem->syncPumpRates($sourcePumpRates);
-                    }
                 }
             }
         });
@@ -274,12 +258,8 @@ class CustomerPOController extends Controller
             'items.*.quantity' => 'required_without:quotation_id|numeric|min:0.001',
             'items.*.rate' => 'required_without:quotation_id|numeric|min:0',
             'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
-            'items.*.tax_amount' => 'nullable|numeric|min:0',
             'items.*.concrete_pump' => 'nullable',
             'items.*.pump_rate' => 'nullable|numeric|min:0',
-            'items.*.pump_rates' => 'nullable|array',
-            'items.*.pump_rates.*.concrete_pump' => 'required|max:100',
-            'items.*.pump_rates.*.pump_rate' => 'required|numeric|min:0',
         ]);
 
         $formattedDate = \Carbon\Carbon::parse($validated['order_date'])->format('Y-m-d');
@@ -390,16 +370,11 @@ class CustomerPOController extends Controller
                         $existingItem = $customerPO->items()->find($item['id']);
                         if ($existingItem) {
                             $existingItem->update($itemData);
-                            $createdItem = $existingItem;
                         } else {
-                            $createdItem = $customerPO->items()->create($itemData);
+                            $customerPO->items()->create($itemData);
                         }
                     } else {
-                        $createdItem = $customerPO->items()->create($itemData);
-                    }
-
-                    if ($createdItem && !empty($item['pump_rates'])) {
-                        $createdItem->syncPumpRates($item['pump_rates']);
+                        $customerPO->items()->create($itemData);
                     }
                 }
             } else {

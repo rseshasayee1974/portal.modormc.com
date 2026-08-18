@@ -27,9 +27,7 @@ class SalesOrderIndexDataFactory
                 'patron:id,legal_name', 
                 'site:id,name', 
                 'items.mixDesign', 
-                'items.pumpRates', 
                 'quotation.items.mixDesign', 
-                'quotation.items.pumpRates'
             ])
                 ->where('plant_id', $activePlantId)
                 ->latest()

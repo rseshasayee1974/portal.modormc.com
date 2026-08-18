@@ -30,15 +30,12 @@ interface QuotationItemPayload {
     quantity: number;
     tax_id: number | null;
     rate: number;
-    uom_id: number | null, // Added
+    uom_id: number | null;
     notes: null | string;
-    // Calculated fields strictly for the new schema
-    // tax_amount: number;
     untaxed_amount: number;
     amount_total: number;
     concrete_pump: number | null;
     pump_rate: number;
-    pump_rates: { concrete_pump: string; pump_rate: number }[];
 }
 
 const props = withDefaults(defineProps<{
@@ -118,7 +115,6 @@ function createNewItem(): QuotationItemPayload {
         amount_total: 0,
         concrete_pump: null,
         pump_rate: 0,
-        pump_rates: [],
     };
 }
 
@@ -516,9 +512,8 @@ const submit = () => {
 
         items: data.items.map((item: any) => ({
             ...item,
-            pump_rates: item.concrete_pump 
-                ? [{ concrete_pump: item.concrete_pump, pump_rate: item.pump_rate }]
-                : []
+            concrete_pump: item.concrete_pump ?? null,
+            pump_rate: Number(item.pump_rate || 0),
         }))
     }))
     .post(route('quotations.store'), {

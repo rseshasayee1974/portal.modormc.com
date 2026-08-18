@@ -113,17 +113,13 @@ class Quotation extends Model
                 $pumpRates = $itemData['pump_rates'] ?? [];
                 $itemPayload = collect($itemData)->except('pump_rates')->toArray();
 
-                if (empty($itemPayload['concrete_pump']) && !empty($pumpRates[0]['concrete_pump'])) {
-                    $itemPayload['concrete_pump'] = $pumpRates[0]['concrete_pump'];
-                }
-                if (!isset($itemPayload['pump_rate']) && isset($pumpRates[0]['pump_rate'])) {
-                    $itemPayload['pump_rate'] = $pumpRates[0]['pump_rate'];
-                }
+                $concretePump = $itemData['concrete_pump'] ?? ($pumpRates[0]['concrete_pump'] ?? null);
+                $pumpRate = $itemData['pump_rate'] ?? ($pumpRates[0]['pump_rate'] ?? 0);
 
-                $item = $quotation->items()->create($itemPayload);
-                if (!empty($pumpRates)) {
-                    $item->syncPumpRates($pumpRates);
-                }
+                $itemPayload['concrete_pump'] = $concretePump;
+                $itemPayload['pump_rate'] = $pumpRate;
+
+                $quotation->items()->create($itemPayload);
             }
 
             $quotation->updateTotals();
@@ -156,12 +152,11 @@ class Quotation extends Model
                 $pumpRates = $itemData['pump_rates'] ?? [];
                 $itemPayload = collect($itemData)->except('pump_rates')->toArray();
 
-                if (empty($itemPayload['concrete_pump']) && !empty($pumpRates[0]['concrete_pump'])) {
-                    $itemPayload['concrete_pump'] = $pumpRates[0]['concrete_pump'];
-                }
-                if (!isset($itemPayload['pump_rate']) && isset($pumpRates[0]['pump_rate'])) {
-                    $itemPayload['pump_rate'] = $pumpRates[0]['pump_rate'];
-                }
+                $concretePump = $itemData['concrete_pump'] ?? ($pumpRates[0]['concrete_pump'] ?? null);
+                $pumpRate = $itemData['pump_rate'] ?? ($pumpRates[0]['pump_rate'] ?? 0);
+
+                $itemPayload['concrete_pump'] = $concretePump;
+                $itemPayload['pump_rate'] = $pumpRate;
 
                 if (isset($itemData['id'])) {
                     $item = $this->items()->find($itemData['id']);
@@ -169,11 +164,7 @@ class Quotation extends Model
                         $item->update(collect($itemPayload)->except('id')->toArray());
                     }
                 } else {
-                    $item = $this->items()->create($itemPayload);
-                }
-
-                if ($item) {
-                    $item->syncPumpRates($pumpRates);
+                    $this->items()->create($itemPayload);
                 }
             }
 

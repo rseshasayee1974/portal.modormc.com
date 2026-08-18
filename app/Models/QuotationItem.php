@@ -30,47 +30,9 @@ class QuotationItem extends Model
         'pump_rate',
     ];
 
-    /**
-     * Sync pump rates for this item.
-     * Upserts each pump type, removes any types not in $pumpRates.
-     */
-    public function syncPumpRates(array $pumpRates): void
-    {
-        $keepTypes = [];
-        foreach ($pumpRates as $pr) {
-            if (empty($pr['concrete_pump'])) continue;
-            $rate = (float)($pr['pump_rate'] ?? 0);
-            
-            $keepTypes[] = $pr['concrete_pump'];
-            $this->pumpRates()->updateOrCreate(
-                ['concrete_pump' => $pr['concrete_pump']],
-                [
-                    'pump_rate' => $rate,
-                    'quotation_id' => $this->quotation_id,
-                ]
-            );
-        }
-        // Remove stale or zero entries
-        if (!empty($keepTypes)) {
-            $stale = $this->pumpRates()->whereNotIn('concrete_pump', $keepTypes)->get();
-            foreach ($stale as $item) {
-                $item->delete();
-            }
-        } else {
-            $stale = $this->pumpRates()->get();
-            foreach ($stale as $item) {
-                $item->delete();
-            }
-        }
-    }
-
     protected static function booted()
     {
-        static::deleting(function ($item) {
-            foreach ($item->pumpRates as $pr) {
-                $pr->delete();
-            }
-        });
+        //
     }
 
     public function quotation()
@@ -85,10 +47,6 @@ class QuotationItem extends Model
     public function tax()
     {
         return $this->belongsTo(Tax::class, 'tax_id');
-    }
-    public function pumpRates()
-    {
-        return $this->hasMany(QuotationItemPumpRate::class, 'quotation_item_id');
     }
 
     public function getIsInUseAttribute(): bool

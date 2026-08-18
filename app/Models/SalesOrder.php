@@ -196,17 +196,12 @@ class SalesOrder extends Model
             return (float)$value;
         }
 
-        if ($this->customerPO && $this->concrete_pump) {
+        if ($this->customerPO) {
             $item = $this->customerPO->items()
                 ->where('mix_design_id', $this->mix_design_id)
                 ->first();
-            if ($item) {
-                $pumpRate = $item->pumpRates()
-                    ->where('concrete_pump', (string)$this->concrete_pump)
-                    ->value('pump_rate');
-                if ($pumpRate) {
-                    return (float)$pumpRate;
-                }
+            if ($item && $item->pump_rate) {
+                return (float)$item->pump_rate;
             }
         }
         return 0.0;

@@ -30,7 +30,8 @@ interface QuotationItemPayload {
     tax_amount: number | null;
     untaxed_amount: number;
     amount_total: number;
-    pump_rates: { concrete_pump: string; pump_rate: number }[];
+    concrete_pump?: number | string | null;
+    pump_rate?: number;
 }
 
 const props = defineProps<{
@@ -99,7 +100,6 @@ const form = useForm({
     amount_tax: Number(props.quotation.tax_amount || 0),
     amount_total: Number(props.quotation.amount_total || 0),
     items: (props.quotation.items || []).map((item: any) => {
-        const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
         return {
             id: item.id ?? null,
             mix_design_id: item.mix_design_id ?? null,
@@ -110,9 +110,8 @@ const form = useForm({
             tax_amount: Number(item.tax_amount || 0),
             untaxed_amount: Number(item.untaxed_amount || 0),
             amount_total: Number(item.amount_total || 0),
-            concrete_pump: savedPumpRate ? Number(savedPumpRate.concrete_pump) : null,
-            pump_rate: savedPumpRate ? Number(savedPumpRate.pump_rate) : 0,
-            pump_rates: [],
+            concrete_pump: item.concrete_pump !== null && item.concrete_pump !== undefined ? (isNaN(Number(item.concrete_pump)) ? item.concrete_pump : Number(item.concrete_pump)) : null,
+            pump_rate: Number(item.pump_rate || 0),
         };
     }) as QuotationItemPayload[],
 });
@@ -303,7 +302,6 @@ function createNewItem(): QuotationItemPayload {
         amount_total: 0,
         concrete_pump: null,
         pump_rate: 0,
-        pump_rates: [],
     };
 }
 
@@ -358,9 +356,8 @@ const submit = () => {
         validity_date: data.validity_date ? new Date(data.validity_date).toISOString().substring(0, 10) : null,
         items: data.items.map((item: any) => ({
             ...item,
-            pump_rates: item.concrete_pump 
-                ? [{ concrete_pump: item.concrete_pump, pump_rate: item.pump_rate }]
-                : []
+            concrete_pump: item.concrete_pump ?? null,
+            pump_rate: Number(item.pump_rate || 0),
         }))
     })).put(route('quotations.update', props.quotation.id), {
         preserveScroll: true,

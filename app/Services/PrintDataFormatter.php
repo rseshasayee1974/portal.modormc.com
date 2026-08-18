@@ -88,25 +88,6 @@ class PrintDataFormatter
                     $quotation = \App\Models\Quotation::where('plant_id', $plantId)->latest()->first()
                         ?? \App\Models\Quotation::latest()->first();
                     if ($quotation) {
-                        $hasRates = false;
-                        foreach ($quotation->items as $item) {
-                            if ($item->pumpRates && $item->pumpRates->isNotEmpty()) {
-                                $hasRates = true;
-                            }
-                        }
-                        if (!$hasRates && function_exists('PumpTypeDropdown')) {
-                            $pts = PumpTypeDropdown();
-                            foreach ($quotation->items as $item) {
-                                $mockRates = [];
-                                foreach ($pts as $idx => $pt) {
-                                    $mockRates[] = new \App\Models\QuotationItemPumpRate([
-                                        'concrete_pump' => $pt['value'],
-                                        'pump_rate' => ($idx + 1) * 1200 + 350
-                                    ]);
-                                }
-                                $item->setRelation('pumpRates', collect($mockRates));
-                            }
-                        }
                         return self::fromQuotation($quotation, $customSettings);
                     }
                     break;
@@ -115,25 +96,6 @@ class PrintDataFormatter
                     $cpo = \App\Models\CustomerPO::where('plant_id', $plantId)->latest()->first()
                         ?? \App\Models\CustomerPO::latest()->first();
                     if ($cpo) {
-                        $hasRates = false;
-                        foreach ($cpo->items as $item) {
-                            if ($item->pumpRates && $item->pumpRates->isNotEmpty()) {
-                                $hasRates = true;
-                            }
-                        }
-                        if (!$hasRates && function_exists('PumpTypeDropdown')) {
-                            $pts = PumpTypeDropdown();
-                            foreach ($cpo->items as $item) {
-                                $mockRates = [];
-                                foreach ($pts as $idx => $pt) {
-                                    $mockRates[] = new \App\Models\CustomerPOItemPumpRate([
-                                        'concrete_pump' => $pt['value'],
-                                        'pump_rate' => ($idx + 1) * 1400 + 450
-                                    ]);
-                                }
-                                $item->setRelation('pumpRates', collect($mockRates));
-                            }
-                        }
                         return self::fromCustomerPO($cpo, $customSettings);
                     }
                     break;
@@ -943,40 +905,21 @@ class PrintDataFormatter
         $grandTotalAmt = 0.0;
 
         $data['items'] = $model->items->map(function ($item, $idx) use ($model, $isIntra, $isTaxInclusive, $selectedRate, &$subtotalAmt, &$totalTaxAmt, &$grandTotalAmt) {
-            $actualItemPumpRate = 0.0;
+            $actualItemPumpRate = (float)($item->pump_rate ?? 0);
             $pumpTypeLabel = '-';
             
-            if ($model->concrete_pump) {
-                $pr = $item->pumpRates->first(fn($r) => (string)$r->concrete_pump === (string)$model->concrete_pump);
-                if ($pr) {
-                    $actualItemPumpRate = (float)$pr->pump_rate;
-                }
+            if ($item->concrete_pump || $model->concrete_pump) {
                 if ($actualItemPumpRate === 0.0) {
                     $actualItemPumpRate = $selectedRate;
                 }
-                if ($model->concretePump) {
-                    $pumpTypeLabel = $model->concretePump->registration;
-                } elseif ($model->concrete_pump) {
-                    $pumpTypeLabel = 'Pump';
-                }
-            } else {
-                // Fallback to the first non-zero pump rate defined on the item
-                $activeRates = $item->pumpRates->filter(fn($r) => (float)$r->pump_rate > 0);
-                if ($activeRates->isNotEmpty()) {
-                    $pr = $activeRates->first();
-                    $actualItemPumpRate = (float)$pr->pump_rate;
-                    if ($pr->pump) {
-                        $pumpTypeLabel = $pr->pump->registration;
-                    } else {
-                        $rawType = $pr->concrete_pump;
-                        $pumpTypeLabel = match(strtolower($rawType)) {
-                            'line_pump' => 'Line Pump',
-                            'boom_pump' => 'Boom Pump',
-                            'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
-                            default => ucwords(str_replace('_', ' ', $rawType))
-                        };
-                    }
-                }
+                $pumpVal = $item->concrete_pump ?? $model->concrete_pump;
+                $rawType = (string)$pumpVal;
+                $pumpTypeLabel = match(strtolower($rawType)) {
+                    'line_pump' => 'Line Pump',
+                    'boom_pump' => 'Boom Pump',
+                    'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
+                    default => ucwords(str_replace('_', ' ', $rawType))
+                };
             }
 
             $rate = (float)$item->rate;

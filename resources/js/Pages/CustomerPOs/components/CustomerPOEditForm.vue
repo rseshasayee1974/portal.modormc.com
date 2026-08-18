@@ -58,7 +58,7 @@ const form = useForm({
     order_date: props.customerPO?.order_date ?? '',
     status: props.customerPO?.status ?? 1,
     notes: props.customerPO?.notes ?? '',
-    items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, concrete_pump?: number | string | null, pump_rate?: number | null, pump_rates: Array<{ concrete_pump: string, pump_rate: number }> }>,
+    items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, concrete_pump?: number | string | null, pump_rate?: number | null }>,
     mix_design_id: null as number | null,
     quantity: null as number | null,
     rate: null as number | null,
@@ -70,7 +70,6 @@ const form = useForm({
 // Pre-fill items from sales order or quotation items
 const itemsList = props.customerPO?.items || props.customerPO?.quotation?.items || [];
 form.items = itemsList.map((item: any) => {
-    const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
     return {
         id: props.customerPO?.items?.some((i: any) => i.id === item.id) ? item.id : null,
         mix_design_id: item.mix_design_id,
@@ -78,14 +77,13 @@ form.items = itemsList.map((item: any) => {
         rate: Number(item.rate),
         tax_id: item.tax_id ?? null,
         tax_amount: item.tax_amount !== null ? Number(item.tax_amount) : 0,
-        concrete_pump: savedPumpRate ? Number(savedPumpRate.concrete_pump) : null,
-        pump_rate: savedPumpRate ? Number(savedPumpRate.pump_rate) : 0,
-        pump_rates: [],
+        concrete_pump: item.concrete_pump !== null && item.concrete_pump !== undefined ? (isNaN(Number(item.concrete_pump)) ? item.concrete_pump : Number(item.concrete_pump)) : null,
+        pump_rate: Number(item.pump_rate || 0),
     };
 });
 
 if (form.items.length === 0 && !form.quotation_id) {
-    form.items.push({ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, concrete_pump: null, pump_rate: 0, pump_rates: [] });
+    form.items.push({ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, concrete_pump: null, pump_rate: 0 });
 }
 
 if (itemsList.length === 1) {
@@ -95,14 +93,12 @@ if (itemsList.length === 1) {
     form.rate = Number(item.rate);
     form.tax_id = item.tax_id ?? null;
     form.tax_amount = item.tax_amount !== null ? Number(item.tax_amount) : 0;
-    const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
-    form.concrete_pump = savedPumpRate ? Number(savedPumpRate.concrete_pump) : null;
-    form.pump_rate = savedPumpRate ? Number(savedPumpRate.pump_rate) : 0;
+    form.concrete_pump = item.concrete_pump !== null && item.concrete_pump !== undefined ? (isNaN(Number(item.concrete_pump)) ? item.concrete_pump : Number(item.concrete_pump)) : null;
+    form.pump_rate = Number(item.pump_rate || 0);
 }
 
 // Watch quotation selection to auto-fill patron, site, and sales executive
 watch(() => form.quotation_id, (newVal) => {
-    excludedMixDesignPumpRates.value = [];
     if (newVal) {
         const quote = props.quotations.find((q) => Number(q.id) === Number(newVal));
         if (quote) {
@@ -112,7 +108,6 @@ watch(() => form.quotation_id, (newVal) => {
             form.is_tax_inclusive = quote.is_tax_inclusive ? true : false;
             const quoteItems = quote.items || [];
             form.items = quoteItems.map((item: any) => {
-                const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
                 return {
                     id: null,
                     mix_design_id: item.mix_design_id,
@@ -120,9 +115,8 @@ watch(() => form.quotation_id, (newVal) => {
                     rate: Number(item.rate),
                     tax_id: item.tax_id ?? null,
                     tax_amount: Number(item.tax_amount ?? 0),
-                    concrete_pump: savedPumpRate ? Number(savedPumpRate.concrete_pump) : null,
-                    pump_rate: savedPumpRate ? Number(savedPumpRate.pump_rate) : 0,
-                    pump_rates: [],
+                    concrete_pump: item.concrete_pump !== null && item.concrete_pump !== undefined ? (isNaN(Number(item.concrete_pump)) ? item.concrete_pump : Number(item.concrete_pump)) : null,
+                    pump_rate: Number(item.pump_rate || 0),
                 };
             });
             if (quoteItems.length === 1) {
@@ -131,13 +125,12 @@ watch(() => form.quotation_id, (newVal) => {
                 form.rate = Number(quoteItems[0].rate);
                 form.tax_id = quoteItems[0].tax_id ?? null;
                 form.tax_amount = Number(quoteItems[0].tax_amount ?? 0);
-                const savedPumpRate = (quoteItems[0].pump_rates || quoteItems[0].pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
-                form.concrete_pump = savedPumpRate ? Number(savedPumpRate.concrete_pump) : null;
-                form.pump_rate = savedPumpRate ? Number(savedPumpRate.pump_rate) : 0;
+                form.concrete_pump = quoteItems[0].concrete_pump !== null && quoteItems[0].concrete_pump !== undefined ? (isNaN(Number(quoteItems[0].concrete_pump)) ? quoteItems[0].concrete_pump : Number(quoteItems[0].concrete_pump)) : null;
+                form.pump_rate = Number(quoteItems[0].pump_rate || 0);
             }
         }
     } else {
-        form.items = [{ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, concrete_pump: null, pump_rate: 0, pump_rates: [] }];
+        form.items = [{ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, concrete_pump: null, pump_rate: 0 }];
         form.mix_design_id = null;
         form.quantity = null;
         form.rate = null;
@@ -593,20 +586,14 @@ const performSubmit = (customerPOId: any) => {
             pump_rate = data.pump_rate;
         }
         
-        const topPumpRates = concrete_pump 
-            ? [{ concrete_pump: concrete_pump, pump_rate: pump_rate }]
-            : [];
-        
         return {
             ...data,
             concrete_pump: concrete_pump,
             pump_rate: pump_rate,
-            pump_rates: topPumpRates,
             items: data.items.map((item: any) => ({
                 ...item,
-                pump_rates: item.concrete_pump 
-                    ? [{ concrete_pump: item.concrete_pump, pump_rate: item.pump_rate }]
-                    : []
+                concrete_pump: item.concrete_pump ?? null,
+                pump_rate: Number(item.pump_rate || 0),
             }))
         };
     }).put(route('customer-po.update', customerPOId), {
