@@ -38,6 +38,15 @@ class SalesOrderController extends Controller
         $this->authorizeModule('create');
         $payload = $request->validated();
 
+        if (!empty($payload['customer_po_id'])) {
+            $po = \App\Models\CustomerPO::find($payload['customer_po_id']);
+            if ($po) {
+                $payload['sales_executive_id'] = $payload['sales_executive_id'] ?? $po->sales_executive_id;
+                $payload['customer_id'] = $payload['customer_id'] ?? $po->patron_id;
+                $payload['site_id'] = $payload['site_id'] ?? $po->site_id;
+            }
+        }
+
         if (empty($payload['order_no'])) {
             $details = SalesOrder::generateOrderNo(session('active_plant_id'), $payload['prefix'] ?? 'SO');
             $payload['prefix'] = $details['prefix'];
@@ -57,7 +66,7 @@ class SalesOrderController extends Controller
             $payload['quantity'] = $payload['total_qty'];
         }
 
-        $payload = collect($payload)->only($tableColumns)->toArray();
+        $payload = array_intersect_key($payload, array_flip($tableColumns));
 
         DB::transaction(function () use ($payload) {
             SalesOrder::create($payload);

@@ -2,6 +2,7 @@
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
+import { calculateLineItemTotals } from '@/composables/useLineItemCalculation';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Button from 'primevue/button';
@@ -150,18 +151,6 @@ const taxOptions = computed(() => {
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
-const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
-
-
-
-const subtotal = computed(() => {
-    const qty = Number(form.total_qty || 0);
-    const rate = Number(form.rate || 0);
-    const pumpRate = Number(form.pump_rate || 0);
-    // Flat rate mode: pump_rate is fixed amount; per-m³ mode: pump_rate × qty
-    const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
-    return (qty * rate) + pumpCharge;
-});
 
 const selectedTaxRate = computed(() => {
     if (!form.tax_id || !props.taxes?.length) return 0;
@@ -169,24 +158,19 @@ const selectedTaxRate = computed(() => {
     return tax ? Number(tax.tax_rate || 0) : 0;
 });
 
-const taxAmount = computed(() => {
-    const taxRate = selectedTaxRate.value;
-    if (!taxRate) return 0;
-
-    if (form.is_tax_inclusive) {
-        return subtotal.value - (subtotal.value / (1 + taxRate / 100));
-    } else {
-        return subtotal.value * (taxRate / 100);
-    }
+const lineCalc = computed(() => {
+    return calculateLineItemTotals({
+        quantity: Number(form.total_qty || 0),
+        rate: Number(form.rate || 0),
+        pump_rate: Number(form.pump_rate || 0),
+        taxRate: selectedTaxRate.value,
+        isTaxInclusive: Boolean(form.is_tax_inclusive),
+    });
 });
 
-const estimatedTotal = computed(() => {
-    if (form.is_tax_inclusive) {
-        return subtotal.value;
-    } else {
-        return subtotal.value + taxAmount.value;
-    }
-});
+const subtotal = computed(() => lineCalc.value.untaxedAmount);
+const taxAmount = computed(() => lineCalc.value.taxAmount);
+const estimatedTotal = computed(() => lineCalc.value.amountTotal);
 
 watch(() => form.customer_po_id, (newVal) => {
     if (newVal) {

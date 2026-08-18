@@ -712,9 +712,6 @@ class PrintDataFormatter
 
         $isIntra = self::isIntraState($invoice->plant->gstin ?? '', $partner?->gstin ?? '');
 
-        $batchingSettings = \App\Models\CustomSetting::getForModule($invoice->plant_id, 'batching');
-        $addPouringRatesToTotal = !empty($batchingSettings['add_pouring_rates_to_total']) && $batchingSettings['add_pouring_rates_to_total'] == 1;
-
         $showPumpCharges = !isset($data['settings']['pdf']['show_pump_charges']) || $data['settings']['pdf']['show_pump_charges'];
 
         $pumpChargesTotal = 0.0;
@@ -723,7 +720,7 @@ class PrintDataFormatter
             $dispatchPumpCharge = (float)($dispatch->pump_charges ?? 0.0);
         }
 
-        $data['items'] = $invoice->items->map(function ($item, $idx) use ($isIntra, $showPumpCharges, $addPouringRatesToTotal, $dispatch, $dispatchPumpCharge, &$pumpChargesTotal) {
+        $data['items'] = $invoice->items->map(function ($item, $idx) use ($isIntra, $showPumpCharges, $dispatch, $dispatchPumpCharge, &$pumpChargesTotal) {
             $taxModel = $item->tax;
             $lineTaxAmount = (float)$item->line_tax_amount;
 
@@ -766,9 +763,7 @@ class PrintDataFormatter
                         };
                     }
                 }
-                if (!$addPouringRatesToTotal) {
-                    $pumpCharge = $dispatchPumpCharge;
-                }
+                $pumpCharge = $dispatchPumpCharge;
             }
 
             $pumpChargesTotal += $dispatchPumpCharge;
@@ -787,8 +782,7 @@ class PrintDataFormatter
             'sub_total' => (float)$invoice->subtotal, 'discount' => (float)($invoice->discount_total ?? $invoice->global_discount),
             'tax_lines' => $taxLines, 'shipping' => (float)$invoice->shipping_charges, 'adjustment' => (float)$invoice->adjustment,
             'round_off' => (float)$invoice->round_off,
-            'pump_rate' => ($showPumpCharges && $addPouringRatesToTotal) ? $pumpChargesTotal : 0.0,
-            'add_pouring_rates_to_total' => $addPouringRatesToTotal,
+            'pump_rate' => 0.0,
             'grand_total' => (float)$invoice->total_amount,
         ];
         $orderTypeForTerms = $invoice->invoice_type === 'bill' ? 'Purchase Bill' : [($invoice->invoice_label ?? 'Tax Invoice'), 'Tax Invoice'];
@@ -920,7 +914,6 @@ class PrintDataFormatter
         $isIntra = self::isIntraState($model->plant->gstin ?? '', $model->patron->gstin ?? '');
 
         $settings = \App\Models\CustomSetting::getForModule($model->plant_id, 'batching');
-        $addPouringRatesToTotal = !empty($settings['add_pouring_rates_to_total']) && $settings['add_pouring_rates_to_total'] == 1;
 
         // Determine if selected concrete pump is boom or manual
         $isBoom = false;
@@ -944,15 +937,13 @@ class PrintDataFormatter
         }
 
         $itemPumpRate = 0.0;
-        if (!$addPouringRatesToTotal) {
-            $itemPumpRate = $selectedRate;
-        }
+        $itemPumpRate = $selectedRate;
 
         $subtotalAmt = 0.0;
         $totalTaxAmt = 0.0;
         $grandTotalAmt = 0.0;
 
-        $data['items'] = $model->items->map(function ($item, $idx) use ($model, $isIntra, $isTaxInclusive, $selectedRate, $addPouringRatesToTotal, &$subtotalAmt, &$totalTaxAmt, &$grandTotalAmt) {
+        $data['items'] = $model->items->map(function ($item, $idx) use ($model, $isIntra, $isTaxInclusive, $selectedRate, &$subtotalAmt, &$totalTaxAmt, &$grandTotalAmt) {
             $actualItemPumpRate = 0.0;
             $pumpTypeLabel = '-';
             
@@ -989,15 +980,13 @@ class PrintDataFormatter
                 }
             }
 
-            $itemPumpRateForCalc = !$addPouringRatesToTotal ? $actualItemPumpRate : 0.0;
-            $rate = (float)$item->rate + $itemPumpRateForCalc;
+            $rate = (float)$item->rate;
             $qty = (float)$item->quantity;
             $taxModel = $item->tax;
             $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
 
-            // Calculate lump sum pump rate for this item (if configured per mix design)
-            // Placed post-tax, so linePumpTotal is now 0 for line item pricing
-            $linePumpTotal = $addPouringRatesToTotal ? $actualItemPumpRate : 0.0;
+            // Flat pump rate post-tax
+            $linePumpTotal = $actualItemPumpRate;
 
             $lineTotal = 0.0;
             $lineTax = 0.0;
@@ -1090,9 +1079,8 @@ class PrintDataFormatter
         $finalGrandTotal = $grandTotalAmt + $adjustment;
 
         // Parse settings
-        $settings = \App\Models\CustomSetting::getForModule($model->plant_id ?? $model->entity_id ?? session('active_entity_id') ?? 1, 'batching');
-        $isFlatRate = (bool)($settings['add_pouring_rates_to_total'] ?? false);
-        $chargeTypeLabel = $isFlatRate ? 'Flat Rate' : 'per m³';
+        $isFlatRate = false;
+        $chargeTypeLabel = 'per m³';
 
         // Retrieve pump types for the headers
         $allPumpTypes = function_exists('PumpTypeDropdown') ? PumpTypeDropdown() : [];
@@ -1153,7 +1141,6 @@ class PrintDataFormatter
             'round_off'   => 0,
             'pump_rate'   => 0.0, // Set to 0 so it is not added to totals breakdown list
             'pump_charges_total' => 0.0,
-            'add_pouring_rates_to_total' => false, // Set to false to avoid adding to grand total
             'grand_total' => (float)$finalGrandTotal,
             'rates_table_html' => $ratesTableHtml,
         ];
@@ -1360,11 +1347,9 @@ class PrintDataFormatter
         $taxLines = [];
         if ($dispatch && $dispatch->load_tax_amount > 0) $taxLines[] = ['name'=>$dispatch->loadTax?->name ?? 'GST','rate'=>$dispatch->loadTax?->rate ?? 18,'amount'=>(float)$dispatch->load_tax_amount];
         $data['totals'] = ['sub_total'=>(float)($dispatch?->load_untax_amount ?? 0),'discount'=>(float)($dispatch?->discount_amount ?? 0),'tax_lines'=>$taxLines,'shipping'=>(float)($dispatch?->transport_expenses ?? 0),'adjustment'=>(float)($dispatch?->adjustment_amount ?? 0),'round_off'=>(float)($dispatch?->round_off ?? 0),'grand_total'=>(float)($dispatch?->load_total_amount ?? 0)];
-        $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
-        $isMetricTon = !empty($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
         $emptyWeight = (float) ($dispatch?->empty_weight_truck ?? 0); $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
         $netWeight = (float) ($dispatch?->net_weight ?? ($loadedWeight - $emptyWeight));
-        $unitLabel = $isMetricTon ? ' MT' : ' kg'; $decimals = $isMetricTon ? 3 : 0;
+        $unitLabel = ' kg'; $decimals = 0;
         $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel; $loadedWeightStr = number_format($loadedWeight, $decimals) . $unitLabel; $netWeightStr = number_format($netWeight, $decimals) . $unitLabel;
         $weightNotes = "VEHICLE WEIGHT DETAILS:\n" . "Truck No: " . ($dispatch?->truck?->registration ?? '-') . "\n" . "Driver: " . (trim(($dispatch?->driver?->first_name ?? '') . ' ' . ($dispatch?->driver?->last_name ?? '')) ?: '-') . "\n" . "Empty Weight: " . $emptyWeightStr . " (" . ($dispatch?->empty_time ? \Carbon\Carbon::parse($dispatch->empty_time)->format('d-m-Y H:i') : '-') . ")\n" . "Loaded Weight: " . $loadedWeightStr . " (" . ($dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('d-m-Y H:i') : '-') . ")\n" . "Net Weight: " . $netWeightStr . "\n\n" . "Batch size: " . number_format((float) $batch->batch_size, 2) . " m³\n" . "Concrete Grade: " . ($batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->design_name ?? '-')) . " / Recipe Code: " . ($batch->salesOrder?->mixDesign?->design_code ?? '-');
         $data['meta'] = [

@@ -19,7 +19,6 @@ class UpdateBatchRequest extends FormRequest
         
         $plantId = session('active_plant_id');
         $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
-        $isMetricTon = isset($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
 
         return [
             'sales_order_id' => ['nullable', 'integer', 'exists:mm_sales_orders,id'],
@@ -36,17 +35,17 @@ class UpdateBatchRequest extends FormRequest
             'end_time' => ['nullable', 'date', 'after_or_equal:start_time'],
             'operator_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
             'shift' => ['nullable', 'string', 'max:50'],
-            'empty_time' => $isMetricTon ? ['required', 'date'] : ['nullable', 'date'],
-            'load_time' => $isMetricTon ? ['required', 'date'] : ['nullable', 'date'],
+            'empty_time' => ['nullable', 'date'],
+            'load_time' => ['nullable', 'date'],
             'truck_id' => ['nullable', 'integer', 'exists:mm_machines,id'],
             'transport_id' => ['nullable', 'integer', 'exists:mm_patrons,id'],
             'driver_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
             'sales_executive_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],
-            'empty_weight_truck' => $isMetricTon ? ['required', 'numeric', 'gt:0'] : ['nullable', 'numeric', 'min:0'],
-            'loaded_weight_truck' => $isMetricTon ? ['required', 'numeric', 'gt:0'] : ['nullable', 'numeric', 'min:0'],
+            'empty_weight_truck' => ['nullable', 'numeric', 'min:0'],
+            'loaded_weight_truck' => ['nullable', 'numeric', 'min:0'],
             'empty_weight_photo' => ['nullable', 'string'],
             'loaded_weight_photo' => ['nullable', 'string'],
-            'net_weight' => $isMetricTon ? ['required', 'numeric', 'gt:0'] : ['nullable', 'numeric'],
+            'net_weight' => ['nullable', 'numeric'],
             'uom_id' => ['nullable', 'integer', 'exists:mm_product_units,id'],
             'site_id' => ['nullable', 'integer', 'exists:mm_sites,id'],
             'status' => ['required', 'integer', 'in:1,2,3,4,5'],

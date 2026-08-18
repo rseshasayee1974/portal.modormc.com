@@ -216,9 +216,7 @@ const runSizes = computed(() => {
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
 
-const isMetricTon = computed(() => {
-    return customSettings?.batching?.InvoiceInMetricTon == 1;
-});
+
 
 const { isAdmin, isSuperAdmin } = usePermissions();
 
@@ -912,7 +910,7 @@ const submit = () => {
                                     </div>
                                 </div>
                                 <div>
-                                    <BaseInputNumber v-model="form.net_weight" :disabled="isLocked || isMetricTon || customSettings?.batching?.manual_weight === 1" label="Net Weight (MT)" :required="!isMetricTon" :error="form.errors.net_weight" />
+                                    <BaseInputNumber v-model="form.net_weight" :disabled="isLocked || customSettings?.batching?.manual_weight === 1" label="Net Weight (MT)" :error="form.errors.net_weight" />
                                 </div>
                                 <div>
                                     <BaseSelect
@@ -943,10 +941,10 @@ const submit = () => {
                                     <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :minFractionDigits="2" :disabled="true" :error="form.errors.batch_size" />
                                 </div>
                                 <div>
-                                    <BaseDatePicker label="Empty Time" v-model="form.empty_time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.empty_time" :disabled="isLocked" />
+                                    <BaseDatePicker label="Empty Time" v-model="form.empty_time" showTime hourFormat="24" fluid :error="form.errors.empty_time" :disabled="isLocked" />
                                 </div>
                                 <div>
-                                    <BaseDatePicker label="Load Time" v-model="form.load_time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.load_time" :disabled="isLocked" />
+                                    <BaseDatePicker label="Load Time" v-model="form.load_time" showTime hourFormat="24" fluid :error="form.errors.load_time" :disabled="isLocked" />
                                 </div>
                                 <div>
                                     <BaseSelect

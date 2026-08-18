@@ -524,8 +524,7 @@ class CustomerPOController extends Controller
                 'items' => 'required|array',
                 'items.*.item_id' => 'required|exists:mm_customer_po_items,id',
                 'items.*.quantity' => 'required|numeric|min:0',
-                'items.*.concrete_pump' => 'nullable|string|max:50',
-                'items.*.concrete_pump' => 'nullable|string|max:50',
+                'items.*.concrete_pump' => 'nullable',
             ]);
             
             DB::transaction(function () use ($customerPO, $validated) {
@@ -551,9 +550,10 @@ class CustomerPOController extends Controller
                         'mix_design_id' => $poItem->mix_design_id,
                         'total_qty' => $itemData['quantity'],
                         'produced_qty' => 0,
+                        'sales_executive_id' => $customerPO->sales_executive_id,
                         'status' => SalesOrder::STATUS_SCHEDULED,
                         'customer_po_id' => $customerPO->id,
-                        'concrete_pump' => $itemData['concrete_pump'] ?? $itemData['concrete_pump'] ?? null,
+                        'concrete_pump' => $itemData['concrete_pump'] ?? $poItem->concrete_pump ?? $customerPO->concrete_pump ?? null,
                     ]);
                 }
 
@@ -586,6 +586,7 @@ class CustomerPOController extends Controller
                         'mix_design_id' => $item->mix_design_id,
                         'total_qty' => $validated['quantity'],
                         'produced_qty' => 0,
+                        'sales_executive_id' => $customerPO->sales_executive_id,
                         'status' => SalesOrder::STATUS_SCHEDULED,
                         'customer_po_id' => $customerPO->id,
                     ]);

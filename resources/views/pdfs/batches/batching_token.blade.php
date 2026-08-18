@@ -320,11 +320,8 @@
             </tr>
         @endif
         @php
-            $isMetricTon = !empty($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
             $emptyWeight = (float) ($batch->dispatches->first()?->empty_weight_truck ?? 0);
-            $emptyWeightStr = $isMetricTon
-                ? number_format($emptyWeight, 3) . ' MTR'
-                : number_format($emptyWeight, 2) . ' KGS';
+            $emptyWeightStr = number_format($emptyWeight, 2) . ' KGS';
         @endphp
         <tr>
             <td class="meta-label">Empty Wt:</td>

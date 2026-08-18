@@ -22,6 +22,7 @@ import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import axios from 'axios';
+import { calculateLineItemTotals } from '@/composables/useLineItemCalculation';
 
 interface QuotationItemPayload {
     id?: number | null;
@@ -60,7 +61,6 @@ const isOpen = ref(true);
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
-const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
 
 const getDefaultValidityDate = (quoteDateStr: string) => {
     if (!quoteDateStr) return null;
@@ -174,56 +174,24 @@ const calculateTotals = () => {
     let totalTax = 0;
 
     form.items.forEach(item => {
-        const rate = Number(item.rate || 0);
-        const qty = Number(item.quantity || 0);
-        const pumpRate = Number(item.pump_rate || 0);
-
-        // Pump charge: flat rate when enabled, per-m³ when disabled
-        const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
-        
-        // Find line tax rate
         const tax = props.taxes.find(t => t.id === item.tax_id);
         const taxRate = tax ? Number(tax.tax_rate ?? tax.rate ?? 0) : 0;
 
-        let untaxed = 0;
-        let lineTax = 0;
-        let lineTotal = 0;
-
-        if (addPouringRatesToTotal) {
-            // Flat rate mode: Tax is calculated only on (qty * rate). Pump rate is added directly to total afterwards without tax.
-            if (form.is_tax_inclusive) {
-                const materialTotal = rate * qty;
-                const materialTax = materialTotal - (materialTotal / (1 + taxRate / 100));
-                lineTax = materialTax;
-                untaxed = (materialTotal - materialTax) + pumpCharge;
-                lineTotal = materialTotal + pumpCharge;
-            } else {
-                const materialUntaxed = rate * qty;
-                const materialTax = (materialUntaxed * taxRate) / 100;
-                lineTax = materialTax;
-                untaxed = materialUntaxed + pumpCharge;
-                lineTotal = materialUntaxed + materialTax + pumpCharge;
-            }
-        } else {
-            // Per m³ mode: Pump charge is taxed alongside the mix rate.
-            if (form.is_tax_inclusive) {
-                lineTotal = rate * qty + pumpCharge;
-                lineTax = lineTotal - (lineTotal / (1 + taxRate / 100));
-                untaxed = lineTotal - lineTax;
-            } else {
-                untaxed = rate * qty + pumpCharge;
-                lineTax = (untaxed * taxRate) / 100;
-                lineTotal = untaxed + lineTax;
-            }
-        }
+        const res = calculateLineItemTotals({
+            quantity: Number(item.quantity || 0),
+            rate: Number(item.rate || 0),
+            pump_rate: Number(item.pump_rate || 0),
+            taxRate,
+            isTaxInclusive: Boolean(form.is_tax_inclusive),
+        });
 
         // Update Item Internal State (for SQL Insertion)
-        item.untaxed_amount = Number(untaxed.toFixed(2));
-        item.tax_amount = Number(lineTax.toFixed(2));
-        item.amount_total = Number(lineTotal.toFixed(2));
+        item.untaxed_amount = res.untaxedAmount;
+        item.tax_amount = res.taxAmount;
+        item.amount_total = res.amountTotal;
 
-        totalUntaxed += untaxed;
-        totalTax += lineTax;
+        totalUntaxed += res.materialUntaxed + res.pumpCharge;
+        totalTax += res.materialTax;
     });
 
     form.amount_untaxed = Number(totalUntaxed.toFixed(2));

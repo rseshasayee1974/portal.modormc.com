@@ -161,7 +161,7 @@ const form = useForm({
 
     financials: {
         load_units: props.dispatch?.load_units || ((props.dispatch?.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck) ? Number((Number(props.dispatch?.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck) - Number(props.dispatch?.empty_weight_truck || props.batch?.dispatches?.[0]?.empty_weight_truck || 0)).toFixed(3)) : (props.batch?.batch_size || 0)),
-        load_rate: props.dispatch?.load_rate || (props.settings?.InvoiceInMetricTon == 1 ? (((Number(props.dispatch?.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck || 0) - Number(props.dispatch?.empty_weight_truck || props.batch?.dispatches?.[0]?.empty_weight_truck || 0)) > 0) ? Number((Number(props.batch?.batch_size || 0) * Number(props.batch?.rate || props.salesOrder?.rate || 0) / (Number(props.dispatch?.loaded_weight_truck || props.batch?.dispatches?.[0]?.loaded_weight_truck || 0) - Number(props.dispatch?.empty_weight_truck || props.batch?.dispatches?.[0]?.empty_weight_truck || 0))).toFixed(2)) : Number(props.batch?.rate || props.salesOrder?.rate || 0)) : Number(props.batch?.rate || props.salesOrder?.rate || 0)),
+        load_rate: props.dispatch?.load_rate || Number(props.batch?.rate || props.salesOrder?.rate || 0),
         load_tax_id: props.dispatch?.load_tax_id ? Number(props.dispatch.load_tax_id) : (props.batch?.tax_id || props.salesOrder?.tax_id || null),
         load_uom_id: props.dispatch?.load_uom_id || props.batch?.uom_id,
         unload_units: props.dispatch?.unload_units || props.batch?.batch_size || 0,
@@ -268,7 +268,7 @@ watch(() => props.batch, (newBatch) => {
         
         const tempNet = newBatch.dispatches?.[0]?.loaded_weight_truck ? (Number(newBatch.dispatches[0].loaded_weight_truck) - Number(newBatch.dispatches[0].empty_weight_truck || 0)) : 0;
         const bRate = Number(newBatch.rate || props.salesOrder?.rate || 0);
-        form.financials.load_rate = props.settings?.InvoiceInMetricTon == 1 ? (tempNet > 0 ? Number((Number(newBatch.batch_size || 0) * bRate / tempNet).toFixed(2)) : bRate) : bRate;
+        form.financials.load_rate = bRate;
         form.financials.load_tax_id = newBatch.tax_id || props.salesOrder?.tax_id || null;
 
         form.financials.load_uom_id = newBatch.uom_id || form.financials.load_uom_id;
@@ -388,45 +388,22 @@ const baseTaxId = computed(() => {
     return props.batch?.tax_id || props.salesOrder?.tax_id || null;
 });
 
-const isMetricTon = computed(() => props.settings?.InvoiceInMetricTon == 1);
-
-const netWeight = computed(() => {
-    return (Number(form.weights.loaded_weight_truck) || 0) - (Number(form.weights.empty_weight_truck) || 0);
-});
-
 const displayUnits = computed(() => {
-    return isMetricTon.value ? netWeight.value  : form.batch_size;
+    return form.batch_size;
 });
-
-
 
 const pumpRate = computed(() => Number(props.salesOrder?.pump_rate || props.batch?.pump_rate || 0));
-const addPumpToTotal = computed(() => !!props.settings?.add_pouring_rates_to_total);
 
-watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses, () => form.financials.pump_charge, baseRate], () => {
-    // Automatically calculate load_rate if it is 0 or needs to match formula
-    if (isMetricTon.value) {
-        if (netWeight.value > 0) {
-            const computedRate = Number(((Number(form.batch_size || 0) * baseRate.value) / netWeight.value).toFixed(2));
-            if (!form.financials.load_rate || Number(form.financials.load_rate) === 0 || form.financials.load_rate === baseRate.value) {
-                form.financials.load_rate = computedRate;
-            }
-        } else {
-            if (!form.financials.load_rate || Number(form.financials.load_rate) === 0) {
-                form.financials.load_rate = baseRate.value;
-            }
-        }
-    } else {
-        if (!form.financials.load_rate || Number(form.financials.load_rate) === 0 || form.financials.load_rate !== baseRate.value) {
-            form.financials.load_rate = baseRate.value;
-        }
+watch([() => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses, () => form.financials.pump_charge, baseRate], () => {
+    if (!form.financials.load_rate || Number(form.financials.load_rate) === 0 || form.financials.load_rate !== baseRate.value) {
+        form.financials.load_rate = baseRate.value;
     }
 
     if (!form.financials.load_tax_id && baseTaxId.value) {
         form.financials.load_tax_id = baseTaxId.value;
     }
 
-    const units = isMetricTon.value ? netWeight.value : Number(form.batch_size || 0);
+    const units = Number(form.batch_size || 0);
     form.delivered_qty = units;
     form.financials.load_units = units;
 
@@ -438,11 +415,9 @@ watch([isMetricTon, netWeight, () => form.batch_size, () => form.financials.load
     const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
     const taxAmountVal = (untaxAmount * taxRate) / 100;
 
-    if (!addPumpToTotal.value) {
-        const computedPumpCharge = Number((Number(form.batch_size || 0) * pumpRate.value).toFixed(2));
-        if (Number(form.financials.pump_charge || 0) !== computedPumpCharge) {
-            form.financials.pump_charge = computedPumpCharge;
-        }
+    const computedPumpCharge = Number((pumpRate.value).toFixed(2));
+    if (Number(form.financials.pump_charge || 0) !== computedPumpCharge) {
+        form.financials.pump_charge = computedPumpCharge;
     }
 
     const pumpCharge = Number(form.financials.pump_charge || 0);
@@ -659,11 +634,11 @@ const handleDeleteInvoice = () => {
                             <!-- Net Weight / Batch Size -->
                             <div class="flex items-center justify-between">
                                 <span class="text-xs font-bold uppercase tracking-widest text-slate-500">
-                                    {{ isMetricTon ? 'Net Weight' : 'Batch Size' }}
+                                    Batch Size
                                 </span>
                                 <div class="flex items-baseline gap-1">
                                     <span class="text-sm font-black text-indigo-600">{{ displayUnits }}</span>
-                                    <span class="text-[10px] font-black text-indigo-300 uppercase">{{ isMetricTon ? 'MT' :  'm³'}}</span>
+                                    <span class="text-[10px] font-black text-indigo-300 uppercase">m³</span>
                                 </div>
                             </div>
 

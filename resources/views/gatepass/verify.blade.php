@@ -168,9 +168,8 @@
 
             <!-- Segment 4: Weights -->
             @php
-                $isMetricTon = !empty($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
-                $unitLabel = $isMetricTon ? ' MT' : ' KGS';
-                $decimals  = $isMetricTon ? 3 : 0;
+                $unitLabel = ' KGS';
+                $decimals  = 0;
                 $emptyWeight  = (float) ($dispatch?->empty_weight_truck ?? 0);
                 $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
                 $netWeight    = (float) ($dispatch?->net_weight ?? max(0, $loadedWeight - $emptyWeight));

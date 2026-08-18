@@ -1218,8 +1218,7 @@ class PlantInitializationService
                     'camera_url' => "",
                     'camera_url_1' => "",
                     'camera_url_2' => "",
-                    'loader_gif' => null,
-                    'InvoiceInMetricTon' => "1"
+                    'loader_gif' => null
                 ]
             ],
             [

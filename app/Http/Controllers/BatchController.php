@@ -293,15 +293,8 @@ class BatchController extends Controller
                 $batchSize = (float)($batch->batch_size ?? 0);
                 $netWeight = (float)($payload['net_weight'] ?? 0);
 
-                $isMetricTon = !empty($batchingSettings['InvoiceInMetricTon']) && $batchingSettings['InvoiceInMetricTon'] == 1;
-
-                if ($isMetricTon) {
-                    $units = $netWeight;
-                    $loadRate = $netWeight > 0 ? ($batchSize * $baseRate) / $netWeight : $baseRate;
-                } else {
-                    $units = $batchSize;
-                    $loadRate = $baseRate;
-                }
+                $units = $batchSize;
+                $loadRate = $baseRate;
 
                 $loadUntaxAmount = $units * $loadRate;
                 $loadTaxAmount = 0.0;
@@ -325,7 +318,7 @@ class BatchController extends Controller
                     'truck_id'            => $payload['truck_id'] ?? null,
                     'transport_id'        => $payload['transport_id'] ?? null,
                     'driver_id'           => $payload['driver_id'] ?? null,
-                    'sales_executive_id'  => $payload['sales_executive_id'] ?? null,
+                    'sales_executive_id'  => $payload['sales_executive_id'] ?? $salesOrder->sales_executive_id ?? $salesOrder->customerPO?->sales_executive_id ?? null,
                     'concrete_pump'       => $payload['concrete_pump'] ?? $payload['concrete_pump'] ?? null,
                     'empty_weight_truck'  => $payload['empty_weight_truck'] ?? 0,
                     'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? 0,
