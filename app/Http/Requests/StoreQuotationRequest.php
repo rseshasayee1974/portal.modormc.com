@@ -60,11 +60,7 @@ class StoreQuotationRequest extends FormRequest
             'items.*.untaxed_amount' => 'nullable|numeric',
             'items.*.tax_amount' => 'nullable|numeric',
             'items.*.amount_total' => 'nullable|numeric',
-<<<<<<< HEAD
             'items.*.concrete_pump' => 'nullable|string|max:100',
-=======
-            'items.*.concrete_pump' => 'nullable',
->>>>>>> refs/remotes/origin/main
             'items.*.pump_rate' => 'nullable|numeric|min:0',
         ];
     }

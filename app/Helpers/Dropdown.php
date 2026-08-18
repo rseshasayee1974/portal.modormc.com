@@ -767,15 +767,6 @@ if (!function_exists('PaymentMethodsDropdown')) {
 
 
 if (!function_exists('PumpTypeDropdown')) {
-<<<<<<< HEAD
-    function PumpTypeDropdown(): array
-    {
-        return [
-            ['label' => 'Manual', 'value' => 'Manual'],
-            ['label' => 'Boom', 'value' => 'Boom'],
-            ['label' => 'Pump', 'value' => 'Pump'],
-        ];
-=======
     /**
      * Returns standard pump options: Manual, Boom, and Pump.
      * Used across quotation, CPO, sales order, and batch forms.
@@ -814,7 +805,6 @@ if (!function_exists('ConcretePumpOptions')) {
                 'value' => (int) $t->id,
             ])
             ->toArray();
->>>>>>> refs/remotes/origin/main
     }
 }
 

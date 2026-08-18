@@ -69,31 +69,20 @@ class CustomerPOController extends Controller
             'quantity' => 'nullable|numeric|min:0.001',
             'rate' => 'nullable|numeric|min:0',
             'tax_id' => 'nullable|exists:mm_taxes,id',
-<<<<<<< HEAD
             'concrete_pump' => 'nullable|string|max:100',
             'pump_rate' => 'nullable|numeric|min:0',
             'pump_rates' => 'nullable|array',
             'pump_rates.*.concrete_pump' => 'nullable|max:100',
             'pump_rates.*.pump_rate' => 'nullable|numeric|min:0',
-=======
-            'tax_amount' => 'nullable|numeric|min:0',
->>>>>>> refs/remotes/origin/main
             'items' => 'nullable|array',
             'items.*.mix_design_id' => 'required_without:quotation_id|exists:mm_mix_designs,id',
             'items.*.quantity' => 'required_without:quotation_id|numeric|min:0.001',
             'items.*.rate' => 'required_without:quotation_id|numeric|min:0',
             'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
-<<<<<<< HEAD
             'items.*.tax_amount' => 'nullable|numeric|min:0',
             'items.*.concrete_pump' => 'nullable|string|max:100',
             'items.*.pump_rate' => 'nullable|numeric|min:0',
             'items.*.pump_rates' => 'nullable|array',
-            'items.*.pump_rates.*.concrete_pump' => 'nullable|max:100',
-            'items.*.pump_rates.*.pump_rate' => 'nullable|numeric|min:0',
-=======
-            'items.*.concrete_pump' => 'nullable',
-            'items.*.pump_rate' => 'nullable|numeric|min:0',
->>>>>>> refs/remotes/origin/main
         ]);
 
         $formattedDate = \Carbon\Carbon::parse($validated['order_date'])->format('Y-m-d');
@@ -206,13 +195,8 @@ class CustomerPOController extends Controller
                         'tax_amount' => round($taxAmount, 2),
                         'untaxed_amount' => round($untaxedAmount, 2),
                         'amount_total' => round($amountTotal, 2),
-<<<<<<< HEAD
                         'concrete_pump' => $concretePump,
                         'pump_rate' => $pumpRate,
-=======
-                        'concrete_pump' => $item['concrete_pump'] ?? null,
-                        'pump_rate' => $item['pump_rate'] ?? 0,
->>>>>>> refs/remotes/origin/main
                     ]);
                 }
             } else {
@@ -287,17 +271,10 @@ class CustomerPOController extends Controller
             'items.*.quantity' => 'required_without:quotation_id|numeric|min:0.001',
             'items.*.rate' => 'required_without:quotation_id|numeric|min:0',
             'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
-<<<<<<< HEAD
             'items.*.tax_amount' => 'nullable|numeric|min:0',
             'items.*.concrete_pump' => 'nullable|string|max:100',
             'items.*.pump_rate' => 'nullable|numeric|min:0',
-            'items.*.pump_rates' => 'nullable|array',
-            'items.*.pump_rates.*.concrete_pump' => 'nullable|max:100',
-            'items.*.pump_rates.*.pump_rate' => 'nullable|numeric|min:0',
-=======
-            'items.*.concrete_pump' => 'nullable',
-            'items.*.pump_rate' => 'nullable|numeric|min:0',
->>>>>>> refs/remotes/origin/main
+            'items.*.pump_rates' => 'nullable|array'
         ]);
 
         $formattedDate = \Carbon\Carbon::parse($validated['order_date'])->format('Y-m-d');
@@ -409,13 +386,8 @@ class CustomerPOController extends Controller
                         'tax_amount' => round($taxAmount, 2),
                         'untaxed_amount' => round($untaxedAmount, 2),
                         'amount_total' => round($amountTotal, 2),
-<<<<<<< HEAD
                         'concrete_pump' => $concretePump,
                         'pump_rate' => $pumpRate,
-=======
-                        'concrete_pump' => $item['concrete_pump'] ?? null,
-                        'pump_rate' => $item['pump_rate'] ?? 0,
->>>>>>> refs/remotes/origin/main
                     ];
 
                     if (!empty($item['id'])) {
