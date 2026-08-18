@@ -958,7 +958,6 @@ const submit = () => {
                                         optionValue="value"
                                         :fluid="true"
                                         :error="form.errors.concrete_pump"
-                                        :disabled="isRestrictedFieldLocked"
                                     />
                                 </div>
                             </div>

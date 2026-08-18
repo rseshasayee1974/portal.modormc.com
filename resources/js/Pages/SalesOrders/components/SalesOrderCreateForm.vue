@@ -136,7 +136,7 @@ const form = useForm({
     produced_qty: 0,
     status: 1,
     concrete_pump: null as number | null,
-    pump_rate: 0,
+    pump_rate: null as number | null,
     scheduled_start: defaultStart as Date | null,
     scheduled_end: null as Date | null,
 });
@@ -157,10 +157,7 @@ const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_to
 const subtotal = computed(() => {
     const qty = Number(form.total_qty || 0);
     const rate = Number(form.rate || 0);
-    const pumpRate = Number(form.pump_rate || 0);
-    // Flat rate mode: pump_rate is fixed amount; per-m³ mode: pump_rate × qty
-    const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
-    return (qty * rate) + pumpCharge;
+    return qty * rate;
 });
 
 const selectedTaxRate = computed(() => {
@@ -202,9 +199,6 @@ watch(() => form.customer_po_id, (newVal) => {
                 form.total_qty = Number(firstItem.quantity || 0);
                 form.rate = Number(firstItem.rate || 0);
                 form.tax_id = firstItem.tax_id ? Number(firstItem.tax_id) : null;
-                
-                // Set initial pump rate
-                resolveSinglePumpRate();
             }
         }
     } else {
@@ -213,78 +207,12 @@ watch(() => form.customer_po_id, (newVal) => {
         form.mix_design_id = null;
         form.total_qty = 0;
         form.rate = 0;
-        form.pump_rate = 0;
+        form.pump_rate = null;
         form.tax_id = null;
         form.is_tax_inclusive = false;
         form.sales_executive_id = null;
         form.concrete_pump = null;
     }
-});
-
-const resolvePumpRatesLocally = (customerId: number | null, siteId: number | null) => {
-    const activeRates = props.pumpRates || [];
-    const scoredRates = activeRates.map(rate => {
-        let score = 0;
-        if (rate.customer_id !== null && Number(rate.customer_id) === Number(customerId)) {
-            if (siteId !== null && Number(rate.site_id) === Number(siteId)) {
-                score = 3;
-            } else if (rate.site_id === null || rate.site_id === undefined) {
-                score = 2;
-            }
-        } else if (rate.customer_id === null || rate.customer_id === undefined) {
-            score = 1;
-        }
-        return { ...rate, score };
-    }).filter(rate => rate.score > 0);
-
-    const resolved: Record<string, any> = {};
-    scoredRates.forEach(rate => {
-        const type = rate.concrete_pump;
-        if (!resolved[type] || resolved[type].score < rate.score) {
-            resolved[type] = rate;
-        }
-    });
-
-    return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
-};
-
-const resolveSinglePumpRate = (isDropdownChange = false) => {
-    const resolved = resolvePumpRatesLocally(form.customer_id, form.site_id);
-    if (form.concrete_pump) {
-        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(form.concrete_pump));
-        if (matched) {
-            if (isDropdownChange) {
-                form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
-            }
-        } else {
-            if (isDropdownChange) {
-                form.pump_rate = 0;
-            }
-        }
-    } else {
-        if (resolved.length > 0) {
-            const matched = resolved[0];
-            form.concrete_pump = Number(matched.concrete_pump);
-            form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
-        } else {
-            form.concrete_pump = null;
-            form.pump_rate = 0;
-        }
-    }
-};
-
-watch(() => form.concrete_pump, () => {
-    resolveSinglePumpRate(true);
-});
-watch(() => form.customer_id, () => {
-    if (form.customer_po_id) return;
-    form.concrete_pump = null;
-    resolveSinglePumpRate(true);
-});
-watch(() => form.site_id, () => {
-    if (form.customer_po_id) return;
-    form.concrete_pump = null;
-    resolveSinglePumpRate(true);
 });
 
 const submit = () => {
@@ -367,7 +295,7 @@ const handleMixCreated = () => {
         <div class="p-5 space-y-6">
             
             <!-- Document & Party Info Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-5">
+            <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-5">
                 
                 <!-- Customer PO (Optional Linkage) -->
                 <!-- <div>
@@ -435,7 +363,7 @@ const handleMixCreated = () => {
 
                 <!-- Scheduled Start -->
                 <div>
-                    <label class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Scheduled Start</label>
+                    <label class="block text-[10px] font-semibold text-slate-600 dark:text-slate-300">Scheduled Start</label>
                     <BaseDatePicker
                         v-model="form.scheduled_start"
                         showTime
@@ -448,48 +376,7 @@ const handleMixCreated = () => {
                     </small>
                 </div>
 
-            </div>
-
-            <!-- Order Specifications Section -->
-            <div class="border-t border-slate-100 dark:border-slate-800 pt-5">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                        Order Specifications
-                    </h3>
-                    <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/60 rounded-xl px-3 py-1 shadow-sm font-normal">
-                        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Tax Inclusive Rates</span>
-                        <input 
-                            type="checkbox" 
-                            v-model="form.is_tax_inclusive" 
-                            id="is_tax_inclusive_so" 
-                            :disabled="!!form.customer_po_id" 
-                            class="peer hidden" 
-                        />
-                        <label 
-                            for="is_tax_inclusive_so" 
-                            class="relative w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px] disabled:opacity-50 disabled:cursor-not-allowed"
-                        ></label>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                     
-                    <!-- Mix Design with Inline Action -->
-                    <div class="xl:col-span-2">
-                        <div class="flex items-center justify-between mb-1">
-                            <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                Mix Design
-                            </label>
-                            <button
-                                v-if="!form.customer_po_id"
-                                type="button"
-                                @click="showMixDesignModal = true"
-                                class="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors"
-                            >
-                                <SparklesIcon class="h-3.5 w-3.5" />
-                                <span>Create New</span>
-                            </button>
-                        </div>
                         <div class="flex items-center gap-2 overflow-visible relative popover-container">
                             <div class="flex-1 min-w-0">
                                 <BaseSelect
@@ -498,6 +385,7 @@ const handleMixCreated = () => {
                                     optionLabel="design_name"
                                     optionValue="id"
                                     filter
+                                    label="Mix Design"
                                     placeholder="Select Mix Design"
                                     :error="form.errors.mix_design_id"
                                     class="w-full"
@@ -506,33 +394,8 @@ const handleMixCreated = () => {
                             <!-- Info Button Popover -->
                             <RecipePopover :mixDesignId="form.mix_design_id" :mixDesigns="props.mixDesigns" />
                         </div>
-                    </div>
 
-                    <!-- Pump Type -->
-                    <div>
-                        <BaseSelect
-                            v-model="form.concrete_pump"
-                            :options="concretePumpOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            label="Pump Type"
-                            placeholder="Select Type"
-                            :error="form.errors.concrete_pump"
-                                                            @update:modelValue="resolveSinglePumpRate(true)"
 
-                        />
-                    </div>
-
-                    <!-- Pump Rate -->
-                    <div>
-                        <BaseInputNumber
-                            v-model="form.pump_rate"
-                            label="Pump Rate"
-                            :error="form.errors.pump_rate"
-                            :minFractionDigits="2"
-                            :disabled="!!form.customer_po_id"
-                        />
-                    </div>
 
                     <!-- Total Quantity -->
                     <div>
@@ -569,6 +432,20 @@ const handleMixCreated = () => {
                             :disabled="!!form.customer_po_id"
                         />
                     </div>
+                    <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/60 rounded-xl px-3 py-1 shadow-sm font-normal">
+                        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Tax Inclusive Rates</span>
+                        <input 
+                            type="checkbox" 
+                            v-model="form.is_tax_inclusive" 
+                            id="is_tax_inclusive_so" 
+                            :disabled="!!form.customer_po_id" 
+                            class="peer hidden" 
+                        />
+                        <label 
+                            for="is_tax_inclusive_so" 
+                            class="relative w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px] disabled:opacity-50 disabled:cursor-not-allowed"
+                        ></label>
+                    </div>
 
                     <!-- Initial Status -->
                     <div>
@@ -582,7 +459,6 @@ const handleMixCreated = () => {
                         />
                     </div>
 
-                </div>
             </div>
 
             <!-- Mix Design Specifications Breakdown -->

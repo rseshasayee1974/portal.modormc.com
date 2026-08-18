@@ -44,7 +44,7 @@ export function useBatchActions(props: { statuses: { label: string; value: numbe
     /**
      * Uses the anchor-click technique to avoid popup-blocker issues.
      */
-    const downloadPdf = (id: number) => {
+    const downloadPdf = (id: number | string) => {
         const url  = route('batches.download', id);
         const link = document.createElement('a');
         link.href = url;

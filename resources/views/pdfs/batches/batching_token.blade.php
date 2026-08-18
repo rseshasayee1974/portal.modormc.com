@@ -197,7 +197,7 @@
                     </td>
                     <td style="text-align: right;">
                         <button onclick="window.print()" class="primary">Print Token</button>
-                        <a href="{{ route('batches.token.download', $batch->id) }}">Download PDF</a>
+                        <a href="{{ route('batches.token.download', $batch->encrypted_id ?? $batch->id) }}">Download PDF</a>
                     </td>
                 </tr>
             </table>

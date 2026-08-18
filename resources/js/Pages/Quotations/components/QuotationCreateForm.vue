@@ -49,7 +49,6 @@ const props = withDefaults(defineProps<{
     units?: { id: number; name: string }[]; // Falling back if missing
     instant_customer: number | boolean;
     salesExecutives?: { id: number; label: string; value: number }[];
-    concretePumpOptions?: { label: string; value: number }[];
     pumpTypeOptions?: { label: string; value: string }[];
     pumpRates?: any[];
 }>(), {
@@ -277,7 +276,7 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
     if (item.concrete_pump) {
-        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(item.concrete_pump));
+        const matched = resolved.find((r: any) => String(r.concrete_pump).toLowerCase() === String(item.concrete_pump).toLowerCase());
         if (matched) {
             if (isDropdownChange) {
                 item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
@@ -291,7 +290,7 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            item.concrete_pump = Number(matched.concrete_pump);
+            item.concrete_pump = matched.concrete_pump;
             item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
             item.concrete_pump = null;
@@ -548,8 +547,10 @@ const submit = () => {
 
         items: data.items.map((item: any) => ({
             ...item,
+            concrete_pump: item.concrete_pump ?? null,
+            pump_rate: Number(item.pump_rate || 0),
             pump_rates: item.concrete_pump 
-                ? [{ concrete_pump: item.concrete_pump, pump_rate: item.pump_rate }]
+                ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
                 : []
         }))
     }))
@@ -759,7 +760,7 @@ const submit = () => {
                                         <td class="p-2">
                                             <BaseSelect 
                                                 v-model="item.concrete_pump" 
-                                                :options="props.concretePumpOptions || []" 
+                                                :options="props.pumpTypeOptions || []" 
                                                 optionLabel="label" 
                                                 optionValue="value" 
                                                 placeholder="Select Type" 

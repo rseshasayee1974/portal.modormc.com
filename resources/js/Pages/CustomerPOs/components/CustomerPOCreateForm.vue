@@ -18,7 +18,6 @@ const props = withDefaults(defineProps<{
     quotations?: any[];
     mixDesigns?: any[];
     salesExecutives?: any[];
-    concretePumpOptions?: any[];
     taxes?: any[];
     pumpTypeOptions?: { label: string; value: string }[];
     pumpRates?: any[];
@@ -28,7 +27,6 @@ const props = withDefaults(defineProps<{
     quotations: () => [],
     mixDesigns: () => [],
     salesExecutives: () => [],
-    concretePumpOptions: () => [],
     taxes: () => [],
     pumpTypeOptions: () => [],
     pumpRates: () => [],
@@ -112,11 +110,15 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
     return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
 };
 
+const page = usePage();
+const customSettings = page.props.custom_settings as any;
+const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
+
 const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
     if (item.concrete_pump) {
-        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(item.concrete_pump));
+        const matched = resolved.find((r: any) => String(r.concrete_pump).toLowerCase() === String(item.concrete_pump).toLowerCase());
         if (matched) {
             if (isDropdownChange) {
                 item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
@@ -129,7 +131,7 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            item.concrete_pump = Number(matched.concrete_pump);
+            item.concrete_pump = matched.concrete_pump;
             item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
             item.concrete_pump = null;
@@ -191,14 +193,16 @@ watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) =>
         (newItems as any).forEach((item: any) => {
             const qty = Number(item.quantity || 0);
             const rate = Number(item.rate || 0);
+            const pumpRate = Number(item.pump_rate || 0);
+            const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
             const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
             const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
 
             if (isTaxInclusive) {
-                const total = qty * rate;
+                const total = qty * rate + pumpCharge;
                 item.tax_amount = Number((total - (total / (1 + taxRate / 100))).toFixed(2));
             } else {
-                const untaxed = qty * rate;
+                const untaxed = qty * rate + pumpCharge;
                 item.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
             }
         });
@@ -240,9 +244,6 @@ const removePumpRatesForDesign = (designId: number) => {
     });
 };
 
-const page = usePage();
-const customSettings = page.props.custom_settings as any;
-const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
 
 
 
@@ -382,8 +383,10 @@ const submit = () => {
         pump_rate: 0,
         items: data.items.map((item: any) => ({
             ...item,
+            concrete_pump: item.concrete_pump ?? null,
+            pump_rate: Number(item.pump_rate || 0),
             pump_rates: item.concrete_pump 
-                ? [{ concrete_pump: item.concrete_pump, pump_rate: item.pump_rate }]
+                ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
                 : []
         }))
     })).post(route('customer-po.store'), {
@@ -587,7 +590,7 @@ const submit = () => {
                             <td class="p-2">
                                 <BaseSelect
                                     v-model="item.concrete_pump"
-                                    :options="props.concretePumpOptions || []"
+                                    :options="props.pumpTypeOptions || []"
                                     optionLabel="label"
                                     optionValue="value"
                                     placeholder="Select Type"
@@ -604,7 +607,11 @@ const submit = () => {
                             </td>
                           
                             <td class="p-3 text-right font-bold text-slate-800 text-sm">
-                                <span>₹ {{ ((Number(item.quantity || 0) * Number(item.rate || 0)) + Number(item.tax_amount || 0) + (addPouringRatesToTotal ? Number(item.pump_rate || 0) : (Number(item.pump_rate || 0) * Number(item.quantity || 0)))).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                <span>₹ {{ (
+                                    (Number(item.quantity || 0) * Number(item.rate || 0)) + 
+                                    (addPouringRatesToTotal ? Number(item.pump_rate || 0) : (Number(item.pump_rate || 0) * Number(item.quantity || 0))) + 
+                                    (form.is_tax_inclusive ? 0 : Number(item.tax_amount || 0))
+                                ).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                             </td>
                             <td class="p-3 text-center">
                                 <button type="button" @click="removeItem(idx)" class="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-all" :disabled="form.items.length === 1">

@@ -28,7 +28,6 @@ const props = defineProps<{
     unitOptions : {id: number, unit_code: string}[];
     drivers: { id: number; first_name: string; last_name: string }[];
     salesExecutives: any[];
-    concretePumpOptions?: any[];
     pumpTypeOptions?: any[];
     pumpRates?: any[];
 }>();
@@ -227,7 +226,6 @@ const updateConversion = (quotation: any) => {
                     :mixDesigns="mixDesigns"
                     :taxes="taxes"
                     :salesExecutives="salesExecutives"
-                    :concretePumpOptions="concretePumpOptions"
                     :pumpTypeOptions="pumpTypeOptions"
                     :pumpRates="pumpRates"
                 />
@@ -364,7 +362,6 @@ const updateConversion = (quotation: any) => {
                                     :unitOptions="unitOptions"
                                     :taxes="taxes"
                                     :salesExecutives="salesExecutives"
-                                    :concretePumpOptions="concretePumpOptions"
                                     :pumpTypeOptions="pumpTypeOptions"
                                     :pumpRates="pumpRates"
                                     @updated="collapseExpandedRows"

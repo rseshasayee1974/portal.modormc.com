@@ -44,7 +44,6 @@ class CustomerPOController extends Controller
             'mixDesigns' => $mixDesigns,
             'taxes' => TaxesDropdown('sales',['GST','IGST']),
             'salesExecutives' => SalesExecutivesDropdown(),
-            'concretePumpOptions' => PumpTypeDropdown(),
             'pumpTypeOptions' => PumpTypeDropdown(),
             'pumpRates' => \App\Models\PumpRate::where('status', true)->where('plant_id', $plantId)->get(),
         ]);
@@ -70,21 +69,22 @@ class CustomerPOController extends Controller
             'quantity' => 'nullable|numeric|min:0.001',
             'rate' => 'nullable|numeric|min:0',
             'tax_id' => 'nullable|exists:mm_taxes,id',
-            'tax_amount' => 'nullable|numeric|min:0',
-            'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
+            'concrete_pump' => 'nullable|string|max:100',
             'pump_rate' => 'nullable|numeric|min:0',
             'pump_rates' => 'nullable|array',
-            'pump_rates.*.concrete_pump' => 'required|max:100',
-            'pump_rates.*.pump_rate' => 'required|numeric|min:0',
+            'pump_rates.*.concrete_pump' => 'nullable|max:100',
+            'pump_rates.*.pump_rate' => 'nullable|numeric|min:0',
             'items' => 'nullable|array',
             'items.*.mix_design_id' => 'required_without:quotation_id|exists:mm_mix_designs,id',
             'items.*.quantity' => 'required_without:quotation_id|numeric|min:0.001',
             'items.*.rate' => 'required_without:quotation_id|numeric|min:0',
             'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
             'items.*.tax_amount' => 'nullable|numeric|min:0',
+            'items.*.concrete_pump' => 'nullable|string|max:100',
+            'items.*.pump_rate' => 'nullable|numeric|min:0',
             'items.*.pump_rates' => 'nullable|array',
-            'items.*.pump_rates.*.concrete_pump' => 'required|max:100',
-            'items.*.pump_rates.*.pump_rate' => 'required|numeric|min:0',
+            'items.*.pump_rates.*.concrete_pump' => 'nullable|max:100',
+            'items.*.pump_rates.*.pump_rate' => 'nullable|numeric|min:0',
         ]);
 
         $formattedDate = \Carbon\Carbon::parse($validated['order_date'])->format('Y-m-d');
@@ -161,23 +161,30 @@ class CustomerPOController extends Controller
             ]);
 
             if (empty($validated['quotation_id'])) {
+                $batchSettings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
+                $addPouringRatesToTotal = !empty($batchSettings['add_pouring_rates_to_total']) && (int)$batchSettings['add_pouring_rates_to_total'] === 1;
+
                 foreach ($items as $item) {
                     $qty = (float)($item['quantity'] ?? 0);
                     $rate = (float)($item['rate'] ?? 0);
+                    $pumpRate = (float)($item['pump_rate'] ?? 0);
+                    $concretePump = $item['concrete_pump'] ?? null;
+                    $pumpCharge = $addPouringRatesToTotal ? $pumpRate : $pumpRate * $qty;
                     
                     $taxId = $item['tax_id'] ?? null;
+                    $taxRate = 0.0;
+                    if ($taxId) {
+                        $taxModel = \App\Models\Tax::find($taxId);
+                        $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
+                    }
+
                     if ($isTaxInclusive) {
-                        $amountTotal = $qty * $rate;
-                        $taxRate = 0.0;
-                        if ($taxId) {
-                            $taxModel = \App\Models\Tax::find($taxId);
-                            $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
-                        }
+                        $amountTotal = $qty * $rate + $pumpCharge;
                         $taxAmount = $amountTotal - ($amountTotal / (1 + $taxRate / 100));
                         $untaxedAmount = $amountTotal - $taxAmount;
                     } else {
-                        $taxAmount = (float)($item['tax_amount'] ?? 0);
-                        $untaxedAmount = $qty * $rate;
+                        $untaxedAmount = $qty * $rate + $pumpCharge;
+                        $taxAmount = ($untaxedAmount * $taxRate) / 100;
                         $amountTotal = $untaxedAmount + $taxAmount;
                     }
 
@@ -189,6 +196,8 @@ class CustomerPOController extends Controller
                         'tax_amount' => round($taxAmount, 2),
                         'untaxed_amount' => round($untaxedAmount, 2),
                         'amount_total' => round($amountTotal, 2),
+                        'concrete_pump' => $concretePump,
+                        'pump_rate' => $pumpRate,
                     ]);
                     // Sync pump rates if provided
                     $createdItem = $customerPO->items()->latest('id')->first();
@@ -254,7 +263,8 @@ class CustomerPOController extends Controller
             'site_id' => 'required|exists:mm_sites,id',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
             // 'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
-            // 'pump_rate' => 'nullable|numeric|min:0',
+            'concrete_pump' => 'nullable|string|max:100',
+            'pump_rate' => 'nullable|numeric|min:0',
             'is_tax_inclusive' => 'nullable|boolean',
             'order_date' => 'required|date',
             'status' => 'required|integer|in:0,1,2',
@@ -264,8 +274,8 @@ class CustomerPOController extends Controller
             'tax_id' => 'nullable|exists:mm_taxes,id',
             'tax_amount' => 'nullable|numeric|min:0',
             'pump_rates' => 'nullable|array',
-            'pump_rates.*.concrete_pump' => 'required|max:100',
-            'pump_rates.*.pump_rate' => 'required|numeric|min:0',
+            'pump_rates.*.concrete_pump' => 'nullable|max:100',
+            'pump_rates.*.pump_rate' => 'nullable|numeric|min:0',
             'items' => 'nullable|array',
             'items.*.id' => 'nullable|integer',
             'notes' => 'nullable|string',
@@ -274,9 +284,11 @@ class CustomerPOController extends Controller
             'items.*.rate' => 'required_without:quotation_id|numeric|min:0',
             'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
             'items.*.tax_amount' => 'nullable|numeric|min:0',
+            'items.*.concrete_pump' => 'nullable|string|max:100',
+            'items.*.pump_rate' => 'nullable|numeric|min:0',
             'items.*.pump_rates' => 'nullable|array',
-            'items.*.pump_rates.*.concrete_pump' => 'required|max:100',
-            'items.*.pump_rates.*.pump_rate' => 'required|numeric|min:0',
+            'items.*.pump_rates.*.concrete_pump' => 'nullable|max:100',
+            'items.*.pump_rates.*.pump_rate' => 'nullable|numeric|min:0',
         ]);
 
         $formattedDate = \Carbon\Carbon::parse($validated['order_date'])->format('Y-m-d');
@@ -305,6 +317,8 @@ class CustomerPOController extends Controller
                 'rate' => $validated['rate'],
                 'tax_id' => $validated['tax_id'] ?? null,
                 'tax_amount' => $validated['tax_amount'] ?? 0,
+                'concrete_pump' => $validated['concrete_pump'] ?? null,
+                'pump_rate' => $validated['pump_rate'] ?? 0,
                 'pump_rates' => $request->input('pump_rates') ?? [],
             ]];
         }
@@ -353,23 +367,30 @@ class CustomerPOController extends Controller
                     $oldItem->delete();
                 }
 
+                $batchSettings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
+                $addPouringRatesToTotal = !empty($batchSettings['add_pouring_rates_to_total']) && (int)$batchSettings['add_pouring_rates_to_total'] === 1;
+
                 foreach ($items as $item) {
                     $qty = (float)($item['quantity'] ?? 0);
                     $rate = (float)($item['rate'] ?? 0);
+                    $pumpRate = (float)($item['pump_rate'] ?? 0);
+                    $concretePump = $item['concrete_pump'] ?? null;
+                    $pumpCharge = $addPouringRatesToTotal ? $pumpRate : $pumpRate * $qty;
                     
                     $taxId = $item['tax_id'] ?? null;
+                    $taxRate = 0.0;
+                    if ($taxId) {
+                        $taxModel = \App\Models\Tax::find($taxId);
+                        $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
+                    }
+
                     if ($isTaxInclusive) {
-                        $amountTotal = $qty * $rate;
-                        $taxRate = 0.0;
-                        if ($taxId) {
-                            $taxModel = \App\Models\Tax::find($taxId);
-                            $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
-                        }
+                        $amountTotal = $qty * $rate + $pumpCharge;
                         $taxAmount = $amountTotal - ($amountTotal / (1 + $taxRate / 100));
                         $untaxedAmount = $amountTotal - $taxAmount;
                     } else {
-                        $taxAmount = (float)($item['tax_amount'] ?? 0);
-                        $untaxedAmount = $qty * $rate;
+                        $untaxedAmount = $qty * $rate + $pumpCharge;
+                        $taxAmount = ($untaxedAmount * $taxRate) / 100;
                         $amountTotal = $untaxedAmount + $taxAmount;
                     }
 
@@ -381,6 +402,8 @@ class CustomerPOController extends Controller
                         'tax_amount' => round($taxAmount, 2),
                         'untaxed_amount' => round($untaxedAmount, 2),
                         'amount_total' => round($amountTotal, 2),
+                        'concrete_pump' => $concretePump,
+                        'pump_rate' => $pumpRate,
                     ];
 
                     if (!empty($item['id'])) {

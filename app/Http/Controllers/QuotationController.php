@@ -35,7 +35,6 @@ class QuotationController extends Controller
             'vehicles' => MachinesDropdown(),
             'drivers'  => PersonnelDropdown(),
             'unitOptions' => Productunit(),
-            'concretePumpOptions' => PumpTypeDropdown(),
             'pumpTypeOptions' => PumpTypeDropdown(),
             'pumpRates' => \App\Models\PumpRate::where('status', true)->where('plant_id', $plantId)->get(),
             'instant_customer' => CustomSetting::getForModule(session('active_entity_id'), 'quotation')['instant_customer'] ?? 0,
@@ -157,6 +156,8 @@ class QuotationController extends Controller
                         'tax_amount' => $qItem->tax_amount,
                         'untaxed_amount' => $qItem->untaxed_amount,
                         'amount_total' => $qItem->amount_total,
+                        'concrete_pump' => $qItem->concrete_pump,
+                        'pump_rate' => $qItem->pump_rate,
                     ]);
 
                     // Copy pump rates

@@ -42,7 +42,12 @@ class Batch extends Model
         // 'site_id',
     ];
 
-    protected $appends = ['sheet_url', 'original_sheet_url', 'rate', 'tax_id'];
+    protected $appends = ['sheet_url', 'original_sheet_url', 'rate', 'tax_id', 'encrypted_id'];
+
+    public function getEncryptedIdAttribute(): string
+    {
+        return encrypt($this->id);
+    }
 
     public function getSheetUrlAttribute()
     {
@@ -324,5 +329,23 @@ class Batch extends Model
     public function modifier()
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function resolveRouteBinding($value, $field = null)
+    {
+        try {
+            $decrypted = decrypt($value);
+            return $this->withTrashed()->where($field ?? $this->getRouteKeyName(), $decrypted)->first();
+        } catch (\Exception $e) {
+            try {
+                $decrypted = \Illuminate\Support\Facades\Crypt::decryptString($value);
+                return $this->withTrashed()->where($field ?? $this->getRouteKeyName(), $decrypted)->first();
+            } catch (\Exception $e2) {
+                if (is_numeric($value)) {
+                    return parent::resolveRouteBinding($value, $field);
+                }
+                return null;
+            }
+        }
     }
 }

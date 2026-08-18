@@ -729,14 +729,14 @@ const shareBatchEmail = () => {
                                             <div class="py-1 text-left">
                                                 <button
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                                    @click="router.get(route('batches.report', slotProps.data.id)); activeMenuId = null;"
+                                                    @click="router.get(route('batches.report', slotProps.data.encrypted_id || slotProps.data.id)); activeMenuId = null;"
                                                 >
                                                     <i class="pi pi-eye mr-2 text-indigo-500 font-bold"></i>
                                                     Preview Batch Sheet
                                                 </button>
                                                 <button
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                                    @click="downloadPdf(slotProps.data.id); activeMenuId = null;"
+                                                    @click="downloadPdf(slotProps.data.encrypted_id || slotProps.data.id); activeMenuId = null;"
                                                 >
                                                     <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
                                                     Download PDF Report
@@ -762,7 +762,7 @@ const shareBatchEmail = () => {
                                             <div class="py-1 text-left">
                                                 <button
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                                    @click="viewToken(slotProps.data.id, 'batching'); activeMenuId = null;"
+                                                    @click="viewToken(slotProps.data.encrypted_id || slotProps.data.id, 'batching'); activeMenuId = null;"
                                                 >
                                                     <i class="pi pi-print mr-2 text-amber-500 font-bold"></i>
                                                     Print Batching Token
@@ -770,7 +770,7 @@ const shareBatchEmail = () => {
                                                 <button
                                                     v-if="slotProps.data.status >= 3"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                                    @click="viewToken(slotProps.data.id, 'dispatch'); activeMenuId = null;"
+                                                    @click="viewToken(slotProps.data.encrypted_id || slotProps.data.id, 'dispatch'); activeMenuId = null;"
                                                 >
                                                     <i class="pi pi-ticket mr-2 text-emerald-500 font-bold"></i>
                                                     Print Dispatch Token
@@ -778,7 +778,7 @@ const shareBatchEmail = () => {
                                                 <button
                                                     v-if="slotProps.data.status >= 3"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                                                    @click="viewToken(slotProps.data.id, 'delivery'); activeMenuId = null;"
+                                                    @click="viewToken(slotProps.data.encrypted_id || slotProps.data.id, 'delivery'); activeMenuId = null;"
                                                 >
                                                     <i class="pi pi-file mr-2 text-sky-500 font-bold"></i>
                                                     Print Delivery Challan (A4)
@@ -786,7 +786,7 @@ const shareBatchEmail = () => {
                                                 <button
                                                     v-if="slotProps.data.status >= 3"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
-                                                    @click="viewToken(slotProps.data.id, 'gate-pass'); activeMenuId = null;"
+                                                    @click="viewToken(slotProps.data.encrypted_id || slotProps.data.id, 'gate-pass'); activeMenuId = null;"
                                                 >
                                                     <i class="pi pi-id-card mr-2 text-rose-500 font-bold"></i>
                                                     Print Gate Pass
@@ -1011,14 +1011,14 @@ const shareBatchEmail = () => {
                 <div class="py-1">
                     <button
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                        @click="router.get(route('batches.report', activeBatch.id)); closeAllMenus();"
+                        @click="router.get(route('batches.report', activeBatch.encrypted_id || activeBatch.id)); closeAllMenus();"
                     >
                         <i class="pi pi-eye mr-2 text-indigo-500 font-bold"></i>
                         Preview Batch Sheet
                     </button>
                     <button
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                        @click="downloadPdf(activeBatch.id); closeAllMenus();"
+                        @click="downloadPdf(activeBatch.encrypted_id || activeBatch.id); closeAllMenus();"
                     >
                         <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
                         Download PDF Report
@@ -1043,7 +1043,7 @@ const shareBatchEmail = () => {
                 <div class="py-1">
                     <button
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                        @click="viewToken(activeBatch.id, 'batching'); closeAllMenus();"
+                        @click="viewToken(activeBatch.encrypted_id || activeBatch.id, 'batching'); closeAllMenus();"
                     >
                         <i class="pi pi-print mr-2 text-amber-500 font-bold"></i>
                         Print Batching Token
@@ -1051,7 +1051,7 @@ const shareBatchEmail = () => {
                     <button
                         v-if="activeBatch.status >= 3"
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                        @click="viewToken(activeBatch.id, 'dispatch'); closeAllMenus();"
+                        @click="viewToken(activeBatch.encrypted_id || activeBatch.id, 'dispatch'); closeAllMenus();"
                     >
                         <i class="pi pi-ticket mr-2 text-emerald-500 font-bold"></i>
                         Print Dispatch Token
@@ -1059,7 +1059,7 @@ const shareBatchEmail = () => {
                     <button
                         v-if="activeBatch.status >= 3"
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                        @click="viewToken(activeBatch.id, 'delivery'); closeAllMenus();"
+                        @click="viewToken(activeBatch.encrypted_id || activeBatch.id, 'delivery'); closeAllMenus();"
                     >
                         <i class="pi pi-file mr-2 text-sky-500 font-bold"></i>
                         Print Delivery Challan (A4)
@@ -1067,7 +1067,7 @@ const shareBatchEmail = () => {
                     <button
                         v-if="activeBatch.status >= 3"
                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
-                        @click="viewToken(activeBatch.id, 'gate-pass'); closeAllMenus();"
+                        @click="viewToken(activeBatch.encrypted_id || activeBatch.id, 'gate-pass'); closeAllMenus();"
                     >
                         <i class="pi pi-id-card mr-2 text-rose-500 font-bold"></i>
                         Print Gate Pass

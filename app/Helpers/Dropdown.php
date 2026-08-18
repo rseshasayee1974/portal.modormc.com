@@ -767,27 +767,13 @@ if (!function_exists('PaymentMethodsDropdown')) {
 
 
 if (!function_exists('PumpTypeDropdown')) {
-    /**
-     * Returns all machine types whose name indicates a pump-type machine.
-     * Used to build the pump-rate grid on quotation/CPO line items.
-     *
-     * @return array  e.g. [['label' => 'Pump', 'value' => 'Pump'], ...]
-     */
     function PumpTypeDropdown(): array
     {
-        return Machine::whereHas('machineType',function ($q) {
-                $q->where('name', 'LIKE', '%Pump%');
-                //   ->orWhere('name', 'LIKE', '%Boom%');
-            })
-            ->where('plant_id', _activePlantId())
-            ->whereNull('deleted_at')
-            ->orderBy('registration')
-            ->get(['id', 'registration'])
-            ->map(fn($t) => [
-                'label' => $t->registration,
-                'value' => (int) $t->id,
-            ])
-            ->toArray();
+        return [
+            ['label' => 'Manual', 'value' => 'Manual'],
+            ['label' => 'Boom', 'value' => 'Boom'],
+            ['label' => 'Pump', 'value' => 'Pump'],
+        ];
     }
 }
 

@@ -25,7 +25,6 @@ const props = defineProps<{
     quotations?: any[];
     mixDesigns?: any[];
     salesExecutives?: any[];
-    concretePumpOptions?: any[];
     taxes?: any[];
     pumpTypeOptions?: any[];
     pumpRates?: any[];

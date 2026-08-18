@@ -722,13 +722,18 @@ class BatchController extends Controller
     public function report($batchId)
     {
         try {
-            $decryptedId = \Illuminate\Support\Facades\Crypt::decryptString($batchId);
+            $decryptedId = decrypt($batchId);
             $batch = Batch::findOrFail($decryptedId);
-        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-            if (is_numeric($batchId)) {
-                $batch = Batch::findOrFail($batchId);
-            } else {
-                abort(404, 'Invalid Batch ID');
+        } catch (\Exception $e) {
+            try {
+                $decryptedId = \Illuminate\Support\Facades\Crypt::decryptString($batchId);
+                $batch = Batch::findOrFail($decryptedId);
+            } catch (\Exception $e2) {
+                if (is_numeric($batchId)) {
+                    $batch = Batch::findOrFail($batchId);
+                } else {
+                    abort(404, 'Invalid Batch ID');
+                }
             }
         }
        
@@ -745,13 +750,18 @@ class BatchController extends Controller
     public function downloadPdf($batchId)
     {
         try {
-            $decryptedId = \Illuminate\Support\Facades\Crypt::decryptString($batchId);
+            $decryptedId = decrypt($batchId);
             $batch = Batch::findOrFail($decryptedId);
-        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
-            if (is_numeric($batchId)) {
-                $batch = Batch::findOrFail($batchId);
-            } else {
-                abort(404, 'Invalid Batch ID');
+        } catch (\Exception $e) {
+            try {
+                $decryptedId = \Illuminate\Support\Facades\Crypt::decryptString($batchId);
+                $batch = Batch::findOrFail($decryptedId);
+            } catch (\Exception $e2) {
+                if (is_numeric($batchId)) {
+                    $batch = Batch::findOrFail($batchId);
+                } else {
+                    abort(404, 'Invalid Batch ID');
+                }
             }
         }
 

@@ -29,7 +29,9 @@ interface QuotationItemPayload {
     tax_amount: number | null;
     untaxed_amount: number;
     amount_total: number;
-    pump_rates: { concrete_pump: string; pump_rate: number }[];
+    concrete_pump?: number | string | null;
+    pump_rate?: number;
+    pump_rates: { concrete_pump: string | number; pump_rate: number }[];
 }
 
 const props = defineProps<{
@@ -40,7 +42,6 @@ const props = defineProps<{
     taxes: { id: number; title?: string; tax_name?: string; rate?: number; tax_rate?: number }[];
     unitOptions?: { id: number; unit_code: string }[];
     salesExecutives?: { id: number; label: string; value: number }[];
-    concretePumpOptions?: { label: string; value: number }[];
     pumpTypeOptions?: { label: string; value: string }[];
     pumpRates?: any[];
 }>();
@@ -78,7 +79,7 @@ const resolveConcretePump = (raw: any) => {
     const asNum = Number(raw);
     if (!isNaN(asNum) && asNum > 0) return asNum; // already a machine ID
     // Legacy string: find matching option by label substring
-    const match = (props.concretePumpOptions || []).find(
+    const match = (props.pumpTypeOptions || []).find(
         (o: any) => String(o.label).toLowerCase().includes(String(raw).toLowerCase())
     );
     return match ? match.value : null;
@@ -110,8 +111,8 @@ const form = useForm({
             tax_amount: Number(item.tax_amount || 0),
             untaxed_amount: Number(item.untaxed_amount || 0),
             amount_total: Number(item.amount_total || 0),
-            concrete_pump: savedPumpRate ? Number(savedPumpRate.concrete_pump) : null,
-            pump_rate: savedPumpRate ? Number(savedPumpRate.pump_rate) : 0,
+            concrete_pump: item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : null),
+            pump_rate: item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : 0),
             pump_rates: [],
         };
     }) as QuotationItemPayload[],
@@ -136,8 +137,8 @@ const siteOptions = computed(() => {
         .map((s: any) => ({ label: s.name, value: s.id }));
 });
 
-const concretePumpOptions = computed(() =>
-    (props.concretePumpOptions || []).map((s: any) => ({ label: s.label, value: s.value }))
+const pumpTypeOptions = computed(() =>
+    (props.pumpTypeOptions || []).map((s: any) => ({ label: s.label, value: s.value }))
 );
 const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 const unitOptions = computed(() => (props.unitOptions || []).map(u => ({ label: u.unit_code, value: u.id })));
@@ -184,7 +185,7 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
     if (item.concrete_pump) {
-        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(item.concrete_pump));
+        const matched = resolved.find((r: any) => String(r.concrete_pump).toLowerCase() === String(item.concrete_pump).toLowerCase());
         if (matched) {
             if (isDropdownChange) {
                 item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
@@ -197,7 +198,7 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            item.concrete_pump = Number(matched.concrete_pump);
+            item.concrete_pump = matched.concrete_pump;
             item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
             item.concrete_pump = null;
@@ -383,14 +384,14 @@ const removePumpRatesForDesign = (designId: number) => {
 const submit = () => {
     form.transform((data) => ({
         ...data,
-        concrete_pump: null,
-        pump_rate: 0,
         quote_date: data.quote_date ? new Date(data.quote_date).toISOString().substring(0, 10) : null,
         validity_date: data.validity_date ? new Date(data.validity_date).toISOString().substring(0, 10) : null,
         items: data.items.map((item: any) => ({
             ...item,
+            concrete_pump: item.concrete_pump ?? null,
+            pump_rate: Number(item.pump_rate || 0),
             pump_rates: item.concrete_pump 
-                ? [{ concrete_pump: item.concrete_pump, pump_rate: item.pump_rate }]
+                ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
                 : []
         }))
     })).put(route('quotations.update', props.quotation.id), {
@@ -588,7 +589,7 @@ const sendEmail = () => {
                             <td class="p-2">
                                 <BaseSelect
                                     v-model="item.concrete_pump"
-                                    :options="props.concretePumpOptions"
+                                    :options="props.pumpTypeOptions"
                                     optionLabel="label"
                                     optionValue="value"
                                     placeholder="Select Type"

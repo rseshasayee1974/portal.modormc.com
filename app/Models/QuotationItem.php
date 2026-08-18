@@ -26,6 +26,8 @@ class QuotationItem extends Model
         'tax_amount',
         'untaxed_amount',
         'amount_total',
+        'concrete_pump',
+        'pump_rate',
     ];
 
     /**

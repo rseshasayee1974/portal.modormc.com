@@ -6,7 +6,7 @@ type CloseReason = 'print' | 'close' | 'manual';
 
 interface UseBatchTokenPreviewOptions {
     closeAllMenus: () => void;
-    onClose?: (batchId: number | null, reason: CloseReason) => void;
+    onClose?: (batchId: number | string | null, reason: CloseReason) => void;
 }
 
 interface UseBatchTokenPreviewReturn {
@@ -16,7 +16,7 @@ interface UseBatchTokenPreviewReturn {
     previewTitle: Ref<string>;
     previewWidth: Ref<string>;
     previewIframeWidth: Ref<string>;
-    viewToken: (id: number, type?: TokenType) => void;
+    viewToken: (id: number | string, type?: TokenType) => void;
     closeTokenPreview: () => void;
     adjustIframeHeight: (event: any) => void;
     printTokenIframe: () => void;
@@ -38,10 +38,10 @@ export function useBatchTokenPreview({
     const previewTitle = ref('Batching Token Preview');
     const previewWidth = ref('380px');
     const previewIframeWidth = ref('340px');
-    const currentBatchId = ref<number | null>(null);
+    const currentBatchId = ref<number | string | null>(null);
 
     // ── Open Token Dialog ────────────────────────────────────────────────────
-    const viewToken = (id: number, type: TokenType = 'batching') => {
+    const viewToken = (id: number | string, type: TokenType = 'batching') => {
         currentBatchId.value = id;
         if (type === 'dispatch') {
             previewTitle.value = 'Dispatch Token Preview';

@@ -19,7 +19,6 @@ const props = withDefaults(defineProps<{
     sites?: any[];
     mixDesigns?: any[];
     salesExecutives?: any[];
-    concretePumpOptions?: any[];
     taxes?: any[];
     pumpTypeOptions?: { label: string; value: string }[];
     pumpRates?: any[];
@@ -30,7 +29,6 @@ const props = withDefaults(defineProps<{
     sites: () => [],
     mixDesigns: () => [],
     salesExecutives: () => [],
-    concretePumpOptions: () => [],
     taxes: () => [],
     pumpTypeOptions: () => [],
     pumpRates: () => [],
@@ -51,13 +49,13 @@ const form = useForm({
     patron_id: props.customerPO?.patron_id ?? null,
     site_id: props.customerPO?.site_id ?? null,
     sales_executive_id: props.customerPO?.sales_executive_id ?? null,
-    concrete_pump: props.customerPO?.concrete_pump !== null ? (isNaN(Number(props.customerPO.concrete_pump)) ? props.customerPO.concrete_pump : Number(props.customerPO.concrete_pump)) : null,
+    concrete_pump: props.customerPO?.concrete_pump ?? null,
     pump_rate: Number(props.customerPO?.pump_rate || 0),
     is_tax_inclusive: props.customerPO?.is_tax_inclusive ? true : false,
     order_date: props.customerPO?.order_date ?? '',
     status: props.customerPO?.status ?? 1,
     notes: props.customerPO?.notes ?? '',
-    items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, pump_rates: Array<{ concrete_pump: string, pump_rate: number }> }>,
+    items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, concrete_pump?: string | number | null, pump_rate?: number, pump_rates: Array<{ concrete_pump: string, pump_rate: number }> }>,
     mix_design_id: null as number | null,
     quantity: null as number | null,
     rate: null as number | null,
@@ -77,8 +75,8 @@ form.items = itemsList.map((item: any) => {
         rate: Number(item.rate),
         tax_id: item.tax_id ?? null,
         tax_amount: item.tax_amount !== null ? Number(item.tax_amount) : 0,
-        concrete_pump: savedPumpRate ? Number(savedPumpRate.concrete_pump) : null,
-        pump_rate: savedPumpRate ? Number(savedPumpRate.pump_rate) : 0,
+        concrete_pump: item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : null),
+        pump_rate: item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : 0),
         pump_rates: [],
     };
 });
@@ -95,8 +93,8 @@ if (itemsList.length === 1) {
     form.tax_id = item.tax_id ?? null;
     form.tax_amount = item.tax_amount !== null ? Number(item.tax_amount) : 0;
     const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
-    form.concrete_pump = savedPumpRate ? Number(savedPumpRate.concrete_pump) : null;
-    form.pump_rate = savedPumpRate ? Number(savedPumpRate.pump_rate) : 0;
+    form.concrete_pump = item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : (props.customerPO?.concrete_pump ?? null));
+    form.pump_rate = item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : Number(props.customerPO?.pump_rate || 0));
 }
 
 // Watch quotation selection to auto-fill patron, site, and sales executive
@@ -119,8 +117,8 @@ watch(() => form.quotation_id, (newVal) => {
                     rate: Number(item.rate),
                     tax_id: item.tax_id ?? null,
                     tax_amount: Number(item.tax_amount ?? 0),
-                    concrete_pump: savedPumpRate ? Number(savedPumpRate.concrete_pump) : null,
-                    pump_rate: savedPumpRate ? Number(savedPumpRate.pump_rate) : 0,
+                    concrete_pump: item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : null),
+                    pump_rate: item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : 0),
                     pump_rates: [],
                 };
             });
@@ -229,10 +227,14 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
     return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
 };
 
+const page = usePage();
+const customSettings = page.props.custom_settings as any;
+const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
+
 const resolveSinglePumpRate = (isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     if (form.concrete_pump) {
-        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(form.concrete_pump));
+        const matched = resolved.find((r: any) => String(r.concrete_pump).toLowerCase() === String(form.concrete_pump).toLowerCase());
         if (matched) {
             if (isDropdownChange) {
                 form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
@@ -245,7 +247,7 @@ const resolveSinglePumpRate = (isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            form.concrete_pump = Number(matched.concrete_pump);
+            form.concrete_pump = matched.concrete_pump;
             form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
             form.concrete_pump = null;
@@ -291,14 +293,16 @@ watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) =>
         (newItems as any).forEach((item: any) => {
             const qty = Number(item.quantity || 0);
             const rate = Number(item.rate || 0);
+            const pumpRate = Number(item.pump_rate || 0);
+            const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
             const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
             const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
 
             if (isTaxInclusive) {
-                const total = qty * rate;
+                const total = qty * rate + pumpCharge;
                 item.tax_amount = Number((total - (total / (1 + taxRate / 100))).toFixed(2));
             } else {
-                const untaxed = qty * rate;
+                const untaxed = qty * rate + pumpCharge;
                 item.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
             }
         });
@@ -306,18 +310,20 @@ watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) =>
 }, { deep: true, immediate: true });
 
 // Watch single item fields and is_tax_inclusive status to dynamically update tax_amount
-watch(() => [form.quantity, form.rate, form.tax_id, form.is_tax_inclusive], () => {
+watch(() => [form.quantity, form.rate, form.tax_id, form.pump_rate, form.is_tax_inclusive], () => {
     if (form.quantity !== null && form.rate !== null) {
         const qty = Number(form.quantity || 0);
         const rate = Number(form.rate || 0);
+        const pumpRate = Number(form.pump_rate || 0);
+        const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
         const tax = props.taxes?.find(t => Number(t.id) === Number(form.tax_id));
         const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
 
         if (form.is_tax_inclusive) {
-            const total = qty * rate;
+            const total = qty * rate + pumpCharge;
             form.tax_amount = Number((total - (total / (1 + taxRate / 100))).toFixed(2));
         } else {
-            const untaxed = qty * rate;
+            const untaxed = qty * rate + pumpCharge;
             form.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
         }
     }
@@ -328,7 +334,7 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
     if (item.concrete_pump) {
-        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(item.concrete_pump));
+        const matched = resolved.find((r: any) => String(r.concrete_pump).toLowerCase() === String(item.concrete_pump).toLowerCase());
         if (matched) {
             if (isDropdownChange) {
                 item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
@@ -341,7 +347,7 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            item.concrete_pump = Number(matched.concrete_pump);
+            item.concrete_pump = matched.concrete_pump;
             item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
             item.concrete_pump = null;
@@ -427,12 +433,6 @@ const removePumpRatesForDesign = (designId: number) => {
         });
     }
 };
-
-const page = usePage();
-const customSettings = page.props.custom_settings as any;
-const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
-
-
 
 const calculatedTotals = computed(() => {
     let subtotal = 0;
@@ -617,8 +617,10 @@ const performSubmit = (customerPOId: any) => {
             pump_rates: topPumpRates,
             items: data.items.map((item: any) => ({
                 ...item,
+                concrete_pump: item.concrete_pump ?? null,
+                pump_rate: Number(item.pump_rate || 0),
                 pump_rates: item.concrete_pump 
-                    ? [{ concrete_pump: item.concrete_pump, pump_rate: item.pump_rate }]
+                    ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
                     : []
             }))
         };
@@ -816,7 +818,7 @@ const performSubmit = (customerPOId: any) => {
                                     <td class="p-2">
                                         <BaseSelect
                                             v-model="item.concrete_pump"
-                                            :options="props.concretePumpOptions || []"
+                                            :options="props.pumpTypeOptions || []"
                                             optionLabel="label"
                                             optionValue="value"
                                             placeholder="Select Type"
@@ -910,7 +912,7 @@ const performSubmit = (customerPOId: any) => {
                         <div class="col-span-6 md:col-span-2">
                             <BaseSelect
                                 v-model="form.concrete_pump"
-                                :options="props.concretePumpOptions || []"
+                                :options="props.pumpTypeOptions || []"
                                 optionLabel="label"
                                 optionValue="value"
                                 label="Pump Type"

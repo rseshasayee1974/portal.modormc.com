@@ -254,7 +254,7 @@
     @if (!empty($isPreview))
         <div class="preview-toolbar">
             <a href="{{ route('batches.index') }}">Back to batches</a>
-            <a class="primary" href="{{ route('batches.download', $batch->id) }}">Download PDF</a>
+            <a class="primary" href="{{ route('batches.download', $batch->encrypted_id ?? $batch->id) }}">Download PDF</a>
         </div>
     @endif
 
