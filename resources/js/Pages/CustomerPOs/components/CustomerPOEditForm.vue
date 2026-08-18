@@ -990,7 +990,7 @@ const performSubmit = (customerPOId: any) => {
                                         {{ props.taxes?.find(t => Number(t.id) === Number(item.tax_id)) ? `${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_name} (${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_rate}%)` : '-' }}
                                     </td>
                                     <td class="p-2 text-center font-mono">
-                                        {{ props.concretePumpOptions?.find(opt => Number(opt.value) === Number(item.concrete_pump))?.label || '-' }}
+                                        {{ (props.concretePumpOptions || props.pumpTypeOptions || [])?.find(opt => String(opt.value).toLowerCase() === String(item.concrete_pump || '').toLowerCase())?.label || (item.concrete_pump ? String(item.concrete_pump).charAt(0).toUpperCase() + String(item.concrete_pump).slice(1) : '-') }}
                                     </td>
                                     <td class="p-2 text-right font-mono">
                                         {{ item.pump_rate ? `₹${Number(item.pump_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-' }}
