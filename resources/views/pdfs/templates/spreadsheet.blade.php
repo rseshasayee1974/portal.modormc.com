@@ -267,7 +267,18 @@
             <strong>Bank Info:</strong> {{ $data['company']['bank']['bank_name'] }} &bull; <strong>A/C:</strong> {{ $data['company']['bank']['account_number'] }} &bull; <strong>IFSC:</strong> {{ $data['company']['bank']['ifsc_code'] }} &bull; <strong>Branch:</strong> {{ $data['company']['bank']['branch'] }}
         </div>
     @endif
-    <div style="text-align:right;padding:8px 14px;border-top:1px solid #ccc;font-size:10px;min-height:60px;color:#aaa">Authorized Signatory — {{ $data['company']['name'] }}</div>
+    <div style="text-align:right;padding:8px 14px;border-top:1px solid #ccc;font-size:10px;min-height:60px;color:#333">
+        @if (($pdfSettings['show_seal_signature'] ?? true) && !empty($data['company']['seal_sign_path']))
+            @php
+                $sealPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['seal_sign_path']), '/');
+                $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false)) ? asset('storage/' . $sealPath) : public_path('storage/' . $sealPath);
+            @endphp
+            <div style="margin-bottom: 2px;">
+                <img src="{{ $sealUrl }}" style="max-height: 50px; max-width: 100px; object-fit: contain;" />
+            </div>
+        @endif
+        Authorized Signatory — {{ $data['company']['name'] }}
+    </div>
     @include('pdfs.partials._footer')
 </div>
 </body>

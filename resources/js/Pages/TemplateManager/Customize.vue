@@ -69,6 +69,7 @@ const ensurePdfStructure = (rawSettings: any) => {
     if (s.pdf.show_einvoice_details === undefined) s.pdf.show_einvoice_details = true;
     if (s.pdf.show_customer_ref === undefined) s.pdf.show_customer_ref = true;
     if (s.pdf.show_carrier_driver === undefined) s.pdf.show_carrier_driver = true;
+    if (s.pdf.show_seal_signature === undefined) s.pdf.show_seal_signature = true;
     return s;
 };
 
@@ -514,6 +515,14 @@ const downloadSample = () => {
                                         <p class="setting-desc">Show company signature placeholder</p>
                                     </div>
                                     <InputSwitch v-model="activeSettings.pdf.signature" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Plant Seal & Digital Signature</label>
+                                        <p class="setting-desc">Display uploaded seal and signature image on footer</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.show_seal_signature" />
                                 </div>
 
                                 <div class="setting-row">

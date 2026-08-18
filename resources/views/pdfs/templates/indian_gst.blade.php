@@ -297,8 +297,17 @@
             <td class="footer-sig-cust">
                 Customer Signature
             </td>
-            <td class="footer-sig-auth">
-                <div style="font-size: 8pt; margin-bottom: 25px;">For <strong>{{ strtoupper($data['company']['name']) }}</strong></div>
+            <td class="footer-sig-auth" style="position: relative;">
+                @if (($pdfSettings['show_seal_signature'] ?? true) && !empty($data['company']['seal_sign_path']))
+                    @php
+                        $sealPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['seal_sign_path']), '/');
+                        $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false)) ? asset('storage/' . $sealPath) : public_path('storage/' . $sealPath);
+                    @endphp
+                    <div style="text-align: center; margin-bottom: -10px;">
+                        <img src="{{ $sealUrl }}" style="max-height: 55px; max-width: 110px; object-fit: contain;" />
+                    </div>
+                @endif
+                <div style="font-size: 8pt; margin-bottom: 20px;">For <strong>{{ strtoupper($data['company']['name']) }}</strong></div>
                 <div>Authorised Signatory</div>
             </td>
         </tr>

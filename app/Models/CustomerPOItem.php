@@ -22,6 +22,8 @@ class CustomerPOItem extends Model
         'tax_amount',
         'untaxed_amount',
         'amount_total',
+        'pump_type',
+        'pump_rate',
         'created_by',
         'updated_by',
         'deleted_by',
@@ -37,6 +39,7 @@ class CustomerPOItem extends Model
             if (empty($pr['pump_type'])) continue;
             $rate = (float)($pr['pump_rate'] ?? 0);
             
+            if ($rate > 0) {
             $keepTypes[] = $pr['pump_type'];
             $this->pumpRates()->updateOrCreate(
                 ['pump_type' => $pr['pump_type']],
@@ -45,6 +48,7 @@ class CustomerPOItem extends Model
                     'customer_po_id' => $this->customer_po_id,
                 ]
             );
+        }
         }
         if (!empty($keepTypes)) {
             $stale = $this->pumpRates()->whereNotIn('pump_type', $keepTypes)->get();

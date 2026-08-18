@@ -307,7 +307,18 @@
     @endif
 
     @if($pdfSettings['signature'] ?? true)
-        <div style="text-align:right;padding:5px 10px;border-top:1px solid #ccc;font-size:9px;color:#aaa;min-height:40px">Authorized Signatory — {{ $data['company']['name'] }}</div>
+        <div style="text-align:right;padding:5px 10px;border-top:1px solid #ccc;font-size:9px;color:#333;min-height:40px">
+            @if (($pdfSettings['show_seal_signature'] ?? true) && !empty($data['company']['seal_sign_path']))
+                @php
+                    $sealPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['seal_sign_path']), '/');
+                    $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false)) ? asset('storage/' . $sealPath) : public_path('storage/' . $sealPath);
+                @endphp
+                <div style="margin-bottom: 2px;">
+                    <img src="{{ $sealUrl }}" style="max-height: 45px; max-width: 90px; object-fit: contain;" />
+                </div>
+            @endif
+            Authorized Signatory — {{ $data['company']['name'] }}
+        </div>
     @endif
 
     @include('pdfs.partials._footer')

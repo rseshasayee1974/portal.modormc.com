@@ -7,7 +7,6 @@ import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
-import ToggleSwitch from 'primevue/toggleswitch';
 import {
     PlusIcon,
     BeakerIcon,
@@ -22,10 +21,9 @@ const props = defineProps<{
     partners: any[];
     defaultUomId?: number | null;
     designTypes: any[];
-    initialDesign?: any;
 }>();
 
-const emit = defineEmits(['created', 'cancel']);
+const emit = defineEmits(['created']);
 
 const isOpen = ref(true);
 const toggle = () => { isOpen.value = !isOpen.value; };
@@ -33,12 +31,17 @@ const toggle = () => { isOpen.value = !isOpen.value; };
 const partnerOptions = computed(() => props.partners.map(p => ({ label: p.legal_name, value: p.id })));
 const productOptions = computed(() => props.products.map(p => ({ label: p.title, value: p.id })));
 const unitOptions = computed(() => props.units.map(u => ({ label: u.unit_code, value: u.id })));
-const typeOptions = computed(() => props.designTypes.map(t => ({ label: t.name, value: t.name })));
 const fallbackUomId = computed(() => props.defaultUomId ?? props.units[0]?.id ?? null);
+const defaultKgsUomId = computed(() => {
+    const kgs = props.units?.find((u: any) => 
+        ['KGS', 'KG', 'KILOGRAMS', 'KILOGRAM'].includes(String(u.unit_code || u.unit_name).toUpperCase())
+    );
+    return kgs ? kgs.id : fallbackUomId.value;
+});
 
 const blankItem = () => ({
     product_id: null as number | null,
-    uom_id: fallbackUomId.value,
+    uom_id: defaultKgsUomId.value,
     rate: 0,
     actual_quantity: 0,
     cross_quantity: 0,
@@ -46,23 +49,13 @@ const blankItem = () => ({
 });
 
 const form = useForm({
-    partner_id: props.initialDesign?.partner_id ?? null as number | null,
-    design_name: props.initialDesign ? `${props.initialDesign.design_name} (Copy)` : '',
-    design_code: props.initialDesign ? (props.initialDesign.design_code ? `${props.initialDesign.design_code}-COPY` : '') : '',
-    design_type: props.initialDesign?.design_type ?? '',
-    unit_id: props.initialDesign?.unit_id ?? fallbackUomId.value,
-    rate_per_qty: props.initialDesign ? parseFloat(props.initialDesign.rate_per_qty || '0') : 0,
-    is_active: props.initialDesign ? (props.initialDesign.is_active ? true : false) : true,
-    items: props.initialDesign 
-        ? props.initialDesign.items.map((item: any) => ({
-            product_id: item.product_id,
-            uom_id: item.uom_id ?? fallbackUomId.value,
-            rate: parseFloat(item.rate || 0),
-            actual_quantity: parseFloat(item.actual_quantity || 0),
-            cross_quantity: parseFloat(item.cross_quantity || 0),
-            variation_quantity: parseFloat(item.variation_quantity || 0)
-          }))
-        : [blankItem()] as any[]
+    partner_id: null as number | null,
+    design_name: '',
+    design_code: '',
+    design_type: '',
+    unit_id: fallbackUomId.value,
+    rate_per_qty: 0,
+    items: [blankItem()] as any[]
 });
 
 const addItem = () => form.items.push(blankItem());
@@ -79,8 +72,8 @@ const handleGradeChange = async () => {
         if (response.data.items?.length > 0) {
             form.items = response.data.items.map((item: any) => ({
                 product_id: item.product_id,
-                uom_id: item.uom_id ?? fallbackUomId.value,
-                actual_quantity: item.actual_quantity,
+                uom_id: item.uom_id ?? defaultKgsUomId.value,
+                actual_quantity: item.cross_quantity,
                 rate: item.rate,
                 cross_quantity: item.cross_quantity,
                 variation_quantity: 0
@@ -124,7 +117,7 @@ const submit = () => {
 
 <template>
     <div class="create-panel" :class="{ 'create-panel--open': isOpen }">
-        <button v-if="!initialDesign" class="create-panel__header" @click="toggle" type="button">
+        <button class="create-panel__header" @click="toggle" type="button">
             <div class="flex items-center gap-3">
                 <div class="create-panel__icon">
                     <BeakerIcon class="w-5 h-5 text-indigo-500" />
@@ -139,7 +132,7 @@ const submit = () => {
             </div>
         </button>
 
-        <div class="create-panel__body" v-show="initialDesign || isOpen">
+        <div class="create-panel__body" v-show="isOpen">
             <div class="grid grid-cols-12 gap-6 mb-8">
                 <div class="col-span-12 lg:col-span-4">
                     <div class="section-title"><VariableIcon class="w-3.5 h-3.5" /><span>Identification</span></div>
@@ -150,19 +143,15 @@ const submit = () => {
                         </div>
                         <BaseInput v-model="form.design_name" label="Design Name *" placeholder="e.g. M25 Standard Pump" :error="form.errors.design_name" />
                         <BaseInput v-model="form.design_code" label="Internal Code" placeholder="DM-001" :error="form.errors.design_code" />
-                        <div>
+                        <!-- <div>
                             <BaseSelect v-model="form.design_type" :options="typeOptions" optionLabel="label" optionValue="value" @change="handleGradeChange" filter placeholder="Concrete Grade" label="Concrete Grade" fluid />
-                        </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        </div> -->
+                        <!-- <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <BaseSelect v-model="form.unit_id" :options="unitOptions" optionLabel="label" label="UOM"  optionValue="value" placeholder="Selling Unit" fluid />
                             </div>
                             <BaseInputNumber v-model="form.rate_per_qty" label="Rate per m³"  :minFractionDigits="2" placeholder="0.00" fluid />
-                        </div>
-                        <div class="flex items-center gap-3 pt-2">
-                            <ToggleSwitch v-model="form.is_active" />
-                            <span class="text-xs font-semibold text-slate-600">Active Status</span>
-                        </div>
+                        </div> -->
                     </div>
                 </div>
 
@@ -182,7 +171,7 @@ const submit = () => {
                                 <tr>
                                     <th>Material</th>
                                     <th class="w-24 text-center">UOM</th>
-                                    <th class="w-28 text-right">Target Qty</th>
+                                    <!-- <th class="w-28 text-right">Target Qty</th> -->
                                     <th class="w-28 text-right">Gross Qty</th>
                                     <!-- <th class="w-28 text-right">Rate</th>
                                     <th class="w-28 text-right">Total</th> -->
@@ -199,10 +188,10 @@ const submit = () => {
                                         <BaseSelect v-model="item.uom_id" :options="unitOptions" optionLabel="label" optionValue="value" placeholder="UOM" fluid />
                                         <small v-if="form.errors[`items.${index}.uom_id`]" class="err-msg">{{ form.errors[`items.${index}.uom_id`] }}</small>
                                     </td>
-                                    <td>
-                                        <BaseInputNumber v-model="item.actual_quantity" :readonly="item.actual_quantity === 0" placeholder="0.0000" fluid :inputClass="'text-right'" />
-                                        <small v-if="form.errors[`items.${index}.actual_quantity`]" class="err-msg text-right block">{{ form.errors[`items.${index}.actual_quantity`] }}</small>
-                                    </td>
+                                    <!-- <td>
+                                        <BaseInputNumber v-model="item.cross_quantity" :readonly="item.cross_quantity === 0" placeholder="0.0000" fluid :inputClass="'text-right'" />
+                                        <small v-if="form.errors[`items.${index}.cross_quantity`]" class="err-msg text-right block">{{ form.errors[`items.${index}.cross_quantity`] }}</small>
+                                    </td> -->
                                     <td>
                                         <BaseInputNumber v-model="item.cross_quantity" :minFractionDigits="3" placeholder="0.0000" fluid :inputClass="'text-right'" />
                                         <small v-if="form.errors[`items.${index}.cross_quantity`]" class="err-msg text-right block">{{ form.errors[`items.${index}.cross_quantity`] }}</small>
@@ -214,7 +203,7 @@ const submit = () => {
                                         ₹{{ ((item.cross_quantity || 0) * (item.rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
                                     </td> -->
                                     <td>
-                                        <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1" />
+                                        <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1" class="!text-red-400 hover:!text-red-600" />
                                     </td>
                                 </tr>
                             </tbody>
@@ -235,14 +224,7 @@ const submit = () => {
             
         </div>
         <div class="flex justify-end p-4 border-t border-slate-100">
-                <BaseFormActions 
-                    :label="initialDesign ? 'Duplicate Mix Design' : 'Save Mix Design'" 
-                    :cancelLabel="initialDesign ? 'Cancel' : 'Reset'"
-                    :loading="form.processing" 
-                    @submit="submit" 
-                    @cancel="initialDesign ? emit('cancel') : null"
-                    @reset="() => { if (!initialDesign) { form.reset(); form.items = [blankItem()]; } }" 
-                />
+                <BaseFormActions label="Save Mix Design" :loading="form.processing" @submit="submit" @reset="() => { form.reset(); form.items = [blankItem()]; }" />
             </div>
     </div>
 </template>

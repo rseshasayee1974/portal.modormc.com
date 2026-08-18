@@ -253,8 +253,8 @@ class CustomerPOController extends Controller
             'patron_id' => 'required|exists:mm_patrons,id',
             'site_id' => 'required|exists:mm_sites,id',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
-            'pump_type' => 'nullable|integer|exists:mm_machines,id',
-            'pump_rate' => 'nullable|numeric|min:0',
+            // 'pump_type' => 'nullable|integer|exists:mm_machines,id',
+            // 'pump_rate' => 'nullable|numeric|min:0',
             'is_tax_inclusive' => 'nullable|boolean',
             'order_date' => 'required|date',
             'status' => 'required|integer|in:0,1,2',
@@ -524,7 +524,8 @@ class CustomerPOController extends Controller
                 'items' => 'required|array',
                 'items.*.item_id' => 'required|exists:mm_customer_po_items,id',
                 'items.*.quantity' => 'required|numeric|min:0',
-                'items.*.pump_type' => 'nullable|integer|exists:mm_machines,id',
+                'items.*.concrete_pump' => 'nullable|string|max:50',
+                'items.*.pump_type' => 'nullable|string|max:50',
             ]);
             
             DB::transaction(function () use ($customerPO, $validated) {
@@ -552,7 +553,7 @@ class CustomerPOController extends Controller
                         'produced_qty' => 0,
                         'status' => SalesOrder::STATUS_SCHEDULED,
                         'customer_po_id' => $customerPO->id,
-                        'pump_type' => $itemData['pump_type'],
+                        'concrete_pump' => $itemData['concrete_pump'] ?? $itemData['pump_type'] ?? null,
                     ]);
                 }
 

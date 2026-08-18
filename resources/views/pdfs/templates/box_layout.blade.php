@@ -235,29 +235,39 @@
                         <td style="padding: 0;">
                             <table class="tax-table">
                                 @php
-                                    $cgstRate = ($item['tax_rate'] ?? 18) / 2;
-                                    $cgstAmt = ($item['tax_amount'] ?? 0) / 2;
+                                    $itemTaxRate = (float)($item['tax_rate'] ?? 18);
+                                    $itemTaxAmt = (float)($item['tax_amount'] ?? 0);
+                                    $taxGroup = strtoupper($item['tax_group'] ?? '');
+                                    $taxName = strtoupper($item['tax_name'] ?? '');
+                                    $isIgst = !empty($item['is_igst']) || $taxGroup === 'IGST' || str_contains($taxName, 'IGST');
                                 @endphp
-                                @if($pdfSettings['cgst'] ?? true)
-                                    <tr>
-                                        <td style="width: 40%;">CGST@ {{ $cgstRate }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ number_format($cgstRate, 2) }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ number_format($cgstAmt, 2) }}</td>
-                                    </tr>
-                                @endif
-                                @if($pdfSettings['sgst'] ?? true)
-                                    <tr>
-                                        <td style="width: 40%;">SGST@ {{ $cgstRate }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ number_format($cgstRate, 2) }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ number_format($cgstAmt, 2) }}</td>
-                                    </tr>
-                                @endif
-                                @if($pdfSettings['igst'] ?? false)
-                                    <tr>
-                                        <td style="width: 40%;">IGST@ {{ $item['tax_rate'] ?? 18 }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ number_format($item['tax_rate'] ?? 18, 2) }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ number_format($item['tax_amount'] ?? 0, 2) }}</td>
-                                    </tr>
+                                @if($isIgst)
+                                    @if(($pdfSettings['igst'] ?? true) !== false)
+                                        <tr>
+                                            <td style="width: 40%;">IGST@ {{ $itemTaxRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ number_format($itemTaxRate, 2) }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ number_format($itemTaxAmt, 2) }}</td>
+                                        </tr>
+                                    @endif
+                                @else
+                                    @php
+                                        $halfRate = $itemTaxRate / 2;
+                                        $halfAmt = $itemTaxAmt / 2;
+                                    @endphp
+                                    @if(($pdfSettings['cgst'] ?? true) !== false)
+                                        <tr>
+                                            <td style="width: 40%;">CGST@ {{ $halfRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ number_format($halfRate, 2) }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ number_format($halfAmt, 2) }}</td>
+                                        </tr>
+                                    @endif
+                                    @if(($pdfSettings['sgst'] ?? true) !== false)
+                                        <tr>
+                                            <td style="width: 40%;">SGST@ {{ $halfRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ number_format($halfRate, 2) }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ number_format($halfAmt, 2) }}</td>
+                                        </tr>
+                                    @endif
                                 @endif
                             </table>
                         </td>
@@ -272,20 +282,31 @@
     <table class="totals-table">
         <tr>
             <td style="width: 65%; border-right: 1px solid #000;">
-                @if($pdfSettings['total_words'] ?? true)
+                @if(($pdfSettings['total_words'] ?? true) !== false)
                     <div style="font-weight: bold; margin-bottom: 4px;">Amount in Words :</div>
                     @php
-                        $cgstAmt = ($data['totals']['tax_amount'] ?? 0) / 2;
-                        $cgstRate = ($data['items'][0]['tax_rate'] ?? 18) / 2;
+                        $totTaxAmt = (float)($data['totals']['tax_amount'] ?? array_sum(array_column($data['totals']['tax_lines'] ?? [], 'amount')));
+                        $firstItem = $data['items'][0] ?? [];
+                        $totTaxRate = (float)($firstItem['tax_rate'] ?? 18);
+                        $firstTaxGroup = strtoupper($firstItem['tax_group'] ?? '');
+                        $firstTaxName = strtoupper($firstItem['tax_name'] ?? '');
+                        $isGlobalIgst = !empty($firstItem['is_igst']) || $firstTaxGroup === 'IGST' || str_contains($firstTaxName, 'IGST');
                     @endphp
-                    @if($pdfSettings['cgst'] ?? true)
-                        <div>CGST@ {{ $cgstRate }}% Rs. {{ number_format($cgstAmt, 2) }}</div>
-                    @endif
-                    @if($pdfSettings['sgst'] ?? true)
-                        <div>SGST@ {{ $cgstRate }}% Rs. {{ number_format($cgstAmt, 2) }}</div>
-                    @endif
-                    @if($pdfSettings['igst'] ?? false)
-                        <div>IGST@ {{ $data['items'][0]['tax_rate'] ?? 18 }}% Rs. {{ number_format($data['totals']['tax_amount'] ?? 0, 2) }}</div>
+                    @if($isGlobalIgst)
+                        @if(($pdfSettings['igst'] ?? true) !== false)
+                            <div>IGST@ {{ $totTaxRate }}% Rs. {{ number_format($totTaxAmt, 2) }}</div>
+                        @endif
+                    @else
+                        @php
+                            $halfTotRate = $totTaxRate / 2;
+                            $halfTotAmt = $totTaxAmt / 2;
+                        @endphp
+                        @if(($pdfSettings['cgst'] ?? true) !== false)
+                            <div>CGST@ {{ $halfTotRate }}% Rs. {{ number_format($halfTotAmt, 2) }}</div>
+                        @endif
+                        @if(($pdfSettings['sgst'] ?? true) !== false)
+                            <div>SGST@ {{ $halfTotRate }}% Rs. {{ number_format($halfTotAmt, 2) }}</div>
+                        @endif
                     @endif
                     <div style="margin-top: 4px;">Grand Total <strong>{{ $data['meta']['total_words'] ?: 'Rs. ' . number_format($data['totals']['grand_total'], 2) . ' Only' }}</strong></div>
                 @endif
@@ -353,8 +374,17 @@
                 <td class="footer-sig-cust">
                     Customer Signature
                 </td>
-                <td class="footer-sig-auth">
-                    <div style="font-size: 8pt; margin-bottom: 25px;">For <strong>{{ strtoupper($data['company']['name']) }}</strong></div>
+                <td class="footer-sig-auth" style="position: relative;">
+                    @if (($pdfSettings['show_seal_signature'] ?? true) && !empty($data['company']['seal_sign_path']))
+                        @php
+                            $sealPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['seal_sign_path']), '/');
+                            $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false)) ? asset('storage/' . $sealPath) : public_path('storage/' . $sealPath);
+                        @endphp
+                        <div style="text-align: center; margin-bottom: -10px;">
+                            <img src="{{ $sealUrl }}" style="max-height: 55px; max-width: 110px; object-fit: contain;" />
+                        </div>
+                    @endif
+                    <div style="font-size: 8pt; margin-bottom: 20px;">For <strong>{{ strtoupper($data['company']['name']) }}</strong></div>
                     <div>Authorised Signatory</div>
                 </td>
             </tr>

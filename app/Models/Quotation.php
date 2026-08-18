@@ -27,8 +27,7 @@ class Quotation extends Model
         'notes',
         'site_id',
         'sales_executive_id',
-        'pump_type',
-        'pump_rate',
+        'concrete_pump',
         'is_tax_inclusive',
         'quote_date',
         'validity_date',
@@ -201,7 +200,7 @@ class Quotation extends Model
 
     public function concretePump()
     {
-        return $this->belongsTo(Machine::class, 'pump_type');
+        return $this->belongsTo(Machine::class, 'concrete_pump');
     }
 
     // Business Logic
