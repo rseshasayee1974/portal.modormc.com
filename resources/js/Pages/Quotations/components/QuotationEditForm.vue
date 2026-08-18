@@ -18,6 +18,7 @@ import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
+import { calculateLineItemTotals } from '@/composables/useLineItemCalculation';
 
 interface QuotationItemPayload {
     id?: number | null;
@@ -31,7 +32,10 @@ interface QuotationItemPayload {
     amount_total: number;
     concrete_pump?: number | string | null;
     pump_rate?: number;
+<<<<<<< HEAD
     pump_rates: { concrete_pump: string | number; pump_rate: number }[];
+=======
+>>>>>>> refs/remotes/origin/main
 }
 
 const props = defineProps<{
@@ -52,7 +56,6 @@ const emit = defineEmits<{
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
-const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
 
 
 
@@ -100,7 +103,6 @@ const form = useForm({
     amount_tax: Number(props.quotation.tax_amount || 0),
     amount_total: Number(props.quotation.amount_total || 0),
     items: (props.quotation.items || []).map((item: any) => {
-        const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
         return {
             id: item.id ?? null,
             mix_design_id: item.mix_design_id ?? null,
@@ -111,9 +113,14 @@ const form = useForm({
             tax_amount: Number(item.tax_amount || 0),
             untaxed_amount: Number(item.untaxed_amount || 0),
             amount_total: Number(item.amount_total || 0),
+<<<<<<< HEAD
             concrete_pump: item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : null),
             pump_rate: item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : 0),
             pump_rates: [],
+=======
+            concrete_pump: item.concrete_pump ?? null,
+            pump_rate: Number(item.pump_rate || 0),
+>>>>>>> refs/remotes/origin/main
         };
     }) as QuotationItemPayload[],
 });
@@ -237,54 +244,23 @@ const calculateTotals = () => {
     let totalTax = 0;
 
     form.items.forEach(item => {
-        const rate = Number(item.rate || 0);
-        const qty = Number(item.quantity || 0);
-        const pumpRate = Number(item.pump_rate || 0);
-
-        // Pump charge: flat rate when enabled, per-m³ when disabled
-        const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
-
         const tax = props.taxes.find(t => t.id === item.tax_id);
         const taxRate = tax ? Number(tax.tax_rate ?? tax.rate ?? 0) : 0;
 
-        let untaxed = 0;
-        let lineTax = 0;
-        let lineTotal = 0;
+        const res = calculateLineItemTotals({
+            quantity: Number(item.quantity || 0),
+            rate: Number(item.rate || 0),
+            pump_rate: Number(item.pump_rate || 0),
+            taxRate,
+            isTaxInclusive: Boolean(form.is_tax_inclusive),
+        });
 
-        if (addPouringRatesToTotal) {
-            // Flat rate mode: Tax is calculated only on (qty * rate). Pump rate is added directly to total afterwards without tax.
-            if (form.is_tax_inclusive) {
-                const materialTotal = rate * qty;
-                const materialTax = materialTotal - (materialTotal / (1 + taxRate / 100));
-                lineTax = materialTax;
-                untaxed = (materialTotal - materialTax) + pumpCharge;
-                lineTotal = materialTotal + pumpCharge;
-            } else {
-                const materialUntaxed = rate * qty;
-                const materialTax = (materialUntaxed * taxRate) / 100;
-                lineTax = materialTax;
-                untaxed = materialUntaxed + pumpCharge;
-                lineTotal = materialUntaxed + materialTax + pumpCharge;
-            }
-        } else {
-            // Per m³ mode: Pump charge is taxed alongside the mix rate.
-            if (form.is_tax_inclusive) {
-                lineTotal = rate * qty + pumpCharge;
-                lineTax = lineTotal - (lineTotal / (1 + taxRate / 100));
-                untaxed = lineTotal - lineTax;
-            } else {
-                untaxed = rate * qty + pumpCharge;
-                lineTax = (untaxed * taxRate) / 100;
-                lineTotal = untaxed + lineTax;
-            }
-        }
+        item.untaxed_amount = res.untaxedAmount;
+        item.tax_amount = res.taxAmount;
+        item.amount_total = res.amountTotal;
 
-        item.untaxed_amount = Number(untaxed.toFixed(2));
-        item.tax_amount = Number(lineTax.toFixed(2));
-        item.amount_total = Number(lineTotal.toFixed(2));
-
-        totalUntaxed += untaxed;
-        totalTax += lineTax;
+        totalUntaxed += res.materialUntaxed + res.pumpCharge;
+        totalTax += res.materialTax;
     });
 
     form.amount_untaxed = Number(totalUntaxed.toFixed(2));
@@ -335,7 +311,6 @@ function createNewItem(): QuotationItemPayload {
         amount_total: 0,
         concrete_pump: null,
         pump_rate: 0,
-        pump_rates: [],
     };
 }
 
@@ -390,9 +365,12 @@ const submit = () => {
             ...item,
             concrete_pump: item.concrete_pump ?? null,
             pump_rate: Number(item.pump_rate || 0),
+<<<<<<< HEAD
             pump_rates: item.concrete_pump 
                 ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
                 : []
+=======
+>>>>>>> refs/remotes/origin/main
         }))
     })).put(route('quotations.update', props.quotation.id), {
         preserveScroll: true,

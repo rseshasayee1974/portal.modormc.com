@@ -47,7 +47,6 @@ class UpdateQuotationRequest extends FormRequest
             'is_tax_inclusive' => 'nullable|boolean',
             'site_id' => 'nullable|exists:mm_sites,id',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
-            'concrete_pump' => 'nullable|integer|exists:mm_machines,id',
             'pump_rate' => 'nullable|numeric|min:0',
             'quote_date' => 'required|date',
             'validity_date' => 'nullable|date',
@@ -68,8 +67,13 @@ class UpdateQuotationRequest extends FormRequest
             'items.*.untaxed_amount' => 'nullable|numeric',
             'items.*.tax_amount' => 'nullable|numeric',
             'items.*.amount_total' => 'nullable|numeric',
+<<<<<<< HEAD
             'items.*.concrete_pump' => 'nullable|string|max:100',
             'items.*.pump_rate' => 'nullable|numeric|min:0'
+=======
+            'items.*.concrete_pump' => 'nullable',
+            'items.*.pump_rate' => 'nullable|numeric|min:0',
+>>>>>>> refs/remotes/origin/main
         ];
     }
 }

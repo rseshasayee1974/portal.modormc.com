@@ -38,7 +38,6 @@ const form = useForm({
         newweight:         props.batchingSettings?.newweight == 1,
         manual_weight:     props.batchingSettings?.manual_weight == 1,
         with_inventory:        props.batchingSettings?.with_inventory !== undefined ? (props.batchingSettings?.with_inventory == 1 || props.batchingSettings?.with_inventory === true || props.batchingSettings?.with_inventory === "true") : true,
-        InvoiceInMetricTon:props.batchingSettings?.InvoiceInMetricTon == 1,
         camera:            props.batchingSettings?.camera == 1,
         camera_url:        props.batchingSettings?.camera_url  || '',
         camera_url_1:      props.batchingSettings?.camera_url_1 || '',
@@ -53,7 +52,6 @@ const form = useForm({
         target_to_actual:  props.batchingSettings?.target_to_actual == 1,
         default_transport: props.batchingSettings?.default_transport || '',
         quote_validity:    props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
-        add_pouring_rates_to_total: props.batchingSettings?.add_pouring_rates_to_total == 1,
 
         custom_params:     props.batchingSettings?.custom_params || [],
     }
@@ -77,7 +75,6 @@ const settingRows = computed(() => [
     // Weighbridge
     { section: 'Weighbridge', key: 'newweight',          label: 'Local API Proxy (V2)',            value: form.settings.newweight,           type: 'bool' },
     { section: 'Weighbridge', key: 'manual_weight',      label: 'Manual Weight Entry',             value: form.settings.manual_weight,        type: 'bool' },
-    { section: 'Weighbridge', key: 'InvoiceInMetricTon', label: 'Invoice In Metric Ton',           value: form.settings.InvoiceInMetricTon,   type: 'bool' },
     { section: 'Weighbridge', key: 'with_inventory',         label: 'Stock Deduction',                 value: form.settings.with_inventory,           type: 'bool' },
     // Camera
     { section: 'Camera',      key: 'camera',             label: 'Enable Snapshots',               value: form.settings.camera,              type: 'bool' },
@@ -90,7 +87,6 @@ const settingRows = computed(() => [
     { section: 'Batch Sheet', key: 'target_to_actual',   label: 'One-Click Target to Actual',     value: form.settings.target_to_actual,    type: 'bool' },
     { section: 'Defaults',    key: 'default_transport',  label: 'Default Transporter Name',        value: form.settings.default_transport,   type: 'text' },
     { section: 'Defaults',    key: 'quote_validity',     label: 'Quotation Validity (Days)',       value: form.settings.quote_validity,      type: 'text' },
-    { section: 'Defaults',    key: 'add_pouring_rates_to_total', label: 'Flat Rate Additional Operation Charges', value: form.settings.add_pouring_rates_to_total, type: 'bool' },
     // Appearance
     { section: 'Appearance',  key: 'loader_gif',         label: 'Custom Global Loader (GIF URL)', value: form.settings.loader_gif,          type: 'text' },
     // Document Prefixes
@@ -115,14 +111,12 @@ const submit = () => {
         newweight:          form.settings.newweight          ? 1 : 0,
         manual_weight:      form.settings.manual_weight      ? 1 : 0,
         with_inventory:         form.settings.with_inventory         ? 1 : 0,
-        InvoiceInMetricTon: form.settings.InvoiceInMetricTon ? 1 : 0,
         camera:             form.settings.camera             ? 1 : 0,
         sheet_upload:       form.settings.sheet_upload       ? 1 : 0,
         hide_batch_form:    form.settings.hide_batch_form    ? 1 : 0,
         target_to_actual:   form.settings.target_to_actual   ? 1 : 0,
         quote_validity:     form.settings.quote_validity     ? parseInt(form.settings.quote_validity as any, 10) : 15,
         material_print_mode: form.settings.material_print_mode || 'run',
-        add_pouring_rates_to_total: form.settings.add_pouring_rates_to_total ? 1 : 0,
     };
 
     form.transform((data) => ({ ...data, settings: payload }))
@@ -334,7 +328,7 @@ const deleteModule = (id: number) => {
                             <div class="flex items-center gap-2">
                                 <div class="p-1.5 bg-emerald-100 rounded-lg"><ScaleIcon class="w-4 h-4 text-emerald-600" /></div>
                                 <span class="text-sm font-bold text-slate-700">Weighbridge Configuration</span>
-                                <span v-if="form.settings.newweight || form.settings.manual_weight || form.settings.InvoiceInMetricTon"
+                                <span v-if="form.settings.newweight || form.settings.manual_weight"
                                     class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
                             </div>
                             <ChevronDownIcon v-if="!expanded.weighbridge" class="w-4 h-4 text-slate-400" />
@@ -358,13 +352,7 @@ const deleteModule = (id: number) => {
                                 <InputSwitch v-model="form.settings.manual_weight" />
                             </div>
 
-                            <div class="flex items-center justify-between p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                                <div>
-                                    <h4 class="font-bold text-indigo-700 text-sm">Invoice In Metric Ton <code class="text-[9px] text-indigo-400 ml-1 font-normal">[InvoiceInMetricTon]</code></h4>
-                                    <p class="text-xs text-indigo-500 mt-0.5">Calculate invoice based on Batch Size (m³) instead of Net Weight</p>
-                                </div>
-                                <InputSwitch v-model="form.settings.InvoiceInMetricTon" />
-                            </div>
+
 
                             <div class="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                                 <div>
@@ -581,35 +569,7 @@ const deleteModule = (id: number) => {
                         </div>
                     </div>
 
-                    <!-- Pouring & Pump Settings -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                        <button type="button"
-                            class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-amber-50/30 transition-colors"
-                            @click="toggle('pouring_settings')">
-                            <div class="flex items-center gap-2">
-                                <div class="p-1.5 bg-amber-100 rounded-lg"><Cog6ToothIcon class="w-4 h-4 text-amber-600" /></div>
-                                <span class="text-sm font-bold text-slate-700">Pouring &amp; Concrete Pump Settings</span>
-                                <span v-if="form.settings.add_pouring_rates_to_total"
-                                    class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
-                            </div>
-                            <ChevronDownIcon v-if="!expanded.pouring_settings" class="w-4 h-4 text-slate-400" />
-                            <ChevronUpIcon   v-else                       class="w-4 h-4 text-slate-400" />
-                        </button>
 
-                        <div v-if="expanded.pouring_settings" class="p-6 space-y-4 animate-fade-in">
-                            <!-- add_pouring_rates_to_total -->
-                            <div class="flex items-center justify-between p-4 bg-amber-50 rounded-xl border border-amber-100">
-                                <div>
-                                    <h4 class="font-bold text-amber-700 text-sm">Add Pump Charges to Total <code class="text-[9px] text-amber-400 ml-1 font-normal">[add_pouring_rates_to_total]</code></h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">
-                                        <span class="font-semibold text-slate-600">OFF (per m³)</span> — Pump rate is taxable. Total = Quantity × (Rate + Pump Rate) + Tax calculated on that total.<br/>
-                                        <span class="font-semibold text-amber-600">ON (Flat Rate)</span> — Pump rate is a flat/lump-sum charge added post-tax. Total = (Quantity × Rate) + Tax calculated on material + Flat Pump Rate.
-                                    </p>
-                                </div>
-                                <InputSwitch v-model="form.settings.add_pouring_rates_to_total" />
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- Document Prefixes -->
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">

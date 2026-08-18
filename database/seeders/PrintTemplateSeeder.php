@@ -71,6 +71,13 @@ class PrintTemplateSeeder extends Seeder
 
             // GST / Tax invoices
             [
+                'name'      => 'Tax Invoice',
+                'key'       => 'box_layout',
+                'category'  => 'gst',
+                'is_system' => true,
+                'mm_config' => json_encode(['primary_color' => '#1e293b', 'font' => 'Inter', 'description' => 'Exact 3-block bordered tax invoice format with plant & company details.']),
+            ],
+            [
                 'name'      => 'Indian GST',
                 'key'       => 'indian_gst',
                 'category'  => 'gst',

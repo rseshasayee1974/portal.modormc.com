@@ -126,9 +126,7 @@ watch(() => form.empty_time, (newVal) => {
     }
 });
 
-const isMetricTon = computed(() => {
-    return customSettings?.batching?.InvoiceInMetricTon == 1;
-});
+
 
 const selectedSalesOrder = computed(() => {
     if (!form.sales_order_id) return null;
@@ -703,7 +701,7 @@ const submit = () => {
                         </div>
                     </div>
                     <div>
-                        <BaseDatePicker v-model="form.empty_time" label="Empty Time" showTime hourFormat="24" fluid :required="isMetricTon" :error="form.errors.empty_time" />
+                        <BaseDatePicker v-model="form.empty_time" label="Empty Time" showTime hourFormat="24" fluid :error="form.errors.empty_time" />
                     </div>
                     
                 </div>

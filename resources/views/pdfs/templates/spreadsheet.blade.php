@@ -120,7 +120,7 @@
                 <tr>
                     <th class="text-center" style="width:28px">#</th>
                     <th class="text-left">Item &amp; Description</th>
-                    @if (($pdfSettings['show_pump_charges'] ?? true) && !($data['totals']['add_pouring_rates_to_total'] ?? false))
+                    @if ($pdfSettings['show_pump_charges'] ?? true)
                         <th class="text-left" style="width:120px">Operation Type</th>
                         <th class="text-right" style="width:90px">Pump Charges</th>
                     @endif
@@ -154,7 +154,7 @@
                                 <div class="small muted">HSN: {{ $item['hsn'] }}</div>
                             @endif
                         </td>
-                        @if (($pdfSettings['show_pump_charges'] ?? true) && !($data['totals']['add_pouring_rates_to_total'] ?? false))
+                        @if ($pdfSettings['show_pump_charges'] ?? true)
                             <td class="text-left">{{ $item['operation_type'] ?? '-' }}</td>
                             <td class="text-right">{{ isset($item['pump_charge']) && $item['pump_charge'] > 0 ? number_format($item['pump_charge'], 2) : '-' }}</td>
                         @endif
@@ -267,7 +267,18 @@
             <strong>Bank Info:</strong> {{ $data['company']['bank']['bank_name'] }} &bull; <strong>A/C:</strong> {{ $data['company']['bank']['account_number'] }} &bull; <strong>IFSC:</strong> {{ $data['company']['bank']['ifsc_code'] }} &bull; <strong>Branch:</strong> {{ $data['company']['bank']['branch'] }}
         </div>
     @endif
-    <div style="text-align:right;padding:8px 14px;border-top:1px solid #ccc;font-size:10px;min-height:60px;color:#aaa">Authorized Signatory — {{ $data['company']['name'] }}</div>
+    <div style="text-align:right;padding:8px 14px;border-top:1px solid #ccc;font-size:10px;min-height:60px;color:#333">
+        @if (($pdfSettings['show_seal_signature'] ?? true) && !empty($data['company']['seal_sign_path']))
+            @php
+                $sealPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['seal_sign_path']), '/');
+                $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false)) ? asset('storage/' . $sealPath) : public_path('storage/' . $sealPath);
+            @endphp
+            <div style="margin-bottom: 2px;">
+                <img src="{{ $sealUrl }}" style="max-height: 50px; max-width: 100px; object-fit: contain;" />
+            </div>
+        @endif
+        Authorized Signatory — {{ $data['company']['name'] }}
+    </div>
     @include('pdfs.partials._footer')
 </div>
 </body>

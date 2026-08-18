@@ -15,7 +15,6 @@ class StoreBatchRequest extends FormRequest
     {
         $plantId = session('active_plant_id');
         $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
-        $isMetricTon = isset($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
 
         return [
             'sales_order_id' => ['required', 'integer', 'exists:mm_sales_orders,id'],

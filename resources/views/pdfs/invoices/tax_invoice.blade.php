@@ -611,7 +611,7 @@
 
     <!-- Web Print Actions Toolbar -->
     <div class="print-actions-bar">
-        <button class="print-btn" onclick="window.print()">🖨️ Print Invoice</button>
+        <button class="print-btn" onclick="window.print()">Print Invoice</button>
     </div>
 
     <div class="invoice-container">

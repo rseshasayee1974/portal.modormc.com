@@ -22,13 +22,13 @@ class CustomerPOController extends Controller
         $this->authorizeModule('menu');
         $plantId = session('active_plant_id');
 
-        $customerPOs = CustomerPO::with(['patron', 'site', 'items.mixDesign', 'items.pumpRates', 'quotation.items.mixDesign', 'quotation.items.pumpRates', 'converter:username,email,id,is_active,mobile', 'salesOrders', 'salesExecutive'])
+        $customerPOs = CustomerPO::with(['patron', 'site', 'items.mixDesign', 'quotation.items.mixDesign', 'converter:username,email,id,is_active,mobile', 'salesOrders', 'salesExecutive'])
             ->where('plant_id', $plantId)
             ->latest()
             ->get();
 
         $sites = SitesDropdown();
-        $quotations = Quotation::with(['items.mixDesign', 'items.pumpRates'])
+        $quotations = Quotation::with(['items.mixDesign'])
             ->select('id', 'reference', 'amount_total', 'patron_id', 'site_id', 'is_customer_po', 'sales_executive_id')
             ->where('plant_id', $plantId)
             ->where('is_customer_po', 0)
@@ -69,22 +69,31 @@ class CustomerPOController extends Controller
             'quantity' => 'nullable|numeric|min:0.001',
             'rate' => 'nullable|numeric|min:0',
             'tax_id' => 'nullable|exists:mm_taxes,id',
+<<<<<<< HEAD
             'concrete_pump' => 'nullable|string|max:100',
             'pump_rate' => 'nullable|numeric|min:0',
             'pump_rates' => 'nullable|array',
             'pump_rates.*.concrete_pump' => 'nullable|max:100',
             'pump_rates.*.pump_rate' => 'nullable|numeric|min:0',
+=======
+            'tax_amount' => 'nullable|numeric|min:0',
+>>>>>>> refs/remotes/origin/main
             'items' => 'nullable|array',
             'items.*.mix_design_id' => 'required_without:quotation_id|exists:mm_mix_designs,id',
             'items.*.quantity' => 'required_without:quotation_id|numeric|min:0.001',
             'items.*.rate' => 'required_without:quotation_id|numeric|min:0',
             'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
+<<<<<<< HEAD
             'items.*.tax_amount' => 'nullable|numeric|min:0',
             'items.*.concrete_pump' => 'nullable|string|max:100',
             'items.*.pump_rate' => 'nullable|numeric|min:0',
             'items.*.pump_rates' => 'nullable|array',
             'items.*.pump_rates.*.concrete_pump' => 'nullable|max:100',
             'items.*.pump_rates.*.pump_rate' => 'nullable|numeric|min:0',
+=======
+            'items.*.concrete_pump' => 'nullable',
+            'items.*.pump_rate' => 'nullable|numeric|min:0',
+>>>>>>> refs/remotes/origin/main
         ]);
 
         $formattedDate = \Carbon\Carbon::parse($validated['order_date'])->format('Y-m-d');
@@ -152,8 +161,6 @@ class CustomerPOController extends Controller
                 'site_id' => $validated['site_id'],
                 'notes' => $validated['notes'] ?? null,
                 'sales_executive_id' => $validated['sales_executive_id'] ?? ($quote?->sales_executive_id ?? null),
-                'concrete_pump' => $validated['concrete_pump'] ?? ($quote?->concrete_pump ?? null),
-                'pump_rate' => $validated['pump_rate'] ?? ($quote?->pump_rate ?? 0),
                 'is_tax_inclusive' => $isTaxInclusive,
                 'order_date' => $validated['order_date'],
                 'status' => $validated['status'],
@@ -165,6 +172,9 @@ class CustomerPOController extends Controller
                 $addPouringRatesToTotal = !empty($batchSettings['add_pouring_rates_to_total']) && (int)$batchSettings['add_pouring_rates_to_total'] === 1;
 
                 foreach ($items as $item) {
+                    if (empty($item['mix_design_id'])) {
+                        continue;
+                    }
                     $qty = (float)($item['quantity'] ?? 0);
                     $rate = (float)($item['rate'] ?? 0);
                     $pumpRate = (float)($item['pump_rate'] ?? 0);
@@ -188,7 +198,7 @@ class CustomerPOController extends Controller
                         $amountTotal = $untaxedAmount + $taxAmount;
                     }
 
-                    $customerPO->items()->create([
+                    $cpoItem = $customerPO->items()->create([
                         'mix_design_id' => $item['mix_design_id'],
                         'quantity' => $qty,
                         'rate' => $rate,
@@ -196,19 +206,19 @@ class CustomerPOController extends Controller
                         'tax_amount' => round($taxAmount, 2),
                         'untaxed_amount' => round($untaxedAmount, 2),
                         'amount_total' => round($amountTotal, 2),
+<<<<<<< HEAD
                         'concrete_pump' => $concretePump,
                         'pump_rate' => $pumpRate,
+=======
+                        'concrete_pump' => $item['concrete_pump'] ?? null,
+                        'pump_rate' => $item['pump_rate'] ?? 0,
+>>>>>>> refs/remotes/origin/main
                     ]);
-                    // Sync pump rates if provided
-                    $createdItem = $customerPO->items()->latest('id')->first();
-                    if ($createdItem && !empty($item['pump_rates'])) {
-                        $createdItem->syncPumpRates($item['pump_rates']);
-                    }
                 }
             } else {
-                $customerPO->load('quotation.items.pumpRates');
+                $customerPO->load('quotation.items');
                 foreach ($customerPO->quotation->items as $item) {
-                    $createdItem = $customerPO->items()->create([
+                    $customerPO->items()->create([
                         'mix_design_id' => $item->mix_design_id,
                         'quantity' => $item->quantity,
                         'rate' => $item->rate,
@@ -216,15 +226,9 @@ class CustomerPOController extends Controller
                         'tax_amount' => $item->tax_amount,
                         'untaxed_amount' => $item->untaxed_amount,
                         'amount_total' => $item->amount_total,
+                        'concrete_pump' => $item->concrete_pump,
+                        'pump_rate' => $item->pump_rate,
                     ]);
-                    // Carry pump rates from quotation item → CPO item
-                    $sourcePumpRates = $item->pumpRates->map(fn($pr) => [
-                        'concrete_pump' => $pr->concrete_pump,
-                        'pump_rate' => $pr->pump_rate,
-                    ])->toArray();
-                    if (!empty($sourcePumpRates)) {
-                        $createdItem->syncPumpRates($sourcePumpRates);
-                    }
                 }
             }
         });
@@ -283,12 +287,17 @@ class CustomerPOController extends Controller
             'items.*.quantity' => 'required_without:quotation_id|numeric|min:0.001',
             'items.*.rate' => 'required_without:quotation_id|numeric|min:0',
             'items.*.tax_id' => 'nullable|exists:mm_taxes,id',
+<<<<<<< HEAD
             'items.*.tax_amount' => 'nullable|numeric|min:0',
             'items.*.concrete_pump' => 'nullable|string|max:100',
             'items.*.pump_rate' => 'nullable|numeric|min:0',
             'items.*.pump_rates' => 'nullable|array',
             'items.*.pump_rates.*.concrete_pump' => 'nullable|max:100',
             'items.*.pump_rates.*.pump_rate' => 'nullable|numeric|min:0',
+=======
+            'items.*.concrete_pump' => 'nullable',
+            'items.*.pump_rate' => 'nullable|numeric|min:0',
+>>>>>>> refs/remotes/origin/main
         ]);
 
         $formattedDate = \Carbon\Carbon::parse($validated['order_date'])->format('Y-m-d');
@@ -354,8 +363,6 @@ class CustomerPOController extends Controller
                     'site_id' => $validated['site_id'],
                     'notes' => $validated['notes'] ?? null,
                     'sales_executive_id' => $validated['sales_executive_id'] ?? null,
-                    'concrete_pump' => $validated['concrete_pump'] ?? null,
-                    'pump_rate' => $validated['pump_rate'] ?? 0,
                     'is_tax_inclusive' => $isTaxInclusive,
                     'order_date' => $validated['order_date'],
                     'status' => $validated['status'],
@@ -402,24 +409,24 @@ class CustomerPOController extends Controller
                         'tax_amount' => round($taxAmount, 2),
                         'untaxed_amount' => round($untaxedAmount, 2),
                         'amount_total' => round($amountTotal, 2),
+<<<<<<< HEAD
                         'concrete_pump' => $concretePump,
                         'pump_rate' => $pumpRate,
+=======
+                        'concrete_pump' => $item['concrete_pump'] ?? null,
+                        'pump_rate' => $item['pump_rate'] ?? 0,
+>>>>>>> refs/remotes/origin/main
                     ];
 
                     if (!empty($item['id'])) {
                         $existingItem = $customerPO->items()->find($item['id']);
                         if ($existingItem) {
                             $existingItem->update($itemData);
-                            $createdItem = $existingItem;
                         } else {
-                            $createdItem = $customerPO->items()->create($itemData);
+                            $customerPO->items()->create($itemData);
                         }
                     } else {
-                        $createdItem = $customerPO->items()->create($itemData);
-                    }
-
-                    if ($createdItem && !empty($item['pump_rates'])) {
-                        $createdItem->syncPumpRates($item['pump_rates']);
+                        $customerPO->items()->create($itemData);
                     }
                 }
             } else {
@@ -547,8 +554,7 @@ class CustomerPOController extends Controller
                 'items' => 'required|array',
                 'items.*.item_id' => 'required|exists:mm_customer_po_items,id',
                 'items.*.quantity' => 'required|numeric|min:0',
-                'items.*.concrete_pump' => 'nullable|string|max:50',
-                'items.*.concrete_pump' => 'nullable|string|max:50',
+                'items.*.concrete_pump' => 'nullable',
             ]);
             
             DB::transaction(function () use ($customerPO, $validated) {
@@ -565,6 +571,9 @@ class CustomerPOController extends Controller
                     if (!$poItem) continue;
 
                     $details = SalesOrder::generateOrderNo($customerPO->plant_id, 'SO');
+                    $pumpRateVal = $poItem->pump_rate ?? 0;
+                    $concretePumpVal = $itemData['concrete_pump'] ?? $poItem->concrete_pump;
+
                     SalesOrder::create([
                         'prefix' => $details['prefix'],
                         'order_no' => $details['next_number'],
@@ -574,9 +583,14 @@ class CustomerPOController extends Controller
                         'mix_design_id' => $poItem->mix_design_id,
                         'total_qty' => $itemData['quantity'],
                         'produced_qty' => 0,
+                        'rate' => $poItem->rate,
+                        'tax_id' => $poItem->tax_id,
+                        'is_tax_inclusive' => $customerPO->is_tax_inclusive,
+                        'sales_executive_id' => $customerPO->sales_executive_id,
                         'status' => SalesOrder::STATUS_SCHEDULED,
                         'customer_po_id' => $customerPO->id,
-                        'concrete_pump' => $itemData['concrete_pump'] ?? $itemData['concrete_pump'] ?? null,
+                        'concrete_pump' => $concretePumpVal,
+                        'pump_rate' => $pumpRateVal,
                     ]);
                 }
 
@@ -600,6 +614,10 @@ class CustomerPOController extends Controller
 
                 foreach ($customerPO->items as $item) {
                     $details = SalesOrder::generateOrderNo($customerPO->plant_id, 'SO');
+                    $pumpRateRecord = $item->pumpRates()->first();
+                    $pumpRateVal = $item->pump_rate ?: ($pumpRateRecord?->pump_rate ?? 0);
+                    $concretePumpVal = $item->concrete_pump ?? $pumpRateRecord?->concrete_pump;
+
                     SalesOrder::create([
                         'prefix' => $details['prefix'],
                         'order_no' => $details['next_number'],
@@ -609,8 +627,14 @@ class CustomerPOController extends Controller
                         'mix_design_id' => $item->mix_design_id,
                         'total_qty' => $validated['quantity'],
                         'produced_qty' => 0,
+                        'rate' => $item->rate,
+                        'tax_id' => $item->tax_id,
+                        'is_tax_inclusive' => $customerPO->is_tax_inclusive,
+                        'sales_executive_id' => $customerPO->sales_executive_id,
                         'status' => SalesOrder::STATUS_SCHEDULED,
                         'customer_po_id' => $customerPO->id,
+                        'concrete_pump' => $concretePumpVal,
+                        'pump_rate' => $pumpRateVal,
                     ]);
                 }
 

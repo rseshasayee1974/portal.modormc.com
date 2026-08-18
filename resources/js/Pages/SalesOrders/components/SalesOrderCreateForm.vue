@@ -2,6 +2,7 @@
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
 import axios from 'axios';
+import { calculateLineItemTotals } from '@/composables/useLineItemCalculation';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import Button from 'primevue/button';
@@ -150,6 +151,7 @@ const taxOptions = computed(() => {
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
+<<<<<<< HEAD
 const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
 
 
@@ -159,6 +161,8 @@ const subtotal = computed(() => {
     const rate = Number(form.rate || 0);
     return qty * rate;
 });
+=======
+>>>>>>> refs/remotes/origin/main
 
 const selectedTaxRate = computed(() => {
     if (!form.tax_id || !props.taxes?.length) return 0;
@@ -166,24 +170,19 @@ const selectedTaxRate = computed(() => {
     return tax ? Number(tax.tax_rate || 0) : 0;
 });
 
-const taxAmount = computed(() => {
-    const taxRate = selectedTaxRate.value;
-    if (!taxRate) return 0;
-
-    if (form.is_tax_inclusive) {
-        return subtotal.value - (subtotal.value / (1 + taxRate / 100));
-    } else {
-        return subtotal.value * (taxRate / 100);
-    }
+const lineCalc = computed(() => {
+    return calculateLineItemTotals({
+        quantity: Number(form.total_qty || 0),
+        rate: Number(form.rate || 0),
+        pump_rate: Number(form.pump_rate || 0),
+        taxRate: selectedTaxRate.value,
+        isTaxInclusive: Boolean(form.is_tax_inclusive),
+    });
 });
 
-const estimatedTotal = computed(() => {
-    if (form.is_tax_inclusive) {
-        return subtotal.value;
-    } else {
-        return subtotal.value + taxAmount.value;
-    }
-});
+const subtotal = computed(() => lineCalc.value.untaxedAmount);
+const taxAmount = computed(() => lineCalc.value.taxAmount);
+const estimatedTotal = computed(() => lineCalc.value.amountTotal);
 
 watch(() => form.customer_po_id, (newVal) => {
     if (newVal) {
@@ -215,6 +214,75 @@ watch(() => form.customer_po_id, (newVal) => {
     }
 });
 
+<<<<<<< HEAD
+=======
+const resolvePumpRatesLocally = (customerId: number | null, siteId: number | null) => {
+    const activeRates = props.pumpRates || [];
+    const scoredRates = activeRates.map(rate => {
+        let score = 0;
+        if (rate.customer_id !== null && Number(rate.customer_id) === Number(customerId)) {
+            if (siteId !== null && Number(rate.site_id) === Number(siteId)) {
+                score = 3;
+            } else if (rate.site_id === null || rate.site_id === undefined) {
+                score = 2;
+            }
+        } else if (rate.customer_id === null || rate.customer_id === undefined) {
+            score = 1;
+        }
+        return { ...rate, score };
+    }).filter(rate => rate.score > 0);
+
+    const resolved: Record<string, any> = {};
+    scoredRates.forEach(rate => {
+        const type = rate.concrete_pump;
+        if (!resolved[type] || resolved[type].score < rate.score) {
+            resolved[type] = rate;
+        }
+    });
+
+    return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
+};
+
+const resolveSinglePumpRate = (isDropdownChange = false) => {
+    const resolved = resolvePumpRatesLocally(form.customer_id, form.site_id);
+    if (form.concrete_pump) {
+        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(form.concrete_pump));
+        if (matched) {
+            if (isDropdownChange) {
+                form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
+            }
+        } else {
+            if (isDropdownChange) {
+                form.pump_rate = 0;
+            }
+        }
+    } else {
+        if (resolved.length > 0) {
+            const matched = resolved[0];
+            form.concrete_pump = matched.concrete_pump;
+            form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
+        } else {
+            form.concrete_pump = null;
+            form.pump_rate = 0;
+        }
+    }
+};
+
+watch(() => form.concrete_pump, () => {
+    resolveSinglePumpRate(true);
+});
+watch(() => form.customer_id, () => {
+    if (form.customer_po_id) return;
+    form.concrete_pump = null;
+    resolveSinglePumpRate(true);
+});
+watch(() => form.site_id, () => {
+    if (form.customer_po_id) return;
+    form.concrete_pump = null;
+    resolveSinglePumpRate(true);
+});
+
+>>>>>>> refs/remotes/origin/main
 const submit = () => {
     const formatLocalTime = (date: Date | any) => {
         if (!date) return null;

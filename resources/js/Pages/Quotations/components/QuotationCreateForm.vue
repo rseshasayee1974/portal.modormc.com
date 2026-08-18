@@ -22,6 +22,7 @@ import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import axios from 'axios';
+import { calculateLineItemTotals } from '@/composables/useLineItemCalculation';
 
 interface QuotationItemPayload {
     id?: number | null;
@@ -29,15 +30,12 @@ interface QuotationItemPayload {
     quantity: number;
     tax_id: number | null;
     rate: number;
-    uom_id: number | null, // Added
+    uom_id: number | null;
     notes: null | string;
-    // Calculated fields strictly for the new schema
-    // tax_amount: number;
     untaxed_amount: number;
     amount_total: number;
     concrete_pump: number | null;
     pump_rate: number;
-    pump_rates: { concrete_pump: string; pump_rate: number }[];
 }
 
 const props = withDefaults(defineProps<{
@@ -59,7 +57,6 @@ const isOpen = ref(true);
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
-const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
 
 const getDefaultValidityDate = (quoteDateStr: string) => {
     if (!quoteDateStr) return null;
@@ -117,7 +114,6 @@ function createNewItem(): QuotationItemPayload {
         amount_total: 0,
         concrete_pump: null,
         pump_rate: 0,
-        pump_rates: [],
     };
 }
 
@@ -173,56 +169,24 @@ const calculateTotals = () => {
     let totalTax = 0;
 
     form.items.forEach(item => {
-        const rate = Number(item.rate || 0);
-        const qty = Number(item.quantity || 0);
-        const pumpRate = Number(item.pump_rate || 0);
-
-        // Pump charge: flat rate when enabled, per-m³ when disabled
-        const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
-        
-        // Find line tax rate
         const tax = props.taxes.find(t => t.id === item.tax_id);
         const taxRate = tax ? Number(tax.tax_rate ?? tax.rate ?? 0) : 0;
 
-        let untaxed = 0;
-        let lineTax = 0;
-        let lineTotal = 0;
-
-        if (addPouringRatesToTotal) {
-            // Flat rate mode: Tax is calculated only on (qty * rate). Pump rate is added directly to total afterwards without tax.
-            if (form.is_tax_inclusive) {
-                const materialTotal = rate * qty;
-                const materialTax = materialTotal - (materialTotal / (1 + taxRate / 100));
-                lineTax = materialTax;
-                untaxed = (materialTotal - materialTax) + pumpCharge;
-                lineTotal = materialTotal + pumpCharge;
-            } else {
-                const materialUntaxed = rate * qty;
-                const materialTax = (materialUntaxed * taxRate) / 100;
-                lineTax = materialTax;
-                untaxed = materialUntaxed + pumpCharge;
-                lineTotal = materialUntaxed + materialTax + pumpCharge;
-            }
-        } else {
-            // Per m³ mode: Pump charge is taxed alongside the mix rate.
-            if (form.is_tax_inclusive) {
-                lineTotal = rate * qty + pumpCharge;
-                lineTax = lineTotal - (lineTotal / (1 + taxRate / 100));
-                untaxed = lineTotal - lineTax;
-            } else {
-                untaxed = rate * qty + pumpCharge;
-                lineTax = (untaxed * taxRate) / 100;
-                lineTotal = untaxed + lineTax;
-            }
-        }
+        const res = calculateLineItemTotals({
+            quantity: Number(item.quantity || 0),
+            rate: Number(item.rate || 0),
+            pump_rate: Number(item.pump_rate || 0),
+            taxRate,
+            isTaxInclusive: Boolean(form.is_tax_inclusive),
+        });
 
         // Update Item Internal State (for SQL Insertion)
-        item.untaxed_amount = Number(untaxed.toFixed(2));
-        item.tax_amount = Number(lineTax.toFixed(2));
-        item.amount_total = Number(lineTotal.toFixed(2));
+        item.untaxed_amount = res.untaxedAmount;
+        item.tax_amount = res.taxAmount;
+        item.amount_total = res.amountTotal;
 
-        totalUntaxed += untaxed;
-        totalTax += lineTax;
+        totalUntaxed += res.materialUntaxed + res.pumpCharge;
+        totalTax += res.materialTax;
     });
 
     form.amount_untaxed = Number(totalUntaxed.toFixed(2));
@@ -272,10 +236,10 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 };
 
 const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
-    // if (!item.mix_design_id) return;
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
     if (item.concrete_pump) {
+<<<<<<< HEAD
         const matched = resolved.find((r: any) => String(r.concrete_pump).toLowerCase() === String(item.concrete_pump).toLowerCase());
         if (matched) {
             if (isDropdownChange) {
@@ -286,15 +250,17 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
                 // item.concrete_pump = null;
                 item.pump_rate = 0;
             }
+=======
+        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(item.concrete_pump));
+        if (matched && isDropdownChange) {
+            item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
+>>>>>>> refs/remotes/origin/main
         }
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
             item.concrete_pump = matched.concrete_pump;
             item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
-        } else {
-            item.concrete_pump = null;
-            item.pump_rate = 0;
         }
     }
 };
@@ -549,9 +515,12 @@ const submit = () => {
             ...item,
             concrete_pump: item.concrete_pump ?? null,
             pump_rate: Number(item.pump_rate || 0),
+<<<<<<< HEAD
             pump_rates: item.concrete_pump 
                 ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
                 : []
+=======
+>>>>>>> refs/remotes/origin/main
         }))
     }))
     .post(route('quotations.store'), {

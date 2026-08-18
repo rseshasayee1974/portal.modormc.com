@@ -123,14 +123,6 @@
             line-height: 1.5;
         }
 
-        /* SUBJECT */
-        .subject-row {
-            padding: 4px 12px;
-            border-bottom: 1px solid #cbd5e1;
-            background: #fafafa;
-            font-size: 11px;
-        }
-
         /* ITEMS TABLE */
         .items-table {
             width: 100%;
@@ -207,16 +199,6 @@
         .bt-total-row {
             border-top: 1px solid #cbd5e1;
             border-bottom: 1px solid #cbd5e1;
-        }
-
-        .bt-balance-row {
-            background: #f1f5f9;
-        }
-
-        .bt-total-row td,
-        .bt-balance-row td {
-            padding-top: 5px !important;
-            padding-bottom: 5px !important;
         }
 
         .tow-label {
@@ -315,9 +297,6 @@
                 @endif
             </div>
             <div class="header-right">
-                {{-- @if ($pdfSettings['invoice_title'] || $data['doc_title'] ?? true)
-                    <div class="inv-title">{{ $data['doc_title'] }}</div>
-                @endif --}}
                 <div class="inv-title">{{ $data['doc_title'] }}</div>
                 <div class="inv-ref">
                     @if ($pdfSettings['invoice_number'] ?? true)
@@ -410,16 +389,13 @@
             </div>
         @endif
 
-        {{-- SUBJECT --}}
-        {{-- <div class="subject-row">&nbsp;&nbsp;Subject : {{ $data['meta']['project_name'] ?? 'Description' }}</div> --}}
-
         {{-- ITEMS --}}
         <table class="items-table">
             <thead>
                 <tr>
                     <th class="text-center" style="width:28px">#</th>
                     <th class="text-left">Item &amp; Description</th>
-                    @if (($pdfSettings['show_pump_charges'] ?? true) && !($data['totals']['add_pouring_rates_to_total'] ?? false))
+                    @if ($pdfSettings['show_pump_charges'] ?? true)
                         <th class="text-left" style="width:120px">Operation Type</th>
                         <th class="text-right" style="width:90px">Pump Charges</th>
                     @endif
@@ -453,7 +429,7 @@
                                 <div class="small muted">HSN: {{ $item['hsn'] }}</div>
                             @endif
                         </td>
-                        @if (($pdfSettings['show_pump_charges'] ?? true) && !($data['totals']['add_pouring_rates_to_total'] ?? false))
+                        @if ($pdfSettings['show_pump_charges'] ?? true)
                             <td class="text-left">{{ $item['operation_type'] ?? '-' }}</td>
                             <td class="text-right">{{ isset($item['pump_charge']) && $item['pump_charge'] > 0 ? number_format($item['pump_charge'], 2) : '-' }}</td>
                         @endif
@@ -571,12 +547,6 @@
                             {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['grand_total'], 2) }}
                         </td>
                     </tr>
-                    {{-- <tr class="bt-balance-row">
-                        <td class="bt-label bold">Balance Due</td>
-                        <td class="bt-val bold">
-                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['grand_total'], 2) }}
-                        </td>
-                    </tr> --}}
                 </table>
             </div>
         </div>

@@ -30,6 +30,39 @@ class PrintTemplateController extends Controller
         ]);
     }
 
+    public function create()
+    {
+        $this->authorizeModule('create');
+        return Inertia::render('TemplateManager/Create');
+    }
+
+    public function store(Request $request)
+    {
+        $this->authorizeModule('create');
+        $validated = $request->validate([
+            'name'        => 'required|string|max:255',
+            'key'         => 'required|string|max:100|unique:mm_print_templates,key',
+            'category'    => 'required|string',
+            'description' => 'nullable|string',
+            'primary_color' => 'nullable|string',
+            'font'        => 'nullable|string',
+        ]);
+
+        $template = PrintTemplate::create([
+            'name'       => $validated['name'],
+            'key'        => \Illuminate\Support\Str::slug($validated['key'], '_'),
+            'category'   => $validated['category'],
+            'is_system'  => false,
+            'mm_config'  => json_encode([
+                'primary_color' => $validated['primary_color'] ?? '#1e293b',
+                'font'          => $validated['font'] ?? 'Inter',
+                'description'   => $validated['description'] ?? '',
+            ]),
+        ]);
+
+        return redirect()->route('templates.index')->with('success', 'Template created successfully.');
+    }
+
     public function assign(Request $request)
     {
         $this->authorizeModule('edit');
@@ -148,7 +181,7 @@ class PrintTemplateController extends Controller
         $entityId = session('active_entity_id');
 
         // Delete any existing design-specific template settings for this module to clean up
-        $availableTemplates = ['standard', 'elite', 'modern', 'compact', 'indian_gst', 'spreadsheet', 'tallysheet', 'formal_gst', 'standard_indigo', 'minimalist_lite', 'delivery_challan_a4'];
+        $availableTemplates = ['standard', 'box_layout', 'elite', 'modern', 'compact', 'indian_gst', 'spreadsheet', 'tallysheet', 'formal_gst', 'standard_indigo', 'minimalist_lite', 'delivery_challan_a4'];
         foreach ($availableTemplates as $tKey) {
             \App\Models\CustomSetting::where('plant_id', $plantId)
                 ->where('module_name', $module . '_' . strtolower($tKey))
@@ -170,19 +203,26 @@ class PrintTemplateController extends Controller
         }
 
         if ($request->has('template_key') && !empty($request->template_key)) {
-            $tpl = PrintTemplate::where('key', $request->template_key)->first();
-            if ($tpl) {
-                PrintTemplateSetting::updateOrCreate(
-                    [
-                        'module_key' => strtolower($module),
-                        'plant_id'   => $plantId,
-                    ],
-                    [
-                        'entity_id'         => $entityId,
-                        'print_template_id' => $tpl->id,
-                    ]
-                );
-            }
+            $tpl = PrintTemplate::firstOrCreate(
+                ['key' => $request->template_key],
+                [
+                    'name'      => ucwords(str_replace('_', ' ', $request->template_key)),
+                    'category'  => 'gst',
+                    'is_system' => true,
+                    'mm_config' => json_encode(['primary_color' => '#1e293b', 'font' => 'Inter'])
+                ]
+            );
+            
+            PrintTemplateSetting::updateOrCreate(
+                [
+                    'module_key' => strtolower($module),
+                    'plant_id'   => $plantId,
+                ],
+                [
+                    'entity_id'         => $entityId,
+                    'print_template_id' => $tpl->id,
+                ]
+            );
         }
 
         // Audit log was removed
@@ -193,16 +233,16 @@ class PrintTemplateController extends Controller
     private function getPrintableModules()
     {
         return [
-            ['key' => 'invoices',           'name' => 'Invoices',           'templates' => ['standard', 'elite', 'modern', 'compact', 'indian_gst', 'standard_indigo', 'minimalist_lite', 'formal_gst']],
-            ['key' => 'sales_orders',       'name' => 'Sales Orders',       'templates' => ['standard', 'elite', 'modern', 'compact', 'indian_gst']],
-            ['key' => 'purchase_orders',    'name' => 'Purchase Orders',    'templates' => ['standard', 'elite', 'modern', 'spreadsheet', 'tallysheet', 'compact', 'indian_gst']],
-            ['key' => 'purchase_bills',     'name' => 'Purchase Bills',     'templates' => ['standard', 'elite', 'modern', 'compact', 'indian_gst']],
-            ['key' => 'quotations',         'name' => 'Quotations',         'templates' => ['standard', 'elite', 'modern', 'compact']],
-            ['key' => 'customer_pos',       'name' => 'Customer POs',       'templates' => ['standard', 'elite', 'modern', 'compact']],
-            ['key' => 'delivery_challans',  'name' => 'Delivery Challans',  'templates' => ['standard', 'elite', 'modern', 'compact', 'spreadsheet', 'delivery_challan_a4']],
-            ['key' => 'credit_notes',       'name' => 'Credit Notes',       'templates' => ['standard', 'elite']],
+            ['key' => 'invoices',           'name' => 'Invoices',           'templates' => ['standard', 'box_layout', 'elite', 'modern', 'compact', 'indian_gst', 'standard_indigo', 'minimalist_lite', 'formal_gst']],
+            ['key' => 'sales_orders',       'name' => 'Sales Orders',       'templates' => ['standard', 'box_layout', 'elite', 'modern', 'compact', 'indian_gst']],
+            ['key' => 'purchase_orders',    'name' => 'Purchase Orders',    'templates' => ['standard', 'box_layout', 'elite', 'modern', 'spreadsheet', 'tallysheet', 'compact', 'indian_gst']],
+            ['key' => 'purchase_bills',     'name' => 'Purchase Bills',     'templates' => ['standard', 'box_layout', 'elite', 'modern', 'compact', 'indian_gst']],
+            ['key' => 'quotations',         'name' => 'Quotations',         'templates' => ['standard', 'box_layout', 'elite', 'modern', 'compact']],
+            ['key' => 'customer_pos',       'name' => 'Customer POs',       'templates' => ['standard', 'box_layout', 'elite', 'modern', 'compact']],
+            ['key' => 'delivery_challans',  'name' => 'Delivery Challans',  'templates' => ['standard', 'box_layout', 'elite', 'modern', 'compact', 'spreadsheet', 'delivery_challan_a4']],
+            ['key' => 'credit_notes',       'name' => 'Credit Notes',       'templates' => ['standard', 'box_layout', 'elite']],
             ['key' => 'statements',         'name' => 'Account Statements', 'templates' => ['tallysheet']],
-            ['key' => 'gst_invoices',       'name' => 'GST Invoices',       'templates' => ['indian_gst', 'formal_gst']],
+            ['key' => 'gst_invoices',       'name' => 'GST Invoices',       'templates' => ['box_layout', 'indian_gst', 'formal_gst']],
         ];
     }
 

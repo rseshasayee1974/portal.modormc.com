@@ -29,52 +29,9 @@ class CustomerPOItem extends Model
         'deleted_by',
     ];
 
-    /**
-     * Sync pump rates for this CPO item.
-     */
-    public function syncPumpRates(array $pumpRates): void
-    {
-        $keepTypes = [];
-        foreach ($pumpRates as $pr) {
-            if (empty($pr['concrete_pump'])) continue;
-            $rate = (float)($pr['pump_rate'] ?? 0);
-            
-            if ($rate > 0) {
-            $keepTypes[] = $pr['concrete_pump'];
-            $this->pumpRates()->updateOrCreate(
-                ['concrete_pump' => $pr['concrete_pump']],
-                [
-                    'pump_rate' => $rate,
-                    'customer_po_id' => $this->customer_po_id,
-                ]
-            );
-        }
-        }
-        if (!empty($keepTypes)) {
-            $stale = $this->pumpRates()->whereNotIn('concrete_pump', $keepTypes)->get();
-            foreach ($stale as $item) {
-                $item->delete();
-            }
-        } else {
-            $stale = $this->pumpRates()->get();
-            foreach ($stale as $item) {
-                $item->delete();
-            }
-        }
-    }
-
     protected static function booted()
     {
-        static::deleting(function ($item) {
-            foreach ($item->pumpRates as $pr) {
-                $pr->delete();
-            }
-        });
-    }
-
-    public function pumpRates()
-    {
-        return $this->hasMany(CustomerPOItemPumpRate::class, 'customer_po_item_id');
+        //
     }
 
     public function customerPO()

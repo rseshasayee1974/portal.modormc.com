@@ -635,4 +635,54 @@ class CustomerPOTest extends TestCase
         $this->assertNull($item->pumpRates->where('concrete_pump', 'Pump B')->first());
         $this->assertEquals(150, $item->pumpRates->where('concrete_pump', 'Pump C')->first()->pump_rate);
     }
+
+    public function test_item_level_concrete_pump_and_sales_order_conversion()
+    {
+        $this->withoutExceptionHandling();
+        $mixDesign = \App\Models\MixDesign::factory()->create(['plant_id' => $this->plant->id]);
+        $machine = \App\Models\Machine::factory()->create(['plant_id' => $this->plant->id, 'vehicle_type' => 'Pump']);
+
+        // 1. Create a Customer PO with items having concrete_pump and pump_rate at item level
+        $response = $this->post(route('customer-po.store'), [
+            'patron_id' => $this->patron->id,
+            'site_id' => $this->site->id,
+            'order_date' => now()->format('Y-m-d'),
+            'status' => 1,
+            'converted_by_user_id' => $this->user->id,
+            'items' => [
+                [
+                    'mix_design_id' => $mixDesign->id,
+                    'quantity' => 20,
+                    'rate' => 450,
+                    'concrete_pump' => $machine->id,
+                    'pump_rate' => 150,
+                ]
+            ]
+        ]);
+
+        $response->assertStatus(302);
+        $customerPO = CustomerPO::latest('id')->first();
+        $this->assertNotNull($customerPO);
+        
+        $item = $customerPO->items->first();
+        $this->assertEquals($machine->id, $item->concrete_pump);
+        $this->assertEquals(150, $item->pump_rate);
+
+        // 2. Convert Customer PO item to Sales Order
+        $response = $this->post(route('customer-po.convert-salesorder', $customerPO->id), [
+            'items' => [
+                [
+                    'item_id' => $item->id,
+                    'quantity' => 10,
+                ]
+            ]
+        ]);
+
+        $response->assertStatus(302);
+        $salesOrder = SalesOrder::latest('id')->first();
+        $this->assertNotNull($salesOrder);
+        $this->assertEquals($customerPO->id, $salesOrder->customer_po_id);
+        $this->assertEquals($machine->id, $salesOrder->concrete_pump);
+        $this->assertEquals(150, $salesOrder->pump_rate);
+    }
 }

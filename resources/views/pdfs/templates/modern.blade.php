@@ -9,57 +9,50 @@
     <title>{{ $data['doc_title'] }} - {{ $data['doc_no'] }}</title>
     @include('pdfs.partials._common_styles')
     <style>
-        .inv-root { width: 100%; /* NO border — borderless design */ }
-        @media screen {
-            .inv-root { min-height: 297mm; }
-        }
+        .inv-root { width: 100%; box-sizing: border-box; }
 
-        .inv-header { display: table; width: 100%; }
-        .header-left  { display: table-cell; vertical-align: top; padding: 18px 0 14px 18px; }
-        .header-right { display: table-cell; vertical-align: top; text-align: right; padding: 18px 18px 14px 0; }
-        .co-name   { font-size: 13px; font-weight: 700; }
-        .co-detail { font-size: 10px; color: #64748b; line-height: 1.5; }
-        .inv-title { font-size: 30px; font-weight: 900; line-height: 1.0; }
-        .inv-ref   { font-size: 10.5px; color: #64748b; margin-top: 3px; }
+        .inv-header { display: table; width: 100%; margin-bottom: 12px; }
+        .header-left  { display: table-cell; vertical-align: top; }
+        .header-right { display: table-cell; vertical-align: top; text-align: right; }
+        .co-name   { font-size: 14px; font-weight: 800; color: #1e293b; text-transform: uppercase; margin-bottom: 2px; }
+        .co-detail { font-size: 10px; color: #64748b; line-height: 1.45; }
+        .inv-title { font-size: 26px; font-weight: 900; line-height: 1.0; color: #0f172a; text-transform: uppercase; letter-spacing: -0.02em; }
+        .inv-ref   { font-size: 10.5px; color: #64748b; margin-top: 4px; }
 
-        .addr-section  { display: table; width: 100%; }
-        .addr-col      { display: table-cell; width: 50%; padding: 12px 10px 8px 10px; vertical-align: top; }
-        .addr-col:first-child { padding-left: 18px; }
-        .addr-col:last-child { padding-right: 18px; }
-        .addr-label    { color: #888; font-size: 10.5px; margin-bottom: 3px; }
-        .addr-name     { font-weight: 700; }
-        .addr-line     { color: #94a3b8; line-height: 1.5; }
-
-        .subject-block { padding: 8px 18px 14px; }
-        .subject-label { color: #888; margin-bottom: 2px; }
-        .subject-value { font-size: 11px; }
+        .addr-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+        .addr-table td { vertical-align: top; padding: 0 12px 0 0; }
+        .addr-table td:last-child { padding-right: 0; }
+        .addr-label { color: #64748b; font-size: 9.5px; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; }
+        .addr-name  { font-weight: 800; font-size: 12px; color: #1e293b; margin-bottom: 3px; }
+        .addr-line  { color: #64748b; font-size: 10px; line-height: 1.45; }
 
         /* Dark-header span tables */
-        .details-bar { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
-        .dbar-th     { padding: 7px 12px; color: #fff; background: #1e293b; font-size: 10px; font-weight: 700; text-align: left; }
-        .dbar-td     { padding: 6px 12px; font-size: 11px; color: #333; border-bottom: 1px solid #ddd; text-align: left; }
+        .details-bar { width: 100%; border-collapse: collapse; margin-bottom: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; }
+        .dbar-th     { padding: 6px 10px; color: #fff; background: #1e293b; font-size: 9px; text-transform: uppercase; font-weight: 700; text-align: left; border-right: 1px solid #334155; }
+        .dbar-th:last-child { border-right: none; }
+        .dbar-td     { padding: 6px 10px; font-size: 10px; color: #1e293b; text-align: left; border-right: 1px solid #e2e8f0; }
+        .dbar-td:last-child { border-right: none; }
 
-        .items-table { width: 100%; border-collapse: collapse; }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
         .items-table thead tr { background: #1e293b; color: #fff; }
-        .items-table th { padding: 7px 8px; font-size: 10px; font-weight: 700; }
-        .items-table td { padding: 5px 8px; vertical-align: top; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
-        .items-table tbody tr:last-child td { border-bottom: 1px solid #ccc; }
+        .items-table th { padding: 7px 8px; font-size: 9.5px; text-transform: uppercase; font-weight: 700; border: 1px solid #1e293b; }
+        .items-table td { padding: 6px 8px; vertical-align: top; border: 1px solid #e2e8f0; font-size: 10px; color: #1e293b; }
+        .items-table tbody tr:nth-child(even) td { background: #f8fafc; }
 
-        .totals-block { text-align: right; padding: 2px 0; }
-        .breakdown-table { width: 300px; border-collapse: collapse; margin-left: auto; }
-        .breakdown-table td { padding: 4px 10px; font-size: 11px; }
-        .bt-label { text-align: right; color: #64748b; padding-right: 18px !important; width: 55%; }
-        .bt-val   { text-align: right; white-space: nowrap; }
-        .bt-total-row   { border-top: 1px solid #ccc; border-bottom: 1px solid #ccc; }
-        .bt-total-row td, .bt-balance-row td { padding-top: 5px !important; padding-bottom: 5px !important; }
-        .bt-balance-row { background: #f1f5f9; }
+        .totals-block { text-align: right; padding: 2px 0; margin-bottom: 12px; }
+        .breakdown-table { width: 280px; border-collapse: collapse; margin-left: auto; }
+        .breakdown-table td { padding: 4px 8px; font-size: 10px; }
+        .bt-label { text-align: right; color: #64748b; padding-right: 12px !important; width: 55%; }
+        .bt-val   { text-align: right; white-space: nowrap; font-weight: 600; color: #1e293b; }
+        .bt-total-row   { border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; background: #f8fafc; }
+        .bt-total-row td { padding-top: 6px !important; padding-bottom: 6px !important; font-size: 11px; }
 
-        .tow-row  { width: 300px; margin-left: auto; padding: 6px 10px; }
-        .tow-label{ font-size: 10.5px; color: #64748b; margin-bottom: 2px; }
-        .tow-value{ font-style: italic; font-weight: 700; text-align: right; font-size: 11px; line-height: 1.5; }
+        .tow-row  { width: 100%; padding: 6px 0; margin-top: 4px; }
+        .tow-label{ font-size: 9.5px; color: #64748b; margin-bottom: 2px; text-align: right; }
+        .tow-value{ font-weight: 700; text-align: right; font-size: 10.5px; color: #1e293b; }
 
-        .bottom-section { padding: 10px 18px; border-top: 1px solid #ccc; font-size: 11px; }
-        .section-label   { color: #888; font-size: 10.5px; margin-bottom: 2px; }
+        .bottom-section { padding: 8px 12px; border-top: 1px solid #e2e8f0; font-size: 10px; margin-bottom: 8px; }
+        .section-label   { color: #64748b; font-size: 9.5px; font-weight: 700; text-transform: uppercase; margin-bottom: 2px; }
     </style>
 </head>
 <body>
@@ -67,7 +60,7 @@
 <div class="inv-root">
 
     @if (($pdfSettings['show_einvoice_details'] ?? true) && (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
-        <div style="display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 6px 12px; font-size: 9.5px; background: #fafafa;">
+        <div style="display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 6px 12px; font-size: 9.5px; background: #fafafa; margin-bottom: 12px;">
             <div style="display: table-cell; vertical-align: middle;">
                 @if(!empty($data['meta']['irn'])) <div><strong>IRN :</strong> {{ $data['meta']['irn'] }}</div> @endif
                 @if(!empty($data['meta']['ack_no'])) <div><strong>Ack No. :</strong> {{ $data['meta']['ack_no'] }}</div> @endif
@@ -102,7 +95,7 @@
                 <div class="co-detail">{{ $data['company']['address'] }}</div>
                 <div class="co-detail">{{ $data['company']['city'] }}, {{ $data['company']['state'] }}</div>
             @endif
-            @if(($pdfSettings['gstin'] ?? true) && $data['company']['gstin']) <div class="co-detail">GSTIN: {{ $data['company']['gstin'] }}</div> @endif
+            @if(($pdfSettings['gstin'] ?? true) && $data['company']['gstin']) <div class="co-detail" style="font-weight:700; color:#1e293b; margin-top:2px;">GSTIN: {{ $data['company']['gstin'] }}</div> @endif
         </div>
         <div class="header-right">
             <div class="inv-title">{{ $data['doc_title'] }}</div>
@@ -111,37 +104,51 @@
     </div>
 
     {{-- Bill To / Ship To / Customer Ref — borderless --}}
-    <div class="addr-section">
-        <div class="addr-col">
-            @if($pdfSettings['bill_to'] ?? true)
-                <div class="addr-label">{{ $labels['bill_to'] ?? ($data['doc_title'] === 'PURCHASE ORDER' ? 'Vendor' : 'Bill To') }}</div>
-                <div class="addr-name">{{ $data['bill_to']['name'] }}</div>
-                <div class="addr-line">{{ $data['bill_to']['address'] }}, {{ $data['bill_to']['city'] }}</div>
-                @if(($pdfSettings['gstin'] ?? true) && $data['bill_to']['gstin']) <div class="addr-line small">GSTIN: {{ $data['bill_to']['gstin'] }}</div> @endif
+    @php
+        $showCustRef = ($pdfSettings['show_customer_ref'] ?? true) && (!empty($data['meta']['acc_no']) || !empty($data['meta']['sales_person']) || !empty($data['meta']['pump']) || !empty($data['meta']['design_mix_ref']));
+        $colWidth = $showCustRef ? '33.33%' : '50%';
+    @endphp
+    <table class="addr-table">
+        <tr>
+            <td style="width: {{ $colWidth }};">
+                @if($pdfSettings['bill_to'] ?? true)
+                    <div class="addr-label">{{ $labels['bill_to'] ?? ($data['doc_title'] === 'PURCHASE ORDER' ? 'Vendor' : 'Bill To') }}</div>
+                    <div class="addr-name">{{ $data['bill_to']['name'] }}</div>
+                    <div class="addr-line">
+                        @if(!empty($data['bill_to']['address'])) {{ $data['bill_to']['address'] }}<br> @endif
+                        @if(!empty($data['bill_to']['city']) || !empty($data['bill_to']['state'])) {{ $data['bill_to']['city'] }}, {{ $data['bill_to']['state'] }} @endif
+                    </div>
+                    @if(($pdfSettings['gstin'] ?? true) && $data['bill_to']['gstin']) <div class="addr-line" style="font-weight:700; color:#1e293b; margin-top:2px;">GSTIN: {{ $data['bill_to']['gstin'] }}</div> @endif
+                @endif
+            </td>
+            <td style="width: {{ $colWidth }};">
+                @if($pdfSettings['ship_to'] ?? true)
+                    <div class="addr-label">{{ $labels['ship_to'] ?? 'Ship To / Delivery' }}</div>
+                    <div class="addr-name">{{ $data['ship_to']['name'] }}</div>
+                    <div class="addr-line">
+                        @if(!empty($data['ship_to']['address'])) {{ $data['ship_to']['address'] }}<br> @endif
+                        @if(!empty($data['ship_to']['city']) || !empty($data['ship_to']['state'])) {{ $data['ship_to']['city'] }}, {{ $data['ship_to']['state'] }} @endif
+                    </div>
+                @endif
+            </td>
+            @if($showCustRef)
+                <td style="width: 33.33%;">
+                    <div class="addr-label">Customer Ref</div>
+                    <div class="addr-line" style="font-size: 10px; color: #1e293b;">
+                        @if(!empty($data['meta']['acc_no'])) <div>Acc No: <strong>{{ $data['meta']['acc_no'] }}</strong></div> @endif
+                        @if(!empty($data['meta']['po_number'])) <div>PO: <strong>{{ $data['meta']['po_number'] }}</strong></div> @endif
+                        @if(!empty($data['meta']['sales_person'])) <div>Sales Person: <strong>{{ $data['meta']['sales_person'] }}</strong></div> @endif
+                        @if(!empty($data['meta']['pump'])) <div>Pump: <strong>{{ $data['meta']['pump'] }}</strong></div> @endif
+                        @if(!empty($data['meta']['quality_incharge'])) <div>Quality InCharge: <strong>{{ $data['meta']['quality_incharge'] }}</strong></div> @endif
+                        @if(!empty($data['meta']['design_mix_ref'])) <div>Design Mix Ref: <strong>{{ $data['meta']['design_mix_ref'] }}</strong></div> @endif
+                    </div>
+                </td>
             @endif
-        </div>
-        <div class="addr-col">
-            @if($pdfSettings['ship_to'] ?? true)
-                <div class="addr-label">{{ $labels['ship_to'] ?? 'Ship To / Delivery' }}</div>
-                <div class="addr-name">{{ $data['ship_to']['name'] }}</div>
-                <div class="addr-line">{{ $data['ship_to']['address'] }}, {{ $data['ship_to']['city'] }}</div>
-            @endif
-        </div>
-        @if(($pdfSettings['show_customer_ref'] ?? true) && (!empty($data['meta']['acc_no']) || !empty($data['meta']['sales_person']) || !empty($data['meta']['pump']) || !empty($data['meta']['design_mix_ref'])))
-            <div class="addr-col">
-                <div class="addr-label">Customer Ref</div>
-                <div class="addr-line" style="font-size: 10px; color: #1e293b;">
-                    @if(!empty($data['meta']['acc_no'])) <div>Acc No: <strong>{{ $data['meta']['acc_no'] }}</strong></div> @endif
-                    @if(!empty($data['meta']['sales_person'])) <div>Sales Person: <strong>{{ $data['meta']['sales_person'] }}</strong></div> @endif
-                    @if(!empty($data['meta']['pump'])) <div>Pump: <strong>{{ $data['meta']['pump'] }}</strong></div> @endif
-                    @if(!empty($data['meta']['design_mix_ref'])) <div>Design Mix Ref: <strong>{{ $data['meta']['design_mix_ref'] }}</strong></div> @endif
-                </div>
-            </div>
-        @endif
-    </div>
+        </tr>
+    </table>
 
     @if (($pdfSettings['show_carrier_driver'] ?? true) && !empty($data['meta']['carrier_driver']) && $data['meta']['carrier_driver'] !== '-')
-        <div style="padding: 5px 18px; font-size: 10.5px; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+        <div style="padding: 6px 12px; font-size: 10.5px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px; margin-bottom: 12px;">
             <strong>Carrier - Driver:</strong> {{ $data['meta']['carrier_driver'] }}
         </div>
     @endif
@@ -180,7 +187,7 @@
                 <tr>
                     <th class="text-center" style="width:28px">#</th>
                     <th class="text-left">Item &amp; Description</th>
-                    @if (($pdfSettings['show_pump_charges'] ?? true) && !($data['totals']['add_pouring_rates_to_total'] ?? false))
+                    @if ($pdfSettings['show_pump_charges'] ?? true)
                         <th class="text-left" style="width:120px">Operation Type</th>
                         <th class="text-right" style="width:90px">Pump Charges</th>
                     @endif
@@ -214,7 +221,7 @@
                                 <div class="small muted">HSN: {{ $item['hsn'] }}</div>
                             @endif
                         </td>
-                        @if (($pdfSettings['show_pump_charges'] ?? true) && !($data['totals']['add_pouring_rates_to_total'] ?? false))
+                        @if ($pdfSettings['show_pump_charges'] ?? true)
                             <td class="text-left">{{ $item['operation_type'] ?? '-' }}</td>
                             <td class="text-right">{{ isset($item['pump_charge']) && $item['pump_charge'] > 0 ? number_format($item['pump_charge'], 2) : '-' }}</td>
                         @endif

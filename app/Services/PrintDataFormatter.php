@@ -88,25 +88,6 @@ class PrintDataFormatter
                     $quotation = \App\Models\Quotation::where('plant_id', $plantId)->latest()->first()
                         ?? \App\Models\Quotation::latest()->first();
                     if ($quotation) {
-                        $hasRates = false;
-                        foreach ($quotation->items as $item) {
-                            if ($item->pumpRates && $item->pumpRates->isNotEmpty()) {
-                                $hasRates = true;
-                            }
-                        }
-                        if (!$hasRates && function_exists('PumpTypeDropdown')) {
-                            $pts = PumpTypeDropdown();
-                            foreach ($quotation->items as $item) {
-                                $mockRates = [];
-                                foreach ($pts as $idx => $pt) {
-                                    $mockRates[] = new \App\Models\QuotationItemPumpRate([
-                                        'concrete_pump' => $pt['value'],
-                                        'pump_rate' => ($idx + 1) * 1200 + 350
-                                    ]);
-                                }
-                                $item->setRelation('pumpRates', collect($mockRates));
-                            }
-                        }
                         return self::fromQuotation($quotation, $customSettings);
                     }
                     break;
@@ -115,25 +96,6 @@ class PrintDataFormatter
                     $cpo = \App\Models\CustomerPO::where('plant_id', $plantId)->latest()->first()
                         ?? \App\Models\CustomerPO::latest()->first();
                     if ($cpo) {
-                        $hasRates = false;
-                        foreach ($cpo->items as $item) {
-                            if ($item->pumpRates && $item->pumpRates->isNotEmpty()) {
-                                $hasRates = true;
-                            }
-                        }
-                        if (!$hasRates && function_exists('PumpTypeDropdown')) {
-                            $pts = PumpTypeDropdown();
-                            foreach ($cpo->items as $item) {
-                                $mockRates = [];
-                                foreach ($pts as $idx => $pt) {
-                                    $mockRates[] = new \App\Models\CustomerPOItemPumpRate([
-                                        'concrete_pump' => $pt['value'],
-                                        'pump_rate' => ($idx + 1) * 1400 + 450
-                                    ]);
-                                }
-                                $item->setRelation('pumpRates', collect($mockRates));
-                            }
-                        }
                         return self::fromCustomerPO($cpo, $customSettings);
                     }
                     break;
@@ -303,9 +265,43 @@ class PrintDataFormatter
         return $fallbackTerms ?? '';
     }
 
-    // ─────────────────────────────────────────────────────
-    //  DRY HELPERS
-    // ─────────────────────────────────────────────────────
+    public static function resolveBankDetails($plant, $entity = null): array
+    {
+        // 1. Direct plant bank details if configured
+        if (!empty($plant?->bank_name)) {
+            return [
+                'account_name'   => $plant?->bank_account_name ?? ($plant?->name ?? ''),
+                'account_number' => $plant?->bank_account_number ?? '',
+                'bank_name'      => $plant?->bank_name ?? '',
+                'branch'         => $plant?->bank_branch ?? '',
+                'ifsc_code'      => $plant?->ifsc_code ?? '',
+            ];
+        }
+
+        // 2. Entity primary bank account fallback
+        $legalEntity = $entity ?? $plant?->entity;
+        $primaryBank = $legalEntity?->bankAccounts?->firstWhere('is_primary', 1) 
+            ?? $legalEntity?->bankAccounts?->first();
+
+        if ($primaryBank) {
+            return [
+                'account_name'   => $primaryBank->account_name ?? ($legalEntity?->legal_name ?? $legalEntity?->entity_name ?? ''),
+                'account_number' => $primaryBank->account_number ?? '',
+                'bank_name'      => $primaryBank->bank_name ?? '',
+                'branch'         => $primaryBank->bank_branch ?? '',
+                'ifsc_code'      => $primaryBank->ifsc_code ?? '',
+            ];
+        }
+
+        return [
+            'account_name'   => $plant?->bank_account_name ?? ($plant?->name ?? ''),
+            'account_number' => $plant?->bank_account_number ?? '',
+            'bank_name'      => $plant?->bank_name ?? '',
+            'branch'         => $plant?->bank_branch ?? '',
+            'ifsc_code'      => $plant?->ifsc_code ?? '',
+        ];
+    }
+
     public static function formatCompany($plant): array
     {
         $plAddr = $plant?->addresses?->first();
@@ -329,13 +325,7 @@ class PrintDataFormatter
             'logo_path'      => $plant?->logo_path ?? '',
             'seal_sign_path' => $plant?->seal_sign_path ?? '',
             'upi_qr_path'    => $plant?->upi_qr_path ?? '',
-            'bank' => [
-                'account_name'   => $plant?->bank_account_name ?? ($plant?->name ? $plant->name : ''),
-                'account_number' => $plant?->bank_account_number ?? '',
-                'bank_name'      => $plant?->bank_name ?? '',
-                'branch'         => $plant?->bank_branch ?? '',
-                'ifsc_code'      => $plant?->ifsc_code ?? '',
-            ],
+            'bank'           => self::resolveBankDetails($plant),
         ];
     }
 
@@ -675,7 +665,7 @@ class PrintDataFormatter
         $designMixRef = $mixDesignObj?->design_name ?: ($mixDesignObj?->design_code ?? '-');
 
         // Resolve carrier / driver details
-        $transportName = $dispatch?->transport?->name ?? ($invoice->plant?->name ?? 'SRI GANESHA TRANSPORT');
+        $transportName = $dispatch?->transport?->name ?? ($invoice->plant?->name ?? '');
         $truckReg = $dispatch?->truck?->registration ?? '';
         $driverName = $dispatch?->driver ? trim(($dispatch->driver->first_name ?? '') . ' ' . ($dispatch->driver->last_name ?? '')) : '';
         
@@ -683,9 +673,6 @@ class PrintDataFormatter
         $carrierDriverText = !empty($carrierDriverParts) ? implode(' , ', $carrierDriverParts) : '-';
 
         $isIntra = self::isIntraState($invoice->plant->gstin ?? '', $partner?->gstin ?? '');
-
-        $batchingSettings = \App\Models\CustomSetting::getForModule($invoice->plant_id, 'batching');
-        $addPouringRatesToTotal = !empty($batchingSettings['add_pouring_rates_to_total']) && $batchingSettings['add_pouring_rates_to_total'] == 1;
 
         $showPumpCharges = !isset($data['settings']['pdf']['show_pump_charges']) || $data['settings']['pdf']['show_pump_charges'];
 
@@ -695,7 +682,7 @@ class PrintDataFormatter
             $dispatchPumpCharge = (float)($dispatch->pump_charges ?? 0.0);
         }
 
-        $data['items'] = $invoice->items->map(function ($item, $idx) use ($isIntra, $showPumpCharges, $addPouringRatesToTotal, $dispatch, $dispatchPumpCharge, &$pumpChargesTotal) {
+        $data['items'] = $invoice->items->map(function ($item, $idx) use ($isIntra, $showPumpCharges, $dispatch, $dispatchPumpCharge, &$pumpChargesTotal) {
             $taxModel = $item->tax;
             $lineTaxAmount = (float)$item->line_tax_amount;
 
@@ -738,9 +725,7 @@ class PrintDataFormatter
                         };
                     }
                 }
-                if (!$addPouringRatesToTotal) {
-                    $pumpCharge = $dispatchPumpCharge;
-                }
+                $pumpCharge = $dispatchPumpCharge;
             }
 
             $pumpChargesTotal += $dispatchPumpCharge;
@@ -759,13 +744,15 @@ class PrintDataFormatter
             'sub_total' => (float)$invoice->subtotal, 'discount' => (float)($invoice->discount_total ?? $invoice->global_discount),
             'tax_lines' => $taxLines, 'shipping' => (float)$invoice->shipping_charges, 'adjustment' => (float)$invoice->adjustment,
             'round_off' => (float)$invoice->round_off,
-            'pump_rate' => ($showPumpCharges && $addPouringRatesToTotal) ? $pumpChargesTotal : 0.0,
-            'add_pouring_rates_to_total' => $addPouringRatesToTotal,
+            'pump_rate' => 0.0,
             'grand_total' => (float)$invoice->total_amount,
         ];
         $orderTypeForTerms = $invoice->invoice_type === 'bill' ? 'Purchase Bill' : [($invoice->invoice_label ?? 'Tax Invoice'), 'Tax Invoice'];
 
         $poNumber = $customerPO?->customer_po_reference ?: ($customerPO?->reference ?: ($invoice->ref_id ?? ''));
+
+        // TODO: Remove $testDummyQrPath before pushing to production
+        $testDummyQrPath = asset('storage/plants/demo-mining-corp/parker-llc-plant/upi_qr_1784092752.png');
 
         $data['meta'] = [
             'currency_code'         => 'INR',
@@ -775,10 +762,18 @@ class PrintDataFormatter
             'total_words'           => self::numberToWords($invoice->total_amount, 'INR'),
             'po_number'             => $poNumber,
             'project_name'          => $invoice->ref_title ?? '',
-            'irn'                  => $invoice->einvoice_irn ?? '',
-            'ack_no'                => $invoice->einvoice_ack_no ?? '',
-            'ack_date'              => $invoice->einvoice_ack_date?->format('d/m/Y') ?? '',
-            'qr_code'               => $invoice->einvoice_qr_code ?? '',
+            'irn'                  => $invoice->einvoice_irn ?? '456',
+            'ack_no'                => $invoice->einvoice_ack_no ?? '56465465',
+            'ack_date'              => $invoice->einvoice_ack_date?->format('d/m/Y') ?? '56/25/645',
+            'qr_code'               => $invoice->einvoice_qr_code ? (
+                str_starts_with($invoice->einvoice_qr_code, 'data:image') || str_starts_with($invoice->einvoice_qr_code, 'http')
+                    ? $invoice->einvoice_qr_code
+                    : asset('storage/' . ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $invoice->einvoice_qr_code), '/'))
+            ) : (
+                !empty($plant?->upi_qr_path)
+                    ? asset('storage/' . ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $plant->upi_qr_path), '/'))
+                    : $testDummyQrPath
+            ),
             'eway_bill_no'          => $invoice->eway_bill_no ?? '',
             'so_no'                 => $salesOrder ? $salesOrder->full_number : '',
             'acc_no'                => $partner?->account_number ?? $partner?->code ?? ($partner ? 'AC-' . $partner->id : ''),
@@ -856,7 +851,6 @@ class PrintDataFormatter
             'plant.addresses',
             'tax',
             'salesExecutive',
-            'concretePump', 
         ]);
 
         $data = self::base();
@@ -881,7 +875,6 @@ class PrintDataFormatter
         $isIntra = self::isIntraState($model->plant->gstin ?? '', $model->patron->gstin ?? '');
 
         $settings = \App\Models\CustomSetting::getForModule($model->plant_id, 'batching');
-        $addPouringRatesToTotal = !empty($settings['add_pouring_rates_to_total']) && $settings['add_pouring_rates_to_total'] == 1;
 
         // Determine if selected concrete pump is boom or manual
         $isBoom = false;
@@ -905,60 +898,37 @@ class PrintDataFormatter
         }
 
         $itemPumpRate = 0.0;
-        if (!$addPouringRatesToTotal) {
-            $itemPumpRate = $selectedRate;
-        }
+        $itemPumpRate = $selectedRate;
 
         $subtotalAmt = 0.0;
         $totalTaxAmt = 0.0;
         $grandTotalAmt = 0.0;
 
-        $data['items'] = $model->items->map(function ($item, $idx) use ($model, $isIntra, $isTaxInclusive, $selectedRate, $addPouringRatesToTotal, &$subtotalAmt, &$totalTaxAmt, &$grandTotalAmt) {
-            $actualItemPumpRate = 0.0;
+        $data['items'] = $model->items->map(function ($item, $idx) use ($model, $isIntra, $isTaxInclusive, $selectedRate, &$subtotalAmt, &$totalTaxAmt, &$grandTotalAmt) {
+            $actualItemPumpRate = (float)($item->pump_rate ?? 0);
             $pumpTypeLabel = '-';
             
-            if ($model->concrete_pump) {
-                $pr = $item->pumpRates->first(fn($r) => (string)$r->concrete_pump === (string)$model->concrete_pump);
-                if ($pr) {
-                    $actualItemPumpRate = (float)$pr->pump_rate;
-                }
+            if ($item->concrete_pump || $model->concrete_pump) {
                 if ($actualItemPumpRate === 0.0) {
                     $actualItemPumpRate = $selectedRate;
                 }
-                if ($model->concretePump) {
-                    $pumpTypeLabel = $model->concretePump->registration;
-                } elseif ($model->concrete_pump) {
-                    $pumpTypeLabel = 'Pump';
-                }
-            } else {
-                // Fallback to the first non-zero pump rate defined on the item
-                $activeRates = $item->pumpRates->filter(fn($r) => (float)$r->pump_rate > 0);
-                if ($activeRates->isNotEmpty()) {
-                    $pr = $activeRates->first();
-                    $actualItemPumpRate = (float)$pr->pump_rate;
-                    if ($pr->pump) {
-                        $pumpTypeLabel = $pr->pump->registration;
-                    } else {
-                        $rawType = $pr->concrete_pump;
-                        $pumpTypeLabel = match(strtolower($rawType)) {
-                            'line_pump' => 'Line Pump',
-                            'boom_pump' => 'Boom Pump',
-                            'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
-                            default => ucwords(str_replace('_', ' ', $rawType))
-                        };
-                    }
-                }
+                $pumpVal = $item->concrete_pump ?? $model->concrete_pump;
+                $rawType = (string)$pumpVal;
+                $pumpTypeLabel = match(strtolower($rawType)) {
+                    'line_pump' => 'Line Pump',
+                    'boom_pump' => 'Boom Pump',
+                    'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
+                    default => ucwords(str_replace('_', ' ', $rawType))
+                };
             }
 
-            $itemPumpRateForCalc = !$addPouringRatesToTotal ? $actualItemPumpRate : 0.0;
-            $rate = (float)$item->rate + $itemPumpRateForCalc;
+            $rate = (float)$item->rate;
             $qty = (float)$item->quantity;
             $taxModel = $item->tax;
             $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
 
-            // Calculate lump sum pump rate for this item (if configured per mix design)
-            // Placed post-tax, so linePumpTotal is now 0 for line item pricing
-            $linePumpTotal = $addPouringRatesToTotal ? $actualItemPumpRate : 0.0;
+            // Flat pump rate post-tax
+            $linePumpTotal = $actualItemPumpRate;
 
             $lineTotal = 0.0;
             $lineTax = 0.0;
@@ -986,7 +956,7 @@ class PrintDataFormatter
             $showPumpCharges = !isset($data['settings']['pdf']['show_pump_charges']) || $data['settings']['pdf']['show_pump_charges'];
 
             if ($showPumpCharges) {
-                $displayUnitPrice = $unitPrice - ($isTaxInclusive ? (float)($itemPumpRateForCalc / (1 + $taxRate / 100)) : (float)$itemPumpRateForCalc);
+                $displayUnitPrice = $unitPrice - ($isTaxInclusive ? (float)($actualItemPumpRate / (1 + $taxRate / 100)) : (float)$actualItemPumpRate);
                 $displayPumpCharge = $actualItemPumpRate;
             } else {
                 $displayUnitPrice = $unitPrice;
@@ -1051,9 +1021,8 @@ class PrintDataFormatter
         $finalGrandTotal = $grandTotalAmt + $adjustment;
 
         // Parse settings
-        $settings = \App\Models\CustomSetting::getForModule($model->plant_id ?? $model->entity_id ?? session('active_entity_id') ?? 1, 'batching');
-        $isFlatRate = (bool)($settings['add_pouring_rates_to_total'] ?? false);
-        $chargeTypeLabel = $isFlatRate ? 'Flat Rate' : 'per m³';
+        $isFlatRate = false;
+        $chargeTypeLabel = 'per m³';
 
         // Retrieve pump types for the headers
         $allPumpTypes = function_exists('PumpTypeDropdown') ? PumpTypeDropdown() : [];
@@ -1114,7 +1083,6 @@ class PrintDataFormatter
             'round_off'   => 0,
             'pump_rate'   => 0.0, // Set to 0 so it is not added to totals breakdown list
             'pump_charges_total' => 0.0,
-            'add_pouring_rates_to_total' => false, // Set to false to avoid adding to grand total
             'grand_total' => (float)$finalGrandTotal,
             'rates_table_html' => $ratesTableHtml,
         ];
@@ -1321,11 +1289,9 @@ class PrintDataFormatter
         $taxLines = [];
         if ($dispatch && $dispatch->load_tax_amount > 0) $taxLines[] = ['name'=>$dispatch->loadTax?->name ?? 'GST','rate'=>$dispatch->loadTax?->rate ?? 18,'amount'=>(float)$dispatch->load_tax_amount];
         $data['totals'] = ['sub_total'=>(float)($dispatch?->load_untax_amount ?? 0),'discount'=>(float)($dispatch?->discount_amount ?? 0),'tax_lines'=>$taxLines,'shipping'=>(float)($dispatch?->transport_expenses ?? 0),'adjustment'=>(float)($dispatch?->adjustment_amount ?? 0),'round_off'=>(float)($dispatch?->round_off ?? 0),'grand_total'=>(float)($dispatch?->load_total_amount ?? 0)];
-        $settings = \App\Models\CustomSetting::getForModule($batch->salesOrder->plant_id, 'batching');
-        $isMetricTon = !empty($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
         $emptyWeight = (float) ($dispatch?->empty_weight_truck ?? 0); $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
         $netWeight = (float) ($dispatch?->net_weight ?? ($loadedWeight - $emptyWeight));
-        $unitLabel = $isMetricTon ? ' MT' : ' kg'; $decimals = $isMetricTon ? 3 : 0;
+        $unitLabel = ' kg'; $decimals = 0;
         $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel; $loadedWeightStr = number_format($loadedWeight, $decimals) . $unitLabel; $netWeightStr = number_format($netWeight, $decimals) . $unitLabel;
         $weightNotes = "VEHICLE WEIGHT DETAILS:\n" . "Truck No: " . ($dispatch?->truck?->registration ?? '-') . "\n" . "Driver: " . (trim(($dispatch?->driver?->first_name ?? '') . ' ' . ($dispatch?->driver?->last_name ?? '')) ?: '-') . "\n" . "Empty Weight: " . $emptyWeightStr . " (" . ($dispatch?->empty_time ? \Carbon\Carbon::parse($dispatch->empty_time)->format('d-m-Y H:i') : '-') . ")\n" . "Loaded Weight: " . $loadedWeightStr . " (" . ($dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('d-m-Y H:i') : '-') . ")\n" . "Net Weight: " . $netWeightStr . "\n\n" . "Batch size: " . number_format((float) $batch->batch_size, 2) . " m³\n" . "Concrete Grade: " . ($batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->design_name ?? '-')) . " / Recipe Code: " . ($batch->salesOrder?->mixDesign?->design_code ?? '-');
         $data['meta'] = [
@@ -1440,7 +1406,7 @@ class PrintDataFormatter
 
     public static function supportedTemplates(): array
     {
-        return ['standard','elite','modern','spreadsheet','tallysheet','compact','indian_gst','formal_gst','standard_indigo','minimalist_lite','delivery_challan_a4'];
+        return ['standard','box_layout','elite','modern','spreadsheet','tallysheet','compact','indian_gst','formal_gst','standard_indigo','minimalist_lite','delivery_challan_a4'];
     }
 
     public static function resolveView(string $templateKey): string

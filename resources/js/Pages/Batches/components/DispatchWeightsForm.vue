@@ -152,7 +152,7 @@ const formatTime = (dateVal: any) => {
             </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <BaseInputNumber v-model="modelValue.financials.pump_charge" label="Pump Charges" :minFractionDigits="2" :error="errors['financials.pump_charge']" :disabled="isReadOnly || !addPumpToTotal" />
+            <BaseInputNumber v-model="modelValue.financials.pump_charge" label="Pump Charges" :minFractionDigits="2" :error="errors['financials.pump_charge']" :disabled="isReadOnly" />
             <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" :error="errors['financials.pass_amount']" :disabled="isReadOnly" />
             <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" :error="errors['financials.discount_amount']" :disabled="isReadOnly" />
             <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" :error="errors['financials.transport_expenses']" :disabled="isReadOnly" />

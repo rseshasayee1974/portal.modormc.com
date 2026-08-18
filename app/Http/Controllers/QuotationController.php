@@ -23,7 +23,7 @@ class QuotationController extends Controller
         $plantId = session('active_plant_id');
 
         return Inertia::render('Quotations/Index', [
-            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'items.pumpRates', 'customerPOs', 'creator', 'modifier','salesExecutive', 'concretePump'])
+            'quotations' => Quotation::with(['patron', 'site', 'items.mixDesign', 'customerPOs', 'creator', 'modifier','salesExecutive'])
                 ->where('plant_id', $plantId)
                 ->latest()
                 ->get(),
@@ -46,7 +46,7 @@ class QuotationController extends Controller
         $this->authorizeModule('menu');
 
         return Inertia::render('Quotations/Show', [
-            'quotation' => $quotation->loadMissing(['patron', 'site', 'items.mixDesign', 'customerPOs', 'creator', 'modifier', 'salesExecutive', 'concretePump'])
+            'quotation' => $quotation->loadMissing(['patron', 'site', 'items.mixDesign', 'customerPOs', 'creator', 'modifier', 'salesExecutive'])
         ]);
     }
 
@@ -116,14 +116,16 @@ class QuotationController extends Controller
                 $user = auth()->user();
 
                 $existingPO = \App\Models\CustomerPO::where('quotation_id', $quotation->id)->first();
+                $firstItem = $quotation->items->first();
+
                 $poData = [
                     'plant_id' => $quotation->plant_id,
                     'patron_id' => $quotation->patron_id,
                     'site_id' => $quotation->site_id,
                     'sales_executive_id' => $quotation->sales_executive_id,
-                    'concrete_pump' => $quotation->concrete_pump,
+                    'concrete_pump' => $firstItem?->concrete_pump,
                     'is_tax_inclusive' => $quotation->is_tax_inclusive,
-                    'pump_rate' => $quotation->pump_rate,
+                    'pump_rate' => $firstItem?->pump_rate,
                     'manual_rate' => $quotation->manual_rate,
                     'boom_pump_rate' => $quotation->boom_pump_rate,
                     'order_date' => $existingPO ? $existingPO->order_date : now()->toDateString(),
@@ -145,10 +147,9 @@ class QuotationController extends Controller
                 // Clear any existing items in the customer PO to avoid duplicates/orphans
                 $customerPO->items()->delete();
 
-                // Copy items from quotation to customer PO items and their pump rates
-                $quotation->loadMissing('items.pumpRates');
+                // Copy items from quotation to customer PO items
                 foreach ($quotation->items as $qItem) {
-                    $cpoItem = $customerPO->items()->create([
+                    $customerPO->items()->create([
                         'mix_design_id' => $qItem->mix_design_id,
                         'quantity' => $qItem->quantity,
                         'rate' => $qItem->rate,
@@ -159,15 +160,6 @@ class QuotationController extends Controller
                         'concrete_pump' => $qItem->concrete_pump,
                         'pump_rate' => $qItem->pump_rate,
                     ]);
-
-                    // Copy pump rates
-                    $sourcePumpRates = $qItem->pumpRates->map(fn($pr) => [
-                        'concrete_pump' => $pr->concrete_pump,
-                        'pump_rate' => $pr->pump_rate,
-                    ])->toArray();
-                    if (!empty($sourcePumpRates)) {
-                        $cpoItem->syncPumpRates($sourcePumpRates);
-                    }
                 }
             } else {
                 $pos = \App\Models\CustomerPO::where('quotation_id', $quotation->id)->get();

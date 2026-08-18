@@ -27,7 +27,6 @@ class Quotation extends Model
         'notes',
         'site_id',
         'sales_executive_id',
-        'concrete_pump',
         'is_tax_inclusive',
         'quote_date',
         'validity_date',
@@ -113,10 +112,14 @@ class Quotation extends Model
             foreach ($data['items'] as $itemData) {
                 $pumpRates = $itemData['pump_rates'] ?? [];
                 $itemPayload = collect($itemData)->except('pump_rates')->toArray();
-                $item = $quotation->items()->create($itemPayload);
-                if (!empty($pumpRates)) {
-                    $item->syncPumpRates($pumpRates);
-                }
+
+                $concretePump = $itemData['concrete_pump'] ?? ($pumpRates[0]['concrete_pump'] ?? null);
+                $pumpRate = $itemData['pump_rate'] ?? ($pumpRates[0]['pump_rate'] ?? 0);
+
+                $itemPayload['concrete_pump'] = $concretePump;
+                $itemPayload['pump_rate'] = $pumpRate;
+
+                $quotation->items()->create($itemPayload);
             }
 
             $quotation->updateTotals();
@@ -149,17 +152,19 @@ class Quotation extends Model
                 $pumpRates = $itemData['pump_rates'] ?? [];
                 $itemPayload = collect($itemData)->except('pump_rates')->toArray();
 
+                $concretePump = $itemData['concrete_pump'] ?? ($pumpRates[0]['concrete_pump'] ?? null);
+                $pumpRate = $itemData['pump_rate'] ?? ($pumpRates[0]['pump_rate'] ?? 0);
+
+                $itemPayload['concrete_pump'] = $concretePump;
+                $itemPayload['pump_rate'] = $pumpRate;
+
                 if (isset($itemData['id'])) {
                     $item = $this->items()->find($itemData['id']);
                     if ($item) {
                         $item->update(collect($itemPayload)->except('id')->toArray());
                     }
                 } else {
-                    $item = $this->items()->create($itemPayload);
-                }
-
-                if ($item) {
-                    $item->syncPumpRates($pumpRates);
+                    $this->items()->create($itemPayload);
                 }
             }
 
@@ -196,11 +201,6 @@ class Quotation extends Model
     public function customerPOs()
     {
         return $this->hasMany(CustomerPO::class, 'quotation_id');
-    }
-
-    public function concretePump()
-    {
-        return $this->belongsTo(Machine::class, 'concrete_pump');
     }
 
     // Business Logic

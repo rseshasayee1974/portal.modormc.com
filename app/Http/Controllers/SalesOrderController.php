@@ -38,6 +38,16 @@ class SalesOrderController extends Controller
         $this->authorizeModule('create');
         $payload = $request->validated();
 
+        if (!empty($payload['customer_po_id'])) {
+            $po = \App\Models\CustomerPO::find($payload['customer_po_id']);
+            if ($po) {
+                $payload['sales_executive_id'] = $payload['sales_executive_id'] ?? $po->sales_executive_id;
+                $payload['customer_id'] = $payload['customer_id'] ?? $po->patron_id;
+                $payload['site_id'] = $payload['site_id'] ?? $po->site_id;
+                $payload['is_tax_inclusive'] = $payload['is_tax_inclusive'] ?? $po->is_tax_inclusive;
+            }
+        }
+
         if (empty($payload['order_no'])) {
             $details = SalesOrder::generateOrderNo(session('active_plant_id'), $payload['prefix'] ?? 'SO');
             $payload['prefix'] = $details['prefix'];
@@ -57,7 +67,7 @@ class SalesOrderController extends Controller
             $payload['quantity'] = $payload['total_qty'];
         }
 
-        $payload = collect($payload)->only($tableColumns)->toArray();
+        $payload = array_intersect_key($payload, array_flip($tableColumns));
 
         DB::transaction(function () use ($payload) {
             SalesOrder::create($payload);
@@ -90,6 +100,7 @@ class SalesOrderController extends Controller
             $salesorder->site_id = $salesorder->site_id ?? $po->site_id;
             $salesorder->concrete_pump = $salesorder->concrete_pump ?? $po->concrete_pump;
             $salesorder->sales_executive_id = $salesorder->sales_executive_id ?? $po->sales_executive_id;
+            $salesorder->is_tax_inclusive = $salesorder->is_tax_inclusive ?? $po->is_tax_inclusive;
             
             if ($po->quotation && $po->quotation->items && $po->quotation->items->isNotEmpty()) {
                 $firstItem = $po->quotation->items->first();
@@ -120,7 +131,7 @@ class SalesOrderController extends Controller
             if (
                 ($request->has('mix_design_id') && (int)$request->mix_design_id !== (int)$salesorder->mix_design_id) ||
                 ($request->has('total_qty') && (float)$request->total_qty !== (float)$salesorder->total_qty) ||
-                ($request->has('concrete_pump') && ($request->filled('concrete_pump') ? (int)$request->concrete_pump : null) !== ($salesorder->concrete_pump !== null ? (int)$salesorder->concrete_pump : null)) ||
+                ($request->has('concrete_pump') && ($request->filled('concrete_pump') ? (string)$request->concrete_pump : null) !== ($salesorder->concrete_pump !== null ? (string)$salesorder->concrete_pump : null)) ||
                 ($request->has('pump_rate') && (float)$request->pump_rate !== (float)$salesorder->pump_rate)
             ) {
                 return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Mix Design, Total Quantity, Concrete Pump Type, or Pump Rate.']);

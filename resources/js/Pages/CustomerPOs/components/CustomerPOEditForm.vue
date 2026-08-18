@@ -12,6 +12,7 @@ import Button from 'primevue/button';
 import { usePermissions } from '@/Composables/usePermissions';
 import { TrashIcon, PlusIcon, CalculatorIcon } from '@heroicons/vue/24/outline';
 import RecipePopover from '@/Components/Base/RecipePopover.vue';
+import { calculateLineItemTotals } from '@/composables/useLineItemCalculation';
 const props = withDefaults(defineProps<{
     customerPO?: any;
     quotations?: any[];
@@ -55,7 +56,11 @@ const form = useForm({
     order_date: props.customerPO?.order_date ?? '',
     status: props.customerPO?.status ?? 1,
     notes: props.customerPO?.notes ?? '',
+<<<<<<< HEAD
     items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, concrete_pump?: string | number | null, pump_rate?: number, pump_rates: Array<{ concrete_pump: string, pump_rate: number }> }>,
+=======
+    items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, concrete_pump?: number | string | null, pump_rate?: number | null }>,
+>>>>>>> refs/remotes/origin/main
     mix_design_id: null as number | null,
     quantity: null as number | null,
     rate: null as number | null,
@@ -67,7 +72,6 @@ const form = useForm({
 // Pre-fill items from sales order or quotation items
 const itemsList = props.customerPO?.items || props.customerPO?.quotation?.items || [];
 form.items = itemsList.map((item: any) => {
-    const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
     return {
         id: props.customerPO?.items?.some((i: any) => i.id === item.id) ? item.id : null,
         mix_design_id: item.mix_design_id,
@@ -75,14 +79,19 @@ form.items = itemsList.map((item: any) => {
         rate: Number(item.rate),
         tax_id: item.tax_id ?? null,
         tax_amount: item.tax_amount !== null ? Number(item.tax_amount) : 0,
+<<<<<<< HEAD
         concrete_pump: item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : null),
         pump_rate: item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : 0),
         pump_rates: [],
+=======
+        concrete_pump: item.concrete_pump ?? null,
+        pump_rate: Number(item.pump_rate || 0),
+>>>>>>> refs/remotes/origin/main
     };
 });
 
 if (form.items.length === 0 && !form.quotation_id) {
-    form.items.push({ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, concrete_pump: null, pump_rate: 0, pump_rates: [] });
+    form.items.push({ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, concrete_pump: null, pump_rate: 0 });
 }
 
 if (itemsList.length === 1) {
@@ -92,14 +101,18 @@ if (itemsList.length === 1) {
     form.rate = Number(item.rate);
     form.tax_id = item.tax_id ?? null;
     form.tax_amount = item.tax_amount !== null ? Number(item.tax_amount) : 0;
+<<<<<<< HEAD
     const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
     form.concrete_pump = item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : (props.customerPO?.concrete_pump ?? null));
     form.pump_rate = item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : Number(props.customerPO?.pump_rate || 0));
+=======
+    form.concrete_pump = item.concrete_pump ?? null;
+    form.pump_rate = Number(item.pump_rate || 0);
+>>>>>>> refs/remotes/origin/main
 }
 
 // Watch quotation selection to auto-fill patron, site, and sales executive
 watch(() => form.quotation_id, (newVal) => {
-    excludedMixDesignPumpRates.value = [];
     if (newVal) {
         const quote = props.quotations.find((q) => Number(q.id) === Number(newVal));
         if (quote) {
@@ -109,7 +122,6 @@ watch(() => form.quotation_id, (newVal) => {
             form.is_tax_inclusive = quote.is_tax_inclusive ? true : false;
             const quoteItems = quote.items || [];
             form.items = quoteItems.map((item: any) => {
-                const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
                 return {
                     id: null,
                     mix_design_id: item.mix_design_id,
@@ -117,9 +129,14 @@ watch(() => form.quotation_id, (newVal) => {
                     rate: Number(item.rate),
                     tax_id: item.tax_id ?? null,
                     tax_amount: Number(item.tax_amount ?? 0),
+<<<<<<< HEAD
                     concrete_pump: item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : null),
                     pump_rate: item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : 0),
                     pump_rates: [],
+=======
+                    concrete_pump: item.concrete_pump ?? null,
+                    pump_rate: Number(item.pump_rate || 0),
+>>>>>>> refs/remotes/origin/main
                 };
             });
             if (quoteItems.length === 1) {
@@ -128,13 +145,12 @@ watch(() => form.quotation_id, (newVal) => {
                 form.rate = Number(quoteItems[0].rate);
                 form.tax_id = quoteItems[0].tax_id ?? null;
                 form.tax_amount = Number(quoteItems[0].tax_amount ?? 0);
-                const savedPumpRate = (quoteItems[0].pump_rates || quoteItems[0].pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
-                form.concrete_pump = savedPumpRate ? Number(savedPumpRate.concrete_pump) : null;
-                form.pump_rate = savedPumpRate ? Number(savedPumpRate.pump_rate) : 0;
+                form.concrete_pump = quoteItems[0].concrete_pump ?? null;
+                form.pump_rate = Number(quoteItems[0].pump_rate || 0);
             }
         }
     } else {
-        form.items = [{ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, concrete_pump: null, pump_rate: 0, pump_rates: [] }];
+        form.items = [{ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, concrete_pump: null, pump_rate: 0 }];
         form.mix_design_id = null;
         form.quantity = null;
         form.rate = null;
@@ -444,43 +460,35 @@ const calculatedTotals = computed(() => {
 
     if (isSingleItem || isSingleQuote) {
         // Single item mode
-        const qty = Number(form.quantity || 0);
-        const rate = Number(form.rate || 0);
-        const pumpRate = Number(form.pump_rate || 0);
-        const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
         const tax = props.taxes?.find(t => Number(t.id) === Number(form.tax_id));
         const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
 
-        if (form.is_tax_inclusive) {
-            const total = qty * rate + pumpCharge;
-            const lineTax = total - (total / (1 + taxRate / 100));
-            taxAmount = lineTax;
-            subtotal = total - lineTax;
-        } else {
-            const lineUntaxed = qty * rate + pumpCharge;
-            subtotal = lineUntaxed;
-            taxAmount = (lineUntaxed * taxRate) / 100;
-        }
+        const res = calculateLineItemTotals({
+            quantity: Number(form.quantity || 0),
+            rate: Number(form.rate || 0),
+            pump_rate: Number(form.pump_rate || 0),
+            taxRate,
+            isTaxInclusive: Boolean(form.is_tax_inclusive),
+        });
+
+        subtotal = res.materialUntaxed + res.pumpCharge;
+        taxAmount = res.materialTax;
     } else {
         // Multi item mode
         (form.items || []).forEach((item: any) => {
-            const qty = Number(item.quantity || 0);
-            const rate = Number(item.rate || 0);
-            const pumpRate = Number(item.pump_rate || 0);
-            const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
             const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
             const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
 
-            if (form.is_tax_inclusive) {
-                const total = qty * rate + pumpCharge;
-                const lineTax = total - (total / (1 + taxRate / 100));
-                taxAmount += lineTax;
-                subtotal += (total - lineTax);
-            } else {
-                const lineUntaxed = qty * rate + pumpCharge;
-                subtotal += lineUntaxed;
-                taxAmount += (lineUntaxed * taxRate) / 100;
-            }
+            const res = calculateLineItemTotals({
+                quantity: Number(item.quantity || 0),
+                rate: Number(item.rate || 0),
+                pump_rate: Number(item.pump_rate || 0),
+                taxRate,
+                isTaxInclusive: Boolean(form.is_tax_inclusive),
+            });
+
+            subtotal += res.materialUntaxed + res.pumpCharge;
+            taxAmount += res.materialTax;
         });
     }
 
@@ -606,22 +614,20 @@ const performSubmit = (customerPOId: any) => {
             pump_rate = data.pump_rate;
         }
         
-        const topPumpRates = concrete_pump 
-            ? [{ concrete_pump: concrete_pump, pump_rate: pump_rate }]
-            : [];
-        
         return {
             ...data,
             concrete_pump: concrete_pump,
             pump_rate: pump_rate,
-            pump_rates: topPumpRates,
             items: data.items.map((item: any) => ({
                 ...item,
                 concrete_pump: item.concrete_pump ?? null,
                 pump_rate: Number(item.pump_rate || 0),
+<<<<<<< HEAD
                 pump_rates: item.concrete_pump 
                     ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
                     : []
+=======
+>>>>>>> refs/remotes/origin/main
             }))
         };
     }).put(route('customer-po.update', customerPOId), {
@@ -835,7 +841,7 @@ const performSubmit = (customerPOId: any) => {
                                     </td>
                                  
                                     <td class="p-3 text-right font-bold text-slate-800 text-sm">
-                                        <span>₹ {{ ((Number(item.quantity || 0) * Number(item.rate || 0)) + Number(item.tax_amount || 0) + (addPouringRatesToTotal ? Number(item.pump_rate || 0) : (Number(item.pump_rate || 0) * Number(item.quantity || 0)))).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                        <span>₹ {{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                                     </td>
                                     <td class="p-3 text-center">
                                         <button
@@ -960,7 +966,7 @@ const performSubmit = (customerPOId: any) => {
                         <div class="col-span-12 md:col-span-2">
                             <label class="block text-xs font-medium text-gray-700">Total Amount</label>
                             <div class="h-8 flex items-center px-3 text-sm font-semibold text-indigo-700 bg-indigo-50 rounded-md">
-                                ₹{{ ((Number(form.quantity || 0) * Number(form.rate || 0)) + Number(form.tax_amount || 0)).toFixed(2) }}
+                                ₹{{ calculateLineItemTotals({ quantity: Number(form.quantity || 0), rate: Number(form.rate || 0), pump_rate: Number(form.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(form.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).amountTotal.toFixed(2) }}
                             </div>
                         </div>
                     </div>
@@ -973,11 +979,11 @@ const performSubmit = (customerPOId: any) => {
                     <span class="text-xs font-bold uppercase tracking-wide text-indigo-800 flex items-center gap-4">
                         Mix Design Items (Loaded from Quotation)
                     </span>
-                        <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
-                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
-                            <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_3" :disabled="!!form.quotation_id" class="peer hidden" />
-                            <label for="is_tax_inclusive_po_edit_3" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
-                        </div>
+                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
+                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
+                        <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_edit_3" :disabled="!!form.quotation_id" class="peer hidden" />
+                        <label for="is_tax_inclusive_po_edit_3" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
+                    </div>
                 </div>
                 
                 <div class="col-span-12 md:col-span-5">
@@ -988,6 +994,10 @@ const performSubmit = (customerPOId: any) => {
                                     <th class="p-2">Mix Design</th>
                                     <th class="p-2 text-right">Quantity</th>
                                     <th class="p-2 text-right">Rate</th>
+                                    <th class="p-2 text-center">Tax</th>
+                                    <th class="p-2 text-center">Pump Type</th>
+                                    <th class="p-2 text-right">Pump Rate</th>
+                                    <th class="p-2 text-right">Tax Amt</th>
                                     <th class="p-2 text-right">Total Amount</th>
                                 </tr>
                             </thead>
@@ -998,7 +1008,21 @@ const performSubmit = (customerPOId: any) => {
                                     </td>
                                     <td class="p-2 text-right font-mono">{{ Number(item.quantity).toFixed(3) }} m³</td>
                                     <td class="p-2 text-right font-mono">₹{{ Number(item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
-                                    <td class="p-2 text-right font-mono font-bold text-indigo-900">₹{{ Number(item.quantity * item.rate).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                                    <td class="p-2 text-center font-mono">
+                                        {{ props.taxes?.find(t => Number(t.id) === Number(item.tax_id)) ? `${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_name} (${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_rate}%)` : '-' }}
+                                    </td>
+                                    <td class="p-2 text-center font-mono">
+                                        {{ props.concretePumpOptions?.find(opt => Number(opt.value) === Number(item.concrete_pump))?.label || '-' }}
+                                    </td>
+                                    <td class="p-2 text-right font-mono">
+                                        {{ item.pump_rate ? `₹${Number(item.pump_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-' }}
+                                    </td>
+                                    <td class="p-2 text-right font-mono">
+                                        ₹{{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                    </td>
+                                    <td class="p-2 text-right font-mono font-bold text-indigo-900">
+                                        ₹{{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>

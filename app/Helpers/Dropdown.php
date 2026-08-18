@@ -767,6 +767,7 @@ if (!function_exists('PaymentMethodsDropdown')) {
 
 
 if (!function_exists('PumpTypeDropdown')) {
+<<<<<<< HEAD
     function PumpTypeDropdown(): array
     {
         return [
@@ -774,6 +775,46 @@ if (!function_exists('PumpTypeDropdown')) {
             ['label' => 'Boom', 'value' => 'Boom'],
             ['label' => 'Pump', 'value' => 'Pump'],
         ];
+=======
+    /**
+     * Returns standard pump options: Manual, Boom, and Pump.
+     * Used across quotation, CPO, sales order, and batch forms.
+     *
+     * @return array
+     */
+    function PumpTypeDropdown(): array
+    {
+        return [
+            ['label' => 'Manual', 'value' => 'manual'],
+            ['label' => 'Boom', 'value' => 'boom'],
+            ['label' => 'Pump', 'value' => 'pump'],
+        ];
+    }
+}
+
+if (!function_exists('ConcretePumpOptions')) {
+    /**
+     * Returns standard pump options: Manual, Boom, and Pump.
+     * Used across quotation, CPO, sales order, and batch forms.
+     *
+     * @return array
+     */
+    function ConcretePumpOptions(): array
+    {
+       return Machine::whereHas('machineType',function ($q) {
+                $q->where('name', 'LIKE', '%Pump%');
+                //   ->orWhere('name', 'LIKE', '%Boom%');
+            })
+            ->where('plant_id', _activePlantId())
+            ->whereNull('deleted_at')
+            ->orderBy('registration')
+            ->get(['id', 'registration'])
+            ->map(fn($t) => [
+                'label' => $t->registration,
+                'value' => (int) $t->id,
+            ])
+            ->toArray();
+>>>>>>> refs/remotes/origin/main
     }
 }
 

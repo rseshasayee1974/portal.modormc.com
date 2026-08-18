@@ -190,6 +190,45 @@ const getItemCompletedQty = (customerPO: any, mixDesignId: number) => {
         .reduce((sum: number, so: any) => sum + Number(so.total_qty || 0), 0) || 0;
 };
 
+const resolveDefaultConcretePump = (item: any, customerPO: any) => {
+    let raw = item?.concrete_pump ?? item?.pump_type;
+
+    if (!raw && item?.pump_rates && item.pump_rates.length > 0) {
+        raw = item.pump_rates[0]?.concrete_pump ?? item.pump_rates[0]?.pump_type;
+    }
+    if (!raw && item?.pumpRates && item.pumpRates.length > 0) {
+        raw = item.pumpRates[0]?.concrete_pump ?? item.pumpRates[0]?.pump_type;
+    }
+
+    if (!raw) {
+        raw = customerPO?.concrete_pump ?? customerPO?.pump_type;
+    }
+
+    if (!raw && customerPO?.quotation) {
+        raw = customerPO.quotation.concrete_pump ?? customerPO.quotation.pump_type;
+    }
+
+    if (!raw) return null;
+
+    const options = props.pumpTypeOptions || props.concretePumpOptions || [];
+    if (!options.length) return raw;
+
+    const numRaw = Number(raw);
+    if (!isNaN(numRaw) && numRaw > 0) {
+        const found = options.find((opt: any) => Number(opt.value) === numRaw);
+        if (found) return found.value;
+    }
+
+    const strRaw = String(raw).trim().toLowerCase();
+    const foundByValueOrLabel = options.find((opt: any) => 
+        String(opt.value).trim().toLowerCase() === strRaw || 
+        String(opt.label).trim().toLowerCase() === strRaw
+    );
+    if (foundByValueOrLabel) return foundByValueOrLabel.value;
+
+    return raw;
+};
+
 const convertToSalesOrder = (customerPO: any) => {
     convertPO.value = customerPO;
     conversionErrors.value = {};
@@ -204,7 +243,7 @@ const convertToSalesOrder = (customerPO: any) => {
             completed_qty: completed,
             remaining_qty: remaining,
             quantity: remaining > 0 ? remaining : 0,
-            concrete_pump: item.concrete_pump || null,
+            concrete_pump: resolveDefaultConcretePump(item, customerPO),
         };
     });
     showConvertModal.value = true;

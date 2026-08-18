@@ -36,6 +36,7 @@ const selectedTemplateKey = ref(props.assignedTemplateKey || 'standard');
 
 const designs = [
     { id: 'standard', name: 'Standard', description: 'Classic bordered grid layout with comprehensive details' },
+    { id: 'box_layout', name: '3-Block Box Layout', description: 'Exact 3-block bordered tax invoice format with plant & company details' },
     { id: 'elite', name: 'Elite', description: 'Two-section modern corporate format with split metadata' },
     { id: 'modern', name: 'Modern', description: 'Clean borderless layout with subtle slate accents' },
     { id: 'compact', name: 'Compact', description: 'Ultra-dense minimal invoice format for quick receipts' },
@@ -68,6 +69,7 @@ const ensurePdfStructure = (rawSettings: any) => {
     if (s.pdf.show_einvoice_details === undefined) s.pdf.show_einvoice_details = true;
     if (s.pdf.show_customer_ref === undefined) s.pdf.show_customer_ref = true;
     if (s.pdf.show_carrier_driver === undefined) s.pdf.show_carrier_driver = true;
+    if (s.pdf.show_seal_signature === undefined) s.pdf.show_seal_signature = true;
     return s;
 };
 
@@ -141,6 +143,8 @@ const submit = () => {
     form.template_key = selectedTemplateKey.value;
     form.settings = activeSettings.value;
     form.template_settings_map = templateSettingsMap.value;
+    console.log('asdsd',);
+    
     form.post(route('templates.save-customization', props.moduleKey), {
         preserveScroll: true,
         onSuccess: () => {
@@ -511,6 +515,14 @@ const downloadSample = () => {
                                         <p class="setting-desc">Show company signature placeholder</p>
                                     </div>
                                     <InputSwitch v-model="activeSettings.pdf.signature" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Plant Seal & Digital Signature</label>
+                                        <p class="setting-desc">Display uploaded seal and signature image on footer</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.show_seal_signature" />
                                 </div>
 
                                 <div class="setting-row">

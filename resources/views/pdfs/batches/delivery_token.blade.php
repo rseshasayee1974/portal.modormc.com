@@ -521,15 +521,14 @@
                 </td>
                 <td style="width: 55%; padding-left: 10px; padding-right: 0;">
                     @php
-                        $isMetricTon = !empty($settings['InvoiceInMetricTon']) && $settings['InvoiceInMetricTon'] == 1;
                         $dispatch = $batch->dispatches->first();
 
                         $emptyWeight = (float) ($dispatch?->empty_weight_truck ?? 0);
                         $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
                         $netWeight = (float) ($dispatch?->net_weight ?? $loadedWeight - $emptyWeight);
 
-                        $unitLabel = $isMetricTon ? ' CBM' : ' MTS';
-                        $decimals = $isMetricTon ? 3 : 0;
+                        $unitLabel = ' MTS';
+                        $decimals = 0;
 
                         $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel;
                         $loadedWeightStr = number_format($loadedWeight, $decimals) . $unitLabel;
