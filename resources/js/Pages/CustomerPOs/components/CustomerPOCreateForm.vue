@@ -245,13 +245,9 @@ const removePumpRatesForDesign = (designId: number) => {
     });
 };
 
-<<<<<<< HEAD
 
 
 
-=======
-const page = usePage();
->>>>>>> refs/remotes/origin/main
 const calculatedTotals = computed(() => {
     let subtotal = 0;
     let taxAmount = 0;
@@ -372,12 +368,9 @@ const submit = () => {
             ...item,
             concrete_pump: item.concrete_pump ?? null,
             pump_rate: Number(item.pump_rate || 0),
-<<<<<<< HEAD
             pump_rates: item.concrete_pump 
                 ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
                 : []
-=======
->>>>>>> refs/remotes/origin/main
         }))
     })).post(route('customer-po.store'), {
         onSuccess: () => {
@@ -597,15 +590,11 @@ const submit = () => {
                             </td>
                           
                             <td class="p-3 text-right font-bold text-slate-800 text-sm">
-<<<<<<< HEAD
                                 <span>₹ {{ (
                                     (Number(item.quantity || 0) * Number(item.rate || 0)) + 
                                     (addPouringRatesToTotal ? Number(item.pump_rate || 0) : (Number(item.pump_rate || 0) * Number(item.quantity || 0))) + 
                                     (form.is_tax_inclusive ? 0 : Number(item.tax_amount || 0))
                                 ).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
-=======
-                                <span>₹ {{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
->>>>>>> refs/remotes/origin/main
                             </td>
                             <td class="p-3 text-center">
                                 <button type="button" @click="removeItem(idx)" class="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-all" :disabled="form.items.length === 1">
@@ -655,7 +644,7 @@ const submit = () => {
                                 {{ props.taxes?.find(t => Number(t.id) === Number(item.tax_id)) ? `${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_name} (${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_rate}%)` : '-' }}
                             </td>
                             <td class="p-2 text-center font-mono">
-                                {{ props.concretePumpOptions?.find(opt => Number(opt.value) === Number(item.concrete_pump || item.pump_rates?.[0]?.concrete_pump))?.label || '-' }}
+                                {{ props.pumpTypeOptions?.find(opt => Number(opt.value) === Number(item.concrete_pump || item.pump_rates?.[0]?.concrete_pump))?.label || '-' }}
                             </td>
                             <td class="p-2 text-right font-mono">
                                 {{ (item.pump_rate || item.pump_rates?.[0]?.pump_rate) ? `₹${Number(item.pump_rate || item.pump_rates?.[0]?.pump_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-' }}

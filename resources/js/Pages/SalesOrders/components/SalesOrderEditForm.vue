@@ -127,13 +127,8 @@ const form = useForm({
     is_tax_inclusive: props.salesOrder?.is_tax_inclusive ? true : false,
     produced_qty: Number(props.salesOrder?.produced_qty ?? 0),
     status: Number(props.salesOrder?.status ?? 1),
-<<<<<<< HEAD
     concrete_pump: null as number | null,
     pump_rate: null as number | null,
-=======
-    concrete_pump: props.salesOrder?.concrete_pump ?? null,
-    pump_rate: Number(props.salesOrder?.pump_rate ?? 0),
->>>>>>> refs/remotes/origin/main
     scheduled_start: props.salesOrder?.scheduled_start ? new Date(props.salesOrder.scheduled_start) : defaultStart,
     scheduled_end: props.salesOrder?.scheduled_end ? new Date(props.salesOrder.scheduled_end) : null,
 });
@@ -205,16 +200,6 @@ const customerPOOptions = computed(() => {
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
-<<<<<<< HEAD
-const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
-
-const subtotal = computed(() => {
-    const qty = Number(form.total_qty || 0);
-    const rate = Number(form.rate || 0);
-    return qty * rate;
-});
-=======
->>>>>>> refs/remotes/origin/main
 
 const selectedTaxRate = computed(() => {
     if (!form.tax_id || !props.taxes?.length) return 0;
@@ -257,13 +242,8 @@ onMounted(async () => {
             form.is_tax_inclusive = fullData.is_tax_inclusive ? true : false;
             form.produced_qty = Number(fullData.produced_qty ?? 0);
             form.status = Number(fullData.status ?? 1);
-<<<<<<< HEAD
             form.concrete_pump = null;
             form.pump_rate = null;
-=======
-            form.concrete_pump = fullData.concrete_pump ?? null;
-            form.pump_rate = Number(fullData.pump_rate ?? 0);
->>>>>>> refs/remotes/origin/main
             form.scheduled_start = fullData.scheduled_start ? new Date(fullData.scheduled_start) : defaultStart;
             form.scheduled_end = fullData.scheduled_end ? new Date(fullData.scheduled_end) : null;
 
@@ -314,83 +294,6 @@ watch(() => form.customer_po_id, (newVal) => {
     }
 });
 
-<<<<<<< HEAD
-=======
-
-
-const resolvePumpRatesLocally = (customerId: number | null, siteId: number | null) => {
-    const activeRates = props.pumpRates || [];
-    const scoredRates = activeRates.map(rate => {
-        let score = 0;
-        if (rate.customer_id !== null && Number(rate.customer_id) === Number(customerId)) {
-            if (siteId !== null && Number(rate.site_id) === Number(siteId)) {
-                score = 3;
-            } else if (rate.site_id === null || rate.site_id === undefined) {
-                score = 2;
-            }
-        } else if (rate.customer_id === null || rate.customer_id === undefined) {
-            score = 1;
-        }
-        return { ...rate, score };
-    }).filter(rate => rate.score > 0);
-
-    const resolved: Record<string, any> = {};
-    scoredRates.forEach(rate => {
-        const type = rate.concrete_pump;
-        if (!resolved[type] || resolved[type].score < rate.score) {
-            resolved[type] = rate;
-        }
-    });
-
-    return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
-};
-
-const resolveSinglePumpRate = (isDropdownChange = false) => {
-    const resolved = resolvePumpRatesLocally(form.customer_id, form.site_id);
-    if (form.concrete_pump) {
-        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(form.concrete_pump));
-        if (matched) {
-            if (isDropdownChange) {
-                form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
-            }
-        } else {
-            if (isDropdownChange) {
-                form.pump_rate = 0;
-            }
-        }
-    } else {
-        if (resolved.length > 0) {
-            const matched = resolved[0];
-            form.concrete_pump = matched.concrete_pump;
-            form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
-        } else {
-            form.concrete_pump = null;
-            form.pump_rate = 0;
-        }
-    }
-};
-
-// Auto pump rate resolution on Edit Form disabled per requirement (enable later if needed):
-/*
-watch(() => form.concrete_pump, () => {
-    if (isInitializing.value) return;
-    resolveSinglePumpRate(true);
-});
-watch(() => form.customer_id, () => {
-    if (isInitializing.value) return;
-    if (form.customer_po_id) return;
-    form.concrete_pump = null;
-    resolveSinglePumpRate(true);
-});
-watch(() => form.site_id, () => {
-    if (isInitializing.value) return;
-    if (form.customer_po_id) return;
-    form.concrete_pump = null;
-    resolveSinglePumpRate(true);
-});
-*/
-
->>>>>>> refs/remotes/origin/main
 const submit = () => {
     const salesOrderId = props.salesOrder?.id ?? props.salesOrder?.work_order_id ?? null;
 

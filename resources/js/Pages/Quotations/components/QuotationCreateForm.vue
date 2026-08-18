@@ -239,7 +239,6 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
     if (item.concrete_pump) {
-<<<<<<< HEAD
         const matched = resolved.find((r: any) => String(r.concrete_pump).toLowerCase() === String(item.concrete_pump).toLowerCase());
         if (matched) {
             if (isDropdownChange) {
@@ -250,11 +249,6 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
                 // item.concrete_pump = null;
                 item.pump_rate = 0;
             }
-=======
-        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(item.concrete_pump));
-        if (matched && isDropdownChange) {
-            item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
->>>>>>> refs/remotes/origin/main
         }
     } else {
         if (resolved.length > 0) {
@@ -515,12 +509,6 @@ const submit = () => {
             ...item,
             concrete_pump: item.concrete_pump ?? null,
             pump_rate: Number(item.pump_rate || 0),
-<<<<<<< HEAD
-            pump_rates: item.concrete_pump 
-                ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
-                : []
-=======
->>>>>>> refs/remotes/origin/main
         }))
     }))
     .post(route('quotations.store'), {

@@ -32,10 +32,7 @@ interface QuotationItemPayload {
     amount_total: number;
     concrete_pump?: number | string | null;
     pump_rate?: number;
-<<<<<<< HEAD
     pump_rates: { concrete_pump: string | number; pump_rate: number }[];
-=======
->>>>>>> refs/remotes/origin/main
 }
 
 const props = defineProps<{
@@ -113,14 +110,8 @@ const form = useForm({
             tax_amount: Number(item.tax_amount || 0),
             untaxed_amount: Number(item.untaxed_amount || 0),
             amount_total: Number(item.amount_total || 0),
-<<<<<<< HEAD
-            concrete_pump: item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : null),
-            pump_rate: item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : 0),
-            pump_rates: [],
-=======
             concrete_pump: item.concrete_pump ?? null,
             pump_rate: Number(item.pump_rate || 0),
->>>>>>> refs/remotes/origin/main
         };
     }) as QuotationItemPayload[],
 });
@@ -365,12 +356,6 @@ const submit = () => {
             ...item,
             concrete_pump: item.concrete_pump ?? null,
             pump_rate: Number(item.pump_rate || 0),
-<<<<<<< HEAD
-            pump_rates: item.concrete_pump 
-                ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
-                : []
-=======
->>>>>>> refs/remotes/origin/main
         }))
     })).put(route('quotations.update', props.quotation.id), {
         preserveScroll: true,

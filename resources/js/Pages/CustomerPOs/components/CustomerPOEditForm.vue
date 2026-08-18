@@ -56,11 +56,7 @@ const form = useForm({
     order_date: props.customerPO?.order_date ?? '',
     status: props.customerPO?.status ?? 1,
     notes: props.customerPO?.notes ?? '',
-<<<<<<< HEAD
     items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, concrete_pump?: string | number | null, pump_rate?: number, pump_rates: Array<{ concrete_pump: string, pump_rate: number }> }>,
-=======
-    items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, concrete_pump?: number | string | null, pump_rate?: number | null }>,
->>>>>>> refs/remotes/origin/main
     mix_design_id: null as number | null,
     quantity: null as number | null,
     rate: null as number | null,
@@ -79,14 +75,9 @@ form.items = itemsList.map((item: any) => {
         rate: Number(item.rate),
         tax_id: item.tax_id ?? null,
         tax_amount: item.tax_amount !== null ? Number(item.tax_amount) : 0,
-<<<<<<< HEAD
         concrete_pump: item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : null),
         pump_rate: item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : 0),
         pump_rates: [],
-=======
-        concrete_pump: item.concrete_pump ?? null,
-        pump_rate: Number(item.pump_rate || 0),
->>>>>>> refs/remotes/origin/main
     };
 });
 
@@ -101,14 +92,9 @@ if (itemsList.length === 1) {
     form.rate = Number(item.rate);
     form.tax_id = item.tax_id ?? null;
     form.tax_amount = item.tax_amount !== null ? Number(item.tax_amount) : 0;
-<<<<<<< HEAD
     const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
     form.concrete_pump = item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : (props.customerPO?.concrete_pump ?? null));
     form.pump_rate = item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : Number(props.customerPO?.pump_rate || 0));
-=======
-    form.concrete_pump = item.concrete_pump ?? null;
-    form.pump_rate = Number(item.pump_rate || 0);
->>>>>>> refs/remotes/origin/main
 }
 
 // Watch quotation selection to auto-fill patron, site, and sales executive
@@ -129,14 +115,9 @@ watch(() => form.quotation_id, (newVal) => {
                     rate: Number(item.rate),
                     tax_id: item.tax_id ?? null,
                     tax_amount: Number(item.tax_amount ?? 0),
-<<<<<<< HEAD
                     concrete_pump: item.concrete_pump ?? (savedPumpRate ? savedPumpRate.concrete_pump : null),
                     pump_rate: item.pump_rate !== null && item.pump_rate !== undefined ? Number(item.pump_rate) : (savedPumpRate ? Number(savedPumpRate.pump_rate) : 0),
                     pump_rates: [],
-=======
-                    concrete_pump: item.concrete_pump ?? null,
-                    pump_rate: Number(item.pump_rate || 0),
->>>>>>> refs/remotes/origin/main
                 };
             });
             if (quoteItems.length === 1) {
@@ -622,12 +603,9 @@ const performSubmit = (customerPOId: any) => {
                 ...item,
                 concrete_pump: item.concrete_pump ?? null,
                 pump_rate: Number(item.pump_rate || 0),
-<<<<<<< HEAD
                 pump_rates: item.concrete_pump 
                     ? [{ concrete_pump: item.concrete_pump, pump_rate: Number(item.pump_rate || 0) }]
                     : []
-=======
->>>>>>> refs/remotes/origin/main
             }))
         };
     }).put(route('customer-po.update', customerPOId), {
