@@ -248,7 +248,7 @@ const resolveSinglePumpRate = (isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            form.concrete_pump = Number(matched.concrete_pump);
+            form.concrete_pump = matched.concrete_pump;
             form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
             form.concrete_pump = null;

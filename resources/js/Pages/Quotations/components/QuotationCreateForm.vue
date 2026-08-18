@@ -237,29 +237,18 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 };
 
 const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
-    // if (!item.mix_design_id) return;
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
     if (item.concrete_pump) {
         const matched = resolved.find((r: any) => String(r.concrete_pump) === String(item.concrete_pump));
-        if (matched) {
-            if (isDropdownChange) {
-                item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
-            }
-        } else {
-            if (isDropdownChange) {
-                // item.concrete_pump = null;
-                item.pump_rate = 0;
-            }
+        if (matched && isDropdownChange) {
+            item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         }
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            item.concrete_pump = Number(matched.concrete_pump);
+            item.concrete_pump = matched.concrete_pump;
             item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
-        } else {
-            item.concrete_pump = null;
-            item.pump_rate = 0;
         }
     }
 };

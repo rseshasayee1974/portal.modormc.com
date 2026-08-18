@@ -110,7 +110,7 @@ const form = useForm({
             tax_amount: Number(item.tax_amount || 0),
             untaxed_amount: Number(item.untaxed_amount || 0),
             amount_total: Number(item.amount_total || 0),
-            concrete_pump: item.concrete_pump !== null && item.concrete_pump !== undefined ? (isNaN(Number(item.concrete_pump)) ? item.concrete_pump : Number(item.concrete_pump)) : null,
+            concrete_pump: item.concrete_pump ?? null,
             pump_rate: Number(item.pump_rate || 0),
         };
     }) as QuotationItemPayload[],

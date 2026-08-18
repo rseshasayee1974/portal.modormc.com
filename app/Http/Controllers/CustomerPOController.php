@@ -519,9 +519,8 @@ class CustomerPOController extends Controller
                     if (!$poItem) continue;
 
                     $details = SalesOrder::generateOrderNo($customerPO->plant_id, 'SO');
-                    $pumpRateRecord = $poItem->pumpRates()->first();
-                    $pumpRateVal = $poItem->pump_rate ?: ($pumpRateRecord?->pump_rate ?? 0);
-                    $concretePumpVal = $itemData['concrete_pump'] ?? ($poItem->concrete_pump ?? $pumpRateRecord?->concrete_pump);
+                    $pumpRateVal = $poItem->pump_rate ?? 0;
+                    $concretePumpVal = $itemData['concrete_pump'] ?? $poItem->concrete_pump;
 
                     SalesOrder::create([
                         'prefix' => $details['prefix'],

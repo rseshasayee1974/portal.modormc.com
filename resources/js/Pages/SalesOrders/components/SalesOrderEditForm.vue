@@ -127,7 +127,7 @@ const form = useForm({
     is_tax_inclusive: props.salesOrder?.is_tax_inclusive ? true : false,
     produced_qty: Number(props.salesOrder?.produced_qty ?? 0),
     status: Number(props.salesOrder?.status ?? 1),
-    concrete_pump: props.salesOrder?.concrete_pump ? Number(props.salesOrder.concrete_pump) : null,
+    concrete_pump: props.salesOrder?.concrete_pump ?? null,
     pump_rate: Number(props.salesOrder?.pump_rate ?? 0),
     scheduled_start: props.salesOrder?.scheduled_start ? new Date(props.salesOrder.scheduled_start) : defaultStart,
     scheduled_end: props.salesOrder?.scheduled_end ? new Date(props.salesOrder.scheduled_end) : null,
@@ -242,7 +242,7 @@ onMounted(async () => {
             form.is_tax_inclusive = fullData.is_tax_inclusive ? true : false;
             form.produced_qty = Number(fullData.produced_qty ?? 0);
             form.status = Number(fullData.status ?? 1);
-            form.concrete_pump = fullData.concrete_pump ? Number(fullData.concrete_pump) : null;
+            form.concrete_pump = fullData.concrete_pump ?? null;
             form.pump_rate = Number(fullData.pump_rate ?? 0);
             form.scheduled_start = fullData.scheduled_start ? new Date(fullData.scheduled_start) : defaultStart;
             form.scheduled_end = fullData.scheduled_end ? new Date(fullData.scheduled_end) : null;
@@ -340,7 +340,7 @@ const resolveSinglePumpRate = (isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            form.concrete_pump = Number(matched.concrete_pump);
+            form.concrete_pump = matched.concrete_pump;
             form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
             form.concrete_pump = null;

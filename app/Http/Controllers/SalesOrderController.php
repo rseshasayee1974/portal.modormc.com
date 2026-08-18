@@ -131,7 +131,7 @@ class SalesOrderController extends Controller
             if (
                 ($request->has('mix_design_id') && (int)$request->mix_design_id !== (int)$salesorder->mix_design_id) ||
                 ($request->has('total_qty') && (float)$request->total_qty !== (float)$salesorder->total_qty) ||
-                ($request->has('concrete_pump') && ($request->filled('concrete_pump') ? (int)$request->concrete_pump : null) !== ($salesorder->concrete_pump !== null ? (int)$salesorder->concrete_pump : null)) ||
+                ($request->has('concrete_pump') && ($request->filled('concrete_pump') ? (string)$request->concrete_pump : null) !== ($salesorder->concrete_pump !== null ? (string)$salesorder->concrete_pump : null)) ||
                 ($request->has('pump_rate') && (float)$request->pump_rate !== (float)$salesorder->pump_rate)
             ) {
                 return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Mix Design, Total Quantity, Concrete Pump Type, or Pump Rate.']);

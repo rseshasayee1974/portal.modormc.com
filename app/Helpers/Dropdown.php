@@ -768,14 +768,31 @@ if (!function_exists('PaymentMethodsDropdown')) {
 
 if (!function_exists('PumpTypeDropdown')) {
     /**
-     * Returns all machine types whose name indicates a pump-type machine.
-     * Used to build the pump-rate grid on quotation/CPO line items.
+     * Returns standard pump options: Manual, Boom, and Pump.
+     * Used across quotation, CPO, sales order, and batch forms.
      *
-     * @return array  e.g. [['label' => 'Pump', 'value' => 'Pump'], ...]
+     * @return array
      */
     function PumpTypeDropdown(): array
     {
-        return Machine::whereHas('machineType',function ($q) {
+        return [
+            ['label' => 'Manual', 'value' => 'manual'],
+            ['label' => 'Boom', 'value' => 'boom'],
+            ['label' => 'Pump', 'value' => 'pump'],
+        ];
+    }
+}
+
+if (!function_exists('ConcretePumpOptions')) {
+    /**
+     * Returns standard pump options: Manual, Boom, and Pump.
+     * Used across quotation, CPO, sales order, and batch forms.
+     *
+     * @return array
+     */
+    function ConcretePumpOptions(): array
+    {
+       return Machine::whereHas('machineType',function ($q) {
                 $q->where('name', 'LIKE', '%Pump%');
                 //   ->orWhere('name', 'LIKE', '%Boom%');
             })

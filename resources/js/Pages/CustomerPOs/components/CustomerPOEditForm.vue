@@ -77,7 +77,7 @@ form.items = itemsList.map((item: any) => {
         rate: Number(item.rate),
         tax_id: item.tax_id ?? null,
         tax_amount: item.tax_amount !== null ? Number(item.tax_amount) : 0,
-        concrete_pump: item.concrete_pump !== null && item.concrete_pump !== undefined ? (isNaN(Number(item.concrete_pump)) ? item.concrete_pump : Number(item.concrete_pump)) : null,
+        concrete_pump: item.concrete_pump ?? null,
         pump_rate: Number(item.pump_rate || 0),
     };
 });
@@ -93,7 +93,7 @@ if (itemsList.length === 1) {
     form.rate = Number(item.rate);
     form.tax_id = item.tax_id ?? null;
     form.tax_amount = item.tax_amount !== null ? Number(item.tax_amount) : 0;
-    form.concrete_pump = item.concrete_pump !== null && item.concrete_pump !== undefined ? (isNaN(Number(item.concrete_pump)) ? item.concrete_pump : Number(item.concrete_pump)) : null;
+    form.concrete_pump = item.concrete_pump ?? null;
     form.pump_rate = Number(item.pump_rate || 0);
 }
 
@@ -115,7 +115,7 @@ watch(() => form.quotation_id, (newVal) => {
                     rate: Number(item.rate),
                     tax_id: item.tax_id ?? null,
                     tax_amount: Number(item.tax_amount ?? 0),
-                    concrete_pump: item.concrete_pump !== null && item.concrete_pump !== undefined ? (isNaN(Number(item.concrete_pump)) ? item.concrete_pump : Number(item.concrete_pump)) : null,
+                    concrete_pump: item.concrete_pump ?? null,
                     pump_rate: Number(item.pump_rate || 0),
                 };
             });
@@ -125,7 +125,7 @@ watch(() => form.quotation_id, (newVal) => {
                 form.rate = Number(quoteItems[0].rate);
                 form.tax_id = quoteItems[0].tax_id ?? null;
                 form.tax_amount = Number(quoteItems[0].tax_amount ?? 0);
-                form.concrete_pump = quoteItems[0].concrete_pump !== null && quoteItems[0].concrete_pump !== undefined ? (isNaN(Number(quoteItems[0].concrete_pump)) ? quoteItems[0].concrete_pump : Number(quoteItems[0].concrete_pump)) : null;
+                form.concrete_pump = quoteItems[0].concrete_pump ?? null;
                 form.pump_rate = Number(quoteItems[0].pump_rate || 0);
             }
         }
