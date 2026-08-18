@@ -889,7 +889,6 @@ class PrintDataFormatter
             'plant.addresses',
             'tax',
             'salesExecutive',
-            'concretePump', 
         ]);
 
         $data = self::base();
@@ -1014,7 +1013,7 @@ class PrintDataFormatter
             $showPumpCharges = !isset($data['settings']['pdf']['show_pump_charges']) || $data['settings']['pdf']['show_pump_charges'];
 
             if ($showPumpCharges) {
-                $displayUnitPrice = $unitPrice - ($isTaxInclusive ? (float)($itemPumpRateForCalc / (1 + $taxRate / 100)) : (float)$itemPumpRateForCalc);
+                $displayUnitPrice = $unitPrice - ($isTaxInclusive ? (float)($actualItemPumpRate / (1 + $taxRate / 100)) : (float)$actualItemPumpRate);
                 $displayPumpCharge = $actualItemPumpRate;
             } else {
                 $displayUnitPrice = $unitPrice;

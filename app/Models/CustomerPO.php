@@ -26,7 +26,6 @@ class CustomerPO extends Model
         'site_id',
         'notes',
         'sales_executive_id',
-        'concrete_pump',
         'is_tax_inclusive',
         'order_date',
         'status',
@@ -115,11 +114,6 @@ class CustomerPO extends Model
     public function tax()
     {
         return $this->belongsTo(Tax::class, 'tax_id');
-    }
-
-    public function concretePump()
-    {
-        return $this->belongsTo(Machine::class, 'concrete_pump');
     }
 
     protected static function booted()

@@ -44,6 +44,7 @@ class SalesOrderController extends Controller
                 $payload['sales_executive_id'] = $payload['sales_executive_id'] ?? $po->sales_executive_id;
                 $payload['customer_id'] = $payload['customer_id'] ?? $po->patron_id;
                 $payload['site_id'] = $payload['site_id'] ?? $po->site_id;
+                $payload['is_tax_inclusive'] = $payload['is_tax_inclusive'] ?? $po->is_tax_inclusive;
             }
         }
 
@@ -99,6 +100,7 @@ class SalesOrderController extends Controller
             $salesorder->site_id = $salesorder->site_id ?? $po->site_id;
             $salesorder->concrete_pump = $salesorder->concrete_pump ?? $po->concrete_pump;
             $salesorder->sales_executive_id = $salesorder->sales_executive_id ?? $po->sales_executive_id;
+            $salesorder->is_tax_inclusive = $salesorder->is_tax_inclusive ?? $po->is_tax_inclusive;
             
             if ($po->quotation && $po->quotation->items && $po->quotation->items->isNotEmpty()) {
                 $firstItem = $po->quotation->items->first();

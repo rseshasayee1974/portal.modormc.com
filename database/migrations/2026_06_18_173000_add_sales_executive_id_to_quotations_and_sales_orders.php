@@ -24,6 +24,12 @@ return new class extends Migration
                 $table->foreign('sales_executive_id')->references('id')->on('mm_personnels')->nullOnDelete();
             }
         });
+
+        if (Schema::hasTable('mm_work_orders') && !Schema::hasColumn('mm_work_orders', 'sales_executive_id')) {
+            Schema::table('mm_work_orders', function (Blueprint $table) {
+                $table->unsignedBigInteger('sales_executive_id')->nullable();
+            });
+        }
     }
 
     /**
