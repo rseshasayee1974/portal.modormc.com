@@ -51,25 +51,25 @@ const form = useForm({
     patron_id: props.customerPO?.patron_id ?? null,
     site_id: props.customerPO?.site_id ?? null,
     sales_executive_id: props.customerPO?.sales_executive_id ?? null,
-    pump_type: props.customerPO?.pump_type !== null ? (isNaN(Number(props.customerPO.pump_type)) ? props.customerPO.pump_type : Number(props.customerPO.pump_type)) : null,
+    concrete_pump: props.customerPO?.concrete_pump !== null ? (isNaN(Number(props.customerPO.concrete_pump)) ? props.customerPO.concrete_pump : Number(props.customerPO.concrete_pump)) : null,
     pump_rate: Number(props.customerPO?.pump_rate || 0),
     is_tax_inclusive: props.customerPO?.is_tax_inclusive ? true : false,
     order_date: props.customerPO?.order_date ?? '',
     status: props.customerPO?.status ?? 1,
     notes: props.customerPO?.notes ?? '',
-    items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, pump_rates: Array<{ pump_type: string, pump_rate: number }> }>,
+    items: [] as Array<{ id: number | null, mix_design_id: number | null, quantity: number | null, rate: number | null, tax_id: number | null, tax_amount: number | null, pump_rates: Array<{ concrete_pump: string, pump_rate: number }> }>,
     mix_design_id: null as number | null,
     quantity: null as number | null,
     rate: null as number | null,
     tax_id: null as number | null,
     tax_amount: null as number | null,
-    pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })) as Array<{ pump_type: string, pump_rate: number }>,
+    pump_rates: (props.pumpTypeOptions || []).map(pt => ({ concrete_pump: pt.value, pump_rate: 0 })) as Array<{ concrete_pump: string, pump_rate: number }>,
 });
 
 // Pre-fill items from sales order or quotation items
 const itemsList = props.customerPO?.items || props.customerPO?.quotation?.items || [];
 form.items = itemsList.map((item: any) => {
-    const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.pump_type !== null && pr.pump_type !== undefined && pr.pump_type !== '');
+    const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
     return {
         id: props.customerPO?.items?.some((i: any) => i.id === item.id) ? item.id : null,
         mix_design_id: item.mix_design_id,
@@ -77,14 +77,14 @@ form.items = itemsList.map((item: any) => {
         rate: Number(item.rate),
         tax_id: item.tax_id ?? null,
         tax_amount: item.tax_amount !== null ? Number(item.tax_amount) : 0,
-        pump_type: savedPumpRate ? Number(savedPumpRate.pump_type) : null,
+        concrete_pump: savedPumpRate ? Number(savedPumpRate.concrete_pump) : null,
         pump_rate: savedPumpRate ? Number(savedPumpRate.pump_rate) : 0,
         pump_rates: [],
     };
 });
 
 if (form.items.length === 0 && !form.quotation_id) {
-    form.items.push({ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_type: null, pump_rate: 0, pump_rates: [] });
+    form.items.push({ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, concrete_pump: null, pump_rate: 0, pump_rates: [] });
 }
 
 if (itemsList.length === 1) {
@@ -94,8 +94,8 @@ if (itemsList.length === 1) {
     form.rate = Number(item.rate);
     form.tax_id = item.tax_id ?? null;
     form.tax_amount = item.tax_amount !== null ? Number(item.tax_amount) : 0;
-    const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.pump_type !== null && pr.pump_type !== undefined && pr.pump_type !== '');
-    form.pump_type = savedPumpRate ? Number(savedPumpRate.pump_type) : null;
+    const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
+    form.concrete_pump = savedPumpRate ? Number(savedPumpRate.concrete_pump) : null;
     form.pump_rate = savedPumpRate ? Number(savedPumpRate.pump_rate) : 0;
 }
 
@@ -111,7 +111,7 @@ watch(() => form.quotation_id, (newVal) => {
             form.is_tax_inclusive = quote.is_tax_inclusive ? true : false;
             const quoteItems = quote.items || [];
             form.items = quoteItems.map((item: any) => {
-                const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.pump_type !== null && pr.pump_type !== undefined && pr.pump_type !== '');
+                const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
                 return {
                     id: null,
                     mix_design_id: item.mix_design_id,
@@ -119,7 +119,7 @@ watch(() => form.quotation_id, (newVal) => {
                     rate: Number(item.rate),
                     tax_id: item.tax_id ?? null,
                     tax_amount: Number(item.tax_amount ?? 0),
-                    pump_type: savedPumpRate ? Number(savedPumpRate.pump_type) : null,
+                    concrete_pump: savedPumpRate ? Number(savedPumpRate.concrete_pump) : null,
                     pump_rate: savedPumpRate ? Number(savedPumpRate.pump_rate) : 0,
                     pump_rates: [],
                 };
@@ -130,26 +130,26 @@ watch(() => form.quotation_id, (newVal) => {
                 form.rate = Number(quoteItems[0].rate);
                 form.tax_id = quoteItems[0].tax_id ?? null;
                 form.tax_amount = Number(quoteItems[0].tax_amount ?? 0);
-                const savedPumpRate = (quoteItems[0].pump_rates || quoteItems[0].pumpRates || []).find((pr: any) => pr.pump_type !== null && pr.pump_type !== undefined && pr.pump_type !== '');
-                form.pump_type = savedPumpRate ? Number(savedPumpRate.pump_type) : null;
+                const savedPumpRate = (quoteItems[0].pump_rates || quoteItems[0].pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
+                form.concrete_pump = savedPumpRate ? Number(savedPumpRate.concrete_pump) : null;
                 form.pump_rate = savedPumpRate ? Number(savedPumpRate.pump_rate) : 0;
             }
         }
     } else {
-        form.items = [{ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_type: null, pump_rate: 0, pump_rates: [] }];
+        form.items = [{ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, concrete_pump: null, pump_rate: 0, pump_rates: [] }];
         form.mix_design_id = null;
         form.quantity = null;
         form.rate = null;
         form.tax_id = null;
         form.tax_amount = null;
-        form.pump_rates = (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 }));
+        form.pump_rates = (props.pumpTypeOptions || []).map(pt => ({ concrete_pump: pt.value, pump_rate: 0 }));
         form.sales_executive_id = null;
         form.is_tax_inclusive = false;
     }
 });
 
 const addItem = () => {
-    form.items.push({ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_rates: (props.pumpTypeOptions || []).map(pt => ({ pump_type: pt.value, pump_rate: 0 })) });
+    form.items.push({ id: null, mix_design_id: null, quantity: null, rate: null, tax_id: null, tax_amount: 0, pump_rates: (props.pumpTypeOptions || []).map(pt => ({ concrete_pump: pt.value, pump_rate: 0 })) });
 };
 
 
@@ -220,7 +220,7 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 
     const resolved: Record<string, any> = {};
     scoredRates.forEach(rate => {
-        const type = rate.pump_type;
+        const type = rate.concrete_pump;
         if (!resolved[type] || resolved[type].score < rate.score) {
             resolved[type] = rate;
         }
@@ -231,8 +231,8 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 
 const resolveSinglePumpRate = (isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
-    if (form.pump_type) {
-        const matched = resolved.find((r: any) => String(r.pump_type) === String(form.pump_type));
+    if (form.concrete_pump) {
+        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(form.concrete_pump));
         if (matched) {
             if (isDropdownChange) {
                 form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
@@ -245,10 +245,10 @@ const resolveSinglePumpRate = (isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            form.pump_type = Number(matched.pump_type);
+            form.concrete_pump = Number(matched.concrete_pump);
             form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
-            form.pump_type = null;
+            form.concrete_pump = null;
             form.pump_rate = 0;
         }
     }
@@ -256,15 +256,15 @@ const resolveSinglePumpRate = (isDropdownChange = false) => {
 
 // Auto pump rate resolution on Edit Form disabled per requirement (enable later if needed):
 /*
-watch(() => form.pump_type, () => {
+watch(() => form.concrete_pump, () => {
     resolveSinglePumpRate(true);
 });
 watch(() => form.patron_id, () => {
-    form.pump_type = null;
+    form.concrete_pump = null;
     resolveSinglePumpRate(true);
 });
 watch(() => form.site_id, () => {
-    form.pump_type = null;
+    form.concrete_pump = null;
     resolveSinglePumpRate(true);
 });
 */
@@ -327,8 +327,8 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     if (!item.mix_design_id) return;
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
-    if (item.pump_type) {
-        const matched = resolved.find((r: any) => String(r.pump_type) === String(item.pump_type));
+    if (item.concrete_pump) {
+        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(item.concrete_pump));
         if (matched) {
             if (isDropdownChange) {
                 item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
@@ -341,10 +341,10 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            item.pump_type = Number(matched.pump_type);
+            item.concrete_pump = Number(matched.concrete_pump);
             item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
-            item.pump_type = null;
+            item.concrete_pump = null;
             item.pump_rate = 0;
         }
     }
@@ -598,27 +598,27 @@ const performSubmit = (customerPOId: any) => {
         const isSingleItem = !data.quotation_id && data.items.length <= 1;
         const isSingleQuote = data.quotation_id && (props.customerPO?.quotation?.items?.length === 1 || props.customerPO?.items?.length === 1);
         
-        let pump_type = null;
+        let concrete_pump = null;
         let pump_rate = 0;
         
         if (isSingleItem || isSingleQuote) {
-            pump_type = data.pump_type;
+            concrete_pump = data.concrete_pump;
             pump_rate = data.pump_rate;
         }
         
-        const topPumpRates = pump_type 
-            ? [{ pump_type: pump_type, pump_rate: pump_rate }]
+        const topPumpRates = concrete_pump 
+            ? [{ concrete_pump: concrete_pump, pump_rate: pump_rate }]
             : [];
         
         return {
             ...data,
-            pump_type: pump_type,
+            concrete_pump: concrete_pump,
             pump_rate: pump_rate,
             pump_rates: topPumpRates,
             items: data.items.map((item: any) => ({
                 ...item,
-                pump_rates: item.pump_type 
-                    ? [{ pump_type: item.pump_type, pump_rate: item.pump_rate }]
+                pump_rates: item.concrete_pump 
+                    ? [{ concrete_pump: item.concrete_pump, pump_rate: item.pump_rate }]
                     : []
             }))
         };
@@ -815,7 +815,7 @@ const performSubmit = (customerPOId: any) => {
                                     </td>
                                     <td class="p-2">
                                         <BaseSelect
-                                            v-model="item.pump_type"
+                                            v-model="item.concrete_pump"
                                             :options="props.concretePumpOptions || []"
                                             optionLabel="label"
                                             optionValue="value"
@@ -909,7 +909,7 @@ const performSubmit = (customerPOId: any) => {
                         <!-- Pump Type -->
                         <div class="col-span-6 md:col-span-2">
                             <BaseSelect
-                                v-model="form.pump_type"
+                                v-model="form.concrete_pump"
                                 :options="props.concretePumpOptions || []"
                                 optionLabel="label"
                                 optionValue="value"
@@ -1042,8 +1042,8 @@ const performSubmit = (customerPOId: any) => {
                                 <tbody class="divide-y divide-indigo-50/50">
                                     <template v-if="form.quotation_id && (customerPO?.quotation?.items?.length === 1 || customerPO?.items?.length === 1)">
                                         <template v-if="Number(form.mix_design_id) === Number(designId)">
-                                            <tr v-for="pr in form.pump_rates" :key="pr.pump_type" class="hover:bg-indigo-50/20 transition-colors p-1">
-                                                <td class="px-4 py-0 font-medium text-slate-700 truncate">{{ props.pumpTypeOptions?.find(opt => String(opt.value) === String(pr.pump_type))?.label || pr.pump_type }}</td>
+                                            <tr v-for="pr in form.pump_rates" :key="pr.concrete_pump" class="hover:bg-indigo-50/20 transition-colors p-1">
+                                                <td class="px-4 py-0 font-medium text-slate-700 truncate">{{ props.pumpTypeOptions?.find(opt => String(opt.value) === String(pr.concrete_pump))?.label || pr.concrete_pump }}</td>
                                                 <td class="px-1 py-3 text-right">
                                                     <BaseInputNumber 
                                                         v-model="pr.pump_rate" 
@@ -1058,8 +1058,8 @@ const performSubmit = (customerPOId: any) => {
                                     <template v-else>
                                         <template v-for="item in form.items" :key="String(item.mix_design_id) + '-cpo-pr-edit'">
                                             <template v-if="Number(item.mix_design_id) === Number(designId)">
-                                                <tr v-for="pr in item.pump_rates" :key="pr.pump_type" class="hover:bg-indigo-50/20 transition-colors p-1">
-                                                    <td class="px-4 py-0 font-medium text-slate-700 truncate">{{ props.pumpTypeOptions?.find(opt => String(opt.value) === String(pr.pump_type))?.label || pr.pump_type }}</td>
+                                                <tr v-for="pr in item.pump_rates" :key="pr.concrete_pump" class="hover:bg-indigo-50/20 transition-colors p-1">
+                                                    <td class="px-4 py-0 font-medium text-slate-700 truncate">{{ props.pumpTypeOptions?.find(opt => String(opt.value) === String(pr.concrete_pump))?.label || pr.concrete_pump }}</td>
                                                     <td class="px-1 py-3 text-right">
                                                         <BaseInputNumber 
                                                             v-model="pr.pump_rate" 

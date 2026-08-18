@@ -43,7 +43,7 @@ const filters = ref({
 
 const form = useForm({
     customer_id: null as number | null,
-    pump_type: null as number | null,
+    concrete_pump: null as number | null,
     rate: 0 as number,
     rate_type: 'Flat Rate' as string,
     uom_id: null as number | null,
@@ -97,7 +97,7 @@ const openModal = (id: number | null = null) => {
         const rate = props.rates.find(r => r.id === id);
         if (rate) {
             form.customer_id = rate.customer_id;
-            form.pump_type = rate.pump_type;
+            form.concrete_pump = rate.concrete_pump;
             form.rate = parseFloat(rate.rate);
             form.rate_type = rate.rate_type;
             form.uom_id = rate.uom_id;
@@ -263,8 +263,8 @@ watch(() => page.props.flash, (flash: any) => {
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <label class="text-[10px] font-black uppercase tracking-widest text-gray-400">Pump / Machine *</label>
-                        <BaseSelect v-model="form.pump_type" :options="pumpOptions" optionLabel="label" optionValue="value" filter placeholder="Select pump..." class="w-full" />
-                        <small v-if="form.errors.pump_type" class="p-error">{{ form.errors.pump_type }}</small>
+                        <BaseSelect v-model="form.concrete_pump" :options="pumpOptions" optionLabel="label" optionValue="value" filter placeholder="Select pump..." class="w-full" />
+                        <small v-if="form.errors.concrete_pump" class="p-error">{{ form.errors.concrete_pump }}</small>
                     </div>
                 </div>
 

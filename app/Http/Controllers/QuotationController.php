@@ -122,7 +122,7 @@ class QuotationController extends Controller
                     'patron_id' => $quotation->patron_id,
                     'site_id' => $quotation->site_id,
                     'sales_executive_id' => $quotation->sales_executive_id,
-                    'pump_type' => $quotation->pump_type,
+                    'concrete_pump' => $quotation->concrete_pump,
                     'is_tax_inclusive' => $quotation->is_tax_inclusive,
                     'pump_rate' => $quotation->pump_rate,
                     'manual_rate' => $quotation->manual_rate,
@@ -161,7 +161,7 @@ class QuotationController extends Controller
 
                     // Copy pump rates
                     $sourcePumpRates = $qItem->pumpRates->map(fn($pr) => [
-                        'pump_type' => $pr->pump_type,
+                        'concrete_pump' => $pr->concrete_pump,
                         'pump_rate' => $pr->pump_rate,
                     ])->toArray();
                     if (!empty($sourcePumpRates)) {

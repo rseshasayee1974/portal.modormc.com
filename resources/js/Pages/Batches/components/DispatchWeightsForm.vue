@@ -111,7 +111,7 @@ const formatTime = (dateVal: any) => {
             </ul>
         </div>
 
-        <div class="bg-white">
+        <div class="bg-white px-2">
             <div class="flex items-center gap-2 border-b border-slate-100 mb-4">
                 <TruckIcon class="h-5 w-5 text-indigo-500" />
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">1. Logistics & Delivery</h3>
@@ -131,7 +131,7 @@ const formatTime = (dateVal: any) => {
             </div>
         </div>
 
-        <div class="bg-white">
+        <div class="bg-white px-2">
             <div class="flex items-center gap-2 border-b border-slate-100 pb-1 mb-4">
                 <ScaleIcon class="h-5 w-5 text-indigo-500" />
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">2. Pricing & Quantities</h3>
@@ -145,7 +145,7 @@ const formatTime = (dateVal: any) => {
             </div>
         </div>
 
-        <div class="bg-white space-y-6">
+        <div class="bg-white px-2">
             <div class="flex items-center gap-2 border-b border-slate-100 pb-1">
                 <BanknotesIcon class="h-5 w-5 text-indigo-500" />
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">3. Financials & Invoice</h3>
@@ -211,7 +211,7 @@ const formatTime = (dateVal: any) => {
                 </div>
                 <div v-if="modelValue.status.invoice_status == 1" class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 py-3 px-4 bg-slate-50 border border-slate-100 rounded-xl mt-4">
                     <div class="flex flex-wrap items-center gap-6 w-full md:w-auto">
-                        <div class="flex items-center gap-3">
+                        <!-- <div class="flex items-center gap-3">
                             <div class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="h-4 w-4">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
@@ -221,7 +221,7 @@ const formatTime = (dateVal: any) => {
                                 <h4 class="text-[10px] font-black uppercase tracking-widest text-emerald-700 leading-none">Invoice Linked</h4>
                                 <span class="text-[9px] text-emerald-600 font-semibold uppercase tracking-wider mt-0.5 block">Billing Processed</span>
                             </div>
-                        </div>
+                        </div> -->
                         
                         <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
 
@@ -275,7 +275,7 @@ const formatTime = (dateVal: any) => {
                             class="inline-flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors shadow-sm"
                         >
                             <TrashIcon class="h-4 w-4" />
-                            Delete Invoice
+                            Delete
                         </a>
                     </div>
                 </div>

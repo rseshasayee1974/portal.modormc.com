@@ -151,7 +151,7 @@ Log::info($dispatch);
             if (
                 ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$dispatch->sales_order_id) ||
                 ($request->has('delivered_qty') && (float)$request->delivered_qty !== (float)$dispatch->delivered_qty) ||
-                ($request->has('pump_type') && $request->pump_type !== $dispatch->pump_type)
+                ($request->has('concrete_pump') && $request->concrete_pump !== $dispatch->concrete_pump)
             ) {
                 return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Sales Order, Delivered Qty, or Concrete Pump.']);
             }

@@ -85,6 +85,11 @@ const expandedBatchId  = ref<number | null>(null);
 const detailedBatches  = ref<Record<number, any>>({});
 const isLoadingBatch   = ref<Record<number, boolean>>({});
 const blinkingBatchId  = ref<number | null>(null);
+const activeTabsPerBatch = ref<Record<number, number>>({});
+const getBatchActiveTab = (batchId: number) => activeTabsPerBatch.value[batchId] ?? 0;
+const setBatchActiveTab = (batchId: number, tabIndex: number) => {
+    activeTabsPerBatch.value[batchId] = tabIndex;
+};
 
 // Fallback REST polling via Inertia reload
 const fetchBatchesFallback = () => {
@@ -180,17 +185,34 @@ const fetchBatchDetails = async (id: number) => {
  * affected by PrimeVue mutating the expandedRows object internally.
  * Note: fetchBatchDetails is driven by the watch below — no direct call needed here.
  */
-const toggleExpand = (data: any) => {
+const toggleExpand = (data: any, targetTab?: number) => {
     const id = Number(data.id);
 
     if (expandedBatchId.value === id) {
+        if (targetTab !== undefined && getBatchActiveTab(id) !== targetTab) {
+            // Row is already expanded, switch directly to the requested tab
+            setBatchActiveTab(id, targetTab);
+            return;
+        }
         // Collapse
         expandedBatchId.value = null;
         expandedRows.value     = {};
     } else {
+        if (targetTab !== undefined) {
+            setBatchActiveTab(id, targetTab);
+        }
         // Expand — setting expandedBatchId triggers the watch which fetches details
         expandedBatchId.value = id;
         expandedRows.value    = { [id]: true };
+    }
+};
+
+const onStatusClick = (data: any) => {
+    // If status is Dispatched (3) or Completed (4), directly open 2. Dispatch & Invoicing (tab 1)
+    if (data.status === 3 || data.status === 4) {
+        toggleExpand(data, 1);
+    } else {
+        toggleExpand(data, 0);
     }
 };
 
@@ -651,7 +673,14 @@ const shareBatchEmail = () => {
                                         <i class="pi pi-spinner animate-spin text-amber-500 text-lg" v-tooltip.top="'Pending Network Sync'"></i>
                                     </template>
                                     <template v-else>
-                                        <Tag :value="statusLabel(slotProps.data.status)" :severity="statusSeverity(slotProps.data.status)" rounded />
+                                        <Tag 
+                                            :value="statusLabel(slotProps.data.status)" 
+                                            :severity="statusSeverity(slotProps.data.status)" 
+                                            rounded 
+                                            class="cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm"
+                                            v-tooltip.top="(slotProps.data.status === 3 || slotProps.data.status === 4) ? 'Click to open Dispatch & Invoicing' : 'Click to open Production & Materials'"
+                                            @click.stop="onStatusClick(slotProps.data)"
+                                        />
                                         <Tag v-if="slotProps.data.is_verified" value="Verified" severity="success" rounded class="!bg-emerald-500/10 !text-emerald-600 !border-emerald-500/20" />
                                     </template>
                                 </div>
@@ -849,12 +878,21 @@ const shareBatchEmail = () => {
                                 
                                 <!-- Unified Tabbed Layout for Batch Edit & Dispatch -->
                                 <div class="relative bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                                    <TabView>
+                                    <TabView 
+                                        :activeIndex="getBatchActiveTab(slotProps.data.id)" 
+                                        @update:activeIndex="(val) => setBatchActiveTab(slotProps.data.id, val)" 
+                                        class="expanded-batch-tabview"
+                                    >
                                         <TabPanel>
                                             <template #header>
-                                                <div class="flex items-center gap-2 py-1">
-                                                    <CubeIcon class="w-4 h-4 text-indigo-500" />
-                                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-700">1. Production & Materials</span>
+                                                <div :class="[
+                                                    'flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 text-xs font-bold uppercase tracking-wider',
+                                                    getBatchActiveTab(slotProps.data.id) === 0
+                                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 ring-1 ring-indigo-500'
+                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-800'
+                                                ]">
+                                                    <CubeIcon :class="['w-4 h-4 transition-colors', getBatchActiveTab(slotProps.data.id) === 0 ? 'text-white' : 'text-slate-500']" />
+                                                    <span>1. Production & Materials</span>
                                                 </div>
                                             </template>
                                             <div class=" bg-slate-50/20">
@@ -879,9 +917,16 @@ const shareBatchEmail = () => {
 
                                         <TabPanel :disabled="slotProps.data.status !== 3 && slotProps.data.status !== 4">
                                             <template #header>
-                                                <div class="flex items-center gap-2 py-1">
-                                                    <PaperAirplaneIcon class="w-4 h-4 text-indigo-500" />
-                                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-700">2. Dispatch & Invoicing</span>
+                                                <div :class="[
+                                                    'flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 text-xs font-bold uppercase tracking-wider',
+                                                    (slotProps.data.status !== 3 && slotProps.data.status !== 4)
+                                                        ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400'
+                                                        : getBatchActiveTab(slotProps.data.id) === 1
+                                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 ring-1 ring-indigo-500'
+                                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80 hover:text-slate-800'
+                                                ]">
+                                                    <PaperAirplaneIcon :class="['w-4 h-4 transition-colors', getBatchActiveTab(slotProps.data.id) === 1 ? 'text-white' : 'text-slate-500']" />
+                                                    <span>2. Dispatch & Invoicing</span>
                                                 </div>
                                             </template>
                                             <div class=" bg-slate-50/20">
@@ -1209,6 +1254,31 @@ const shareBatchEmail = () => {
 
 
 <style scoped>
+:deep(.expanded-batch-tabview .p-tabview-nav) {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 0.75rem 1.25rem;
+    gap: 0.5rem;
+    display: flex;
+}
+:deep(.expanded-batch-tabview .p-tabview-header) {
+    margin: 0 !important;
+}
+:deep(.expanded-batch-tabview .p-tabview-nav-link) {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0.75rem !important;
+}
+:deep(.expanded-batch-tabview .p-tabview-ink-bar) {
+    display: none !important;
+}
+:deep(.expanded-batch-tabview .p-tabview-panels) {
+    padding: 0 !important;
+    background: transparent !important;
+}
+
 @keyframes batch-blink {
     0%          { background-color: transparent;  box-shadow: none; }
     14%         { background-color: #bbf7d0 !important; box-shadow: inset 0 0 0 2px #16a34a; }

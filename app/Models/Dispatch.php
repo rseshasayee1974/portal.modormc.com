@@ -147,7 +147,7 @@ class Dispatch extends Model
 
     public function concretePump(): BelongsTo
     {
-        return $this->belongsTo(Machine::class, 'pump_type');
+        return $this->belongsTo(Machine::class, 'concrete_pump');
     }
 
     public function status(): HasOne

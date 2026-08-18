@@ -87,8 +87,8 @@ class CustomerPOTest extends TestCase
         ]);
 
         $quotationItem->syncPumpRates([
-            ['pump_type' => 'Pump A', 'pump_rate' => 250],
-            ['pump_type' => 'Pump B', 'pump_rate' => 300],
+            ['concrete_pump' => 'Pump A', 'pump_rate' => 250],
+            ['concrete_pump' => 'Pump B', 'pump_rate' => 300],
         ]);
 
         $response = $this->patch(route('quotations.convert', $quotation->id), [
@@ -110,8 +110,8 @@ class CustomerPOTest extends TestCase
         $this->assertEquals(600, $customerPO->items->first()->rate);
 
         $this->assertCount(2, $customerPO->items->first()->pumpRates);
-        $this->assertEquals(250, $customerPO->items->first()->pumpRates->where('pump_type', 'Pump A')->first()->pump_rate);
-        $this->assertEquals(300, $customerPO->items->first()->pumpRates->where('pump_type', 'Pump B')->first()->pump_rate);
+        $this->assertEquals(250, $customerPO->items->first()->pumpRates->where('concrete_pump', 'Pump A')->first()->pump_rate);
+        $this->assertEquals(300, $customerPO->items->first()->pumpRates->where('concrete_pump', 'Pump B')->first()->pump_rate);
     }
 
     public function test_creating_customer_po_creates_customer_po_items()
@@ -597,8 +597,8 @@ class CustomerPOTest extends TestCase
             'quantity' => 10,
             'rate' => 500,
             'pump_rates' => [
-                ['pump_type' => 'Pump A', 'pump_rate' => 250],
-                ['pump_type' => 'Pump B', 'pump_rate' => 300],
+                ['concrete_pump' => 'Pump A', 'pump_rate' => 250],
+                ['concrete_pump' => 'Pump B', 'pump_rate' => 300],
             ],
         ]);
 
@@ -609,8 +609,8 @@ class CustomerPOTest extends TestCase
         
         $item = $customerPO->items->first();
         $this->assertCount(2, $item->pumpRates);
-        $this->assertEquals(250, $item->pumpRates->where('pump_type', 'Pump A')->first()->pump_rate);
-        $this->assertEquals(300, $item->pumpRates->where('pump_type', 'Pump B')->first()->pump_rate);
+        $this->assertEquals(250, $item->pumpRates->where('concrete_pump', 'Pump A')->first()->pump_rate);
+        $this->assertEquals(300, $item->pumpRates->where('concrete_pump', 'Pump B')->first()->pump_rate);
 
         // 2. Update the Direct Customer PO with new/modified pump rates (single item mode)
         $response = $this->put(route('customer-po.update', $customerPO->id), [
@@ -622,17 +622,17 @@ class CustomerPOTest extends TestCase
             'quantity' => 10,
             'rate' => 500,
             'pump_rates' => [
-                ['pump_type' => 'Pump A', 'pump_rate' => 400], // updated
-                ['pump_type' => 'Pump B', 'pump_rate' => 0],   // removed (since rate is 0)
-                ['pump_type' => 'Pump C', 'pump_rate' => 150], // added
+                ['concrete_pump' => 'Pump A', 'pump_rate' => 400], // updated
+                ['concrete_pump' => 'Pump B', 'pump_rate' => 0],   // removed (since rate is 0)
+                ['concrete_pump' => 'Pump C', 'pump_rate' => 150], // added
             ],
         ]);
 
         $response->assertStatus(302);
         $item->refresh();
         $this->assertCount(2, $item->pumpRates);
-        $this->assertEquals(400, $item->pumpRates->where('pump_type', 'Pump A')->first()->pump_rate);
-        $this->assertNull($item->pumpRates->where('pump_type', 'Pump B')->first());
-        $this->assertEquals(150, $item->pumpRates->where('pump_type', 'Pump C')->first()->pump_rate);
+        $this->assertEquals(400, $item->pumpRates->where('concrete_pump', 'Pump A')->first()->pump_rate);
+        $this->assertNull($item->pumpRates->where('concrete_pump', 'Pump B')->first());
+        $this->assertEquals(150, $item->pumpRates->where('concrete_pump', 'Pump C')->first()->pump_rate);
     }
 }

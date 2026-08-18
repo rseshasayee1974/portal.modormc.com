@@ -18,20 +18,20 @@ return new class extends Migration
             $table->id();
             $table->foreignId('quotation_id')->nullable()->constrained('mm_quotations')->nullOnDelete();
             $table->foreignId('quotation_item_id')->constrained('mm_quotation_items')->cascadeOnDelete();
-            $table->string('pump_type', 100);
+            $table->string('concrete_pump', 100);
             $table->decimal('pump_rate', 10, 2)->default(0);
             $table->auditColumns();
-            $table->unique(['quotation_item_id', 'pump_type'], 'uq_qi_pump_rates');
+            $table->unique(['quotation_item_id', 'concrete_pump'], 'uq_qi_pump_rates');
         });
 
         Schema::create('mm_customer_po_item_pump_rates', function (Blueprint $table) {
             $table->id();
             $table->foreignId('customer_po_id')->nullable()->constrained('mm_customer_pos')->nullOnDelete();
             $table->foreignId('customer_po_item_id')->constrained('mm_customer_po_items')->cascadeOnDelete();
-            $table->string('pump_type', 100);
+            $table->string('concrete_pump', 100);
             $table->decimal('pump_rate', 10, 2)->default(0);
             $table->auditColumns();
-            $table->unique(['customer_po_item_id', 'pump_type'], 'uq_cpo_pump_rates');
+            $table->unique(['customer_po_item_id', 'concrete_pump'], 'uq_cpo_pump_rates');
         });
     }
 

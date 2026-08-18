@@ -117,7 +117,7 @@ class TitleCaseInputs
         'status',
         'type',
         'guard_name',
-        'pump_type',
+        'concrete_pump',
         'tax_type',
         'tax_number',
 

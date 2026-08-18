@@ -29,7 +29,7 @@ interface QuotationItemPayload {
     tax_amount: number | null;
     untaxed_amount: number;
     amount_total: number;
-    pump_rates: { pump_type: string; pump_rate: number }[];
+    pump_rates: { concrete_pump: string; pump_rate: number }[];
 }
 
 const props = defineProps<{
@@ -71,7 +71,7 @@ const statusOptions = [
     { label: 'Accepted', value: 2 },
     { label: 'Rejected', value: 3 },
 ];
-// console.log(props.quotation.pump_type,'dsa');
+// console.log(props.quotation.concrete_pump,'dsa');
 // Resolve legacy string values ('pump','manual','boom') to machine IDs
 const resolveConcretePump = (raw: any) => {
     if (raw === null || raw === undefined || raw === '') return null;
@@ -99,7 +99,7 @@ const form = useForm({
     amount_tax: Number(props.quotation.tax_amount || 0),
     amount_total: Number(props.quotation.amount_total || 0),
     items: (props.quotation.items || []).map((item: any) => {
-        const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.pump_type !== null && pr.pump_type !== undefined && pr.pump_type !== '');
+        const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
         return {
             id: item.id ?? null,
             mix_design_id: item.mix_design_id ?? null,
@@ -110,7 +110,7 @@ const form = useForm({
             tax_amount: Number(item.tax_amount || 0),
             untaxed_amount: Number(item.untaxed_amount || 0),
             amount_total: Number(item.amount_total || 0),
-            pump_type: savedPumpRate ? Number(savedPumpRate.pump_type) : null,
+            concrete_pump: savedPumpRate ? Number(savedPumpRate.concrete_pump) : null,
             pump_rate: savedPumpRate ? Number(savedPumpRate.pump_rate) : 0,
             pump_rates: [],
         };
@@ -170,7 +170,7 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 
     const resolved: Record<string, any> = {};
     scoredRates.forEach(rate => {
-        const type = rate.pump_type;
+        const type = rate.concrete_pump;
         if (!resolved[type] || resolved[type].score < rate.score) {
             resolved[type] = rate;
         }
@@ -183,8 +183,8 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     if (!item.mix_design_id) return;
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
-    if (item.pump_type) {
-        const matched = resolved.find((r: any) => String(r.pump_type) === String(item.pump_type));
+    if (item.concrete_pump) {
+        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(item.concrete_pump));
         if (matched) {
             if (isDropdownChange) {
                 item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
@@ -197,10 +197,10 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            item.pump_type = Number(matched.pump_type);
+            item.concrete_pump = Number(matched.concrete_pump);
             item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
-            item.pump_type = null;
+            item.concrete_pump = null;
             item.pump_rate = 0;
         }
     }
@@ -208,7 +208,7 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
 
 const resolveAllItemsPumpRates = () => {
     for (const item of form.items) {
-        item.pump_type = null;
+        item.concrete_pump = null;
         resolveItemPumpRate(item, true);
     }
 };
@@ -332,7 +332,7 @@ function createNewItem(): QuotationItemPayload {
         tax_amount: 0,
         untaxed_amount: 0,
         amount_total: 0,
-        pump_type: null,
+        concrete_pump: null,
         pump_rate: 0,
         pump_rates: [],
     };
@@ -383,14 +383,14 @@ const removePumpRatesForDesign = (designId: number) => {
 const submit = () => {
     form.transform((data) => ({
         ...data,
-        pump_type: null,
+        concrete_pump: null,
         pump_rate: 0,
         quote_date: data.quote_date ? new Date(data.quote_date).toISOString().substring(0, 10) : null,
         validity_date: data.validity_date ? new Date(data.validity_date).toISOString().substring(0, 10) : null,
         items: data.items.map((item: any) => ({
             ...item,
-            pump_rates: item.pump_type 
-                ? [{ pump_type: item.pump_type, pump_rate: item.pump_rate }]
+            pump_rates: item.concrete_pump 
+                ? [{ concrete_pump: item.concrete_pump, pump_rate: item.pump_rate }]
                 : []
         }))
     })).put(route('quotations.update', props.quotation.id), {
@@ -587,7 +587,7 @@ const sendEmail = () => {
                             </td>
                             <td class="p-2">
                                 <BaseSelect
-                                    v-model="item.pump_type"
+                                    v-model="item.concrete_pump"
                                     :options="props.concretePumpOptions"
                                     optionLabel="label"
                                     optionValue="value"
@@ -656,8 +656,8 @@ const sendEmail = () => {
                     <tbody class="divide-y divide-indigo-50/50">
                         <template v-for="item in form.items" :key="item.mix_design_id + '-pumprow'">
                             <template v-if="Number(item.mix_design_id) === Number(designId)">
-                                <tr v-for="(pr, pi) in item.pump_rates" :key="pr.pump_type" class="hover:bg-indigo-50/20 transition-colors">
-                                    <td class="px-4 py-3 font-medium text-slate-700">{{ props.pumpTypeOptions?.find(opt => String(opt.value) === String(pr.pump_type))?.label || pr.pump_type }}</td>
+                                <tr v-for="(pr, pi) in item.pump_rates" :key="pr.concrete_pump" class="hover:bg-indigo-50/20 transition-colors">
+                                    <td class="px-4 py-3 font-medium text-slate-700">{{ props.pumpTypeOptions?.find(opt => String(opt.value) === String(pr.concrete_pump))?.label || pr.concrete_pump }}</td>
                                     <td class="px-4 py-3 text-right">
                                         <BaseInputNumber 
                                             v-model="pr.pump_rate" 

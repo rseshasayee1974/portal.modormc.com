@@ -36,12 +36,12 @@ class QuotationItem extends Model
     {
         $keepTypes = [];
         foreach ($pumpRates as $pr) {
-            if (empty($pr['pump_type'])) continue;
+            if (empty($pr['concrete_pump'])) continue;
             $rate = (float)($pr['pump_rate'] ?? 0);
             
-            $keepTypes[] = $pr['pump_type'];
+            $keepTypes[] = $pr['concrete_pump'];
             $this->pumpRates()->updateOrCreate(
-                ['pump_type' => $pr['pump_type']],
+                ['concrete_pump' => $pr['concrete_pump']],
                 [
                     'pump_rate' => $rate,
                     'quotation_id' => $this->quotation_id,
@@ -50,7 +50,7 @@ class QuotationItem extends Model
         }
         // Remove stale or zero entries
         if (!empty($keepTypes)) {
-            $stale = $this->pumpRates()->whereNotIn('pump_type', $keepTypes)->get();
+            $stale = $this->pumpRates()->whereNotIn('concrete_pump', $keepTypes)->get();
             foreach ($stale as $item) {
                 $item->delete();
             }

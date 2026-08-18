@@ -16,7 +16,7 @@ class CustomerPOItemPumpRate extends Model
     protected $fillable = [
         'customer_po_id',
         'customer_po_item_id',
-        'pump_type',
+        'concrete_pump',
         'pump_rate',
     ];
 
@@ -36,6 +36,6 @@ class CustomerPOItemPumpRate extends Model
 
     public function pump()
     {
-        return $this->belongsTo(Machine::class, 'pump_type');
+        return $this->belongsTo(Machine::class, 'concrete_pump');
     }
 }

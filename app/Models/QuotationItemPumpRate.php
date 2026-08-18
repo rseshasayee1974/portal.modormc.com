@@ -16,7 +16,7 @@ class QuotationItemPumpRate extends Model
     protected $fillable = [
         'quotation_id',
         'quotation_item_id',
-        'pump_type',
+        'concrete_pump',
         'pump_rate',
     ];
 
@@ -36,6 +36,6 @@ class QuotationItemPumpRate extends Model
 
     public function pump()
     {
-        return $this->belongsTo(Machine::class, 'pump_type');
+        return $this->belongsTo(Machine::class, 'concrete_pump');
     }
 }

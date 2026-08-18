@@ -171,11 +171,32 @@ class InvoiceController extends Controller
         return response()->json($query->latest()->get());
     }
 
-    public function destroy(Invoice $invoice)
+    public function printTaxInvoice(Request $request, $id)
     {
-        $this->authorizeModule('delete');
+        $realId = $id;
+        try { $realId = decrypt($id); } catch (\Exception $e) { }
 
-        $invoice->delete();
-        return redirect()->back()->with('success', 'Invoice voided.');
+        $invoice = Invoice::with([
+            'plant.entity.bankAccounts',
+            'plant.addresses.state',
+            'partner.addresses.state',
+            'items.tax',
+            'items.uom',
+        ])->findOrFail($realId);
+
+        $copyType = $request->get('copy') ?? ($invoice->is_duplicate ? 'DUPLICATE' : 'ORIGINAL');
+
+        if ($request->get('download') === 'pdf') {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdfs.invoices.tax_invoice', [
+                'invoice' => $invoice,
+                'copy_type' => $copyType,
+            ]);
+            return $pdf->download("Tax_Invoice_{$invoice->full_number}.pdf");
+        }
+
+        return view('pdfs.invoices.tax_invoice', [
+            'invoice' => $invoice,
+            'copy_type' => $copyType,
+        ]);
     }
 }

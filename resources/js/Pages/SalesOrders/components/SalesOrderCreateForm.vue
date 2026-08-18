@@ -135,7 +135,7 @@ const form = useForm({
     is_tax_inclusive: false,
     produced_qty: 0,
     status: 1,
-    pump_type: null as number | null,
+    concrete_pump: null as number | null,
     pump_rate: 0,
     scheduled_start: defaultStart as Date | null,
     scheduled_end: null as Date | null,
@@ -217,7 +217,7 @@ watch(() => form.customer_po_id, (newVal) => {
         form.tax_id = null;
         form.is_tax_inclusive = false;
         form.sales_executive_id = null;
-        form.pump_type = null;
+        form.concrete_pump = null;
     }
 });
 
@@ -239,7 +239,7 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 
     const resolved: Record<string, any> = {};
     scoredRates.forEach(rate => {
-        const type = rate.pump_type;
+        const type = rate.concrete_pump;
         if (!resolved[type] || resolved[type].score < rate.score) {
             resolved[type] = rate;
         }
@@ -250,8 +250,8 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 
 const resolveSinglePumpRate = (isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.customer_id, form.site_id);
-    if (form.pump_type) {
-        const matched = resolved.find((r: any) => String(r.pump_type) === String(form.pump_type));
+    if (form.concrete_pump) {
+        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(form.concrete_pump));
         if (matched) {
             if (isDropdownChange) {
                 form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
@@ -264,26 +264,26 @@ const resolveSinglePumpRate = (isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            form.pump_type = Number(matched.pump_type);
+            form.concrete_pump = Number(matched.concrete_pump);
             form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
-            form.pump_type = null;
+            form.concrete_pump = null;
             form.pump_rate = 0;
         }
     }
 };
 
-watch(() => form.pump_type, () => {
+watch(() => form.concrete_pump, () => {
     resolveSinglePumpRate(true);
 });
 watch(() => form.customer_id, () => {
     if (form.customer_po_id) return;
-    form.pump_type = null;
+    form.concrete_pump = null;
     resolveSinglePumpRate(true);
 });
 watch(() => form.site_id, () => {
     if (form.customer_po_id) return;
-    form.pump_type = null;
+    form.concrete_pump = null;
     resolveSinglePumpRate(true);
 });
 
@@ -511,13 +511,13 @@ const handleMixCreated = () => {
                     <!-- Pump Type -->
                     <div>
                         <BaseSelect
-                            v-model="form.pump_type"
+                            v-model="form.concrete_pump"
                             :options="concretePumpOptions"
                             optionLabel="label"
                             optionValue="value"
                             label="Pump Type"
                             placeholder="Select Type"
-                            :error="form.errors.pump_type"
+                            :error="form.errors.concrete_pump"
                                                             @update:modelValue="resolveSinglePumpRate(true)"
 
                         />

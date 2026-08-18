@@ -328,6 +328,7 @@ Route::middleware([
         Route::get('invoices/uninvoiced-dispatches', [\App\Http\Controllers\InvoiceController::class, 'getUninvoicedDispatches'])->name('invoices.uninvoiced-dispatches');
 
         Route::get('invoices/outstanding', [\App\Http\Controllers\InvoiceController::class, 'outstanding'])->name('invoices.outstanding');
+        Route::get('invoices/{invoice}/print-tax-invoice', [\App\Http\Controllers\InvoiceController::class, 'printTaxInvoice'])->name('invoices.print-tax-invoice');
         Route::delete('invoices/{invoice}', [\App\Http\Controllers\InvoiceController::class, 'destroy'])->name('invoices.destroy')->where('invoice', '.*');
         Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit', 'destroy']);
         

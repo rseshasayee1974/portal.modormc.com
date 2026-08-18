@@ -47,6 +47,8 @@ const props = defineProps<{
 
 const { isAdmin, isSuperAdmin, can } = usePermissions();
 
+const canExportInvoice = computed(() => isAdmin.value);
+
 const hasEditBypass = computed(() => isAdmin || isSuperAdmin);
 const hasDispatchActivity = computed(() => {
     if (!props.dispatch) return false;
@@ -735,7 +737,7 @@ const handleDeleteInvoice = () => {
                                     label="Save Dispatch" 
                                     variant="filled" 
                                     severity="primary" 
-                                    
+                                    v-if="!canExportInvoice"
                                     class="!py-3 !text-[10px] !font-black uppercase tracking-widest shadow-lg shadow-indigo-200/50"
                                     :loading="form.processing"
                                     :disabled="isReadOnly"

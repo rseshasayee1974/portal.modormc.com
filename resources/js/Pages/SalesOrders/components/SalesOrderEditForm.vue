@@ -126,7 +126,7 @@ const form = useForm({
     is_tax_inclusive: props.salesOrder?.is_tax_inclusive ? true : false,
     produced_qty: Number(props.salesOrder?.produced_qty ?? 0),
     status: Number(props.salesOrder?.status ?? 1),
-    pump_type: props.salesOrder?.pump_type ? Number(props.salesOrder.pump_type) : null,
+    concrete_pump: props.salesOrder?.concrete_pump ? Number(props.salesOrder.concrete_pump) : null,
     pump_rate: Number(props.salesOrder?.pump_rate ?? 0),
     scheduled_start: props.salesOrder?.scheduled_start ? new Date(props.salesOrder.scheduled_start) : defaultStart,
     scheduled_end: props.salesOrder?.scheduled_end ? new Date(props.salesOrder.scheduled_end) : null,
@@ -258,7 +258,7 @@ onMounted(async () => {
             form.is_tax_inclusive = fullData.is_tax_inclusive ? true : false;
             form.produced_qty = Number(fullData.produced_qty ?? 0);
             form.status = Number(fullData.status ?? 1);
-            form.pump_type = fullData.pump_type ? Number(fullData.pump_type) : null;
+            form.concrete_pump = fullData.concrete_pump ? Number(fullData.concrete_pump) : null;
             form.pump_rate = Number(fullData.pump_rate ?? 0);
             form.scheduled_start = fullData.scheduled_start ? new Date(fullData.scheduled_start) : defaultStart;
             form.scheduled_end = fullData.scheduled_end ? new Date(fullData.scheduled_end) : null;
@@ -283,7 +283,7 @@ watch(() => form.customer_po_id, (newVal) => {
         if (salesOrder) {
             form.customer_id = salesOrder.patron_id;
             form.site_id = salesOrder.site_id;
-            form.pump_type = salesOrder.pump_type;
+            form.concrete_pump = salesOrder.concrete_pump;
             form.sales_executive_id = salesOrder.sales_executive_id;
             form.is_tax_inclusive = salesOrder.is_tax_inclusive ? true : false;
             
@@ -300,7 +300,7 @@ watch(() => form.customer_po_id, (newVal) => {
     } else {
         form.customer_id = null;
         form.site_id = null;
-        form.pump_type = null;
+        form.concrete_pump = null;
         form.pump_rate = 0;
         form.mix_design_id = null;
         form.total_qty = 0;
@@ -331,7 +331,7 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 
     const resolved: Record<string, any> = {};
     scoredRates.forEach(rate => {
-        const type = rate.pump_type;
+        const type = rate.concrete_pump;
         if (!resolved[type] || resolved[type].score < rate.score) {
             resolved[type] = rate;
         }
@@ -342,8 +342,8 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 
 const resolveSinglePumpRate = (isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.customer_id, form.site_id);
-    if (form.pump_type) {
-        const matched = resolved.find((r: any) => String(r.pump_type) === String(form.pump_type));
+    if (form.concrete_pump) {
+        const matched = resolved.find((r: any) => String(r.concrete_pump) === String(form.concrete_pump));
         if (matched) {
             if (isDropdownChange) {
                 form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
@@ -356,10 +356,10 @@ const resolveSinglePumpRate = (isDropdownChange = false) => {
     } else {
         if (resolved.length > 0) {
             const matched = resolved[0];
-            form.pump_type = Number(matched.pump_type);
+            form.concrete_pump = Number(matched.concrete_pump);
             form.pump_rate = Number(matched.rate || matched.pump_rate || 0);
         } else {
-            form.pump_type = null;
+            form.concrete_pump = null;
             form.pump_rate = 0;
         }
     }
@@ -367,20 +367,20 @@ const resolveSinglePumpRate = (isDropdownChange = false) => {
 
 // Auto pump rate resolution on Edit Form disabled per requirement (enable later if needed):
 /*
-watch(() => form.pump_type, () => {
+watch(() => form.concrete_pump, () => {
     if (isInitializing.value) return;
     resolveSinglePumpRate(true);
 });
 watch(() => form.customer_id, () => {
     if (isInitializing.value) return;
     if (form.customer_po_id) return;
-    form.pump_type = null;
+    form.concrete_pump = null;
     resolveSinglePumpRate(true);
 });
 watch(() => form.site_id, () => {
     if (isInitializing.value) return;
     if (form.customer_po_id) return;
-    form.pump_type = null;
+    form.concrete_pump = null;
     resolveSinglePumpRate(true);
 });
 */
@@ -638,13 +638,13 @@ const handleMixCreated = () => {
                     <!-- Pump Type -->
                     <div>
                         <BaseSelect
-                            v-model="form.pump_type"
+                            v-model="form.concrete_pump"
                             :options="concretePumpOptions"
                             optionLabel="label"
                             optionValue="value"
                             label="Pump Type"
                             placeholder="Select Type"
-                            :error="form.errors.pump_type"
+                            :error="form.errors.concrete_pump"
                             :disabled="isRestrictedFieldLocked"
                                                             @update:modelValue="resolveSinglePumpRate(true)"
 

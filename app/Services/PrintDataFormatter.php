@@ -100,7 +100,7 @@ class PrintDataFormatter
                                 $mockRates = [];
                                 foreach ($pts as $idx => $pt) {
                                     $mockRates[] = new \App\Models\QuotationItemPumpRate([
-                                        'pump_type' => $pt['value'],
+                                        'concrete_pump' => $pt['value'],
                                         'pump_rate' => ($idx + 1) * 1200 + 350
                                     ]);
                                 }
@@ -127,7 +127,7 @@ class PrintDataFormatter
                                 $mockRates = [];
                                 foreach ($pts as $idx => $pt) {
                                     $mockRates[] = new \App\Models\CustomerPOItemPumpRate([
-                                        'pump_type' => $pt['value'],
+                                        'concrete_pump' => $pt['value'],
                                         'pump_rate' => ($idx + 1) * 1400 + 450
                                     ]);
                                 }
@@ -547,6 +547,9 @@ class PrintDataFormatter
     {
         $invoice->loadMissing(['plant', 'plant.entity', 'plant.addresses', 'partner', 'partner.addresses', 'partner.contacts.addresses', 'items.tax', 'items.uom', 'items.itemTaxes', 'orderTaxes']);
         $data = self::base();
+        $data['id'] = $invoice->id;
+        $data['invoice_id'] = $invoice->id;
+        $data['invoice'] = $invoice;
         $data['settings'] = self::getCustomSettings($invoice->plant_id, 'invoices');
         $defaultTitle = $invoice->invoice_type === 'bill' ? 'PURCHASE BILL' : 'TAX INVOICE';
         $docTitle = $data['settings']['pdf']['labels']['invoice_title'] ?? $defaultTitle;
@@ -650,21 +653,21 @@ class PrintDataFormatter
         $pumpName = '-';
         if ($dispatch?->concretePump) {
             $pumpName = $dispatch->concretePump->registration ?: ($dispatch->concretePump->name ?? 'Dumping');
-        } elseif (!empty($dispatch?->pump_type)) {
-            if (is_numeric($dispatch->pump_type)) {
-                $pumpMachine = \App\Models\Machine::find($dispatch->pump_type);
-                $pumpName = $pumpMachine?->registration ?? (string)$dispatch->pump_type;
+        } elseif (!empty($dispatch?->concrete_pump)) {
+            if (is_numeric($dispatch->concrete_pump)) {
+                $pumpMachine = \App\Models\Machine::find($dispatch->concrete_pump);
+                $pumpName = $pumpMachine?->registration ?? (string)$dispatch->concrete_pump;
             } else {
-                $pumpName = match(strtolower($dispatch->pump_type)) {
+                $pumpName = match(strtolower($dispatch->concrete_pump)) {
                     'line_pump' => 'Line Pump',
                     'boom_pump' => 'Boom Pump',
                     'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
                     'dumping' => 'Dumping',
-                    default => ucwords(str_replace('_', ' ', $dispatch->pump_type))
+                    default => ucwords(str_replace('_', ' ', $dispatch->concrete_pump))
                 };
             }
-        } elseif ($salesOrder?->pump_type) {
-            $pumpName = ucwords(str_replace('_', ' ', $salesOrder->pump_type));
+        } elseif ($salesOrder?->concrete_pump) {
+            $pumpName = ucwords(str_replace('_', ' ', $salesOrder->concrete_pump));
         }
 
         // Resolve design mix reference
@@ -722,16 +725,16 @@ class PrintDataFormatter
             if ($showPumpCharges && $dispatch) {
                 if ($dispatch->concretePump) {
                     $operationType = $dispatch->concretePump->registration;
-                } elseif (!empty($dispatch->pump_type)) {
-                    if (is_numeric($dispatch->pump_type)) {
-                        $pumpMachine = \App\Models\Machine::find($dispatch->pump_type);
-                        $operationType = $pumpMachine?->registration ?? (string)$dispatch->pump_type;
+                } elseif (!empty($dispatch->concrete_pump)) {
+                    if (is_numeric($dispatch->concrete_pump)) {
+                        $pumpMachine = \App\Models\Machine::find($dispatch->concrete_pump);
+                        $operationType = $pumpMachine?->registration ?? (string)$dispatch->concrete_pump;
                     } else {
-                        $operationType = match(strtolower($dispatch->pump_type)) {
+                        $operationType = match(strtolower($dispatch->concrete_pump)) {
                             'line_pump' => 'Line Pump',
                             'boom_pump' => 'Boom Pump',
                             'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
-                            default => ucwords(str_replace('_', ' ', $dispatch->pump_type))
+                            default => ucwords(str_replace('_', ' ', $dispatch->concrete_pump))
                         };
                     }
                 }
@@ -891,7 +894,7 @@ class PrintDataFormatter
         }
 
         $selectedRate = 0.0;
-        if ($model->pump_type) {
+        if ($model->concrete_pump) {
             if ($isManual) {
                 $selectedRate = (float)($model->manual_rate ?? 0);
             } else {
@@ -914,8 +917,8 @@ class PrintDataFormatter
             $actualItemPumpRate = 0.0;
             $pumpTypeLabel = '-';
             
-            if ($model->pump_type) {
-                $pr = $item->pumpRates->first(fn($r) => (string)$r->pump_type === (string)$model->pump_type);
+            if ($model->concrete_pump) {
+                $pr = $item->pumpRates->first(fn($r) => (string)$r->concrete_pump === (string)$model->concrete_pump);
                 if ($pr) {
                     $actualItemPumpRate = (float)$pr->pump_rate;
                 }
@@ -924,7 +927,7 @@ class PrintDataFormatter
                 }
                 if ($model->concretePump) {
                     $pumpTypeLabel = $model->concretePump->registration;
-                } elseif ($model->pump_type) {
+                } elseif ($model->concrete_pump) {
                     $pumpTypeLabel = 'Pump';
                 }
             } else {
@@ -936,7 +939,7 @@ class PrintDataFormatter
                     if ($pr->pump) {
                         $pumpTypeLabel = $pr->pump->registration;
                     } else {
-                        $rawType = $pr->pump_type;
+                        $rawType = $pr->concrete_pump;
                         $pumpTypeLabel = match(strtolower($rawType)) {
                             'line_pump' => 'Line Pump',
                             'boom_pump' => 'Boom Pump',
@@ -1010,7 +1013,7 @@ class PrintDataFormatter
                 'tax_amount' => (float)$lineTax,
                 'total' => (float)$lineTotal,
                 'pump_rates' => $item->pumpRates->map(function ($pr) {
-                    $rawType = $pr->pump?->registration ?? $pr->pump_type ?? 'Pump';
+                    $rawType = $pr->pump?->registration ?? $pr->concrete_pump ?? 'Pump';
                     $formattedType = match(strtolower($rawType)) {
                         'line_pump' => 'Line Pump',
                         'boom_pump' => 'Boom Pump',
@@ -1018,7 +1021,7 @@ class PrintDataFormatter
                         default => ucwords(str_replace('_', ' ', $rawType))
                     };
                     return [
-                        'pump_type' => $formattedType,
+                        'concrete_pump' => $formattedType,
                         'pump_rate' => (float)$pr->pump_rate,
                     ];
                 })->toArray(),
@@ -1060,7 +1063,7 @@ class PrintDataFormatter
         foreach ($allPumpTypes as $pt) {
             $hasValue = false;
             foreach ($model->items as $item) {
-                $pr = $item->pumpRates->first(fn($r) => (string)$r->pump_type === (string)$pt['value']);
+                $pr = $item->pumpRates->first(fn($r) => (string)$r->concrete_pump === (string)$pt['value']);
                 if ($pr && (float)$pr->pump_rate > 0) {
                     $hasValue = true;
                     break;
@@ -1086,7 +1089,7 @@ class PrintDataFormatter
             
             $ratesHtml = '';
             foreach ($pumpTypes as $pt) {
-                $pr = $item->pumpRates->first(fn($r) => (string)$r->pump_type === (string)$pt['value']);
+                $pr = $item->pumpRates->first(fn($r) => (string)$r->concrete_pump === (string)$pt['value']);
                 $rateVal = $pr ? (float)$pr->pump_rate : 0.0;
                 $rateText = $rateVal > 0 ? '₹ ' . number_format($rateVal, 2) : '-';
                 $ratesHtml .= "<td style='text-align: center;'>{$rateText}</td>";
