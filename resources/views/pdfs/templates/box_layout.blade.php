@@ -240,12 +240,13 @@
                                     $taxGroup = strtoupper($item['tax_group'] ?? '');
                                     $taxName = strtoupper($item['tax_name'] ?? '');
                                     $isIgst = !empty($item['is_igst']) || $taxGroup === 'IGST' || str_contains($taxName, 'IGST');
+                                    $formattedTaxRate = $itemTaxRate == floor($itemTaxRate) ? (int)$itemTaxRate : number_format($itemTaxRate, 2);
                                 @endphp
                                 @if($isIgst)
                                     @if(($pdfSettings['igst'] ?? true) !== false)
                                         <tr>
-                                            <td style="width: 40%;">IGST@ {{ $itemTaxRate }}%</td>
-                                            <td style="width: 30%; text-align: right;">{{ number_format($itemTaxRate, 2) }}%</td>
+                                            <td style="width: 40%;">IGST@ {{ $formattedTaxRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ $formattedTaxRate }}%</td>
                                             <td style="width: 30%; text-align: right;">{{ number_format($itemTaxAmt, 2) }}</td>
                                         </tr>
                                     @endif
@@ -253,18 +254,19 @@
                                     @php
                                         $halfRate = $itemTaxRate / 2;
                                         $halfAmt = $itemTaxAmt / 2;
+                                        $formattedHalfRate = $halfRate == floor($halfRate) ? (int)$halfRate : number_format($halfRate, 2);
                                     @endphp
                                     @if(($pdfSettings['cgst'] ?? true) !== false)
                                         <tr>
-                                            <td style="width: 40%;">CGST@ {{ $halfRate }}%</td>
-                                            <td style="width: 30%; text-align: right;">{{ number_format($halfRate, 2) }}%</td>
+                                            <td style="width: 40%;">CGST@ {{ $formattedHalfRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ $formattedHalfRate }}%</td>
                                             <td style="width: 30%; text-align: right;">{{ number_format($halfAmt, 2) }}</td>
                                         </tr>
                                     @endif
                                     @if(($pdfSettings['sgst'] ?? true) !== false)
                                         <tr>
-                                            <td style="width: 40%;">SGST@ {{ $halfRate }}%</td>
-                                            <td style="width: 30%; text-align: right;">{{ number_format($halfRate, 2) }}%</td>
+                                            <td style="width: 40%;">SGST@ {{ $formattedHalfRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ $formattedHalfRate }}%</td>
                                             <td style="width: 30%; text-align: right;">{{ number_format($halfAmt, 2) }}</td>
                                         </tr>
                                     @endif
@@ -337,7 +339,7 @@
                         $termsText = trim(!empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? ''));
                         $termsHtml = (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText;
                     @endphp
-                    <div style="font-weight: bold; margin-bottom: 3px; text-transform: uppercase;">TERMS OF SALES :</div>
+                    <div style="font-weight: bold; margin-bottom: 3px; text-transform: uppercase;">TERMS &amp; CONDITIONS :</div>
                     <div class="terms-text-content" style="font-size: 7.5pt; line-height: 1.35; white-space: normal !important; word-break: break-word;">
                         @if(!empty($termsHtml))
                             {!! $termsHtml !!}

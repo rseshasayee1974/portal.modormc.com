@@ -52,12 +52,12 @@ class UpdateBatchRequest extends FormRequest
             'concrete_pump' => ['nullable'],
             'materials' => ['nullable', 'array'],
             'materials.*.id' => ['nullable', 'integer', 'exists:mm_batch_materials,id'],
-            'materials.*.product_id' => ['required', 'integer', 'exists:mm_products,id'],
+            'materials.*.product_id' => ['nullable', 'integer', 'exists:mm_products,id'],
             'materials.*.material_name' => ['nullable', 'string', 'max:255'],
             'materials.*.target_qty' => ['required', 'numeric', 'gte:0'],
             'materials.*.actual_qty' => ['required', 'numeric', 'gte:0'],
             'materials.*.deviation_quantity' => ['nullable', 'numeric'],
-            'materials.*.uom_id' => ['required', 'integer', 'exists:mm_product_units,id'],
+            'materials.*.uom_id' => ['nullable', 'integer', 'exists:mm_product_units,id'],
         ];
     }
 
