@@ -272,7 +272,7 @@ const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(s
 
 const mixDesignOptions = computed(() => {
     return (props.mixDesigns || []).map(p => ({
-        label: p.design_name ? `${p.design_name}${p.design_code ? ` (${p.design_code})` : ''}` : p.title || '',
+        label: p.design_name || p.title || '',
         value: p.id
     }));
 });

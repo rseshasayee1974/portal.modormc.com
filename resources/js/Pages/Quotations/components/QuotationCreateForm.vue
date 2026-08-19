@@ -131,7 +131,7 @@ const siteOptions = computed(() => {
 });
 const salesExecutiveOptions = computed(() => (props.salesExecutives || []).map(se => ({ label: se.label || `${se.first_name} ${se.last_name}`, value: se.id })));
 const mixDesignOptions = computed(() => props.mixDesigns.map(p => ({ 
-    label: `${p.title}${p.code ? ` (${p.code})` : ''}`, 
+    label: `${p.title}`, 
     value: p.id,
     price: p.rate 
 })));

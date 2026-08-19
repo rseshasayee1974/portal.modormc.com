@@ -92,7 +92,7 @@
     }
 
     $mixDesignObj = $firstDispatch?->mixDesign ?? $salesOrder?->mixDesign;
-    $designMixRef = $mixDesignObj?->design_name ?? ($mixDesignObj?->design_code ?? 'M20 (Gst)-002');
+    $designMixRef = $mixDesignObj?->concrete_grade?->name ?? ($mixDesignObj?->concreteGrade?->name ?? ($mixDesignObj?->design_type ?? ($mixDesignObj?->design_name ?? '-')));
 
     // Carrier & Driver
     $transporterName = $firstDispatch?->transport?->name ?? 'SRI GANESHA TRANSPORT';

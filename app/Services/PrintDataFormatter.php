@@ -459,9 +459,21 @@ class PrintDataFormatter
         return collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray();
     }
 
+    public static function resolveMixDesignName($mixDesign): string
+    {
+        if (!$mixDesign) {
+            return 'Concrete Mix';
+        }
+        return $mixDesign->concrete_grade?->name 
+            ?? $mixDesign->concreteGrade?->name 
+            ?? $mixDesign->design_type 
+            ?? $mixDesign->design_name 
+            ?? '-';
+    }
+
     public static function formatMixDesignDescription(?string $baseDesc, $mixDesign): string
     {
-        $description = $baseDesc ?? $mixDesign?->design_code ?? '';
+        $description = $baseDesc ?? '';
         if ($mixDesign && $mixDesign->items && $mixDesign->items->count() > 0) {
             $materials = $mixDesign->items->map(function ($mdItem) {
                 $prodName = $mdItem->product->title ?? $mdItem->product?->title ?? 'Unknown';
@@ -663,7 +675,7 @@ class PrintDataFormatter
 
         // Resolve design mix reference
         $mixDesignObj = $dispatch?->mixDesign ?: ($salesOrder?->mixDesign ?: null);
-        $designMixRef = $mixDesignObj?->design_name ?: ($mixDesignObj?->design_code ?? '-');
+        $designMixRef = self::resolveMixDesignName($mixDesignObj);
 
         // Resolve carrier / driver details
         $transportName = $dispatch?->transport?->name ?? ($invoice->plant?->name ?? '');
@@ -836,6 +848,8 @@ class PrintDataFormatter
     {
         $model->loadMissing([
             'items.mixDesign',
+            'items.mixDesign.concrete_grade',
+            'items.mixDesign.concreteGrade',
             'items.mixDesign.items.product',
             'items.mixDesign.items.uom',
             'items.mixDesign.unit',
@@ -967,7 +981,7 @@ class PrintDataFormatter
 
             return [
                 'no' => $idx + 1,
-                'name' => $item->mixDesign->design_name ?? $item->mixDesign->title ?? 'N/A',
+                'name' => self::resolveMixDesignName($item->mixDesign),
                 'description' => $itemDescription,
                 'hsn' => $item->mixDesign->hsn_code ?? '-',
                 'qty' => $qty,
@@ -1043,7 +1057,7 @@ class PrintDataFormatter
 
     public static function fromSalesOrder($salesOrder): array
     {
-        $salesOrder->loadMissing(['customer','customer.addresses','customer.contacts.addresses','site','plant','plant.entity','plant.addresses','mixDesign','mixDesign.concrete_grade','mixDesign.unit','mixDesign.items.product','mixDesign.items.uom','tax','customerPO.items.mixDesign','customerPO.items.tax','customerPO.quotation.items.mixDesign','customerPO.quotation.items.tax','customerPO.quotation.items.mixDesign.items.product','customerPO.quotation.items.mixDesign.items.uom']);
+        $salesOrder->loadMissing(['customer','customer.addresses','customer.contacts.addresses','site','plant','plant.entity','plant.addresses','mixDesign','mixDesign.concrete_grade','mixDesign.concreteGrade','mixDesign.unit','mixDesign.items.product','mixDesign.items.uom','tax','customerPO.items.mixDesign','customerPO.items.mixDesign.concrete_grade','customerPO.items.mixDesign.concreteGrade','customerPO.items.tax','customerPO.quotation.items.mixDesign','customerPO.quotation.items.mixDesign.concrete_grade','customerPO.quotation.items.mixDesign.concreteGrade','customerPO.quotation.items.tax','customerPO.quotation.items.mixDesign.items.product','customerPO.quotation.items.mixDesign.items.uom']);
         $data = self::base();
         $data['settings'] = self::getCustomSettings($salesOrder->plant_id, 'sales_orders') ?: self::getCustomSettings($salesOrder->plant_id, 'quotations');
         $data['doc_title']  = $data['settings']['pdf']['labels']['invoice_title'] ?? 'SALES ORDER';
@@ -1067,7 +1081,7 @@ class PrintDataFormatter
                 $description = self::formatMixDesignDescription($item->description, $item->mixDesign);
                 $unitPrice = $isTaxInclusive ? (float)($item->quantity > 0 ? ($subtotal / $item->quantity) : $item->rate) : (float)$item->rate;
                 return [
-                    'no' => $idx + 1, 'name' => $item->mixDesign?->design_name ?? 'N/A', 'description' => $description,
+                    'no' => $idx + 1, 'name' => self::resolveMixDesignName($item->mixDesign), 'description' => $description,
                     'hsn' => $item->mixDesign?->hsn_code ?? '-', 'qty' => (float)$item->quantity, 'received_qty'=> (float)($salesOrder->produced_qty ?? 0),
                     'unit' => $item->mixDesign?->unit?->unit_code ?? 'm³', 'unit_price' => $unitPrice, 'tax_name' => $taxDetails['name'] ?: '-',
                     'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => (float)$item->tax_amount, 'total' => (float)($item->amount_total ?? ($item->quantity * $item->rate)),
@@ -1111,7 +1125,7 @@ class PrintDataFormatter
             }
             $description = self::formatMixDesignDescription('', $mixDesign);
             $data['items'] = $mixDesign ? [[
-                'no' => 1, 'name' => $mixDesign->design_name ?? 'Concrete Mix', 'description' => $description,
+                'no' => 1, 'name' => self::resolveMixDesignName($mixDesign), 'description' => $description,
                 'hsn' => $mixDesign->hsn_code ?? '-', 'qty' => $qty, 'received_qty'=> (float)($salesOrder->produced_qty ?? 0),
                 'unit' => $mixDesign->unit?->unit_code ?? 'm³', 'unit_price' => $unitPrice, 'tax_name' => $taxDetails['name'] ?: ($taxName ?: '-'),
                 'tax_rate' => $taxDetails['rate'] ?: $taxRate, 'tax_group' => $taxDetails['group'] ?: $taxGroup, 'tax_amount' => $priceTax, 'total' => $total,
@@ -1266,11 +1280,12 @@ class PrintDataFormatter
         });
         $itemsList = [];
         if ($dispatch) {
-            $mixDesign = $batch->salesOrder->mixDesign; $mixDesignName = $mixDesign?->design_name ?? ($mixDesign?->concrete_grade?->name ?? 'Concrete Mix');
+            $mixDesign = $batch->salesOrder?->mixDesign;
+            $mixDesignName = self::resolveMixDesignName($mixDesign);
             $qty = (float)($dispatch->delivered_qty ?: $batch->batch_size); $rate = (float)($dispatch->load_rate ?? 0);
             $subTotal = (float)($dispatch->load_untax_amount ?? ($qty * $rate)); $taxAmount = (float)($dispatch->load_tax_amount ?? 0);
             $totalAmount = (float)($dispatch->load_total_amount ?? ($subTotal + $taxAmount)); $taxRate = $dispatch->loadTax?->rate ?? 0; $taxName = $dispatch->loadTax?->name ?? '-';
-            $itemsList[] = ['no'=>1,'name'=>$mixDesignName,'description'=>"Concrete Mix Design - " . ($mixDesign?->design_code ?? ''),'hsn'=>'3824','qty'=>$qty,'received_qty'=>$qty,'unit'=>$dispatch->uom?->unit_code ?? 'CBM','unit_price'=>$rate,'tax_name'=>$taxName,'tax_rate'=>$taxRate,'tax_amount'=>$taxAmount,'total'=>$totalAmount];
+            $itemsList[] = ['no'=>1,'name'=>$mixDesignName,'description'=>'','hsn'=>'3824','qty'=>$qty,'received_qty'=>$qty,'unit'=>$dispatch->uom?->unit_code ?? 'CBM','unit_price'=>$rate,'tax_name'=>$taxName,'tax_rate'=>$taxRate,'tax_amount'=>$taxAmount,'total'=>$totalAmount];
         }
         $sno = count($itemsList) + 1;
         foreach ($groupedMaterials->values() as $item) {
@@ -1288,11 +1303,11 @@ class PrintDataFormatter
         $netWeight = (float) ($dispatch?->net_weight ?? ($loadedWeight - $emptyWeight));
         $unitLabel = ' kg'; $decimals = 0;
         $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel; $loadedWeightStr = number_format($loadedWeight, $decimals) . $unitLabel; $netWeightStr = number_format($netWeight, $decimals) . $unitLabel;
-        $weightNotes = "VEHICLE WEIGHT DETAILS:\n" . "Truck No: " . ($dispatch?->truck?->registration ?? '-') . "\n" . "Driver: " . (trim(($dispatch?->driver?->first_name ?? '') . ' ' . ($dispatch?->driver?->last_name ?? '')) ?: '-') . "\n" . "Empty Weight: " . $emptyWeightStr . " (" . ($dispatch?->empty_time ? \Carbon\Carbon::parse($dispatch->empty_time)->format('d-m-Y H:i') : '-') . ")\n" . "Loaded Weight: " . $loadedWeightStr . " (" . ($dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('d-m-Y H:i') : '-') . ")\n" . "Net Weight: " . $netWeightStr . "\n\n" . "Batch size: " . number_format((float) $batch->batch_size, 2) . " m³\n" . "Concrete Grade: " . ($batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->design_name ?? '-')) . " / Recipe Code: " . ($batch->salesOrder?->mixDesign?->design_code ?? '-');
+        $weightNotes = "VEHICLE WEIGHT DETAILS:\n" . "Truck No: " . ($dispatch?->truck?->registration ?? '-') . "\n" . "Driver: " . (trim(($dispatch?->driver?->first_name ?? '') . ' ' . ($dispatch?->driver?->last_name ?? '')) ?: '-') . "\n" . "Empty Weight: " . $emptyWeightStr . " (" . ($dispatch?->empty_time ? \Carbon\Carbon::parse($dispatch->empty_time)->format('d-m-Y H:i') : '-') . ")\n" . "Loaded Weight: " . $loadedWeightStr . " (" . ($dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('d-m-Y H:i') : '-') . ")\n" . "Net Weight: " . $netWeightStr . "\n\n" . "Batch size: " . number_format((float) $batch->batch_size, 2) . " m³\n" . "Concrete Grade: " . self::resolveMixDesignName($batch->salesOrder?->mixDesign);
         $data['meta'] = [
             'currency_code'=>'INR','currency_symbol'=>'₹','notes'=>$weightNotes,
             'terms_text'=>self::resolveTermsCondition($data['settings'], 'Delivery Challan', $batch->salesOrder->plant_id, $batch->salesOrder?->terms_conditions ?? "1. Goods received in good condition.\n2. Any variation in quantity to be reported immediately."),
-            'total_words'=>'','po_number'=>$batch->salesOrder?->order_no ?? '-','project_name'=>'Concrete Grade: ' . ($batch->salesOrder?->mixDesign?->concrete_grade?->name ?? '-'),
+            'total_words'=>'','po_number'=>$batch->salesOrder?->order_no ?? '-','project_name'=>'Concrete Grade: ' . self::resolveMixDesignName($batch->salesOrder?->mixDesign),
         ];
         $data['batch'] = $batch;
         return $data;

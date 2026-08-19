@@ -74,7 +74,12 @@ class MixDesign extends Model
 
     public function concrete_grade()
     {
-        return $this->belongsTo(ConcreteGrade::class, 'design_type', 'name','concrete_grade_id');
+        return $this->belongsTo(ConcreteGrade::class, 'concrete_grade_id');
+    }
+
+    public function concreteGrade()
+    {
+        return $this->belongsTo(ConcreteGrade::class, 'concrete_grade_id');
     }
     public function concrete_grade_items()
     {

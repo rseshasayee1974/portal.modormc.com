@@ -608,8 +608,8 @@
                     <!-- 1. Mix Design primary item -->
                     @if ($dispatch)
                         @php
-                            $mixDesign = $batch->salesOrder->mixDesign;
-                            $mixDesignName = $mixDesign?->design_name ?? ($mixDesign?->concrete_grade?->name ?? 'Concrete Mix');
+                            $mixDesign = $batch->salesOrder?->mixDesign;
+                            $mixDesignName = $mixDesign?->concrete_grade?->name ?? ($mixDesign?->concreteGrade?->name ?? ($mixDesign?->design_type ?? ($mixDesign?->design_name ?? 'Concrete Mix')));
                             $qty = (float)($dispatch->delivered_qty ?: $batch->batch_size);
                             $rate = (float)($dispatch->load_rate ?? 0);
                             $subTotal = (float)($dispatch->load_untax_amount ?? ($qty * $rate));
@@ -622,9 +622,6 @@
                             <td>{{ $sno++ }}</td>
                             <td style="font-weight: 700;">
                                 {{ $mixDesignName }}
-                                <div style="font-size: 8px; color: #64748b; font-weight: normal; margin-top: 2px;">
-                                    Concrete Mix Design - {{ $mixDesign?->design_code ?? '' }}
-                                </div>
                             </td>
                             <td class="text-right font-mono" style="font-weight: bold;">{{ number_format($qty, 2) }}</td>
                             <td>{{ $dispatch->uom?->unit_code ?? 'CBM' }}</td>
