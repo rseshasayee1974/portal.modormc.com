@@ -193,15 +193,27 @@
 
     <div class="sig-row" style="margin-top:auto">
         <div class="sig-left">
-            @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))
-                <div style="margin-bottom: 8px; font-size: 9.5px; color: #334155;">
-                    <div style="font-weight: bold; text-transform: uppercase; color: #4f46e5; margin-bottom: 2px;">Bank Information</div>
-                    <div>Account Name: <strong>{{ $data['company']['bank']['account_name'] }}</strong></div>
-                    <div>Account Number: <strong>{{ $data['company']['bank']['account_number'] }}</strong></div>
-                    <div>Bank: <strong>{{ $data['company']['bank']['bank_name'] }}</strong> (Branch: {{ $data['company']['bank']['branch'] }})</div>
-                    <div>IFSC Code: <strong>{{ $data['company']['bank']['ifsc_code'] }}</strong></div>
-                </div>
-            @endif
+                @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))
+                    <div style="margin-bottom: 8px; font-size: 9.5px; color: #334155;">
+                        <div style="font-weight: bold; text-transform: uppercase; color: #4f46e5; margin-bottom: 2px;">Bank Information</div>
+                        <div>Account Name: <strong>{{ $data['company']['bank']['account_name'] }}</strong></div>
+                        <div>Account Number: <strong>{{ $data['company']['bank']['account_number'] }}</strong></div>
+                        <div>Bank: <strong>{{ $data['company']['bank']['bank_name'] }}</strong> (Branch: {{ $data['company']['bank']['branch'] }})</div>
+                        <div>IFSC Code: <strong>{{ $data['company']['bank']['ifsc_code'] }}</strong></div>
+                    </div>
+                @endif
+                @if (($pdfSettings['upi_qr'] ?? true) && !empty($data['company']['upi_qr_path']))
+                    @php
+                        $qrPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['upi_qr_path']), '/');
+                        $qrUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                            ? asset('storage/' . $qrPath)
+                            : public_path('storage/' . $qrPath);
+                    @endphp
+                    <div style="display: inline-block; text-align: left; vertical-align: top; margin-top: 6px;">
+                        <div style="font-size: 8px; color: #64748b; font-weight: bold; margin-bottom: 2px;">Scan to Pay (UPI)</div>
+                        <img src="{{ $qrUrl }}" style="max-height: 70px; max-width: 70px; object-fit: contain; border: 1px solid #cbd5e1; padding: 2px; background: #fff;" />
+                    </div>
+                @endif
         </div>
         <div class="sig-right" style="padding-bottom:10px">
             @if (($pdfSettings['show_seal_signature'] ?? true) && !empty($data['company']['seal_sign_path']))

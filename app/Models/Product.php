@@ -245,7 +245,7 @@ class Product extends Model
         return $this->belongsTo(ProductCategory::class, 'category_id');
     }
 
-    public function unit()
+    public function unit()  
     {
         return $this->belongsTo(ProductUnit::class, 'unit_id');
     }

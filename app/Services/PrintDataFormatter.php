@@ -167,7 +167,7 @@ class PrintDataFormatter
         }
 
         // Real Products from DB if available
-        $products = \App\Models\Product::with(['uom', 'tax'])->where('status', 'active')->limit(2)->get();
+        $products = \App\Models\Product::with(['unit', 'saleTax'])->where('status', 'active')->limit(2)->get();
         if ($products->count() > 0) {
             $items = [];
             $subtotal = 0;
@@ -175,11 +175,11 @@ class PrintDataFormatter
 
             foreach ($products as $idx => $prod) {
                 $qty = ($idx === 0) ? 25.0 : 2.0;
-                $price = (float)($prod->sale_price ?? $prod->cost_price ?? 4500.00);
+                $price = (float)($prod->sales_price ?? $prod->purchase_price ?? 4500.00);
                 if ($price <= 0) $price = 4500.00;
                 
                 $lineTotal = $qty * $price;
-                $taxRate = $prod->tax ? (float)$prod->tax->tax_rate : 12.0;
+                $taxRate = $prod->saleTax ? (float)$prod->saleTax->tax_rate : 12.0;
                 $taxAmount = ($lineTotal * $taxRate) / 100;
                 
                 $subtotal += $lineTotal;
@@ -192,7 +192,7 @@ class PrintDataFormatter
                     'hsn' => $prod->hsn_code ?? '382450',
                     'qty' => $qty,
                     'received_qty' => $qty,
-                    'unit' => $prod->uom->unit_code ?? 'm³',
+                    'unit' => $prod->unit?->unit_code ?? $prod->uom?->unit_code ?? 'm³',
                     'unit_price' => $price,
                     'tax_name' => 'GST ' . (int)$taxRate . '%',
                     'tax_rate' => $taxRate,

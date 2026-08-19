@@ -271,6 +271,18 @@
             <strong>Bank Info:</strong> {{ $data['company']['bank']['bank_name'] }} &bull; <strong>A/C:</strong> {{ $data['company']['bank']['account_number'] }} &bull; <strong>IFSC:</strong> {{ $data['company']['bank']['ifsc_code'] }} &bull; <strong>Branch:</strong> {{ $data['company']['bank']['branch'] }}
         </div>
     @endif
+    @if (($pdfSettings['upi_qr'] ?? true) && !empty($data['company']['upi_qr_path']))
+        @php
+            $qrPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['upi_qr_path']), '/');
+            $qrUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                ? asset('storage/' . $qrPath)
+                : public_path('storage/' . $qrPath);
+        @endphp
+        <div style="padding:6px 12px;font-size:10px;border-top:1px solid #ccc;text-align:left;">
+            <div style="font-size:8px;color:#64748b;font-weight:bold;margin-bottom:2px;">Scan to Pay (UPI)</div>
+            <img src="{{ $qrUrl }}" style="max-height:70px;max-width:70px;object-fit:contain;border:1px solid #cbd5e1;padding:2px;background:#fff;" />
+        </div>
+    @endif
     <div style="text-align:right;padding:8px 14px;border-top:1px solid #ccc;font-size:10px;min-height:60px;color:#333">
         @if (($pdfSettings['show_seal_signature'] ?? true) && !empty($data['company']['seal_sign_path']))
             @php

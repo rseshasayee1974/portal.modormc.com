@@ -59,8 +59,10 @@ watch(() => filters.value.global.value, (newVal) => {
     }, 400);
 });
 
+const defaultPlantId = computed(() => props.active_plant_id ?? props.plants?.[0]?.id ?? null);
+
 const form = ref({
-    plant_id: props.active_plant_id ?? props.plants?.[0]?.id ?? null as number | null,
+    plant_id: defaultPlantId.value as number | null,
     order_type: '',
     terms_condition: '',
     status: 'active',
@@ -77,8 +79,6 @@ const typeOptions = [
     { label: 'Purchase Bill', value: 'Purchase Bill' },
 ];
 
-
-
 const statusOptions = [
     { label: 'Active', value: 'active' },
     { label: 'Inactive', value: 'inactive' },
@@ -88,7 +88,7 @@ const openCreateModal = () => {
     modalMode.value = 'create';
     editingId.value = null;
     form.value = {
-        plant_id: props.active_plant_id ?? props.plants?.[0]?.id ?? null,
+        plant_id: defaultPlantId.value,
         order_type: '',
         terms_condition: '',
         status: 'active',
@@ -101,13 +101,25 @@ const openEditModal = (item: any) => {
     modalMode.value = 'edit';
     editingId.value = item.id;
     form.value = {
-        plant_id: item.plant_id,
+        plant_id: item.plant_id || defaultPlantId.value,
         order_type: item.order_type,
         terms_condition: item.terms_condition,
         status: item.status,
         errors: {}
     };
     showModal.value = true;
+};
+
+const closeModal = () => {
+    showModal.value = false;
+    form.value.errors = {};
+};
+
+const stripHtml = (html: string) => {
+    if (!html) return '';
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    let text = doc.body.textContent || '';
+    return text.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
 };
 
 const cleanTermsContent = (html: string) => {
@@ -217,17 +229,17 @@ const onSearch = () => {
                     <Button label="New Terms" icon="pi pi-plus"  @click="openCreateModal" />
                 </template>
 
-                <Column field="plant.name" header="Plant" sortable></Column>
+                <!-- <Column field="plant.name" header="Plant" sortable></Column> -->
                 <Column field="order_type" header="Type" sortable>
                     <template #body="slotProps">
                         <Tag :value="slotProps.data.order_type" severity="info"  />
                     </template>
                 </Column>
-                <!-- <Column field="terms_condition" header="Terms Preview">
+                <Column field="terms_condition" header="Terms Preview">
                     <template #body="slotProps">
-                        <div class="line-clamp-1 opacity-70">{{ slotProps.data.terms_condition ? slotProps.data.terms_condition.replace(/<[^>]*>/g, '') : '' }}</div>
+                        <div class="line-clamp-1 opacity-70 max-w-[500px]" :title="stripHtml(slotProps.data.terms_condition)">{{ stripHtml(slotProps.data.terms_condition) }}</div>
                     </template>
-                </Column> -->
+                </Column>
                 <Column field="status" header="Status" sortable style="width: 100px">
                     <template #body="slotProps">
                         <Tag :value="slotProps.data.status.toUpperCase()" :severity="slotProps.data.status === 'active' ? 'success' : 'secondary'" rounded />
@@ -254,7 +266,7 @@ const onSearch = () => {
                     <small v-if="form.errors.order_type" class="text-red-500">{{ form.errors.order_type[0] }}</small>
                 </div>
 
-                <div class="flex flex-col gap-2 col-span-2">
+                <div class="flex flex-col gap-2">
                     <label class="text-xs font-semibold uppercase text-gray-500">Status</label>
                     <BaseSelect v-model="form.status" :options="statusOptions" optionLabel="label" optionValue="value" fluid />
                 </div>
