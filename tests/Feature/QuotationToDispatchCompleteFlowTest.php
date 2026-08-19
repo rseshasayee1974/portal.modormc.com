@@ -163,7 +163,7 @@ class QuotationToDispatchCompleteFlowTest extends TestCase
         $this->assertEquals(10.0, (float)$quoteItem->quantity);
         $this->assertEquals(4500.00, (float)$quoteItem->rate);
         $this->assertEquals($this->tax->id, $quoteItem->tax_id);
-        $this->assertEquals(500.00, (float)($quoteItem->pumpRates->first()?->pump_rate ?? 500.00));
+        $this->assertEquals(500.00, (float)$quoteItem->pump_rate);
 
         // =========================================================================
         // STEP 2: ACCEPT QUOTATION

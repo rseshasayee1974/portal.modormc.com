@@ -744,7 +744,6 @@ class PrintDataFormatter
             'sub_total' => (float)$invoice->subtotal, 'discount' => (float)($invoice->discount_total ?? $invoice->global_discount),
             'tax_lines' => $taxLines, 'shipping' => (float)$invoice->shipping_charges, 'adjustment' => (float)$invoice->adjustment,
             'round_off' => (float)$invoice->round_off,
-            'pump_rate' => 0.0,
             'grand_total' => (float)$invoice->total_amount,
         ];
         $orderTypeForTerms = $invoice->invoice_type === 'bill' ? 'Purchase Bill' : [($invoice->invoice_label ?? 'Tax Invoice'), 'Tax Invoice'];
@@ -762,9 +761,9 @@ class PrintDataFormatter
             'total_words'           => self::numberToWords($invoice->total_amount, 'INR'),
             'po_number'             => $poNumber,
             'project_name'          => $invoice->ref_title ?? '',
-            'irn'                  => $invoice->einvoice_irn ?? '456',
-            'ack_no'                => $invoice->einvoice_ack_no ?? '56465465',
-            'ack_date'              => $invoice->einvoice_ack_date?->format('d/m/Y') ?? '56/25/645',
+            'irn'                  => $invoice->einvoice_irn ?? '',
+            'ack_no'                => $invoice->einvoice_ack_no ?? '',
+            'ack_date'              => $invoice->einvoice_ack_date?->format('d/m/Y') ?? '',
             'qr_code'               => $invoice->einvoice_qr_code ? (
                 str_starts_with($invoice->einvoice_qr_code, 'data:image') || str_starts_with($invoice->einvoice_qr_code, 'http')
                     ? $invoice->einvoice_qr_code
@@ -841,7 +840,6 @@ class PrintDataFormatter
             'items.mixDesign.unit',
             'items.uom',
             'items.tax',
-            'items.pumpRates.pump',
             'patron',
             'patron.addresses',
             'patron.contacts.addresses',
@@ -982,19 +980,7 @@ class PrintDataFormatter
                 'tax_group' => $taxDetails['group'],
                 'tax_amount' => (float)$lineTax,
                 'total' => (float)$lineTotal,
-                'pump_rates' => $item->pumpRates->map(function ($pr) {
-                    $rawType = $pr->pump?->registration ?? $pr->concrete_pump ?? 'Pump';
-                    $formattedType = match(strtolower($rawType)) {
-                        'line_pump' => 'Line Pump',
-                        'boom_pump' => 'Boom Pump',
-                        'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
-                        default => ucwords(str_replace('_', ' ', $rawType))
-                    };
-                    return [
-                        'concrete_pump' => $formattedType,
-                        'pump_rate' => (float)$pr->pump_rate,
-                    ];
-                })->toArray(),
+                'pump_rates' => [],
             ];
         })->toArray();
 
@@ -1023,54 +1009,6 @@ class PrintDataFormatter
         // Parse settings
         $isFlatRate = false;
         $chargeTypeLabel = 'per m³';
-
-        // Retrieve pump types for the headers
-        $allPumpTypes = function_exists('PumpTypeDropdown') ? PumpTypeDropdown() : [];
-
-        // Only display pump columns that hold actual rates > 0 in any of the items
-        $pumpTypes = [];
-        foreach ($allPumpTypes as $pt) {
-            $hasValue = false;
-            foreach ($model->items as $item) {
-                $pr = $item->pumpRates->first(fn($r) => (string)$r->concrete_pump === (string)$pt['value']);
-                if ($pr && (float)$pr->pump_rate > 0) {
-                    $hasValue = true;
-                    break;
-                }
-            }
-            if ($hasValue) {
-                $pumpTypes[] = $pt;
-            }
-        }
-
-        $headersHtml = '';
-        foreach ($pumpTypes as $pt) {
-            $headersHtml .= "<th style='text-align: center; text-transform: uppercase;'>{$pt['label']}</th>";
-        }
-
-        $rowsHtml = '';
-        $hasPumpRates = false;
-        foreach ($model->items as $item) {
-            if ($item->relationLoaded('pumpRates') && $item->pumpRates->isNotEmpty() && $item->pumpRates->sum('pump_rate') > 0) {
-                $hasPumpRates = true;
-            }
-            $grade = $item->mixDesign->design_name ?? $item->mixDesign->title ?? 'N/A';
-            
-            $ratesHtml = '';
-            foreach ($pumpTypes as $pt) {
-                $pr = $item->pumpRates->first(fn($r) => (string)$r->concrete_pump === (string)$pt['value']);
-                $rateVal = $pr ? (float)$pr->pump_rate : 0.0;
-                $rateText = $rateVal > 0 ? '₹ ' . number_format($rateVal, 2) : '-';
-                $ratesHtml .= "<td style='text-align: center;'>{$rateText}</td>";
-            }
-            
-            $rowsHtml .= "
-                <tr>
-                    <td style='font-weight: bold; text-align: center;'>{$grade}</td>
-                    {$ratesHtml}
-                </tr>
-            ";
-        }
 
         $ratesTableHtml = '';
 
