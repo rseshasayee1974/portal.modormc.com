@@ -95,6 +95,8 @@ class TermsConditionController extends Controller
             'status' => $validated['status'] ?? 'active',
         ]));
 
+        $termsCondition->load('plant:id,name');
+
         if ($request->wantsJson()) {
             return response()->json([
                 'termsCondition' => $termsCondition,
@@ -116,6 +118,8 @@ class TermsConditionController extends Controller
         $termscondition->update(array_merge($validated, [
             'updated_by' => Auth::id(),
         ]));
+
+        $termscondition->load('plant:id,name');
 
         if ($request->wantsJson()) {
             return response()->json([

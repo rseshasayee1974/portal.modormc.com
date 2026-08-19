@@ -25,12 +25,12 @@ export function calculateLineItemTotals(
     const taxRate = Number(params.taxRate || 0);
     const isTaxInclusive = Boolean(params.isTaxInclusive);
 
-    // 1. Pump charge for total quantity: pump_rate is per m³
-    const pumpCharge = qty * pumpRate;
+    // 1. Pump charge (fixed lump sum / unit charge) and material amount (rate * qty)
+    const pumpCharge = pumpRate;
     const materialAmount = qty * rate;
 
-    // 2. Untaxed Amount = (rate + pump_rate) * quantity
-    const untaxedAmount = (rate + pumpRate) * qty;
+    // 2. Untaxed Amount = (rate * qty) + pump_rate
+    const untaxedAmount = materialAmount + pumpCharge;
 
     let materialUntaxed = 0;
     let materialTax = 0;
@@ -40,7 +40,7 @@ export function calculateLineItemTotals(
 
     if (isTaxInclusive) {
         // TAX INCLUSIVE
-        // Total = (rate + pump_rate) * quantity
+        // Total = (rate * qty) + pump_rate
         amountTotal = untaxedAmount;
 
         taxAmount = amountTotal - amountTotal / (1 + taxRate / 100);
@@ -50,10 +50,9 @@ export function calculateLineItemTotals(
         materialTotal = materialAmount;
     } else {
         // TAX EXCLUSIVE
-        // Formula:
-        // Untaxed Amount = (rate + pump_rate) * quantity
+        // Untaxed Amount = (rate * qty) + pump_rate
         // Tax Amount = Untaxed Amount * (taxRate / 100)
-        // Total = [(rate + pump_rate) * quantity] + Tax Amount
+        // Total = Untaxed Amount + Tax Amount
 
         materialUntaxed = materialAmount;
         materialTax = (materialUntaxed * taxRate) / 100;

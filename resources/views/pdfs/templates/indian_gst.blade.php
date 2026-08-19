@@ -336,6 +336,18 @@
                         IFSC CODE: <strong>{{ strtoupper($data['company']['bank']['ifsc_code']) }}</strong>
                     </div>
                 @endif
+                @if (($pdfSettings['upi_qr'] ?? true) && !empty($data['company']['upi_qr_path']))
+                    @php
+                        $qrPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['upi_qr_path']), '/');
+                        $qrUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
+                            ? asset('storage/' . $qrPath)
+                            : public_path('storage/' . $qrPath);
+                    @endphp
+                    <div style="display: inline-block; text-align: left; vertical-align: top; margin-top: 6px;">
+                        <div style="font-size: 7.5pt; color: #64748b; font-weight: bold; margin-bottom: 2px;">Scan to Pay (UPI)</div>
+                        <img src="{{ $qrUrl }}" style="max-height: 70px; max-width: 70px; object-fit: contain; border: 1px solid #cbd5e1; padding: 2px; background: #fff;" />
+                    </div>
+                @endif
             </td>
         </tr>
     </table>
