@@ -12,6 +12,7 @@ use App\Models\Patron;
 use App\Models\Entity;
 use App\Models\ConcreteGrade;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -52,8 +53,18 @@ class MixDesignController extends Controller
 
         $validated = $request->validate([
             'partner_id' => 'nullable|exists:mm_patrons,id',
-            'design_name' => 'required|string|max:255|unique:mm_mix_designs,design_name,NULL,id,plant_id,' . $plantId,
-            'design_code' => 'nullable|string|max:100|unique:mm_mix_designs,design_code,NULL,id,plant_id,' . $plantId,
+            'design_name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('mm_mix_designs', 'design_name')->where(fn ($query) => $query->where('plant_id', $plantId)),
+            ],
+            'design_code' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('mm_mix_designs', 'design_code')->where(fn ($query) => $query->where('plant_id', $plantId)),
+            ],
             'design_type' => 'nullable|exists:mm_concrete_grades,name,plant_id,' . $plantId,
             'unit_id' => 'nullable|exists:mm_product_units,id',
             'rate_per_qty' => 'nullable|numeric',
@@ -118,8 +129,18 @@ class MixDesignController extends Controller
 
         $validated = $request->validate([
             'partner_id' => 'required|exists:mm_patrons,id',
-            'design_name' => 'required|string|max:255|unique:mm_mix_designs,design_name,' . $mixdesign->id . ',id,plant_id,' . $plantId,
-            'design_code' => 'nullable|string|max:100|unique:mm_mix_designs,design_code,' . $mixdesign->id . ',id,plant_id,' . $plantId,
+            'design_name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('mm_mix_designs', 'design_name')->ignore($mixdesign->id)->where(fn ($query) => $query->where('plant_id', $plantId)),
+            ],
+            'design_code' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('mm_mix_designs', 'design_code')->ignore($mixdesign->id)->where(fn ($query) => $query->where('plant_id', $plantId)),
+            ],
             'design_type' => 'nullable|exists:mm_concrete_grades,name,plant_id,' . $plantId,
             'unit_id' => 'nullable|exists:mm_product_units,id',
             'rate_per_qty' => 'nullable|numeric',
