@@ -468,6 +468,7 @@ const submit = () => {
     };
 
     const resetForm = () => {
+        form.reset();
         form.sales_order_id = null;
         form.batch_no = props.nextBatchNo;
         form.batch_size = 1;

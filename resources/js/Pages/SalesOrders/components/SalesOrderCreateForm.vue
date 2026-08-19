@@ -282,22 +282,8 @@ const handleMixCreated = () => {
         <div class="p-5 space-y-6">
             
             <!-- Document & Party Info Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+            <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-5">
                 
-                <!-- Customer PO (Optional Linkage) -->
-                <!-- <div>
-                    <BaseSelect
-                        v-model="form.customer_po_id"
-                        :options="customerPOOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        filter
-                        label="Customer PO (Optional)"
-                        placeholder="Direct Sales Order (None)"
-                        :error="form.errors.customer_po_id"
-                    />
-                </div> -->
-
                 <!-- Customer -->
                 <div>
                     <BaseSelect
@@ -350,7 +336,7 @@ const handleMixCreated = () => {
 
                 <!-- Scheduled Start -->
                 <div>
-                    <label class="block text-[10px] font-semibold text-slate-600 dark:text-slate-300">Scheduled Start</label>
+                    <label class="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-300">Scheduled Start</label>
                     <BaseDatePicker
                         v-model="form.scheduled_start"
                         showTime
@@ -363,7 +349,47 @@ const handleMixCreated = () => {
                     </small>
                 </div>
 
+            </div>
+
+            <!-- Order Specifications Section -->
+            <div class="border-t border-slate-100 dark:border-slate-800 pt-5">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Order Specifications
+                    </h3>
+                    <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/60 rounded-xl px-3 py-1 shadow-sm font-normal">
+                        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Tax Inclusive Rates</span>
+                        <input 
+                            type="checkbox" 
+                            v-model="form.is_tax_inclusive" 
+                            id="is_tax_inclusive_so" 
+                            :disabled="!!form.customer_po_id" 
+                            class="peer hidden" 
+                        />
+                        <label 
+                            for="is_tax_inclusive_so" 
+                            class="relative w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px] disabled:opacity-50 disabled:cursor-not-allowed"
+                        ></label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                     
+                    <!-- Mix Design with Inline Action -->
+                    <div class="xl:col-span-2">
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                Mix Design
+                            </label>
+                            <button
+                                type="button"
+                                @click="showMixDesignModal = true"
+                                class="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors"
+                            >
+                                <SparklesIcon class="h-3.5 w-3.5" />
+                                <span>Create New</span>
+                            </button>
+                        </div>
                         <div class="flex items-center gap-2 overflow-visible relative popover-container">
                             <div class="flex-1 min-w-0">
                                 <BaseSelect
@@ -372,7 +398,6 @@ const handleMixCreated = () => {
                                     optionLabel="design_name"
                                     optionValue="id"
                                     filter
-                                    label="Mix Design"
                                     placeholder="Select Mix Design"
                                     :error="form.errors.mix_design_id"
                                     class="w-full"
@@ -381,8 +406,32 @@ const handleMixCreated = () => {
                             <!-- Info Button Popover -->
                             <RecipePopover :mixDesignId="form.mix_design_id" :mixDesigns="props.mixDesigns" />
                         </div>
+                    </div>
 
+                    <!-- Pump Type -->
+                    <div>
+                        <BaseSelect
+                            v-model="form.concrete_pump"
+                            :options="concretePumpOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            label="Pump Type"
+                            placeholder="Select Type"
+                            :error="form.errors.concrete_pump"
+                            :disabled="!!form.customer_po_id"
+                        />
+                    </div>
 
+                    <!-- Pump Rate -->
+                    <div>
+                        <BaseInputNumber
+                            v-model="form.pump_rate"
+                            label="Pump Rate"
+                            :error="form.errors.pump_rate"
+                            :minFractionDigits="2"
+                            :disabled="!!form.customer_po_id"
+                        />
+                    </div>
 
                     <!-- Total Quantity -->
                     <div>
@@ -419,20 +468,6 @@ const handleMixCreated = () => {
                             :disabled="!!form.customer_po_id"
                         />
                     </div>
-                    <div class="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/50 dark:border-slate-700/60 rounded-xl px-3 py-1 shadow-sm font-normal">
-                        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Tax Inclusive Rates</span>
-                        <input 
-                            type="checkbox" 
-                            v-model="form.is_tax_inclusive" 
-                            id="is_tax_inclusive_so" 
-                            :disabled="!!form.customer_po_id" 
-                            class="peer hidden" 
-                        />
-                        <label 
-                            for="is_tax_inclusive_so" 
-                            class="relative w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px] disabled:opacity-50 disabled:cursor-not-allowed"
-                        ></label>
-                    </div>
 
                     <!-- Initial Status -->
                     <div>
@@ -446,6 +481,7 @@ const handleMixCreated = () => {
                         />
                     </div>
 
+                </div>
             </div>
 
             <!-- Mix Design Specifications Breakdown -->
