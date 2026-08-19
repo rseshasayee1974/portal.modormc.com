@@ -296,8 +296,12 @@
         </table>
     </div>
 
-    @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? ''))
-    <div class="terms-text-content" style="padding:5px 8px;font-size:8.5px;border-top:1px solid #ccc;color:#666;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $data['meta']['terms_text'] !!}</div>
+    @php
+        $termsText = trim(!empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? ''));
+        $termsHtml = (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText;
+    @endphp
+    @if(($pdfSettings['terms'] ?? true) && !empty($termsText))
+    <div class="terms-text-content" style="padding:5px 8px;font-size:8.5px;border-top:1px solid #ccc;color:#666;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $termsHtml !!}</div>
     @endif
 
     @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))

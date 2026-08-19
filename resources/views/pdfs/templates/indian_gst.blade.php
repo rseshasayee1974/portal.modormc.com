@@ -306,13 +306,14 @@
         <tr>
             <td class="terms-block">
                 @if(($pdfSettings['terms'] ?? true) !== false)
+                    @php
+                        $termsText = trim(!empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? ''));
+                        $termsHtml = (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText;
+                    @endphp
                     <div style="font-weight: bold; margin-bottom: 3px; text-transform: uppercase;">TERMS &amp; CONDITIONS :</div>
-                    <div class="terms-text-content" style="font-size: 7.5pt; line-height: 1.35;">
-                        @php
-                            $termsText = !empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? '');
-                        @endphp
-                        @if(!empty($termsText))
-                            {!! $termsText !!}
+                    <div class="terms-text-content" style="font-size: 7.5pt; line-height: 1.35; white-space: normal !important; word-break: break-word;">
+                        @if(!empty($termsHtml))
+                            {!! $termsHtml !!}
                         @else
                             • Goods once sold will not be taken or exchanged<br>
                             • Seller is not responsible for any loss or damaged of goods in transit<br>

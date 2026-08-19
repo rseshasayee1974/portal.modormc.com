@@ -86,52 +86,38 @@ class PlantController extends Controller
         $validated = $request->validated();
         
         return DB::transaction(function () use ($validated, $request) {
-            $plant = Plant::create($validated);
+            $entity = Entity::find($validated['entity_id']);
+            $entitySlug = \Illuminate\Support\Str::slug($entity?->legal_name ?? 'entity') ?: 'entity';
+            $plantSlug = \Illuminate\Support\Str::slug($validated['name'] ?? 'plant') ?: 'plant';
 
             // Handle Logo Upload
             if ($request->hasFile('logo')) {
-                $entity = Entity::find($validated['entity_id']);
-                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
-                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
-                
-                $path = $request->file('logo')->storeAs(
+                $validated['logo_path'] = $request->file('logo')->storeAs(
                     "plants/{$entitySlug}/{$plantSlug}",
                     "logo_" . time() . "." . $request->file('logo')->getClientOriginalExtension(),
                     'public'
                 );
-                
-                $plant->update(['logo_path' => $path]);
             }
 
             // Handle Seal & Signature Upload
             if ($request->hasFile('seal_sign')) {
-                $entity = Entity::find($validated['entity_id']);
-                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
-                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
-                
-                $path = $request->file('seal_sign')->storeAs(
+                $validated['seal_sign_path'] = $request->file('seal_sign')->storeAs(
                     "plants/{$entitySlug}/{$plantSlug}",
                     "seal_sign_" . time() . "." . $request->file('seal_sign')->getClientOriginalExtension(),
                     'public'
                 );
-                
-                $plant->update(['seal_sign_path' => $path]);
             }
 
             // Handle UPI QR Code Upload
             if ($request->hasFile('upi_qr') && \Illuminate\Support\Facades\Schema::hasColumn('mm_plants', 'upi_qr_path')) {
-                $entity = Entity::find($validated['entity_id']);
-                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
-                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
-                
-                $path = $request->file('upi_qr')->storeAs(
+                $validated['upi_qr_path'] = $request->file('upi_qr')->storeAs(
                     "plants/{$entitySlug}/{$plantSlug}",
                     "upi_qr_" . time() . "." . $request->file('upi_qr')->getClientOriginalExtension(),
                     'public'
                 );
-                
-                $plant->update(['upi_qr_path' => $path]);
             }
+
+            $plant = Plant::create($validated);
 
             // Handle Address
             if (!empty($validated['address']['line_1'])) {
@@ -175,67 +161,51 @@ class PlantController extends Controller
             if (!\Illuminate\Support\Facades\Schema::hasColumn('mm_plants', 'upi_qr_path')) {
                 unset($updatableFields['upi_qr_path']);
             }
-            $plant->update($updatableFields);
+
+            $entity = Entity::find($plant->entity_id);
+            $entitySlug = \Illuminate\Support\Str::slug($entity?->legal_name ?? 'entity') ?: 'entity';
+            $plantSlug = \Illuminate\Support\Str::slug($plant->name ?? 'plant') ?: 'plant';
 
             // Handle Logo Upload
             if ($request->hasFile('logo')) {
-                // Delete old logo if exists
-                if ($plant->logo_path) {
+                if (!empty($plant->logo_path) && \Illuminate\Support\Facades\Storage::disk('public')->exists($plant->logo_path)) {
                     \Illuminate\Support\Facades\Storage::disk('public')->delete($plant->logo_path);
                 }
 
-                $entity = Entity::find($plant->entity_id);
-                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
-                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
-                
-                $path = $request->file('logo')->storeAs(
+                $updatableFields['logo_path'] = $request->file('logo')->storeAs(
                     "plants/{$entitySlug}/{$plantSlug}",
                     "logo_" . time() . "." . $request->file('logo')->getClientOriginalExtension(),
                     'public'
                 );
-                
-                $plant->update(['logo_path' => $path]);
             }
 
             // Handle Seal & Signature Upload
             if ($request->hasFile('seal_sign')) {
-                // Delete old seal_sign if exists
-                if ($plant->seal_sign_path) {
+                if (!empty($plant->seal_sign_path) && \Illuminate\Support\Facades\Storage::disk('public')->exists($plant->seal_sign_path)) {
                     \Illuminate\Support\Facades\Storage::disk('public')->delete($plant->seal_sign_path);
                 }
 
-                $entity = Entity::find($plant->entity_id);
-                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
-                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
-                
-                $path = $request->file('seal_sign')->storeAs(
+                $updatableFields['seal_sign_path'] = $request->file('seal_sign')->storeAs(
                     "plants/{$entitySlug}/{$plantSlug}",
                     "seal_sign_" . time() . "." . $request->file('seal_sign')->getClientOriginalExtension(),
                     'public'
                 );
-                
-                $plant->update(['seal_sign_path' => $path]);
             }
 
             // Handle UPI QR Code Upload
             if ($request->hasFile('upi_qr') && \Illuminate\Support\Facades\Schema::hasColumn('mm_plants', 'upi_qr_path')) {
-                // Delete old upi_qr if exists
-                if (!empty($plant->upi_qr_path)) {
+                if (!empty($plant->upi_qr_path) && \Illuminate\Support\Facades\Storage::disk('public')->exists($plant->upi_qr_path)) {
                     \Illuminate\Support\Facades\Storage::disk('public')->delete($plant->upi_qr_path);
                 }
 
-                $entity = Entity::find($plant->entity_id);
-                $entitySlug = \Illuminate\Support\Str::slug($entity->legal_name);
-                $plantSlug = \Illuminate\Support\Str::slug($plant->name);
-                
-                $path = $request->file('upi_qr')->storeAs(
+                $updatableFields['upi_qr_path'] = $request->file('upi_qr')->storeAs(
                     "plants/{$entitySlug}/{$plantSlug}",
                     "upi_qr_" . time() . "." . $request->file('upi_qr')->getClientOriginalExtension(),
                     'public'
                 );
-                
-                $plant->update(['upi_qr_path' => $path]);
             }
+
+            $plant->update($updatableFields);
 
             // Handle Address
             if (!empty($validated['address']['line_1'])) {

@@ -133,6 +133,8 @@
         width: 100% !important;
         min-width: 0 !important;
         display: block !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
     .terms-text-content,
     .terms-text-content p,
@@ -147,16 +149,20 @@
         overflow-wrap: break-word !important;
     }
     .terms-text-content p {
-        margin: 0 0 4px 0 !important;
+        margin: 0 0 2px 0 !important;
         padding: 0 !important;
-        line-height: 1.4 !important;
+        line-height: 1.3 !important;
+    }
+    .terms-text-content p:last-child {
+        margin-bottom: 0 !important;
     }
     .terms-text-content ol, .terms-text-content ul {
-        margin: 0 0 4px 18px !important;
+        margin: 0 0 2px 16px !important;
         padding: 0 !important;
     }
     .terms-text-content li {
-        margin-bottom: 2px !important;
+        margin-bottom: 1px !important;
         padding: 0 !important;
+        line-height: 1.3 !important;
     }
 </style>

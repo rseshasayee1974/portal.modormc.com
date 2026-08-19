@@ -338,8 +338,12 @@
     @if(($pdfSettings['notes'] ?? true) && ($data['meta']['notes'] ?? false))
     <div class="bottom-section"><div class="section-label">Notes</div><div>{{ $data['meta']['notes'] }}</div></div>
     @endif
-    @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? false))
-    <div class="bottom-section"><div class="section-label">Terms &amp; Conditions</div><div class="terms-text-content" style="font-size:10px;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $data['meta']['terms_text'] !!}</div></div>
+    @php
+        $termsText = trim(!empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? ''));
+        $termsHtml = (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText;
+    @endphp
+    @if(($pdfSettings['terms'] ?? true) && !empty($termsText))
+    <div class="bottom-section"><div class="section-label">Terms &amp; Conditions</div><div class="terms-text-content" style="font-size:10px;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $termsHtml !!}</div></div>
     @endif
 
     @if($pdfSettings['signature'] ?? true)

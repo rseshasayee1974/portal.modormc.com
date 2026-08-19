@@ -345,6 +345,7 @@ onMounted(() => {
                             class="text-[10px] text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
                         />
                     </div>
+                    <small v-if="errors?.logo" class="p-error text-[10px] block mt-1">{{ Array.isArray(errors.logo) ? errors.logo[0] : errors.logo }}</small>
                 </div>
 
                 <div class="col-span-12 md:col-span-2">
@@ -363,6 +364,7 @@ onMounted(() => {
                             class="text-[10px] text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
                         />
                     </div>
+                    <small v-if="errors?.seal_sign" class="p-error text-[10px] block mt-1">{{ Array.isArray(errors.seal_sign) ? errors.seal_sign[0] : errors.seal_sign }}</small>
                 </div>
 
                 <div class="col-span-12 md:col-span-2">
@@ -381,6 +383,7 @@ onMounted(() => {
                             class="text-[10px] text-slate-500 file:mr-4 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-[10px] file:font-bold file:uppercase file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
                         />
                     </div>
+                    <small v-if="errors?.upi_qr" class="p-error text-[10px] block mt-1">{{ Array.isArray(errors.upi_qr) ? errors.upi_qr[0] : errors.upi_qr }}</small>
                 </div>
 
                 <div class="md:col-span-2 flex flex-col gap-1.5">

@@ -140,6 +140,11 @@ class Dispatch extends Model
     }
     // removed old drivers relation
 
+    public function operator(): BelongsTo
+    {
+        return $this->belongsTo(Personnel::class, 'operator_id');
+    }
+
     public function salesExecutive(): BelongsTo
     {
         return $this->belongsTo(Personnel::class, 'sales_executive_id');

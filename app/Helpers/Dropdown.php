@@ -309,6 +309,40 @@ $q->where(DB::raw('LOWER(name)'), strtolower('Driver'));            })
             });
     }
 }
+
+if (!function_exists('OperatorsDropdown')) {
+    /**
+     * Active Operators for the active plant.
+     */
+    function OperatorsDropdown($excludeId = null, $plantId = null)
+    {
+        $plantId = $plantId ?: _activePlantId();
+        $query = Personnel::with('designation')
+            ->where('plant_id', $plantId);
+
+        if ($excludeId) {
+            $query->where('id', '!=', $excludeId);
+        }
+
+        return $query
+            ->whereHas('designation', function ($q) {
+                $q->where(DB::raw('LOWER(name)'), 'like', '%operator%');
+            })
+            ->where('status', 'active')
+            ->whereNull('deleted_at')
+            ->orderBy('first_name')
+            ->get()
+            ->map(function ($personnel) {
+                return [
+                    'id' => $personnel->id,
+                    'value' => $personnel->id,
+                    'label' => trim($personnel->first_name . ' ' . $personnel->last_name),
+                    'first_name' => $personnel->first_name,
+                    'last_name' => $personnel->last_name,
+                ];
+            });
+    }
+}
 if (!function_exists('SalesExecutivesDropdown')) {
     /**
      * Active Sales Executives for the active plant.

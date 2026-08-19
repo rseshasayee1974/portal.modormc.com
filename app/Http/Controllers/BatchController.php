@@ -37,10 +37,11 @@ class BatchController extends Controller
         $activePlantId = session('active_plant_id');
 
      $batches = Batch::with([
-        'dispatches:id,batch_id,truck_id,transport_id,driver_id,sales_executive_id,concrete_pump,empty_weight_truck,loaded_weight_truck,empty_time,load_time',
+        'dispatches:id,batch_id,truck_id,transport_id,driver_id,operator_id,sales_executive_id,concrete_pump,empty_weight_truck,loaded_weight_truck,empty_time,load_time',
         'dispatches.truck',
         'dispatches.transport', 
         'dispatches.driver',
+        'dispatches.operator',
         'dispatches.salesExecutive',
         'dispatches.status.invoice',
         'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
@@ -191,6 +192,7 @@ class BatchController extends Controller
             'loading_sites'     => SitesDropdown('loading'),
             'unloading_sites'   => SitesDropdown(),
             'drivers'           => DriversDropdown(),
+            'operators'         => OperatorsDropdown(),
             'sales_executives'  => PersonnelDropdown('','Sales Executive'),
             'taxes'             => TaxesDropdown('sales'),
             'products'          => fn () => ProductsDropdown(),
@@ -318,6 +320,7 @@ class BatchController extends Controller
                     'truck_id'            => $payload['truck_id'] ?? null,
                     'transport_id'        => $payload['transport_id'] ?? null,
                     'driver_id'           => $payload['driver_id'] ?? null,
+                    'operator_id'         => $payload['operator_id'] ?? $batch->operator_id ?? null,
                     'sales_executive_id'  => $payload['sales_executive_id'] ?? $salesOrder->sales_executive_id ?? $salesOrder->customerPO?->sales_executive_id ?? null,
                     'concrete_pump'       => $payload['concrete_pump'] ?? $payload['concrete_pump'] ?? null,
                     'empty_weight_truck'  => $payload['empty_weight_truck'] ?? 0,
@@ -515,6 +518,7 @@ class BatchController extends Controller
             'dispatches.payments',
             'dispatches.truck',
             'dispatches.driver',
+            'dispatches.operator',
             'dispatches.salesExecutive',
             'dispatches.creator:id,email',
             'dispatches.modifier:id,email'
@@ -643,6 +647,7 @@ class BatchController extends Controller
                         'truck_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->truck_id,
                         'transport_id' => array_key_exists('transport_id', $payload) ? $payload['transport_id'] : $dispatch->transport_id,
                         'driver_id' => array_key_exists('driver_id', $payload) ? $payload['driver_id'] : $dispatch->driver_id,
+                        'operator_id' => array_key_exists('operator_id', $payload) ? $payload['operator_id'] : $dispatch->operator_id,
                         'sales_executive_id' => array_key_exists('sales_executive_id', $payload) ? $payload['sales_executive_id'] : $dispatch->sales_executive_id,
                         'concrete_pump' => array_key_exists('concrete_pump', $payload) ? $payload['concrete_pump'] : (array_key_exists('concrete_pump', $payload) ? $payload['concrete_pump'] : $dispatch->concrete_pump),
                         'empty_weight_truck' => array_key_exists('empty_weight_truck', $payload) ? $payload['empty_weight_truck'] : $dispatch->empty_weight_truck,
