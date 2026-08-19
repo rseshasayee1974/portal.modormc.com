@@ -340,7 +340,7 @@ onUnmounted(() => {
                     </div>
 
                     <div v-if="filteredVehicles.length === 0" class="p-8 text-center text-slate-400 text-xs font-bold uppercase tracking-wider">
-                        No active vehicles found
+                        No active vehicles found...
                     </div>
                 </div>
             </div>
