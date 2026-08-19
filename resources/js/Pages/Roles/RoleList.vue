@@ -59,7 +59,12 @@ const confirmDelete = (role: any) => {
     <BaseCard>
         <template #header>
             <div class="flex flex-wrap items-center justify-between gap-2">
-                <span class="text-xl font-semibold uppercase tracking-tight">Access Roles</span>
+                <div class="flex items-center gap-2.5">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 shadow-sm border border-indigo-100 dark:border-indigo-800/50">
+                        <i class="pi pi-shield text-base"></i>
+                    </div>
+                    <span class="text-xl font-semibold uppercase tracking-tight">Access Roles</span>
+                </div>
                 <div class="flex items-center gap-2">
                     <BaseInput v-model="searchQuery" placeholder="Search Roles..." class="p-inputtext-sm" @input="handleSearch" />
                 </div>

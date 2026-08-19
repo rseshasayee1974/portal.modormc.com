@@ -28,10 +28,11 @@ const emit = defineEmits(['created']);
 const isOpen = ref(true);
 const toggle = () => { isOpen.value = !isOpen.value; };
 
-const partnerOptions = computed(() => props.partners.map(p => ({ label: p.legal_name, value: p.id })));
-const productOptions = computed(() => props.products.map(p => ({ label: p.title, value: p.id })));
-const unitOptions = computed(() => props.units.map(u => ({ label: u.unit_code, value: u.id })));
-const fallbackUomId = computed(() => props.defaultUomId ?? props.units[0]?.id ?? null);
+const partnerOptions = computed(() => (props.partners || []).map(p => ({ label: p.legal_name, value: p.id })));
+const productOptions = computed(() => (props.products || []).map(p => ({ label: p.title, value: p.id })));
+const unitOptions = computed(() => (props.units || []).map(u => ({ label: u.unit_code, value: u.id })));
+const typeOptions = computed(() => (props.designTypes || []).map(t => ({ label: t.name, value: t.name })));
+const fallbackUomId = computed(() => props.defaultUomId ?? props.units?.[0]?.id ?? null);
 const defaultKgsUomId = computed(() => {
     const kgs = props.units?.find((u: any) => 
         ['KGS', 'KG', 'KILOGRAMS', 'KILOGRAM'].includes(String(u.unit_code || u.unit_name).toUpperCase())
@@ -61,10 +62,14 @@ const form = useForm({
 const addItem = () => form.items.push(blankItem());
 const removeItem = (index: number) => { if (form.items.length > 1) form.items.splice(index, 1); };
 
+const totalGrossQty = computed(() => {
+    return form.items.reduce((sum, item) => sum + (Number(item.cross_quantity) || 0), 0);
+});
+
 const handleGradeChange = async () => {
     const value = form.design_type;
     if (!value) return;
-    const grade = props.designTypes.find(t => t.name === value);
+    const grade = (props.designTypes || []).find(t => t.name === value);
     if (!grade) return;
     if (!form.design_name) form.design_name = `${grade.name} Mix`;
     try {
@@ -143,9 +148,9 @@ const submit = () => {
                         </div>
                         <BaseInput v-model="form.design_name" label="Design Name *" placeholder="e.g. M25 Standard Pump" :error="form.errors.design_name" />
                         <BaseInput v-model="form.design_code" label="Internal Code" placeholder="DM-001" :error="form.errors.design_code" />
-                        <!-- <div>
+                        <div>
                             <BaseSelect v-model="form.design_type" :options="typeOptions" optionLabel="label" optionValue="value" @change="handleGradeChange" filter placeholder="Concrete Grade" label="Concrete Grade" fluid />
-                        </div> -->
+                        </div>
                         <!-- <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <BaseSelect v-model="form.unit_id" :options="unitOptions" optionLabel="label" label="UOM"  optionValue="value" placeholder="Selling Unit" fluid />
@@ -207,15 +212,17 @@ const submit = () => {
                                     </td>
                                 </tr>
                             </tbody>
-                            <!-- <tfoot>
-                                <tr>
-                                    <td colspan="3" class="text-right text-[10px] font-bold text-slate-400 uppercase px-2 py-3">Total Cost per m³:</td>
-                                    <td class="text-right font-black text-indigo-600 px-2">
-                                        ₹{{ form.items.reduce((s, i) => s + (Number(i.cross_quantity || 0) * Number(i.rate || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                            <tfoot>
+                                <tr class="bg-slate-50/80 border-t border-slate-200">
+                                    <td colspan="2" class="text-right text-[11px] font-black text-slate-500 uppercase px-3 py-2.5">
+                                        Total Qty:
+                                    </td>
+                                    <td class="text-right font-black font-mono text-indigo-600 text-xs px-2 py-2.5">
+                                        {{ totalGrossQty.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }}
                                     </td>
                                     <td></td>
                                 </tr>
-                            </tfoot> -->
+                            </tfoot>
                         </table>
                     </div>
                 </div>

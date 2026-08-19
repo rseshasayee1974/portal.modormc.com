@@ -214,7 +214,10 @@ const submit = async () => {
             <!-- Entity Access Section -->
             <div class="col-span-12">
                 <div class="flex items-center justify-between mb-3 border-b border-gray-100 dark:border-gray-700 pb-2">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Plant Access Roles</span>
+                    <div class="flex items-center gap-1.5">
+                        <i class="pi pi-shield text-indigo-500 text-xs"></i>
+                        <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Plant Access Roles</span>
+                    </div>
                     <BaseActionButton label="Add Assignment" icon="pi pi-plus" severity="primary" tooltip="Add Assignment" @click="addEntity" />
                 </div>
                 <div class="flex flex-col gap-3">

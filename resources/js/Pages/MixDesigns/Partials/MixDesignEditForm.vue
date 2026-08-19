@@ -86,6 +86,14 @@ const blankItem = () => ({
 const addItem = () => form.items.push(blankItem());
 const removeItem = (index: number) => { if (form.items.length > 1) form.items.splice(index, 1); };
 
+const totalTargetQty = computed(() => {
+    return form.items.reduce((sum, item) => sum + (Number(item.actual_quantity) || 0), 0);
+});
+
+const totalGrossQty = computed(() => {
+    return form.items.reduce((sum, item) => sum + (Number(item.cross_quantity) || 0), 0);
+});
+
 const handleGradeChange = async () => {
     const value = form.design_type;
     if (!value) return;
@@ -155,11 +163,11 @@ const submit = () => {
                 <div>
                     <BaseSelect v-model="form.design_type" label="Design Type" :options="typeOptions" optionLabel="label" optionValue="value" placeholder="Concrete Grade" fluid disabled />
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <!-- <div class="grid grid-cols-2 gap-3">
                     
                     <BaseSelect v-model="form.unit_id" label="Unit" :options="unitOptions" class="!h-8" optionLabel="label" optionValue="value" placeholder="Selling Unit" fluid :disabled="isLocked" />
                     <BaseInputNumber v-model="form.rate_per_qty" label="Rate per m³"  :minFractionDigits="2" placeholder="0.00" fluid :disabled="isLocked" />
-                </div>
+                </div> -->
                 <div class="flex items-center gap-3 pt-2">
                     <ToggleSwitch v-model="form.is_active" :disabled="isLocked" />
                     <span class="text-xs font-semibold text-slate-600">Active Status</span>
@@ -182,7 +190,7 @@ const submit = () => {
                             <tr>
                                 <th>Material</th>
                                 <th class="w-24 text-center">UOM</th>
-                                <th class="w-28 text-right">Target Qty</th>
+                                <!-- <th class="w-28 text-right">Target Qty</th> -->
                                 <th class="w-28 text-right">Gross Qty</th>
                                 <!-- <th class="w-28 text-right">Rate</th>
                                 <th class="w-28 text-right">Total</th> -->
@@ -199,10 +207,10 @@ const submit = () => {
                                     <BaseSelect v-model="item.uom_id" :options="unitOptions" optionLabel="label" optionValue="value" placeholder="UOM" fluid />
                                     <small v-if="form.errors[`items.${index}.uom_id`]" class="err-msg">{{ form.errors[`items.${index}.uom_id`] }}</small>
                                 </td>
-                                <td>
+                                <!-- <td>
                                     <BaseInputNumber v-model="item.actual_quantity" :disabled="isLocked" :minFractionDigits="3" placeholder="0.0000" fluid :inputClass="'text-right'" />
                                     <small v-if="form.errors[`items.${index}.actual_quantity`]" class="err-msg text-right block">{{ form.errors[`items.${index}.actual_quantity`] }}</small>
-                                </td>
+                                </td> -->
                                 <td>
                                     <BaseInputNumber v-model="item.cross_quantity" :minFractionDigits="3" placeholder="0.0000" fluid :inputClass="'text-right'" />
                                 </td>
@@ -216,15 +224,20 @@ const submit = () => {
                                     <BaseDeleteButton @click="removeItem(index)" :disabled="form.items.length <= 1 || isLocked" v-tooltip.right="lockReason"/></td>
                             </tr>
                         </tbody>
-                        <!-- <tfoot>
-                            <tr>
-                                <td colspan="3" class="text-right text-[10px] font-bold text-slate-400 uppercase px-2 py-3">Total Cost per m³:</td>
-                                <td class="text-right font-black text-indigo-600 px-2">
-                                    ₹{{ form.items.reduce((s, i) => s + (Number(i.actual_quantity || 0) * Number(i.rate || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                        <tfoot>
+                            <tr class="bg-slate-50/80 border-t border-slate-200">
+                                <td colspan="2" class="text-right text-[11px] font-black text-slate-500 uppercase px-3 py-2.5">
+                                    Total Qty:
+                                </td>
+                                <td class="text-right font-black font-mono text-slate-700 text-xs px-2 py-2.5">
+                                    {{ totalTargetQty.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }}
+                                </td>
+                                <td class="text-right font-black font-mono text-indigo-600 text-xs px-2 py-2.5">
+                                    {{ totalGrossQty.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 }) }}
                                 </td>
                                 <td></td>
                             </tr>
-                        </tfoot> -->
+                        </tfoot>
                     </table>
                 </div>
             </div>

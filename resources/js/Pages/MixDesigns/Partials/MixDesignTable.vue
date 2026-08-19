@@ -148,13 +148,13 @@ const getDeleteTooltip = (mixDesign) => {
             </Column>
 
             <!-- Rate -->
-            <Column header="Rate / m³" sortable field="rate_per_qty" style="width: 150px">
+            <!-- <Column header="Rate / m³" sortable field="rate_per_qty" style="width: 150px">
                 <template #body="slotProps">
                     <span class="font-black text-indigo-600 font-mono text-sm">
                         ₹{{ Number(slotProps.data.rate_per_qty || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
                     </span>
                 </template>
-            </Column>
+            </Column> -->
             
             <!-- Status -->
             <!-- <Column header="Status" style="width: 130px">

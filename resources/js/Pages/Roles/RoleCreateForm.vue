@@ -81,7 +81,10 @@ const submit = async () => {
 <template>
     <BaseCard class="mb-6">
         <template #header>
-            <span class="text-sm font-black uppercase tracking-tight text-gray-800 dark:text-gray-100">New Role Setup</span>
+            <div class="flex items-center gap-2">
+                <i class="pi pi-shield text-indigo-500 text-sm"></i>
+                <span class="text-sm font-black uppercase tracking-tight text-gray-800 dark:text-gray-100">New Role Setup</span>
+            </div>
         </template>
 
         <div class="flex flex-col gap-6 py-2">
