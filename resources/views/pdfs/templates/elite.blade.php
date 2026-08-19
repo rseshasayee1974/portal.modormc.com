@@ -351,10 +351,14 @@
     </div>
 
     {{-- TERMS --}}
-    @if(($pdfSettings['terms'] ?? true) && ($data['meta']['terms_text'] ?? false))
+    @php
+        $termsText = trim(!empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? ''));
+        $termsHtml = (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText;
+    @endphp
+    @if(($pdfSettings['terms'] ?? true) && !empty($termsText))
     <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;">
         <div class="small muted">Terms &amp; Conditions</div>
-        <div class="terms-text-content" style="font-size:10px;color:#94a3b8;margin-top:2px;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $data['meta']['terms_text'] !!}</div>
+        <div class="terms-text-content" style="font-size:10px;color:#94a3b8;margin-top:2px;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $termsHtml !!}</div>
     </div>
     @endif
 

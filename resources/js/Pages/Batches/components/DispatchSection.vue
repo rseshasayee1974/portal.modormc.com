@@ -28,6 +28,7 @@ const props = defineProps<{
     salesOrder: any;
     sales_executives:any;
     drivers:any;
+    operators?:any;
     
     dropdownData: {
         trucks: any[];
@@ -35,6 +36,7 @@ const props = defineProps<{
         loading_sites: any[];
         unloading_sites: any[];
         personnel: any[];
+        operators?: any[];
         taxes: any[];
         uoms: any[];
         payment_methods: any[];
@@ -126,6 +128,11 @@ const form = useForm({
         const direct = props.dispatch?.driver_id || props.batch?.driver_id;
         if (direct) return Number(direct);
         return props.salesOrder?.latest_dispatch?.driver_id ? Number(props.salesOrder.latest_dispatch.driver_id) : null;
+    })(),
+    operator_id: (() => {
+        const direct = props.dispatch?.operator_id || props.batch?.operator_id;
+        if (direct) return Number(direct);
+        return props.salesOrder?.latest_dispatch?.operator_id ? Number(props.salesOrder.latest_dispatch.operator_id) : null;
     })(),
     sales_executive_id: (() => {
         const direct = props.dispatch?.sales_executive_id || props.batch?.sales_executive_id;
@@ -589,6 +596,7 @@ const handleDeleteInvoice = () => {
                 :payment_methods="dropdownData.payment_methods"
                 :sales_ledgers="dropdownData.sales_ledgers"
                 :drivers="drivers"
+                :operators="operators || dropdownData.operators"
                 :sales_executives="sales_executives"
                 :errors="form.errors"
                 :isReadOnly="isReadOnly"

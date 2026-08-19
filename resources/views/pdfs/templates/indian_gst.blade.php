@@ -262,14 +262,22 @@
     <table style="width: 100%; border-collapse: collapse;">
         <tr>
             <td class="terms-block">
+                @php
+                    $termsText = trim(!empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? ''));
+                    $termsHtml = (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText;
+                @endphp
                 <div style="font-weight: bold; margin-bottom: 3px; text-transform: uppercase;">TERMS OF SALES :</div>
-                <div style="font-size: 7.5pt; line-height: 1.35;">
-                    • Goods once sold will not be taken or exchanged<br>
-                    • Seller is not responsible for any loss or damaged of goods in transit<br>
-                    • Buyer undertakes to submit prescribed s.t.decln. to the seller on demand or wholly unpaid after due date<br>
-                    • Dispute, if any subject to coimbatore jurisdication<br>
-                    • Pay us within 45 days from the date of invoice to avoid disallowance u/s.43B(h) of Income Tax Act, 1961.<br>
-                    • As per MSME Act 2006, any delayed payments to MSMEs will attract interest at 3 times the bank rate notified by RBI.
+                <div class="terms-text-content" style="font-size: 7.5pt; line-height: 1.35; white-space: normal !important; word-break: break-word;">
+                    @if(!empty($termsHtml))
+                        {!! $termsHtml !!}
+                    @else
+                        • Goods once sold will not be taken or exchanged<br>
+                        • Seller is not responsible for any loss or damaged of goods in transit<br>
+                        • Buyer undertakes to submit prescribed s.t.decln. to the seller on demand or wholly unpaid after due date<br>
+                        • Dispute, if any subject to coimbatore jurisdication<br>
+                        • Pay us within 45 days from the date of invoice to avoid disallowance u/s.43B(h) of Income Tax Act, 1961.<br>
+                        • As per MSME Act 2006, any delayed payments to MSMEs will attract interest at 3 times the bank rate notified by RBI.
+                    @endif
                 </div>
             </td>
             <td class="bank-block">

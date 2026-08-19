@@ -27,6 +27,7 @@ class DispatchStoreRequest extends FormRequest
             'load_site_id' => 'nullable|exists:mm_sites,id',
             'unload_site_id' => 'nullable|exists:mm_sites,id',
             'driver_id' => 'nullable|exists:mm_personnels,id',
+            'operator_id' => 'nullable|exists:mm_personnels,id',
             'sales_executive_id' => 'nullable|exists:mm_personnels,id',
             'payment_mode' => ['required', Rule::in(['cash', 'credit', 'CASH', 'CREDIT', 'Cash', 'Credit'])],
             'prefix' => 'nullable|string',

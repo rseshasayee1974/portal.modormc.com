@@ -110,11 +110,36 @@ const openEditModal = (item: any) => {
     showModal.value = true;
 };
 
-const closeModal = () => { showModal.value = false; };
+const cleanTermsContent = (html: string) => {
+    if (!html) return '';
+    let cleaned = html.trim();
+    // 1. Remove comments
+    cleaned = cleaned.replace(/<!--[\s\S]*?-->/g, '');
+    // 2. Remove style and class attributes from pasted content
+    cleaned = cleaned.replace(/\sstyle="[^"]*"/gi, '');
+    cleaned = cleaned.replace(/\sclass="[^"]*"/gi, '');
+    // 3. Remove leading & trailing empty paragraph/div tags
+    cleaned = cleaned.replace(/^(<p[^>]*>(\s|&nbsp;|<br\s*\/?>)*<\/p>\s*)+/gi, '');
+    cleaned = cleaned.replace(/(<p[^>]*>(\s|&nbsp;|<br\s*\/?>)*<\/p>\s*)+$/gi, '');
+    // 4. Collapse multiple empty paragraphs into at most one
+    cleaned = cleaned.replace(/(<p[^>]*>(\s|&nbsp;|<br\s*\/?>)*<\/p>\s*){2,}/gi, '<p><br></p>');
+    // 5. Replace 3 or more <br> tags with max two
+    cleaned = cleaned.replace(/(<br\s*\/?>\s*){3,}/gi, '<br><br>');
+    // 6. Trim spaces around tags
+    cleaned = cleaned.replace(/>[\t ]+/g, '>');
+    cleaned = cleaned.replace(/[\t ]+</g, '<');
+    return cleaned.trim();
+};
+
+const handleManualClean = () => {
+    form.value.terms_condition = cleanTermsContent(form.value.terms_condition);
+    toast.add({ severity: 'info', summary: 'Cleaned', detail: 'Unwanted whitespace trimmed', life: 2000 });
+};
 
 const submitForm = async () => {
     processing.value = true;
     form.value.errors = {};
+    form.value.terms_condition = cleanTermsContent(form.value.terms_condition);
     try {
         if (modalMode.value === 'edit') {
             await axios.put(route('termsconditions.update', { termscondition: editingId.value }), form.value);
@@ -235,7 +260,19 @@ const onSearch = () => {
                 </div>
 
                 <div class="flex flex-col gap-2 col-span-2">
-                    <label class="text-xs font-semibold uppercase text-gray-500">Terms & Conditions Content</label>
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-semibold uppercase text-gray-500">Terms & Conditions Content</label>
+                        <Button 
+                            type="button" 
+                            label="Trim / Clean Spaces" 
+                            icon="pi pi-filter" 
+                            size="small" 
+                            text 
+                            severity="secondary" 
+                            class="!text-xs !py-1 !px-2"
+                            @click="handleManualClean"
+                        />
+                    </div>
                     <Editor v-model="form.terms_condition" editorStyle="height: 320px" placeholder="Enter the full text for these terms..." />
                     <small v-if="form.errors.terms_condition" class="text-red-500">{{ form.errors.terms_condition[0] }}</small>
                 </div>

@@ -162,6 +162,7 @@ const handleExpandedRowsUpdate = (rows: Record<number, boolean>) => {
 
 const submitCreate = () => {
     createForm.post(route('plants.store'), {
+        forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
             resetCreateForm();

@@ -36,8 +36,9 @@ const props = defineProps<{
     trucks: any[];
     customers: any[];
     transporters: any[];
-    sales_executives: any[];
     drivers: any[];
+    operators?: any[];
+    sales_executives: any[];
     taxes: any[];
     products: any[];
     loading_sites: any[];
@@ -55,6 +56,7 @@ const dropdownData = computed(() => ({
     trucks: props.trucks,
     transporters: props.transporters,
     drivers: props.drivers,
+    operators: props.operators || [],
     sales_executives : props.sales_executives,
     taxes: props.taxes,
     uoms: props.uoms,
@@ -937,6 +939,7 @@ const shareBatchEmail = () => {
                                                     :dispatch="(detailedBatches[slotProps.data.id] || slotProps.data).dispatches?.[0]"
                                                     :dropdownData="dropdownData"
                                                     :drivers="drivers"
+                                                    :operators="operators"
                                                     :sales_executives="sales_executives"
                                                     :settings="batchingSettings"
                                                     :onSaved="handleBatchSaved"

@@ -183,8 +183,12 @@
         <div class="tl-row tl-final"><div class="tl-label">TOTAL PAYABLE ({{ $data['meta']['currency_code'] ?? 'INR' }})</div><div class="tl-val">{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['grand_total'], 2) }}</div></div>
     </div>
 
-    @if($data['meta']['terms_text'] ?? '')
-    <div class="terms-text-content" style="padding:8px 12px;font-size:10px;border-top:1px solid #ccc;text-align:justify;white-space:normal !important;word-break:break-word;"><strong>Terms &amp; Conditions:</strong> {!! $data['meta']['terms_text'] !!}</div>
+    @php
+        $termsText = trim(!empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? ''));
+        $termsHtml = (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText;
+    @endphp
+    @if(!empty($termsText))
+    <div class="terms-text-content" style="padding:8px 12px;font-size:10px;border-top:1px solid #ccc;text-align:justify;white-space:normal !important;word-break:break-word;"><strong>Terms &amp; Conditions:</strong> {!! $termsHtml !!}</div>
     @endif
 
     <div class="sig-row" style="margin-top:auto">
