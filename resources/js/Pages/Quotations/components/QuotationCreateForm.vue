@@ -140,18 +140,6 @@ const taxOptions = computed(() => props.taxes?.map(t => ({ label: t.tax_name, va
 
 const excludedMixDesignPumpRates = ref<number[]>([]);
 
-const uniqueSelectedMixDesignIds = computed(() => {
-    const ids = new Set<number>();
-    form.items.forEach(item => {
-        if (item.mix_design_id && !excludedMixDesignPumpRates.value.includes(Number(item.mix_design_id))) {
-            ids.add(Number(item.mix_design_id));
-        }
-    });
-    return Array.from(ids);
-});
-
-
-
 const siteSuggestions = ref<any[]>([]);
 const searchSites = (event: any) => {
     const query = (event.query || '').toString().toLowerCase();

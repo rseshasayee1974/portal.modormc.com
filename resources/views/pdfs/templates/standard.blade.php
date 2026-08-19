@@ -252,16 +252,26 @@
     @include('pdfs.partials._print_actions')
     <div class="inv-root">
 
-        @if (($pdfSettings['show_einvoice_details'] ?? true) && (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
-            <div style="display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 6px 12px; font-size: 9.5px; background: #fafafa;">
+        @if (
+            ($pdfSettings['show_einvoice_details'] ?? true) &&
+                (!empty($data['meta']['irn']) || !empty($data['meta']['qr_code'])))
+            <div
+                style="display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 6px 12px; font-size: 9.5px; background: #fafafa;">
                 <div style="display: table-cell; vertical-align: middle;">
-                    @if(!empty($data['meta']['irn'])) <div><strong>IRN :</strong> {{ $data['meta']['irn'] }}</div> @endif
-                    @if(!empty($data['meta']['ack_no'])) <div><strong>Ack No. :</strong> {{ $data['meta']['ack_no'] }}</div> @endif
-                    @if(!empty($data['meta']['ack_date'])) <div><strong>Ack Date :</strong> {{ $data['meta']['ack_date'] }}</div> @endif
+                    @if (!empty($data['meta']['irn']))
+                        <div><strong>IRN :</strong> {{ $data['meta']['irn'] }}</div>
+                    @endif
+                    @if (!empty($data['meta']['ack_no']))
+                        <div><strong>Ack No. :</strong> {{ $data['meta']['ack_no'] }}</div>
+                    @endif
+                    @if (!empty($data['meta']['ack_date']))
+                        <div><strong>Ack Date :</strong> {{ $data['meta']['ack_date'] }}</div>
+                    @endif
                 </div>
-                @if(!empty($data['meta']['qr_code']))
+                @if (!empty($data['meta']['qr_code']))
                     <div style="display: table-cell; vertical-align: middle; text-align: right; width: 70px;">
-                        <img src="{{ $data['meta']['qr_code'] }}" style="max-height: 60px; max-width: 60px; object-fit: contain;" />
+                        <img src="{{ $data['meta']['qr_code'] }}"
+                            style="max-height: 60px; max-width: 60px; object-fit: contain;" />
                     </div>
                 @endif
             </div>
@@ -276,12 +286,14 @@
                             str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['logo_path']),
                             '/',
                         );
-                        $logoUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
-                            ? asset('storage/' . $cleanLogoPath)
-                            : public_path('storage/' . $cleanLogoPath);
+                        $logoUrl =
+                            request()->route('action') !== 'download' && !($is_pdf ?? false)
+                                ? asset('storage/' . $cleanLogoPath)
+                                : public_path('storage/' . $cleanLogoPath);
                     @endphp
                     <div style="margin-bottom: 6px;">
-                        <img src="{{ $logoUrl }}" style="max-height: 50px; max-width: 180px; object-fit: contain;" />
+                        <img src="{{ $logoUrl }}"
+                            style="max-height: 50px; max-width: 180px; object-fit: contain;" />
                     </div>
                 @endif
                 @if ($pdfSettings['company_name'] ?? true)
@@ -317,7 +329,11 @@
                             if ($pdfSettings['date'] ?? true) {
                                 $infoLines['Date'] = $data['doc_date'];
                             }
-                            if (($pdfSettings['due_date'] ?? true) && !empty($data['due_date']) && $data['due_date'] !== 'N/A') {
+                            if (
+                                ($pdfSettings['due_date'] ?? true) &&
+                                !empty($data['due_date']) &&
+                                $data['due_date'] !== 'N/A'
+                            ) {
                                 $infoLines['Due Date'] = $data['due_date'];
                             }
                             $infoLines['Delivery'] = $data['delivery_date'];
@@ -325,7 +341,10 @@
                                 $infoLines['SO No'] = $data['meta']['so_no'];
                             }
                             $infoLines['PO#'] = $data['meta']['po_number'] ?? '';
-                            if (($pdfSettings['show_einvoice_details'] ?? true) && !empty($data['meta']['eway_bill_no'])) {
+                            if (
+                                ($pdfSettings['show_einvoice_details'] ?? true) &&
+                                !empty($data['meta']['eway_bill_no'])
+                            ) {
                                 $infoLines['EWayBillNo'] = $data['meta']['eway_bill_no'];
                             }
                             if ($pdfSettings['status'] ?? false) {
@@ -362,15 +381,56 @@
                     @endif
                 </td>
                 <td class="info-cell no-right" style="width:33%">
-                    @if (($pdfSettings['show_customer_ref'] ?? true) && (!empty($data['meta']['acc_no']) || !empty($data['meta']['sales_person']) || !empty($data['meta']['pump']) || !empty($data['meta']['design_mix_ref'])))
+                    @if (
+                        ($pdfSettings['show_customer_ref'] ?? true) &&
+                            (!empty($data['meta']['acc_no']) ||
+                                !empty($data['meta']['sales_person']) ||
+                                !empty($data['meta']['pump']) ||
+                                !empty($data['meta']['design_mix_ref'])))
                         <div class="addr-hdr">Customer Ref</div>
                         <table class="kv-table" style="font-size: 10px;">
-                            @if(!empty($data['meta']['acc_no'])) <tr><td class="kv-key">Acc No</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['acc_no'] }}</td></tr> @endif
-                            @if(!empty($data['meta']['po_number'])) <tr><td class="kv-key">PO</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['po_number'] }}</td></tr> @endif
-                            @if(!empty($data['meta']['sales_person'])) <tr><td class="kv-key">Sales Person</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['sales_person'] }}</td></tr> @endif
-                            @if(!empty($data['meta']['pump'])) <tr><td class="kv-key">Pump</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['pump'] }}</td></tr> @endif
-                            @if(!empty($data['meta']['quality_incharge'])) <tr><td class="kv-key">Quality InCharge</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['quality_incharge'] }}</td></tr> @endif
-                            @if(!empty($data['meta']['design_mix_ref'])) <tr><td class="kv-key">Design Mix Ref</td><td class="kv-sep">:</td><td class="kv-val bold">{{ $data['meta']['design_mix_ref'] }}</td></tr> @endif
+                            @if (!empty($data['meta']['acc_no']))
+                                <tr>
+                                    <td class="kv-key">Acc No</td>
+                                    <td class="kv-sep">:</td>
+                                    <td class="kv-val bold">{{ $data['meta']['acc_no'] }}</td>
+                                </tr>
+                            @endif
+                            @if (!empty($data['meta']['po_number']))
+                                <tr>
+                                    <td class="kv-key">PO</td>
+                                    <td class="kv-sep">:</td>
+                                    <td class="kv-val bold">{{ $data['meta']['po_number'] }}</td>
+                                </tr>
+                            @endif
+                            @if (!empty($data['meta']['sales_person']))
+                                <tr>
+                                    <td class="kv-key">Sales Person</td>
+                                    <td class="kv-sep">:</td>
+                                    <td class="kv-val bold">{{ $data['meta']['sales_person'] }}</td>
+                                </tr>
+                            @endif
+                            @if (!empty($data['meta']['pump']))
+                                <tr>
+                                    <td class="kv-key">Pump</td>
+                                    <td class="kv-sep">:</td>
+                                    <td class="kv-val bold">{{ $data['meta']['pump'] }}</td>
+                                </tr>
+                            @endif
+                            @if (!empty($data['meta']['quality_incharge']))
+                                <tr>
+                                    <td class="kv-key">Quality InCharge</td>
+                                    <td class="kv-sep">:</td>
+                                    <td class="kv-val bold">{{ $data['meta']['quality_incharge'] }}</td>
+                                </tr>
+                            @endif
+                            @if (!empty($data['meta']['design_mix_ref']))
+                                <tr>
+                                    <td class="kv-key">Design Mix Ref</td>
+                                    <td class="kv-sep">:</td>
+                                    <td class="kv-val bold">{{ $data['meta']['design_mix_ref'] }}</td>
+                                </tr>
+                            @endif
                         </table>
                     @elseif ($pdfSettings['ship_to'] ?? true)
                         <div class="addr-hdr">{{ $labels['ship_to'] ?? 'Ship To' }}</div>
@@ -383,7 +443,10 @@
             </tr>
         </table>
 
-        @if (($pdfSettings['show_carrier_driver'] ?? true) && !empty($data['meta']['carrier_driver']) && $data['meta']['carrier_driver'] !== '-')
+        @if (
+            ($pdfSettings['show_carrier_driver'] ?? true) &&
+                !empty($data['meta']['carrier_driver']) &&
+                $data['meta']['carrier_driver'] !== '-')
             <div style="padding: 5px 12px; border-bottom: 1px solid #cbd5e1; font-size: 11px; background: #f8fafc;">
                 <strong>Carrier - Driver:</strong> {{ $data['meta']['carrier_driver'] }}
             </div>
@@ -416,43 +479,109 @@
                 </tr>
             </thead>
             <tbody>
+                @php
+                    $totalCols = 2; // # and Name
+                    if ($pdfSettings['show_pump_charges'] ?? true) $totalCols += 2;
+                    if ($pdfSettings['qty'] ?? true) $totalCols++;
+                    if ($pdfSettings['unit'] ?? true) $totalCols++;
+                    $totalCols++; // rate
+                    if ($pdfSettings['tax_rate'] ?? true) $totalCols++;
+                    if ($pdfSettings['tax_amount'] ?? true) $totalCols++;
+                    $totalCols++; // amount
+
+                    $recipeColspan = min(7, $totalCols - 1);
+                    $remainingCols = max(0, $totalCols - 1 - $recipeColspan);
+                @endphp
                 @foreach ($data['items'] as $item)
+                    @php
+                        $hasRecipe = !empty($item['recipe_materials']) && count($item['recipe_materials']) > 0;
+                        $hasDesc = ($pdfSettings['description'] ?? true) && !empty($item['description']);
+                        $hasSubRow = $hasRecipe || $hasDesc || !empty($item['pump_rates']);
+                    @endphp
                     <tr>
-                        <td class="text-center">{{ $item['no'] }}</td>
-                        <td>
-                            <div class="item-name">{{ $item['name'] }}</div>
-                            @if (($pdfSettings['description'] ?? true) && $item['description'])
-                                <div class="item-sub">{{ $item['description'] }}</div>
-                            @endif
-                            @include('pdfs.partials._pump_rates_table', ['item' => $item])
-                            @if (($pdfSettings['hsn_code'] ?? true) && ($item['hsn'] ?? false))
-                                <div class="small muted">HSN: {{ $item['hsn'] }}</div>
-                            @endif
+                        <td class="text-center" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
+                            <span style="display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; background-color: #e0edff; color: #2563eb; font-weight: 700; font-size: 11px; border-radius: 6px;">{{ $item['no'] }}</span>
+                        </td>
+                        <td style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
+                            <div style="font-size: 12.5px; font-weight: 700; color: #0f172a;">{{ $item['name'] }}</div>
                         </td>
                         @if ($pdfSettings['show_pump_charges'] ?? true)
-                            <td class="text-left">{{ $item['operation_type'] ?? '-' }}</td>
-                            <td class="text-right">{{ isset($item['pump_charge']) && $item['pump_charge'] > 0 ? number_format($item['pump_charge'], 2) : '-' }}</td>
+                            <td class="text-left" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['operation_type'] ?? '-' }}</td>
+                            <td class="text-right" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
+                                {{ isset($item['pump_charge']) && $item['pump_charge'] > 0 ? number_format($item['pump_charge'], 2) : '-' }}
+                            </td>
                         @endif
                         @if ($pdfSettings['qty'] ?? true)
-                            <td class="text-right bold">{{ number_format($item['qty'], 2) }}</td>
+                            <td class="text-right bold" style="vertical-align: middle; font-size: 11.5px; color: #0f172a; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ number_format($item['qty'], 2) }}</td>
                         @endif
                         @if ($pdfSettings['unit'] ?? true)
-                            <td class="text-center">{{ $item['unit'] }}</td>
+                            <td class="text-center" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['unit'] }}</td>
                         @endif
-                        <td class="text-right">{{ number_format($item['unit_price'], 2) }}</td>
+                        <td class="text-right" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ number_format($item['unit_price'], 2) }}</td>
                         @if ($pdfSettings['tax_rate'] ?? true)
-                            <td class="text-right muted">
+                            <td class="text-right muted" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
                                 {{ $item['tax_rate'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? ($item['tax_rate'] == floor($item['tax_rate']) ? number_format($item['tax_rate'], 0) : number_format($item['tax_rate'], 2)) . '%' : '-' }}
                             </td>
                         @endif
                         @if ($pdfSettings['tax_amount'] ?? true)
-                            <td class="text-right muted">
+                            <td class="text-right muted" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
                                 {{ $item['tax_amount'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? number_format($item['tax_amount'], 2) : '-' }}
                             </td>
                         @endif
-                        <td class="text-right bold">
-                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($item['total'], 2) }}</td>
+                        <td class="text-right" style="vertical-align: middle; font-weight: 800; font-size: 12.5px; color: #2563eb; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
+                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($item['total'], 2) }}
+                        </td>
                     </tr>
+                    @if ($hasSubRow)
+                        <tr>
+                            {{-- <td style="border-top: none; padding-top: 0;"></td> --}}
+                            <td colspan="{{ $recipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
+                                @if ($hasRecipe)
+                                    <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">Recipe Details:</div>
+                                    <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
+                                        <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
+                                            @php
+                                                $allSegments = [];
+                                                foreach ($item['recipe_materials'] as $rm) {
+                                                    $allSegments[] = ['is_hsn' => false, 'name' => $rm['name'], 'qty' => $rm['qty'], 'uom' => $rm['uom']];
+                                                }
+                                                if ($pdfSettings['hsn_code'] ?? true) {
+                                                    $allSegments[] = ['is_hsn' => true, 'val' => $item['hsn'] ?? '-'];
+                                                }
+                                                $chunkSize = count($allSegments) > 3 ? (int)ceil(count($allSegments) / 2) : count($allSegments);
+                                                $chunks = array_chunk($allSegments, max(1, $chunkSize));
+                                            @endphp
+                                            @foreach ($chunks as $cIdx => $chunk)
+                                                <tr style="{{ $cIdx > 0 ? 'border-top: 1px solid #e2e8f0;' : '' }}">
+                                                    @foreach ($chunk as $sIdx => $seg)
+                                                        @php $isLast = ($sIdx === count($chunk) - 1); @endphp
+                                                        <td style="padding: 2px 8px 2px 4px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }} white-space: nowrap; vertical-align: middle;">
+                                                            @if (!empty($seg['is_hsn']))
+                                                                <span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $seg['val'] }}
+                                                            @else
+                                                                <span style="color: #64748b; margin-right: 2px;">&bull;</span> {{ $seg['name'] }} ({{ $seg['qty'] }} {{ $seg['uom'] }})
+                                                            @endif
+                                                        </td>
+                                                    @endforeach
+                                                </tr>
+                                            @endforeach
+                                        </table>
+                                    </div>
+                                @elseif ($hasDesc)
+                                    <div class="item-sub">{{ $item['description'] }}</div>
+                                    @if (($pdfSettings['hsn_code'] ?? true) && ($item['hsn'] ?? false))
+                                        <div class="small muted" style="margin-top: 2px;"><span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $item['hsn'] }}</div>
+                                    @endif
+                                @elseif (($pdfSettings['hsn_code'] ?? true) && ($item['hsn'] ?? false))
+                                    <div class="small muted" style="margin-top: 2px;"><span style="color: #2563eb; font-weight: 700;">HSN:</span> {{ $item['hsn'] }}</div>
+                                @endif
+                                @include('pdfs.partials._pump_rates_table', ['item' => $item])
+                            </td>
+                            @if ($remainingCols > 0)
+                                <td colspan="{{ $remainingCols }}" style="border-top: none;"></td>
+                            @endif
+                        </tr>
+                    @endif
                 @endforeach
             </tbody>
         </table>
@@ -479,7 +608,10 @@
                             {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['sub_total'], 2) }}
                         </td>
                     </tr>
-                    @if ((($pdfSettings['show_pump_charges'] ?? true) || ($pdfSettings['pump_rates'] ?? true)) && isset($data['totals']['pump_rate']) && $data['totals']['pump_rate'] > 0)
+                    @if (
+                        (($pdfSettings['show_pump_charges'] ?? true) || ($pdfSettings['pump_rates'] ?? true)) &&
+                            isset($data['totals']['pump_rate']) &&
+                            $data['totals']['pump_rate'] > 0)
                         <tr>
                             <td class="bt-label">Concrete Pump Charges</td>
                             <td class="bt-val">
@@ -553,13 +685,18 @@
 
         {{-- TERMS --}}
         @php
-            $termsText = trim(!empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? ''));
-            $termsHtml = (!empty($termsText) && $termsText === strip_tags($termsText)) ? nl2br(e($termsText)) : $termsText;
+            $termsText = trim(
+                !empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : $data['meta']['terms_text'] ?? '',
+            );
+            $termsHtml =
+                !empty($termsText) && $termsText === strip_tags($termsText) ? nl2br(e($termsText)) : $termsText;
         @endphp
         @if (($pdfSettings['terms'] ?? true) && !empty($termsText))
             <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;font-size:11px">
                 <div class="small muted" style="margin-bottom:2px">Terms &amp; Conditions</div>
-                <div class="terms-text-content" style="font-size:10px;color:#334155;text-align:justify;white-space:normal !important;word-break:break-word;">{!! $termsHtml !!}</div>
+                <div class="terms-text-content"
+                    style="font-size:10px;color:#334155;text-align:justify;white-space:normal !important;word-break:break-word;">
+                    {!! $termsHtml !!}</div>
             </div>
         @endif
 
@@ -569,30 +706,33 @@
                 <div class="sig-left">
                     @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))
                         <div style="margin-bottom: 8px; font-size: 10px; color: #334155;">
-                            <div class="small muted" style="font-weight: bold; text-transform: uppercase; color: #4f46e5; margin-bottom: 2px;">Bank Information</div>
+                            <div class="small muted"
+                                style="font-weight: bold; text-transform: uppercase; color: #4f46e5; margin-bottom: 2px;">
+                                Bank Information</div>
                             <div>Account Name: <strong>{{ $data['company']['bank']['account_name'] }}</strong></div>
-                            <div>Account Number: <strong>{{ $data['company']['bank']['account_number'] }}</strong></div>
-                            <div>Bank: <strong>{{ $data['company']['bank']['bank_name'] }}</strong> (Branch: {{ $data['company']['bank']['branch'] }})</div>
+                            <div>Account Number: <strong>{{ $data['company']['bank']['account_number'] }}</strong>
+                            </div>
+                            <div>Bank: <strong>{{ $data['company']['bank']['bank_name'] }}</strong> (Branch:
+                                {{ $data['company']['bank']['branch'] }})</div>
                             <div>IFSC Code: <strong>{{ $data['company']['bank']['ifsc_code'] }}</strong></div>
                         </div>
                     @endif
                     @if (($pdfSettings['upi_qr'] ?? true) && !empty($data['company']['upi_qr_path']))
                         @php
                             $qrPath = ltrim(
-                                str_replace(
-                                    ['public/', 'storage/', '/storage/'],
-                                    '',
-                                    $data['company']['upi_qr_path'],
-                                ),
+                                str_replace(['public/', 'storage/', '/storage/'], '', $data['company']['upi_qr_path']),
                                 '/',
                             );
-                            $qrUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
-                                ? asset('storage/' . $qrPath)
-                                : public_path('storage/' . $qrPath);
+                            $qrUrl =
+                                request()->route('action') !== 'download' && !($is_pdf ?? false)
+                                    ? asset('storage/' . $qrPath)
+                                    : public_path('storage/' . $qrPath);
                         @endphp
                         <div style="display: inline-block; text-align: left; vertical-align: top; margin-top: 10px;">
-                            <div class="small muted" style="margin-bottom: 4px; font-weight: bold;">Scan to Pay (UPI)</div>
-                            <img src="{{ $qrUrl }}" style="max-height: 80px; max-width: 80px; object-fit: contain; border: 1px solid #cbd5e1; padding: 2px; background: #fff;" />
+                            <div class="small muted" style="margin-bottom: 4px; font-weight: bold;">Scan to Pay (UPI)
+                            </div>
+                            <img src="{{ $qrUrl }}"
+                                style="max-height: 80px; max-width: 80px; object-fit: contain; border: 1px solid #cbd5e1; padding: 2px; background: #fff;" />
                         </div>
                     @endif
                 </div>
@@ -607,12 +747,14 @@
                                 ),
                                 '/',
                             );
-                            $sealUrl = (request()->route('action') !== 'download' && !($is_pdf ?? false))
-                                ? asset('storage/' . $sealPath)
-                                : public_path('storage/' . $sealPath);
+                            $sealUrl =
+                                request()->route('action') !== 'download' && !($is_pdf ?? false)
+                                    ? asset('storage/' . $sealPath)
+                                    : public_path('storage/' . $sealPath);
                         @endphp
                         <div style="margin-bottom: -15px; text-align: center;">
-                            <img src="{{ $sealUrl }}" style="margin-left:150px;max-height: 100px; max-width: 120px; object-fit: contain;" />
+                            <img src="{{ $sealUrl }}"
+                                style="margin-left:150px;max-height: 100px; max-width: 120px; object-fit: contain;" />
                         </div>
                     @endif
                     <div class="sig-line">Authorized Signatory<br><span class="small muted">For

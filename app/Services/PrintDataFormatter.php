@@ -490,6 +490,25 @@ class PrintDataFormatter
         return $description;
     }
 
+    public static function resolveRecipeMaterials($mixDesign): array
+    {
+        $materials = [];
+        if ($mixDesign && $mixDesign->items && $mixDesign->items->count() > 0) {
+            foreach ($mixDesign->items as $mdItem) {
+                $prodName = $mdItem->product->title ?? $mdItem->product?->title ?? $mdItem->product?->name ?? 'Material';
+                $qty = (float)$mdItem->actual_quantity;
+                $unit = $mdItem->uom->unit_code ?? $mdItem->uom?->unit_code ?? '';
+                $formattedQty = ($qty == floor($qty)) ? (int)$qty : number_format($qty, 2);
+                $materials[] = [
+                    'name' => $prodName,
+                    'qty'  => $formattedQty,
+                    'uom'  => $unit,
+                ];
+            }
+        }
+        return $materials;
+    }
+
     // ─────────────────────────────────────────────────────
     //  FORMATTERS
     // ─────────────────────────────────────────────────────
@@ -996,6 +1015,7 @@ class PrintDataFormatter
                 'tax_amount' => (float)$lineTax,
                 'total' => (float)$lineTotal,
                 'pump_rates' => [],
+                'recipe_materials' => self::resolveRecipeMaterials($item->mixDesign),
             ];
         })->toArray();
 
@@ -1085,6 +1105,7 @@ class PrintDataFormatter
                     'hsn' => $item->mixDesign?->hsn_code ?? '-', 'qty' => (float)$item->quantity, 'received_qty'=> (float)($salesOrder->produced_qty ?? 0),
                     'unit' => $item->mixDesign?->unit?->unit_code ?? 'm³', 'unit_price' => $unitPrice, 'tax_name' => $taxDetails['name'] ?: '-',
                     'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => (float)$item->tax_amount, 'total' => (float)($item->amount_total ?? ($item->quantity * $item->rate)),
+                    'recipe_materials' => self::resolveRecipeMaterials($item->mixDesign),
                 ];
             })->toArray();
         } else {
@@ -1129,6 +1150,7 @@ class PrintDataFormatter
                 'hsn' => $mixDesign->hsn_code ?? '-', 'qty' => $qty, 'received_qty'=> (float)($salesOrder->produced_qty ?? 0),
                 'unit' => $mixDesign->unit?->unit_code ?? 'm³', 'unit_price' => $unitPrice, 'tax_name' => $taxDetails['name'] ?: ($taxName ?: '-'),
                 'tax_rate' => $taxDetails['rate'] ?: $taxRate, 'tax_group' => $taxDetails['group'] ?: $taxGroup, 'tax_amount' => $priceTax, 'total' => $total,
+                'recipe_materials' => self::resolveRecipeMaterials($mixDesign),
             ]] : [];
         }
 

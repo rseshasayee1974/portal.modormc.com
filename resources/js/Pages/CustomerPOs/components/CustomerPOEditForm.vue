@@ -1080,7 +1080,7 @@ const performSubmit = (customerPOId: any) => {
                             </table>
                         </div>
                     </div>
-                </div>
+            </div>
             </div> -->
 
             <!-- Totals & Summary Block -->

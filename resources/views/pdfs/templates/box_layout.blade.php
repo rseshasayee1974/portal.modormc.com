@@ -221,18 +221,34 @@
             </tr>
         </thead>
         <tbody>
+            @php
+                $boxTotalCols = 2; // Grade + Taxable Amount
+                if ($pdfSettings['hsn_code'] ?? true) $boxTotalCols++;
+                if ($pdfSettings['description'] ?? true) $boxTotalCols++;
+                if ($pdfSettings['show_pump_charges'] ?? false) $boxTotalCols += 2;
+                if ($pdfSettings['qty'] ?? true) $boxTotalCols++;
+                if ($pdfSettings['unit'] ?? true) $boxTotalCols++;
+                if (($pdfSettings['tax_rate'] ?? true) || ($pdfSettings['tax_amount'] ?? true)) $boxTotalCols++;
+                if ($pdfSettings['amount'] ?? true) $boxTotalCols++;
+
+                $boxRecipeColspan = min(7, $boxTotalCols - 1);
+                $boxRemainingCols = max(0, $boxTotalCols - 1 - $boxRecipeColspan);
+            @endphp
             @foreach($data['items'] as $item)
+                @php
+                    $hasRecipe = !empty($item['recipe_materials']) && count($item['recipe_materials']) > 0;
+                @endphp
                 <tr>
-                    @if($pdfSettings['hsn_code'] ?? true) <td style="text-align: center;">HSN :<br><strong>{{ $item['hsn'] ?? '38245010' }}</strong></td> @endif
-                    <td style="text-align: center; font-weight: bold;">{{ $item['name'] }}</td>
-                    @if($pdfSettings['description'] ?? true) <td>{{ $item['description'] }}</td> @endif
-                    @if($pdfSettings['show_pump_charges'] ?? false) <td style="text-align: center;">{{ $item['operation_type'] ?? 'TM' }}</td> @endif
-                    @if($pdfSettings['qty'] ?? true) <td style="text-align: right; font-weight: bold;">{{ number_format($item['qty'], 2) }}</td> @endif
-                    @if($pdfSettings['unit'] ?? true) <td style="text-align: right;">{{ number_format($item['unit_price'], 2) }}</td> @endif
-                    @if($pdfSettings['show_pump_charges'] ?? false) <td style="text-align: right;">{{ number_format($item['pump_charge'] ?? 0, 2) }}</td> @endif
-                    <td style="text-align: right; font-weight: bold;">{{ number_format($item['taxable_amount'] ?? ($item['qty'] * $item['unit_price']), 2) }}</td>
+                    @if($pdfSettings['hsn_code'] ?? true) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">HSN :<br><strong>{{ $item['hsn'] ?? '38245010' }}</strong></td> @endif
+                    <td style="text-align: center; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['name'] }}</td>
+                    @if($pdfSettings['description'] ?? true) <td style="{{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['description'] }}</td> @endif
+                    @if($pdfSettings['show_pump_charges'] ?? false) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['operation_type'] ?? 'TM' }}</td> @endif
+                    @if($pdfSettings['qty'] ?? true) <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['qty'], 2) }}</td> @endif
+                    @if($pdfSettings['unit'] ?? true) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['unit_price'], 2) }}</td> @endif
+                    @if($pdfSettings['show_pump_charges'] ?? false) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['pump_charge'] ?? 0, 2) }}</td> @endif
+                    <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['taxable_amount'] ?? ($item['qty'] * $item['unit_price']), 2) }}</td>
                     @if(($pdfSettings['tax_rate'] ?? true) || ($pdfSettings['tax_amount'] ?? true))
-                        <td style="padding: 0;">
+                        <td style="padding: 0; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">
                             <table class="tax-table">
                                 @php
                                     $itemTaxRate = (float)($item['tax_rate'] ?? 18);
@@ -274,8 +290,41 @@
                             </table>
                         </td>
                     @endif
-                    @if($pdfSettings['amount'] ?? true) <td style="text-align: right; font-weight: bold;">{{ number_format($item['total'], 2) }}</td> @endif
+                    @if($pdfSettings['amount'] ?? true) <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['total'], 2) }}</td> @endif
                 </tr>
+                @if ($hasRecipe)
+                    <tr>
+                        <td style="border-top: none; padding-top: 0;"></td>
+                        <td colspan="{{ $boxRecipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
+                            <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">Recipe Details:</div>
+                            <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
+                                <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
+                                    @php
+                                        $allSegments = [];
+                                        foreach ($item['recipe_materials'] as $rm) {
+                                            $allSegments[] = ['is_hsn' => false, 'name' => $rm['name'], 'qty' => $rm['qty'], 'uom' => $rm['uom']];
+                                        }
+                                        $chunkSize = count($allSegments) > 3 ? (int)ceil(count($allSegments) / 2) : count($allSegments);
+                                        $chunks = array_chunk($allSegments, max(1, $chunkSize));
+                                    @endphp
+                                    @foreach ($chunks as $cIdx => $chunk)
+                                        <tr style="{{ $cIdx > 0 ? 'border-top: 1px solid #e2e8f0;' : '' }}">
+                                            @foreach ($chunk as $sIdx => $seg)
+                                                @php $isLast = ($sIdx === count($chunk) - 1); @endphp
+                                                <td style="padding: 2px 8px 2px 4px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }} white-space: nowrap; vertical-align: middle;">
+                                                    <span style="color: #64748b; margin-right: 2px;">&bull;</span> {{ $seg['name'] }} ({{ $seg['qty'] }} {{ $seg['uom'] }})
+                                                </td>
+                                            @endforeach
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            </div>
+                        </td>
+                        @if ($boxRemainingCols > 0)
+                            <td colspan="{{ $boxRemainingCols }}" style="border-top: none;"></td>
+                        @endif
+                    </tr>
+                @endif
             @endforeach
         </tbody>
     </table>

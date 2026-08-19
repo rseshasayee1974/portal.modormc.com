@@ -197,14 +197,17 @@
         </thead>
         <tbody>
             @foreach($data['items'] as $item)
+                @php
+                    $hasRecipe = !empty($item['recipe_materials']) && count($item['recipe_materials']) > 0;
+                @endphp
                 <tr>
-                    <td style="text-align: center;">HSN :<br><strong>{{ $item['hsn'] ?? '38245010' }}</strong></td>
-                    <td style="text-align: center; font-weight: bold;">{{ $item['name'] }}</td>
-                    <td>{{ $item['description'] }}</td>
-                    <td style="text-align: right; font-weight: bold;">{{ number_format($item['qty'], 2) }}</td>
-                    <td style="text-align: right;">{{ number_format($item['unit_price'], 2) }}</td>
-                    <td style="text-align: right; font-weight: bold;">{{ number_format($item['taxable_amount'] ?? ($item['qty'] * $item['unit_price']), 2) }}</td>
-                    <td style="padding: 0;">
+                    <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">HSN :<br><strong>{{ $item['hsn'] ?? '38245010' }}</strong></td>
+                    <td style="text-align: center; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['name'] }}</td>
+                    <td style="{{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['description'] }}</td>
+                    <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['qty'], 2) }}</td>
+                    <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['unit_price'], 2) }}</td>
+                    <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['taxable_amount'] ?? ($item['qty'] * $item['unit_price']), 2) }}</td>
+                    <td style="padding: 0; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">
                         <table class="tax-table">
                             @php
                                 $itemTaxRate = (float)($item['tax_rate'] ?? 18);
@@ -245,8 +248,39 @@
                             @endif
                         </table>
                     </td>
-                    <td style="text-align: right; font-weight: bold;">{{ number_format($item['total'], 2) }}</td>
+                    <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['total'], 2) }}</td>
                 </tr>
+                @if ($hasRecipe)
+                    <tr>
+                        <td style="border-top: none; padding-top: 0;"></td>
+                        <td colspan="6" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
+                            <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">Recipe Details:</div>
+                            <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
+                                <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
+                                    @php
+                                        $allSegments = [];
+                                        foreach ($item['recipe_materials'] as $rm) {
+                                            $allSegments[] = ['is_hsn' => false, 'name' => $rm['name'], 'qty' => $rm['qty'], 'uom' => $rm['uom']];
+                                        }
+                                        $chunkSize = count($allSegments) > 3 ? (int)ceil(count($allSegments) / 2) : count($allSegments);
+                                        $chunks = array_chunk($allSegments, max(1, $chunkSize));
+                                    @endphp
+                                    @foreach ($chunks as $cIdx => $chunk)
+                                        <tr style="{{ $cIdx > 0 ? 'border-top: 1px solid #e2e8f0;' : '' }}">
+                                            @foreach ($chunk as $sIdx => $seg)
+                                                @php $isLast = ($sIdx === count($chunk) - 1); @endphp
+                                                <td style="padding: 2px 8px 2px 4px; {{ !$isLast ? 'border-right: 1px solid #e2e8f0;' : '' }} white-space: nowrap; vertical-align: middle;">
+                                                    <span style="color: #64748b; margin-right: 2px;">&bull;</span> {{ $seg['name'] }} ({{ $seg['qty'] }} {{ $seg['uom'] }})
+                                                </td>
+                                            @endforeach
+                                        </tr>
+                                    @endforeach
+                                </table>
+                            </div>
+                        </td>
+                        <td style="border-top: none;"></td>
+                    </tr>
+                @endif
             @endforeach
         </tbody>
     </table>
