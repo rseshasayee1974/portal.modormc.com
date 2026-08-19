@@ -207,19 +207,42 @@
                     <td style="padding: 0;">
                         <table class="tax-table">
                             @php
-                                $cgstRate = ($item['tax_rate'] ?? 18) / 2;
-                                $cgstAmt = ($item['tax_amount'] ?? 0) / 2;
+                                $itemTaxRate = (float)($item['tax_rate'] ?? 18);
+                                $itemTaxAmt = (float)($item['tax_amount'] ?? 0);
+                                $taxGroup = strtoupper($item['tax_group'] ?? '');
+                                $taxName = strtoupper($item['tax_name'] ?? '');
+                                $isIgst = !empty($item['is_igst']) || $taxGroup === 'IGST' || str_contains($taxName, 'IGST');
+                                $formattedTaxRate = $itemTaxRate == floor($itemTaxRate) ? (int)$itemTaxRate : number_format($itemTaxRate, 2);
                             @endphp
-                            <tr>
-                                <td style="width: 40%;">CGST@ {{ $cgstRate }}%</td>
-                                <td style="width: 30%; text-align: right;">{{ number_format($cgstRate, 2) }}%</td>
-                                <td style="width: 30%; text-align: right;">{{ number_format($cgstAmt, 2) }}</td>
-                            </tr>
-                            <tr>
-                                <td style="width: 40%;">SGST@ {{ $cgstRate }}%</td>
-                                <td style="width: 30%; text-align: right;">{{ number_format($cgstRate, 2) }}%</td>
-                                <td style="width: 30%; text-align: right;">{{ number_format($cgstAmt, 2) }}</td>
-                            </tr>
+                            @if($isIgst)
+                                @if(($pdfSettings['igst'] ?? true) !== false)
+                                    <tr>
+                                        <td style="width: 40%;">IGST@ {{ $formattedTaxRate }}%</td>
+                                        <td style="width: 30%; text-align: right;">{{ $formattedTaxRate }}%</td>
+                                        <td style="width: 30%; text-align: right;">{{ number_format($itemTaxAmt, 2) }}</td>
+                                    </tr>
+                                @endif
+                            @else
+                                @php
+                                    $halfRate = $itemTaxRate / 2;
+                                    $halfAmt = $itemTaxAmt / 2;
+                                    $formattedHalfRate = $halfRate == floor($halfRate) ? (int)$halfRate : number_format($halfRate, 2);
+                                @endphp
+                                @if(($pdfSettings['cgst'] ?? true) !== false)
+                                    <tr>
+                                        <td style="width: 40%;">CGST@ {{ $formattedHalfRate }}%</td>
+                                        <td style="width: 30%; text-align: right;">{{ $formattedHalfRate }}%</td>
+                                        <td style="width: 30%; text-align: right;">{{ number_format($halfAmt, 2) }}</td>
+                                    </tr>
+                                @endif
+                                @if(($pdfSettings['sgst'] ?? true) !== false)
+                                    <tr>
+                                        <td style="width: 40%;">SGST@ {{ $formattedHalfRate }}%</td>
+                                        <td style="width: 30%; text-align: right;">{{ $formattedHalfRate }}%</td>
+                                        <td style="width: 30%; text-align: right;">{{ number_format($halfAmt, 2) }}</td>
+                                    </tr>
+                                @endif
+                            @endif
                         </table>
                     </td>
                     <td style="text-align: right; font-weight: bold;">{{ number_format($item['total'], 2) }}</td>
@@ -234,11 +257,31 @@
             <td style="width: 65%; border-right: 1px solid #000;">
                 <div style="font-weight: bold; margin-bottom: 4px;">Amount in Words :</div>
                 @php
-                    $cgstAmt = ($data['totals']['tax_amount'] ?? 0) / 2;
-                    $cgstRate = ($data['items'][0]['tax_rate'] ?? 18) / 2;
+                    $totTaxAmt = (float)($data['totals']['tax_amount'] ?? array_sum(array_column($data['totals']['tax_lines'] ?? [], 'amount')));
+                    $firstItem = $data['items'][0] ?? [];
+                    $totTaxRate = (float)($firstItem['tax_rate'] ?? 18);
+                    $firstTaxGroup = strtoupper($firstItem['tax_group'] ?? '');
+                    $firstTaxName = strtoupper($firstItem['tax_name'] ?? '');
+                    $isGlobalIgst = !empty($firstItem['is_igst']) || $firstTaxGroup === 'IGST' || str_contains($firstTaxName, 'IGST');
+                    $formattedTotTaxRate = $totTaxRate == floor($totTaxRate) ? (int)$totTaxRate : number_format($totTaxRate, 2);
                 @endphp
-                <div>CGST@ {{ $cgstRate }}% Rs. {{ number_format($cgstAmt, 2) }}</div>
-                <div>SGST@ {{ $cgstRate }}% Rs. {{ number_format($cgstAmt, 2) }}</div>
+                @if($isGlobalIgst)
+                    @if(($pdfSettings['igst'] ?? true) !== false)
+                        <div>IGST@ {{ $formattedTotTaxRate }}% Rs. {{ number_format($totTaxAmt, 2) }}</div>
+                    @endif
+                @else
+                    @php
+                        $halfTotRate = $totTaxRate / 2;
+                        $halfTotAmt = $totTaxAmt / 2;
+                        $formattedHalfTotRate = $halfTotRate == floor($halfTotRate) ? (int)$halfTotRate : number_format($halfTotRate, 2);
+                    @endphp
+                    @if(($pdfSettings['cgst'] ?? true) !== false)
+                        <div>CGST@ {{ $formattedHalfTotRate }}% Rs. {{ number_format($halfTotAmt, 2) }}</div>
+                    @endif
+                    @if(($pdfSettings['sgst'] ?? true) !== false)
+                        <div>SGST@ {{ $formattedHalfTotRate }}% Rs. {{ number_format($halfTotAmt, 2) }}</div>
+                    @endif
+                @endif
                 <div style="margin-top: 4px;">Grand Total <strong>{{ $data['meta']['total_words'] ?: 'Rs. ' . number_format($data['totals']['grand_total'], 2) . ' Only' }}</strong></div>
             </td>
             <td style="width: 35%; padding: 0;">
@@ -262,15 +305,24 @@
     <table style="width: 100%; border-collapse: collapse;">
         <tr>
             <td class="terms-block">
-                <div style="font-weight: bold; margin-bottom: 3px; text-transform: uppercase;">TERMS OF SALES :</div>
-                <div style="font-size: 7.5pt; line-height: 1.35;">
-                    • Goods once sold will not be taken or exchanged<br>
-                    • Seller is not responsible for any loss or damaged of goods in transit<br>
-                    • Buyer undertakes to submit prescribed s.t.decln. to the seller on demand or wholly unpaid after due date<br>
-                    • Dispute, if any subject to coimbatore jurisdication<br>
-                    • Pay us within 45 days from the date of invoice to avoid disallowance u/s.43B(h) of Income Tax Act, 1961.<br>
-                    • As per MSME Act 2006, any delayed payments to MSMEs will attract interest at 3 times the bank rate notified by RBI.
-                </div>
+                @if(($pdfSettings['terms'] ?? true) !== false)
+                    <div style="font-weight: bold; margin-bottom: 3px; text-transform: uppercase;">TERMS &amp; CONDITIONS :</div>
+                    <div class="terms-text-content" style="font-size: 7.5pt; line-height: 1.35;">
+                        @php
+                            $termsText = !empty($pdfSettings['terms_text']) ? $pdfSettings['terms_text'] : ($data['meta']['terms_text'] ?? '');
+                        @endphp
+                        @if(!empty($termsText))
+                            {!! $termsText !!}
+                        @else
+                            • Goods once sold will not be taken or exchanged<br>
+                            • Seller is not responsible for any loss or damaged of goods in transit<br>
+                            • Buyer undertakes to submit prescribed s.t.decln. to the seller on demand or wholly unpaid after due date<br>
+                            • Dispute, if any subject to coimbatore jurisdication<br>
+                            • Pay us within 45 days from the date of invoice to avoid disallowance u/s.43B(h) of Income Tax Act, 1961.<br>
+                            • As per MSME Act 2006, any delayed payments to MSMEs will attract interest at 3 times the bank rate notified by RBI.
+                        @endif
+                    </div>
+                @endif
             </td>
             <td class="bank-block">
                 @if (($pdfSettings['show_bank_details'] ?? true) && !empty($data['company']['bank']['bank_name']))

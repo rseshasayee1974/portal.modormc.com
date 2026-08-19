@@ -242,7 +242,6 @@ class PrintTemplateController extends Controller
             ['key' => 'delivery_challans',  'name' => 'Delivery Challans',  'templates' => ['standard', 'box_layout', 'elite', 'modern', 'compact', 'spreadsheet', 'delivery_challan_a4']],
             ['key' => 'credit_notes',       'name' => 'Credit Notes',       'templates' => ['standard', 'box_layout', 'elite']],
             ['key' => 'statements',         'name' => 'Account Statements', 'templates' => ['tallysheet']],
-            ['key' => 'gst_invoices',       'name' => 'GST Invoices',       'templates' => ['box_layout', 'indian_gst', 'formal_gst']],
         ];
     }
 

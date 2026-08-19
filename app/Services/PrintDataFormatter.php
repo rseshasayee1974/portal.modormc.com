@@ -262,7 +262,8 @@ class PrintDataFormatter
             $tc = \App\Models\TermsCondition::where('plant_id', 0)->where('order_type', $type)->where('status', 'active')->first();
             if ($tc) return $tc->terms_condition;
         }
-        return $fallbackTerms ?? '';
+        if (!empty($fallbackTerms)) return $fallbackTerms;
+        return '';
     }
 
     public static function resolveBankDetails($plant, $entity = null): array
@@ -1042,7 +1043,7 @@ class PrintDataFormatter
 
     public static function fromSalesOrder($salesOrder): array
     {
-        $salesOrder->loadMissing(['customer','customer.addresses','customer.contacts.addresses','site','plant','plant.entity','plant.addresses','mixDesign','mixDesign.concrete_grade','mixDesign.unit','mixDesign.items.product','mixDesign.items.uom','customerPO.items.mixDesign','customerPO.items.tax','customerPO.quotation.items.mixDesign','customerPO.quotation.items.tax','customerPO.quotation.items.mixDesign.items.product','customerPO.quotation.items.mixDesign.items.uom']);
+        $salesOrder->loadMissing(['customer','customer.addresses','customer.contacts.addresses','site','plant','plant.entity','plant.addresses','mixDesign','mixDesign.concrete_grade','mixDesign.unit','mixDesign.items.product','mixDesign.items.uom','tax','customerPO.items.mixDesign','customerPO.items.tax','customerPO.quotation.items.mixDesign','customerPO.quotation.items.tax','customerPO.quotation.items.mixDesign.items.product','customerPO.quotation.items.mixDesign.items.uom']);
         $data = self::base();
         $data['settings'] = self::getCustomSettings($salesOrder->plant_id, 'sales_orders') ?: self::getCustomSettings($salesOrder->plant_id, 'quotations');
         $data['doc_title']  = $data['settings']['pdf']['labels']['invoice_title'] ?? 'SALES ORDER';
@@ -1056,7 +1057,7 @@ class PrintDataFormatter
         $data['bill_to'] = self::formatPartner($salesOrder->customer);
         $data['ship_to'] = self::formatShipTo($salesOrder->site, $data['bill_to']);
 
-        $isTaxInclusive = false; if ($salesOrder->customerPO) $isTaxInclusive = (bool)($salesOrder->customerPO->is_tax_inclusive ?? false);
+        $isTaxInclusive = (bool)($salesOrder->is_tax_inclusive ?? ($salesOrder->customerPO?->is_tax_inclusive ?? false));
         $isIntra     = self::isIntraState($salesOrder->plant->gstin ?? '', $salesOrder->customer?->gstin ?? '');
         $quotationItems = $salesOrder->customerPO?->quotation?->items ?? collect();
         if ($quotationItems->isNotEmpty()) {
@@ -1075,12 +1076,26 @@ class PrintDataFormatter
         } else {
             $mixDesign = $salesOrder->mixDesign; $qty  = (float)($salesOrder->total_qty ?? 0);
             $poItem = null; if ($salesOrder->customerPO) $poItem = $salesOrder->customerPO->items->where('mix_design_id', $salesOrder->mix_design_id)->first();
-            $rate = $poItem ? (float)$poItem->rate : (float)($mixDesign?->rate_per_qty ?? 0);
-            $taxModel = $poItem?->tax; $taxRate  = 0.0; $taxGroup = ''; $taxName  = '-'; $priceTax = 0.0;
-            if ($taxModel) { $taxRate  = (float)$taxModel->tax_rate; $taxGroup = $taxModel->tax_group ?? ''; $taxName  = $taxModel->tax_name ?? ''; }
+            $rate = (float)($salesOrder->rate ?? ($poItem ? $poItem->rate : ($mixDesign?->rate_per_qty ?? 0)));
+            $taxModel = $salesOrder->tax ?? $poItem?->tax;
+            $taxRate  = 0.0; $taxGroup = ''; $taxName  = '-'; $priceTax = 0.0;
+            if ($taxModel) {
+                $taxRate  = (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0);
+                $taxGroup = $taxModel->tax_group ?? '';
+                $taxName  = $taxModel->tax_name ?? '';
+            }
             $subtotal = $qty * $rate;
-            if ($isTaxInclusive) { $total = $subtotal; $untaxedAmt = $total / (1 + ($taxRate / 100)); $priceTax = $total - $untaxedAmt; $unitPrice = $qty > 0 ? ($untaxedAmt / $qty) : $rate; }
-            else { $untaxedAmt = $subtotal; $priceTax = $untaxedAmt * ($taxRate / 100); $total = $untaxedAmt + $priceTax; $unitPrice = $rate; }
+            if ($isTaxInclusive) {
+                $total = $subtotal;
+                $untaxedAmt = $taxRate > 0 ? ($total / (1 + ($taxRate / 100))) : $total;
+                $priceTax = $total - $untaxedAmt;
+                $unitPrice = $qty > 0 ? ($untaxedAmt / $qty) : $rate;
+            } else {
+                $untaxedAmt = $subtotal;
+                $priceTax = $untaxedAmt * ($taxRate / 100);
+                $total = $untaxedAmt + $priceTax;
+                $unitPrice = $rate;
+            }
             if ($taxRate <= 0 && $poItem) {
                 $itemTaxAmount = (float)$poItem->tax_amount; $itemUntaxedAmount = (float)($poItem->untaxed_amount ?? ($poItem->quantity * $poItem->rate));
                 if ($itemTaxAmount > 0 && $itemUntaxedAmount > 0) {
@@ -1090,17 +1105,48 @@ class PrintDataFormatter
                     else { $priceTax = $untaxedAmt * ($taxRate / 100); $total = $untaxedAmt + $priceTax; }
                 }
             }
+            $taxDetails = self::resolveTaxDetails($taxModel, $isIntra, $priceTax, $untaxedAmt);
+            if ($taxRate > 0 && empty($taxDetails['name'])) {
+                $taxDetails['name'] = ($taxGroup ?: ($isIntra ? 'GST' : 'IGST')) . ' ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
+            }
             $description = self::formatMixDesignDescription('', $mixDesign);
             $data['items'] = $mixDesign ? [[
                 'no' => 1, 'name' => $mixDesign->design_name ?? 'Concrete Mix', 'description' => $description,
                 'hsn' => $mixDesign->hsn_code ?? '-', 'qty' => $qty, 'received_qty'=> (float)($salesOrder->produced_qty ?? 0),
-                'unit' => $mixDesign->unit?->unit_code ?? 'm³', 'unit_price' => $unitPrice, 'tax_name' => $taxName ?: '-',
-                'tax_rate' => $taxRate, 'tax_group' => $taxGroup, 'tax_amount' => $priceTax, 'total' => $total,
+                'unit' => $mixDesign->unit?->unit_code ?? 'm³', 'unit_price' => $unitPrice, 'tax_name' => $taxDetails['name'] ?: ($taxName ?: '-'),
+                'tax_rate' => $taxDetails['rate'] ?: $taxRate, 'tax_group' => $taxDetails['group'] ?: $taxGroup, 'tax_amount' => $priceTax, 'total' => $total,
             ]] : [];
         }
 
-        // Add pump rate flat charge if configured & enabled
+        // Resolve concrete_pump and pump_rate details for sales order
+        $concretePump = $salesOrder->concrete_pump;
         $pumpRate = (float)($salesOrder->pump_rate ?? 0);
+        $showPumpCharges = !isset($data['settings']['pdf']['show_pump_charges']) || $data['settings']['pdf']['show_pump_charges'];
+
+        $pumpTypeLabel = '-';
+        if ($concretePump) {
+            $rawType = (string)$concretePump;
+            $pumpTypeLabel = match(strtolower($rawType)) {
+                'line_pump' => 'Line Pump',
+                'boom_pump' => 'Boom Pump',
+                'static_pump', 'stationary_pump' => 'Stationary / Static Pump',
+                'manual' => 'Manual',
+                'dumping' => 'Dumping',
+                default => ucwords(str_replace('_', ' ', $rawType))
+            };
+        }
+
+        $itemsCount = count($data['items']);
+        if ($itemsCount > 0) {
+            foreach ($data['items'] as $i => &$item) {
+                $item['operation_type'] = $showPumpCharges ? $pumpTypeLabel : '-';
+                // Allocate pump_rate as pump_charge across items (if 1 item, whole pumpRate; else per-item/split)
+                $item['pump_charge'] = ($showPumpCharges && $i === 0) ? $pumpRate : 0.0;
+            }
+            unset($item);
+        }
+
+        // Add pump rate flat charge if configured & enabled
         $showPumpRate = (!isset($data['settings']['pdf']['pump_rates']) || $data['settings']['pdf']['pump_rates']) && $pumpRate > 0;
 
         $pumpRateUntaxed = 0.0;
@@ -1175,10 +1221,21 @@ class PrintDataFormatter
             'grand_total' => (float)($grandTotalVal + $pumpRateTotal)
         ];
 
+        $salesExec = $salesOrder->salesExecutive;
+        $salesPersonName = $salesExec ? trim(($salesExec->first_name ?? '') . ' ' . ($salesExec->last_name ?? '')) : '';
+
         $data['meta'] = [
-            'currency_code' => 'INR', 'currency_symbol' => '₹', 'notes' => $salesOrder->terms_conditions ?? '',
-            'terms_text' => self::resolveTermsCondition($data['settings'], 'Sales Order', $salesOrder->plant_id, ''),
-            'total_words' => self::numberToWords($data['totals']['grand_total'], 'INR'), 'po_number' => '', 'project_name' => $salesOrder->site?->name ?? '',
+            'currency_code' => 'INR',
+            'currency_symbol' => '₹',
+            'notes' => $salesOrder->terms_conditions ?? '',
+            'terms_text' => self::resolveTermsCondition($data['settings'], 'Sales Order', $salesOrder->plant_id, $salesOrder->terms_conditions ?? ''),
+            'total_words' => self::numberToWords($data['totals']['grand_total'], 'INR'),
+            'po_number' => $salesOrder->customerPO?->customer_po_reference ?: ($salesOrder->customerPO?->reference ?? ''),
+            'project_name' => $salesOrder->site?->name ?? '',
+            'pump' => $pumpTypeLabel !== '-' ? $pumpTypeLabel : '',
+            'sales_person' => $salesPersonName,
+            'sales_executive_name' => $salesPersonName,
+            'sales_executive_mobile' => $salesExec?->mobile_number ?? $salesExec?->phone ?? '',
         ];
         return $data;
     }
