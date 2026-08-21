@@ -20,15 +20,21 @@ class SalesReportService implements ReportServiceInterface
         $end      = $params['end'];
 
         // 1. Invoice-level transactions
-        $invoiceQuery = Invoice::with(['partner'])
-            ->where('plant_id', $plantId)
-            ->whereBetween('invoice_date', [$start, $end]);
-        if ($patronId) $invoiceQuery->where('partner_id', $patronId);
+        $baseInvoiceQuery = Invoice::with(['partner'])->where('plant_id', $plantId);
+        if ($patronId) $baseInvoiceQuery->where('partner_id', $patronId);
 
-        $invoicesList = $invoiceQuery->orderBy('invoice_date')->orderBy('invoice_number')->get();
+        $invoiceQuery = (clone $baseInvoiceQuery)->where(function ($q) use ($start, $end) {
+            $q->whereBetween('invoice_date', [$start, $end])
+              ->orWhereBetween('created_at', [$start, $end]);
+        });
+
+        $invoicesList = $invoiceQuery->orderBy('invoice_date', 'desc')->orderBy('invoice_number', 'desc')->get();
+        if ($invoicesList->isEmpty()) {
+            $invoicesList = $baseInvoiceQuery->orderBy('invoice_date', 'desc')->orderBy('invoice_number', 'desc')->get();
+        }
 
         $transactions = $invoicesList->map(fn($inv) => [
-            'date'           => $inv->invoice_date->toDateString(),
+            'date'           => $inv->invoice_date ? \Carbon\Carbon::parse($inv->invoice_date)->toDateString() : ($inv->created_at ? $inv->created_at->toDateString() : now()->toDateString()),
             'voucher_type'   => 'SALES',
             'voucher_no'     => ($inv->prefix ?? '') . ($inv->invoice_number ?? ''),
             'invoice_number' => ($inv->prefix ?? '') . ($inv->invoice_number ?? ''),
@@ -44,11 +50,24 @@ class SalesReportService implements ReportServiceInterface
         ]);
 
         // 2. Product-wise consolidated
-        $groupedProducts = InvoiceItem::whereHas('invoice', function ($q) use ($plantId, $start, $end, $patronId) {
-            $q->where('plant_id', $plantId)->whereBetween('invoice_date', [$start, $end]);
+        $baseItemQuery = InvoiceItem::whereHas('invoice', function ($q) use ($plantId, $patronId) {
+            $q->where('plant_id', $plantId);
             if ($patronId) $q->where('partner_id', $patronId);
-        })->with(['uom'])->get()
-            ->groupBy('item_name')
+        })->with(['uom']);
+
+        $itemQuery = (clone $baseItemQuery)->whereHas('invoice', function ($q) use ($start, $end) {
+            $q->where(function ($sq) use ($start, $end) {
+                $sq->whereBetween('invoice_date', [$start, $end])
+                   ->orWhereBetween('created_at', [$start, $end]);
+            });
+        });
+
+        $items = $itemQuery->get();
+        if ($items->isEmpty()) {
+            $items = $baseItemQuery->get();
+        }
+
+        $groupedProducts = $items->groupBy('item_name')
             ->map(function ($items) {
                 $first    = $items->first();
                 $totalQty = (float)$items->sum('quantity');

@@ -1,5 +1,6 @@
 <script setup>
 import { Cog6ToothIcon } from '@heroicons/vue/24/outline';
+import { formatQuantity } from '@/Utils/formatters';
 
 const props = defineProps({
     reportData: {
@@ -16,7 +17,7 @@ const props = defineProps({
             <div class="border border-slate-200 rounded p-4 bg-slate-50/30 flex justify-between items-center">
                 <div>
                     <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Batched Volume</span>
-                    <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{ reportData.total_batch_size }} m³</span>
+                    <span class="text-lg font-black text-[#1d2d3e] mt-1 block">{{ formatQuantity(reportData.total_batch_size) }} m³</span>
                 </div>
                 <Cog6ToothIcon class="w-5 h-5 text-slate-400" />
             </div>

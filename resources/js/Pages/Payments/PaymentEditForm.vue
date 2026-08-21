@@ -20,8 +20,9 @@ const props = defineProps<{
 
 const emit = defineEmits(['success', 'close']);
 
+const transactionDate = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Kolkata' });
 const form = useForm({
-    transaction_date: (props.payment.transaction_date || props.payment.created_at || new Date().toLocaleDateString('en-CA')).split('T')[0],
+    transaction_date: (props.payment.transaction_date || props.payment.created_at || transactionDate).split('T')[0],
     ledger_id: props.payment.ledger_id,
     patron_id: props.payment.patron_id,
     partner_type: props.payment.partner_type || 'Customer',

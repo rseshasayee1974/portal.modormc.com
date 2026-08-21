@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { BanknotesIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline';
+import { formatCurrency } from '@/Utils/formatters';
 
 const props = defineProps({
     reportData: {
@@ -8,14 +9,6 @@ const props = defineProps({
         required: true
     }
 });
-
-const formatCurrency = (val) => {
-    if (val === null || val === undefined || isNaN(val)) return '₹ 0.00';
-    return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-    }).format(val);
-};
 
 const totals = computed(() => {
     const list = props.reportData.transactions || [];

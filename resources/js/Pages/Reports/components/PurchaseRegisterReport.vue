@@ -1,5 +1,6 @@
 <script setup>
 import { BanknotesIcon } from '@heroicons/vue/24/outline';
+import { formatCurrency, formatQuantity } from '@/Utils/formatters';
 
 const props = defineProps({
     reportData: {
@@ -13,14 +14,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['page-change']);
-
-const formatCurrency = (val) => {
-    if (val === null || val === undefined || isNaN(val)) return '₹ 0.00';
-    return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-    }).format(val);
-};
 
 const sumTotalTaxesKey = (key) => {
     if (!props.reportData || !props.reportData.data) return 0;
@@ -89,7 +82,7 @@ const sumTotalTaxesKey = (key) => {
                         <td class="py-3 px-4">{{ row.supplier_name }}</td>
                         <td class="py-3 px-4 text-center text-slate-650">{{ row.gst_number || 'N/A' }}</td>
                         <td class="py-3 px-4 text-slate-600">{{ row.product_name }}</td>
-                        <td class="py-3 px-4 text-right">{{ row.qty.toFixed(2) }}</td>
+                        <td class="py-3 px-4 text-right">{{ Number(row.qty || 0).toFixed(2) }}</td>
                         <td class="py-3 px-4 text-right">{{ formatCurrency(row.purchase_rate) }}</td>
                         <td class="py-3 px-4 text-right">{{ formatCurrency(row.taxable_amount) }}</td>
                         <td class="py-3 px-4 text-right text-slate-600">{{ formatCurrency(row.cgst) }}</td>
@@ -103,7 +96,7 @@ const sumTotalTaxesKey = (key) => {
                     </tr>
                     <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                         <td colspan="6" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Purchases</td>
-                        <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ reportData.totals?.qty.toFixed(2) }}</td>
+                        <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ Number(reportData.totals?.qty || 0).toFixed(2) }}</td>
                         <td></td>
                         <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.taxable) }}</td>
                         <td class="py-3.5 px-4 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.totals?.cgst) }}</td>

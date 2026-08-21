@@ -56,9 +56,9 @@ class ReportController extends Controller
             return response()->json(['error' => 'Invalid report type'], 400);
         }
 
-        // Parse and format dates to clean YYYY-MM-DD strings to ensure compatibility with all query formats
-        $startFormatted = $start ? \Carbon\Carbon::parse($start)->toDateString() : now()->subDays(30)->toDateString();
-        $endFormatted   = $end ? \Carbon\Carbon::parse($end)->toDateString() : now()->toDateString();
+        // Parse and format dates to full datetime strings to ensure complete day coverage (up to 23:59:59)
+        $startFormatted = $start ? \Carbon\Carbon::parse($start)->startOfDay()->toDateTimeString() : now()->startOfYear()->startOfDay()->toDateTimeString();
+        $endFormatted   = $end ? \Carbon\Carbon::parse($end)->endOfDay()->toDateTimeString() : now()->endOfDay()->toDateTimeString();
 
         $params = [
             'start'            => $startFormatted,
