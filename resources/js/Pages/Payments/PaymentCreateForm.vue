@@ -21,8 +21,9 @@ const props = defineProps<{
 }>();
 
 const createForm = useForm({
-    transaction_date: new Date().toLocaleDateString('en-CA'),
-    ledger_id: null as number | null,
+ transaction_date : new Date().toLocaleDateString('en-CA', {
+    timeZone: 'Asia/Kolkata'
+}),   ledger_id: null as number | null,
     patron_id: null as number | null,
     partner_type: 'Customer', // Default to Customer
     amount: 0,
@@ -423,7 +424,7 @@ const handleCreate = () => {
                                     </span>
                                 </td>
                                 <td class="px-4 py-2 text-slate-500 dark:text-slate-400">
-                                    {{ new Date(inv.invoice_date).toLocaleDateString('en-CA') }}
+                                    {{ new Date(inv.invoice_date).toLocaleDateString('en-CA', {timeZone: 'Asia/Kolkata' }) }}
                                 </td>
                                 <td class="px-4 py-2 text-right text-slate-500 dark:text-slate-400 font-mono text-xs">
                                     {{ Number(inv.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
@@ -452,11 +453,16 @@ const handleCreate = () => {
                                                 type="number" 
                                                 :value="createForm.allocations.find(a => a.invoice_id === inv.id)?.amount || ''" 
                                                 @input="(e) => {
-                                                    const val = parseFloat((e.target as HTMLInputElement).value) || 0;
+                                                    const rawVal = parseFloat((e.target as HTMLInputElement).value) || 0;
+                                                    const bal = parseFloat(inv.balance_amount || inv.total_amount) || 0;
+                                                    const val = Math.min(rawVal, bal);
+                                                    if ((e.target as HTMLInputElement).value !== '' && parseFloat((e.target as HTMLInputElement).value) > bal) {
+                                                        (e.target as HTMLInputElement).value = val ? val.toString() : '';
+                                                    }
                                                     const idx = createForm.allocations.findIndex(a => a.invoice_id === inv.id);
                                                     if (val > 0) {
                                                         if (idx > -1) createForm.allocations[idx].amount = val;
-                                                        else createForm.allocations.push({ invoice_id: inv.id, invoice_number: inv.full_number, amount: val, balance: inv.balance_amount || inv.total_amount });
+                                                        else createForm.allocations.push({ invoice_id: inv.id, invoice_number: inv.full_number, amount: val, balance: bal });
                                                     } else if (idx > -1) {
                                                         createForm.allocations.splice(idx, 1);
                                                     }

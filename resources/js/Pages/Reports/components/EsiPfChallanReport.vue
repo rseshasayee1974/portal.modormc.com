@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { BanknotesIcon, UsersIcon, ScaleIcon, CalculatorIcon } from '@heroicons/vue/24/outline';
+import { formatCurrency } from '@/Utils/formatters';
 
 const props = defineProps({
     reportData: {
@@ -10,14 +11,6 @@ const props = defineProps({
 });
 
 const activeTab = ref('pf');
-
-const formatCurrency = (val) => {
-    if (val === null || val === undefined || isNaN(val)) return '₹ 0.00';
-    return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-    }).format(val);
-};
 </script>
 
 <template>

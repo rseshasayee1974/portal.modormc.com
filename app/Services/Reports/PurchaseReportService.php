@@ -21,13 +21,16 @@ class PurchaseReportService implements ReportServiceInterface
         // 1. PO-wise transactions
         $poQuery = PurchaseOrder::with(['vendor'])
             ->where('plant_id', $plantId)
-            ->whereBetween('date_order', [$start, $end]);
+            ->where(function ($q) use ($start, $end) {
+                $q->whereBetween('date_order', [$start, $end])
+                  ->orWhereBetween('created_at', [$start, $end]);
+            });
         if ($patronId) $poQuery->where('vendor_id', $patronId);
 
-        $orders = $poQuery->orderBy('date_order')->orderBy('po_number')->get();
+        $orders = $poQuery->orderBy('date_order', 'desc')->orderBy('po_number', 'desc')->get();
 
         $bills = $orders->map(fn($po) => [
-            'date'           => $po->date_order->toDateString(),
+            'date'           => $po->date_order ? \Carbon\Carbon::parse($po->date_order)->toDateString() : ($po->created_at ? $po->created_at->toDateString() : now()->toDateString()),
             'voucher_type'   => 'PURCHASE',
             'voucher_no'     => $po->po_number,
             'po_number'      => $po->po_number,
@@ -44,12 +47,16 @@ class PurchaseReportService implements ReportServiceInterface
 
         // 2. Product-wise consolidated
         $itemQuery = PurchaseOrderItem::whereHas('order', function ($q) use ($plantId, $start, $end, $patronId) {
-            $q->where('plant_id', $plantId)->whereBetween('date_order', [$start, $end]);
+            $q->where('plant_id', $plantId)->where(function ($sq) use ($start, $end) {
+                $sq->whereBetween('date_order', [$start, $end])
+                   ->orWhereBetween('created_at', [$start, $end]);
+            });
             if ($patronId) $q->where('vendor_id', $patronId);
         })->with(['product', 'uom']);
 
-        $grouped = $itemQuery->get()
-            ->groupBy('product_id')
+        $items = $itemQuery->get();
+
+        $grouped = $items->groupBy('product_id')
             ->map(function ($items) {
                 $first      = $items->first();
                 $totalQty   = (float)$items->sum('product_quantity');

@@ -99,8 +99,8 @@ const modules = [
         name: 'Fleet & Machinery',
         reports: [
             { id: 'machines_list', name: 'Machine Fleet Inventory', description: 'Active fleet list, mixer capacities and vehicle specs' },
-            // { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
-            // { id: 'vehicle_pl', name: 'Vehicle Wise Profit & Loss', description: 'Vehicle financial breakdown: revenue, trip costs, fuel/maintenance, total costs, net profit, and profit margin %' },
+            { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
+            { id: 'vehicle_pl', name: 'Vehicle Wise Profit & Loss', description: 'Vehicle financial breakdown: revenue, trip costs, fuel/maintenance, total costs, net profit, and profit margin %' },
         ]
     },
     {
@@ -119,7 +119,7 @@ const modules = [
             { id: 'tds_certificate', name: 'TDS Certificate Generation', description: 'TDS details and deduction summary for a given patron' },
             { id: 'esi_pf_challan', name: 'ESI/PF Challan Generation', description: 'Monthly Employee State Insurance and Provident Fund statutory challan calculations' }
         ]
-    }
+    } 
          */} 
 ];
 
@@ -259,13 +259,15 @@ watch(reportType, () => {
     generateReport();
 });
 
+watch([selectedId, patronId, startDate, endDate, gstType, paymentStatus, valuationMethod, truckId], () => {
+    generateReport();
+});
+
 onMounted(() => {
     generateReport();
 });
 
 const generateReport = async () => {
-    if (!selectedId.value && reportType.value === 'ledger') return;
-    
     loading.value = true;
     try {
         let url = route('reports.generate');

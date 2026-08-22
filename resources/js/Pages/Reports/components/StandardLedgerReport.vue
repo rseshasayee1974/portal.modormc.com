@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { formatDate, formatCurrency } from '@/Utils/formatters';
 
 const props = defineProps({
     reportData: {
@@ -7,18 +8,12 @@ const props = defineProps({
         required: true
     },
     startDate: {
-        type: String,
+        type: [String, Object, Date],
         required: true
     }
 });
 
-const formatCurrency = (val) => {
-    if (val === null || val === undefined || isNaN(val)) return '₹ 0.00';
-    return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-    }).format(val);
-};
+const formattedStartDate = computed(() => formatDate(props.startDate));
 
 const transactionsWithBalance = computed(() => {
     if (!props.reportData) return [];
@@ -46,7 +41,7 @@ const transactionsWithBalance = computed(() => {
             <tbody class="text-[11px] font-semibold text-slate-700">
                 <!-- Opening -->
                 <tr class="bg-slate-50 border-b border-slate-200">
-                    <td class="py-3 px-4 text-slate-400 italic">{{ startDate }}</td>
+                    <td class="py-3 px-4 text-slate-400 text-[0.7rem] italic">{{ formattedStartDate }}</td>
                     <td class="py-3 px-4 font-bold text-[#1d2d3e] uppercase">Opening Balance</td>
                     <td class="py-3 px-4">---</td>
                     <td class="py-3 px-4 text-right font-bold">{{ formatCurrency(Math.abs(reportData.opening_balance)) }}</td>

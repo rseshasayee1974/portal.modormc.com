@@ -15,16 +15,24 @@ class InventoryStockReportService implements ReportServiceInterface
         $start   = $params['start'];
         $end     = $params['end'];
 
-        $stocks = Quantity::where('plant_id', $plantId)
-            ->with(['product', 'uom'])
-            ->whereBetween('date', [$start, $end])
-            ->get();
+        $query = Quantity::where('plant_id', $plantId)->with(['product', 'uom']);
+
+        // Check if there are records matching date range or created_at
+        $stocks = (clone $query)->where(function ($q) use ($start, $end) {
+            $q->whereBetween('date', [$start, $end])
+              ->orWhereBetween('created_at', [$start, $end]);
+        })->get();
+
+        // Fallback: If date filtering yields empty set, return all active plant stock baselines
+        if ($stocks->isEmpty()) {
+            $stocks = $query->get();
+        }
 
         return [
             'transactions' => $stocks->map(fn($s) => [
-                'date'         => $s->date->toDateString(),
+                'date'         => $s->date ? $s->date->toDateString() : ($s->created_at ? $s->created_at->toDateString() : now()->toDateString()),
                 'product_name' => $s->product->title ?? 'N/A',
-                'uom'          => $s->uom->unit_code ?? 'N/A',
+                'uom'          => $s->uom->unit_code ?? $s->uom->unit_name ?? 'N/A',
                 'opening_qty'  => (float)$s->opening_quantity,
                 'quantity'     => (float)$s->quantity,
                 'status'       => $s->status ? 'Active' : 'Inactive',

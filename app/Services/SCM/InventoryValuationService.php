@@ -5,6 +5,7 @@ namespace App\Services\SCM;
 use App\Models\Product;
 use App\Models\PurchaseOrderHistory;
 use App\Models\BatchMaterial;
+use App\Models\ProductUnit;
 use App\Models\StockExhaustLine;
 use App\Models\Quantity;
 use Carbon\Carbon;
@@ -65,15 +66,21 @@ class InventoryValuationService
             ->orderBy('date', 'asc')
             ->first();
 
-        if ($firstQtyRecord && (float)$firstQtyRecord->opening_quantity > 0) {
-            $events[] = [
-                'type' => 'inward',
-                'qty' => (float)$firstQtyRecord->opening_quantity,
-                'price' => (float)($product->purchase_price ?? 0.0),
-                'time' => Carbon::parse($firstQtyRecord->date)->startOfDay(),
-                'doc_no' => 'OPENING-STOCK',
-                'ref' => 'Opening Stock Balance',
-            ];
+        if ($firstQtyRecord) {
+            $openQty = (float)$firstQtyRecord->opening_quantity > 0 
+                ? (float)$firstQtyRecord->opening_quantity 
+                : (float)$firstQtyRecord->quantity;
+
+            if ($openQty > 0) {
+                $events[] = [
+                    'type' => 'inward',
+                    'qty' => $openQty,
+                    'price' => (float)($product->purchase_price ?? 0.0),
+                    'time' => $firstQtyRecord->date ? Carbon::parse($firstQtyRecord->date)->startOfDay() : ($firstQtyRecord->created_at ? $firstQtyRecord->created_at->startOfDay() : now()->startOfDay()),
+                    'doc_no' => 'OPENING-STOCK',
+                    'ref' => 'Opening Stock Balance',
+                ];
+            }
         }
 
         // 2. Fetch Inwards
@@ -373,16 +380,16 @@ class InventoryValuationService
             $openingQty = $currentQty;
             $openingValue = $currentVal;
         }
-        $endingQty = $currentQty;
-        $endingValue = $currentVal;
+        $endingQty   = max(0.0, $currentQty);
+        $endingValue = max(0.0, $currentVal);
 
         return [
             'product_id' => $product->id,
             'product_name' => $product->title,
             'uom' => $product->unit->unit_code ?? 'KGS',
             'category' => $product->category->name ?? 'Uncategorized',
-            'opening_qty' => round($openingQty, 2),
-            'opening_value' => round($openingValue, 2),
+            'opening_qty' => round(max(0.0, $openingQty), 2),
+            'opening_value' => round(max(0.0, $openingValue), 2),
             'inward_qty' => round($inwardQtyPeriod, 2),
             'inward_value' => round($inwardValuePeriod, 2),
             'consumed_qty' => round($consumedQtyPeriod, 2),
