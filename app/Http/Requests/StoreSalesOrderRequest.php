@@ -24,6 +24,10 @@ class StoreSalesOrderRequest extends FormRequest
                 'order_no' => sprintf('%s-%s-%04d', strtoupper(trim($prefix)), $fyString, (int)$this->order_no)
             ]);
         }
+
+        if ($this->pump_rate === null || $this->pump_rate === '') {
+            $this->merge(['pump_rate' => 0.00]);
+        }
     }
 
     public function rules(): array

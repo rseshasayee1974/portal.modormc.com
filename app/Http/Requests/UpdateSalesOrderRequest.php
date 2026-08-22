@@ -12,6 +12,13 @@ class UpdateSalesOrderRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation()
+    {
+        if ($this->has('pump_rate') && ($this->pump_rate === null || $this->pump_rate === '')) {
+            $this->merge(['pump_rate' => 0.00]);
+        }
+    }
+
     public function rules(): array
     {
         $salesOrderId = $this->route('salesorder')?->id ?? $this->route('salesorder');

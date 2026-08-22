@@ -136,8 +136,8 @@ const form = useForm({
     is_tax_inclusive: false,
     produced_qty: 0,
     status: 1,
-    concrete_pump: null as number | null,
-    pump_rate: null as number | null,
+    concrete_pump: null as string | number | null,
+    pump_rate: 0.00,
     scheduled_start: defaultStart as Date | null,
     scheduled_end: null as Date | null,
 });
@@ -180,11 +180,13 @@ watch(() => form.customer_po_id, (newVal) => {
             form.site_id = customerPO.site_id;
             form.sales_executive_id = customerPO.sales_executive_id;
             form.is_tax_inclusive = !!customerPO.is_tax_inclusive;
+            form.concrete_pump = customerPO.concrete_pump || null;
             const firstItem = customerPO.items?.[0] || customerPO.quotation?.items?.[0];
             if (firstItem) {
                 form.mix_design_id = firstItem.mix_design_id;
                 form.total_qty = Number(firstItem.quantity || 0);
                 form.rate = Number(firstItem.rate || 0);
+                form.pump_rate = Number(firstItem.pump_rate || 0);
                 form.tax_id = firstItem.tax_id ? Number(firstItem.tax_id) : null;
             }
         }
@@ -194,7 +196,7 @@ watch(() => form.customer_po_id, (newVal) => {
         form.mix_design_id = null;
         form.total_qty = 0;
         form.rate = 0;
-        form.pump_rate = null;
+        form.pump_rate = 0.00;
         form.tax_id = null;
         form.is_tax_inclusive = false;
         form.sales_executive_id = null;
@@ -212,6 +214,7 @@ const submit = () => {
 
     form.transform((data) => ({
         ...data,
+        pump_rate: data.pump_rate ?? 0.00,
         scheduled_start: formatLocalTime(data.scheduled_start),
         scheduled_end: formatLocalTime(data.scheduled_end),
         order_no: data.order_no || null,
@@ -229,6 +232,7 @@ const submit = () => {
             form.clearErrors();
             form.prefix = 'SO';
             form.plant_id = props.activePlantId;
+            form.pump_rate = 0.00;
             form.status = 1;
         },
     });

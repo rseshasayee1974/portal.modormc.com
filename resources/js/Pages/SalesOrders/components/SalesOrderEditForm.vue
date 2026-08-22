@@ -319,6 +319,7 @@ const submit = () => {
 
     form.transform((data) => ({
         ...data,
+        pump_rate: data.pump_rate ?? 0.00,
         scheduled_start: formatLocalTime(data.scheduled_start),
         scheduled_end: formatLocalTime(data.scheduled_end),
     })).put(route('salesorders.update', { salesorder: salesOrderId }), {
