@@ -453,11 +453,16 @@ const handleCreate = () => {
                                                 type="number" 
                                                 :value="createForm.allocations.find(a => a.invoice_id === inv.id)?.amount || ''" 
                                                 @input="(e) => {
-                                                    const val = parseFloat((e.target as HTMLInputElement).value) || 0;
+                                                    const rawVal = parseFloat((e.target as HTMLInputElement).value) || 0;
+                                                    const bal = parseFloat(inv.balance_amount || inv.total_amount) || 0;
+                                                    const val = Math.min(rawVal, bal);
+                                                    if ((e.target as HTMLInputElement).value !== '' && parseFloat((e.target as HTMLInputElement).value) > bal) {
+                                                        (e.target as HTMLInputElement).value = val ? val.toString() : '';
+                                                    }
                                                     const idx = createForm.allocations.findIndex(a => a.invoice_id === inv.id);
                                                     if (val > 0) {
                                                         if (idx > -1) createForm.allocations[idx].amount = val;
-                                                        else createForm.allocations.push({ invoice_id: inv.id, invoice_number: inv.full_number, amount: val, balance: inv.balance_amount || inv.total_amount });
+                                                        else createForm.allocations.push({ invoice_id: inv.id, invoice_number: inv.full_number, amount: val, balance: bal });
                                                     } else if (idx > -1) {
                                                         createForm.allocations.splice(idx, 1);
                                                     }
