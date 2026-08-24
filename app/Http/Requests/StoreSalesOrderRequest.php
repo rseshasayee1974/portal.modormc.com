@@ -24,6 +24,10 @@ class StoreSalesOrderRequest extends FormRequest
                 'order_no' => sprintf('%s-%s-%04d', strtoupper(trim($prefix)), $fyString, (int)$this->order_no)
             ]);
         }
+
+        if ($this->pump_rate === null || $this->pump_rate === '') {
+            $this->merge(['pump_rate' => 0.00]);
+        }
     }
 
     public function rules(): array
@@ -54,7 +58,7 @@ class StoreSalesOrderRequest extends FormRequest
             // 'scheduled_end' => ['nullable', 'date', 'after_or_equal:scheduled_start'],
             'customer_po_id' => ['nullable', 'integer', 'exists:mm_customer_pos,id'],
             'concrete_pump' => ['nullable', 'string', 'max:100'],
-            'pump_rate' => ['nullable', 'numeric', 'gte:0'],
+            'pump_rate' => ['nullable', 'numeric'],
         ];
     }
 }

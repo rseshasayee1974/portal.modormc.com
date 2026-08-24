@@ -67,6 +67,12 @@ class SalesOrderController extends Controller
             $payload['quantity'] = $payload['total_qty'];
         }
 
+        if (array_key_exists('pump_rate', $payload) && ($payload['pump_rate'] === null || $payload['pump_rate'] === '')) {
+            $payload['pump_rate'] = 0.00;
+        } elseif (!isset($payload['pump_rate'])) {
+            $payload['pump_rate'] = 0.00;
+        }
+
         $payload = array_intersect_key($payload, array_flip($tableColumns));
 
         DB::transaction(function () use ($payload) {
@@ -151,6 +157,10 @@ class SalesOrderController extends Controller
 
         if ($hasLegacyQtyColumn && !$hasTotalQtyColumn && isset($payload['total_qty'])) {
             $payload['quantity'] = $payload['total_qty'];
+        }
+
+        if (array_key_exists('pump_rate', $payload) && ($payload['pump_rate'] === null || $payload['pump_rate'] === '')) {
+            $payload['pump_rate'] = 0.00;
         }
 
         // if ($hasActiveData) {
