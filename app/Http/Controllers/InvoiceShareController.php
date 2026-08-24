@@ -82,9 +82,13 @@ class InvoiceShareController extends Controller
             'document_params' => $reportParams,
         ]);
 
-        // Build URL
-        $path = $docType === 'invoice' ? '/public/invoice/' : ($docType === 'batch' ? '/public/batch/' : '/public/report/');
-        $url = url($path . $token);
+        // Build URL using named Laravel routes to guarantee accuracy on live servers
+        $routeName = match ($docType) {
+            'invoice' => 'public.invoice.view',
+            'batch'   => 'public.batch.view',
+            default   => 'public.report.view',
+        };
+        $url = route($routeName, ['token' => $token]);
 
         return response()->json([
             'success' => true,
