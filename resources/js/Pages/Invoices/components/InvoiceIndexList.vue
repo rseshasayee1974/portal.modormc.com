@@ -37,7 +37,7 @@ const toggleActions = (event: any, row: any) => {
     actionsPopover.value.toggle(event);
 };
 
-const { can,isAdmin, isSuperAdmin } = usePermissions();
+const { can, isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
 
 const expandedRows = ref<Record<number, boolean>>({});
 const filters = ref({
@@ -135,19 +135,15 @@ const showPreviewModal = ref(false);
 const previewUrl = ref('');
 
 const printInvoice = (data: any) => {
-    if (typeof data.is_duplicate !== 'undefined') {
-        data.is_duplicate = 1;
-    }
-    previewUrl.value = route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'view' });
-    showPreviewModal.value = true;
+    window.open(route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'view' }), '_blank');
 };
 
 const printOriginal = (data: any) => {
-    window.open(route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'download', force: 'original' }), '_blank');
+    window.open(route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'view', force: 'original' }), '_blank');
 };
 
 const printDuplicate = (data: any) => {
-    window.open(route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'download', force: 'duplicate' }), '_blank');
+    window.open(route('print.document', { module: 'invoices', id: data.encrypted_id, action: 'view', force: 'duplicate' }), '_blank');
 };
 
 const showShareModal = ref(false);
@@ -258,7 +254,7 @@ const formatDate = (dateString: string) => {
                         </div>
                         <div class="flex items-center gap-1.5 mt-1">
                              <Tag 
-                                :severity="getTypeSeverity(slotProps.data.invoice_type)" 
+                                :severity="getTypeSeverity(String(slotProps.data.invoice_type).toLowerCase())" 
                                 :value="slotProps.data.invoice_type" 
                                 class="!text-[8px] !font-black !uppercase !tracking-widest !rounded !px-1.5"
                             />
@@ -508,7 +504,7 @@ const formatDate = (dateString: string) => {
                 <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
 
                 <!-- Print Options -->
-                <template v-if="isAdmin">
+                <template v-if="isAdmin || isSuperAdmin || isSassOwner">
                     <button 
                         @click="printOriginal(selectedRow); actionsPopover.hide()" 
                         class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
@@ -526,7 +522,7 @@ const formatDate = (dateString: string) => {
                 </template>
                 <button 
                     v-else
-                    @click="(selectedRow.is_duplicate ? printDuplicate(selectedRow) : printInvoice(selectedRow)); actionsPopover.hide()" 
+                    @click="printInvoice(selectedRow); actionsPopover.hide()" 
                     class="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center gap-2"
                 >
                     <span class="pi pi-print text-slate-500"></span>

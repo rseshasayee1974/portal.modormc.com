@@ -57,7 +57,8 @@ const form = useForm({
     amount_total: 0,
     items: (props.invoice.items || []).map((it: any) => ({
         id: it.id,
-        mix_design_id: it.mix_design_id,
+        item_id: it.item_id ?? it.mix_design_id ?? null,
+        mix_design_id: it.mix_design_id ?? it.item_id ?? null,
         uom_id: it.uom_id,
         item_name: it.item_name,
         hsn_code: it.hsn_code,
@@ -73,6 +74,7 @@ const form = useForm({
 
 function createNewItem() {
     return {
+        item_id: null,
         mix_design_id: null,
         uom_id: null,
         item_name: '',
@@ -143,6 +145,7 @@ const onMixDesignChange = (index: number) => {
     const design = props.mixdesign.find(p => p.value === item.mix_design_id);
     
     if (design) {
+        item.item_id = item.mix_design_id;
         item.item_name = design.label;
         item.price_unit = design.rate || 0;
         item.uom_id = design.uom_id || null;
@@ -298,7 +301,7 @@ const setupDemoCompliance = () => {
                     <BaseSelect v-model="form.partner_id" label="Partner / Customer" :options="patrons" optionLabel="label" optionValue="value" filter :error="form.errors.partner_id" required />
                     <BaseSelect v-model="form.account_id" label="Ledger Account" :options="accounts" optionLabel="label" optionValue="value" filter :error="form.errors.account_id" />
                     <BaseDatePicker v-model="form.invoice_date" label="Invoice Date" required />
-                    <BaseDatePicker v-model="form.due_date" label="Due Date" />
+                    <!-- <BaseDatePicker v-model="form.due_date" label="Due Date" /> -->
                 </div>
 
                 <!-- Items Table Area -->

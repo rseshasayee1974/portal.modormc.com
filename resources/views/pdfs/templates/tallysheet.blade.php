@@ -313,7 +313,7 @@
                     <th class="text-center" style="width:28px">#</th>
                     <th class="text-left">Description</th>
                     @if ($pdfSettings['show_pump_charges'] ?? true)
-                        <th class="text-left" style="width:120px">Operation Type</th>
+                        <th class="text-left" style="width:120px">Concrete Type</th>
                         <th class="text-right" style="width:90px">Pump Charges</th>
                     @endif
                     <th class="text-center" style="width:55px">HSN</th>

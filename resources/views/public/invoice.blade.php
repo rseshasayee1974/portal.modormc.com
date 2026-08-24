@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $data['doc_title'] ?? 'Invoice' }} #{{ $data['doc_no'] ?? '' }} - Antigravity ERP</title>
+    <title>{{ $data['doc_title'] ?? 'Invoice' }} #{{ $data['doc_no'] ?? '' }} - MODORMC ERP</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,11 +40,8 @@
     <header class="no-print sticky top-0 z-50 bg-[#1d2d3e] text-white border-b border-[#2c3e50] shadow-md">
         <div class="max-w-6xl mx-auto px-4 py-3 sm:px-6 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white tracking-wider text-sm shadow">
-                    AG
-                </div>
+               
                 <div>
-                    <h1 class="text-sm font-bold tracking-tight uppercase">Antigravity ERP</h1>
                     <p class="text-[10px] text-slate-300">Public Document Share</p>
                 </div>
             </div>
@@ -92,7 +89,7 @@
 
     <!-- Simple Footer -->
     <footer class="no-print bg-slate-950 text-slate-500 py-6 px-4 text-center text-xs border-t border-slate-900">
-        <p>&copy; {{ date('Y') }} Antigravity ERP. Secured by 64-character encrypted tokens.</p>
+        <p>&copy; {{ date('Y') }} MODORMC ERP. Secured by 64-character encrypted tokens.</p>
     </footer>
 
 </body>

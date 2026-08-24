@@ -53,14 +53,14 @@ class AccountingPostingService
         // Upsert journal entry header — idempotent repost supported
         $journalEntry = JournalEntry::updateOrCreate(
             [
-                'ref_module' => $docType,
-                'ref_id'     => $document->getDocumentId(),
-                'plant_id'   => $plantId,
-            ],
-            [
-                'entity_id'      => $document->getEntityId(),
+                'plant_id'       => $plantId,
                 'voucher_type'   => $config['voucher_type'],
                 'voucher_number' => $document->getVoucherNumber(),
+            ],
+            [
+                'ref_module'     => $docType,
+                'ref_id'         => $document->getDocumentId(),
+                'entity_id'      => $document->getEntityId(),
                 'voucher_date'   => $document->getVoucherDate(),
                 'posting_date'   => $document->getVoucherDate(),
                 'narration'      => ucfirst($docType) . ': '

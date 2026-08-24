@@ -147,18 +147,23 @@ class Invoice extends Model implements Postable
         $fy = substr($startYear, -2) . substr($endYear, -2);
 
         $normalizedLabel = strtolower($label);
-        $query = self::query()->where('plant_id', $plantId);
+        $query = self::withTrashed()->where('plant_id', $plantId);
 
         if ($normalizedLabel === 'purchase' || $normalizedLabel === 'bill') {
              $query->where(function($q) {
-                 $q->where('invoice_type', 'bill')->orWhere('invoice_label', 'purchase');
+                 $q->whereRaw('LOWER(invoice_type) = ?', ['bill'])
+                   ->orWhereRaw('LOWER(invoice_label) = ?', ['purchase']);
              });
              $prefix = "Bill/{$fy}/";
         } elseif ($normalizedLabel === 'batching' || $normalizedLabel === 'dispatch') {
-             $query->where('invoice_label', 'Dispatch');
+             $query->whereRaw('LOWER(invoice_label) = ?', ['dispatch']);
              $prefix = "Inv/{$fy}/";
         } else {
-             $query->where('invoice_type', 'sales')->whereNull('invoice_label');
+             $query->where(function($q) {
+                 $q->whereRaw('LOWER(invoice_type) = ?', ['sales'])
+                   ->orWhereRaw('LOWER(invoice_label) = ?', ['tax invoice'])
+                   ->orWhereNull('invoice_label');
+             });
              $prefix = "INV/{$fy}/";
         }
 
@@ -307,6 +312,10 @@ class Invoice extends Model implements Postable
             $invoice = self::create($data);
 
             foreach ($itemsData as $itemData) {
+                if (empty($itemData['item_id']) && !empty($itemData['mix_design_id'])) {
+                    $itemData['item_id'] = $itemData['mix_design_id'];
+                }
+
                 $itemTaxRate = 0;
                 if (!empty($itemData['tax_id'])) {
                     $tax = Tax::find($itemData['tax_id']);
@@ -346,6 +355,10 @@ class Invoice extends Model implements Postable
             $this->items()->whereNotIn('id', $keptIds)->get()->each->delete();
 
             foreach ($itemsData as $itemData) {
+                if (empty($itemData['item_id']) && !empty($itemData['mix_design_id'])) {
+                    $itemData['item_id'] = $itemData['mix_design_id'];
+                }
+
                 $itemTaxRate = 0;
                 if (!empty($itemData['tax_id'])) {
                     $tax = Tax::find($itemData['tax_id']);

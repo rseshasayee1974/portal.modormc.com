@@ -438,6 +438,36 @@ const hideBatchForm  = computed(() => !!customSettings?.batching?.hide_batch_for
 // }, { immediate: true });
 
 
+// ── Sync to Scheduler Action ──────────────────────────────────────────
+const isSyncingBatch = ref<Record<number, boolean>>({});
+
+const syncToScheduler = async (batchId: number) => {
+    isSyncingBatch.value[batchId] = true;
+    try {
+        const res = await axios.post(route('batches.sync', batchId));
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: res.data?.message || 'Synced to scheduler successfully',
+            timer: 2000,
+            showConfirmButton: false,
+        });
+        await refreshBatchRow(batchId);
+    } catch (e: any) {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: e.response?.data?.message || 'Failed to sync to scheduler',
+            timer: 3000,
+            showConfirmButton: false,
+        });
+    } finally {
+        isSyncingBatch.value[batchId] = false;
+    }
+};
+
 // Share Batch Report States
 const showShareBatchModal = ref(false);
 const shareBatchExpiry = ref('7');
@@ -630,11 +660,11 @@ const shareBatchEmail = () => {
                             </template>
                         </Column>
 
-                        <Column field="sales_order.customer.legal_name" header="Customer" sortable>
+                        <Column field="sales_order.customer.legal_name" class="max-w-[200px]" header="Customer" sortable>
                             <template #body="slotProps">
-                                <div class="flex flex-col">
-                                    <span class="text-xs font-bold text-slate-700">{{ slotProps.data.sales_order?.customer?.legal_name || '-' }}</span>
-                                    <span class="text-[10px] text-slate-400 font-medium uppercase">{{ slotProps.data.sales_order?.site?.name || 'Main Site' }}</span>
+                                <div class="flex flex-col min-w-0">
+                                    <span class="text-xs font-bold text-slate-700 truncate" :title="slotProps.data.sales_order?.customer?.legal_name">{{ slotProps.data.sales_order?.customer?.legal_name || '-' }}</span>
+                                    <span class="text-[10px] text-slate-400 font-medium uppercase truncate" :title="slotProps.data.sales_order?.site?.name || 'Main Site'">{{ slotProps.data.sales_order?.site?.name || 'Main Site' }}</span>
                                 </div>
                             </template>
                         </Column>
@@ -667,7 +697,7 @@ const shareBatchEmail = () => {
                         </Column>
 
                         
-                        <Column field="status" header="Status" sortable>
+                        <!-- <Column field="status" header="Status" sortable>
                             <template #body="slotProps">
                                 <div class="flex items-center gap-2">
                                     <template v-if="slotProps.data.is_offline_pending">
@@ -687,7 +717,7 @@ const shareBatchEmail = () => {
                                     </template>
                                 </div>
                             </template>
-                        </Column>
+                        </Column> -->
                         <Column header="Actions" headerStyle="width: 7rem; text-align: center" bodyStyle="overflow: visible; text-align: center">
                             <template #body="slotProps">
                                 <div v-if="!slotProps.data.is_offline_pending" class="flex items-center justify-center gap-2">
@@ -700,7 +730,26 @@ const shareBatchEmail = () => {
                                         <i class="pi pi-ellipsis-v text-sm font-bold"></i>
                                     </button>
 
-                                    <i v-if="slotProps.data.sync_status === 'success'" 
+                                    <!-- Status Menu -->
+   <div class="flex items-center gap-2">
+                                    <template v-if="slotProps.data.is_offline_pending">
+                                        <Tag value="Offline Pending" severity="warn" rounded />
+                                        <i class="pi pi-spinner animate-spin text-amber-500 text-lg" v-tooltip.top="'Pending Network Sync'"></i>
+                                    </template>
+                                    <template v-else>
+                                        <Tag 
+                                            :value="statusLabel(slotProps.data.status)?.charAt(0)" 
+                                            :severity="statusSeverity(slotProps.data.status)" 
+                                            rounded
+                                            
+                                            class="cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm"
+                                            v-tooltip.top="(slotProps.data.status === 3 || slotProps.data.status === 4) ? 'Click to open Dispatch & Invoicing' : 'Click to open Production & Materials'"
+                                            @click.stop="onStatusClick(slotProps.data)"
+                                        />
+                                        <Tag v-if="slotProps.data.is_verified" value="Verified" severity="success" rounded class="!bg-emerald-500/10 !text-emerald-600 !border-emerald-500/20" />
+                                    </template>
+                                </div>
+                                    <!-- <i v-if="slotProps.data.sync_status === 'success'" 
                                        class="pi pi-check-circle text-emerald-500 text-lg cursor-help" 
                                        v-tooltip.top="'Synced to Scheduler'"></i>
                                        
@@ -712,7 +761,7 @@ const shareBatchEmail = () => {
                                     <i v-else-if="slotProps.data.sync_status === 'pending'" 
                                        class="pi pi-cloud-upload text-amber-500 text-lg cursor-pointer hover:text-amber-600 transition-colors" 
                                        v-tooltip.top="'Pending - Click to Post'" 
-                                       @click.stop="retrySync(slotProps.data.id)"></i>
+                                       @click.stop="retrySync(slotProps.data.id)"></i> -->
                                     <!-- Dropdown Menu -->
                                     <transition
                                         enter-active-class="transition ease-out duration-100"
@@ -727,6 +776,36 @@ const shareBatchEmail = () => {
                                             class="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200/80 dark:border-slate-700/80 z-[1000] focus:outline-none divide-y divide-slate-100 dark:divide-slate-700/50 py-1"
                                             @click.stop
                                         >
+                                            <!-- Group: Sync Actions -->
+                                            <div v-if="slotProps.data.sync_status" class="py-1 text-left">
+                                                <button
+                                                    v-if="slotProps.data.sync_status === 'success'"
+                                                    type="button"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-default"
+                                                >
+                                                    <i class="pi pi-check-circle mr-2 text-emerald-500 text-sm"></i>
+                                                    Synced to Scheduler
+                                                </button>
+                                                <button
+                                                    v-else-if="slotProps.data.sync_status === 'failed'"
+                                                    type="button"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                                                    @click="retrySync(slotProps.data.id); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-times-circle mr-2 text-rose-500 text-sm"></i>
+                                                    Sync Failed - Retry
+                                                </button>
+                                                <button
+                                                    v-else-if="slotProps.data.sync_status === 'pending'"
+                                                    type="button"
+                                                    class="flex w-full items-center px-4 py-2 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                                                    @click="retrySync(slotProps.data.id); activeMenuId = null;"
+                                                >
+                                                    <i class="pi pi-cloud-upload mr-2 text-amber-500 text-sm"></i>
+                                                    Pending - Click to Post
+                                                </button>
+                                            </div>
+
                                             <!-- Group 1: General Batch Actions -->
                                             <div class="py-1 text-left">
                                                 <button
@@ -1010,6 +1089,40 @@ const shareBatchEmail = () => {
             :pt="{ root: { id: 'batch-action-menu' } }"
         >
             <div v-if="activeBatch" class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left">
+                <!-- Group: Sync Actions -->
+                <div v-if="activeBatch.sync_status" class="py-1 text-left">
+                    <button
+                        v-if="activeBatch.sync_status === 'success' || activeBatch.sync_status === 1 || activeBatch.sync_status === '1'"
+                        type="button"
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-default"
+                    >
+                        <i class="pi pi-check-circle mr-2 text-emerald-500 text-sm"></i>
+                        Synced to Scheduler
+                    </button>
+                    <button
+                        v-else-if="activeBatch.sync_status === 'failed'"
+                        type="button"
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                        :disabled="isSyncingBatch[activeBatch.id]"
+                        @click="syncToScheduler(activeBatch.id)"
+                    >
+                        <i v-if="isSyncingBatch[activeBatch.id]" class="pi pi-spinner animate-spin mr-2 text-rose-500 text-sm"></i>
+                        <i v-else class="pi pi-times-circle mr-2 text-rose-500 text-sm"></i>
+                        Sync Failed - Retry
+                    </button>
+                    <button
+                        v-else-if="activeBatch.sync_status === 'pending'"
+                        type="button"
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                        :disabled="isSyncingBatch[activeBatch.id]"
+                        @click="syncToScheduler(activeBatch.id)"
+                    >
+                        <i v-if="isSyncingBatch[activeBatch.id]" class="pi pi-spinner animate-spin mr-2 text-amber-500 text-sm"></i>
+                        <i v-else class="pi pi-cloud-upload mr-2 text-amber-500 text-sm"></i>
+                        Pending - Click to Post
+                    </button>
+                </div>
+
                 <!-- Group 1: General Batch Actions -->
                 <div class="py-1">
                     <button

@@ -24,25 +24,24 @@ class InvoiceShareController extends Controller
     public function generateLink(Request $request)
     {
         $request->validate([
-            // 'document_type' => 'required|in:invoice,report,batch',
-            'document_type' => Rule::in(['invoice','report','batch','Invoice','Report','Batch','INVOICE','REPORT','BATCH'],'required'),
+            'document_type' => ['required', Rule::in(['invoice','report','batch','Invoice','Report','Batch','INVOICE','REPORT','BATCH'])],
             'document_id' => 'required_if:document_type,invoice|required_if:document_type,batch|nullable|integer',
             'expiry' => 'required|in:1,7,30,0', // 1 day, 7 days, 30 days, 0 (never)
             'report_params' => 'required_if:document_type,report|array',
         ]);
 
-        $docType = $request->input('document_type');
+        $docType = strtolower($request->input('document_type'));
         $docId = $request->input('document_id');
-        $expiryOption = $request->input('expiry');
+        $expiryOption = (string) $request->input('expiry');
         $reportParams = $request->input('report_params');
 
         // Determine expiration timestamp
         $expiresAt = null;
-        if ($expiryOption == '1') {
+        if ($expiryOption === '1') {
             $expiresAt = Carbon::now()->addDay();
-        } elseif ($expiryOption == '7') {
+        } elseif ($expiryOption === '7') {
             $expiresAt = Carbon::now()->addDays(7);
-        } elseif ($expiryOption == '30') {
+        } elseif ($expiryOption === '30') {
             $expiresAt = Carbon::now()->addDays(30);
         }
 
@@ -234,7 +233,7 @@ class InvoiceShareController extends Controller
     {
         $link = PublicDocumentLink::where('token', $token)->first();
 
-        if (!$this->validateLink($link) || $link->document_type !== 'report') {
+        if (!$this->validateLink($link) || strtolower($link->document_type) !== 'report') {
             return response()->view('public.invalid_link', [], 410);
         }
 
@@ -244,10 +243,10 @@ class InvoiceShareController extends Controller
 
         return view('public.report', [
             'pdfData' => $pdfData['pdfData'],
-            'view' => $pdfData['view'],
-            'token' => $token,
-            'type' => $pdfData['type'],
-            'start' => $pdfData['start'],
+            'view'    => $pdfData['view'],
+            'token'   => $token,
+            'type'    => $pdfData['type'],
+            'start'   => $pdfData['start'],
         ]);
     }
 
@@ -258,7 +257,7 @@ class InvoiceShareController extends Controller
     {
         $link = PublicDocumentLink::where('token', $token)->first();
 
-        if (!$this->validateLink($link) || $link->document_type !== 'report') {
+        if (!$this->validateLink($link) || strtolower($link->document_type) !== 'report') {
             abort(410, "This link is no longer available.");
         }
 
@@ -266,7 +265,10 @@ class InvoiceShareController extends Controller
 
         $pdfData = $this->compileReportData($link);
 
-        $pdf = Pdf::loadView($pdfData['view'], $pdfData['pdfData'])->setPaper('a4', 'portrait');
+        $landscapeTypes = ['sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl', 'silo_stock_valuation', 'gstr1', 'gstr3b'];
+        $orientation = in_array(strtolower($pdfData['type']), $landscapeTypes) ? 'landscape' : 'portrait';
+
+        $pdf = Pdf::loadView($pdfData['view'], $pdfData['pdfData'])->setPaper('a4', $orientation);
 
         return $pdf->download("Report_" . $pdfData['type'] . "_" . $pdfData['start'] . ".pdf");
     }
@@ -288,29 +290,85 @@ class InvoiceShareController extends Controller
     }
 
     /**
-     * Helper to compile report data dynamically using ReportServiceFactory
+     * Helper to compile report data dynamically using ReportServiceFactory or dedicated services
      */
     private function compileReportData(PublicDocumentLink $link): array
     {
-        $params = $link->document_params;
-        $type = $params['type'] ?? 'sales';
+        $params = $link->document_params ?? [];
+        $type = strtolower($params['type'] ?? 'sales');
+
+        $start = $params['start_date'] ?? $params['from_date'] ?? $params['start'] ?? now()->startOfMonth()->toDateString();
+        $end = $params['end_date'] ?? $params['to_date'] ?? $params['end'] ?? now()->toDateString();
+
+        $plant = Plant::with(['addresses.state', 'contacts'])->find($link->plant_id);
+
+        if (in_array($type, ['sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl'])) {
+            $filters = [
+                'from_date'      => $start,
+                'to_date'        => $end,
+                'start_date'     => $start,
+                'end_date'       => $end,
+                'customer_id'    => $params['patron_id'] ?? $params['customer_id'] ?? null,
+                'supplier_id'    => $params['patron_id'] ?? $params['supplier_id'] ?? null,
+                'gst_type'       => $params['gst_type'] ?? null,
+                'payment_status' => $params['payment_status'] ?? null,
+                'plant_id'       => $link->plant_id,
+                'per_page'       => 10000,
+            ];
+
+            if ($type === 'sales_register') {
+                $service = app(\App\Services\Reports\SalesRegisterService::class);
+                $result = $service->generate($filters);
+                $view = 'reports.sales_register_pdf';
+            } elseif ($type === 'purchase_register') {
+                $service = app(\App\Services\Reports\PurchaseRegisterService::class);
+                $result = $service->generate($filters);
+                $view = 'reports.purchase_register_pdf';
+            } elseif ($type === 'machine_summary') {
+                $service = app(\App\Services\Reports\MachineReportService::class);
+                $result = $service->generateMachineSummary($filters);
+                $view = 'reports.machine_summary_pdf';
+            } else { // vehicle_pl
+                $service = app(\App\Services\Reports\MachineReportService::class);
+                $result = $service->generateVehiclePL($filters);
+                $view = 'reports.vehicle_pl_pdf';
+            }
+
+            $pdfData = [
+                'items'        => $result['data'] ?? [],
+                'totals'       => $result['totals'] ?? [],
+                'tax_columns'  => $result['tax_columns'] ?? [],
+                'filters'      => $filters,
+                'plant'        => $plant,
+                'generated_at' => now()->format('d-m-Y H:i:s'),
+                'type'         => strtoupper($type),
+            ];
+
+            return [
+                'pdfData' => $pdfData,
+                'view'    => $view,
+                'type'    => $type,
+                'start'   => $start,
+            ];
+        }
 
         $factory = app(ReportServiceFactory::class);
         $service = $factory->make($type);
 
         // Standardize params for report service
         $reportParams = [
-            'start'            => $params['start_date'] ?? $params['from_date'] ?? now()->startOfMonth()->toDateString(),
-            'end'              => $params['end_date'] ?? $params['to_date'] ?? now()->toDateString(),
+            'start'            => $start,
+            'end'              => $end,
             'id'               => $params['id'] ?? null,
             'patron_id'        => $params['patron_id'] ?? $params['customer_id'] ?? $params['supplier_id'] ?? null,
             'voucher_type'     => strtoupper($type),
             'valuation_method' => $params['valuation_method'] ?? 'FIFO',
             'truck_id'         => $params['truck_id'] ?? null,
+            'plant_id'         => $link->plant_id,
         ];
 
         $data = $service->generate($reportParams);
-        $targetName = $service->targetName($reportParams);
+        $targetName = method_exists($service, 'targetName') ? $service->targetName($reportParams) : 'All';
 
         $viewMap = [
             'LEDGER'               => 'reports.ledger_report',
@@ -332,7 +390,6 @@ class InvoiceShareController extends Controller
         ];
 
         $view = $viewMap[strtoupper($type)] ?? 'reports.ledger_report';
-        $plant = Plant::with(['addresses.state', 'contacts'])->find($link->plant_id);
 
         $patron = null;
         $patronId = $reportParams['patron_id'];

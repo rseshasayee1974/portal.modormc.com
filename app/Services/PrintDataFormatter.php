@@ -614,21 +614,9 @@ class PrintDataFormatter
             }
         }
 
-        $customerPO = null;
-        if (!empty($invoice->ref_id) && is_numeric($invoice->ref_id)) {
-            $customerPO = \App\Models\CustomerPO::with(['patron', 'site'])->find($invoice->ref_id);
-            if ($customerPO && (!$partner || empty($partner->name))) {
-                $partner = $customerPO->patron;
-            }
-        }
-
-        $salesOrder = null;
-        if (!empty($invoice->ref_id) && is_numeric($invoice->ref_id)) {
-            $salesOrder = \App\Models\SalesOrder::with(['customer', 'site', 'salesExecutive', 'mixDesign'])->find($invoice->ref_id);
-            if ($salesOrder && (!$partner || empty($partner->name))) {
-                $partner = $salesOrder->customer;
-            }
-        }
+        // Resolve relations linked directly via Dispatch / SalesOrder
+        $salesOrder = $dispatch?->salesOrder;
+        $customerPO = $dispatch?->customerPO ?: $salesOrder?->customerPO;
 
         if ($partner) {
             $partner->loadMissing(['addresses', 'contacts.addresses']);
@@ -646,23 +634,8 @@ class PrintDataFormatter
         if (!$site && $salesOrder) {
             $site = $salesOrder->site;
         }
-        if (!$site && !empty($invoice->ref_id) && is_numeric($invoice->ref_id)) {
-            $customerPO = $customerPO ?: \App\Models\CustomerPO::with(['site'])->find($invoice->ref_id);
-            if ($customerPO) {
-                $site = $customerPO->site;
-            } else {
-                $salesOrder = $salesOrder ?: \App\Models\SalesOrder::with(['site'])->find($invoice->ref_id);
-                if ($salesOrder) {
-                    $site = $salesOrder->site;
-                }
-            }
-        }
 
         $data['ship_to'] = self::formatShipTo($site, $data['bill_to']);
-
-        // Resolve additional reference models if linked via dispatch
-        $salesOrder = $salesOrder ?: $dispatch?->salesOrder;
-        $customerPO = $customerPO ?: $dispatch?->customerPO ?: $salesOrder?->customerPO;
 
         // Resolve sales person
         $salesExec = $dispatch?->salesExecutive ?: ($salesOrder?->salesExecutive ?: null);
@@ -780,7 +753,7 @@ class PrintDataFormatter
         ];
         $orderTypeForTerms = $invoice->invoice_type === 'bill' ? 'Purchase Bill' : [($invoice->invoice_label ?? 'Tax Invoice'), 'Tax Invoice'];
 
-        $poNumber = $customerPO?->customer_po_reference ?: ($customerPO?->reference ?: ($invoice->ref_id ?? ''));
+        $poNumber = $customerPO?->customer_po_reference ?: ($customerPO?->reference ?? '');
 
         // TODO: Remove $testDummyQrPath before pushing to production
         $testDummyQrPath = asset('storage/plants/demo-mining-corp/parker-llc-plant/upi_qr_1784092752.png');

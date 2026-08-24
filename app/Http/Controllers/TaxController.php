@@ -34,6 +34,13 @@ class TaxController extends Controller
     public function store(Request $request)
     {
         $this->authorizeModule('create');
+
+        if ($request->has('tax_group')) {
+            $request->merge(['tax_group' => strtoupper((string) $request->input('tax_group'))]);
+        }
+        if ($request->has('tax_type')) {
+            $request->merge(['tax_type' => strtolower((string) $request->input('tax_type'))]);
+        }
         
         $validated = $request->validate([
             'tax_name' => [
@@ -42,8 +49,8 @@ class TaxController extends Controller
                 'max:100', 
                 Rule::unique('mm_taxes')->where(fn($q) => $q->where('plant_id', session('active_plant_id')))->whereNull('deleted_at')
             ],
-            'tax_type' => 'required|in:sales,purchase,other sales,other purchase,others',
-            'tax_group' => 'required|in:GST,CGST,SGST,IGST,TDS,TCS,CESS,OTHER',
+            'tax_type' => ['required', Rule::in(['sales', 'purchase', 'other sales', 'other purchase', 'others'])],
+            'tax_group' => ['required', Rule::in(['GST', 'CGST', 'SGST', 'IGST', 'TDS', 'TCS', 'CESS', 'OTHER'])],
             'tax_rate' => 'required|numeric|min:0',
             'parent_id' => 'nullable|exists:mm_taxes,id',
             'account_id' => 'nullable|exists:mm_ledgers,id',
@@ -64,6 +71,13 @@ class TaxController extends Controller
     public function update(Request $request, Tax $tax)
     {
         $this->authorizeModule('edit');
+
+        if ($request->has('tax_group')) {
+            $request->merge(['tax_group' => strtoupper((string) $request->input('tax_group'))]);
+        }
+        if ($request->has('tax_type')) {
+            $request->merge(['tax_type' => strtolower((string) $request->input('tax_type'))]);
+        }
         
         $validated = $request->validate([
             'tax_name' => [
@@ -75,8 +89,8 @@ class TaxController extends Controller
                     ->where(fn($q) => $q->where('plant_id', session('active_plant_id')))
                     ->whereNull('deleted_at')
             ],
-            'tax_type' => 'required|in:sales,purchase,other sales,other purchase,others',
-            'tax_group' => 'required|in:GST,CGST,SGST,IGST,TDS,TCS,CESS,OTHER',
+            'tax_type' => ['required', Rule::in(['sales', 'purchase', 'other sales', 'other purchase', 'others'])],
+            'tax_group' => ['required', Rule::in(['GST', 'CGST', 'SGST', 'IGST', 'TDS', 'TCS', 'CESS', 'OTHER'])],
             'tax_rate' => 'required|numeric|min:0',
             'parent_id' => 'nullable|exists:mm_taxes,id',
             'account_id' => 'nullable|exists:mm_ledgers,id',

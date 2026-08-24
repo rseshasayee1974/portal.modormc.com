@@ -111,7 +111,7 @@ defineExpose({ activeTab });
                 </div>
 
                 <div class="col-span-6 md:col-span-3 field-group">
-                    <label class="field-label">Capacity (Tons)</label>
+                    <label class="field-label">Capacity </label>
                     <BaseInputNumber v-model="form.capacity" placeholder="25" />
                 </div>
 

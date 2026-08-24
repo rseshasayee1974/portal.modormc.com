@@ -12,6 +12,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use App\Models\CustomSetting;
+use Illuminate\Support\Facades\DB;
 
 class InvoiceController extends Controller
 {
@@ -102,9 +103,12 @@ class InvoiceController extends Controller
         $startDate = \Illuminate\Support\Carbon::parse($validated['start_date'])->startOfDay();
         $endDate   = \Illuminate\Support\Carbon::parse($validated['end_date'])->endOfDay();
 
-        $dispatches = \App\Models\Dispatch::with(['mixDesign', 'truck', 'status'])
+        $dispatches = \App\Models\Dispatch::with(['mixDesign', 'truck', 'status', 'batch', 'uom'])
             ->where('customer_id', $validated['partner_id'])
-            ->whereBetween('dispatch_time', [$startDate, $endDate])
+            ->where(function($q) use ($startDate, $endDate) {
+                $q->whereBetween('dispatch_time', [$startDate, $endDate])
+                  ->orWhereBetween('created_at', [$startDate, $endDate]);
+            })
             ->whereHas('status', function($q) {
                 $q->whereNull('invoice_id');
             })
@@ -198,5 +202,25 @@ class InvoiceController extends Controller
             'invoice' => $invoice,
             'copy_type' => $copyType,
         ]);
+    }
+
+    public function destroy($id)
+    {
+        $this->authorizeModule('delete');
+
+        $realId = $id;
+        try {
+            $realId = decrypt($id);
+        } catch (\Exception $e) {
+            // If it wasn't encrypted or failed decrypt, try using raw id
+        }
+
+        $invoice = Invoice::findOrFail($realId);
+
+        DB::transaction(function () use ($invoice) {
+            $invoice->delete();
+        });
+
+        return redirect()->back()->with('success', 'Invoice voided successfully.');
     }
 }

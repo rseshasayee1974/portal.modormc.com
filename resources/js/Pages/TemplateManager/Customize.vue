@@ -423,7 +423,7 @@ const downloadSample = () => {
                                 <div class="setting-row">
                                     <div>
                                         <label class="setting-title">Operation & Pump Columns</label>
-                                        <p class="setting-desc">Display Operation Type and Pump Charges columns in items table</p>
+                                        <p class="setting-desc">Display Concrete Type and Pump Charges columns in items table</p>
                                     </div>
                                     <InputSwitch v-model="activeSettings.pdf.show_pump_charges" />
                                 </div>

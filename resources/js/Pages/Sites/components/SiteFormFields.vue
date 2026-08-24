@@ -94,7 +94,7 @@ const activeTab = ref<'basic' | 'location'>('basic');
                 <div class="col-span-12 md:col-span-3 flex flex-col gap-1.5" v-if="isPrivileged">
                     <BaseSelect 
                         v-model="form.type" 
-                        label="Operation Type"
+                        label="Concrete Type"
                         required
                         :options="isPrivileged ? siteTypes.map(t => ({label: t.toUpperCase(), value: t})) : [{label: 'UNLOADING', value: 'unloading'}]" 
                         optionLabel="label" 

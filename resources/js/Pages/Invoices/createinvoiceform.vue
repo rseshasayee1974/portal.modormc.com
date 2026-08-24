@@ -23,6 +23,7 @@ import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import Textarea from 'primevue/textarea';
 import { useToast } from 'primevue/usetoast';
+import axios from 'axios';
 
 const props = defineProps<{
     patrons: any[];
@@ -110,15 +111,19 @@ const mergeSelectedDispatches = () => {
         if (!d) return;
         
         const key = d.mixdesign_id;
+        const qty = Number(d.delivered_qty || d.batch?.batch_size || 0);
+        const rate = Number(d.load_rate || 0);
+
         if (!grouped[key]) {
             grouped[key] = {
+                item_id: d.mixdesign_id,
                 mix_design_id: d.mixdesign_id,
-                uom_id: d.uom_id || 1, 
+                uom_id: d.uom_id || d.mix_design?.unit_id || 1, 
                 item_name: d.mix_design?.design_name || 'RMC',
-                hsn_code: '3824',
+                hsn_code: d.mix_design?.hsn_code || '0',
                 tax_id: d.load_tax_id,
                 quantity: 0,
-                price_unit: Number(d.load_rate),
+                price_unit: rate,
                 discount_type: '%',
                 discount: 0,
                 subtotal: 0,
@@ -126,7 +131,7 @@ const mergeSelectedDispatches = () => {
                 total: 0
             };
         }
-        grouped[key].quantity += Number(d.delivered_qty);
+        grouped[key].quantity += qty;
     });
     
     form.items = Object.values(grouped);
@@ -157,6 +162,7 @@ form.items.push(createNewItem());
 
 function createNewItem() {
     return {
+        item_id: null,
         mix_design_id: null,
         uom_id: null,
         item_name: '',
@@ -234,6 +240,7 @@ const onMixDesignChange = (index: number) => {
     const design = props.mixdesign.find(p => p.value === item.mix_design_id);
     
     if (design) {
+        item.item_id = item.mix_design_id;
         item.item_name = design.label;
         item.price_unit = design.rate || 0;
         item.uom_id = design.uom_id || null;
@@ -243,10 +250,39 @@ const onMixDesignChange = (index: number) => {
 
 watch(() => [form.items, form.adjustment, form.shipping_charges], calculateTotals, { deep: true });
 
+const resetForm = () => {
+    form.reset();
+    form.items = [createNewItem()];
+    form.dispatch_ids = [];
+    selectedDispatches.value = [];
+    uninvoicedDispatches.value = [];
+};
+
 const submit = () => {
+    // Check item quantity client-side before sending
+    for (let i = 0; i < form.items.length; i++) {
+        const item = form.items[i];
+        if (!item.quantity || Number(item.quantity) < 0.01) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Validation Error', 
+                detail: `Item #${i + 1} must have a quantity of at least 0.01`, 
+                life: 3000 
+            });
+            return;
+        }
+    }
+
     form.post(route('invoices.store'), {
         onSuccess: () => {
-            form.reset();
+            resetForm();
+            router.reload({
+                onSuccess: () => {
+                    if (billingMode.value === 'dispatch' && form.partner_id) {
+                        fetchDispatches();
+                    }
+                }
+            });
             toast.add({ severity: 'success', summary: 'Success', detail: 'Invoice processed successfully', life: 1500 });
         },
     });
@@ -377,7 +413,7 @@ const taxOptions = computed(() => props.taxes);
                             filter
                              required
                         />
-                        <BaseSelect 
+                        <!-- <BaseSelect 
                             v-model="form.invoice_type" 
                             label="Document Type"
                             :options="invoiceTypeOptions"
@@ -386,7 +422,7 @@ const taxOptions = computed(() => props.taxes);
                             placeholder="Select Type"
                             :error="form.errors.invoice_type"
                             required
-                        />
+                        /> -->
                         
                     <!-- </div>
 
@@ -452,10 +488,10 @@ const taxOptions = computed(() => props.taxes);
                                             <input type="checkbox" :value="d.id" v-model="selectedDispatches" class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" />
                                         </td>
                                         <td class="p-4 font-black text-emerald-700">{{ d.dispatch_no }}</td>
-                                        <td class="p-4 text-center text-slate-500">{{ new Date(d.dispatch_date).toLocaleDateString('en-GB') }}</td>
+                                        <td class="p-4 text-center text-slate-500">{{ (d.dispatch_time || d.dispatch_date || d.created_at) ? new Date(d.dispatch_time || d.dispatch_date || d.created_at).toLocaleDateString('en-GB') : '-' }}</td>
                                         <td class="p-4  text-slate-700">{{ d.mix_design?.design_name || 'RMC' }}</td>
                                         <td class="p-4 font-medium text-slate-500">{{ d.truck?.registration || '-' }}</td>
-                                        <td class="p-4 text-right font-black text-slate-900 pr-8">{{ d.delivered_qty }}</td>
+                                        <td class="p-4 text-right font-black text-slate-900 pr-8">{{ Number(d.delivered_qty || d.batch?.batch_size || 0).toFixed(3) }}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -506,7 +542,7 @@ const taxOptions = computed(() => props.taxes);
                                         </td> -->
                                         
                                         <td class="p-2 text-center">
-                                            <BaseInputNumber v-model="item.quantity" :minFractionDigits="2" size="small" />
+                                            <BaseInputNumber v-model="item.quantity" :minFractionDigits="2" size="small" :error="form.errors[`items.${index}.quantity`]" />
                                         </td>
                                         <td class="p-2">
                                             <BaseSelect 
@@ -532,7 +568,7 @@ const taxOptions = computed(() => props.taxes);
                                             />
                                         </td>
                                         <td class="p-2">
-                                            <div class="flex flex-col gap-1">
+                                            <div class="flex flex-row items-center justify-center gap-1">
                                                 <div class="flex gap-1">
                                                     <BaseSelect 
                                                         v-model="item.discount_type" 
@@ -617,7 +653,7 @@ const taxOptions = computed(() => props.taxes);
                                         label="Invoice"
                                         :loading="form.processing"
                                         @submit="submit"
-                                        @reset="form.reset()"
+                                        @reset="resetForm()"
                                         cancelLabel="Clear"
                                         class="!justify-end"
                                     />

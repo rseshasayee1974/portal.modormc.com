@@ -32,7 +32,15 @@ class InvoiceItem extends Model
         'deleted_by',
     ];
 
+    protected $appends = ['mix_design_id'];
+
+    public function getMixDesignIdAttribute()
+    {
+        return $this->attributes['item_id'] ?? null;
+    }
+
     protected $casts = [
+        'item_id'         => 'integer',
         'tax_id'          => 'integer',
         'uom_id'          => 'integer',
         'quantity'        => 'decimal:2',

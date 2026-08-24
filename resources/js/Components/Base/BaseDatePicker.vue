@@ -55,11 +55,18 @@ onMounted(() => {
     if (form) {
         form.addEventListener('submit', () => {
             if (props.modelValue === null || props.modelValue === undefined || props.modelValue === '') {
-                emit('update:modelValue', new Date()); // fallback to current time on submit if empty
+                emit('update:modelValue', props.showTime ? new Date() : formatDate(new Date())); // fallback to current date on submit if empty
             }
         }, { capture: true });
     }
 });
+
+const formatDate = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 const internalValue = computed({
     get() {
@@ -67,6 +74,11 @@ const internalValue = computed({
             if (!val) return null;
             if (val instanceof Date) return val;
             if (typeof val === 'string') {
+                // If pure date string YYYY-MM-DD, parse as local time to avoid UTC shift
+                if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                    const [y, m, d] = val.split('-').map(Number);
+                    return new Date(y, m - 1, d);
+                }
                 const parsed = new Date(val);
                 return isNaN(parsed.getTime()) ? null : parsed;
             }
@@ -76,7 +88,19 @@ const internalValue = computed({
         return parseValue(props.modelValue);
     },
     set(val) {
-        emit('update:modelValue', val);
+        if (props.showTime) {
+            emit('update:modelValue', val);
+            return;
+        }
+
+        if (val instanceof Date) {
+            emit('update:modelValue', formatDate(val));
+        } else if (Array.isArray(val)) {
+            const formatted = val.map(v => (v instanceof Date ? formatDate(v) : v));
+            emit('update:modelValue', formatted);
+        } else {
+            emit('update:modelValue', val);
+        }
     }
 });
 </script>

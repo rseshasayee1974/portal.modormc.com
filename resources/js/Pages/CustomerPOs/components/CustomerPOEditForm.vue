@@ -42,6 +42,12 @@ const emit = defineEmits<{
 }>();
 const { isAdmin , isSuperAdmin , isSassOwner} = usePermissions();
 const admin = isAdmin.value || isSuperAdmin.value || isSassOwner.value;
+
+// Editing is locked once status is confirmed (status !== 0 / Draft), unless admin/privileged
+const isLocked = computed(() => {
+    return Number(props.customerPO?.status ?? 0) !== 0 && !admin;
+});
+
 const form = useForm({
     prefix: props.customerPO?.prefix ?? 'CPO',
     reference: props.customerPO?.reference ?? '',
@@ -633,6 +639,11 @@ const performSubmit = (customerPOId: any) => {
             </span>
         </div>
 
+        <div v-if="isLocked" class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium flex items-center gap-2">
+            <i class="pi pi-lock text-amber-600"></i>
+            <span>This Customer PO is confirmed and locked. Editing is only permitted while in <strong>Draft</strong> status.</span>
+        </div>
+
         <div class="grid grid-cols-12 md:grid-cols-5 gap-x-4 gap-y-3">
             <!-- <div class="col-span-12 md:col-span-1">
                 <BaseInput
@@ -1114,7 +1125,7 @@ const performSubmit = (customerPOId: any) => {
 
         <div class="mt-5 flex justify-end gap-2 border-t border-gray-200 pt-4">
             <BaseFormActions
-                :disabled="props.customerPO.has_salesorders && !admin"
+                :disabled="isLocked || (props.customerPO.has_salesorders && !admin)"
                 mode="update"
                 updateLabel="Update Customer PO"
                 :loading="form.processing"

@@ -51,11 +51,11 @@ const isSubMenuActive = (item: any): boolean => {
     <!-- Simple Module Sub-Top Navigation -->
     <div v-if="activeParent" class="flex items-center no-scrollbar h-10 px-4 md:px-8 m-1 dark:bg-gray-800  border-gray-200 dark:border-gray-700">
         <!-- Module Name Label -->
-        <div class="flex items-center shrink-0 pr-4 mr-4 border-r border-gray-300 dark:border-gray-600">
+        <!-- <div class="flex items-center shrink-0 pr-4 mr-4 border-r border-gray-300 dark:border-gray-600">
             <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">
                 {{ activeParent.title }}
             </span>
-        </div>
+        </div> -->
 
         <!-- Sub-Menu Links -->
         <div class="flex items-center gap-4 overflow-x-auto no-scrollbar h-full">

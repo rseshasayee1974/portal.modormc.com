@@ -544,7 +544,18 @@ const generateShareLink = async () => {
 
 const copyShareLink = async () => {
     try {
-        await navigator.clipboard.writeText(shareLink.value);
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(shareLink.value);
+        } else {
+            const textArea = document.createElement('textarea');
+            textArea.value = shareLink.value;
+            textArea.style.position = 'fixed';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+        }
         Swal.fire({
             toast: true,
             position: 'top-end',
@@ -776,7 +787,7 @@ const shareEmail = () => {
                             <div class="mt-6 pt-4 border-t border-slate-100 flex justify-end items-center">
                                 <!-- <span class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Smart Filter floorplan</span> -->
                                 <div class="flex gap-2">
-                                    <button 
+                                    <!-- <button 
                                         @click="openScheduleModal"
                                         class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded transition-all flex items-center gap-1.5"
                                     >
@@ -784,7 +795,7 @@ const shareEmail = () => {
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5m-9-6h.008v.008H12v-.008zM12 15h.008v.008H12V15zm0 2.25h.008v.008H12v-.008zM9.75 15h.008v.008H9.75V15zm0 2.25h.008v.008H9.75v-.008zM7.5 15h.008v.008H7.5V15zm0 2.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0 2.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0 2.25h.008v.008H16.5V15z" />
                                         </svg>
                                         Schedule Report
-                                    </button>
+                                    </button> -->
                                     <button 
                                         @click="exportExcel"
                                         class="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold rounded transition-all flex items-center gap-1.5"
@@ -838,7 +849,7 @@ const shareEmail = () => {
                     </div>
 
                     <!-- Active Schedules Panel -->
-                    <div class="bg-white rounded border border-slate-200 shadow-sm mb-6 no-print">
+                    <!-- <div class="bg-white rounded border border-slate-200 shadow-sm mb-6 no-print">
                         <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                             <div>
                                 <h3 class="text-xs font-bold text-[#1d2d3e] uppercase tracking-wider">Automated Schedules for this Plant</h3>
@@ -890,14 +901,14 @@ const shareEmail = () => {
                                 </table>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
  
                     <!-- SAP Fiori Responsive Table Grid -->
                     <div v-if="reportData" class="bg-white rounded border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-200">
                         
                         <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
                             <span class="text-xs font-bold text-[#1d2d3e] uppercase tracking-wider">Statement Result Grid</span>
-                            <div class="flex items-center gap-2">
+                            <!-- <div class="flex items-center gap-2">
                                 <span class="lg:hidden text-[9px] bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded font-bold uppercase tracking-wider">Swipe ➡️</span>
                                 <button 
                                     @click="exportPdf"
@@ -910,7 +921,7 @@ const shareEmail = () => {
                                     </svg>
                                     Save PDF
                                 </button>
-                            </div>
+                            </div> -->
                         </div>
 
                         <div class="p-5">
@@ -981,16 +992,24 @@ const shareEmail = () => {
                 </div>
 
                 <!-- Action Button or Generated Link Display -->
-                <div v-if="!shareLink" class="mt-6 flex justify-end gap-2">
-                    <Button label="Cancel" icon="pi pi-times" text severity="secondary" @click="showShareModal = false" class="!text-xs font-bold uppercase" />
-                    <Button 
-                        label="Generate Link" 
-                        icon="pi pi-link" 
-                        severity="primary" 
+                <div v-if="!shareLink" class="mt-6 flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button 
+                        type="button" 
+                        @click="showShareModal = false" 
+                        class="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        type="button" 
                         @click="generateShareLink" 
-                        :loading="isGeneratingLink"
-                        class="!text-xs font-bold uppercase bg-indigo-600 hover:bg-indigo-700 text-white border-0" 
-                    />
+                        :disabled="isGeneratingLink"
+                        class="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg transition-all flex items-center gap-1.5 shadow-sm"
+                    >
+                        <span v-if="isGeneratingLink" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                        <i v-else class="pi pi-link text-xs"></i>
+                        Generate Link
+                    </button>
                 </div>
 
                 <div v-else class="mt-6 space-y-4 animate-in fade-in duration-200">

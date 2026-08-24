@@ -30,6 +30,9 @@ class ReportServiceFactory
             'gstr3b'               => Gstr3bReportService::class,
             'tds_certificate'      => TdsCertificateReportService::class,
             'esi_pf_challan'       => EsiPfChallanReportService::class,
+            'sales_register'       => SalesRegisterService::class,
+            'purchase_register'    => PurchaseRegisterService::class,
+            'machine_summary', 'vehicle_pl' => MachineReportService::class,
             default                => throw new InvalidArgumentException("Unsupported report type: {$type}"),
         };
 

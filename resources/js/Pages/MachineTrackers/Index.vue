@@ -303,7 +303,7 @@ watch(() => page.props.flash, (flash: any) => {
                                     <BaseInput type="datetime-local" v-model="form.closing" label="Closing DateTime" :error="form.errors.closing" />
                                 </div>
                                 <div class="col-span-12 md:col-span-4 field-group">
-                                    <BaseInput v-model="form.operation_type" label="Operation Type" placeholder="E.g. Transport, Excavation" :error="form.errors.operation_type" />
+                                    <BaseInput v-model="form.operation_type" label="Concrete Type" placeholder="E.g. Transport, Excavation" :error="form.errors.operation_type" />
                                 </div>
 
                                 <!-- Fuel Details -->
@@ -472,7 +472,7 @@ watch(() => page.props.flash, (flash: any) => {
                                 <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Detailed Log Information</h4>
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                                     <div>
-                                        <p class="text-[9px] font-bold text-slate-400 uppercase">Operation Type</p>
+                                        <p class="text-[9px] font-bold text-slate-400 uppercase">Concrete Type</p>
                                         <p class="text-sm font-semibold text-slate-700">{{ slotProps.data.operation_type || '—' }}</p>
                                     </div>
                                     <div>

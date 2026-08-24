@@ -35,6 +35,22 @@ class Dispatch extends Model
         'pump_charges' => 'decimal:2',
     ];
 
+    protected $appends = ['dispatch_date'];
+
+    public function getDispatchDateAttribute()
+    {
+        return $this->dispatch_time ? $this->dispatch_time->toIso8601String() : ($this->created_at ? $this->created_at->toIso8601String() : null);
+    }
+
+    public function getDeliveredQtyAttribute($value)
+    {
+        $val = (float) $value;
+        if ($val > 0) {
+            return $val;
+        }
+        return (float) ($this->batch?->batch_size ?? 0);
+    }
+
     /**
      * Accounting Compatibility Accessors (for Invoice generation)
      */
