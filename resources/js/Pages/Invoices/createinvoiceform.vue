@@ -219,12 +219,15 @@ const calculateTotals = () => {
     form.amount_untaxed = untaxed;
     form.amount_tax = taxTotal;
     
-    // Calculate global discount
-    const globalDiscount = form.global_discount_type === '₹' 
-        ? (Number(form.global_discount) || 0) 
-        : untaxed * ((Number(form.global_discount) || 0) / 100);
+     // Calculate global discount
+    // const globalDiscount = form.global_discount_type === '₹' 
+    //     ? (Number(form.global_discount) || 0) 
+    //     : untaxed * ((Number(form.global_discount) || 0) / 100);
+    
+    // Calculate global discount (always in Rupees)
+    const globalDiscount = Number(form.global_discount) || 0;
 
-    // Add shipping tax if applicable
+    // Add shipping tax if applicables
     if (form.shipping_charges > 0 && form.shipping_tax_id) {
         const sTax = props.taxes.find(t => t.value === form.shipping_tax_id);
         if (sTax) {
@@ -234,6 +237,21 @@ const calculateTotals = () => {
 
     form.amount_total = untaxed + taxTotal - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0);
 };
+
+// Automatically recalculate totals whenever items, global discount, shipping or adjustments change
+watch(
+    () => [
+        form.items,
+        form.global_discount,
+        form.shipping_charges,
+        form.shipping_tax_id,
+        form.adjustment,
+    ],
+    () => {
+        calculateTotals();
+    },
+    { deep: true, immediate: true }
+);
 
 const onMixDesignChange = (index: number) => {
     const item = form.items[index];
@@ -622,10 +640,7 @@ const taxOptions = computed(() => props.taxes);
                                 </div>
                                 <div class="flex justify-between items-center gap-4">
                                     <span class="text-[11px]  text-slate-600 uppercase ">Global Discount (-)</span>
-                                    <div class="flex gap-1 w-1/4">
-                                      
-                                        <BaseInputNumber v-model="form.global_discount" size="small" class="flex-grow" />
-                                    </div>
+                                    <BaseInputNumber v-model="form.global_discount" size="small" class="w-28" />
                                 </div>
                                 <div class="flex justify-between items-center gap-4">
                                     <span class="text-[11px]  text-slate-600 uppercase ">Shipping Charges (+)</span>
