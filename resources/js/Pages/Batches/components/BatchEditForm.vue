@@ -113,11 +113,11 @@ const form = useForm({
         }
         return null;
     })(),
-    empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? 0),
-    loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? 0),
+    empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? props.batch?.empty_weight_truck ?? props.batch?.sales_order?.latest_dispatch?.empty_weight_truck ?? 0),
+    loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? props.batch?.loaded_weight_truck ?? props.batch?.sales_order?.latest_dispatch?.loaded_weight_truck ?? 0),
         
     loaded_weight_photo: null as string | null,
-    net_weight: Number(props.batch?.dispatches?.[0]?.net_weight ?? 0),
+    net_weight: Number(props.batch?.dispatches?.[0]?.net_weight ?? props.batch?.net_weight ?? 0),
     uom_id: props.batch?.uom_id ? Number(props.batch.uom_id) : (props.uoms?.find((u: any) => String(u.unit_code).toUpperCase() === 'CBM')?.id ?? null),
     status: Number(props.batch?.status ?? 1),
     start_time: props.batch?.start_time ? new Date(props.batch.start_time) : new Date(),
@@ -309,7 +309,7 @@ watch(
 );
 
 const applyBatchToForm = (newBatch: any) => {
-    if (!newBatch) return;
+    if (!newBatch || typeof newBatch !== 'object' || !newBatch.id) return;
 
     form.sales_order_id = newBatch.sales_order_id ?? null;
     form.batch_no = newBatch.batch_no ?? null;
@@ -352,9 +352,13 @@ const applyBatchToForm = (newBatch: any) => {
     } else {
         form.concrete_pump = null;
     }
-    form.empty_weight_truck = Number(dispatch?.empty_weight_truck ?? 0);
-    form.loaded_weight_truck = Number(dispatch?.loaded_weight_truck ?? 0);
-    form.net_weight = Number(dispatch?.net_weight ?? 0);
+    const emptyWt = dispatch?.empty_weight_truck ?? newBatch.empty_weight_truck ?? latestDispatch?.empty_weight_truck ?? 0;
+    const loadedWt = dispatch?.loaded_weight_truck ?? newBatch.loaded_weight_truck ?? latestDispatch?.loaded_weight_truck ?? 0;
+    const netWt = dispatch?.net_weight ?? newBatch.net_weight ?? (Number(loadedWt) > 0 ? Number(loadedWt) - Number(emptyWt) : 0);
+
+    form.empty_weight_truck = Number(emptyWt);
+    form.loaded_weight_truck = Number(loadedWt);
+    form.net_weight = Number(netWt);
     form.empty_time = dispatch?.empty_time ? new Date(dispatch.empty_time) : new Date();
     form.load_time = dispatch?.load_time ? new Date(dispatch.load_time) : new Date();
     
@@ -364,7 +368,7 @@ const applyBatchToForm = (newBatch: any) => {
     form.end_time = newBatch.end_time ? new Date(newBatch.end_time) : new Date();
     
     let initialMaterials = newBatch?.materials || [];
-    if (!initialMaterials.length) {
+    if (!initialMaterials || !initialMaterials.length) {
         form.materials = [blankMaterial()];
         return;
     }
@@ -410,36 +414,20 @@ const applyBatchToForm = (newBatch: any) => {
     });
 };
 
+watch(
+    () => props.batch,
+    (newBatch) => {
+        if (newBatch && !form.processing) {
+            applyBatchToForm(newBatch);
+        }
+    },
+    { deep: true, immediate: true }
+);
+
 // Run on mount with whatever data is available at render time
 applyBatchToForm(props.batch);
 
-/**
- * Fire whenever the batch OBJECT REFERENCE changes.
- * This covers:
- *   - Switching from one expanded row to another (id changes)
- *   - The async upgrade: slotProps.data  →  detailedBatches[id]
- *     (same id, different object reference — the materials key appears)
- */ 
-watch(
-    () => props.batch,
-    (newBatch) => applyBatchToForm(newBatch),
-    { deep: false }  // shallow — only fires when the object reference itself changes
-);
 
-/**
- * Extra safety: if Vue decides to reuse the same object reference but
- * mutates the materials array in-place, catch that too.
- */
-watch(
-    () => props.batch?.materials,
-    (newMaterials, oldMaterials) => {
-        // Only re-apply when materials transitions from undefined/null → defined
-        if (newMaterials !== undefined && oldMaterials === undefined) {
-            applyBatchToForm(props.batch);
-        }
-    },
-    { deep: false }
-);
 
 const { isScaleConnected, captureWeight, captureCameraSnap } = useWeighbridge();
 
@@ -651,20 +639,20 @@ const normalizeNumber = (val: any) => {
 watch(() => [
     form.empty_weight_truck, 
     form.loaded_weight_truck, 
-    form.net_weight,
     form.batch_size,
     ...form.materials.flatMap(m => [m.target_qty, ...(m.runs || [])])
 ], () => {
-    form.empty_weight_truck = normalizeNumber(form.empty_weight_truck);
-    form.loaded_weight_truck = normalizeNumber(form.loaded_weight_truck);
-    form.net_weight = normalizeNumber(form.net_weight);
-    form.batch_size = normalizeNumber(form.batch_size) || 1; // batch_size min 1
+    form.batch_size = form.batch_size ? normalizeNumber(form.batch_size) || 1 : 1;
     
     form.materials.forEach(m => {
-        m.target_qty = normalizeNumber(m.target_qty);
+        if (m.target_qty !== null && m.target_qty !== undefined && m.target_qty !== '') {
+            m.target_qty = normalizeNumber(m.target_qty);
+        }
         if (!m.runs) m.runs = Array(numberOfRuns.value).fill(0);
         m.runs.forEach((r, idx) => {
-            m.runs[idx] = normalizeNumber(r);
+            if (r !== null && r !== undefined && r !== '') {
+                m.runs[idx] = normalizeNumber(r);
+            }
         });
     });
 }, { deep: true });
@@ -681,31 +669,12 @@ watch(numberOfRuns, (newVal) => {
     });
 }, { immediate: true });
 const handleNextTab = () => {
-    form.clearErrors();
-    let hasErrors = false;
-    if (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0) {
-        form.setError('empty_weight_truck', 'Empty Weight is required');
-        hasErrors = true;
-    }
-    if (!form.empty_time) {
-        form.setError('empty_time', 'Empty Time is required');
-        hasErrors = true;
-    }
-    if (hasErrors) {
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'warning',
-            title: 'Please check required fields in Details & Weights',
-            showConfirmButton: false,
-            timer: 2500,
-        });
-        return;
-    }
     activeTabIndex.value = 1;
-};
+    };
 
-const submit = () => {
+const submit = (onSuccessCallback?: () => void) => {
+    // console.log('BatchEditForm: submit called! Trigger trace:');
+    // console.trace();
     form.clearErrors();
     let hasErrors = false;
         if (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0) {
@@ -773,10 +742,19 @@ const submit = () => {
             }
             return list;
         }),
-    })).put(route('batches.update', props.batch?.id), {
+    }));
+                // router.reload({ only: ['batch'] });
+
+    updateBatch(onSuccessCallback);
+};
+
+const updateBatch = (onSuccessCallback?: () => void) => {
+    // console.log('BatchEditForm: sending put to batches.update with payload:', form.data());
+    form.put(route('batches.update', props.batch?.id), {
         preserveState: true,
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: async () => {
+            // console.log('BatchEditForm: updateBatch onSuccess called');
             Swal.fire({
                 toast: true,
                 position: 'top-end',
@@ -786,9 +764,25 @@ const submit = () => {
                 showConfirmButton: false,
             });
             isSaved.value = true;
+            
+            try {
+                if (props.batch?.id) {
+                    const res = await axios.get(route('batches.show', props.batch.id));
+                    if (res.data) {
+                        applyBatchToForm(res.data);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to reload fresh batch details after update:', err);
+            }
+
             emit('saved', { batchId: props.batch.id, type: 'batching' });
+            if (typeof onSuccessCallback === 'function') {
+                onSuccessCallback();
+            }
         },
         onError: (errors) => {
+            console.error('BatchEditForm: updateBatch onError:', errors);
             const errorMessages = Object.values(errors).flat().join('\n');
             Swal.fire({
                 icon: 'error',

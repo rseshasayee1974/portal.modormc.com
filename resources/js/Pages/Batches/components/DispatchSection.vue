@@ -65,13 +65,7 @@ const hasDispatchActivity = computed(() => {
 });
 
 const isReadOnly = computed(() => {
-    // Admins/Super Admins can always edit
-    if (hasEditBypass.value) {
-        return false;
-    }
-
-    // Everyone else becomes read-only once activity exists
-    return hasDispatchActivity.value;
+    if(props.dispatch?.status?.invoice_status === 1) return true;
 });
 
 const showInvoiceSection = computed(() => {
@@ -85,7 +79,6 @@ const showInvoiceSection = computed(() => {
            (props.dispatch.uom_id !== null && props.dispatch.uom_id !== undefined);
 });
 
-// console.log(props.dropdownData);
 
 const emit = defineEmits<{
     (e: 'tripSaved'): void;
@@ -182,7 +175,7 @@ const form = useForm({
         load_tax_amount: props.dispatch?.load_tax_amount || 0,
         load_untax_amount: props.dispatch?.load_untax_amount || 0,
         load_total_amount: props.dispatch?.load_total_amount || 0,
-        pump_charge: props.dispatch?.pump_charge || 0,
+        pump_charges: props.dispatch?.pump_charges || 0,
         pass_amount: props.dispatch?.pass_amount || 0,
         discount_amount: props.dispatch?.discount_amount || 0,
         transport_expenses: props.dispatch?.transport_expenses || 0,
@@ -217,6 +210,7 @@ const form = useForm({
     },
     settings: props.settings || {}
 });
+// console.log('form',props);
 
 onMounted(async () => {
     try {
@@ -362,6 +356,7 @@ watch(() => props.dispatch, (newDispatch) => {
         form.financials.load_tax_amount = newDispatch.load_tax_amount !== undefined ? newDispatch.load_tax_amount : 0;
         form.financials.load_untax_amount = newDispatch.load_untax_amount !== undefined ? newDispatch.load_untax_amount : 0;
         form.financials.load_total_amount = newDispatch.load_total_amount !== undefined ? newDispatch.load_total_amount : 0;
+        form.financials.pump_charges = newDispatch.pump_charges !== undefined ? newDispatch.pump_charges : (form.financials.pump_charges || 0);
         form.financials.pass_amount = newDispatch.pass_amount !== undefined ? newDispatch.pass_amount : 0;
         form.financials.discount_amount = newDispatch.discount_amount !== undefined ? newDispatch.discount_amount : 0;
         form.financials.transport_expenses = newDispatch.transport_expenses !== undefined ? newDispatch.transport_expenses : 0;
@@ -401,8 +396,8 @@ const displayUnits = computed(() => {
 
 const pumpRate = computed(() => Number(props.salesOrder?.pump_rate || props.batch?.pump_rate || 0));
 
-watch([() => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses, () => form.financials.pump_charge, baseRate], () => {
-    if (!form.financials.load_rate || Number(form.financials.load_rate) === 0 || form.financials.load_rate !== baseRate.value) {
+watch([() => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses, () => form.financials.pump_charges, baseRate], () => {
+    if ((form.financials.load_rate === null || form.financials.load_rate === undefined || form.financials.load_rate === 0) && baseRate.value) {
         form.financials.load_rate = baseRate.value;
     }
 
@@ -422,12 +417,11 @@ watch([() => form.batch_size, () => form.financials.load_rate, () => form.financ
     const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
     const taxAmountVal = (untaxAmount * taxRate) / 100;
 
-    const computedPumpCharge = Number((pumpRate.value).toFixed(2));
-    if (Number(form.financials.pump_charge || 0) !== computedPumpCharge) {
-        form.financials.pump_charge = computedPumpCharge;
+    if ((form.financials.pump_charges === null || form.financials.pump_charges === undefined || Number(form.financials.pump_charges) === 0) && pumpRate.value) {
+        form.financials.pump_charges = Number((pumpRate.value).toFixed(2));
     }
 
-    const pumpCharge = Number(form.financials.pump_charge || 0);
+    const pumpCharge = Number(form.financials.pump_charges || 0);
 
     const totalAmountVal = untaxAmount + taxAmountVal
         + pumpCharge
@@ -461,7 +455,8 @@ const selectedUom = computed(() => {
 });
 
 const submit = () => {
-    // console.log('DispatchSection: submit called, form.id is:', form.id);
+    // console.log('DispatchSection: submit called! Trigger trace:');
+    // console.trace();
     if (form.id) {
         form.put(route('dispatches.update', form.id), {
             preserveScroll: true,
@@ -668,9 +663,9 @@ const handleDeleteInvoice = () => {
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-rose-400">Discount</span>
                                         <span class="text-xs font-bold text-rose-500">- ₹ {{ Number(form.financials.discount_amount || 0).toLocaleString() }}</span>
                                     </div>
-                                    <div class="flex items-center justify-between" ><!-- v-if="form.financials.pump_charge" -->
+                                    <div class="flex items-center justify-between" ><!-- v-if="form.financials.pump_charges" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pump Charge</span>
-                                        <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.pump_charge || 0).toLocaleString() }}</span>
+                                        <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.pump_charges || 0).toLocaleString() }}</span>
                                     </div>
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.discount_amount" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Adjustment</span>
@@ -686,7 +681,7 @@ const handleDeleteInvoice = () => {
                                             Pump Charge
                                             <span class="normal-case font-normal text-amber-400 ml-1">({{ addPumpToTotal ? 'flat' : 'per m³' }})</span>
                                         </span>
-                                        <span class="text-xs font-bold text-amber-600">₹ {{ Number(form.financials.pump_charge || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) }}</span>
+                                        <span class="text-xs font-bold text-amber-600">₹ {{ Number(form.financials.pump_charges || 0).toLocaleString(undefined, {minimumFractionDigits: 2}) }}</span>
                                     </div> -->
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.pass_amount" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pass Amount</span>
