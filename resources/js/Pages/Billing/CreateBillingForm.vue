@@ -615,7 +615,7 @@ const taxOptions = computed(() => props.taxes);
                                     <BaseInputNumber v-model="form.shipping_charges" size="small" class="w-28" />
                                 </div>
                                 <div class="flex justify-between items-center gap-4">
-                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Adjustment (+/-)</span>
+                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Adjustment (+)</span>
                                     <BaseInputNumber v-model="form.adjustment" size="small" class="w-28" />
                                 </div>
                                 <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-4">

@@ -810,7 +810,7 @@ const submit = () => {
                                     <span class="font-bold">₹ {{ Number(form.amount_tax).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                                 </div>
                                 <div class="flex justify-between items-center gap-6">
-                                    <span class="text-[12px] font-medium text-slate-600">Adjustment (+/-)</span>
+                                    <span class="text-[12px] font-medium text-slate-600">Adjustment (+)</span>
                                     <BaseInputNumber v-model="form.adjustment" class="!w-32" />
                                 </div>
                                 <div class="h-px bg-indigo-200/50 mt-4 mb-2"></div>
