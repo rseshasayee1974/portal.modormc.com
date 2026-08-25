@@ -715,7 +715,6 @@ const handleDeleteInvoice = () => {
                                     label="Save Dispatch" 
                                     variant="filled" 
                                     severity="primary" 
-                                    v-if="!canExportInvoice"
                                     class="!py-3 !text-[10px] !font-black uppercase tracking-widest shadow-lg shadow-indigo-200/50"
                                     :loading="form.processing"
                                     :disabled="isReadOnly"
