@@ -247,8 +247,11 @@ const calculateTotals = () => {
     }
 
     const rawTotal = untaxed + taxTotal - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0);
-    form.amount_total = Math.round(rawTotal);
-    form.round_off = Number((form.amount_total - rawTotal).toFixed(2));
+    const calculatedRoundOff = Number((Math.round(rawTotal) - rawTotal).toFixed(2));
+    if (form.round_off === 0 || form.round_off === null || form.round_off === undefined) {
+        form.round_off = calculatedRoundOff;
+    }
+    form.amount_total = Number((rawTotal + (Number(form.round_off) || 0)).toFixed(2));
 };
 
 const onProductChange = (index: number) => {
@@ -619,8 +622,8 @@ const taxOptions = computed(() => props.taxes);
                                     <BaseInputNumber v-model="form.adjustment" size="small" class="w-28" />
                                 </div>
                                 <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-4">
-                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off</span>
-                                    <span class="text-slate-900 font-bold">{{ form.round_off > 0 ? '+' : '' }}{{ form.round_off.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off (+/-)</span>
+                                    <BaseInputNumber v-model="form.round_off" size="small" class="w-28" :minFractionDigits="2" :maxFractionDigits="2" />
                                 </div>
 
                                 <div class="flex justify-between items-center border-t border-slate-200 pt-6 mt-6">
