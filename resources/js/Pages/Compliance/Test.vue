@@ -152,32 +152,57 @@ const copyToClipboard = (text: string) => {
                         </button>
                     </div>
 
-                    <!-- GSP E-Invoice parameters -->
+                    <!-- PeriOne E-Invoice parameters -->
                     <div v-show="activeTab === 'einvoice'" class="space-y-4">
+                        <!-- Quick state presets -->
+                        <div class="flex items-center gap-2 p-2 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
+                            <span class="text-[9px] font-black uppercase text-indigo-500 tracking-wider">Presets:</span>
+                            <button
+                                type="button"
+                                @click="credentials.gstin = '33AARFB4347G034'; credentials.username = 'Btn'; credentials.password = 'Btn@123';"
+                                class="px-2.5 py-1 text-[9px] font-bold rounded-lg bg-white dark:bg-slate-800 text-indigo-600 border border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50"
+                            >
+                                🌴 Tamil Nadu (Btn)
+                            </button>
+                            <button
+                                type="button"
+                                @click="credentials.gstin = '29AARFB4347G000'; credentials.username = 'Bluefox'; credentials.password = 'Bluefox@123';"
+                                class="px-2.5 py-1 text-[9px] font-bold rounded-lg bg-white dark:bg-slate-800 text-indigo-600 border border-indigo-200 dark:border-indigo-700 hover:bg-indigo-50"
+                            >
+                                🏢 Karnataka (Bluefox)
+                            </button>
+                        </div>
+
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-1.5">
-                                <label class="text-[9px] font-black uppercase text-slate-400 tracking-wider block">GSP Username</label>
-                                <input v-model="credentials.einv_username" type="text" class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500" />
+                                <label class="text-[9px] font-black uppercase text-slate-400 tracking-wider block">PeriOne Client ID</label>
+                                <input v-model="credentials.client_id" type="text" class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500 font-mono" />
                             </div>
                             <div class="space-y-1.5">
-                                <label class="text-[9px] font-black uppercase text-slate-400 tracking-wider block">GSP Password</label>
-                                <input v-model="credentials.einv_password" type="password" class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500" />
+                                <label class="text-[9px] font-black uppercase text-slate-400 tracking-wider block">PeriOne Client Secret</label>
+                                <input v-model="credentials.client_secret" type="password" class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500 font-mono" />
                             </div>
                         </div>
 
-                        <div class="space-y-1.5">
-                            <label class="text-[9px] font-black uppercase text-slate-400 tracking-wider block">GSP Subscription Key</label>
-                            <input v-model="credentials.api_key" type="text" class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500" />
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-1.5">
+                                <label class="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Plant GSTIN</label>
+                                <input v-model="credentials.gstin" type="text" class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500 font-bold" />
+                            </div>
+                            <div class="space-y-1.5">
+                                <label class="text-[9px] font-black uppercase text-slate-400 tracking-wider block">API Username</label>
+                                <input v-model="credentials.username" type="text" class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500 font-bold" />
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-1.5">
-                                <label class="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Seller GSTIN</label>
-                                <input v-model="credentials.gstin" type="text" class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500" />
+                                <label class="text-[9px] font-black uppercase text-slate-400 tracking-wider block">API Password</label>
+                                <input v-model="credentials.password" type="password" class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500 font-bold" />
                             </div>
                             <div class="space-y-1.5">
-                                <label class="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Environment Domain</label>
-                                <input v-model="credentials.url" type="text" placeholder="e.g. modostores.local" class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500" />
+                                <label class="text-[9px] font-black uppercase text-slate-400 tracking-wider block">Gateway URL</label>
+                                <input v-model="credentials.base_url" type="text" class="w-full text-xs rounded-xl border-slate-200 focus:ring-indigo-500" />
                             </div>
                         </div>
                     </div>

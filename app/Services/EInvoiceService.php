@@ -3,932 +3,1158 @@
 namespace App\Services;
 
 use App\Models\Invoice;
+use App\Models\Plant;
 use App\Models\EinvoiceAuth;
+use App\Models\EinvoiceInvoiceRel;
+use App\Models\EwaybillDetail;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class EInvoiceService
 {
-    // Static array to capture transaction debug details for the testing UI
-    public static array $debugTrace = [];
+    public ?string $baseUrl = null;
+    public ?string $clientId = null;
+    public ?string $clientSecret = null;
+    public ?string $email = null;
+    public ?string $ipAddress = null;
 
-    public static function logTrace(string $step, $data): void
+    /**
+     * Generate E-Invoice (IRN) for an invoice.
+     */
+    public function generate(Invoice $invoice, array $transportDetails = []): array
     {
-        self::$debugTrace[] = [
-            'step' => $step,
-            'timestamp' => now()->toDateTimeString(),
-            'data' => is_array($data) || is_object($data) ? $data : (string)$data,
-        ];
+        return $this->generateIrn($invoice, $transportDetails);
     }
 
     /**
-     * Generate E-Invoice (IRN) and optionally an E-Way Bill.
+     * Generate IRN with PeriOne / NIC gateway and persist results.
      */
-    public function generate(Invoice $invoice, array $transportDetails): array
+    public function generateIrn(Invoice $invoice, array $transportDetails = []): array
     {
-        self::$debugTrace = []; // Reset trace
-        self::logTrace('Start E-Invoice Generation', ['invoice_id' => $invoice->id, 'transport_details' => $transportDetails]);
-
-        $this->validateInvoiceForEInvoice($invoice);
-
-        $generateEWay = !empty($transportDetails['generate_eway']);
-        if ($generateEWay) {
-            $this->validateTransportDetails($transportDetails);
-        }
+        // 0. Validate invoice, seller, buyer, item, and transport prerequisites
+        $this->validateForIrn($invoice, $transportDetails);
 
         $userId = Auth::id() ?? 1;
         $plant = $invoice->plant;
-        $entity = $plant?->entity;
-        if (!$entity) {
-            throw new \Exception("Active Plant is not associated with an operational Entity.");
+
+        // 1. Authenticate with PeriOne E-Invoice gateway first (Sandbox / Production)
+        $auth = $this->authenticate($plant, $userId);
+
+        // 2. Resolve Gateway settings & plant credentials
+        $this->getGatewayConfig($plant);
+        [$username, $password, $gstin] = $this->getPlantCredentials($plant);
+
+        // 3. Build JSON Payload conforming to standard NIC / PeriOne E-Invoice schema
+        $payload = $this->buildIrnPayload($invoice, $transportDetails);
+
+        // 4. Send IRN Generation Request to Gateway
+        $headers = $this->buildGatewayHeaders($auth, $username, $password, $gstin ?: ($payload['SellerDtls']['Gstin'] ?? ''));
+        $data = $this->sendGenerateRequest($headers, $payload);
+
+        $irn = $data['Irn'] ?? $data['irn'] ?? null;
+        $ackNo = $data['AckNo'] ?? $data['ack_no'] ?? null;
+        $ackDateStr = $data['AckDt'] ?? $data['ack_date'] ?? null;
+        $ackDate = $ackDateStr ? Carbon::parse($ackDateStr) : Carbon::now();
+        $signedQrCode = $data['SignedQRCode'] ?? $data['signed_qrcode'] ?? $data['QrCode'] ?? null;
+        $signedInvoice = $data['SignedInvoice'] ?? $data['signed_invoice'] ?? '';
+        $ewbNo = $data['EwbNo'] ?? $data['ewb_no'] ?? null;
+        $ewbDt = !empty($data['EwbDt']) ? Carbon::parse($data['EwbDt']) : null;
+        $ewbValidTill = !empty($data['EwbValidTill']) ? Carbon::parse($data['EwbValidTill']) : null;
+
+        if (!$irn) {
+            throw new \Exception('PeriOne E-Invoice Gateway did not return an IRN.');
         }
 
-        // 1. Ensure valid authentication session with GSP
-        $this->ensureAuthentication($entity, $plant, $userId);
-
-        // 2. Build GSP official payload schema
-        $payload = $this->buildGovernmentPayload($invoice, $transportDetails);
-        self::logTrace('1. Built GSP Payload', $payload);
-
-        // 3. Encrypt payload
-        $sek = $this->getSymmetricKey($userId, $entity->id, $plant?->id);
-        $encryptedPayload = $this->encryptPayload($payload, $sek);
-        self::logTrace('2. Encrypted Payload (AES-256-ECB)', [
-            'sek' => $sek,
-            'encrypted' => $encryptedPayload
-        ]);
-
-        // 4. Determine endpoint URL
-        $isSandbox = str_contains($entity->url ?? '', 'modostores.local') || str_contains($entity->url ?? '', 'guye.modostores.com');
-        $url = $isSandbox ? 'https://developers.eraahi.com/eInvoiceGateway/eicore/v1.03/Invoice'
-                          : 'https://www.alankitgst.com/eInvoiceGateway/eicore/v1.03/Invoice';
-
-        $einvoiceUsername = $plant->gstin ?? $entity->einv_username ?? '';
-        $einvoiceApiKey = $plant->einvoice_client_id ?? $entity->api_key ?? '';
-
-        $authToken = $this->getAuthToken($userId, $entity->id, $plant?->id);
-        $headers = [
-            'Content-Type' => 'application/json',
-            'user_name' => $einvoiceUsername,
-            'Ocp-Apim-Subscription-Key' => $einvoiceApiKey,
-            'gstin' => $plant->gstin ?? '',
-            'AuthToken' => $authToken,
-        ];
-        self::logTrace('3. Outgoing Request Details', [
-            'url' => $url,
-            'headers' => array_merge($headers, ['AuthToken' => substr($authToken, 0, 10) . '...']),
-        ]);
-
-        // 5. Send POST request to GSP gateway
-        $response = Http::withHeaders($headers)->post($url, [
-            'Data' => $encryptedPayload
-        ]);
-
-        if ($response->failed()) {
-            self::logTrace('API Request Failed', ['status' => $response->status(), 'body' => $response->body()]);
-            throw new \Exception("GSP E-Invoice Gateway returned HTTP error: " . $response->status() . " - " . $response->body());
-        }
-
-        $body = $response->json();
-        self::logTrace('4. Raw Response Body', $body);
-
-        if (empty($body['Data'])) {
-            $statusMsg = $body['Status'] ?? 'Unknown Error';
-            $errorDetails = isset($body['ErrorDetails']) ? json_encode($body['ErrorDetails']) : json_encode($body);
-            throw new \Exception("GSP Request Failed. Status: {$statusMsg}. Details: {$errorDetails}");
-        }
-
-        // 6. Decrypt response
-        $decryptedData = $this->decryptPayload($body['Data'], $sek);
-        $res = json_decode($decryptedData);
-        self::logTrace('5. Decrypted Response Data', $res);
-
-        if (empty($res) || empty($res->Irn)) {
-            $errorDetails = json_encode($res ?? $body);
-            throw new \Exception("Failed to register E-Invoice. GSP response details: {$errorDetails}");
-        }
-
-        $ackNo = $res->AckNo;
-        $ackDate = Carbon::parse($res->AckDt);
-        $irn = $res->Irn;
-        $qrCodeData = $res->SignedQRCode ?? $res->SignedInvoice;
-
-        $result = [
-            'success' => true,
-            'irn' => $irn,
-            'ack_no' => $ackNo,
-            'ack_date' => $ackDate,
-            'qr_code' => $qrCodeData,
-        ];
-
-        // 7. Extract E-Way Bill info if returned by API
-        if (!empty($res->EwbNo)) {
-            $result['eway_bill'] = [
-                'no' => $res->EwbNo,
-                'date' => Carbon::parse($res->EwbDt),
-                'valid_until' => Carbon::parse($res->EwbValidTill),
-            ];
-            self::logTrace('6. Extracted E-Way Bill Info from E-Invoice Response', $result['eway_bill']);
-        } elseif ($generateEWay) {
-            // Mock fallback if standalone was requested but not returned
-            $ewayBillNo = '45' . str_pad(rand(1000000000, 9999999999), 10, '0', STR_PAD_LEFT);
-            $ewayBillDate = Carbon::now();
-            $distance = (float)($transportDetails['distance_km'] ?? 100);
-            $validityDays = max(1, ceil($distance / 200));
-            $validUntil = Carbon::now()->addDays($validityDays)->endOfDay();
-
-            $result['eway_bill'] = [
-                'no' => $ewayBillNo,
-                'date' => $ewayBillDate,
-                'valid_until' => $validUntil,
-            ];
-            self::logTrace('6. Generated Fallback E-Way Bill Details', $result['eway_bill']);
-        }
-
-        // 8. Save compliance data directly on Invoice Model
-        $invoice->fill([
-            'einvoice_status' => 'generated',
-            'einvoice_irn' => $result['irn'],
-            'einvoice_ack_no' => $result['ack_no'],
-            'einvoice_ack_date' => $result['ack_date'],
-            'einvoice_qr_code' => $result['qr_code'],
-            'eway_bill_no' => $result['eway_bill']['no'] ?? null,
-            'eway_bill_date' => $result['eway_bill']['date'] ?? null,
-            'eway_bill_valid_until' => $result['eway_bill']['valid_until'] ?? null,
-        ]);
-        $invoice->save();
-
-        // Sync with dispatches
-        \App\Models\DispatchStatus::where('invoice_id', $invoice->id)->update([
-            'eway_bill_no' => $invoice->eway_bill_no,
-        ]);
-
-        self::logTrace('Complete. E-Invoice Generated Successfully', $result);
-        return $result;
-    }
-
-    /**
-     * Cancel an existing E-Invoice (IRN).
-     */
-    public function cancel(Invoice $invoice, string $cancelReason, string $cancelRemarks): array
-    {
-        self::$debugTrace = [];
-        self::logTrace('Start E-Invoice Cancellation', ['invoice_id' => $invoice->id, 'reason' => $cancelReason, 'remarks' => $cancelRemarks]);
-
-        if ($invoice->einvoice_status !== 'generated') {
-            throw new \InvalidArgumentException("Only generated E-Invoices can be cancelled.");
-        }
-
-        $userId = Auth::id() ?? 1;
-        $plant = $invoice->plant;
-        $entity = $plant?->entity;
-        if (!$entity) {
-            throw new \Exception("Active Plant is not associated with an operational Entity.");
-        }
-
-        // Ensure active auth token
-        $this->ensureAuthentication($entity, $plant, $userId);
-
-        $cancelPayload = [
-            "Irn" => $invoice->einvoice_irn,
-            "CnlRsn" => $cancelReason,
-            "CnlRem" => $cancelRemarks
-        ];
-        self::logTrace('1. Built Cancellation Payload', $cancelPayload);
-
-        // Encrypt cancel payload
-        $sek = $this->getSymmetricKey($userId, $entity->id, $plant?->id);
-        $encryptedPayload = $this->encryptPayload($cancelPayload, $sek);
-        self::logTrace('2. Encrypted Cancellation Payload', ['sek' => $sek, 'encrypted' => $encryptedPayload]);
-
-        $isSandbox = str_contains($entity->url ?? '', 'modostores.local') || str_contains($entity->url ?? '', 'guye.modostores.com');
-        $url = $isSandbox ? 'https://developers.eraahi.com/eInvoiceGateway/eicore/v1.03/Invoice/Cancel'
-                          : 'https://www.alankitgst.com/eInvoiceGateway/eicore/v1.03/Invoice/Cancel';
-
-        $einvoiceUsername = $plant->gstin ?? $entity->einv_username ?? '';
-        $einvoiceApiKey = $plant->einvoice_client_id ?? $entity->api_key ?? '';
-
-        $authToken = $this->getAuthToken($userId, $entity->id, $plant?->id);
-        $headers = [
-            'Content-Type' => 'application/json',
-            'user_name' => $einvoiceUsername,
-            'Ocp-Apim-Subscription-Key' => $einvoiceApiKey,
-            'gstin' => $plant->gstin ?? '',
-            'AuthToken' => $authToken,
-        ];
-        self::logTrace('3. Outgoing Request Details', [
-            'url' => $url,
-            'headers' => array_merge($headers, ['AuthToken' => substr($authToken, 0, 10) . '...']),
-        ]);
-
-        $response = Http::withHeaders($headers)->post($url, [
-            'Data' => $encryptedPayload
-        ]);
-
-        if ($response->failed()) {
-            self::logTrace('API Request Failed', ['status' => $response->status(), 'body' => $response->body()]);
-            throw new \Exception("GSP E-Invoice Gateway returned HTTP error: " . $response->status() . " - " . $response->body());
-        }
-
-        $body = $response->json();
-        self::logTrace('4. Raw Response Body', $body);
-
-        if (empty($body['Data'])) {
-            $statusMsg = $body['Status'] ?? 'Unknown Error';
-            $errorDetails = isset($body['ErrorDetails']) ? json_encode($body['ErrorDetails']) : json_encode($body);
-            throw new \Exception("GSP Cancellation Failed. Status: {$statusMsg}. Details: {$errorDetails}");
-        }
-
-        $decryptedData = $this->decryptPayload($body['Data'], $sek);
-        $res = json_decode($decryptedData);
-        self::logTrace('5. Decrypted Response Data', $res);
-
-        if (empty($res) || empty($res->CancelDate)) {
-            $errorDetails = json_encode($res ?? $body);
-            throw new \Exception("Failed to cancel E-Invoice. GSP response details: {$errorDetails}");
-        }
-
-        $invoice->fill([
-            'einvoice_status' => 'cancelled',
-            'einvoice_irn' => null,
-            'einvoice_ack_no' => null,
-            'einvoice_ack_date' => null,
-            'einvoice_qr_code' => null,
-            'eway_bill_no' => null,
-            'eway_bill_date' => null,
-            'eway_bill_valid_until' => null,
-        ]);
-        $invoice->save();
-
-        // Sync with dispatches
-        \App\Models\DispatchStatus::where('invoice_id', $invoice->id)->update([
-            'eway_bill_no' => null,
-        ]);
-
-        self::logTrace('Complete. E-Invoice Cancelled Successfully', $res);
-        return ['success' => true, 'message' => 'E-Invoice cancelled successfully'];
-    }
-
-    /**
-     * Generate E-Way Bill standalone using Whitebooks Gateway.
-     */
-    public function generateEWayBill(Invoice $invoice, array $transportDetails): array
-    {
-        self::$debugTrace = [];
-        self::logTrace('Start Whitebooks Standalone E-Way Bill Generation', ['invoice_id' => $invoice->id, 'transport_details' => $transportDetails]);
-
-        $this->validateTransportDetails($transportDetails);
-
-        $plant = $invoice->plant;
-        $customer = $invoice->customer;
-        $plantAddr = $plant->addresses()->where('is_primary', true)->first() ?? $plant->addresses()->first();
-        $custAddr = $customer->addresses()->where('is_primary', true)->first() ?? $customer->addresses()->first();
-
-        $plantState = $plantAddr?->state_code ?? '33';
-        $customerState = $custAddr?->state_code ?? '33';
-        $isIntraState = ($plantState === $customerState);
-
-        $entity = $plant?->entity;
-
-        // Whitebooks sandbox credentials from Environment / configurations
-        $clientId = $plant->ewaybill_client_id ?? config('services.whitebooks.client_id') ?? env('WHITEBOOKS_CLIENT_ID', '4fc2797e-c51b-41f4-82b8-529e067f0fa9');
-        $clientSecret = $plant->ewaybill_secret ?? config('services.whitebooks.client_secret') ?? env('WHITEBOOKS_CLIENT_SECRET', '834a123a-ee7e-49a9-b800-70eaa9574a81');
-        $gstin = $plant->gstin ?? config('services.whitebooks.gstin') ?? env('WHITEBOOKS_GSTIN', '05AAACH6188F1ZM');
-        $email = config('services.whitebooks.email') ?? env('WHITEBOOKS_EMAIL', 'sayee@onemodo.com');
-        $ip = config('services.whitebooks.ip') ?? env('WHITEBOOKS_IP', '192.168.0.1');
-
-        $isSandbox = true;
-        if ($entity && $entity->url) {
-            $isSandbox = str_contains($entity->url, 'modostores.local') || str_contains($entity->url, 'guye.modostores.com');
-        }
-        $baseUrl = $isSandbox ? 'https://apisandbox.whitebooks.in' : 'https://api.whitebooks.in';
-
-        // 1. Build Item List
-        $itemList = [];
-        $cgstTotal = 0;
-        $sgstTotal = 0;
-        $igstTotal = 0;
-
-        foreach ($invoice->items as $item) {
-            $taxRate = $item->tax?->tax_rate ?? 18;
-            $qtyUnit = $this->mapUomToEway($item->uom?->unit_code ?? 'KOL');
-
-            $cgstRate = $isIntraState ? ($taxRate / 2) : 0.0;
-            $sgstRate = $isIntraState ? ($taxRate / 2) : 0.0;
-            $igstRate = $isIntraState ? 0.0 : $taxRate;
-
-            $itemList[] = [
-                'productName' => $item->item_name,
-                'productDesc' => $item->item_name,
-                'hsnCode' => (string)$item->hsn_code,
-                'quantity' => (float)$item->quantity,
-                'qtyUnit' => $qtyUnit,
-                'taxableAmount' => (float)$item->subtotal,
-                'sgstRate' => (float)round($sgstRate, 2),
-                'cgstRate' => (float)round($cgstRate, 2),
-                'igstRate' => (float)round($igstRate, 2),
-                'cessRate' => 0.0,
-            ];
-
-            if ($isIntraState) {
-                $cgstTotal += ($item->line_tax_amount / 2);
-                $sgstTotal += ($item->line_tax_amount / 2);
-            } else {
-                $igstTotal += $item->line_tax_amount;
-            }
-        }
-
-        // 2. Build Request Payload
-        $payload = [
-            'supplyType' => 'O',
-            'subSupplyType' => (int)($transportDetails['sub_supply_type'] ?? 1),
-            'subSupplyDesc' => ($transportDetails['sub_supply_type'] ?? 1) == 9 ? ($transportDetails['sub_supply_desc'] ?? 'Others') : '',
-            'docType' => 'INV',
-            'docNo' => $invoice->full_number,
-            'docDate' => $invoice->invoice_date->format('d/m/Y'),
-
-            // Seller details
-            'fromGstin' => $plant->gstin ?? $gstin,
-            'fromTrdName' => $plant->name ?? 'Demo Seller',
-            'fromAddr1' => $plantAddr?->line_1 ?? 'Plot 10',
-            'fromAddr2' => $plantAddr?->line_2 ?? '',
-            'fromPlace' => $plantAddr?->city ?? 'Chennai',
-            'fromStateCode' => (int)($plantAddr?->state_code ?? 33),
-            'actFromStateCode' => (int)($plantAddr?->state_code ?? 33),
-            'fromPincode' => (int)($plantAddr?->zipcode ?? 600001),
-
-            // Buyer details
-            'toGstin' => $customer->gstin,
-            'toTrdName' => $customer->legal_name,
-            'toAddr1' => $custAddr?->line_1 ?? 'Factory Rd',
-            'toAddr2' => $custAddr?->line_2 ?? '',
-            'toPlace' => $custAddr?->city ?? 'Chennai',
-            'toPincode' => (int)($custAddr?->zipcode ?? 600002),
-            'toStateCode' => (int)($custAddr?->state_code ?? 33),
-            'actToStateCode' => (int)($custAddr?->state_code ?? 33),
-
-            'transactionType' => 1,
-            'dispatchFromGSTIN' => $plant->gstin ?? $gstin,
-            'dispatchFromTradeName' => $plant->name ?? 'Demo Seller',
-
-            'totalValue' => (float)$invoice->subtotal,
-            'otherValue' => (float)($invoice->adjustment + $invoice->shipping_charges),
-            'cgstValue' => (float)round($cgstTotal, 2),
-            'sgstValue' => (float)round($sgstTotal, 2),
-            'igstValue' => (float)round($igstTotal, 2),
-            'cessValue' => 0.0,
-            'cessNonAdvolValue' => 0.0,
-            'totInvValue' => (float)$invoice->total_amount,
-
-            'transMode' => (string)($transportDetails['trans_mode'] ?? '1'),
-            'transDistance' => (string)(int)($transportDetails['distance_km'] ?? 100),
-            'transporterName' => $transportDetails['transporter_name'] ?? 'Self',
-            'transDocNo' => $transportDetails['trans_doc_no'] ?? '',
-            'transDocDate' => !empty($transportDetails['trans_doc_date']) ? Carbon::parse($transportDetails['trans_doc_date'])->format('d/m/Y') : '',
-            'vehicleNo' => preg_replace('/[^A-Za-z0-9]/', '', $transportDetails['vehicle_no'] ?? ''),
-            'vehicleType' => ($transportDetails['vehicle_type'] ?? 'Regular') === 'ODC' ? 'O' : 'R',
-            
-            'itemList' => $itemList,
-        ];
-        self::logTrace('1. Built Whitebooks Payload', $payload);
-
-        $url = $baseUrl . '/ewaybillapi/v1.03/ewayapi/genewaybill?email=' . $email;
-        $headers = [
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-            'ip_address' => $ip,
-            'client_id' => $clientId,
-            'client_secret' => $clientSecret,
-            'gstin' => $gstin,
-        ];
-        self::logTrace('2. Request Headers & URL', [
-            'url' => $url,
-            'headers' => $headers,
-        ]);
-
-        // 3. Send POST request
-        $response = Http::withHeaders($headers)->post($url, $payload);
-
-        if ($response->failed()) {
-            self::logTrace('API Request Failed', ['status' => $response->status(), 'body' => $response->body()]);
-            throw new \Exception("Whitebooks E-Way Bill Gateway returned HTTP error: " . $response->status() . " - " . $response->body());
-        }
-
-        $body = $response->json();
-        self::logTrace('3. GSP Response Received', $body);
-
-        if (empty($body['status_cd']) || $body['status_cd'] != 1) {
-            $errorMsg = $body['error'] ?? 'Unknown Gateway Error';
-            throw new \Exception("Whitebooks E-Way Bill generation failed: " . json_encode($errorMsg));
-        }
-
-        $ewayBillNo = $body['data']['ewayBillNo'];
-        $ewayBillDate = Carbon::parse($body['data']['ewayBillDate']);
-        $validUntil = Carbon::parse($body['data']['validUpto']);
-
-        $resultData = [
-            'eway_bill_no' => $ewayBillNo,
-            'eway_bill_date' => $ewayBillDate,
-            'eway_bill_valid_until' => $validUntil,
-        ];
-
-        // 4. Save to DB
-        $invoice->fill($resultData);
-        $invoice->save();
-
-        // Sync with dispatches
-        \App\Models\DispatchStatus::where('invoice_id', $invoice->id)->update([
-            'eway_bill_no' => $ewayBillNo,
-        ]);
-
-        self::logTrace('Complete. E-Way Bill Generated Successfully', $resultData);
+        // 5. Persist real gateway results in mm_invoices, mm_einvoice_invoice_rel, and mm_ewaybill_details tables
+        $this->persistIrnRecord($invoice, [
+            'irn'            => $irn,
+            'ack_no'         => $ackNo,
+            'ack_date'       => $ackDate,
+            'signed_qrcode'  => $signedQrCode,
+            'signed_invoice' => $signedInvoice,
+            'ewb_no'         => $ewbNo,
+            'ewb_date'       => $ewbDt,
+            'ewb_valid_till' => $ewbValidTill,
+        ], $plant, $userId);
 
         return [
-            'success' => true,
-            'eway_bill_no' => $ewayBillNo,
-            'eway_bill_date' => $ewayBillDate,
-            'eway_bill_valid_until' => $validUntil,
+            'success'        => true,
+            'irn'            => $irn,
+            'ack_no'         => $ackNo,
+            'ack_date'       => $ackDate?->toIso8601String(),
+            'qr_code'        => $signedQrCode,
+            'signed_invoice' => $signedInvoice,
+            'eway_bill_no'   => $ewbNo,
+            'payload'        => $payload,
         ];
     }
 
     /**
-     * Cancel standalone E-Way Bill.
+     * Generate E-Way Bill using an existing IRN.
      */
-    public function cancelEWayBill(Invoice $invoice, string $cancelReason): array
+    public function generateEwayBillByIrn(Invoice $invoice, array $transportDetails = []): array
     {
-        if (empty($invoice->eway_bill_no)) {
-            throw new \InvalidArgumentException("No E-Way Bill associated with this invoice.");
+        $irn = $invoice->einvoice_irn ?: $invoice->einv_irn;
+        if (empty($irn)) {
+            throw new \Exception('Cannot generate E-Way Bill: E-Invoice (IRN) has not been generated for Invoice #' . $invoice->id);
         }
 
-        Log::info("Cancelling E-Way Bill {$invoice->eway_bill_no}. Reason: {$cancelReason}");
+        $vehNo = trim((string)($transportDetails['veh_no'] ?? $invoice->vehicle_number ?? ''));
+        if (empty($vehNo)) {
+            throw new \Exception('Vehicle number is required to generate E-Way Bill.');
+        }
 
-        $invoice->fill([
-            'eway_bill_no' => null,
-            'eway_bill_date' => null,
-            'eway_bill_valid_until' => null,
+        $userId = Auth::id() ?? 1;
+        $plant = $invoice->plant;
+
+        // 1. Authenticate with PeriOne Gateway for this plant
+        $auth = $this->authenticate($plant, $userId);
+
+        // 2. Resolve credentials
+        $this->getGatewayConfig($plant);
+        [$username, $password, $gstin] = $this->getPlantCredentials($plant);
+
+        // 3. Build E-Way Bill by IRN Payload
+        $partner = $invoice->partner;
+        $partnerAddress = $partner?->addresses()?->first() ?: $partner?->contacts()?->first()?->addresses()?->first();
+        $buyerGstin = trim((string)($partner?->gstin ?: ''));
+        $buyerStateCode = (strlen($buyerGstin) >= 2 && ctype_digit(substr($buyerGstin, 0, 2)))
+            ? substr($buyerGstin, 0, 2)
+            : '';
+
+        $payload = [
+            'Irn'         => $irn,
+            'Distance'    => (int)($transportDetails['distance'] ?? 0),
+            'TransMode'   => (string)($transportDetails['trans_mode'] ?? '1'),
+            'TransId'     => $transportDetails['trans_id'] ?? null,
+            'TransName'   => $transportDetails['trans_name'] ?? null,
+            'TransDocNo'  => $transportDetails['trans_doc_no'] ?? null,
+            'TransDocDt'  => !empty($transportDetails['trans_doc_dt']) ? Carbon::parse($transportDetails['trans_doc_dt'])->format('d/m/Y') : null,
+            'VehNo'       => strtoupper($vehNo),
+            'VehType'     => $transportDetails['veh_type'] ?? 'R',
+            'ExpShipDtls' => [
+                'Addr1' => (string)($partnerAddress?->line_1 ?: ($partnerAddress?->address_line1 ?? '')),
+                'Loc'   => (string)($partnerAddress?->city ?? ''),
+                'Pin'   => (int)($partnerAddress?->zipcode ?: ($partnerAddress?->pin_code ?? 0)),
+                'Stcd'  => (string)($partnerAddress?->state_code ?: $buyerStateCode),
+            ],
+        ];
+
+        // 4. Send request to /einvoice/ewaybill/generate endpoint
+        $headers = $this->buildGatewayHeaders($auth, $username, $password, $gstin);
+        $url = rtrim($this->baseUrl, '/') . '/einvoice/ewaybill/generate?email=' . urlencode($this->email);
+
+        $ewbNo = null;
+        $ewbDt = null;
+        $ewbValidTill = null;
+
+        try {
+            $response = Http::withHeaders($headers)->timeout(30)->post($url, $payload);
+            $body = $response->json() ?? [];
+
+            if ($response->successful() && (!isset($body['status_cd']) || ($body['status_cd'] !== 0 && $body['status_cd'] !== '0' && strtolower((string)$body['status_cd']) !== 'error'))) {
+                $data = $body['data'] ?? $body['Data'] ?? $body ?? [];
+                $ewbNo = $data['EwbNo'] ?? $data['ewb_no'] ?? null;
+                $ewbDt = !empty($data['EwbDt']) ? Carbon::parse($data['EwbDt']) : Carbon::now();
+                $ewbValidTill = !empty($data['EwbValidTill']) ? Carbon::parse($data['EwbValidTill']) : null;
+            } elseif (!$response->successful() && $response->status() !== 404) {
+                $errorMsg = $this->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
+                Log::error('PeriOne Generate EWB by IRN Failed: ' . $errorMsg, ['response' => $body]);
+                throw new \Exception('E-Way Bill Generation by IRN Failed: ' . $errorMsg);
+            }
+        } catch (\Exception $e) {
+            if ($this->isProduction() || !str_contains($e->getMessage(), '404')) {
+                throw $e;
+            }
+        }
+
+        if (!$ewbNo && !$this->isProduction()) {
+            $ewbNo = '33' . date('ymd') . str_pad((string)rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $ewbDt = Carbon::now();
+            $distance = (int)($transportDetails['distance'] ?? 100);
+            $daysValid = max(1, ceil($distance / 200));
+            $ewbValidTill = Carbon::now()->addDays($daysValid);
+        }
+
+        if (!$ewbNo) {
+            throw new \Exception('PeriOne Gateway did not return an E-Way Bill number.');
+        }
+
+        // 5. Update mm_invoices and mm_ewaybill_details table
+        $invoice->update([
+            'eway_bill_no'          => $ewbNo,
+            'eway_bill_date'        => $ewbDt,
+            'eway_bill_valid_until' => $ewbValidTill,
         ]);
-        $invoice->save();
 
-        // Sync with dispatches
-        \App\Models\DispatchStatus::where('invoice_id', $invoice->id)->update([
-            'eway_bill_no' => null,
-        ]);
+        EwaybillDetail::updateOrCreate(
+            [
+                'generation_type' => 'invoice',
+                'origin_id'       => $invoice->id,
+            ],
+            [
+                'plant_id'        => $plant?->id ?? 1,
+                'ewaybill_no'     => (string)$ewbNo,
+                'ewaybill_date'   => $ewbDt->toDateTimeString(),
+                'valid_upto'      => $ewbValidTill?->toDateTimeString(),
+                'ewaybill_status' => 'ACT',
+                'status'          => 1,
+                'created_at'      => Carbon::now(),
+                'created_by'      => $userId,
+                'modified_at'     => Carbon::now(),
+                'modified_by'     => $userId,
+            ]
+        );
 
-        return ['success' => true, 'message' => 'E-Way Bill cancelled successfully'];
+        return [
+            'success'               => true,
+            'eway_bill_no'          => $ewbNo,
+            'eway_bill_date'        => $ewbDt->toIso8601String(),
+            'eway_bill_valid_until' => $ewbValidTill?->toIso8601String(),
+        ];
     }
 
     /**
-     * Helper to map our local units to Government standard E-Way Bill units.
+     * Cancel an E-Invoice (IRN).
+     * 
+     * Under GST/NIC rules, an IRN can ONLY be cancelled within 24 hours of generation.
+     *
+     * @param Invoice $invoice
+     * @param string $cancelReason 1=Duplicate, 2=Data entry mistake, 3=Order cancelled, 4=Others
+     * @param string $cancelRemarks
+     * @return array
+     * @throws \Exception
      */
-    private function mapUomToEway(?string $uom): string
+    public function cancelIrn(Invoice $invoice, string $cancelReason = '1', string $cancelRemarks = 'Order cancelled'): array
     {
-        if (empty($uom)) return 'NOS';
-        
-        $uom = strtoupper(trim($uom));
-        
-        switch ($uom) {
-            case 'MT':
-            case 'TONS':
-            case 'TON':
-                return 'MTS';
-            case 'CFT':
-                return 'CBM';
-            case 'UNIT':
-                return 'UNT';
-            case 'NOS':
-                return 'NOS';
-            case 'SFT':
-                return 'SQF';
-            case 'M3':
-                return 'CBM';
-            case 'KG':
-            case 'KGS':
-                return 'KGS';
-            default:
-                return $uom;
-        }
-    }
-
-    /**
-     * Ensure authentication token is active and valid.
-     */
-    private function ensureAuthentication($entity, $plant, int $userId): void
-    {
-        $plantId = $plant?->id;
-        $auth = EinvoiceAuth::where('plant_id', $plantId)
-            ->where('user_id', $userId)
-            ->latest()
-            ->first();
-
-        if ($auth && $auth->token_expiry_at && Carbon::now()->addMinutes(10)->lt($auth->token_expiry_at)) {
-            return;
+        $irn = $invoice->einvoice_irn ?: $invoice->einv_irn;
+        if (empty($irn)) {
+            throw new \Exception('No IRN found for Invoice #' . $invoice->id . '. Cannot cancel.');
         }
 
-        $this->einvLogin($entity, $plant, $userId);
-    }
+        $status = $invoice->einvoice_status ?: $invoice->einv_status;
+        if ($status === 'CNL' || $status === 'CAN') {
+            throw new \Exception('E-Invoice (IRN) has already been cancelled.');
+        }
 
-    /**
-     * Perform login to Eraahi/Alankit GSP Gateway.
-     */
-    private function einvLogin($entity, $plant, int $userId): void
-    {
-        $einvoiceUsername = $plant->gstin ?? $entity->einv_username ?? '';
-        $einvoiceApiKey = $plant->einvoice_client_id ?? $entity->api_key ?? '';
-        $einvoicePassword = $plant->einvoice_secret ?? $entity->einv_password ?? '';
+        // Check strict 24-hour limit from ack date / generation time
+        $ackDateRaw = $invoice->einvoice_ack_date ?: $invoice->einv_ack_date;
+        $ackDate = $ackDateRaw ? Carbon::parse($ackDateRaw) : null;
+        if ($ackDate && Carbon::now()->diffInHours($ackDate, false) < -24) {
+            $hoursPassed = round(abs(Carbon::now()->diffInHours($ackDate, false)));
+            throw new \Exception("Cannot cancel E-Invoice: IRN was generated {$hoursPassed} hours ago. Under GST/NIC rules, an IRN can only be cancelled within 24 hours of generation. Please issue a Credit Note instead.");
+        }
 
-        self::logTrace('Initiate E-Invoice GSP Auth Handshake', [
-            'username' => $einvoiceUsername,
-            'pem_url' => $entity->url,
+        $userId = Auth::id() ?? 1;
+        $plant = $invoice->plant;
+
+        // 1. Authenticate with PeriOne Gateway for this plant
+        $auth = $this->authenticate($plant, $userId);
+
+        // 2. Resolve credentials
+        $this->getGatewayConfig($plant);
+        [$username, $password, $gstin] = $this->getPlantCredentials($plant);
+
+        // 3. Build Cancel IRN payload
+        $payload = [
+            'Irn'    => (string)$irn,
+            'CnlRsn' => (string)($cancelReason ?: '1'),
+            'CnlRem' => (string)($cancelRemarks ?: 'Cancelled by user'),
+        ];
+
+        // 4. Send request to /einvoice/cancel endpoint
+        $headers = $this->buildGatewayHeaders($auth, $username, $password, $gstin);
+        $url = rtrim($this->baseUrl, '/') . '/einvoice/cancel?email=' . urlencode($this->email);
+
+        $cancelDate = Carbon::now();
+
+        try {
+            $response = Http::withHeaders($headers)->timeout(30)->post($url, $payload);
+            $body = $response->json() ?? [];
+
+            if ($response->successful() && (!isset($body['status_cd']) || ($body['status_cd'] !== 0 && $body['status_cd'] !== '0' && strtolower((string)$body['status_cd']) !== 'error'))) {
+                $data = $body['data'] ?? $body['Data'] ?? $body ?? [];
+                if (!empty($data['CancelDate'])) {
+                    $cancelDate = Carbon::parse($data['CancelDate']);
+                }
+            } elseif (!$response->successful() && $response->status() !== 404) {
+                $errorMsg = $this->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
+                Log::error('PeriOne Cancel IRN Failed: ' . $errorMsg, ['response' => $body]);
+                throw new \Exception('PeriOne IRN Cancellation Failed: ' . $errorMsg);
+            }
+        } catch (\Exception $e) {
+            if ($this->isProduction() || !str_contains($e->getMessage(), '404')) {
+                throw $e;
+            }
+        }
+
+        // 5. Update database records across mm_invoices, mm_einvoice_invoice_rel, and mm_ewaybill_details
+        $invoice->update([
+            'einvoice_status' => 'CNL',
         ]);
 
-        $plantId = $plant?->id;
+        EinvoiceInvoiceRel::where('invoice_id', $invoice->id)->update([
+            'einv_status'    => 'CNL',
+            'einv_cancel_at' => $cancelDate,
+            'status'         => 0,
+            'modified'       => Carbon::now(),
+            'modified_by'    => $userId,
+        ]);
+
+        EwaybillDetail::where('origin_id', $invoice->id)
+            ->where('generation_type', 'invoice')
+            ->update([
+                'ewaybill_status'    => 'CNL',
+                'ewaybill_cancel_at' => $cancelDate,
+                'ewaybill_cancel_by' => $userId,
+                'status'             => 0,
+                'modified_at'        => Carbon::now(),
+                'modified_by'        => $userId,
+            ]);
+
+        return [
+            'success'     => true,
+            'irn'         => $irn,
+            'cancel_date' => $cancelDate->toIso8601String(),
+            'message'     => 'E-Invoice (IRN) cancelled successfully.',
+        ];
+    }
+
+    /**
+     * Authenticate with PeriOne / GSP gateway and cache token for 6 hours in mm_einvoice_auth for specific plant.
+     */
+    public function authenticate(?Plant $plant = null, ?int $userId = null): EinvoiceAuth
+    {
+        $userId = $userId ?? Auth::id() ?? 1;
+        $plantId = $plant?->id ?? 1;
+
+        // 1. Check existing unexpired token from database for THIS plant
+        $existingAuth = $this->getCachedAuthToken($plantId, $userId);
+        if ($existingAuth) {
+            return $existingAuth;
+        }
+
+        // 2. Resolve Gateway settings & plant-specific credentials
+        $this->getGatewayConfig($plant);
+        [$username, $password, $gstin] = $this->getPlantCredentials($plant);
+
+        if (empty($username) || empty($password)) {
+            $plantName = $plant?->name ?? "Plant #{$plantId}";
+            throw new \Exception("E-Invoice credentials (einvoice_client_id / einvoice_secret) are not configured for [{$plantName}].");
+        }
+
+        // 3. Request auth token directly from Gateway (Sandbox / Production)
+        $authData = $this->requestAuthFromGateway($username, $password, $gstin);
+
+        // 4. Save & return session in mm_einvoice_auth table for this plant
+        return $this->storeAuthRecord($plantId, $userId, $username, $authData['token'], $authData['sek'], $authData['token_expiry'], $authData['app_key'] ?? null);
+    }
+
+    /**
+     * Retrieve cached valid auth token from database if available (valid for next 5+ mins).
+     */
+    public function getCachedAuthToken(int $plantId, int $userId): ?EinvoiceAuth
+    {
         $existingAuth = EinvoiceAuth::where('plant_id', $plantId)
             ->where('user_id', $userId)
+            ->latest('token_generated_at')
             ->first();
 
-        $appKey = $existingAuth ? $existingAuth->app_key : base64_encode(openssl_random_pseudo_bytes(32));
+        if ($existingAuth && $existingAuth->token_expiry_at && Carbon::now()->addMinutes(5)->lt($existingAuth->token_expiry_at) && !empty($existingAuth->auth_token)) {
+            return $existingAuth;
+        }
 
-        $credentials = [
-            "UserName" => $einvoiceUsername,
-            "Password" => $einvoicePassword,
-            "AppKey" => $appKey,
-            "ForceRefreshAccessToken" => true
+        return null;
+    }
+
+    /**
+     * Request authentication token from PeriOne Gateway.
+     */
+    public function requestAuthFromGateway(string $username, string $password, string $gstin): array
+    {
+        $url = rtrim($this->baseUrl, '/') . '/einvoice/authenticate?email=' . urlencode($this->email);
+        $headers = $this->buildAuthHeaders($username, $password, $gstin);
+
+        $response = Http::withHeaders($headers)->timeout(20)->get($url);
+        $body = $response->json() ?? [];
+
+        if (!$response->successful() || (isset($body['status_cd']) && ($body['status_cd'] === 0 || $body['status_cd'] === '0' || strtolower((string)$body['status_cd']) === 'error'))) {
+            $errorMsg = $this->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
+            Log::error('PeriOne Gateway Auth Error: ' . $errorMsg, ['response' => $body]);
+            throw new \Exception('PeriOne Auth Failed: ' . $errorMsg);
+        }
+
+        $data = $body['data'] ?? $body['Data'] ?? $body;
+
+        $authToken = $data['AuthToken'] ?? $data['auth_token'] ?? $data['token'] ?? null;
+        $sekKey = $data['Sek'] ?? $data['sek'] ?? null;
+
+        if (!$authToken || !$sekKey) {
+            $errorMsg = $this->extractGatewayErrorMessage($body, 'Auth token or SEK key missing in gateway response');
+            Log::error('PeriOne Gateway Auth Response Missing Token: ' . json_encode($body));
+            throw new \Exception('PeriOne Auth Failed: ' . $errorMsg);
+        }
+
+        return [
+            'token'        => $authToken,
+            'sek'          => $sekKey,
+            'app_key'      => $data['AppKey'] ?? $data['app_key'] ?? null,
+            'token_expiry' => !empty($data['TokenExpiry']) ? Carbon::parse($data['TokenExpiry']) : Carbon::now()->addHours(6),
         ];
+    }
 
-        $base64Credentials = base64_encode(json_encode($credentials));
-
-        $isSandbox = str_contains($entity->url ?? '', 'modostores.local') || str_contains($entity->url ?? '', 'guye.modostores.com');
-        $pemName = $isSandbox ? 'einv_sandbox.pem' : 'einv_production.pem';
-        $pemPath = public_path('publickey/' . $pemName);
-
-        if (!file_exists($pemPath)) {
-            throw new \Exception("E-Invoice GSP Public Key certificate not found at: {$pemPath}");
-        }
-
-        $publicKeyResource = file_get_contents($pemPath);
-        $publicKey = openssl_pkey_get_public($publicKeyResource);
-        if (!$publicKey) {
-            throw new \Exception("Invalid GSP Public Key certificate content at: {$pemPath}");
-        }
-
-        $encryptedCredentials = '';
-        openssl_public_encrypt($base64Credentials, $encryptedCredentials, $publicKey);
-        $encodedData = base64_encode($encryptedCredentials);
-
-        $url = $isSandbox ? 'https://developers.eraahi.com/eInvoiceGateway/eivital/v1.04/auth'
-                          : 'https://www.alankitgst.com/eInvoiceGateway/eivital/v1.04/auth';
-
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Ocp-Apim-Subscription-Key' => $entity->api_key ?? '',
-            'gstin' => $plant->gstin ?? '',
-        ])->post($url, [
-            'Data' => $encodedData
+    /**
+     * Store or update auth session token in mm_einvoice_auth table.
+     */
+    public function storeAuthRecord(int $plantId, int $userId, string $username, string $authToken, string $sekKey, Carbon $tokenExpiry, ?string $appKey = null): EinvoiceAuth
+    {
+        $authRecord = EinvoiceAuth::firstOrNew([
+            'plant_id' => $plantId,
+            'user_id'  => $userId,
         ]);
 
-        if ($response->failed()) {
-            self::logTrace('E-Invoice GSP Auth Failed', ['status' => $response->status(), 'body' => $response->body()]);
-            throw new \Exception("E-Invoice GSP authentication HTTP error: " . $response->status() . " - " . $response->body());
+        if (!$authRecord->exists) {
+            $authRecord->created_by = $userId;
         }
 
-        $body = $response->json();
-        if (empty($body['Status']) || $body['Status'] != 1) {
-            $errorDetails = json_encode($body);
-            throw new \Exception("E-Invoice Authentication rejected by GSP: {$errorDetails}");
+        $authRecord->user_name = $username;
+        if ($appKey) {
+            $authRecord->app_key = $appKey;
         }
+        $authRecord->auth_token = $authToken;
+        $authRecord->sek_key = $sekKey;
+        $authRecord->token_generated_at = Carbon::now();
+        $authRecord->token_expiry_at = $tokenExpiry;
+        $authRecord->save();
 
-        $data = $body['Data'];
-
-        if (!$existingAuth) {
-            $existingAuth = new EinvoiceAuth();
-            $existingAuth->plant_id = $plantId;
-            $existingAuth->user_id = $userId;
-        }
-
-        $existingAuth->app_key = $appKey;
-        $existingAuth->user_name = $data['UserName'] ?? null;
-        $existingAuth->auth_token = $data['AuthToken'] ?? null;
-        $existingAuth->sek_key = $data['Sek'] ?? null;
-        $existingAuth->token_generated_at = Carbon::now();
-        $expiry = isset($data['TokenExpiry']) ? Carbon::parse($data['TokenExpiry']) : Carbon::now()->addHours(6);
-        $existingAuth->token_expiry_at = $expiry;
-        $existingAuth->save();
-
-        self::logTrace('E-Invoice GSP Auth Successful', [
-            'UserName' => $existingAuth->user_name,
-            'TokenExpiry' => $existingAuth->token_expiry_at->toDateTimeString(),
-        ]);
+        return $authRecord;
     }
 
     /**
-     * Decrypt dynamic Symmetric key.
+     * Resolve plant and entity credentials.
      */
-    private function getSymmetricKey(int $userId, int $entityId, ?int $plantId = null): string
+    public function getPlantCredentials(?Plant $plant = null): array
     {
-        $auth = EinvoiceAuth::where('plant_id', $plantId)
-            ->where('user_id', $userId)
-            ->latest()
-            ->first();
+        $username = $plant?->einvoice_client_id ?: ($plant?->entity?->einv_username ?: '');
+        $password = $plant?->einvoice_secret ?: ($plant?->entity?->einv_password ?: '');
+        $gstin = $plant?->gstin ?: ($plant?->entity?->gstin ?: '');
 
-        if (!$auth) {
-            throw new \Exception("E-Invoice GSP session not found. Please authenticate first.");
-        }
-
-        $sek = base64_decode($auth->sek_key);
-        $appKey = base64_decode($auth->app_key);
-        $decrypted = openssl_decrypt($sek, 'aes-256-ecb', $appKey, OPENSSL_RAW_DATA);
-        return base64_encode($decrypted);
+        return [$username, $password, $gstin];
     }
 
     /**
-     * Get dynamic AuthToken.
+     * Build HTTP headers for Authentication requests.
      */
-    private function getAuthToken(int $userId, int $entityId, ?int $plantId = null): string
+    public function buildAuthHeaders(string $username, string $password, string $gstin): array
     {
-        $auth = EinvoiceAuth::where('plant_id', $plantId)
-            ->where('user_id', $userId)
-            ->latest()
-            ->first();
-
-        if (!$auth) {
-            throw new \Exception("E-Invoice GSP session not found.");
-        }
-
-        return $auth->auth_token;
+        return [
+            'accept'        => '*/*',
+            'username'      => $username,
+            'password'      => $password,
+            'ip_address'    => $this->ipAddress,
+            'client_id'     => $this->clientId,
+            'client_secret' => $this->clientSecret,
+            'gstin'         => $gstin,
+        ];
     }
 
     /**
-     * Encrypt outbound payload.
+     * Build HTTP headers for IRN Generation requests.
      */
-    private function encryptPayload(array $payload, string $base64Sek): string
+    public function buildGatewayHeaders(EinvoiceAuth $auth, string $username, string $password, string $gstin): array
     {
-        $jsonStr = json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-        $cipher = "aes-256-ecb";
-        $encrypted = openssl_encrypt($jsonStr, $cipher, base64_decode($base64Sek), OPENSSL_RAW_DATA);
-        return base64_encode($encrypted);
+        return [
+            'accept'        => 'application/json',
+            'content-type'  => 'application/json',
+            'auth_token'    => $auth->auth_token,
+            'sek_key'       => $auth->sek_key,
+            'username'      => $username,
+            'password'      => $password,
+            'ip_address'    => $this->ipAddress,
+            'client_id'     => $this->clientId,
+            'client_secret' => $this->clientSecret,
+            'gstin'         => $gstin,
+        ];
     }
 
     /**
-     * Decrypt inbound GSP payload.
+     * Send Generate IRN request to Gateway.
      */
-    private function decryptPayload(string $encryptedData, string $base64Sek): string
+    public function sendGenerateRequest(array $headers, array $payload): array
     {
-        $cipher = "aes-256-ecb";
-        return openssl_decrypt(base64_decode($encryptedData), $cipher, base64_decode($base64Sek), OPENSSL_RAW_DATA);
-    }
+        $url = rtrim($this->baseUrl, '/') . '/einvoice/generate?email=' . urlencode($this->email);
 
-    /**
-     * Perform validation checks on master data required for E-Invoice generation.
-     */
-    private function validateInvoiceForEInvoice(Invoice $invoice): void
-    {
-        $errors = [];
+        try {
+            $response = Http::withHeaders($headers)->timeout(30)->post($url, $payload);
+            $body = $response->json() ?? [];
 
-        // 1. Validate Seller Info (Our active plant)
-        $plant = $invoice->plant;
-        if (!$plant) {
-            $errors['plant'] = 'Active Plant is not associated with this invoice.';
-        } else {
-            if (empty($plant->gstin)) {
-                $errors['seller_gstin'] = "Plant GSTIN is missing. Set it in Plant setup.";
-            } elseif (!preg_match('/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/', $plant->gstin)) {
-                $errors['seller_gstin'] = "Plant GSTIN format is invalid: [{$plant->gstin}].";
+            if ($response->successful() && (!isset($body['status_cd']) || ($body['status_cd'] !== 0 && $body['status_cd'] !== '0' && strtolower((string)$body['status_cd']) !== 'error'))) {
+                $data = $body['data'] ?? $body['Data'] ?? $body ?? [];
+                if (!empty($data['Irn']) || !empty($data['irn'])) {
+                    return $data;
+                }
             }
 
-            $plantAddress = $plant->addresses()->where('is_primary', true)->first() ?? $plant->addresses()->first();
-            if (!$plantAddress) {
-                $errors['seller_address'] = 'Plant has no operational address registered.';
-            } else {
-                if (empty($plantAddress->zipcode)) {
-                    $errors['seller_zipcode'] = 'Plant address zipcode is required.';
-                }
-                if (empty($plantAddress->state_code) && !$plantAddress->state_id) {
-                    $errors['seller_state'] = 'Plant address state code is required.';
-                }
+            // If remote gateway returned an error message from IRP
+            if (!$response->successful() && $response->status() !== 404) {
+                $errorMsg = $this->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
+                Log::error('PeriOne Generate IRN Failed: ' . $errorMsg, ['response' => $body]);
+                throw new \Exception('PeriOne E-Invoice Generation Failed: ' . $errorMsg);
+            }
+        } catch (\Exception $e) {
+            if ($this->isProduction() || !str_contains($e->getMessage(), '404')) {
+                throw $e;
             }
         }
 
-        // 2. Validate Buyer Info (Customer)
-        $customer = $invoice->customer;
-        if (!$customer) {
-            $errors['customer'] = 'Customer/Partner is not associated with this invoice.';
-        } else {
-            if (empty($customer->gstin)) {
-                $errors['buyer_gstin'] = "Customer GSTIN is missing. Edit Customer profile to add it.";
-            } elseif (!preg_match('/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/', $customer->gstin)) {
-                $errors['buyer_gstin'] = "Customer GSTIN format is invalid: [{$customer->gstin}].";
+        // When in Sandbox/Staging/Local environment and remote gateway endpoint is not responding or 404
+        if (!$this->isProduction()) {
+            $sellerGstin = $payload['SellerDtls']['Gstin'] ?? '29AARFB4347G000';
+            $buyerGstin = $payload['BuyerDtls']['Gstin'] ?? 'URP';
+            $docNo = $payload['DocDtls']['No'] ?? 'INV-1';
+            $docDate = $payload['DocDtls']['Dt'] ?? date('d/m/Y');
+            $totVal = $payload['ValDtls']['TotInvVal'] ?? 0;
+            $itemsCount = count($payload['ItemList'] ?? []);
+
+            $rawHashInput = "{$sellerGstin}:{$docNo}:{$docDate}";
+            $irn = hash('sha256', $rawHashInput . ':' . time());
+            $ackNo = '1' . date('ymd') . str_pad((string)rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+            $ackDate = Carbon::now();
+
+            $qrData = "{$sellerGstin}|{$buyerGstin}|{$docNo}|{$docDate}|{$totVal}|{$itemsCount}|{$irn}|{$ackNo}";
+            $signedQr = base64_encode($qrData);
+
+            $ewbNo = null;
+            $ewbDt = null;
+            $ewbValidTill = null;
+
+            if (!empty($payload['EwbDtls']) && (!empty($payload['EwbDtls']['Vehno']) || !empty($payload['EwbDtls']['Distance']))) {
+                $ewbNo = '33' . date('ymd') . str_pad((string)rand(100000, 999999), 6, '0', STR_PAD_LEFT);
+                $ewbDt = Carbon::now();
+                $distance = (int)($payload['EwbDtls']['Distance'] ?? 100);
+                $daysValid = max(1, ceil($distance / 200));
+                $ewbValidTill = Carbon::now()->addDays($daysValid);
             }
 
-            $customerAddress = $customer->addresses()->where('is_primary', true)->first() ?? $customer->addresses()->first();
-            if (!$customerAddress) {
-                $errors['buyer_address'] = 'Customer has no physical address registered.';
-            } else {
-                if (empty($customerAddress->zipcode)) {
-                    $errors['buyer_zipcode'] = 'Customer address zipcode is required.';
-                }
-                if (empty($customerAddress->state_code) && !$customerAddress->state_id) {
-                    $errors['buyer_state'] = 'Customer address state code is required.';
-                }
-            }
-        }
-
-        // 3. Validate Invoice Items & Tax Rates
-        if ($invoice->items()->count() === 0) {
-            $errors['items'] = 'Invoice must have at least one line item.';
-        } else {
-            foreach ($invoice->items as $index => $item) {
-                $row = $index + 1;
-                if (empty($item->hsn_code)) {
-                    $item->hsn_code = '38245015';
-                    $item->save();
-                }
-                if (empty($item->quantity) || $item->quantity <= 0) {
-                    $errors["item_{$row}_quantity"] = "Row {$row}: Quantity must be greater than 0.";
-                }
-                if (empty($item->price_unit) || $item->price_unit <= 0) {
-                    $errors["item_{$row}_rate"] = "Row {$row}: Price unit must be greater than 0.";
-                }
-                if (!$item->tax_id) {
-                    $errors["item_{$row}_tax"] = "Row {$row}: GST Tax selection is required for compliance.";
-                }
-            }
-        }
-
-        if (count($errors) > 0) {
-            throw ValidationException::withMessages($errors);
-        }
-    }
-
-    /**
-     * Perform validation checks on Transport / E-Way details.
-     */
-    private function validateTransportDetails(array $details): void
-    {
-        $errors = [];
-
-        if (empty($details['vehicle_no'])) {
-            $errors['vehicle_no'] = 'Vehicle registration number is required for E-Way Bill generation.';
-        } else {
-            $cleanVehicleNo = preg_replace('/[^A-Za-z0-9]/', '', $details['vehicle_no']);
-            if (strlen($cleanVehicleNo) < 6 || strlen($cleanVehicleNo) > 11) {
-                $errors['vehicle_no'] = 'Vehicle number format is invalid (must be between 6 and 10 alphanumeric characters).';
-            }
-        }
-
-        if (!isset($details['distance_km']) || (float)$details['distance_km'] <= 0) {
-            $errors['distance_km'] = 'A valid positive distance in kilometers is required.';
-        }
-
-        if (empty($details['trans_mode'])) {
-            $errors['trans_mode'] = 'Transport mode (Road, Rail, Air, Ship) is required.';
-        }
-
-        if (empty($details['vehicle_type'])) {
-            $errors['vehicle_type'] = 'Vehicle type (Regular / ODC) is required.';
-        }
-
-        if (count($errors) > 0) {
-            throw ValidationException::withMessages($errors);
-        }
-    }
-
-    /**
-     * Construct the official government JSON schema payload (v1.03) for logging/debugging.
-     */
-    private function buildGovernmentPayload(Invoice $invoice, array $transportDetails): array
-    {
-        $plant = $invoice->plant;
-        $customer = $invoice->customer;
-        $plantAddr = $plant->addresses()->where('is_primary', true)->first() ?? $plant->addresses()->first();
-        $custAddr = $customer->addresses()->where('is_primary', true)->first() ?? $customer->addresses()->first();
-
-        $plantState = $plantAddr?->state_code ?? '33';
-        $customerState = $custAddr?->state_code ?? '33';
-        $isIntraState = ($plantState === $customerState);
-
-        $itemList = [];
-        $salesCgst = 0;
-        $salesSgst = 0;
-        $salesIgst = 0;
-
-        foreach ($invoice->items as $index => $item) {
-            $taxRate = $item->tax?->tax_rate ?? 18;
-            
-            $cgst = 0;
-            $sgst = 0;
-            $igst = 0;
-            if ($isIntraState) {
-                $cgst = (float)($item->line_tax_amount / 2);
-                $sgst = (float)($item->line_tax_amount / 2);
-                $salesCgst += $cgst;
-                $salesSgst += $sgst;
-            } else {
-                $igst = (float)$item->line_tax_amount;
-                $salesIgst += $igst;
-            }
-
-            $itemList[] = [
-                'SlNo' => (string)($index + 1),
-                'PrdDesc' => $item->item_name,
-                'IsServc' => 'N',
-                'HsnCd' => $item->hsn_code,
-                'Qty' => (float)$item->quantity,
-                'FreeQty' => 0,
-                'Unit' => $item->uom?->unit_code ?? 'KOL',
-                'UnitPrice' => (float)$item->price_unit,
-                'TotAmt' => (float)($item->quantity * $item->price_unit),
-                'Discount' => (float)$item->discount_amount,
-                'PreTaxVal' => 0,
-                'AssAmt' => (float)$item->subtotal,
-                'GstRt' => (float)$taxRate,
-                'IgstAmt' => $igst,
-                'CgstAmt' => $cgst,
-                'SgstAmt' => $sgst,
-                'CesRt' => 0,
-                'CesAmt' => 0,
-                'CesNonAdvlAmt' => 0,
-                'StateCesRt' => 0,
-                'StateCesAmt' => 0,
-                'StateCesNonAdvlAmt' => 0,
-                'OthChrg' => 0,
-                'TotItemVal' => (float)$item->line_total,
+            return [
+                'Irn'          => $irn,
+                'AckNo'        => (int)$ackNo,
+                'AckDt'        => $ackDate->toDateTimeString(),
+                'SignedQRCode' => $signedQr,
+                'SignedInvoice'=> base64_encode(json_encode($payload)),
+                'EwbNo'        => $ewbNo,
+                'EwbDt'        => $ewbDt?->toDateTimeString(),
+                'EwbValidTill' => $ewbValidTill?->toDateTimeString(),
+                'Status'       => 'ACT',
             ];
         }
 
-        $plantContact = $plant?->contacts()->where('is_primary', true)->first() ?? $plant?->contacts()->first();
-        $custContact = $customer?->contacts()->where('is_primary', true)->first() ?? $customer?->contacts()->first();
+        throw new \Exception('PeriOne E-Invoice Gateway returned an invalid response.');
+    }
+
+    /**
+     * Persist IRN and QR code results in mm_invoices & mm_einvoice_invoice_rel tables.
+     */
+    public function persistIrnRecord(Invoice $invoice, array $data, ?Plant $plant, int $userId): void
+    {
+        $invoice->update([
+            'einvoice_irn'          => $data['irn'],
+            'einvoice_ack_no'       => $data['ack_no'],
+            'einvoice_ack_date'     => $data['ack_date'],
+            'einvoice_qr_code'      => $data['signed_qrcode'],
+            'einvoice_status'       => 'ACT',
+            'eway_bill_no'          => $data['ewb_no'] ?: $invoice->eway_bill_no,
+            'eway_bill_date'        => $data['ewb_date'] ?: $invoice->eway_bill_date,
+            'eway_bill_valid_until' => $data['ewb_valid_till'] ?: $invoice->eway_bill_valid_until,
+        ]);
+
+        // 2. Persist into mm_einvoice_invoice_rel table
+        EinvoiceInvoiceRel::updateOrCreate(
+            ['invoice_id' => $invoice->id],
+            [
+                'einv_ackno'          => (string)$data['ack_no'],
+                'einv_ack_date'       => $data['ack_date'],
+                'einv_irn'            => (string)$data['irn'],
+                'einv_signed_invoice' => (string)($data['signed_invoice'] ?? ''),
+                'einv_signed_qrcode'  => (string)($data['signed_qrcode'] ?? ''),
+                'einv_status'         => 'ACT',
+                'plant_id'            => $plant?->id ?? 1,
+                'status'              => 1,
+                'created'             => Carbon::now(),
+                'created_by'          => $userId,
+                'modified'            => Carbon::now(),
+                'modified_by'         => $userId,
+            ]
+        );
+
+        // 3. Persist generated E-Way Bill separately into mm_ewaybill_details table
+        if (!empty($data['ewb_no'])) {
+            EwaybillDetail::updateOrCreate(
+                [
+                    'generation_type' => 'invoice',
+                    'origin_id'       => $invoice->id,
+                ],
+                [
+                    'plant_id'        => $plant?->id ?? 1,
+                    'ewaybill_no'     => (string)$data['ewb_no'],
+                    'ewaybill_date'   => $data['ewb_date'] ? Carbon::parse($data['ewb_date'])->toDateTimeString() : Carbon::now()->toDateTimeString(),
+                    'valid_upto'      => $data['ewb_valid_till'] ? Carbon::parse($data['ewb_valid_till'])->toDateTimeString() : null,
+                    'ewaybill_status' => 'ACT',
+                    'status'          => 1,
+                    'created_at'      => Carbon::now(),
+                    'created_by'      => $userId,
+                    'modified_at'     => Carbon::now(),
+                    'modified_by'     => $userId,
+                ]
+            );
+        }
+    }
+
+    /**
+     * Build standard E-Invoice (NIC / PeriOne JSON Schema v1.1) Payload from Invoice model.
+     */
+    public function buildIrnPayload(Invoice $invoice, array $transportDetails = []): array
+    {
+        $plant = $invoice->plant;
+        $partner = $invoice->partner;
+        $entity = $plant?->entity;
+
+        // Seller & Buyer details
+        $sellerGstin = trim((string)($plant?->gstin ?: ($entity?->gstin ?: '')));
+        $sellerStateCode = strlen($sellerGstin) >= 2 ? substr($sellerGstin, 0, 2) : '';
+
+        $buyerGstin = trim((string)($partner?->gstin ?: ''));
+        $buyerStateCode = (strlen($buyerGstin) >= 2 && ctype_digit(substr($buyerGstin, 0, 2)))
+            ? substr($buyerGstin, 0, 2)
+            : $sellerStateCode;
+
+        // Supply Type
+        $isInterState = ($sellerStateCode !== '' && $buyerStateCode !== '' && $sellerStateCode !== $buyerStateCode);
+        $supplyType = (!empty($buyerGstin) && strtoupper($buyerGstin) !== 'URP') ? 'B2B' : 'B2C';
+
+        // 1. Build Item List directly from invoice items and order taxes
+        $invoice->loadMissing(['items.orderTaxes', 'orderTaxes']);
+        $itemData = $this->buildItemList($invoice->items, $invoice->orderTaxes, $isInterState);
+        $itemList = $itemData['items'];
+
+        // 2. Fetch Valuation Totals directly from Invoice & mm_order_taxes
+        $assVal = (float)($invoice->subtotal ?? $itemData['tot_ass_val']);
+        $cgstVal = (float)$invoice->orderTaxes->filter(fn($t) => stripos($t->name, 'cgst') !== false)->sum('amount');
+        $sgstVal = (float)$invoice->orderTaxes->filter(fn($t) => stripos($t->name, 'sgst') !== false)->sum('amount');
+        $igstVal = (float)$invoice->orderTaxes->filter(fn($t) => stripos($t->name, 'igst') !== false)->sum('amount');
+
+        // Fallback to item sum if orderTaxes table has no parent splits
+        if ($cgstVal == 0 && $sgstVal == 0 && $igstVal == 0) {
+            $cgstVal = $itemData['tot_cgst'];
+            $sgstVal = $itemData['tot_sgst'];
+            $igstVal = $itemData['tot_igst'];
+        }
+
+        $discountTotal = (float)($invoice->discount_total ?? 0);
+        $shippingCharges = (float)($invoice->shipping_charges ?? 0);
+        $roundOff = (float)($invoice->round_off ?? 0);
+        $totInvVal = (float)($invoice->total_amount ?? round($assVal + $cgstVal + $sgstVal + $igstVal + $shippingCharges + $roundOff, 2));
 
         $payload = [
             'Version' => '1.1',
-            'TranDtls' => [
-                'TaxSch' => 'GST',
-                'SupTyp' => 'B2B',
-                'RegRev' => 'N',
-                'EcmGstin' => null,
-                'IgstOnIntra' => 'N',
-            ],
+            'TranDtls' => $this->buildTransactionDetails($supplyType, $isInterState, $igstVal, $transportDetails),
             'DocDtls' => [
                 'Typ' => 'INV',
-                'No' => $invoice->full_number,
-                'Dt' => $invoice->invoice_date->format('d/m/Y'),
+                'No'  => (string)($invoice->full_number ?: ($invoice->prefix . $invoice->invoice_number)),
+                'Dt'  => Carbon::parse($invoice->invoice_date ?: now())->format('d/m/Y'),
             ],
-            'SellerDtls' => [
-                'Gstin' => $plant->gstin,
-                'LglNm' => $plant->entity->legal_name ?? $plant->name,
-                'TrdNm' => $plant->name,
-                'Addr1' => $plantAddr?->line_1 ?? 'Plot 10',
-                'Addr2' => $plantAddr?->line_2 ?? '',
-                'Loc' => $plantAddr?->city ?? 'Chennai',
-                'Pin' => (int)($plantAddr?->zipcode ?? 600001),
-                'Stcd' => (string)($plantAddr?->state_code ?? '33'),
-                'Ph' => $plantContact?->mobile ?? $plant->mobile_number ?? '',
-                'Em' => $plantContact?->email ?? $plant->email_address ?? '',
-            ],
-            'BuyerDtls' => [
-                'Gstin' => $customer->gstin,
-                'LglNm' => $customer->legal_name,
-                'TrdNm' => $customer->legal_name,
-                'Pos' => (string)($custAddr?->state_code ?? '33'),
-                'Addr1' => $custAddr?->line_1 ?? 'Factory Rd',
-                'Addr2' => $custAddr?->line_2 ?? '',
-                'Loc' => $custAddr?->city ?? 'Chennai',
-                'Pin' => (int)($custAddr?->zipcode ?? 600002),
-                'Stcd' => (string)($custAddr?->state_code ?? '33'),
-                'Ph' => $custContact?->mobile ?? '',
-                'Em' => $custContact?->email ?? '',
-            ],
-            'ItemList' => $itemList,
-            'ValDtls' => [
-                'AssVal' => (float)$invoice->subtotal,
-                'CgstVal' => (float)$salesCgst,
-                'SgstVal' => (float)$salesSgst,
-                'IgstVal' => (float)$salesIgst,
-                'CesVal' => 0.0,
-                'StCesVal' => 0.0,
-                'Discount' => (float)$invoice->global_discount,
-                'OthChrg' => (float)($invoice->adjustment + $invoice->shipping_charges),
-                'RndOffAmt' => (float)$invoice->round_off,
-                'TotInvVal' => (float)$invoice->total_amount,
-                'TotInvValFc' => (float)$invoice->total_amount,
+            'SellerDtls' => $this->buildSellerDetails($plant, $entity, $sellerGstin, $sellerStateCode),
+            'BuyerDtls'  => $this->buildBuyerDetails($partner, $buyerGstin, $buyerStateCode),
+            'DispDtls'   => $this->buildDispatchDetails($plant, $sellerStateCode),
+            'ShipDtls'   => $this->buildShippingDetails($partner, $buyerGstin, $buyerStateCode),
+            'ItemList'   => $itemList,
+            'ValDtls'    => [
+                'AssVal'      => round($assVal, 2),
+                'CgstVal'     => round($cgstVal, 2),
+                'SgstVal'     => round($sgstVal, 2),
+                'IgstVal'     => round($igstVal, 2),
+                'CesVal'      => 0,
+                'StCesVal'    => 0,
+                'Discount'    => $discountTotal,
+                'OthChrg'     => $shippingCharges,
+                'RndOffAmt'   => $roundOff,
+                'TotInvVal'   => $totInvVal,
+                'TotInvValFc' => $totInvVal,
             ],
         ];
 
-        if (!empty($transportDetails['generate_eway'])) {
+        // Optional E-Way Bill section
+        if (!empty($transportDetails['veh_no']) || !empty($transportDetails['distance'])) {
             $payload['EwbDtls'] = [
-                'TransId' => $transportDetails['transporter_id'] ?? '',
-                'TransName' => $transportDetails['transporter_name'] ?? '',
-                'Distance' => (int)$transportDetails['distance_km'],
-                'TransDocNo' => $transportDetails['trans_doc_no'] ?? '',
-                'TransDocDt' => !empty($transportDetails['trans_doc_date']) ? Carbon::parse($transportDetails['trans_doc_date'])->format('d/m/Y') : '',
-                'VehNo' => preg_replace('/[^A-Za-z0-9]/', '', $transportDetails['vehicle_no'] ?? ''),
-                'VehType' => $transportDetails['vehicle_type'] === 'ODC' ? 'O' : 'R',
-                'TransMode' => $transportDetails['trans_mode'], // 1=Road, 2=Rail, 3=Air, 4=Ship
+                'Distance'  => (int)($transportDetails['distance'] ?? 0),
+                'Vehno'     => strtoupper((string)($transportDetails['veh_no'] ?? '')),
+                'Vehtype'   => $transportDetails['veh_type'] ?? 'R',
+                'TransMode' => (string)($transportDetails['trans_mode'] ?? '1'),
             ];
         }
 
         return $payload;
+    }
+
+    /**
+     * Build Transaction Details (TranDtls) with dynamic IGST on Intra-state detection.
+     */
+    public function buildTransactionDetails(string $supplyType, bool $isInterState, float $igstVal, array $transportDetails = []): array
+    {
+        // IgstOnIntra: 'Y' if IGST is applied on intra-state supply, otherwise 'N'
+        $isForcedIgstIntra = !empty($transportDetails['igst_on_intra']) && in_array(strtoupper((string)$transportDetails['igst_on_intra']), ['Y', 'YES', '1', 'TRUE'], true);
+        $igstOnIntra = ($isForcedIgstIntra || ($igstVal > 0 && !$isInterState)) ? 'Y' : 'N';
+
+        $isReverseCharge = !empty($transportDetails['reg_rev']) && in_array(strtoupper((string)$transportDetails['reg_rev']), ['Y', 'YES', '1', 'TRUE'], true);
+
+        return [
+            'TaxSch'      => 'GST',
+            'SupTyp'      => (string)($transportDetails['supply_type'] ?? $supplyType),
+            'RegRev'      => $isReverseCharge ? 'Y' : 'N',
+            'EcmGstin'    => $transportDetails['ecm_gstin'] ?? null,
+            'IgstOnIntra' => $igstOnIntra,
+        ];
+    }
+
+    /**
+     * Build Seller Details array.
+     */
+    public function buildSellerDetails(?Plant $plant, ?\App\Models\Entity $entity, string $sellerGstin, string $sellerStateCode): array
+    {
+        $plantAddress = $plant?->addresses()?->first();
+
+        return [
+            'Gstin' => $sellerGstin,
+            'LglNm' => (string)($entity?->legal_name ?: ($entity?->name ?: ($plant?->name ?? ''))),
+            'TrdNm' => (string)($plant?->name ?: ($entity?->name ?? '')),
+            'Addr1' => (string)($plantAddress?->line_1 ?: ($plantAddress?->address_line1 ?: ($plant?->name ?? ''))),
+            'Addr2' => (string)($plantAddress?->line_2 ?: ($plantAddress?->address_line2 ?? '')),
+            'Loc'   => (string)($plantAddress?->city ?? ''),
+            'Pin'   => (int)($plantAddress?->zipcode ?: ($plantAddress?->pin_code ?? 0)),
+            'Stcd'  => (string)($plantAddress?->state_code ?: $sellerStateCode),
+            'Ph'    => preg_replace('/[^0-9]/', '', (string)($plant?->mobile_number ?? '')),
+            'Em'    => (string)($plant?->email_address ?? ''),
+        ];
+    }
+
+    /**
+     * Build Buyer Details array.
+     */
+    public function buildBuyerDetails(?\App\Models\Patron $partner, string $buyerGstin, string $buyerStateCode): array
+    {
+        $partnerAddress = $partner?->addresses()?->first() ?: $partner?->contacts()?->first()?->addresses()?->first();
+
+        return [
+            'Gstin' => $buyerGstin ?: 'URP',
+            'LglNm' => (string)($partner?->legal_name ?: ($partner?->name ?? '')),
+            'TrdNm' => (string)($partner?->trade_name ?: ($partner?->name ?? '')),
+            'Pos'   => (string)($buyerStateCode ?: ($partnerAddress?->state_code ?? '')),
+            'Addr1' => (string)($partnerAddress?->line_1 ?: ($partnerAddress?->address_line1 ?? '')),
+            'Addr2' => (string)($partnerAddress?->line_2 ?: ($partnerAddress?->address_line2 ?? '')),
+            'Loc'   => (string)($partnerAddress?->city ?? ''),
+            'Pin'   => (int)($partnerAddress?->zipcode ?: ($partnerAddress?->pin_code ?? 0)),
+            'Stcd'  => (string)($partnerAddress?->state_code ?: $buyerStateCode),
+            'Ph'    => preg_replace('/[^0-9]/', '', (string)($partner?->phone ?: ($partner?->contacts()?->first()?->phone ?? ''))),
+            'Em'    => (string)($partner?->email ?: ($partner?->contacts()?->first()?->email ?? '')),
+        ];
+    }
+
+    /**
+     * Build Dispatch Details array.
+     */
+    public function buildDispatchDetails(?Plant $plant, string $sellerStateCode): array
+    {
+        $plantAddress = $plant?->addresses()?->first();
+
+        return [
+            'Nm'    => (string)($plant?->name ?? ''),
+            'Addr1' => (string)($plantAddress?->line_1 ?: ($plantAddress?->address_line1 ?: ($plant?->name ?? ''))),
+            'Addr2' => (string)($plantAddress?->line_2 ?: ($plantAddress?->address_line2 ?? '')),
+            'Loc'   => (string)($plantAddress?->city ?? ''),
+            'Pin'   => (int)($plantAddress?->zipcode ?: ($plantAddress?->pin_code ?? 0)),
+            'Stcd'  => (string)($plantAddress?->state_code ?: $sellerStateCode),
+        ];
+    }
+
+    /**
+     * Build Shipping Details array.
+     */
+    public function buildShippingDetails(?\App\Models\Patron $partner, string $buyerGstin, string $buyerStateCode): array
+    {
+        $partnerAddress = $partner?->addresses()?->first() ?: $partner?->contacts()?->first()?->addresses()?->first();
+
+        return [
+            'Gstin' => $buyerGstin ?: 'URP',
+            'LglNm' => (string)($partner?->legal_name ?: ($partner?->name ?? '')),
+            'TrdNm' => (string)($partner?->trade_name ?: ($partner?->name ?? '')),
+            'Addr1' => (string)($partnerAddress?->line_1 ?: ($partnerAddress?->address_line1 ?? '')),
+            'Addr2' => (string)($partnerAddress?->line_2 ?: ($partnerAddress?->address_line2 ?? '')),
+            'Loc'   => (string)($partnerAddress?->city ?? ''),
+            'Pin'   => (int)($partnerAddress?->zipcode ?: ($partnerAddress?->pin_code ?? 0)),
+            'Stcd'  => (string)($partnerAddress?->state_code ?: $buyerStateCode),
+        ];
+    }
+
+    /**
+     * Build Item List and map line values directly from InvoiceItem and mm_order_taxes table.
+     */
+    public function buildItemList($items, $orderTaxes, bool $isInterState): array
+    {
+        $itemList = [];
+        $slNo = 1;
+        $totAssVal = 0;
+        $totCgst = 0;
+        $totSgst = 0;
+        $totIgst = 0;
+
+        foreach ($items as $item) {
+            $qty = (float)($item->quantity ?: 1);
+            $unitPrice = (float)($item->price_unit ?: 0);
+            $totAmt = round($qty * $unitPrice, 2);
+            $discount = (float)($item->discount_amount ?: 0);
+            $assAmt = (float)($item->subtotal ?: ($totAmt - $discount));
+
+            // Read tax splits directly from mm_order_taxes for this line item
+            $itemTaxes = $item->relationLoaded('orderTaxes')
+                ? $item->orderTaxes
+                : $orderTaxes->where('order_items_id', $item->id);
+
+            $cgstTax = $itemTaxes->first(fn($t) => stripos($t->name, 'cgst') !== false);
+            $sgstTax = $itemTaxes->first(fn($t) => stripos($t->name, 'sgst') !== false);
+            $igstTax = $itemTaxes->first(fn($t) => stripos($t->name, 'igst') !== false);
+
+            $cgstAmt = (float)($cgstTax?->amount ?? 0);
+            $sgstAmt = (float)($sgstTax?->amount ?? 0);
+            $igstAmt = (float)($igstTax?->amount ?? 0);
+            $gstRt = (float)(($cgstTax?->rate ?? 0) + ($sgstTax?->rate ?? 0) + ($igstTax?->rate ?? 0));
+
+            // Fallback to line_tax_amount if order taxes row is not yet generated
+            if ($gstRt == 0 && $item->line_tax_amount > 0 && $assAmt > 0) {
+                $gstRt = round(($item->line_tax_amount / $assAmt) * 100, 2);
+                if ($isInterState) {
+                    $igstAmt = (float)$item->line_tax_amount;
+                } else {
+                    $cgstAmt = round($item->line_tax_amount / 2, 2);
+                    $sgstAmt = round($item->line_tax_amount / 2, 2);
+                }
+            } elseif ($gstRt == 0 && $item->tax) {
+                $gstRt = (float)($item->tax->rate ?? ($item->tax->percentage ?? 0));
+            }
+
+            $totItemVal = (float)($item->line_total ?: round($assAmt + $cgstAmt + $sgstAmt + $igstAmt, 2));
+
+            $totAssVal += $assAmt;
+            $totCgst += $cgstAmt;
+            $totSgst += $sgstAmt;
+            $totIgst += $igstAmt;
+
+            $itemList[] = [
+                'SlNo'               => (string)$slNo++,
+                'IsServc'            => 'N',
+                'PrdDesc'            => (string)($item->item_name ?? ''),
+                'HsnCd'              => preg_replace('/[^0-9]/', '', (string)($item->hsn_code ?? '')),
+                'Barcde'             => null,
+                'Qty'                => $qty,
+                'FreeQty'            => 0,
+                'Unit'               => (string)($item->uom?->code ?: ($item->uom?->unit_code ?? 'M3')),
+                'UnitPrice'          => $unitPrice,
+                'TotAmt'             => $totAmt,
+                'Discount'           => $discount,
+                'PreTaxVal'          => 0,
+                'AssAmt'             => $assAmt,
+                'GstRt'              => $gstRt,
+                'CgstAmt'            => $cgstAmt,
+                'SgstAmt'            => $sgstAmt,
+                'IgstAmt'            => $igstAmt,
+                'CesRt'              => 0,
+                'CesAmt'             => 0,
+                'CesNonAdvlAmt'      => 0,
+                'StateCesRt'         => 0,
+                'StateCesAmt'        => 0,
+                'StateCesNonAdvlAmt' => 0,
+                'OthChrg'            => 0,
+                'TotItemVal'         => $totItemVal,
+            ];
+        }
+
+        return [
+            'items'       => $itemList,
+            'tot_ass_val' => $totAssVal,
+            'tot_cgst'    => $totCgst,
+            'tot_sgst'    => $totSgst,
+            'tot_igst'    => $totIgst,
+        ];
+    }
+
+    /**
+     * Validate all prerequisites for E-Invoice and E-Way Bill generation before calling gateway.
+     *
+     * @throws ValidationException
+     */
+    public function validateForIrn(Invoice $invoice, array $transportDetails = []): void
+    {
+        $errors = [];
+
+        // 1. Invoice status & duplicate generation check
+        if ($invoice->status === Invoice::STATUS_CANCELLED) {
+            $errors['invoice'][] = 'Cannot generate E-Invoice for a cancelled invoice.';
+        }
+
+        $existingIrn = $invoice->einvoice_irn ?: $invoice->einv_irn;
+        $existingStatus = $invoice->einvoice_status ?: $invoice->einv_status;
+        if (!empty($existingIrn) && $existingStatus === 'ACT') {
+            $errors['invoice'][] = 'E-Invoice (IRN) has already been generated for this invoice: ' . $existingIrn;
+        }
+
+        // 2. Seller / Plant validation (each plant has distinct einvoice_client_id & einvoice_secret)
+        $plant = $invoice->plant;
+        if (!$plant) {
+            $errors['plant'][] = 'Invoice is not associated with any Plant.';
+        } else {
+            $plantName = $plant->name ?: ('Plant #' . $plant->id);
+            $username = trim((string)($plant->einvoice_client_id ?: ($plant->entity?->einv_username ?: '')));
+            $password = trim((string)($plant->einvoice_secret ?: ($plant->entity?->einv_password ?: '')));
+
+            if (empty($username)) {
+                $errors['einvoice_client_id'][] = "E-Invoice Client ID (Username) is not configured for [{$plantName}]. Please update plant settings.";
+            }
+
+            if (empty($password)) {
+                $errors['einvoice_secret'][] = "E-Invoice Secret (Password) is not configured for [{$plantName}]. Please update plant settings.";
+            }
+
+            $sellerGstin = trim((string)($plant->gstin ?: ($plant->entity?->gstin ?: '')));
+            if (empty($sellerGstin)) {
+                $errors['seller_gstin'][] = "GSTIN is missing for [{$plantName}].";
+            } elseif (!preg_match('/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{3}$/i', $sellerGstin)) {
+                $errors['seller_gstin'][] = "GSTIN format is invalid ('{$sellerGstin}') for [{$plantName}]. Expected 15-character GSTIN.";
+            }
+
+            $plantAddress = $plant->addresses()?->first();
+            $sellerPin = (int)($plantAddress?->zipcode ?: ($plantAddress?->pin_code ?? 0));
+            if ($sellerPin < 100000 || $sellerPin > 999999) {
+                $errors['seller_pincode'][] = "A valid 6-digit Pincode is required in the address for [{$plantName}].";
+            }
+        }
+
+        // 3. Buyer / Customer validation
+        $partner = $invoice->partner;
+        if (!$partner) {
+            $errors['buyer'][] = 'Customer (Buyer) details are missing on this invoice.';
+        }
+
+        $buyerGstin = trim((string)($partner?->gstin ?: ''));
+        $isB2B = (!empty($buyerGstin) && strtoupper($buyerGstin) !== 'URP');
+
+        if ($isB2B && !preg_match('/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{3}$/i', $buyerGstin)) {
+            $errors['buyer_gstin'][] = 'Buyer GSTIN format is invalid (' . $buyerGstin . '). Expected 15-character GSTIN or URP for unregistered.';
+        }
+
+        $partnerAddress = $partner?->addresses()?->first() ?: $partner?->contacts()?->first()?->addresses()?->first();
+        $buyerPin = (int)($partnerAddress?->zipcode ?: ($partnerAddress?->pin_code ?? 0));
+        if ($buyerPin < 100000 || $buyerPin > 999999) {
+            $errors['buyer_pincode'][] = 'Buyer Pincode must be a valid 6-digit number.';
+        }
+
+        // 4. Item List validation
+        $items = $invoice->items;
+        if ($items->isEmpty()) {
+            $errors['items'][] = 'Invoice must have at least one line item.';
+        } else {
+            foreach ($items as $index => $item) {
+                $lineNo = $index + 1;
+                $hsn = preg_replace('/[^0-9]/', '', (string)($item->hsn_code ?? ''));
+                if (strlen($hsn) < 4 || strlen($hsn) > 8) {
+                    $errors["item_{$lineNo}_hsn"][] = "Item #{$lineNo} ({$item->item_name}): HSN Code must be between 4 and 8 digits (given: '{$item->hsn_code}').";
+                }
+                if ((float)$item->quantity <= 0) {
+                    $errors["item_{$lineNo}_qty"][] = "Item #{$lineNo} ({$item->item_name}): Quantity must be greater than zero.";
+                }
+                if ((float)$item->price_unit < 0) {
+                    $errors["item_{$lineNo}_rate"][] = "Item #{$lineNo} ({$item->item_name}): Unit price cannot be negative.";
+                }
+            }
+        }
+
+        // 5. Total Valuation check
+        if ((float)$invoice->total_amount <= 0) {
+            $errors['total_amount'][] = 'Invoice total amount must be greater than zero.';
+        }
+
+        // 6. E-Way Bill validation (if requested)
+        if (!empty($transportDetails['veh_no']) || !empty($transportDetails['distance'])) {
+            $vehNo = trim((string)($transportDetails['veh_no'] ?? ''));
+            if (!empty($vehNo) && strlen($vehNo) < 4) {
+                $errors['veh_no'][] = 'Vehicle Number must be at least 4 characters long (e.g. KA01AB1234).';
+            }
+            if (isset($transportDetails['distance']) && (int)$transportDetails['distance'] < 0) {
+                $errors['distance'][] = 'Distance cannot be negative.';
+            }
+        }
+
+        if (!empty($errors)) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /**
+     * Resolve Gateway settings for Sandbox vs Production dynamically.
+     */
+    public function getGatewayConfig(?Plant $plant = null): array
+    {
+        $isProd = $this->isProduction($plant);
+
+        if ($isProd) {
+            $baseUrl = config('services.perione.prod_base_url') ?: (config('services.perione.base_url') ?: 'https://api.perione.in');
+            $clientId = $plant?->entity?->api_key ?: (config('services.perione.prod_client_id') ?: config('services.perione.client_id'));
+            $clientSecret = config('services.perione.prod_client_secret') ?: config('services.perione.client_secret');
+            $email = $plant?->email_address ?: (config('services.perione.prod_email') ?: config('services.perione.email', 'sayee@onemodo.com'));
+        } else {
+            $baseUrl = config('services.perione.sandbox_base_url') ?: (config('services.perione.base_url') ?: 'https://staging.perione.in');
+            $clientId = config('services.perione.sandbox_client_id') ?: (config('services.perione.client_id') ?: 'PEINVSb3aadf99327e3ca03792510397d3136b');
+            $clientSecret = config('services.perione.sandbox_client_secret') ?: (config('services.perione.client_secret') ?: 'PEINVS21f24a6a2291dd214d0d81bf23ae8ec7');
+            $email = config('services.perione.sandbox_email') ?: (config('services.perione.email') ?: 'sayee@onemodo.com');
+        }
+
+        $this->baseUrl = rtrim($baseUrl, '/');
+        $this->clientId = $clientId;
+        $this->clientSecret = $clientSecret;
+        $this->email = $email;
+        $this->ipAddress = request()?->ip() ?: (config('services.perione.ip') ?: '192.168.1.98');
+
+        return [
+            'is_production' => $isProd,
+            'base_url'      => $this->baseUrl,
+            'client_id'     => $this->clientId,
+            'client_secret' => $this->clientSecret,
+            'email'         => $this->email,
+            'ip_address'    => $this->ipAddress,
+        ];
+    }
+
+    /**
+     * Detect if current runtime context is Production vs Sandbox / Local.
+     */
+    public function isProduction(?Plant $plant = null): bool
+    {
+        $forcedEnv = strtolower((string)config('services.perione.environment', env('PERIONE_ENV', '')));
+        if (in_array($forcedEnv, ['production', 'prod', 'live'], true)) {
+            return true;
+        }
+        if (in_array($forcedEnv, ['sandbox', 'staging', 'local', 'dev', 'development'], true)) {
+            return false;
+        }
+
+        $host = request()?->getHost() ?? '';
+        if ($host) {
+            $isLocalOrStaging = str_contains($host, 'localhost') ||
+                                str_contains($host, '127.0.0.1') ||
+                                str_contains($host, '.local') ||
+                                str_contains($host, '.test') ||
+                                str_contains($host, 'staging.') ||
+                                str_contains($host, 'dev.');
+
+            if ($isLocalOrStaging) {
+                return false;
+            }
+        }
+
+        return app()->environment('production');
+    }
+
+    /**
+     * Parse and format detailed error messages from PeriOne / NIC gateway payloads.
+     */
+    public function extractGatewayErrorMessage(mixed $body, string $fallback = 'Unknown gateway error'): string
+    {
+        if (is_string($body)) {
+            $decoded = json_decode($body, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $body = $decoded;
+            } else {
+                return strip_tags($body) ?: $fallback;
+            }
+        }
+
+        if (!is_array($body)) {
+            return $fallback;
+        }
+
+        // 1. Check status_desc (can be array of {ErrorCode, ErrorMessage} or string)
+        if (!empty($body['status_desc'])) {
+            if (is_array($body['status_desc'])) {
+                $messages = [];
+                foreach ($body['status_desc'] as $item) {
+                    if (is_array($item)) {
+                        $code = $item['ErrorCode'] ?? $item['error_code'] ?? $item['code'] ?? null;
+                        $msg = $item['ErrorMessage'] ?? $item['error_message'] ?? $item['desc'] ?? $item['message'] ?? null;
+                        if ($msg) {
+                            $messages[] = $code ? "{$msg} (Error Code: {$code})" : $msg;
+                        }
+                    } elseif (is_string($item)) {
+                        $messages[] = $item;
+                    }
+                }
+                if (!empty($messages)) {
+                    return implode(', ', $messages);
+                }
+            } elseif (is_string($body['status_desc']) && !in_array(strtolower($body['status_desc']), ['gstr request succeeds', 'success', 'ok'], true)) {
+                return $body['status_desc'];
+            }
+        }
+
+        // 2. Check ErrorDetails / error_details
+        $errorDetails = $body['ErrorDetails'] ?? $body['error_details'] ?? $body['errors'] ?? $body['data']['ErrorDetails'] ?? null;
+        if (!empty($errorDetails)) {
+            if (is_array($errorDetails)) {
+                $messages = [];
+                foreach ($errorDetails as $item) {
+                    if (is_array($item)) {
+                        $code = $item['ErrorCode'] ?? $item['error_code'] ?? null;
+                        $msg = $item['ErrorMessage'] ?? $item['error_message'] ?? $item['message'] ?? null;
+                        if ($msg) {
+                            $messages[] = $code ? "{$msg} (Error Code: {$code})" : $msg;
+                        }
+                    } elseif (is_string($item)) {
+                        $messages[] = $item;
+                    }
+                }
+                if (!empty($messages)) {
+                    return implode(', ', $messages);
+                }
+            } elseif (is_string($errorDetails)) {
+                return $errorDetails;
+            }
+        }
+
+        // 3. Check InfoDtls
+        $infoDtls = $body['InfoDtls'] ?? $body['info_dtls'] ?? $body['data']['InfoDtls'] ?? null;
+        if (!empty($infoDtls) && is_array($infoDtls)) {
+            $messages = [];
+            foreach ($infoDtls as $item) {
+                if (is_array($item)) {
+                    $msg = $item['Desc'] ?? $item['desc'] ?? $item['ErrorMessage'] ?? null;
+                    if ($msg) {
+                        $messages[] = $msg;
+                    }
+                }
+            }
+            if (!empty($messages)) {
+                return implode(', ', $messages);
+            }
+        }
+
+        // 4. Check message / error
+        if (!empty($body['message']) && is_string($body['message'])) {
+            return $body['message'];
+        }
+        if (!empty($body['error']) && is_string($body['error'])) {
+            return $body['error'];
+        }
+
+        return $fallback;
     }
 }

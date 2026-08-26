@@ -36,7 +36,7 @@ export function useInvoiceActions(
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sales Ledger</label>
                         <select id="swal-ledger-id" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white">
-                            <option value="">Select Sales Account</option>
+                            <option value="">Select ...</option>
                             ${ledgersOptionsHtml}
                         </select>
                     </div>
@@ -122,6 +122,53 @@ export function useInvoiceActions(
             route('print.document', { module: 'invoices', id: invoice.encrypted_id, action: 'download' }),
             '_blank'
         );
+    };
+
+    const generateEInvoiceDirect = (invoice: any, callback?: () => void) => {
+        if (!invoice || !invoice.id) return;
+        Swal.fire({
+            title: 'Generate E-Invoice',
+            text: `Are you sure you want to generate E-Invoice IRN for invoice #${invoice.full_number || invoice.invoice_number || ''}?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Generate E-Invoice',
+            confirmButtonColor: '#7c3aed',
+            cancelButtonColor: '#64748b',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.post(
+                    route('invoices.generate-einvoice', invoice.id),
+                    {
+                        generate_eway: false,
+                    },
+                    {
+                        preserveScroll: true,
+                        preserveState: true,
+                        onSuccess: () => {
+                            Swal.fire({
+                                toast: true,
+                                position: 'top-end',
+                                icon: 'success',
+                                title: 'E-Invoice IRN generated successfully.',
+                                showConfirmButton: false,
+                                timer: 2000,
+                            });
+                            if (callback) callback();
+                            if (onInvoiceChange && invoice.dispatch?.batch_id) onInvoiceChange(invoice.dispatch.batch_id);
+                        },
+                        onError: (errors: any) => {
+                            const msg = errors?.error || Object.values(errors || {}).flat().join('\n') || 'Failed to generate E-Invoice';
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'E-Invoice Failed',
+                                text: msg,
+                                confirmButtonColor: '#d33',
+                            });
+                        }
+                    }
+                );
+            }
+        });
     };
 
     const printEInvoiceDirect = (invoice: any) => {
@@ -216,6 +263,7 @@ export function useInvoiceActions(
     // ── Public API ───────────────────────────────────────────────────────────
     return {
         generateInvoiceDirect,
+        generateEInvoiceDirect,
         printInvoiceDirect,
         printOriginalInvoiceDirect,
         printDuplicateInvoiceDirect,

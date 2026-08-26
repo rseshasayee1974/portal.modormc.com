@@ -890,3 +890,102 @@ if (!function_exists('PumpRatesDropdown')) {
             ->get();
     }
 }
+
+if (!function_exists('taxInvoiceNumberToWords')) {
+    /**
+     * Convert a numeric amount into Indian Currency Words (Rupees and Paise).
+     *
+     * @param float|int|string $num
+     * @return string
+     */
+    function taxInvoiceNumberToWords($num): string
+    {
+        $num = (float) $num;
+        $whole = floor($num);
+        $fraction = round(($num - $whole) * 100);
+
+        $ones = [
+            0 => '',
+            1 => 'One',
+            2 => 'Two',
+            3 => 'Three',
+            4 => 'Four',
+            5 => 'Five',
+            6 => 'Six',
+            7 => 'Seven',
+            8 => 'Eight',
+            9 => 'Nine',
+            10 => 'Ten',
+            11 => 'Eleven',
+            12 => 'Twelve',
+            13 => 'Thirteen',
+            14 => 'Fourteen',
+            15 => 'Fifteen',
+            16 => 'Sixteen',
+            17 => 'Seventeen',
+            18 => 'Eighteen',
+            19 => 'Nineteen',
+        ];
+        $tens = [
+            2 => 'Twenty',
+            3 => 'Thirty',
+            4 => 'Forty',
+            5 => 'Fifty',
+            6 => 'Sixty',
+            7 => 'Seventy',
+            8 => 'Eighty',
+            9 => 'Ninety',
+        ];
+
+        $convertGroup = function ($n) use ($ones, $tens) {
+            $str = '';
+            if ($n >= 100) {
+                $str .= $ones[floor($n / 100)] . ' Hundred ';
+                $n %= 100;
+            }
+            if ($n >= 20) {
+                $str .= $tens[floor($n / 10)] . ' ';
+                $n %= 10;
+            }
+            if ($n > 0) {
+                $str .= $ones[$n] . ' ';
+            }
+            return trim($str);
+        };
+
+        if ($whole == 0) {
+            $words = 'Zero';
+        } else {
+            $crore = floor($whole / 10000000);
+            $whole %= 10000000;
+            $lakh = floor($whole / 100000);
+            $whole %= 100000;
+            $thousand = floor($whole / 1000);
+            $whole %= 1000;
+            $hundreds = $whole;
+
+            $parts = [];
+            if ($crore > 0) {
+                $parts[] = $convertGroup($crore) . ' Crore';
+            }
+            if ($lakh > 0) {
+                $parts[] = $convertGroup($lakh) . ' Lakh';
+            }
+            if ($thousand > 0) {
+                $parts[] = $convertGroup($thousand) . ' Thousand';
+            }
+            if ($hundreds > 0) {
+                $parts[] = $convertGroup($hundreds);
+            }
+
+            $words = implode(' ', $parts);
+        }
+
+        $result = 'Rs. ' . trim($words);
+        if ($fraction > 0) {
+            $result .= ' and ' . $convertGroup($fraction) . ' Paise';
+        }
+        $result .= ' Only';
+        return $result;
+    }
+}

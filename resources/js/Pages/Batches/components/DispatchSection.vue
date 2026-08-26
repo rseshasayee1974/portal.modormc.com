@@ -90,6 +90,9 @@ const showInvoiceSection = computed(() => {
 const emit = defineEmits<{
     (e: 'tripSaved'): void;
     (e: 'saved', payload?: { batchId: number, type: 'batching' | 'dispatch' }): void;
+    (e: 'generateInvoice'): void;
+    (e: 'generateEInvoice'): void;
+    (e: 'deleteInvoice'): void;
     (e: 'cancel'): void;
 }>();
 
@@ -554,6 +557,76 @@ const handleGenerateInvoice = () => {
     });
 };
 
+const handleGenerateEInvoice = (passedInvoiceIdOrObj?: any) => {
+    let invoiceId: number | string | null = null;
+    let invoiceNumber = '';
+
+    if (typeof passedInvoiceIdOrObj === 'number' || typeof passedInvoiceIdOrObj === 'string') {
+        invoiceId = passedInvoiceIdOrObj;
+        invoiceNumber = form.status?.invoice?.full_number || form.status?.invoice?.invoice_number || `#${invoiceId}`;
+    } else if (passedInvoiceIdOrObj && typeof passedInvoiceIdOrObj === 'object') {
+        invoiceId = passedInvoiceIdOrObj.id;
+        invoiceNumber = passedInvoiceIdOrObj.full_number || passedInvoiceIdOrObj.invoice_number || `#${invoiceId}`;
+    } else if (form.status?.invoice?.id) {
+        invoiceId = form.status.invoice.id;
+        invoiceNumber = form.status.invoice.full_number || form.status.invoice.invoice_number || `#${invoiceId}`;
+    }
+
+    if (!invoiceId) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Action Required',
+            text: 'Please generate the invoice first before generating an E-Invoice.',
+            confirmButtonColor: '#4f46e5'
+        });
+        return;
+    }
+
+    Swal.fire({
+        title: 'Generate E-Invoice',
+        text: `Are you sure you want to generate E-Invoice IRN for Invoice ${invoiceNumber}?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#7c3aed',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Yes, Generate IRN'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            router.post(route('invoices.generate-einvoice', invoiceId), {
+                invoice_id: invoiceId,
+                form: {
+                    id: invoiceId,
+                    dispatch_id: form.id,
+                }
+            }, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'E-Invoice IRN generated successfully.',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                    if (props.onSaved) {
+                        props.onSaved({ batchId: props.batch.id, type: 'dispatch' });
+                    } else {
+                        emit('saved', { batchId: props.batch.id, type: 'dispatch' });
+                    }
+                },
+                onError: (errors: any) => {
+                    const msg = errors.error || errors.message || Object.values(errors)[0] || 'Failed to generate E-Invoice.';
+                    Swal.fire({
+                        icon: 'error',
+                        confirmButtonColor: '#d33'
+                    });
+                }
+            });
+        }
+    });
+};
+
 const handleDeleteInvoice = () => {
     Swal.fire({
         title: 'Are you sure?',
@@ -604,6 +677,7 @@ const handleDeleteInvoice = () => {
                 :add-pump-to-total="addPumpToTotal"
                 @submit="submit"
                 @generateInvoice="handleGenerateInvoice"
+                @generateEInvoice="handleGenerateEInvoice"
                 @deleteInvoice="handleDeleteInvoice"
             />
  <!-- <hr class="border-slate-100" /> -->

@@ -265,6 +265,11 @@ class Invoice extends Model implements Postable
     public function vendor() { return $this->partner(); }
     public function customer() { return $this->partner(); }
 
+    public function einvoiceRelation()
+    {
+        return $this->hasOne(EinvoiceInvoiceRel::class, 'invoice_id');
+    }
+
     public function plant()
     {
         return $this->belongsTo(Plant::class);

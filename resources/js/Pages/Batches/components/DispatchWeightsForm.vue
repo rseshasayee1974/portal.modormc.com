@@ -15,7 +15,8 @@ import {
     CheckCircleIcon,
     LockClosedIcon,
     CalendarIcon,
-    UserIcon
+    UserIcon,
+    QrCodeIcon
 } from '@heroicons/vue/24/outline';
 import { usePermissions } from '@/Composables/usePermissions';
 import { watch, computed } from 'vue';
@@ -57,7 +58,7 @@ const props = withDefaults(defineProps<{
     addPumpToTotal: false
 });
 
-const emit = defineEmits(['update:modelValue', 'generateInvoice' , 'deleteInvoice']);
+const emit = defineEmits(['update:modelValue', 'generateInvoice', 'generateEInvoice', 'deleteInvoice']);
 
 const { can, isAdmin, isSuperAdmin, permissions, userRole } = usePermissions();
 
@@ -231,7 +232,7 @@ const formatTime = (dateVal: any) => {
                                 optionValue="value" 
                                 label="Sales Ledger" 
                                 filter 
-                                placeholder="Select Sales Account" 
+                                placeholder="Select ..." 
                                 :error="errors.ledger_id" 
                                 :disabled="isReadOnly"
                             />
@@ -304,11 +305,48 @@ const formatTime = (dateVal: any) => {
                                         </span>
                                     </div>
                                 </div>
+                                <div class="h-6 w-px bg-slate-100 hidden sm:block" v-if="modelValue.status.invoice?.einvoice_status === 'generated' || modelValue.status.invoice?.einvoice_irn"></div>
+                                <div v-if="modelValue.status.invoice?.einvoice_status === 'generated' || modelValue.status.invoice?.einvoice_irn">
+                                    <span class="text-[10px] block text-purple-500 font-semibold uppercase tracking-wider">E-Invoice</span>
+                                    <div class="flex items-center gap-1.5 mt-0.5">
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                                            <QrCodeIcon class="h-3 w-3 text-purple-600" />
+                                            <span>IRN Linked</span>
+                                        </span>
+                                        <span v-if="modelValue.status.invoice?.einvoice_ack_no" class="text-[11px] text-slate-500 font-mono" :title="modelValue.status.invoice?.einvoice_irn">
+                                            #{{ modelValue.status.invoice.einvoice_ack_no }}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Right: Action Buttons -->
-                        <div class="flex items-center gap-2 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100">
+                        <div class="flex items-center gap-2 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100 flex-wrap">
+                            <!-- Generate E-Invoice Button (Visible when Invoice is generated & linked, but E-Invoice is not yet generated) -->
+                            <button 
+                                v-if="modelValue.status.invoice?.id && modelValue.status.invoice?.einvoice_status !== 'generated' && !modelValue.status.invoice?.einvoice_irn"
+                                type="button"
+                                @click="$emit('generateEInvoice', modelValue.status.invoice.id)"
+                                :disabled="isReadOnly"
+                                :class="[isReadOnly ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700 active:scale-[0.98] cursor-pointer']"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 text-white text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
+                            >
+                                <SparklesIcon class="h-4 w-4 text-purple-200" />
+                                <span>Generate E-Invoice</span>
+                            </button>
+
+                            <!-- Print E-Invoice Button (When E-Invoice IRN is generated) -->
+                            <a 
+                                v-if="modelValue.status.invoice?.encrypted_id && (modelValue.status.invoice?.einvoice_status === 'generated' || modelValue.status.invoice?.einvoice_irn)"
+                                :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'view' })" 
+                                target="_blank"
+                                class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-50 hover:bg-purple-100 active:scale-[0.98] text-purple-700 border border-purple-200/80 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
+                            >
+                                <QrCodeIcon class="h-4 w-4 text-purple-600" />
+                                <span>E-Invoice Print</span>
+                            </a>
+
                             <template v-if="modelValue.status.invoice?.encrypted_id">
                                 <a 
                                     v-if="canExportInvoice"

@@ -414,6 +414,7 @@ const {
 // ── Invoice Actions ──────────────────────────────────────────────────
 const {
     generateInvoiceDirect,
+    generateEInvoiceDirect,
     printInvoiceDirect,
     printOriginalInvoiceDirect,
     printDuplicateInvoiceDirect,
@@ -902,9 +903,18 @@ const shareBatchEmail = () => {
                                                         <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
                                                         Download Invoice PDF
                                                     </button>
+                                                    <!-- Generate E-Invoice (if not yet generated) -->
+                                                    <button
+                                                        v-if="!slotProps.data.dispatches[0].status.invoice.einvoice_irn && slotProps.data.dispatches[0].status.invoice.einvoice_status !== 'generated'"
+                                                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-colors"
+                                                        @click="generateEInvoiceDirect(slotProps.data.dispatches[0].status.invoice); activeMenuId = null;"
+                                                    >
+                                                        <i class="pi pi-bolt mr-2 text-purple-500 font-bold"></i>
+                                                        Generate E-Invoice
+                                                    </button>
                                                     <!-- If IRN E-invoice is generated -->
                                                     <button
-                                                        v-if="slotProps.data.dispatches[0].status.invoice.einvoice_status === 'generated'"
+                                                        v-if="slotProps.data.dispatches[0].status.invoice.einvoice_status === 'generated' || slotProps.data.dispatches[0].status.invoice.einvoice_irn"
                                                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
                                                         @click="printEInvoiceDirect(slotProps.data.dispatches[0].status.invoice); activeMenuId = null;"
                                                     >
@@ -1024,6 +1034,7 @@ const shareBatchEmail = () => {
                                                     :onSaved="handleBatchSaved"
                                                     @tripSaved="handleBatchSaved"
                                                     @generateInvoice="handleInvoiceGenerated"
+                                                    @generateEInvoice="handleInvoiceGenerated"
                                                     @deleteInvoice="handleInvoiceGenerated"
                                                     @cancel="collapseExpandedRows()"
                                                 />
@@ -1236,9 +1247,18 @@ const shareBatchEmail = () => {
                             <i class="pi pi-download mr-2 text-blue-500 font-bold"></i>
                             Download Invoice PDF
                         </button>
+                        <!-- Generate E-Invoice (if not yet generated) -->
+                        <button
+                            v-if="!activeBatch.dispatches[0].status.invoice.einvoice_irn && activeBatch.dispatches[0].status.invoice.einvoice_status !== 'generated'"
+                            class="flex w-full items-center px-4 py-2 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-colors"
+                            @click="generateEInvoiceDirect(activeBatch.dispatches[0].status.invoice); closeAllMenus();"
+                        >
+                            <i class="pi pi-bolt mr-2 text-purple-500 font-bold"></i>
+                            Generate E-Invoice
+                        </button>
                         <!-- If IRN E-invoice is generated -->
                         <button
-                            v-if="activeBatch.dispatches[0].status.invoice.einvoice_status === 'generated'"
+                            v-if="activeBatch.dispatches[0].status.invoice.einvoice_status === 'generated' || activeBatch.dispatches[0].status.invoice.einvoice_irn"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 transition-colors"
                             @click="printEInvoiceDirect(activeBatch.dispatches[0].status.invoice); closeAllMenus();"
                         >

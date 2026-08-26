@@ -47,45 +47,45 @@
     $copyType = strtoupper($copy_type ?? (isset($inv) && $inv->is_duplicate ? 'DUPLICATE' : 'ORIGINAL'));
 
     // Company & Addresses
-    $companyName = $plant?->name ?? ($entity?->legal_name ?? 'SRI GANESHA READY MIX CONCREETE');
+    $companyName = $plant?->name ?? ($entity?->legal_name ?? '');
 
     // Reg Address
     $regAddress =
-        $entity?->addresses()?->where('is_primary', 1)->first() ??
-        ($plant?->addresses()?->where('is_primary', 1)->first() ?? $entity?->addresses()?->first());
+        $entity?->addresses()?->first() ??
+        ($plant?->addresses()?->first() ?? $entity?->addresses()?->first());
     $plantAddress = $plant?->addresses()?->first() ?? $regAddress;
 
     // Contact Details
-    $mobile = $plant?->mobile_number ?? ($entity?->mobile ?? '+91 98429 27271, +91 73730 55271');
+    $mobile = $plant?->mobile_number ?? ($entity?->mobile ?? '');
     $telephone = $entity?->telephone ?? '';
-    $companyGstin = $plant?->gstin ?? ($entity?->gstin ?? '33ACSFS6358M1Z9');
-    $stateName = $regAddress?->state?->name ?? 'TAMIL NADU';
-    $stateCode = $regAddress?->state_code ?? ($regAddress?->state?->state_code ?? '33');
+    $companyGstin = $plant?->gstin ?? ($entity?->gstin ?? '');
+    $stateName = $regAddress?->state?->name ?? '';
+    $stateCode = $regAddress?->state_code ?? ($regAddress?->state?->state_code ?? '');
     $pan =
         $entity?->pan ??
-        (!empty($companyGstin) && strlen($companyGstin) >= 12 ? substr($companyGstin, 2, 10) : 'ACSFS6358M');
-    $msmeNo = $entity?->msme_no ?? ($plant?->msme_no ?? 'UDYAM-TN-03-0028624');
+        (!empty($companyGstin) && strlen($companyGstin) >= 12 ? substr($companyGstin, 2, 10) : '');
+    $msmeNo = $entity?->msme_no ?? ($plant?->msme_no ?? '');
 
     // Customer Billing & Shipping
-    $billingAddress = $partner?->addresses()?->where('is_primary', 1)->first() ?? $partner?->addresses()?->first();
+    $billingAddress = $partner?->addresses()?->first() ?? $partner?->addresses()?->first();
     $shippingSite = $salesOrder?->site ?? $firstDispatch?->site;
     $shippingAddress = $shippingSite?->address ?? $billingAddress;
 
     // Customer Ref
     $accNo = $partner?->code ?? ($partner?->reference ?? 'AC-' . ($partner?->id ?? '9'));
-    $poRef = $customerPO?->customer_po_reference ?? ($customerPO?->reference ?? ($inv?->ref_title ?? '2570 WP'));
+    $poRef = $customerPO?->customer_po_reference ?? ($customerPO?->reference ?? ($inv?->ref_title ?? ''));
 
     $salesPerson = $firstDispatch?->salesExecutive ?? $salesOrder?->salesExecutive;
     $salesPersonName = $salesPerson
         ? trim(($salesPerson->first_name ?? '') . ' ' . ($salesPerson->last_name ?? ''))
-        : 'R.SURESH KUMAR';
+        : '';
 
     $pumpName = '-';
     if ($firstDispatch?->concretePump) {
-        $pumpName = $firstDispatch->concretePump->registration ?: $firstDispatch->concretePump->name ?? 'Dumping';
+        $pumpName = $firstDispatch->concretePump->registration ?: $firstDispatch->concretePump->name ?? '';
     } elseif (!empty($firstDispatch?->concrete_pump)) {
         $pumpName = is_numeric($firstDispatch->concrete_pump)
-            ? \App\Models\Machine::find($firstDispatch->concrete_pump)?->registration ?? 'Dumping'
+            ? \App\Models\Machine::find($firstDispatch->concrete_pump)?->registration ?? ''
             : ucwords(str_replace('_', ' ', $firstDispatch->concrete_pump));
     } else {
         $pumpName = 'Dumping';
@@ -95,130 +95,37 @@
     $designMixRef = $mixDesignObj?->concrete_grade?->name ?? ($mixDesignObj?->concreteGrade?->name ?? ($mixDesignObj?->design_type ?? ($mixDesignObj?->design_name ?? '-')));
 
     // Carrier & Driver
-    $transporterName = $firstDispatch?->transport?->name ?? 'SRI GANESHA TRANSPORT';
-    $truckReg = $firstDispatch?->truck?->registration ?? 'TN21AT9230';
+    $transporterName = $firstDispatch?->transport?->name ?? '';
+    $truckReg = $firstDispatch?->truck?->registration ?? '';
     $driverName = $firstDispatch?->driver
         ? trim(($firstDispatch->driver->first_name ?? '') . ' ' . ($firstDispatch->driver->last_name ?? ''))
-        : 'SUBURAMANI';
+        : '';
     $carrierDriver = "{$transporterName} , {$truckReg} - {$driverName}";
 
     // Invoice Meta
-    $invoiceNo = $inv?->full_number ?? ($inv?->invoice_number ?? '2026-27/3428');
+    $invoiceNo = $inv?->full_number ?? ($inv?->invoice_number ?? '');
     $invoiceDate = $inv?->invoice_date ? \Carbon\Carbon::parse($inv->invoice_date)->format('d-m-Y') : date('d-m-Y');
     $soNo = $salesOrder?->order_no
         ? ($salesOrder->prefix ?? '') . $salesOrder->order_no
         : ($inv?->ref_id
-            ? 'RS/04/26-27/' . str_pad($inv->ref_id, 5, '0', STR_PAD_LEFT)
-            : 'RS/04/26-27/01319');
+            ? '' . str_pad($inv->ref_id, 5, '0', STR_PAD_LEFT)
+            : '');
     $ewayBillNo = $inv?->eway_bill_no ?? '';
 
     // E-Invoice
-    $irn = $inv?->einvoice_irn ?? '';
-    $ackNo = $inv?->einvoice_ack_no ?? '';
-    $ackDate = $inv?->einvoice_ack_date ? \Carbon\Carbon::parse($inv->einvoice_ack_date)->format('d/m/Y') : '';
-    $qrCode = $inv?->einvoice_qr_code ?? '';
+    $einvoiceRel = $inv?->einvoiceRelation;
+    $irn = $inv?->einvoice_irn ?? ($einvoiceRel?->einv_irn ?? '');
+    $ackNo = $inv?->einvoice_ack_no ?? ($einvoiceRel?->einv_ackno ?? '');
+    $ackDate = $inv?->einvoice_ack_date ? \Carbon\Carbon::parse($inv->einvoice_ack_date)->format('d/m/Y') : ($einvoiceRel?->einv_ack_date ? \Carbon\Carbon::parse($einvoiceRel->einv_ack_date)->format('d/m/Y') : '');
+    $qrCode = $inv?->einvoice_qr_code ?? ($einvoiceRel?->einv_signed_qrcode ?? '');
 
     // Bank Account
-    $bankAccount = $entity?->bankAccounts()?->where('is_primary', 1)->first() ?? $entity?->bankAccounts()?->first();
+    $bankAccount = $entity?->bankAccounts()?->first() ?? $entity?->bankAccounts()?->first();
     $bankAccountName = $bankAccount?->account_name ?? $companyName;
-    $bankAccountNo = $bankAccount?->account_number ?? ($bankAccount?->bank_account_no ?? '3453261000026');
-    $bankName = $bankAccount?->bank_name ?? 'CANARA BANK';
-    $bankBranch = $bankAccount?->bank_branch ?? ($bankAccount?->branch ?? 'KARANAMPETTAI');
-    $bankIfsc = $bankAccount?->bank_ifsc ?? ($bankAccount?->ifsc_code ?? 'CNRB0003453');
-
-    // Helper for Number to Words (Indian Rupee format)
-    if (!function_exists('taxInvoiceNumberToWords')) {
-        function taxInvoiceNumberToWords($num)
-        {
-            $num = (float) $num;
-            $whole = floor($num);
-            $fraction = round(($num - $whole) * 100);
-
-            $ones = [
-                0 => '',
-                1 => 'One',
-                2 => 'Two',
-                3 => 'Three',
-                4 => 'Four',
-                5 => 'Five',
-                6 => 'Six',
-                7 => 'Seven',
-                8 => 'Eight',
-                9 => 'Nine',
-                10 => 'Ten',
-                11 => 'Eleven',
-                12 => 'Twelve',
-                13 => 'Thirteen',
-                14 => 'Fourteen',
-                15 => 'Fifteen',
-                16 => 'Sixteen',
-                17 => 'Seventeen',
-                18 => 'Eighteen',
-                19 => 'Nineteen',
-            ];
-            $tens = [
-                2 => 'Twenty',
-                3 => 'Thirty',
-                4 => 'Forty',
-                5 => 'Fifty',
-                6 => 'Sixty',
-                7 => 'Seventy',
-                8 => 'Eighty',
-                9 => 'Ninety',
-            ];
-
-            $convertGroup = function ($n) use ($ones, $tens) {
-                $str = '';
-                if ($n >= 100) {
-                    $str .= $ones[floor($n / 100)] . ' Hundred ';
-                    $n %= 100;
-                }
-                if ($n >= 20) {
-                    $str .= $tens[floor($n / 10)] . ' ';
-                    $n %= 10;
-                }
-                if ($n > 0) {
-                    $str .= $ones[$n] . ' ';
-                }
-                return trim($str);
-            };
-
-            if ($whole == 0) {
-                $words = 'Zero';
-            } else {
-                $crore = floor($whole / 10000000);
-                $whole %= 10000000;
-                $lakh = floor($whole / 100000);
-                $whole %= 100000;
-                $thousand = floor($whole / 1000);
-                $whole %= 1000;
-                $hundreds = $whole;
-
-                $parts = [];
-                if ($crore > 0) {
-                    $parts[] = $convertGroup($crore) . ' Crore';
-                }
-                if ($lakh > 0) {
-                    $parts[] = $convertGroup($lakh) . ' Lakh';
-                }
-                if ($thousand > 0) {
-                    $parts[] = $convertGroup($thousand) . ' Thousand';
-                }
-                if ($hundreds > 0) {
-                    $parts[] = $convertGroup($hundreds);
-                }
-
-                $words = implode(' ', $parts);
-            }
-
-            $result = 'Rs. ' . trim($words);
-            if ($fraction > 0) {
-                $result .= ' and ' . $convertGroup($fraction) . ' Paise';
-            }
-            $result .= ' Only';
-            return $result;
-        }
-    }
+    $bankAccountNo = $bankAccount?->account_number ?? ($bankAccount?->bank_account_no ?? '');
+    $bankName = $bankAccount?->bank_name ?? '';
+    $bankBranch = $bankAccount?->bank_branch ?? ($bankAccount?->branch ?? '');
+    $bankIfsc = $bankAccount?->bank_ifsc ?? ($bankAccount?->ifsc_code ?? '');
 
     // Tax Calculations
     $items = $inv?->items ?? collect();
@@ -658,11 +565,23 @@
                     @endif
                 </td>
                 <td class="qr-cell">
-                    @if (!empty($qrCode))
-                        <img src="{{ $qrCode }}" class="qr-img" alt="QR Code" />
+                    @php
+                        $qrSrc = '';
+                        if (!empty($qrCode)) {
+                            if (str_starts_with($qrCode, 'data:image') || str_starts_with($qrCode, 'http')) {
+                                $qrSrc = $qrCode;
+                            } else {
+                                $qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($qrCode);
+                            }
+                        } elseif (!empty($irn)) {
+                            $qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($irn);
+                        }
+                    @endphp
+                    @if (!empty($qrSrc))
+                        <img src="{{ $qrSrc }}" class="qr-img" alt="E-Invoice QR" />
                     @elseif(!empty($irn))
                         <div style="font-size: 6.5pt; text-align: center; border: 1px dashed #999; padding: 6px 2px;">
-                            [NIC QR]</div>
+                            [IRN REGISTERED]</div>
                     @endif
                 </td>
             </tr>

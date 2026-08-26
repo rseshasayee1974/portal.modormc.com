@@ -769,14 +769,10 @@ class PrintDataFormatter
             'irn'                  => $invoice->einvoice_irn ?? '',
             'ack_no'                => $invoice->einvoice_ack_no ?? '',
             'ack_date'              => $invoice->einvoice_ack_date?->format('d/m/Y') ?? '',
-            'qr_code'               => $invoice->einvoice_qr_code ? (
-                str_starts_with($invoice->einvoice_qr_code, 'data:image') || str_starts_with($invoice->einvoice_qr_code, 'http')
-                    ? $invoice->einvoice_qr_code
-                    : asset('storage/' . ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $invoice->einvoice_qr_code), '/'))
-            ) : (
-                !empty($plant?->upi_qr_path)
-                    ? asset('storage/' . ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $plant->upi_qr_path), '/'))
-                    : $testDummyQrPath
+            'qr_code'               => self::formatQrCodeUrl(
+                $invoice->einvoice_qr_code,
+                $invoice->einvoice_irn,
+                $testDummyQrPath
             ),
             'eway_bill_no'          => $invoice->eway_bill_no ?? '',
             'so_no'                 => $salesOrder ? $salesOrder->full_number : '',
@@ -1458,5 +1454,37 @@ class PrintDataFormatter
             ],
             'excel' => ['hsn_code'=>true,'discount'=>true]
         ];
+    }
+
+    /**
+     * Safely resolve QR code into a renderable image URL.
+     */
+    public static function formatQrCodeUrl(?string $qrCode, ?string $irn = null, ?string $upiQrPath = null, ?string $defaultPath = null): string
+    {
+        if (!empty($qrCode)) {
+            if (str_starts_with($qrCode, 'data:image') || str_starts_with($qrCode, 'http://') || str_starts_with($qrCode, 'https://')) {
+                return $qrCode;
+            }
+
+            // Check if it's an image file path stored in storage/
+            $cleanPath = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $qrCode), '/');
+            if (preg_match('/\.(png|jpe?g|svg|webp)$/i', $cleanPath) && !str_contains($cleanPath, '{') && !str_contains($cleanPath, '}')) {
+                return asset('storage/' . $cleanPath);
+            }
+
+            // Raw JSON / JWT / Text string -> generate dynamic QR code image URL
+            return 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($qrCode);
+        }
+
+        if (!empty($irn)) {
+            return 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=' . urlencode($irn);
+        }
+
+        if (!empty($upiQrPath)) {
+            $cleanUpi = ltrim(str_replace(['public/', 'storage/', '/storage/'], '', $upiQrPath), '/');
+            return asset('storage/' . $cleanUpi);
+        }
+
+        return $defaultPath ?? '';
     }
 }

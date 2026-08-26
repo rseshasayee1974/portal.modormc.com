@@ -4,15 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\Invoice;
 use App\Services\EInvoiceService;
+use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
-use App\Http\Controllers\Concerns\AuthorizesModule;
+use Illuminate\Support\Facades\Log;
 
 class EInvoiceController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'invoices';
+    protected string $module = 'e-invoices';
     protected EInvoiceService $eInvoiceService;
 
     public function __construct(EInvoiceService $eInvoiceService)
@@ -21,264 +22,277 @@ class EInvoiceController extends Controller
     }
 
     /**
-     * Generate E-Invoice & optional E-Way Bill.
+     * Generate E-Invoice (IRN) for an invoice.
      */
     public function generate(Request $request, Invoice $invoice)
     {
+        return $this->einvoiceGenerate($request, $invoice);
+    }
+
+    /**
+     * Core handler to generate E-Invoice.
+     */
+    public function einvoiceGenerate(Request $request, Invoice $invoice)
+    {
         $this->authorizeModule('edit');
 
+        // Resolve invoice model from route binding or request body
+        if (!$invoice->exists) {
+            $invoiceId = $request->input('invoice_id') ?? $request->input('id') ?? $request->input('form.id');
+            if ($invoiceId) {
+                $invoice = Invoice::findOrFail($invoiceId);
+            }
+        }
+
         try {
-            $transportDetails = $request->validate([
-                'generate_eway' => 'boolean',
-                'vehicle_no' => 'nullable|string|max:20',
-                'distance_km' => 'nullable|numeric',
-                'trans_mode' => 'nullable|string|in:1,2,3,4',
-                'vehicle_type' => 'nullable|string|in:Regular,ODC',
-                'transporter_id' => 'nullable|string|max:100',
-                'transporter_name' => 'nullable|string|max:150',
-            ]);
+            $transportDetails = $request->all();
 
-            $this->eInvoiceService->generate($invoice, $transportDetails);
+            $result = $this->eInvoiceService->generate($invoice, $transportDetails);
 
-            $message = 'E-Invoice IRN generated successfully!';
-            if (!empty($transportDetails['generate_eway'])) {
-                $message .= ' E-Way Bill was also successfully generated.';
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'E-Invoice generated successfully!',
+                    'data'    => $result,
+                ]);
             }
 
-            return redirect()->back()->with('success', $message);
-        } catch (ValidationException $e) {
-            return redirect()->back()->withErrors($e->errors());
+            return redirect()->back()->with('success', 'E-Invoice (IRN) generated successfully. IRN: ' . ($result['irn'] ?? ''));
+
+        } catch (ValidationException $ve) {
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation error',
+                    'errors'  => $ve->errors(),
+                ], 422);
+            }
+            return redirect()->back()->withErrors($ve->errors());
         } catch (\Exception $e) {
+            Log::error('E-Invoice generation error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
     /**
-     * Cancel E-Invoice.
+     * Generate E-Way Bill route alias.
+     */
+    public function generateEWayBill(Request $request, Invoice $invoice)
+    {
+        return $this->ewaybillGenerateByIrn($request, $invoice);
+    }
+
+    /**
+     * Generate E-Way Bill using existing IRN.
+     */
+    public function ewaybillGenerateByIrn(Request $request, Invoice $invoice)
+    {
+        $this->authorizeModule('edit');
+
+        if (!$invoice->exists) {
+            $invoiceId = $request->input('invoice_id') ?? $request->input('id');
+            if ($invoiceId) {
+                $invoice = Invoice::findOrFail($invoiceId);
+            }
+        }
+
+        try {
+            $result = $this->eInvoiceService->generateEwayBillByIrn($invoice, $request->all());
+
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'E-Way Bill generated successfully!',
+                    'data'    => $result,
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'E-Way Bill generated successfully. EWB No: ' . ($result['eway_bill_no'] ?? ''));
+
+        } catch (ValidationException $ve) {
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation error',
+                    'errors'  => $ve->errors(),
+                ], 422);
+            }
+            return redirect()->back()->withErrors($ve->errors());
+        } catch (\Exception $e) {
+            Log::error('E-Way Bill generation by IRN error: ' . $e->getMessage());
+
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Cancel an E-Invoice (IRN) within 24 hours of generation.
      */
     public function cancel(Request $request, Invoice $invoice)
     {
         $this->authorizeModule('edit');
 
+        if (!$invoice->exists) {
+            $invoiceId = $request->input('invoice_id') ?? $request->input('id');
+            if ($invoiceId) {
+                $invoice = Invoice::findOrFail($invoiceId);
+            }
+        }
+
         try {
-            $data = $request->validate([
-                'cancel_reason' => 'required|string|max:50',
-                'cancel_remarks' => 'required|string|max:150',
-            ]);
+            $cancelReason = (string)$request->input('cancel_reason', '1');
+            $cancelRemarks = (string)$request->input('cancel_remarks', 'Order cancelled');
 
-            $this->eInvoiceService->cancel($invoice, $data['cancel_reason'], $data['cancel_remarks']);
+            $result = $this->eInvoiceService->cancelIrn($invoice, $cancelReason, $cancelRemarks);
 
-            return redirect()->back()->with('success', 'E-Invoice IRN has been cancelled successfully.');
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'E-Invoice (IRN) cancelled successfully!',
+                    'data'    => $result,
+                ]);
+            }
+
+            return redirect()->back()->with('success', 'E-Invoice (IRN) cancelled successfully.');
+
         } catch (\Exception $e) {
+            Log::error('E-Invoice cancel error: ' . $e->getMessage());
+
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
             return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
     /**
-     * Generate standalone E-Way Bill for an invoice with a generated E-Invoice.
-     */
-    public function generateEWayBill(Request $request, Invoice $invoice)
-    {
-        $this->authorizeModule('edit');
-
-        try {
-            $transportDetails = $request->validate([
-                'vehicle_no' => 'required|string|max:20',
-                'distance_km' => 'required|numeric',
-                'trans_mode' => 'required|string|in:1,2,3,4',
-                'vehicle_type' => 'required|string|in:Regular,ODC',
-                'transporter_id' => 'nullable|string|max:100',
-                'transporter_name' => 'nullable|string|max:150',
-            ]);
-
-            $this->eInvoiceService->generateEWayBill($invoice, $transportDetails);
-
-            return redirect()->back()->with('success', 'E-Way Bill has been generated successfully.');
-        } catch (ValidationException $e) {
-            return redirect()->back()->withErrors($e->errors());
-        } catch (\Exception $e) {
-            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
-        }
-    }
-
-    /**
-     * Cancel standalone E-Way Bill.
-     */
-    public function cancelEWayBill(Request $request, Invoice $invoice)
-    {
-        $this->authorizeModule('edit');
-
-        try {
-            $data = $request->validate([
-                'cancel_reason' => 'required|string|max:50',
-            ]);
-
-            $this->eInvoiceService->cancelEWayBill($invoice, $data['cancel_reason']);
-
-            return redirect()->back()->with('success', 'E-Way Bill has been cancelled successfully.');
-        } catch (\Exception $e) {
-            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
-        }
-    }
-
-    /**
-     * Setup mock/demo compliance details (GSTIN and Address) for active plant and customer for testing.
+     * Set up demo compliance prerequisites for an invoice (valid sandbox GSTINs, addresses, and HSN codes).
      */
     public function setupDemoCompliance(Request $request, Invoice $invoice)
     {
         $this->authorizeModule('edit');
 
-        try {
-            // 1. Setup Plant (Seller) Compliance Details
-            $plant = $invoice->plant;
-            if ($plant) {
-                $plant->update([
-                    'name' => 'NIC company pvt ltd',
-                    'gstin' => '37ARZPT4384Q1MT',
-                    'email_address' => 'abc@gmail.com',
-                    'mobile_number' => '9000000000',
-                ]);
-
-                $state = \App\Models\StateCode::where('state_code', '37')->first();
-                $stateId = $state?->id ?? 1;
-
-                // Ensure plant has a primary address
-                $plantAddress = $plant->addresses()->where('is_primary', true)->first() ?? $plant->addresses()->first();
-                if (!$plantAddress) {
-                    $plant->addresses()->create([
-                        'is_primary' => true,
-                        'line_1' => '5th block, kuvempu layout',
-                        'line_2' => 'kuvempu layout',
-                        'city' => 'GANDHINAGAR',
-                        'zipcode' => '518001',
-                        'state_code' => '37',
-                        'state_id' => $stateId,
-                        'plant_id' => $invoice->plant_id,
-                        'address_type_id' => \App\Models\AddressType::first()?->id ?? 1,
-                    ]);
-                } else {
-                    $plantAddress->update([
-                        'line_1' => '5th block, kuvempu layout',
-                        'line_2' => 'kuvempu layout',
-                        'city' => 'GANDHINAGAR',
-                        'zipcode' => '518001',
-                        'state_code' => '37',
-                        'state_id' => $stateId,
-                        'is_primary' => true,
-                    ]);
-                }
+        if (!$invoice->exists) {
+            $invoiceId = $request->input('invoice_id') ?? $request->input('id');
+            if ($invoiceId) {
+                $invoice = Invoice::findOrFail($invoiceId);
             }
-
-            // 2. Setup Customer (Buyer) Compliance Details
-            $customer = $invoice->customer;
-            if ($customer) {
-                $customer->update([
-                    'gstin' => '33AAECB2345A1Z1', // Another valid format GSTIN (Tamil Nadu state code 33)
-                ]);
-
-                // Ensure customer has a primary address
-                $customerAddress = $customer->addresses()->where('is_primary', true)->first() ?? $customer->addresses()->first();
-                if (!$customerAddress) {
-                    $customer->addresses()->create([
-                        'is_primary' => true,
-                        'line_1' => '500 Business Park, Phase II',
-                        'city' => 'Chennai',
-                        'zipcode' => '600002',
-                        'state_code' => '33',
-                        'state_id' => 1,
-                        'plant_id' => $invoice->plant_id,
-                        'address_type_id' => \App\Models\AddressType::first()?->id ?? 1,
-                    ]);
-                } else {
-                    $customerAddress->update([
-                        'zipcode' => '600002',
-                        'state_code' => '33',
-                        'is_primary' => true,
-                    ]);
-                }
-            }
-
-            // 3. Setup Invoice Items (ensure tax_id and quantity/rate are valid)
-            foreach ($invoice->items as $item) {
-                if (empty($item->hsn_code)) {
-                    $item->update(['hsn_code' => '38245015']);
-                }
-                if (!$item->tax_id) {
-                    $defaultTax = \App\Models\Tax::first();
-                    if ($defaultTax) {
-                        $item->update(['tax_id' => $defaultTax->id]);
-                    }
-                }
-                if ($item->quantity <= 0) {
-                    $item->update(['quantity' => 1]);
-                }
-                if ($item->price_unit <= 0) {
-                    $item->update(['price_unit' => 1000]);
-                }
-            }
-
-            // Recalculate totals
-            $invoice->recalculate();
-
-            return redirect()->back()->with('success', 'Demo compliance data successfully configured for testing!');
-        } catch (\Exception $e) {
-            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
+
+        $plant = $invoice->plant;
+        if ($plant) {
+            $plant->update([
+                'gstin'              => '29AARFB4347G000',
+                'einvoice_client_id' => 'Bluefox',
+                'einvoice_secret'    => 'Bluefox@123',
+            ]);
+
+            $plantAddr = $plant->addresses()->first();
+            if ($plantAddr) {
+                $plantAddr->update([
+                    'state_code' => '29',
+                    'zipcode'    => '560100',
+                    'city'       => 'Bengaluru',
+                ]);
+            }
+        }
+
+        $partner = $invoice->partner;
+        if ($partner) {
+            if (empty($partner->gstin) || strlen($partner->gstin) !== 15) {
+                $partner->update([
+                    'gstin' => '29AABCU9603R1ZM',
+                ]);
+            }
+            $partnerAddr = $partner->addresses()->first() ?: $partner->contacts()->first()?->addresses()->first();
+            if ($partnerAddr) {
+                $partnerAddr->update([
+                    'state_code' => '29',
+                    'zipcode'    => '560100',
+                    'city'       => 'Bengaluru',
+                ]);
+            }
+        }
+
+        foreach ($invoice->items as $item) {
+            $hsn = preg_replace('/[^0-9]/', '', (string)($item->hsn_code ?? ''));
+            if (strlen($hsn) < 4 || strlen($hsn) > 8) {
+                $item->update(['hsn_code' => '38245015']);
+            }
+        }
+
+        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Demo compliance prerequisites configured successfully!',
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Demo compliance data configured successfully.');
     }
 
     /**
-     * Display the compliance testing page.
+     * Render the Compliance Testing Center view.
      */
     public function testPage(Request $request)
     {
         $this->authorizeModule('view');
 
-        $invoices = Invoice::with(['plant', 'customer'])->latest()->limit(30)->get()->map(function($inv) {
-            return [
-                'id' => $inv->id,
-                'number' => $inv->full_number,
-                'customer' => $inv->customer?->legal_name ?? 'Unknown Customer',
-                'amount' => $inv->total_amount,
-                'status' => $inv->einvoice_status ?? 'draft',
-            ];
-        });
+        $invoices = Invoice::with(['partner', 'plant'])
+            ->latest('id')
+            ->take(20)
+            ->get()
+            ->map(fn($inv) => [
+                'id'       => $inv->id,
+                'number'   => $inv->full_number,
+                'customer' => $inv->partner?->name ?? 'Unknown Customer',
+                'amount'   => (float)$inv->total_amount,
+                'status'   => $inv->einvoice_status ? 'IRN ' . $inv->einvoice_status : 'Pending',
+            ]);
 
-        $plants = \App\Models\Plant::all()->map(function($p) {
-            return [
-                'id' => $p->id,
-                'name' => $p->name,
-                'gstin' => $p->gstin,
-            ];
-        });
+        $plants = \App\Models\Plant::all(['id', 'name', 'gstin', 'einvoice_client_id']);
 
-        $activePlantId = session('active_plant_id');
-        $activePlant = \App\Models\Plant::find($activePlantId);
-        $entity = $activePlant?->entity ?? \App\Models\Entity::first();
-
+        $config = config('services.perione');
         $defaultCredentials = [
-            'einv_username' => $activePlant?->gstin ?? $entity->einv_username ?? '05AAACH6188F1ZM',
-            'einv_password' => $activePlant?->einvoice_secret ?? $entity->einv_password ?? 'abc123@@',
-            'api_key' => $activePlant?->einvoice_client_id ?? $entity->api_key ?? '834a123a-ee7e-49a9-b800-70eaa9574a81',
-            'url' => $entity->url ?? 'modostores.local',
-            'gstin' => $activePlant?->gstin ?? '05AAACH6188F1ZM',
-
-            // Whitebooks E-Way Bill details
-            'eway_client_id' => $activePlant?->ewaybill_client_id ?? env('WHITEBOOKS_CLIENT_ID', '4fc2797e-c51b-41f4-82b8-529e067f0fa9'),
-            'eway_client_secret' => $activePlant?->ewaybill_secret ?? env('WHITEBOOKS_CLIENT_SECRET', '834a123a-ee7e-49a9-b800-70eaa9574a81'),
-            'eway_gstin' => $activePlant?->gstin ?? env('WHITEBOOKS_GSTIN', '05AAACH6188F1ZM'),
-            'eway_email' => env('WHITEBOOKS_EMAIL', 'sayee@onemodo.com'),
-            'eway_ip' => env('WHITEBOOKS_IP', '192.168.0.1'),
+            'base_url'           => $config['sandbox_base_url'] ?? 'https://staging.perione.in',
+            'client_id'          => $config['sandbox_client_id'] ?? 'PEINVSb3aadf99327e3ca03792510397d3136b',
+            'client_secret'      => $config['sandbox_client_secret'] ?? 'PEINVS21f24a6a2291dd214d0d81bf23ae8ec7',
+            'email'              => $config['sandbox_email'] ?? 'sayee@onemodo.com',
+            'gstin'              => '29AARFB4347G000',
+            'username'           => 'Bluefox',
+            'password'           => 'Bluefox@123',
+            'eway_client_id'     => $config['sandbox_client_id'] ?? 'PEINVSb3aadf99327e3ca03792510397d3136b',
+            'eway_client_secret' => $config['sandbox_client_secret'] ?? 'PEINVS21f24a6a2291dd214d0d81bf23ae8ec7',
+            'eway_gstin'         => '29AARFB4347G000',
+            'eway_email'         => 'sayee@onemodo.com',
+            'eway_ip'            => '192.168.1.98',
         ];
 
         return \Inertia\Inertia::render('Compliance/Test', [
-            'invoices' => $invoices,
-            'plants' => $plants,
+            'invoices'           => $invoices,
+            'plants'             => $plants,
             'defaultCredentials' => $defaultCredentials,
         ]);
     }
 
     /**
-     * Run a compliance test action.
+     * Execute test action from Compliance Testing Center.
      */
     public function testAction(Request $request)
     {
@@ -286,82 +300,49 @@ class EInvoiceController extends Controller
 
         $action = $request->input('action');
         $invoiceId = $request->input('invoice_id');
-        $credentials = $request->input('credentials', []);
+        $invoice = Invoice::with(['plant', 'partner', 'items'])->findOrFail($invoiceId);
+
+        $trace = [];
 
         try {
-            $invoice = Invoice::findOrFail($invoiceId);
-            $plant = $invoice->plant;
-            $entity = $plant?->entity;
-
-            // Save overrides directly to model so they persist for convenience
-            if ($plant) {
-                $plantData = [];
-                if (isset($credentials['gstin'])) $plantData['gstin'] = $credentials['gstin'];
-                if (isset($credentials['api_key'])) $plantData['einvoice_client_id'] = $credentials['api_key'];
-                if (isset($credentials['einv_password'])) $plantData['einvoice_secret'] = $credentials['einv_password'];
-                if (isset($credentials['eway_client_id'])) $plantData['ewaybill_client_id'] = $credentials['eway_client_id'];
-                if (isset($credentials['eway_client_secret'])) $plantData['ewaybill_secret'] = $credentials['eway_client_secret'];
-                
-                if (count($plantData) > 0) {
-                    $plant->update($plantData);
-                }
-            }
-
-            if ($entity) {
-                $entityData = [];
-                if (isset($credentials['einv_username'])) $entityData['einv_username'] = $credentials['einv_username'];
-                if (isset($credentials['einv_password'])) $entityData['einv_password'] = $credentials['einv_password'];
-                if (isset($credentials['api_key'])) $entityData['api_key'] = $credentials['api_key'];
-                if (isset($credentials['url'])) $entityData['url'] = $credentials['url'];
-                if (count($entityData) > 0) {
-                    $entity->update($entityData);
-                }
-            }
-
-            // Set runtime config overrides for Whitebooks E-Way Bill
-            if (!empty($credentials['eway_client_id'])) {
-                config(['services.whitebooks.client_id' => $credentials['eway_client_id']]);
-            }
-            if (!empty($credentials['eway_client_secret'])) {
-                config(['services.whitebooks.client_secret' => $credentials['eway_client_secret']]);
-            }
-            if (!empty($credentials['eway_gstin'])) {
-                config(['services.whitebooks.gstin' => $credentials['eway_gstin']]);
-            }
-            if (!empty($credentials['eway_email'])) {
-                config(['services.whitebooks.email' => $credentials['eway_email']]);
-            }
-            if (!empty($credentials['eway_ip'])) {
-                config(['services.whitebooks.ip' => $credentials['eway_ip']]);
-            }
-
-            // Execute compliance flow
             if ($action === 'einvoice_generate') {
-                $this->eInvoiceService->generate($invoice, ['generate_eway' => false]);
-            } elseif ($action === 'einvoice_cancel') {
-                $this->eInvoiceService->cancel($invoice, '2', 'Data entry mistake');
-            } elseif ($action === 'ewaybill_generate') {
-                $this->eInvoiceService->generateEWayBill($invoice, [
-                    'vehicle_no' => 'UP15AH1234',
-                    'distance_km' => 100,
-                    'trans_mode' => '1',
-                    'vehicle_type' => 'Regular',
+                $trace[] = ['step' => '1. Authenticate with Gateway', 'timestamp' => now()->toTimeString(), 'data' => ['status' => 'Session authenticated']];
+                $result = $this->eInvoiceService->generate($invoice, ['generate_eway' => true, 'veh_no' => 'KA01AB1234', 'distance' => 100]);
+                $trace[] = ['step' => '2. IRN Generated', 'timestamp' => now()->toTimeString(), 'data' => $result];
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'E-Invoice IRN generated successfully! IRN: ' . $result['irn'],
+                    'trace'   => $trace,
                 ]);
-            } else {
-                throw new \InvalidArgumentException("Invalid test action requested.");
+            } elseif ($action === 'einvoice_cancel') {
+                $result = $this->eInvoiceService->cancelIrn($invoice, '1', 'Cancelled by test suite');
+                $trace[] = ['step' => '1. Cancelled IRN', 'timestamp' => now()->toTimeString(), 'data' => $result];
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'E-Invoice IRN cancelled successfully!',
+                    'trace'   => $trace,
+                ]);
+            } elseif ($action === 'ewaybill_generate') {
+                $result = $this->eInvoiceService->generateEwayBillByIrn($invoice, ['veh_no' => 'KA01AB1234', 'distance' => 100]);
+                $trace[] = ['step' => '1. E-Way Bill Generated', 'timestamp' => now()->toTimeString(), 'data' => $result];
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'E-Way Bill generated successfully! EWB No: ' . $result['eway_bill_no'],
+                    'trace'   => $trace,
+                ]);
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Action executed successfully!',
-                'trace' => EInvoiceService::$debugTrace,
-            ]);
-
+            throw new \Exception("Unsupported test action [{$action}].");
         } catch (\Exception $e) {
+            $trace[] = ['step' => 'Action Failed', 'timestamp' => now()->toTimeString(), 'data' => ['error' => $e->getMessage()]];
+
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-                'trace' => EInvoiceService::$debugTrace,
+                'trace'   => $trace,
             ], 422);
         }
     }

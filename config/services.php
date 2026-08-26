@@ -43,4 +43,25 @@ return [
         'api_key' => env('SARVAM_API_KEY'),
     ],
 
+    'perione' => [
+        'environment' => env('PERIONE_ENV', env('APP_ENV', 'sandbox')),
+        'client_id' => env('PERIONE_CLIENT_ID', 'PEINVSb3aadf99327e3ca03792510397d3136b'),
+        'client_secret' => env('PERIONE_CLIENT_SECRET', 'PEINVS21f24a6a2291dd214d0d81bf23ae8ec7'),
+        'base_url' => env('PERIONE_BASE_URL', 'https://staging.perione.in'),
+        'email' => env('PERIONE_EMAIL', 'sayee@onemodo.com'),
+        'ip' => env('PERIONE_IP', '192.168.1.98'),
+
+        // Sandbox / Staging
+        'sandbox_base_url' => env('PERIONE_SANDBOX_BASE_URL', 'https://staging.perione.in'),
+        'sandbox_client_id' => env('PERIONE_SANDBOX_CLIENT_ID', 'PEINVSb3aadf99327e3ca03792510397d3136b'),
+        'sandbox_client_secret' => env('PERIONE_SANDBOX_CLIENT_SECRET', 'PEINVS21f24a6a2291dd214d0d81bf23ae8ec7'),
+        'sandbox_email' => env('PERIONE_SANDBOX_EMAIL', 'sayee@onemodo.com'),
+
+        // Production
+        'prod_base_url' => env('PERIONE_PROD_BASE_URL', 'https://api.perione.in'),
+        'prod_client_id' => env('PERIONE_PROD_CLIENT_ID'),
+        'prod_client_secret' => env('PERIONE_PROD_CLIENT_SECRET'),
+        'prod_email' => env('PERIONE_PROD_EMAIL'),
+    ],
+
 ];

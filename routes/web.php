@@ -335,7 +335,7 @@ Route::middleware([
         Route::resource('invoices', \App\Http\Controllers\InvoiceController::class)->except(['create', 'edit', 'destroy']);
         
         // E-Invoice & E-Way Bill Compliance
-        Route::post('invoices/{invoice}/generate-einvoice', [\App\Http\Controllers\EInvoiceController::class, 'generate'])->name('invoices.generate-einvoice');
+        Route::post('invoices/{invoice}/generate-einvoice', [\App\Http\Controllers\EInvoiceController::class, 'einvoiceGenerate'])->name('invoices.generate-einvoice');
         Route::post('invoices/{invoice}/cancel-einvoice', [\App\Http\Controllers\EInvoiceController::class, 'cancel'])->name('invoices.cancel-einvoice');
         Route::post('invoices/{invoice}/generate-ewaybill', [\App\Http\Controllers\EInvoiceController::class, 'generateEWayBill'])->name('invoices.generate-ewaybill');
         Route::post('invoices/{invoice}/cancel-ewaybill', [\App\Http\Controllers\EInvoiceController::class, 'cancelEWayBill'])->name('invoices.cancel-ewaybill');
