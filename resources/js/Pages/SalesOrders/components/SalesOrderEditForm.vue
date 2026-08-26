@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useForm, router, usePage } from '@inertiajs/vue3';
 import { computed, watch, ref, onMounted } from 'vue';
-import { calculateLineItemTotals } from '@/composables/useLineItemCalculation';
+import { calculateLineItemTotals } from '@/Composables/useLineItemCalculation';
 import axios from 'axios';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';

@@ -47,7 +47,7 @@ class BatchController extends Controller
         'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
         'materials.product:id,title',
         'materials.uom:id,unit_code',
-        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id,customer_po_id,concrete_pump,pump_rate',
+        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id,customer_po_id,concrete_pump,pump_rate,rate,tax_id,is_tax_inclusive',
         'salesOrder.plant:id,name,mixer_capacity',
         'salesOrder.customer:id,legal_name',
         'salesOrder.mixDesign:id,design_name,design_code',
@@ -298,14 +298,27 @@ class BatchController extends Controller
                 $units = $batchSize;
                 $loadRate = $baseRate;
 
-                $loadUntaxAmount = $units * $loadRate;
+                $isTaxInclusive = (bool)($salesOrder->is_tax_inclusive ?? false);
+
+                $grossTotal = $units * $loadRate;
+                $loadUntaxAmount = 0.0;
                 $loadTaxAmount = 0.0;
+
                 if ($taxId) {
                     $tax = \App\Models\Tax::find($taxId);
                     $taxRate = $tax ? (float)($tax->tax_rate ?? $tax->rate ?? 0) : 0.0;
-                    $loadTaxAmount = ($loadUntaxAmount * $taxRate) / 100;
+                    if ($isTaxInclusive && $taxRate > 0) {
+                        $loadUntaxAmount = $grossTotal / (1 + ($taxRate / 100));
+                        $loadTaxAmount = $grossTotal - $loadUntaxAmount;
+                    } else {
+                        $loadUntaxAmount = $grossTotal;
+                        $loadTaxAmount = ($loadUntaxAmount * $taxRate) / 100;
+                    }
+                } else {
+                    $loadUntaxAmount = $grossTotal;
                 }
-                $loadTotalAmount = $loadUntaxAmount + $loadTaxAmount;
+
+                $loadTotalAmount = $isTaxInclusive ? $grossTotal : ($loadUntaxAmount + $loadTaxAmount);
 
                 $dispatchData = [
                     'sales_order_id'      => $payload['sales_order_id'],
@@ -315,6 +328,7 @@ class BatchController extends Controller
                     'customer_id'         => $salesOrder->customer_id,
                     'mixdesign_id'        => $salesOrder->mix_design_id,
                     'unload_site_id'      => $salesOrder->site_id,
+                    
                     'load_site_id'        => $activePlantId, // usually plant is the load site, not $payload['site_id']
                     'uom_id'              => $payload['uom_id'] ?? null,
                     'truck_id'            => $payload['truck_id'] ?? null,
@@ -322,7 +336,7 @@ class BatchController extends Controller
                     'driver_id'           => $payload['driver_id'] ?? null,
                     'operator_id'         => $payload['operator_id'] ?? $batch->operator_id ?? null,
                     'sales_executive_id'  => $payload['sales_executive_id'] ?? $salesOrder->sales_executive_id ?? $salesOrder->customerPO?->sales_executive_id ?? null,
-                    'concrete_pump'       => $payload['concrete_pump'] ?? $payload['concrete_pump'] ?? null,
+                    'concrete_pump'       => $payload['concrete_pump'] ?? null,
                     'empty_weight_truck'  => $payload['empty_weight_truck'] ?? 0,
                     'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? 0,
                     'net_weight'          => $payload['net_weight'] ?? 0,
@@ -344,10 +358,13 @@ class BatchController extends Controller
                 Log::info('Creating Dispatch', $dispatchData);
                 $dispatch = Dispatch::create($dispatchData);
                     
-                    $dispatch->status()->updateOrCreate(
-                        ['dispatch_id' => $dispatch->id],
-                        ['plant_id' => $dispatch->plant_id]
-                    );
+                $dispatch->status()->updateOrCreate(
+                    ['dispatch_id' => $dispatch->id],
+                    [
+                        'plant_id' => $dispatch->plant_id,
+                        'is_tax_inclusive' => $isTaxInclusive
+                    ]
+                );
                 }
 
                 if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');

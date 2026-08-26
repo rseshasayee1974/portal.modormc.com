@@ -369,23 +369,26 @@
                     <th class="text-center" style="width:28px">#</th>
                     <th class="text-left">Item &amp; Description</th>
                     @if ($pdfSettings['show_pump_charges'] ?? true)
-                        <th class="text-left" style="width:120px">Concrete Type</th>
-                        <th class="text-right" style="width:90px">Pump Charges</th>
+                        <th class="text-left" style="width:110px">Concrete Type</th>
+                        <th class="text-right" style="width:80px">Pump Charges</th>
                     @endif
                     @if ($pdfSettings['qty'] ?? true)
-                        <th class="text-right" style="width:55px">Qty</th>
+                        <th class="text-right" style="width:50px">Qty</th>
                     @endif
                     @if ($pdfSettings['unit'] ?? true)
-                        <th class="text-center" style="width:50px">Unit</th>
+                        <th class="text-center" style="width:45px">Unit</th>
                     @endif
-                    <th class="text-right" style="width:80px">{{ $labels['rate'] ?? 'Rate' }}</th>
+                    <th class="text-right" style="width:75px">{{ $labels['rate'] ?? 'Rate' }}</th>
+                    @if ($pdfSettings['discount'] ?? false)
+                        <th class="text-right" style="width:60px">Discount</th>
+                    @endif
                     @if ($pdfSettings['tax_rate'] ?? true)
-                        <th class="text-right" style="width:55px">Tax %</th>
+                        <th class="text-right" style="width:50px">Tax %</th>
                     @endif
                     @if ($pdfSettings['tax_amount'] ?? true)
-                        <th class="text-right" style="width:70px">Tax Amt</th>
+                        <th class="text-right" style="width:65px">Tax Amt</th>
                     @endif
-                    <th class="text-right" style="width:80px">{{ $labels['amount'] ?? 'Amount' }}</th>
+                    <th class="text-right" style="width:75px">{{ $labels['amount'] ?? 'Amount' }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -395,6 +398,7 @@
                     if ($pdfSettings['qty'] ?? true) $totalCols++;
                     if ($pdfSettings['unit'] ?? true) $totalCols++;
                     $totalCols++; // rate
+                    if ($pdfSettings['discount'] ?? false) $totalCols++;
                     if ($pdfSettings['tax_rate'] ?? true) $totalCols++;
                     if ($pdfSettings['tax_amount'] ?? true) $totalCols++;
                     $totalCols++; // amount
@@ -428,6 +432,11 @@
                             <td class="text-center" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['unit'] }}</td>
                         @endif
                         <td class="text-right" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ number_format($item['unit_price'], 2) }}</td>
+                        @if ($pdfSettings['discount'] ?? false)
+                            <td class="text-right muted" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
+                                {{ !empty($item['discount']) && $item['discount'] > 0 ? number_format($item['discount'], 2) : '-' }}
+                            </td>
+                        @endif
                         @if ($pdfSettings['tax_rate'] ?? true)
                             <td class="text-right muted" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
                                 {{ $item['tax_rate'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? ($item['tax_rate'] == floor($item['tax_rate']) ? number_format($item['tax_rate'], 0) : number_format($item['tax_rate'], 2)) . '%' : '-' }}
@@ -496,30 +505,49 @@
             </tbody>
         </table>
 
-        <div style="padding:4px 8px;text-align:right;">
+        <div style="display: table; width: 100%;">
             <table class="totals-compact">
-                <tr>
-                    <td class="tc-label">Sub Total</td>
-                    <td class="tc-val">
-                        {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['sub_total'], 2) }}
-                    </td>
-                </tr>
-                @if (
-                    (($pdfSettings['show_pump_charges'] ?? true) || ($pdfSettings['pump_rates'] ?? true)) &&
-                        isset($data['totals']['pump_rate']) &&
-                        $data['totals']['pump_rate'] > 0)
+                @if(!empty($data['totals']['sub_total']) && $data['totals']['sub_total'] > 0)
                     <tr>
-                        <td class="tc-label">Concrete Pump Charges</td>
+                        <td class="tc-label">Sub Total</td>
                         <td class="tc-val">
-                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['pump_rate'], 2) }}
+                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['sub_total'], 2) }}
                         </td>
                     </tr>
                 @endif
-                @if (($pdfSettings['discount'] ?? true) && $data['totals']['discount'] > 0)
+                @php $pumpChg = $data['totals']['pump_charge'] ?? $data['totals']['pump_charges'] ?? $data['totals']['pump_rate'] ?? 0; @endphp
+                @if (
+                    (($pdfSettings['show_pump_charges'] ?? true) || ($pdfSettings['pump_rates'] ?? true)) &&
+                        $pumpChg > 0)
+                    <tr>
+                        <td class="tc-label">Concrete Pump Charges</td>
+                        <td class="tc-val">
+                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($pumpChg, 2) }}
+                        </td>
+                    </tr>
+                @endif
+                @if (($pdfSettings['discount'] ?? true) && !empty($data['totals']['discount']) && $data['totals']['discount'] > 0)
                     <tr>
                         <td class="tc-label" style="color:#ef4444;">Discount (-)</td>
                         <td class="tc-val" style="color:#ef4444;">
-                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['discount'], 2) }}
+                            -{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['discount'], 2) }}
+                        </td>
+                    </tr>
+                @endif
+                @php $hireChg = $data['totals']['hire_charge'] ?? $data['totals']['transport_expenses'] ?? 0; @endphp
+                @if (($pdfSettings['hire_charge'] ?? true) && $hireChg > 0)
+                    <tr>
+                        <td class="tc-label">Hire Charge</td>
+                        <td class="tc-val">
+                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($hireChg, 2) }}
+                        </td>
+                    </tr>
+                @endif
+                @if (($pdfSettings['pass_amount'] ?? true) && !empty($data['totals']['pass_amount']) && $data['totals']['pass_amount'] > 0)
+                    <tr>
+                        <td class="tc-label">Pass Amount</td>
+                        <td class="tc-val">
+                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['pass_amount'], 2) }}
                         </td>
                     </tr>
                 @endif
@@ -545,7 +573,7 @@
                         </tr>
                     @endif
                 @endforeach
-                @if (($pdfSettings['shipping'] ?? true) && $data['totals']['shipping'] > 0)
+                @if (($pdfSettings['shipping'] ?? true) && !empty($data['totals']['shipping']) && $data['totals']['shipping'] > 0)
                     <tr>
                         <td class="tc-label">Shipping</td>
                         <td class="tc-val">

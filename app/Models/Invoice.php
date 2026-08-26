@@ -208,16 +208,15 @@ class Invoice extends Model implements Postable
         
         // Add shipping charges to total
         $rawTotal       = $subtotal + $taxAmount - $globalDiscount + $this->adjustment + ($this->shipping_charges ?? 0);
-        $rounded        = round($rawTotal);
-        $roundOff       = $rounded - $rawTotal;
+        $roundOff       = 0.0;
 
         $this->updateQuietly([
             'subtotal'       => $subtotal,
             'discount_total' => $discountTotal,
             'tax_amount'     => $taxAmount,
-            'total_amount'   => $rounded,
+            'total_amount'   => $rawTotal,
             'round_off'      => $roundOff,
-            'balance_amount' => max(0, $rounded - (float)($this->paid_amount ?? 0)),
+            'balance_amount' =>  $rawTotal - (float)($this->paid_amount ?? 0),
         ]);
     }
 
@@ -488,7 +487,7 @@ class Invoice extends Model implements Postable
                 } else {
                     // For sales/invoice, use original values
                     $item_id = data_get($item, 'mix_design_id');
-                    $qty = (float) (data_get($item, 'product_quantity') ?? data_get($item, 'quantity') ?? 0);
+                    $qty = (float) (data_get($item, 'quantity') ?? data_get($item, 'product_quantity') ?? 0);
                     $priceUnit = (float) data_get($item, 'unit_price');
                     $lineDiscount = (float) data_get($item, 'total_discount');
                     $lineSubtotal = (float) data_get($item, 'price_subtotal');
@@ -527,12 +526,14 @@ class Invoice extends Model implements Postable
             
             if ($type === 'bill') {
                 $totalAmount = $subtotal + $taxAmount + $shippingCharges + $adjustment;
-                $roundedTotal = round($totalAmount);
-                $roundOff = $roundedTotal - $totalAmount;
-                $totalAmount = $roundedTotal;
+                $roundOff = 0.0;
             } else {
-                $roundOff = $source->rounding_value;
-                $totalAmount = $source->amount_total;
+                $roundOff = (float) $source->rounding_value;
+                $pumpCharges = (float) ($source->pump_charges ?? 0);
+                $passAmount = (float) ($source->pass_amount ?? 0);
+                
+                // Calculate exact grand total matching dispatch total calculation
+                $totalAmount = ($subtotal + $taxAmount + $pumpCharges + $shippingCharges + $passAmount + $adjustment + $roundOff) - $discountTotal;
             }
 
             // 1. Create the Invoice Header
@@ -666,17 +667,17 @@ class Invoice extends Model implements Postable
 
     public function getSubtotalCents(): int
     {
-        return (int) round((float)($this->subtotal ?? 0) * 100);
+        return (float)($this->subtotal ?? 0) * 100;
     }
 
     public function getTaxTotalCents(): int
     {
-        return (int) round((float)($this->tax_amount ?? 0) * 100);
+        return (float)($this->tax_amount ?? 0) * 100;
     }
 
     public function getTotalAmountCents(): int
     {
-        return (int) round((float)($this->total_amount ?? 0) * 100);
+        return (float)($this->total_amount ?? 0) * 100;
     }
 
     /**
@@ -698,7 +699,7 @@ class Invoice extends Model implements Postable
             ->where('order_type', $module)
             ->get()
             ->map(fn($row) => new TaxLineDTO(
-                amountCents: (int) round((float)($row->amount ?? 0) * 100),
+                amountCents: (float)($row->amount ?? 0) * 100,
                 accountId:   $row->account_id ? (int) $row->account_id : null,
                 taxName:     $row->name ?? 'Tax',
                 taxId:       $row->tax_id ? (int) $row->tax_id : null,
@@ -729,10 +730,10 @@ class Invoice extends Model implements Postable
         ];
 
         foreach ($map as $field => $cfg) {
-            $value = round((float)($this->{$field} ?? 0), 2);
+            $value = (float)($this->{$field} ?? 0);
             if ($value == 0) continue;
 
-            $amountCents = (int) round($value * 100);
+            $amountCents = $value * 100;
             if ($cfg['invert']) $amountCents = -$amountCents; // discount = negative
 
             $accountId = $resolver->resolve($plantId, $module, $cfg['key'], $cfg['label']);

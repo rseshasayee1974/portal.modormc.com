@@ -75,7 +75,7 @@ class DispatchController extends Controller
                 // Merge valid financial fields
                 $dispatchData = array_merge($dispatchData, $this->mapNestedFields($validated['financials'] ?? null, [
                     'load_rate', 'load_tax_id', 'load_tax_amount', 'load_untax_amount', 'load_total_amount',
-                    'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off'
+                    'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off', 'pump_charges'
                 ]));
                 if (isset($validated['financials']['pump_charge'])) {
                     $dispatchData['pump_charges'] = $validated['financials']['pump_charge'];
@@ -193,7 +193,7 @@ Log::info($dispatch);
 
             $dispatchData = array_merge($dispatchData, $this->mapNestedFields($validated['financials'] ?? null, [
                 'load_rate', 'load_tax_id', 'load_tax_amount', 'load_untax_amount', 'load_total_amount',
-                'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off'
+                'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off', 'pump_charges'
             ]));
             if (isset($validated['financials']['pump_charge'])) {
                 $dispatchData['pump_charges'] = $validated['financials']['pump_charge'];

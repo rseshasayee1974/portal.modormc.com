@@ -28,6 +28,7 @@
         'transport',
         'salesOrder.site',
         'salesOrder.salesExecutive',
+        'salesOrder.customerPO',
         'salesExecutive',
         'customerPO',
         'concretePump',
@@ -38,6 +39,24 @@
             }
         })
         ->get();
+
+    if ($dispatches->isEmpty() && $inv?->ref_id) {
+        $refIds = array_filter(array_map('trim', explode(',', $inv->ref_id)));
+        $dispatches = \App\Models\Dispatch::with([
+            'mixDesign',
+            'truck',
+            'driver',
+            'transport',
+            'salesOrder.site',
+            'salesOrder.salesExecutive',
+            'salesOrder.customerPO',
+            'salesExecutive',
+            'customerPO',
+            'concretePump',
+        ])
+            ->whereIn('id', $refIds)
+            ->get();
+    }
 
     $firstDispatch = $dispatches->first();
     $salesOrder = $firstDispatch?->salesOrder;
@@ -72,27 +91,30 @@
     $shippingAddress = $shippingSite?->address ?? $billingAddress;
 
     // Customer Ref
-    $accNo = $partner?->code ?? ($partner?->reference ?? 'AC-' . ($partner?->id ?? '9'));
-    $poRef = $customerPO?->customer_po_reference ?? ($customerPO?->reference ?? ($inv?->ref_title ?? ''));
+    $accNo = $partner?->code ?? ($partner?->reference ?? ($partner?->id ? 'AC-' . $partner->id : ''));
+    $poRef = $customerPO?->customer_po_reference 
+        ?? ($customerPO?->reference 
+        ?? ($salesOrder?->customer_po_reference 
+        ?? ($salesOrder?->po_number 
+        ?? ($firstDispatch?->customer_po_reference 
+        ?? ($inv?->ref_title ?? '')))));
 
     $salesPerson = $firstDispatch?->salesExecutive ?? $salesOrder?->salesExecutive;
     $salesPersonName = $salesPerson
         ? trim(($salesPerson->first_name ?? '') . ' ' . ($salesPerson->last_name ?? ''))
         : '';
 
-    $pumpName = '-';
+    $pumpName = '';
     if ($firstDispatch?->concretePump) {
         $pumpName = $firstDispatch->concretePump->registration ?: $firstDispatch->concretePump->name ?? '';
     } elseif (!empty($firstDispatch?->concrete_pump)) {
         $pumpName = is_numeric($firstDispatch->concrete_pump)
             ? \App\Models\Machine::find($firstDispatch->concrete_pump)?->registration ?? ''
             : ucwords(str_replace('_', ' ', $firstDispatch->concrete_pump));
-    } else {
-        $pumpName = 'Dumping';
     }
 
     $mixDesignObj = $firstDispatch?->mixDesign ?? $salesOrder?->mixDesign;
-    $designMixRef = $mixDesignObj?->concrete_grade?->name ?? ($mixDesignObj?->concreteGrade?->name ?? ($mixDesignObj?->design_type ?? ($mixDesignObj?->design_name ?? '-')));
+    $designMixRef = $mixDesignObj?->concrete_grade?->name ?? ($mixDesignObj?->concreteGrade?->name ?? ($mixDesignObj?->design_type ?? ($mixDesignObj?->design_name ?? '')));
 
     // Carrier & Driver
     $transporterName = $firstDispatch?->transport?->name ?? '';
@@ -100,15 +122,16 @@
     $driverName = $firstDispatch?->driver
         ? trim(($firstDispatch->driver->first_name ?? '') . ' ' . ($firstDispatch->driver->last_name ?? ''))
         : '';
-    $carrierDriver = "{$transporterName} , {$truckReg} - {$driverName}";
+    $carrierDriverParts = array_filter([$transporterName, array_filter([$truckReg, $driverName]) ? implode(' - ', array_filter([$truckReg, $driverName])) : '']);
+    $carrierDriver = implode(' , ', $carrierDriverParts);
 
     // Invoice Meta
     $invoiceNo = $inv?->full_number ?? ($inv?->invoice_number ?? '');
-    $invoiceDate = $inv?->invoice_date ? \Carbon\Carbon::parse($inv->invoice_date)->format('d-m-Y') : date('d-m-Y');
+    $invoiceDate = $inv?->invoice_date ? \Carbon\Carbon::parse($inv->invoice_date)->format('d-m-Y') : '';
     $soNo = $salesOrder?->order_no
         ? ($salesOrder->prefix ?? '') . $salesOrder->order_no
         : ($inv?->ref_id
-            ? '' . str_pad($inv->ref_id, 5, '0', STR_PAD_LEFT)
+            ? 'RS/04/26-27/' . str_pad($inv->ref_id, 5, '0', STR_PAD_LEFT)
             : '');
     $ewayBillNo = $inv?->eway_bill_no ?? '';
 
@@ -126,6 +149,100 @@
     $bankName = $bankAccount?->bank_name ?? '';
     $bankBranch = $bankAccount?->bank_branch ?? ($bankAccount?->branch ?? '');
     $bankIfsc = $bankAccount?->bank_ifsc ?? ($bankAccount?->ifsc_code ?? '');
+
+    // Helper for Number to Words (Indian Rupee format)
+    if (!function_exists('taxInvoiceNumberToWords')) {
+        function taxInvoiceNumberToWords($num)
+        {
+            $num = (float) $num;
+            $whole = floor($num);
+            $fraction = round(($num - $whole) * 100);
+
+            $ones = [
+                0 => '',
+                1 => 'One',
+                2 => 'Two',
+                3 => 'Three',
+                4 => 'Four',
+                5 => 'Five',
+                6 => 'Six',
+                7 => 'Seven',
+                8 => 'Eight',
+                9 => 'Nine',
+                10 => 'Ten',
+                11 => 'Eleven',
+                12 => 'Twelve',
+                13 => 'Thirteen',
+                14 => 'Fourteen',
+                15 => 'Fifteen',
+                16 => 'Sixteen',
+                17 => 'Seventeen',
+                18 => 'Eighteen',
+                19 => 'Nineteen',
+            ];
+            $tens = [
+                2 => 'Twenty',
+                3 => 'Thirty',
+                4 => 'Forty',
+                5 => 'Fifty',
+                6 => 'Sixty',
+                7 => 'Seventy',
+                8 => 'Eighty',
+                9 => 'Ninety',
+            ];
+
+            $convertGroup = function ($n) use ($ones, $tens) {
+                $str = '';
+                if ($n >= 100) {
+                    $str .= $ones[floor($n / 100)] . ' Hundred ';
+                    $n %= 100;
+                }
+                if ($n >= 20) {
+                    $str .= $tens[floor($n / 10)] . ' ';
+                    $n %= 10;
+                }
+                if ($n > 0) {
+                    $str .= $ones[$n] . ' ';
+                }
+                return trim($str);
+            };
+
+            if ($whole == 0) {
+                $words = 'Zero';
+            } else {
+                $crore = floor($whole / 10000000);
+                $whole %= 10000000;
+                $lakh = floor($whole / 100000);
+                $whole %= 100000;
+                $thousand = floor($whole / 1000);
+                $whole %= 1000;
+                $hundreds = $whole;
+
+                $parts = [];
+                if ($crore > 0) {
+                    $parts[] = $convertGroup($crore) . ' Crore';
+                }
+                if ($lakh > 0) {
+                    $parts[] = $convertGroup($lakh) . ' Lakh';
+                }
+                if ($thousand > 0) {
+                    $parts[] = $convertGroup($thousand) . ' Thousand';
+                }
+                if ($hundreds > 0) {
+                    $parts[] = $convertGroup($hundreds);
+                }
+
+                $words = implode(' ', $parts);
+            }
+
+            $result = 'Rs. ' . trim($words);
+            if ($fraction > 0) {
+                $result .= ' and ' . $convertGroup($fraction) . ' Paise';
+            }
+            $result .= ' Only';
+            return $result;
+        }
+    }
 
     // Tax Calculations
     $items = $inv?->items ?? collect();
@@ -600,11 +717,6 @@
                             @endif,<br>
                             {{ $regAddress->city }} - {{ $regAddress->zipcode }}<br>
                             {{ strtoupper($stateName) }}
-                        @else
-                            NO.176/A, Manalkadu Thottam,<br>
-                            Kodangipalayam, Karanampettai.<br>
-                            COIMBATORE - 641401<br>
-                            TAMIL NADU
                         @endif
                     </div>
                     <div class="info-line"><strong>Mobile Number :</strong> {{ $mobile }}</div>
@@ -625,12 +737,7 @@
                                 , {{ $plantAddress->line_2 }}
                             @endif,<br>
                             {{ $plantAddress->city }} - {{ $plantAddress->zipcode }}<br>
-                            {{ $plantAddress->state?->name ?? 'Tamilnadu' }}
-                        @else
-                            NO.176/A, Manalkadu Thottam,<br>
-                            Kodangipalayam, Karanampettai.<br>
-                            coimbatore - 641401<br>
-                            Tamilnadu
+                            {{ $plantAddress->state?->name ?? '' }}
                         @endif
                     </div>
                 </td>
@@ -653,39 +760,33 @@
                 <td>
                     <div class="box-heading">Customer Billing Address</div>
                     <div class="info-line font-bold">
-                        {{ strtoupper($partner?->legal_name ?? 'SRINIVASAN ASSOCIATES PRIVATE LTD') }}</div>
+                        {{ strtoupper($partner?->legal_name ?? '') }}</div>
                     <div class="info-line">
                         @if ($billingAddress)
                             {{ $billingAddress->line_1 }}@if ($billingAddress->line_2)
                                 , {{ $billingAddress->line_2 }}
                             @endif,<br>
                             {{ $billingAddress->city }} - {{ $billingAddress->zipcode }}
-                        @else
-                            14/2 & 4, TIRUPUR TEXTILES, AVINASHI ROAD, PEELAMEDU<br>
-                            COIMBATORE - 641004
                         @endif
                     </div>
-                    <div class="info-line"><strong>GSTIN :</strong> {{ $partner?->gstin ?? '33AAJCS7732B1ZJ' }}</div>
+                    <div class="info-line"><strong>GSTIN :</strong> {{ $partner?->gstin ?? '' }}</div>
                 </td>
 
                 <!-- Col 2: Customer Shipping Address -->
                 <td>
                     <div class="box-heading">Customer Shipping Address</div>
                     <div class="info-line font-bold">
-                        {{ strtoupper($shippingSite?->name ?? 'MR.KANAGARATHINAM RESIDENCY') }}</div>
+                        {{ strtoupper($shippingSite?->name ?? '') }}</div>
                     <div class="info-line">
                         @if ($shippingAddress)
                             {{ $shippingAddress->line_1 }}@if ($shippingAddress->line_2)
                                 , {{ $shippingAddress->line_2 }}
                             @endif,<br>
                             {{ $shippingAddress->city }} - {{ $shippingAddress->zipcode }}
-                        @else
-                            SITE NO:37, KOVAI ESTATE, VEERIYAMPALAYAM ROAD, KALAPATTI<br>
-                            COIMBATORE - 641048
                         @endif
                     </div>
                     <div class="info-line"><strong>GSTIN :</strong>
-                        {{ $shippingSite?->gstin ?? ($partner?->gstin ?? '33AAJCS7732B1ZJ') }}</div>
+                        {{ $shippingSite?->gstin ?? ($partner?->gstin ?? '') }}</div>
                 </td>
 
                 <!-- Col 3: Customer Ref -->
@@ -779,29 +880,8 @@
                         </td>
                     </tr>
                 @empty
-                    <!-- Sample / Demo Row if no items passed -->
                     <tr>
-                        <td class="text-center font-bold">HSN :<br>38245010</td>
-                        <td class="text-center font-bold">M20 (Gst)</td>
-                        <td class="text-center"></td>
-                        <td class="text-center">1.75</td>
-                        <td class="text-right">3957.63</td>
-                        <td class="text-right">6925.85</td>
-                        <td>
-                            <table class="tax-subtable">
-                                <tr>
-                                    <td class="font-bold">CGST@9%</td>
-                                    <td class="text-center">9.00%</td>
-                                    <td class="text-right">623.33</td>
-                                </tr>
-                                <tr>
-                                    <td class="font-bold">SGST@9%</td>
-                                    <td class="text-center">9.00%</td>
-                                    <td class="text-right">623.33</td>
-                                </tr>
-                            </table>
-                        </td>
-                        <td class="text-right font-bold">8172.51</td>
+                        <td colspan="8" class="text-center" style="padding: 12px;">No items found.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -814,16 +894,24 @@
                 <td class="words-col">
                     <div class="font-bold" style="margin-bottom: 2px;">Amount in Words :</div>
                     @if ($isIntra)
-                        <div class="info-line"><strong>CGST@9%</strong>
-                            {{ taxInvoiceNumberToWords($totalCgst > 0 ? $totalCgst : 623.33) }}</div>
-                        <div class="info-line"><strong>SGST@9%</strong>
-                            {{ taxInvoiceNumberToWords($totalSgst > 0 ? $totalSgst : 623.33) }}</div>
+                        @if ($totalCgst > 0)
+                            <div class="info-line"><strong>CGST</strong>
+                                {{ taxInvoiceNumberToWords($totalCgst) }}</div>
+                        @endif
+                        @if ($totalSgst > 0)
+                            <div class="info-line"><strong>SGST</strong>
+                                {{ taxInvoiceNumberToWords($totalSgst) }}</div>
+                        @endif
                     @else
-                        <div class="info-line"><strong>IGST@18%</strong> {{ taxInvoiceNumberToWords($totalIgst) }}
-                        </div>
+                        @if ($totalIgst > 0)
+                            <div class="info-line"><strong>IGST</strong> {{ taxInvoiceNumberToWords($totalIgst) }}
+                            </div>
+                        @endif
                     @endif
-                    <div class="info-line font-bold" style="margin-top: 2px;">Grand Total
-                        {{ taxInvoiceNumberToWords($grandTotal > 0 ? $grandTotal : 8173.0) }}</div>
+                    @if ($grandTotal > 0)
+                        <div class="info-line font-bold" style="margin-top: 2px;">Grand Total
+                            {{ taxInvoiceNumberToWords($grandTotal) }}</div>
+                    @endif
                 </td>
 
                 <!-- Right: Rounding & Grand Total -->
@@ -832,12 +920,12 @@
                         <tr>
                             <td class="text-right" style="width: 60%;">Rounding off</td>
                             <td class="text-right font-bold" style="width: 40%;">
-                                {{ number_format($roundOff != 0 ? $roundOff : 0.49, 2) }}</td>
+                                {{ number_format($roundOff, 2) }}</td>
                         </tr>
                         <tr>
                             <td class="text-right font-bold">Grand Total</td>
                             <td class="text-right font-bold">
-                                {{ number_format($grandTotal > 0 ? $grandTotal : 8173.0, 2) }}</td>
+                                {{ number_format($grandTotal, 2) }}</td>
                         </tr>
                     </table>
                 </td>
@@ -866,11 +954,11 @@
                 <!-- Right: Bank Information -->
                 <td>
                     <div class="box-heading">BANK INFORMATION:</div>
-                    <div class="info-line"><strong>ACCOUNT NAME:</strong> {{ strtoupper($bankAccountName) }}</div>
-                    <div class="info-line"><strong>ACCOUNT NUMBER:</strong> {{ $bankAccountNo }}</div>
-                    <div class="info-line"><strong>BANK:</strong> {{ strtoupper($bankName) }}</div>
-                    <div class="info-line"><strong>BRANCH:</strong> {{ strtoupper($bankBranch) }}</div>
-                    <div class="info-line"><strong>IFSC CODE:</strong> {{ strtoupper($bankIfsc) }}</div>
+                    <div class="info-line"><strong>ACCOUNT NAME:</strong> {{ strtoupper($bankAccountName)?? '' }}</div>
+                    <div class="info-line"><strong>ACCOUNT NUMBER:</strong> {{ $bankAccountNo?? '' }}</div>
+                    <div class="info-line"><strong>BANK:</strong> {{ strtoupper($bankName)?? '' }}</div>
+                    <div class="info-line"><strong>BRANCH:</strong> {{ strtoupper($bankBranch)?? '' }}</div>
+                    <div class="info-line"><strong>IFSC CODE:</strong> {{ strtoupper($bankIfsc)?? '' }}</div>
                 </td>
             </tr>
         </table>

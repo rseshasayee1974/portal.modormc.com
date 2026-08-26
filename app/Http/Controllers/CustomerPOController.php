@@ -158,9 +158,6 @@ class CustomerPOController extends Controller
             ]);
 
             if (empty($validated['quotation_id'])) {
-                $batchSettings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
-                $addPouringRatesToTotal = !empty($batchSettings['add_pouring_rates_to_total']) && (int)$batchSettings['add_pouring_rates_to_total'] === 1;
-
                 foreach ($items as $item) {
                     if (empty($item['mix_design_id'])) {
                         continue;
@@ -169,7 +166,7 @@ class CustomerPOController extends Controller
                     $rate = (float)($item['rate'] ?? 0);
                     $pumpRate = (float)($item['pump_rate'] ?? 0);
                     $concretePump = $item['concrete_pump'] ?? null;
-                    $pumpCharge = $addPouringRatesToTotal ? $pumpRate : $pumpRate * $qty;
+                    $pumpCharge = $pumpRate;
                     
                     $taxId = $item['tax_id'] ?? null;
                     $taxRate = 0.0;
@@ -352,15 +349,12 @@ class CustomerPOController extends Controller
                     $oldItem->delete();
                 }
 
-                $batchSettings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
-                $addPouringRatesToTotal = !empty($batchSettings['add_pouring_rates_to_total']) && (int)$batchSettings['add_pouring_rates_to_total'] === 1;
-
                 foreach ($items as $item) {
                     $qty = (float)($item['quantity'] ?? 0);
                     $rate = (float)($item['rate'] ?? 0);
                     $pumpRate = (float)($item['pump_rate'] ?? 0);
                     $concretePump = $item['concrete_pump'] ?? null;
-                    $pumpCharge = $addPouringRatesToTotal ? $pumpRate : $pumpRate * $qty;
+                    $pumpCharge = $pumpRate;
                     
                     $taxId = $item['tax_id'] ?? null;
                     $taxRate = 0.0;

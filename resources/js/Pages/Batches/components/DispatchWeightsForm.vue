@@ -157,7 +157,19 @@ const formatTime = (dateVal: any) => {
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <BaseSelect v-model="modelValue.uom_id" :options="uoms" optionLabel="unit_code" optionValue="id" label="Unit of Measure" filter showClear :error="errors.uom_id" :disabled="isReadOnly" />
-                <BaseInputNumber v-model="modelValue.financials.load_rate" label="Load Rate" :minFractionDigits="2" :error="errors['financials.load_rate']" :disabled="isReadOnly" />
+                
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Load Rate</label>
+                        <div class="flex items-center gap-1.5 cursor-pointer">
+                            <span class="text-[9px] font-bold text-slate-500 uppercase tracking-tight">Tax Incl.</span>
+                            <input type="checkbox" v-model="modelValue.status.is_tax_inclusive" id="is_tax_inclusive_dispatch" :disabled="isReadOnly" class="peer hidden" />
+                            <label for="is_tax_inclusive_dispatch" :class="isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'" class="relative w-7 h-4 bg-slate-200 peer-checked:bg-indigo-600 rounded-full transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-[12px]"></label>
+                        </div>
+                    </div>
+                    <BaseInputNumber v-model="modelValue.financials.load_rate" :minFractionDigits="2" :error="errors['financials.load_rate']" :disabled="isReadOnly" />
+                </div>
+
                 <BaseSelect v-model="modelValue.financials.load_tax_id" :options="taxes" optionLabel="tax_name" optionValue="id" label="Tax Group" filter showClear :error="errors['financials.load_tax_id']" :disabled="isReadOnly" />
                 <BaseSelect v-model="modelValue.payment_mode" :options="[{label: 'Cash', value: 'cash'}, {label: 'Credit', value: 'credit'}]" optionLabel="label" optionValue="value" label="Payment Mode" :error="errors.payment_mode" :disabled="isReadOnly" />
                 <BaseInput v-model="modelValue.dispatch_reference" label="Site Ref" :error="errors.dispatch_reference" :disabled="isReadOnly" class="col-span-1 sm:col-span-2 md:col-span-1" />
@@ -295,7 +307,7 @@ const formatTime = (dateVal: any) => {
                                     <div class="flex items-center gap-1 text-slate-700 font-medium">
                                         <CalendarIcon class="h-3.5 w-3.5 text-slate-400" />
                                         <span>{{ formatDate(modelValue.status.invoice_date) }}</span>
-                                        <span v-if="formatTime(modelValue.status.invoice_date)" class="text-slate-400 text-[11px]">({{ formatTime(modelValue.status.invoice_date) }})</span>
+                                        <!-- <span v-if="formatTime(modelValue.status.invoice_date)" class="text-slate-400 text-[11px]">({{ formatTime(modelValue.status.invoice_date) }})</span> -->
                                     </div>
                                 </div>
                                 <div class="h-6 w-px bg-slate-100 hidden sm:block"></div>

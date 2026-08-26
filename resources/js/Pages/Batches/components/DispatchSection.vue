@@ -64,6 +64,8 @@ const hasDispatchActivity = computed(() => {
     );
 });
 
+// console.log('props.dispatch?.status?.invoice_status',props.dispatch?.status?.invoice_status);
+
 const isReadOnly = computed(() => {
     if(props.dispatch?.status?.invoice_status === 1) return true;
 });
@@ -115,11 +117,11 @@ const form = useForm({
         }
         return null;
     })(),
-    customer_id: (props.dispatch?.customer_id || props.batch?.customer_id) ? Number(props.dispatch?.customer_id || props.batch?.customer_id) : null,
-    mixdesign_id: (props.dispatch?.mixdesign_id || props.batch?.mix_design_id) ? Number(props.dispatch?.mixdesign_id || props.batch?.mix_design_id) : null,
-    uom_id: (props.dispatch?.uom_id || props.batch?.uom_id) ? Number(props.dispatch?.uom_id || props.batch?.uom_id) : null,
-    load_site_id: (props.dispatch?.load_site_id || props.batch?.load_site_id) ? Number(props.dispatch?.load_site_id || props.batch?.load_site_id) : null,
-    unload_site_id: (props.dispatch?.unload_site_id || props.batch?.unload_site_id) ? Number(props.dispatch?.unload_site_id || props.batch?.unload_site_id) : null,
+    customer_id: (props.dispatch?.customer_id || props.batch?.customer_id || props.salesOrder?.customer_id) ? Number(props.dispatch?.customer_id || props.batch?.customer_id || props.salesOrder?.customer_id) : null,
+    mixdesign_id: (props.dispatch?.mixdesign_id || props.batch?.mix_design_id || props.salesOrder?.mix_design_id) ? Number(props.dispatch?.mixdesign_id || props.batch?.mix_design_id || props.salesOrder?.mix_design_id) : null,
+    uom_id: (props.dispatch?.uom_id || props.batch?.uom_id || props.salesOrder?.mixDesign?.unit_id) ? Number(props.dispatch?.uom_id || props.batch?.uom_id || props.salesOrder?.mixDesign?.unit_id) : null,
+    load_site_id: (props.dispatch?.load_site_id || props.batch?.load_site_id || props.salesOrder?.plant_id) ? Number(props.dispatch?.load_site_id || props.batch?.load_site_id || props.salesOrder?.plant_id) : null,
+    unload_site_id: (props.dispatch?.unload_site_id || props.batch?.unload_site_id || props.salesOrder?.site_id) ? Number(props.dispatch?.unload_site_id || props.batch?.unload_site_id || props.salesOrder?.site_id) : null,
     driver_id: (() => {
         const direct = props.dispatch?.driver_id || props.batch?.driver_id;
         if (direct) return Number(direct);
@@ -178,7 +180,7 @@ const form = useForm({
         load_tax_amount: props.dispatch?.load_tax_amount || 0,
         load_untax_amount: props.dispatch?.load_untax_amount || 0,
         load_total_amount: props.dispatch?.load_total_amount || 0,
-        pump_charges: props.dispatch?.pump_charges || 0,
+        pump_charges: props.dispatch?.pump_charges !== undefined && props.dispatch?.pump_charges !== null ? Number(props.dispatch.pump_charges) : Number(props.salesOrder?.pump_rate || props.batch?.pump_rate || 0),
         pass_amount: props.dispatch?.pass_amount || 0,
         discount_amount: props.dispatch?.discount_amount || 0,
         transport_expenses: props.dispatch?.transport_expenses || 0,
@@ -187,7 +189,15 @@ const form = useForm({
     },
 
     status: {
-        is_tax_inclusive: props.dispatch?.status?.is_tax_inclusive || false,
+        is_tax_inclusive: props.dispatch?.status?.is_tax_inclusive !== undefined
+            ? !!props.dispatch.status.is_tax_inclusive
+            : (props.salesOrder?.is_tax_inclusive !== undefined
+                ? !!props.salesOrder.is_tax_inclusive
+                : (props.salesOrder?.customer_p_o?.is_tax_inclusive !== undefined
+                    ? !!props.salesOrder.customer_p_o.is_tax_inclusive
+                    : (props.salesOrder?.customer_p_o?.quotation?.is_tax_inclusive !== undefined
+                        ? !!props.salesOrder.customer_p_o.quotation.is_tax_inclusive
+                        : false))),
         invoice_id: props.dispatch?.status?.invoice_id || null,
         invoice_date: props.dispatch?.status?.invoice_date || null,
         invoice_number: props.dispatch?.status?.invoice_number || '',
@@ -229,6 +239,20 @@ onMounted(async () => {
     }
 });
 
+const baseRate = computed(() => {
+    return Number(props.batch?.rate || props.salesOrder?.rate || 0);
+});
+
+const baseTaxId = computed(() => {
+    return props.batch?.tax_id || props.salesOrder?.tax_id || null;
+});
+
+const displayUnits = computed(() => {
+    return form.batch_size;
+});
+
+const pumpRate = computed(() => Number(props.salesOrder?.pump_rate || props.batch?.pump_rate || 0));
+
 // Watch for changes in props.batch (important for syncing batch weights and details to new dispatches)
 watch(() => props.batch, (newBatch) => {
     if (newBatch && !form.id) {
@@ -252,11 +276,11 @@ watch(() => props.batch, (newBatch) => {
                      return driverObj?.transporter_id ? Number(driverObj.transporter_id) : form.transport_id;
                   })() : form.transport_id));
 
-        form.customer_id = newBatch.customer_id ? Number(newBatch.customer_id) : form.customer_id;
-        form.mixdesign_id = newBatch.mix_design_id ? Number(newBatch.mix_design_id) : form.mixdesign_id;
-        form.uom_id = newBatch.uom_id ? Number(newBatch.uom_id) : form.uom_id;
-        form.load_site_id = newBatch.load_site_id ? Number(newBatch.load_site_id) : form.load_site_id;
-        form.unload_site_id = newBatch.unload_site_id ? Number(newBatch.unload_site_id) : form.unload_site_id;
+        form.customer_id = (newBatch.customer_id || props.salesOrder?.customer_id) ? Number(newBatch.customer_id || props.salesOrder?.customer_id) : form.customer_id;
+        form.mixdesign_id = (newBatch.mix_design_id || props.salesOrder?.mix_design_id) ? Number(newBatch.mix_design_id || props.salesOrder?.mix_design_id) : form.mixdesign_id;
+        form.uom_id = (newBatch.uom_id || props.salesOrder?.mixDesign?.unit_id) ? Number(newBatch.uom_id || props.salesOrder?.mixDesign?.unit_id) : form.uom_id;
+        form.load_site_id = (newBatch.load_site_id || props.salesOrder?.plant_id) ? Number(newBatch.load_site_id || props.salesOrder?.plant_id) : form.load_site_id;
+        form.unload_site_id = (newBatch.unload_site_id || props.salesOrder?.site_id) ? Number(newBatch.unload_site_id || props.salesOrder?.site_id) : form.unload_site_id;
 
         form.sales_executive_id = newBatch.sales_executive_id ? Number(newBatch.sales_executive_id)
             : (props.salesOrder?.sales_executive_id ? Number(props.salesOrder.sales_executive_id)
@@ -280,6 +304,16 @@ watch(() => props.batch, (newBatch) => {
         form.financials.unload_uom_id = newBatch.uom_id || form.financials.unload_uom_id;
         form.financials.transport_units = newBatch.batch_size || 0;
         form.financials.transport_uom_id = newBatch.uom_id || form.financials.transport_uom_id;
+
+        if (!props.dispatch?.id) {
+            form.status.is_tax_inclusive = props.salesOrder?.is_tax_inclusive !== undefined 
+                ? !!props.salesOrder.is_tax_inclusive 
+                : (props.salesOrder?.customer_p_o?.is_tax_inclusive !== undefined 
+                    ? !!props.salesOrder.customer_p_o.is_tax_inclusive 
+                    : (props.salesOrder?.customer_p_o?.quotation?.is_tax_inclusive !== undefined 
+                        ? !!props.salesOrder.customer_p_o.quotation.is_tax_inclusive 
+                        : form.status.is_tax_inclusive));
+        }
     }
 }, { deep: true, immediate: true });
 
@@ -298,9 +332,11 @@ watch(() => props.dispatch, (newDispatch) => {
         form.truck_id = newDispatch.truck_id || null;
         form.transport_id = newDispatch.transport_id || null;
         form.driver_id = newDispatch.driver_id || null;
-        form.sales_executive_id = newDispatch.sales_executive_id || null;
-        form.unload_site_id = newDispatch.unload_site_id || null;
-        form.uom_id = newDispatch.uom_id || props.batch?.uom_id || null;
+        form.customer_id = newDispatch.customer_id ? Number(newDispatch.customer_id) : (props.batch?.customer_id ? Number(props.batch.customer_id) : (props.salesOrder?.customer_id ? Number(props.salesOrder.customer_id) : null));
+        form.mixdesign_id = newDispatch.mixdesign_id ? Number(newDispatch.mixdesign_id) : (props.batch?.mix_design_id ? Number(props.batch.mix_design_id) : (props.salesOrder?.mix_design_id ? Number(props.salesOrder.mix_design_id) : null));
+        form.load_site_id = newDispatch.load_site_id ? Number(newDispatch.load_site_id) : (props.batch?.load_site_id ? Number(props.batch.load_site_id) : (props.salesOrder?.plant_id ? Number(props.salesOrder.plant_id) : null));
+        form.unload_site_id = newDispatch.unload_site_id ? Number(newDispatch.unload_site_id) : (props.batch?.unload_site_id ? Number(props.batch.unload_site_id) : (props.salesOrder?.site_id ? Number(props.salesOrder.site_id) : null));
+        form.uom_id = newDispatch.uom_id ? Number(newDispatch.uom_id) : (props.batch?.uom_id ? Number(props.batch.uom_id) : (props.salesOrder?.mixDesign?.unit_id ? Number(props.salesOrder.mixDesign.unit_id) : null));
         form.delivered_qty = newDispatch.delivered_qty || 0;
         form.payment_mode = newDispatch.payment_mode || 'credit';
         form.ledger_id = newDispatch.ledger_id || newDispatch.status?.invoice?.account_id || null;
@@ -359,7 +395,7 @@ watch(() => props.dispatch, (newDispatch) => {
         form.financials.load_tax_amount = newDispatch.load_tax_amount !== undefined ? newDispatch.load_tax_amount : 0;
         form.financials.load_untax_amount = newDispatch.load_untax_amount !== undefined ? newDispatch.load_untax_amount : 0;
         form.financials.load_total_amount = newDispatch.load_total_amount !== undefined ? newDispatch.load_total_amount : 0;
-        form.financials.pump_charges = newDispatch.pump_charges !== undefined ? newDispatch.pump_charges : (form.financials.pump_charges || 0);
+        form.financials.pump_charges = (newDispatch.pump_charges !== undefined && newDispatch.pump_charges !== null && Number(newDispatch.pump_charges) > 0) ? Number(newDispatch.pump_charges) : pumpRate.value;
         form.financials.pass_amount = newDispatch.pass_amount !== undefined ? newDispatch.pass_amount : 0;
         form.financials.discount_amount = newDispatch.discount_amount !== undefined ? newDispatch.discount_amount : 0;
         form.financials.transport_expenses = newDispatch.transport_expenses !== undefined ? newDispatch.transport_expenses : 0;
@@ -385,21 +421,9 @@ watch(() => form.driver_id, (newDriverId) => {
     }
 });
 
-const baseRate = computed(() => {
-    return Number(props.batch?.rate || props.salesOrder?.rate || 0);
-});
 
-const baseTaxId = computed(() => {
-    return props.batch?.tax_id || props.salesOrder?.tax_id || null;
-});
 
-const displayUnits = computed(() => {
-    return form.batch_size;
-});
-
-const pumpRate = computed(() => Number(props.salesOrder?.pump_rate || props.batch?.pump_rate || 0));
-
-watch([() => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses, () => form.financials.pump_charges, baseRate], () => {
+watch([() => form.batch_size, () => form.financials.load_rate, () => form.financials.load_tax_id, () => form.status.is_tax_inclusive, () => form.financials.discount_amount, () => form.financials.pass_amount, () => form.financials.round_off, () => form.financials.adjustment_amount, () => form.financials.transport_expenses, () => form.financials.pump_charges, baseRate], () => {
     if ((form.financials.load_rate === null || form.financials.load_rate === undefined || form.financials.load_rate === 0) && baseRate.value) {
         form.financials.load_rate = baseRate.value;
     }
@@ -414,25 +438,44 @@ watch([() => form.batch_size, () => form.financials.load_rate, () => form.financ
 
     // Calculate amounts
     const loadRate = Number(form.financials.load_rate || 0);
-    const untaxAmount = units * loadRate;
+    const grossTotal = units * loadRate;
 
     const tax = props.dropdownData.taxes.find(t => t.id === form.financials.load_tax_id);
     const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
-    const taxAmountVal = (untaxAmount * taxRate) / 100;
 
-    if ((form.financials.pump_charges === null || form.financials.pump_charges === undefined || Number(form.financials.pump_charges) === 0) && pumpRate.value) {
-        form.financials.pump_charges = Number((pumpRate.value).toFixed(2));
+    let untaxAmount = 0;
+    let taxAmountVal = 0;
+
+    if (form.status.is_tax_inclusive && taxRate > 0) {
+        untaxAmount = grossTotal / (1 + (taxRate / 100));
+        taxAmountVal = grossTotal - untaxAmount;
+    } else {
+        untaxAmount = grossTotal;
+        taxAmountVal = (untaxAmount * taxRate) / 100;
+    }
+
+    if (form.financials.pump_charges === null || form.financials.pump_charges === undefined) {
+        if (pumpRate.value) {
+            form.financials.pump_charges = Number((pumpRate.value).toFixed(2));
+        }
     }
 
     const pumpCharge = Number(form.financials.pump_charges || 0);
 
-    const totalAmountVal = untaxAmount + taxAmountVal
-        + pumpCharge
-        - Number(form.financials.discount_amount || 0)
-        + Number(form.financials.pass_amount || 0)
-        + Number(form.financials.round_off || 0)
-        + Number(form.financials.adjustment_amount || 0)
-        + Number(form.financials.transport_expenses || 0);
+    const totalAmountVal = form.status.is_tax_inclusive
+        ? grossTotal + pumpCharge
+            - Number(form.financials.discount_amount || 0)
+            + Number(form.financials.pass_amount || 0)
+            + Number(form.financials.round_off || 0)
+            + Number(form.financials.adjustment_amount || 0)
+            + Number(form.financials.transport_expenses || 0)
+        : untaxAmount + taxAmountVal
+            + pumpCharge
+            - Number(form.financials.discount_amount || 0)
+            + Number(form.financials.pass_amount || 0)
+            + Number(form.financials.round_off || 0)
+            + Number(form.financials.adjustment_amount || 0)
+            + Number(form.financials.transport_expenses || 0);
 
     form.financials.load_untax_amount = untaxAmount;
     form.financials.load_tax_amount = taxAmountVal;
@@ -723,32 +766,32 @@ const handleDeleteInvoice = () => {
                             <div class="space-y-4">
                                 <div class="flex items-center justify-between">
                                     <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Gross Amount</span>
-                                    <span class="text-xs font-black text-slate-700">₹ {{ form.financials.load_untax_amount.toLocaleString(undefined, {minimumFractionDigits: 2}) }}</span>
+                                    <span class="text-xs font-black text-slate-700">₹ {{ form.financials.load_untax_amount.toFixed(2) }}</span>
                                 </div>
 
                                 <div class="flex items-center justify-between">
                                     <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Tax</span>
-                                    <span class="text-xs font-black text-slate-700">₹ {{ form.financials.load_tax_amount.toLocaleString(undefined, {minimumFractionDigits: 2}) }}</span>
+                                    <span class="text-xs font-black text-slate-700">₹ {{ form.financials.load_tax_amount.toFixed(2) }}</span>
                                 </div>
 
                                 <!-- Adjustments -->
                                 <div class="pt-2 space-y-2">
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.discount_amount" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-rose-400">Discount</span>
-                                        <span class="text-xs font-bold text-rose-500">- ₹ {{ Number(form.financials.discount_amount || 0).toLocaleString() }}</span>
+                                        <span class="text-xs font-bold text-rose-500">- ₹ {{ Number(form.financials.discount_amount || 0).toFixed(2) }}</span>
                                     </div>
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.pump_charges" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pump Charge</span>
-                                        <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.pump_charges || 0).toLocaleString() }}</span>
+                                        <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.pump_charges || 0).toFixed(2) }}</span>
                                     </div>
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.discount_amount" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400">Adjustment</span>
-                                        <span class="text-xs font-bold text-gray-700">₹ {{ Number(form.financials.adjustment_amount || 0).toLocaleString() }}</span>
+                                        <span class="text-xs font-bold text-gray-700">₹ {{ Number(form.financials.adjustment_amount || 0).toFixed(2) }}</span>
                                     </div>
 
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.transport_expenses" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Hire Charge</span>
-                                        <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.transport_expenses || 0).toLocaleString() }}</span>
+                                        <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.transport_expenses || 0).toFixed(2) }}</span>
                                     </div>
                                     <!-- <div v-if="pumpRate > 0" class="flex items-center justify-between">
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-amber-500">
@@ -759,12 +802,12 @@ const handleDeleteInvoice = () => {
                                     </div> -->
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.pass_amount" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Pass Amount</span>
-                                        <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.pass_amount || 0).toLocaleString() }}</span>
+                                        <span class="text-xs font-bold text-slate-600">₹ {{ Number(form.financials.pass_amount || 0).toFixed(2) }}</span>
                                     </div>
                                     
                                     <div class="flex items-center justify-between" ><!-- v-if="form.financials.discount_amount" -->
                                         <span class="text-[10px] font-bold uppercase tracking-widest text-gray-600">Round</span>
-                                        <span class="text-xs font-bold text-gray-700">₹ {{ Number(form.financials.round_off || 0).toLocaleString() }}</span>
+                                        <span class="text-xs font-bold text-gray-700">₹ {{ Number(form.financials.round_off || 0).toFixed(2) }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -772,7 +815,7 @@ const handleDeleteInvoice = () => {
                             <!-- Total -->
                             <div class="bg-slate-50 -mx-4 px-4 py-3 border-t border-b border-slate-100 flex items-center justify-between">
                                 <span class="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">Total Amount</span>
-                                <span class="text-xl font-black text-slate-900 tracking-tighter">₹ {{ form.financials.load_total_amount.toLocaleString(undefined, {minimumFractionDigits: 0}) }}</span>
+                                <span class="text-xl font-black text-slate-900 tracking-tighter">₹ {{ Number(form.financials.load_total_amount || 0).toFixed(2) }}</span>
                             </div>
 
                             <!-- Action Buttons -->

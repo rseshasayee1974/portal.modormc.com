@@ -11,7 +11,7 @@ import { PlusCircleIcon, DocumentTextIcon, TrashIcon, PlusIcon, CalculatorIcon }
 import RecipePopover from '@/Components/Base/RecipePopover.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
-import { calculateLineItemTotals } from '@/composables/useLineItemCalculation';
+import { calculateLineItemTotals } from '@/Composables/useLineItemCalculation';
 
 const props = withDefaults(defineProps<{
     patrons?: any[];
@@ -114,7 +114,6 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
-const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
 
 const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
@@ -195,8 +194,8 @@ watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) =>
         (newItems as any).forEach((item: any) => {
             const qty = Number(item.quantity || 0);
             const rate = Number(item.rate || 0);
-            const pumpRate = Number(item.pump_rate || 0);
-            const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
+            const pumpCharge = Number(item.pump_rate || 0);
+
             const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
             const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
 
@@ -593,7 +592,7 @@ const submit = () => {
                             <td class="p-3 text-right font-bold text-slate-800 text-sm">
                                 <span>₹ {{ (
                                     (Number(item.quantity || 0) * Number(item.rate || 0)) + 
-                                    (addPouringRatesToTotal ? Number(item.pump_rate || 0) : (Number(item.pump_rate || 0) * Number(item.quantity || 0))) + 
+                                    Number(item.pump_rate || 0) + 
                                     (form.is_tax_inclusive ? 0 : Number(item.tax_amount || 0))
                                 ).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                             </td>

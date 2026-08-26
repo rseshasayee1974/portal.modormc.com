@@ -159,6 +159,17 @@ class JournalEntryBuilder
             );
 
             if (!$fallbackId) {
+                // If no explicit fallback 'tax_account' setting exists, fall back to the first mapped tax line account
+                foreach ($this->document->getTaxLines() as $tax) {
+                    $accId = $tax->accountId ?? $this->resolveTaxAccountByName($tax->taxName);
+                    if ($accId) {
+                        $fallbackId = $accId;
+                        break;
+                    }
+                }
+            }
+
+            if (!$fallbackId) {
                 throw new AccountingException(
                     "Tax mismatch of {$this->centsDisplay($diff)} and no fallback 'tax_account' configured. "
                     . "Fix tax splits or map 'tax_account' in Account Default Settings."

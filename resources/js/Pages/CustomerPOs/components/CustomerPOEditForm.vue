@@ -12,7 +12,7 @@ import Button from 'primevue/button';
 import { usePermissions } from '@/Composables/usePermissions';
 import { TrashIcon, PlusIcon, CalculatorIcon } from '@heroicons/vue/24/outline';
 import RecipePopover from '@/Components/Base/RecipePopover.vue';
-import { calculateLineItemTotals } from '@/composables/useLineItemCalculation';
+import { calculateLineItemTotals } from '@/Composables/useLineItemCalculation';
 const props = withDefaults(defineProps<{
     customerPO?: any;
     quotations?: any[];
@@ -232,7 +232,6 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
-const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
 
 const resolveSinglePumpRate = (isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
@@ -296,8 +295,7 @@ watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) =>
         (newItems as any).forEach((item: any) => {
             const qty = Number(item.quantity || 0);
             const rate = Number(item.rate || 0);
-            const pumpRate = Number(item.pump_rate || 0);
-            const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
+            const pumpCharge = Number(item.pump_rate || 0);
             const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
             const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
 
@@ -317,8 +315,7 @@ watch(() => [form.quantity, form.rate, form.tax_id, form.pump_rate, form.is_tax_
     if (form.quantity !== null && form.rate !== null) {
         const qty = Number(form.quantity || 0);
         const rate = Number(form.rate || 0);
-        const pumpRate = Number(form.pump_rate || 0);
-        const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
+        const pumpCharge = Number(form.pump_rate || 0);
         const tax = props.taxes?.find(t => Number(t.id) === Number(form.tax_id));
         const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
 

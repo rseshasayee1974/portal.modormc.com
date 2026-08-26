@@ -313,21 +313,25 @@
                     <th class="text-center" style="width:28px">#</th>
                     <th class="text-left">Description</th>
                     @if ($pdfSettings['show_pump_charges'] ?? true)
-                        <th class="text-left" style="width:120px">Concrete Type</th>
-                        <th class="text-right" style="width:90px">Pump Charges</th>
+                        <th class="text-left" style="width:110px">Concrete Type</th>
+                        <th class="text-right" style="width:80px">Pump Charges</th>
                     @endif
-                    <th class="text-center" style="width:55px">HSN</th>
-                    <th class="text-right" style="width:55px">Qty</th>
-                    <th class="text-center" style="width:45px">Unit</th>
-                    <th class="text-right" style="width:80px">Rate</th>
-                    <th class="text-center" style="width:75px">Tax</th>
-                    <th class="text-right" style="width:85px">Net Total</th>
+                    <th class="text-center" style="width:50px">HSN</th>
+                    <th class="text-right" style="width:50px">Qty</th>
+                    <th class="text-center" style="width:40px">Unit</th>
+                    <th class="text-right" style="width:75px">Rate</th>
+                    @if ($pdfSettings['discount'] ?? false)
+                        <th class="text-right" style="width:60px">Discount</th>
+                    @endif
+                    <th class="text-center" style="width:65px">Tax</th>
+                    <th class="text-right" style="width:80px">Net Total</th>
                 </tr>
             </thead>
             <tbody>
                 @php
-                    $totalCols = 1 + 1 + 1 + 1 + 1 + 1 + 1; // # + Name + HSN + Qty + Unit + Rate + Tax + Total
+                    $totalCols = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1; // # + Name + HSN + Qty + Unit + Rate + Tax + Total
                     if ($pdfSettings['show_pump_charges'] ?? true) $totalCols += 2;
+                    if ($pdfSettings['discount'] ?? false) $totalCols++;
                     $recipeColspan = min(7, $totalCols - 1);
                     $remainingCols = max(0, $totalCols - 1 - $recipeColspan);
                 @endphp
@@ -354,6 +358,11 @@
                         <td class="text-right bold" style="vertical-align: middle; font-size: 11.5px; color: #0f172a; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ number_format($item['qty'], 2) }}</td>
                         <td class="text-center" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['unit'] }}</td>
                         <td class="text-right" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ number_format($item['unit_price'], 2) }}</td>
+                        @if ($pdfSettings['discount'] ?? false)
+                            <td class="text-right muted" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
+                                {{ !empty($item['discount']) && $item['discount'] > 0 ? number_format($item['discount'], 2) : '-' }}
+                            </td>
+                        @endif
                         <td class="text-center small" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
                             @if ($item['tax_group'] === 'GST')
                                 {{ $item['tax_rate'] / 2 }}% C+S
@@ -415,35 +424,70 @@
         </table>
 
         <div class="totals-ledger">
-            <div class="tl-row">
-                <div class="tl-label">Subtotal</div>
-                <div class="tl-val">{{ number_format($data['totals']['sub_total'], 2) }}</div>
-            </div>
+            @if(!empty($data['totals']['sub_total']) && $data['totals']['sub_total'] > 0)
+                <div class="tl-row">
+                    <div class="tl-label">Sub Total</div>
+                    <div class="tl-val">{{ number_format($data['totals']['sub_total'], 2) }}</div>
+                </div>
+            @endif
+            @php $pumpChg = $data['totals']['pump_charge'] ?? $data['totals']['pump_charges'] ?? $data['totals']['pump_rate'] ?? 0; @endphp
             @if (
                 (($pdfSettings['show_pump_charges'] ?? true) || ($pdfSettings['pump_rates'] ?? true)) &&
-                    isset($data['totals']['pump_rate']) &&
-                    $data['totals']['pump_rate'] > 0)
+                    $pumpChg > 0)
                 <div class="tl-row">
                     <div class="tl-label">Concrete Pump Charges</div>
-                    <div class="tl-val">{{ number_format($data['totals']['pump_rate'], 2) }}</div>
+                    <div class="tl-val">{{ number_format($pumpChg, 2) }}</div>
+                </div>
+            @endif
+            @if (($pdfSettings['discount'] ?? true) && !empty($data['totals']['discount']) && $data['totals']['discount'] > 0)
+                <div class="tl-row red">
+                    <div class="tl-label">Discount (-)</div>
+                    <div class="tl-val">-{{ number_format($data['totals']['discount'], 2) }}</div>
+                </div>
+            @endif
+            @php $hireChg = $data['totals']['hire_charge'] ?? $data['totals']['transport_expenses'] ?? 0; @endphp
+            @if (($pdfSettings['hire_charge'] ?? true) && $hireChg > 0)
+                <div class="tl-row">
+                    <div class="tl-label">Hire Charge</div>
+                    <div class="tl-val">{{ number_format($hireChg, 2) }}</div>
+                </div>
+            @endif
+            @if (($pdfSettings['pass_amount'] ?? true) && !empty($data['totals']['pass_amount']) && $data['totals']['pass_amount'] > 0)
+                <div class="tl-row">
+                    <div class="tl-label">Pass Amount</div>
+                    <div class="tl-val">{{ number_format($data['totals']['pass_amount'], 2) }}</div>
                 </div>
             @endif
             @foreach ($data['totals']['tax_lines'] as $tl)
-                <div class="tl-row">
-                    <div class="tl-label">{{ $tl['label'] }}</div>
-                    <div class="tl-val">{{ number_format($tl['amount'], 2) }}</div>
-                </div>
+                @php
+                    $showTax = true;
+                    if (str_contains($tl['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) $showTax = false;
+                    if (str_contains($tl['label'], 'SGST') && !($pdfSettings['sgst'] ?? true)) $showTax = false;
+                    if (str_contains($tl['label'], 'IGST') && !($pdfSettings['igst'] ?? true)) $showTax = false;
+                @endphp
+                @if ($showTax)
+                    <div class="tl-row">
+                        <div class="tl-label">{{ $tl['label'] }}</div>
+                        <div class="tl-val">{{ number_format($tl['amount'], 2) }}</div>
+                    </div>
+                @endif
             @endforeach
-            @if ($data['totals']['shipping'] > 0)
+            @if (($pdfSettings['shipping'] ?? true) && !empty($data['totals']['shipping']) && $data['totals']['shipping'] > 0)
                 <div class="tl-row">
-                    <div class="tl-label">Freight</div>
+                    <div class="tl-label">Freight / Shipping</div>
                     <div class="tl-val">{{ number_format($data['totals']['shipping'], 2) }}</div>
                 </div>
             @endif
-            @if ($data['totals']['discount'] > 0)
-                <div class="tl-row red">
-                    <div class="tl-label">Discount (-)</div>
-                    <div class="tl-val">{{ number_format($data['totals']['discount'], 2) }}</div>
+            @if (($pdfSettings['adjustment'] ?? true) && ($data['totals']['adjustment'] ?? 0) != 0)
+                <div class="tl-row">
+                    <div class="tl-label">Adjustment</div>
+                    <div class="tl-val">{{ $data['totals']['adjustment'] > 0 ? '+' : '' }}{{ number_format($data['totals']['adjustment'], 2) }}</div>
+                </div>
+            @endif
+            @if (($pdfSettings['round_off'] ?? true) && ($data['totals']['round_off'] ?? 0) != 0)
+                <div class="tl-row">
+                    <div class="tl-label">Round Off</div>
+                    <div class="tl-val">{{ $data['totals']['round_off'] > 0 ? '+' : '' }}{{ number_format($data['totals']['round_off'], 2) }}</div>
                 </div>
             @endif
             <div class="tl-row tl-final">

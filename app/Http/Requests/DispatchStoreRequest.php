@@ -53,7 +53,7 @@ class DispatchStoreRequest extends FormRequest
             'financials.load_total_amount' => 'nullable|numeric',
             'financials.pass_amount' => 'nullable|numeric',
             'financials.discount_amount' => 'nullable|numeric',
-            'financials.pump_charge' => 'nullable|numeric',
+            'financials.pump_charges' => 'nullable|numeric',
             'financials.transport_expenses' => 'nullable|numeric|min:0',
             'financials.adjustment_amount' => 'nullable|numeric',
             'financials.round_off' => 'nullable|numeric',

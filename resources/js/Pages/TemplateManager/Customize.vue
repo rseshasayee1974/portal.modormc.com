@@ -70,6 +70,8 @@ const ensurePdfStructure = (rawSettings: any) => {
     if (s.pdf.show_customer_ref === undefined) s.pdf.show_customer_ref = true;
     if (s.pdf.show_carrier_driver === undefined) s.pdf.show_carrier_driver = true;
     if (s.pdf.show_seal_signature === undefined) s.pdf.show_seal_signature = true;
+    if (s.pdf.hire_charge === undefined) s.pdf.hire_charge = true;
+    if (s.pdf.pass_amount === undefined) s.pdf.pass_amount = true;
     return s;
 };
 
@@ -468,6 +470,22 @@ const downloadSample = () => {
                                         <p class="setting-desc">Show shipping & delivery line item</p>
                                     </div>
                                     <InputSwitch v-model="activeSettings.pdf.shipping" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Hire Charge</label>
+                                        <p class="setting-desc">Show vehicle hire charge in totals</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.hire_charge" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Pass Amount</label>
+                                        <p class="setting-desc">Show pass amount in totals</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.pass_amount" />
                                 </div>
 
                                 <div class="setting-row">

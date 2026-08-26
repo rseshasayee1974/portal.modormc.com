@@ -459,23 +459,26 @@
                     <th class="text-center" style="width:28px">#</th>
                     <th class="text-left">Item &amp; Description</th>
                     @if ($pdfSettings['show_pump_charges'] ?? true)
-                        <th class="text-left" style="width:120px">Concrete Type</th>
-                        <th class="text-right" style="width:90px">Pump Charges</th>
+                        <th class="text-left" style="width:110px">Concrete Type</th>
+                        <th class="text-right" style="width:80px">Pump Charges</th>
                     @endif
                     @if ($pdfSettings['qty'] ?? true)
-                        <th class="text-right" style="width:55px">Qty</th>
+                        <th class="text-right" style="width:50px">Qty</th>
                     @endif
                     @if ($pdfSettings['unit'] ?? true)
-                        <th class="text-center" style="width:50px">Unit</th>
+                        <th class="text-center" style="width:45px">Unit</th>
                     @endif
-                    <th class="text-right" style="width:80px">{{ $labels['rate'] ?? 'Rate' }}</th>
+                    <th class="text-right" style="width:75px">{{ $labels['rate'] ?? 'Rate' }}</th>
+                    @if ($pdfSettings['discount'] ?? false)
+                        <th class="text-right" style="width:60px">Discount</th>
+                    @endif
                     @if ($pdfSettings['tax_rate'] ?? true)
-                        <th class="text-right" style="width:55px">Tax %</th>
+                        <th class="text-right" style="width:50px">Tax %</th>
                     @endif
                     @if ($pdfSettings['tax_amount'] ?? true)
-                        <th class="text-right" style="width:70px">Tax Amt</th>
+                        <th class="text-right" style="width:65px">Tax Amt</th>
                     @endif
-                    <th class="text-right" style="width:80px">{{ $labels['amount'] ?? 'Amount' }}</th>
+                    <th class="text-right" style="width:75px">{{ $labels['amount'] ?? 'Amount' }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -485,6 +488,7 @@
                     if ($pdfSettings['qty'] ?? true) $totalCols++;
                     if ($pdfSettings['unit'] ?? true) $totalCols++;
                     $totalCols++; // rate
+                    if ($pdfSettings['discount'] ?? false) $totalCols++;
                     if ($pdfSettings['tax_rate'] ?? true) $totalCols++;
                     if ($pdfSettings['tax_amount'] ?? true) $totalCols++;
                     $totalCols++; // amount
@@ -512,12 +516,17 @@
                             </td>
                         @endif
                         @if ($pdfSettings['qty'] ?? true)
-                            <td class="text-right bold" style="vertical-align: middle; font-size: 11.5px; color: #0f172a; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ number_format($item['qty'], 2) }}</td>
+                            <td class="text-right bold" style="vertical-align: middle; font-size: 11.5px; color: #0f172a; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ (float)$item['qty'] == floor((float)$item['qty']) ? number_format($item['qty'], 2) : rtrim(rtrim(number_format($item['qty'], 3), '0'), '.') }}</td>
                         @endif
                         @if ($pdfSettings['unit'] ?? true)
                             <td class="text-center" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ $item['unit'] }}</td>
                         @endif
                         <td class="text-right" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">{{ number_format($item['unit_price'], 2) }}</td>
+                        @if ($pdfSettings['discount'] ?? false)
+                            <td class="text-right muted" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
+                                {{ !empty($item['discount']) && $item['discount'] > 0 ? number_format($item['discount'], 2) : '-' }}
+                            </td>
+                        @endif
                         @if ($pdfSettings['tax_rate'] ?? true)
                             <td class="text-right muted" style="vertical-align: middle; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
                                 {{ $item['tax_rate'] > 0 || (isset($item['tax_name']) && $item['tax_name'] !== '-') ? ($item['tax_rate'] == floor($item['tax_rate']) ? number_format($item['tax_rate'], 0) : number_format($item['tax_rate'], 2)) . '%' : '-' }}
@@ -534,7 +543,6 @@
                     </tr>
                     @if ($hasSubRow)
                         <tr>
-                            {{-- <td style="border-top: none; padding-top: 0;"></td> --}}
                             <td colspan="{{ $recipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
                                 @if ($hasRecipe)
                                     <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">Recipe Details:</div>
@@ -602,28 +610,47 @@
             </div>
             <div class="totals-right">
                 <table class="breakdown-table">
-                    <tr>
-                        <td class="bt-label">Sub Total</td>
-                        <td class="bt-val">
-                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['sub_total'], 2) }}
-                        </td>
-                    </tr>
-                    @if (
-                        (($pdfSettings['show_pump_charges'] ?? true) || ($pdfSettings['pump_rates'] ?? true)) &&
-                            isset($data['totals']['pump_rate']) &&
-                            $data['totals']['pump_rate'] > 0)
+                    @if(!empty($data['totals']['sub_total']) && $data['totals']['sub_total'] > 0)
                         <tr>
-                            <td class="bt-label">Concrete Pump Charges</td>
+                            <td class="bt-label">Sub Total</td>
                             <td class="bt-val">
-                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['pump_rate'], 2) }}
+                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['sub_total'], 2) }}
                             </td>
                         </tr>
                     @endif
-                    @if (($pdfSettings['discount'] ?? true) && $data['totals']['discount'] > 0)
+                    @php $pumpChg = $data['totals']['pump_charge'] ?? $data['totals']['pump_charges'] ?? $data['totals']['pump_rate'] ?? 0; @endphp
+                    @if (
+                        (($pdfSettings['show_pump_charges'] ?? true) || ($pdfSettings['pump_rates'] ?? true)) &&
+                            $pumpChg > 0)
+                        <tr>
+                            <td class="bt-label">Concrete Pump Charges</td>
+                            <td class="bt-val">
+                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($pumpChg, 2) }}
+                            </td>
+                        </tr>
+                    @endif
+                    @if (($pdfSettings['discount'] ?? true) && !empty($data['totals']['discount']) && $data['totals']['discount'] > 0)
                         <tr>
                             <td class="bt-label red">Discount (-)</td>
                             <td class="bt-val red">
-                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['discount'], 2) }}
+                                -{{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['discount'], 2) }}
+                            </td>
+                        </tr>
+                    @endif
+                    @php $hireChg = $data['totals']['hire_charge'] ?? $data['totals']['transport_expenses'] ?? 0; @endphp
+                    @if (($pdfSettings['hire_charge'] ?? true) && $hireChg > 0)
+                        <tr>
+                            <td class="bt-label">Hire Charge</td>
+                            <td class="bt-val">
+                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($hireChg, 2) }}
+                            </td>
+                        </tr>
+                    @endif
+                    @if (($pdfSettings['pass_amount'] ?? true) && !empty($data['totals']['pass_amount']) && $data['totals']['pass_amount'] > 0)
+                        <tr>
+                            <td class="bt-label">Pass Amount</td>
+                            <td class="bt-val">
+                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($data['totals']['pass_amount'], 2) }}
                             </td>
                         </tr>
                     @endif
@@ -649,7 +676,7 @@
                             </tr>
                         @endif
                     @endforeach
-                    @if (($pdfSettings['shipping'] ?? true) && $data['totals']['shipping'] > 0)
+                    @if (($pdfSettings['shipping'] ?? true) && !empty($data['totals']['shipping']) && $data['totals']['shipping'] > 0)
                         <tr>
                             <td class="bt-label">Shipping</td>
                             <td class="bt-val">

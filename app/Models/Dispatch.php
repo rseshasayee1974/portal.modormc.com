@@ -57,7 +57,7 @@ class Dispatch extends Model
     public function getAmountUntaxedAttribute() { return $this->load_untax_amount; }
     public function getAmountTaxAttribute() { return $this->load_tax_amount; }
     public function getAmountTotalAttribute() { return $this->load_total_amount; }
-    public function getAdjustmentAttribute() { return (float)($this->adjustment_amount ?? 0) + (float)($this->pass_amount ?? 0); }
+    public function getAdjustmentAttribute() { return (float)($this->adjustment_amount ?? 0); }
     public function getShippingChargesAttribute() { return $this->transport_expenses; }
     public function getRoundingValueAttribute() { return $this->round_off; }
     public function getRefNoAttribute() { return $this->dispatch_no; }
@@ -74,15 +74,15 @@ class Dispatch extends Model
             'mix_design_id' => $this->mixdesign_id ?? $this->salesOrder?->mix_design_id,
             'product_id' => null, 
             'description' => "RMC Dispatch: " . $designName,
-            'quantity' => $this->delivered_qty,
+            'quantity' => (float) $this->delivered_qty,
             'uom_id' => $this->uom_id ?? $this->mixDesign?->unit_id ?? $this->salesOrder?->mixDesign?->unit_id,
-            'unit_price' => $this->load_rate,
+            'unit_price' => (float) $this->load_rate,
             'discount_type' => '₹',
             'discount_amount' => 0,
             'total_discount' => 0,
-            'price_subtotal' => $this->load_untax_amount,
-            'price_tax' => $this->load_tax_amount,
-            'price_total' => $this->load_total_amount,
+            'price_subtotal' => (float) $this->load_untax_amount,
+            'price_tax' => (float) $this->load_tax_amount,
+            'price_total' => (float) $this->load_total_amount,
             'tax_id' => $this->load_tax_id,
             'product' => (object)['title' => $designName, 'hsn_code' => '3824'],
         ]]);
