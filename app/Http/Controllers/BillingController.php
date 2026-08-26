@@ -49,7 +49,7 @@ class BillingController extends Controller
                 ->latest()
                 ->get(),
             'patrons' => toSelectOptions(PatronsDropdown(), 'legal_name'),
-            'taxes'   => collect(TaxesDropdown('purchase'))->map(fn($t) => [
+            'taxes'   => collect(TaxesDropdown('purchase', ['GST', 'IGST']))->map(fn($t) => [
                 'label' => $t->tax_name,
                 'value' => $t->id,
                 'rate'  => $t->tax_rate,
@@ -79,13 +79,17 @@ class BillingController extends Controller
                 $validated['invoice_number'] = $details['next_number'];
             }
 
+            $poIds = !empty($validated['purchase_order_ids']) && is_array($validated['purchase_order_ids'])
+                ? implode(',', $validated['purchase_order_ids'])
+                : null;
+
             $invoice = Invoice::createWithItems(array_merge($validated, [
                 'plant_id'        => $plantId,
-                'ref_id'          => implode(',',$validated['purchase_order_ids']) ?? null,
+                'ref_id'          => $poIds,
                 'invoice_type'    => 'bill',
                 'invoice_label'   => 'Manual',
                 'status'          => Invoice::STATUS_APPROVED,
-                'due_date'        => $validated['due_date'] ?? $validated['invoice_date'],
+                'due_date'        => !empty($validated['due_date']) ? $validated['due_date'] : $validated['invoice_date'],
                 'einvoice_status' => 0,
                 'created_by'      => Auth::id(),
             ]));

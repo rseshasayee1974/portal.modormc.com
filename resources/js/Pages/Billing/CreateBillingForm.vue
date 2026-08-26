@@ -24,7 +24,9 @@ import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import Button from 'primevue/button';
 import Textarea from 'primevue/textarea';
+import Tag from 'primevue/tag';
 import { useToast } from 'primevue/usetoast';
+import axios from 'axios';
 
 const props = defineProps<{
     patrons: any[];
@@ -99,6 +101,23 @@ const fetchUnbilledPOs = async () => {
     }
 };
 
+const getPOTotal = (po: any) => {
+    if (po.total_amount !== undefined && po.total_amount !== null && !isNaN(Number(po.total_amount))) {
+        return Number(po.total_amount);
+    }
+    if (po.amount_total !== undefined && po.amount_total !== null && !isNaN(Number(po.amount_total))) {
+        return Number(po.amount_total);
+    }
+    if (po.items && Array.isArray(po.items)) {
+        return po.items.reduce((sum: number, item: any) => {
+            const qty = Number(item.product_quantity || item.quantity || 0);
+            const price = Number(item.unit_price || item.price_unit || 0);
+            return sum + (qty * price);
+        }, 0);
+    }
+    return 0;
+};
+
 const mergeSelectedPOs = () => {
     if (selectedPOs.value.length === 0) {
         toast.add({ severity: 'warn', summary: 'Selection Required', detail: 'Please select at least one purchase order.', life: 1500 });
@@ -115,20 +134,20 @@ const mergeSelectedPOs = () => {
             if (!grouped[key]) {
                 grouped[key] = {
                     item_id: item.product_id, 
-                    uom_id: item.product_uom,
+                    uom_id: item.product_uom || item.uom_id,
                     item_name: item.product?.title || item.description || 'Product',
                     hsn_code: item.hsn_code || '',
-                    tax_id: item.tax_id,
+                    tax_id: item.tax_id || null,
                     quantity: 0,
-                    price_unit: Number(item.unit_price),
+                    price_unit: Number(item.unit_price || item.price_unit || 0),
                     discount_type: item.discount_type === '%' ? '%' : '₹',
-                    discount: Number(item.discount_amount),
+                    discount: Number(item.discount_amount || item.discount || 0),
                     subtotal: 0,
                     tax_amount: 0,
                     total: 0
                 };
             }
-            grouped[key].quantity += Number(item.product_quantity);
+            grouped[key].quantity += Number(item.product_quantity || item.quantity || 0);
         });
     });
     
@@ -216,10 +235,8 @@ const calculateTotals = () => {
     form.amount_untaxed = untaxed;
     form.amount_tax = taxTotal;
     
-    // Calculate global discount
-    const globalDiscount = form.global_discount_type === '₹' 
-        ? (Number(form.global_discount) || 0) 
-        : untaxed * ((Number(form.global_discount) || 0) / 100);
+    // Calculate global discount (Rupee amount)
+    const globalDiscount = Number(form.global_discount) || 0;
 
     // Add shipping tax if applicable
     if (form.shipping_charges > 0 && form.shipping_tax_id) {
@@ -230,8 +247,11 @@ const calculateTotals = () => {
     }
 
     const rawTotal = untaxed + taxTotal - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0);
-    form.amount_total = Math.round(rawTotal);
-    form.round_off = Number((form.amount_total - rawTotal).toFixed(2));
+    const calculatedRoundOff = Number((Math.round(rawTotal) - rawTotal).toFixed(2));
+    if (form.round_off === 0 || form.round_off === null || form.round_off === undefined) {
+        form.round_off = calculatedRoundOff;
+    }
+    form.amount_total = Number((rawTotal + (Number(form.round_off) || 0)).toFixed(2));
 };
 
 const onProductChange = (index: number) => {
@@ -296,11 +316,11 @@ const handleCreatePartner = async (name: string) => {
 };
 
 const invoiceTypeOptions = [
-    { label: 'Sales Invoice', value: 'sales' },
+    // { label: 'Sales Invoice', value: 'sales' },
     { label: 'Purchase Invoice', value: 'purchase' },
-    { label: 'Proforma Invoice', value: 'proforma' },
-    { label: 'Credit Note', value: 'credit_note' },
-    { label: 'Debit Note', value: 'debit_note' },
+    // { label: 'Proforma Invoice', value: 'proforma' },
+    // { label: 'Credit Note', value: 'credit_note' },
+    // { label: 'Debit Note', value: 'debit_note' },
 ];
 
 const taxOptions = computed(() => props.taxes);
@@ -449,11 +469,11 @@ const taxOptions = computed(() => props.taxes);
                                         </div>
                                     </div>
                                     <div class="mt-2 flex flex-wrap gap-1">
-                                        <Tag v-for="item in po.items" :key="item.id" :value="`${item.quantity} ${item.uom?.unit_code}`" class="!text-[7px] !px-1" severity="secondary" />
-                                    </div>
-                                    <div class="mt-2 text-right">
-                                        <span class="text-xs font-black text-slate-700">₹ {{ Number(po.total_amount).toLocaleString() }}</span>
-                                    </div>
+                                         <Tag v-for="item in po.items" :key="item.id" :value="`${item.product_quantity || item.quantity || 0} ${item.uom?.unit_code || item.uom?.unit_name || ''}`" class="!text-[7px] !px-1" severity="secondary" />
+                                     </div>
+                                     <div class="mt-2 text-right">
+                                         <span class="text-xs font-black text-slate-700">₹ {{ getPOTotal(po).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                     </div>
                                 </div>
                             </div>
 
@@ -500,6 +520,7 @@ const taxOptions = computed(() => props.taxes);
                                                 optionValue="id" 
                                                 placeholder="Select Product" 
                                                 filter
+                                                :error="form.errors[`items.${index}.item_id`]"
                                                 @change="onProductChange(index)"
                                             />
                                         </td>
@@ -508,7 +529,7 @@ const taxOptions = computed(() => props.taxes);
                                         </td> -->
                                         
                                         <td class="p-2 text-center">
-                                            <BaseInputNumber v-model="item.quantity" :minFractionDigits="2" size="small" />
+                                            <BaseInputNumber v-model="item.quantity" :minFractionDigits="2" size="small" :error="form.errors[`items.${index}.quantity`]" />
                                         </td>
                                         <td class="p-2">
                                             <BaseSelect 
@@ -518,10 +539,11 @@ const taxOptions = computed(() => props.taxes);
                                                 optionValue="value" 
                                                 placeholder="UOM" 
                                                 filter
+                                                :error="form.errors[`items.${index}.uom_id`]"
                                             />
                                         </td>
                                         <td class="p-2">
-                                            <BaseInputNumber v-model="item.price_unit" :minFractionDigits="2" size="small" inputClass="font-semibold text-indigo-600" />
+                                            <BaseInputNumber v-model="item.price_unit" :minFractionDigits="2" size="small" inputClass="font-semibold text-indigo-600" :error="form.errors[`items.${index}.price_unit`]" />
                                         </td>
                                         <td class="p-2">
                                             <BaseSelect 
@@ -531,6 +553,7 @@ const taxOptions = computed(() => props.taxes);
                                                 optionValue="value" 
                                                 placeholder="Tax" 
                                                 filter
+                                                :error="form.errors[`items.${index}.tax_id`]"
                                             />
                                         </td>
                                         <td class="p-2">
@@ -588,22 +611,19 @@ const taxOptions = computed(() => props.taxes);
                                 </div>
                                 <div class="flex justify-between items-center gap-4">
                                     <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Global Discount (-)</span>
-                                    <div class="flex gap-1 w-44">
-                                      
-                                        <BaseInputNumber v-model="form.global_discount" size="small" class="flex-grow" />
-                                    </div>
+                                    <BaseInputNumber v-model="form.global_discount" size="small" class="w-28" />
                                 </div>
                                 <div class="flex justify-between items-center gap-4">
                                     <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Shipping Charges (+)</span>
                                     <BaseInputNumber v-model="form.shipping_charges" size="small" class="w-28" />
                                 </div>
                                 <div class="flex justify-between items-center gap-4">
-                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Adjustment (+/-)</span>
+                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Adjustment (+)</span>
                                     <BaseInputNumber v-model="form.adjustment" size="small" class="w-28" />
                                 </div>
                                 <div class="flex justify-between items-center gap-4 border-t border-slate-200/50 pt-4">
-                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off</span>
-                                    <span class="text-slate-900 font-bold">{{ form.round_off > 0 ? '+' : '' }}{{ form.round_off.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                    <span class="text-[11px] font-bold text-slate-600 uppercase tracking-widest">Round Off (+/-)</span>
+                                    <BaseInputNumber v-model="form.round_off" size="small" class="w-28" :minFractionDigits="2" :maxFractionDigits="2" />
                                 </div>
 
                                 <div class="flex justify-between items-center border-t border-slate-200 pt-6 mt-6">

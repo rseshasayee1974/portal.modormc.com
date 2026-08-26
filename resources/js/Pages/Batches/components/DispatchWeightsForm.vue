@@ -108,6 +108,9 @@ const formatTime = (dateVal: any) => {
     if (!isValidDate(dateVal)) return '';
     return new Date(dateVal).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 };
+
+// console.log('jkghkjgk', props.modelValue);
+
 </script>
 
 <template>
@@ -168,7 +171,7 @@ const formatTime = (dateVal: any) => {
             </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <BaseInputNumber v-model="modelValue.financials.pump_charge" label="Pump Charges" :minFractionDigits="2" :error="errors['financials.pump_charge']" :disabled="isReadOnly" />
+            <BaseInputNumber v-model="modelValue.financials.pump_charges" label="Pump Charges" :minFractionDigits="2" :error="errors['financials.pump_charges']" :disabled="isReadOnly" />
             <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" :error="errors['financials.pass_amount']" :disabled="isReadOnly" />
             <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" :error="errors['financials.discount_amount']" :disabled="isReadOnly" />
             <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" :error="errors['financials.transport_expenses']" :disabled="isReadOnly" />
@@ -201,7 +204,7 @@ const formatTime = (dateVal: any) => {
         </div>
 
         <!-- Invoice Management Section -->
-        <div v-if="modelValue.id && showInvoiceSection" class="mt-4 mb-2">
+        <div v-if="(modelValue.id || modelValue.dispatch_id) && showInvoiceSection" class="mt-4 mb-2">
             <div v-if="modelValue.generate_invoice === true">
                 <!-- Case A: Invoice Not Yet Generated -->
                 <div 
@@ -374,8 +377,6 @@ const formatTime = (dateVal: any) => {
                             <button 
                                 type="button"
                                 @click="$emit('deleteInvoice')"
-                                :disabled="isReadOnly"
-                                :class="[isReadOnly ? 'opacity-50 cursor-not-allowed' : 'hover:bg-rose-50 text-rose-600 border-rose-200 hover:border-rose-300 active:scale-[0.98] cursor-pointer']"
                                 class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
                             >
                                 <TrashIcon class="h-4 w-4" />

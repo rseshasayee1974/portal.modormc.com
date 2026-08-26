@@ -327,9 +327,11 @@ const { destroy, downloadPdf, retrySync, statusSeverity, statusLabel } =
     useBatchActions(props);
 
 const refreshBatchRow = async (id: number) => {
+    // console.log(`[Index.vue] refreshBatchRow called for batchId: ${id}`);
     try {
         const response = await axios.get(route('batches.show', id));
         const updatedBatch = response.data;
+        // console.log('[Index.vue] Received updated batch data from DB:', updatedBatch);
         
         // 1. Update in localBatches using splice() to guarantee Vue reactivity
         const index = localBatches.value.findIndex((b: any) => b.id === id);
@@ -337,8 +339,12 @@ const refreshBatchRow = async (id: number) => {
             localBatches.value.splice(index, 1, updatedBatch);
         }
         
-        // 2. Update detailedBatches — always set so BatchEditForm watcher fires
-        detailedBatches.value[id] = updatedBatch;
+        // 2. Update detailedBatches with new object copy so reactive watchers trigger cleanly
+        detailedBatches.value = {
+            ...detailedBatches.value,
+            [id]: updatedBatch
+        };
+        // console.log(`[Index.vue] Updated detailedBatches[${id}] reactively.`);
     } catch (e) {
         console.error('Failed to refresh batch row:', e);
     }
@@ -357,25 +363,9 @@ const handleBatchCreated = () => {
     })
 }
 const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => {
-    router.reload({
-        only: ['batches', 'nextBatchNo', 'salesOrders'],
-        // only: ['batches', 'nextBatchNo', 'salesOrders' ,'dispatch'],
-        preserveScroll: true,
-        preserveState: false
-    });
-    if (payload) {
-        const { batchId, type } = payload;
-        
-        // 1. Refresh row data so both localBatches and detailedBatches are up-to-date
-        await refreshBatchRow(batchId);
-        
-        // 2. Wait one tick for Vue to flush the reactive updates before showing the modal
-        // await nextTick();
-        
-        // 3. Automatically open print preview
-        // viewToken(batchId, type);
-        // 2. Wait one tick for Vue to flush the reactive updates
-        await nextTick();
+    // console.log('[Index.vue] handleBatchSaved triggered with payload:', payload);
+    if (payload?.batchId) {
+        await refreshBatchRow(payload.batchId);
     }
 };
 
@@ -989,7 +979,7 @@ const shareBatchEmail = () => {
                                             <div class=" bg-slate-50/20">
                                                 <BatchEditForm
                                                     v-if="!hideBatchForm"
-                                                    :batch="detailedBatches[slotProps.data.id]"
+                                                    :batch="detailedBatches[slotProps.data.id] || slotProps.data"
                                                     :salesOrders="salesOrders"
                                                     :trucks="trucks"
                                                     :transporters="transporters"

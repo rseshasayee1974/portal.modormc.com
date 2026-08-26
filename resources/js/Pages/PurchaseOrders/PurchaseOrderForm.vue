@@ -446,7 +446,7 @@ const discountTypeOptions = [{ label: '%', value: '%' }, { label: '₹', value: 
                                 </div>
 
                                 <div class="flex justify-between items-center gap-4">
-                                    <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Round Off (+/-)</span>
+                                    <span class="text-[11px] font-semibold text-slate-700 uppercase tracking-widest">Round Off (+)</span>
                                     <BaseInputNumber v-model="form.rounding_value" size="small" class="w-24" @update:modelValue="calculateFinalTotals" />
                                 </div>
 

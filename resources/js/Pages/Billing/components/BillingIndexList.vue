@@ -31,7 +31,7 @@ const filters = ref({
 });
 
 const getStatusSeverity = (status: string) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
         case 'draft': return 'secondary';
         case 'approved': return 'info';
         case 'paid': return 'success';
@@ -193,11 +193,11 @@ const printInvoice = (data: any) => {
                             :value="slotProps.data.status" 
                             class="!text-[9px] !font-black !uppercase !tracking-widest !rounded-lg !px-2"
                         />
-                        <div class="flex gap-2 mt-1">
+                        <!-- <div class="flex gap-2 mt-1">
                             <CheckCircleIcon v-if="slotProps.data.is_sent" class="w-4 h-4 text-emerald-500" title="Sent" />
                             <ExclamationCircleIcon v-else class="w-4 h-4 text-slate-200" title="Not Sent" />
                             <Tag v-if="slotProps.data.einvoice_status" :value="slotProps.data.einvoice_status" severity="info" class="!text-[7px] !px-1" />
-                        </div>
+                        </div> -->
                     </div>
                 </template>
             </Column>

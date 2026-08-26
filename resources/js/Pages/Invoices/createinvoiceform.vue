@@ -647,7 +647,7 @@ const taxOptions = computed(() => props.taxes);
                                     <BaseInputNumber v-model="form.shipping_charges" size="small" class="w-28" />
                                 </div>
                                 <div class="flex justify-between items-center gap-4 border-slate-200/50 pt-4">
-                                    <span class="text-[11px]  text-slate-600 uppercase ">Round Off / Adj (+/-)</span>
+                                    <span class="text-[11px]  text-slate-600 uppercase ">Round Off / Adj (+)</span>
                                     <BaseInputNumber v-model="form.adjustment" size="small" class="w-28" />
                                 </div>
 
