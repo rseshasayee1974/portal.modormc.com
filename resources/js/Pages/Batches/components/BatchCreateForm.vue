@@ -12,14 +12,7 @@ import { PlusCircleIcon, InformationCircleIcon, BeakerIcon, ListBulletIcon, Cloc
 import Dialog from 'primevue/dialog';
 
 const page = usePage();
-interface BatchMaterial {
-    id?: number;
-    product_id: number | null;
-    material_name: string;
-    target_qty: number;
-    actual_qty: number;
-    uom_id: number | null;
-}
+
 
 const props = withDefaults(defineProps<{
     salesOrders?: any[];
@@ -53,13 +46,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits(['offline-batch-added', 'cancel','created']);
 
-const blankMaterial = (): BatchMaterial => ({
-    product_id: null,
-    material_name: '',
-    target_qty: 0,
-    actual_qty: 0,
-    uom_id: null,
-});
+
 
 // console.log("concretePumpOptions",props?.concretePumpOptions);
 
@@ -80,14 +67,11 @@ const form = useForm({
     end_time: null as Date | null,
     empty_time: new Date() as Date | null,
     load_time: new Date() as Date | null,
-    materials: [blankMaterial()] as BatchMaterial[],
+    is_tax_inclusive: 0,
     empty_weight_photo: null as string | null,
 });
 
-const addMaterial = () => form.materials.push(blankMaterial());
-const removeMaterial = (index: number) => {
-    if (form.materials.length > 1) form.materials.splice(index, 1);
-};
+
 
 const customSettings = page.props.custom_settings as any;
 
@@ -142,15 +126,14 @@ const salesOrderDetails = computed(() => {
     const wo = selectedSalesOrder.value;
     return [
         { label: 'Order #', value: wo.full_number },
-        { label: 'Customer', value: wo.customer?.legal_name || 'N/A' },
-        { label: 'Site', value: wo.site?.name || 'N/A' },
-        { label: 'Design', value: wo.mix_design?.design_name || 'N/A' },
+        { label: 'Customer', value: wo.customer_name || 'N/A' },
+        { label: 'Site', value: wo.site_name || 'N/A' },
+        { label: 'Design', value: wo.mix_design_name || 'N/A' },
         // { label: 'Grade/Ratio', value: `${wo.mix_design?.concrete_grade?.name || wo.mix_design?.grade || 'N/A'} (${wo.mix_design?.concrete_grade?.concrete_ratio || 'N/A'})` },
         { label: 'Total Qty', value: `${wo.produced_qty} / ${wo.total_qty} m³` },
         // { label: 'Produced', value: `${wo.produced_qty} m³` },
     ];
 });
-
 const isAutofillingSalesOrder = ref(false);
 
 watch(() => form.sales_order_id, (newVal) => {
@@ -205,17 +188,6 @@ watch(() => form.sales_order_id, (newVal) => {
             }
         }
 
-        if (selectedSalesOrder.value.mix_design?.items) {
-            form.materials = selectedSalesOrder.value.mix_design.items.map((item: any) => ({
-                product_id: item.product_id,
-                material_name: item.product?.title || 'Material',
-                target_qty: Number(item.cross_quantity || item.quantity || 0) * form.batch_size,
-                actual_qty: 0,
-                uom_id: item.uom_id || item.product?.unit_id,
-            }));
-        } else {
-            form.materials = [blankMaterial()];
-        }
         form.batch_no = props.nextBatchNo;
 
         // Reset flag after a microtask so that driver_id watcher triggered by the assignment above won't override it
@@ -223,7 +195,6 @@ watch(() => form.sales_order_id, (newVal) => {
             isAutofillingSalesOrder.value = false;
         }, 0);
     } else {
-        form.materials = [blankMaterial()];
         form.batch_no = props.nextBatchNo;
         form.concrete_pump = null;
         form.sales_executive_id = null;
@@ -275,15 +246,6 @@ watch(() => form.batch_size, (newVal) => {
         if (newVal > 9.9) {
             form.batch_size = 9.9;
         }
-    }
-    
-    if (form.sales_order_id && selectedSalesOrder.value?.mix_design?.items) {
-        form.materials.forEach((mat, index) => {
-            const originalItem = selectedSalesOrder.value.mix_design.items[index];
-            if (originalItem) {
-                mat.target_qty = Number(originalItem.cross_quantity || originalItem.quantity || 0) * newVal;
-            }
-        });
     }
 });
 
@@ -484,7 +446,6 @@ const submit = () => {
         form.end_time = null;
         form.empty_time = new Date();
         form.load_time = new Date();
-        form.materials = [blankMaterial()];
         isTimeManuallySet.value = false;
         if (!liveTimerInterval) {
             startLiveTimer();
@@ -514,32 +475,10 @@ const submit = () => {
             end_time: formatDateTime(form.end_time),
             empty_time: formatDateTime(form.empty_time),
             load_time: formatDateTime(form.load_time),
-            materials: form.materials.map((item: BatchMaterial) => ({
-                ...item,
-                material_name: item.material_name || props.products.find((p: any) => p.id === item.product_id)?.title || 'Material',
-            })),
             empty_weight_photo: form.empty_weight_photo,
             is_offline_pending: true,
             created_at: new Date().toISOString(),
         };
-
-        const queue = JSON.parse(localStorage.getItem('offline_batches') || '[]');
-        queue.push(formattedBatch);
-        localStorage.setItem('offline_batches', JSON.stringify(queue));
-
-        emit('offline-batch-added', formattedBatch);
-
-        Swal.fire({
-            toast: true,
-            position: 'top-end',
-            icon: 'warning',
-            title: 'No network. Queued locally for synchronization.',
-            showConfirmButton: false,
-            timer: 3000
-        });
-
-        resetForm();
-        return;
     }
 
     form.transform((data) => ({
@@ -548,10 +487,6 @@ const submit = () => {
         end_time: formatDateTime(data.end_time),
         empty_time: formatDateTime(data.empty_time),
         load_time: formatDateTime(data.load_time),
-        materials: data.materials.map((item: BatchMaterial) => ({
-            ...item,
-            material_name: item.material_name || props.products.find((p: any) => p.id === item.product_id)?.title || 'Material',
-        })),
     })).post(route('batches.store'), {
         onSuccess: (page: any) => {
             Swal.fire({

@@ -114,14 +114,17 @@ class HandleInertiaRequests extends Middleware
         if ($activePlantId) {
             $plant = Plant::find($activePlantId);
             if ($plant && $plant->is_active === 1) {
+                $mixerCapacity = (float)($plant->mixer_capacity ?: 1.25);
                 $activePlant = [
-                    'plant_id'   => $plant->id,
-                    'plant_name' => $plant->name,
-                    'plant_code' => $plant->code,
-                    'plant_logo' => $plant->logo_path ? "/storage/{$plant->logo_path}" : null,
+                    'plant_id'       => $plant->id,
+                    'plant_name'     => $plant->name,
+                    'plant_code'     => $plant->code,
+                    'plant_logo'     => $plant->logo_path ? "/storage/{$plant->logo_path}" : null,
+                    'mixer_capacity' => $mixerCapacity,
                 ];
+                session(['mixer_capacity' => $mixerCapacity]);
             } else {
-                session()->forget('active_plant_id');
+                session()->forget(['active_plant_id', 'mixer_capacity']);
                 $activePlantId = null;
             }
             $customSettings['batching'] = \App\Models\CustomSetting::getForModule($activePlantId, 'batching');
@@ -286,6 +289,7 @@ class HandleInertiaRequests extends Middleware
             'active_entity'    => $activeEntity,
             'active_plant'     => $activePlant,
             'active_plant_id'  => $activePlantId,
+            'mixer_capacity'   => fn () => session('mixer_capacity', $activePlant['mixer_capacity'] ?? 1.25),
             'user_entities'    => $userEntities,
             'user_role'        => $tenantRoleName,
             'user_code'        => $tenantRoleCode,

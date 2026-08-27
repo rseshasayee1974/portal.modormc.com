@@ -74,15 +74,34 @@ export function useBatchActions(props: { statuses: { label: string; value: numbe
     };
 
     // ── Status Helpers ───────────────────────────────────────────────────────
-    const statusSeverity = (status: number): string => {
+    const isEInvoiced = (row?: any): boolean => {
+        if (!row) return false;
+        if (row.has_einvoice || row.einvoice_irn || row.einvoice_status === 'generated') return true;
+        const inv = row.dispatches?.[0]?.status?.invoice;
+        if (inv && (inv.einvoice_irn || inv.einvoice_status === 'generated')) return true;
+        return false;
+    };
+
+    const isInvoiced = (row?: any): boolean => {
+        if (!row) return false;
+        return Boolean(row.invoice_id || row.has_invoice || row.dispatches?.[0]?.status?.invoice_id || row.dispatches?.[0]?.status?.invoice_status === 1);
+    };
+
+    const statusSeverity = (status: number, row?: any): string => {
+        if (isEInvoiced(row)) return 'help';
+        if (isInvoiced(row)) return 'success';
         if (status === 4) return 'success';
-        if (status === 2 || status === 3) return 'info';
+        if (status === 3) return 'info';
+        if (status === 2) return 'info';
         if (status === 5) return 'danger';
         return 'warn';
     };
 
-    const statusLabel = (status: number): string =>
-        props.statuses.find((entry) => entry.value === status)?.label ?? 'Unknown';
+    const statusLabel = (status: number, row?: any): string => {
+        if (isEInvoiced(row)) return 'E-Invoiced';
+        if (isInvoiced(row)) return 'Invoiced';
+        return props.statuses.find((entry) => entry.value === status)?.label ?? 'Unknown';
+    };
 
     // ── Public API ───────────────────────────────────────────────────────────
     return {

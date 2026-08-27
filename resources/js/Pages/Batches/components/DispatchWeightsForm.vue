@@ -39,7 +39,6 @@ const props = withDefaults(defineProps<{
     errors: any;
     isReadOnly?: boolean;
     showInvoiceSection?: boolean;
-    addPumpToTotal?: boolean;
 }>(), {
     uoms: () => [],
     taxes: () => [],
@@ -55,7 +54,6 @@ const props = withDefaults(defineProps<{
     errors: () => ({}),
     isReadOnly: false,
     showInvoiceSection: false,
-    addPumpToTotal: false
 });
 
 const emit = defineEmits(['update:modelValue', 'generateInvoice', 'generateEInvoice', 'deleteInvoice']);
@@ -151,44 +149,62 @@ const formatTime = (dateVal: any) => {
         </div>
 
         <div class="bg-white px-2">
-            <div class="flex items-center gap-2 border-b border-slate-100 pb-1 mb-4">
-                <ScaleIcon class="h-5 w-5 text-indigo-500" />
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">2. Pricing & Quantities</h3>
+            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-4">
+                <div class="flex items-center gap-2">
+                    <ScaleIcon class="h-5 w-5 text-indigo-500" />
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">2. Pricing & Quantities</h3>
+                </div>
+                
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <BaseSelect v-model="modelValue.uom_id" :options="uoms" optionLabel="unit_code" optionValue="id" label="Unit of Measure" filter showClear :error="errors.uom_id" :disabled="isReadOnly" />
                 <BaseInputNumber v-model="modelValue.financials.load_rate" label="Load Rate" :minFractionDigits="2" :error="errors['financials.load_rate']" :disabled="isReadOnly" />
-                <BaseSelect v-model="modelValue.financials.load_tax_id" :options="taxes" optionLabel="tax_name" optionValue="id" label="Tax Group" filter showClear :error="errors['financials.load_tax_id']" :disabled="isReadOnly" />
-                <BaseSelect v-model="modelValue.payment_mode" :options="[{label: 'Cash', value: 'cash'}, {label: 'Credit', value: 'credit'}]" optionLabel="label" optionValue="value" label="Payment Mode" :error="errors.payment_mode" :disabled="isReadOnly" />
-                <BaseInput v-model="modelValue.dispatch_reference" label="Site Ref" :error="errors.dispatch_reference" :disabled="isReadOnly" class="col-span-1 sm:col-span-2 md:col-span-1" />
-            </div>
-        </div>
-
-        <div class="bg-white px-2">
-            <div class="flex items-center gap-2 border-b border-slate-100 pb-1">
-                <BanknotesIcon class="h-5 w-5 text-indigo-500" />
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">3. Financials & Invoice</h3>
-            </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            <BaseInputNumber v-model="modelValue.financials.pump_charges" label="Pump Charges" :minFractionDigits="2" :error="errors['financials.pump_charges']" :disabled="isReadOnly" />
-            <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" :error="errors['financials.pass_amount']" :disabled="isReadOnly" />
-            <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" :error="errors['financials.discount_amount']" :disabled="isReadOnly" />
-            <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" :error="errors['financials.transport_expenses']" :disabled="isReadOnly" />
-            <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" :error="errors['financials.adjustment_amount']" :disabled="isReadOnly" />
-            <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" :error="errors['financials.round_off']" :disabled="isReadOnly" />
-        </div>
-
-        <div v-show="modelValue.payment_mode === 'cash'" class="p-2 space-y-2">
-            <div class="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="h-5 w-5 text-emerald-500">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
-                </svg>
-                <div>
-                    <h4 class="text-[11px] font-black uppercase tracking-widest text-emerald-600">Immediate Payment Collection</h4>
+                <BaseSelect v-model="modelValue.financials.load_tax_id" :options="taxes" optionLabel="tax_name" optionValue="id" label="Tax" filter showClear :error="errors['financials.load_tax_id']" :disabled="isReadOnly" />
+                <div class="flex flex-col justify-end">
+                    <label class="block text-[10px] font-bold text-slate-600">Tax Calculation</label>
+                    <div class="flex items-center justify-between h-[38px] bg-slate-50 border border-slate-200/60 rounded-xl px-2 shadow-xs font-normal">
+                        <span class="text-[10px] font-bold text-slate-600 tracking-wider">Tax Inclusive</span>
+                        <input 
+                            type="checkbox" 
+                            v-model="modelValue.status.is_tax_inclusive" 
+                            id="is_tax_inclusive_dispatch" 
+                            :disabled="isReadOnly" 
+                            class="peer hidden" 
+                        />
+                        <label 
+                            for="is_tax_inclusive_dispatch" 
+                            class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px] disabled:opacity-50 disabled:cursor-not-allowed"
+                        ></label>
+                    </div>
                 </div>
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="flex flex-col gap-1">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-semibold capitalize text-gray-700">Pump Charges</label>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] font-bold text-slate-500 tracking-wider">With Tax</span>
+                            <input 
+                                type="checkbox" 
+                                v-model="modelValue.pump_charge_with_tax" 
+                                id="pump_charge_with_tax" 
+                                :disabled="isReadOnly" 
+                                class="peer hidden" 
+                            />
+                            <label 
+                                for="pump_charge_with_tax" 
+                                class="relative w-7 h-4 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-[12px] disabled:opacity-50 disabled:cursor-not-allowed"
+                            ></label>
+                        </div>
+                    </div>
+                    <BaseInputNumber 
+                        v-model="modelValue.financials.pump_charges" 
+                        :minFractionDigits="2" 
+                        :error="errors['financials.pump_charges']" 
+                        :disabled="isReadOnly" 
+                    />
+                </div>
+                <BaseSelect v-model="modelValue.payment_mode" :options="[{label: 'Cash', value: 'cash'}, {label: 'Credit', value: 'credit'}]" optionLabel="label" optionValue="value" label="Part Type" :error="errors.payment_mode" :disabled="isReadOnly" />
+                <div v-show="modelValue.payment_mode === 'cash'" class="col-span-1 sm:col-span-2 md:col-span-1">
+            
                 <BaseSelect 
                     v-model="modelValue.payment.payment_method_id" 
                     label="Payment Method" 
@@ -201,7 +217,27 @@ const formatTime = (dateVal: any) => {
                     :disabled="isReadOnly"
                 />
             </div>
+                <BaseInput v-model="modelValue.dispatch_reference" label="Site Ref" :error="errors.dispatch_reference" :disabled="isReadOnly" class="col-span-1 sm:col-span-2 md:col-span-1" />
+
+            </div>
         </div>
+
+        <div class="bg-white px-2">
+            <div class="flex items-center gap-2 border-b border-slate-100 pb-1">
+                <BanknotesIcon class="h-5 w-5 text-indigo-500" />
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">3. Financials & Invoice</h3>
+            </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <!-- <BaseInputNumber v-model="modelValue.financials.pump_charges" label="Pump Charges" :minFractionDigits="2" :error="errors['financials.pump_charges']" :disabled="isReadOnly" /> -->
+            <BaseInputNumber v-model="modelValue.financials.pass_amount" label="Pass Amount" :minFractionDigits="2" :error="errors['financials.pass_amount']" :disabled="isReadOnly" />
+            <BaseInputNumber v-model="modelValue.financials.discount_amount" label="Discount" :minFractionDigits="2" :error="errors['financials.discount_amount']" :disabled="isReadOnly" />
+            <BaseInputNumber v-model="modelValue.financials.transport_expenses" label="Transport Exp." :minFractionDigits="2" :error="errors['financials.transport_expenses']" :disabled="isReadOnly" />
+            <BaseInputNumber v-model="modelValue.financials.adjustment_amount" label="Adjustment" :minFractionDigits="2" :error="errors['financials.adjustment_amount']" :disabled="isReadOnly" />
+            <BaseInputNumber v-model="modelValue.financials.round_off" label="Round Off" :minFractionDigits="2" :min="0" :max="99" :error="errors['financials.round_off']" :disabled="isReadOnly" />
+        </div>
+
+        
 
         <!-- Invoice Management Section -->
         <div v-if="(modelValue.id || modelValue.dispatch_id) && showInvoiceSection" class="mt-4 mb-2">
@@ -226,8 +262,8 @@ const formatTime = (dateVal: any) => {
                         </span>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-                        <div class="md:col-span-6 lg:col-span-5">
+                    <div class="grid grid-cols-4 md:grid-cols-12 gap-4 items-end">
+                        <div class="md:col-span-12 lg:col-span-3">
                             <BaseSelect 
                                 v-model="modelValue.ledger_id" 
                                 :options="sales_ledgers" 
@@ -235,15 +271,15 @@ const formatTime = (dateVal: any) => {
                                 optionValue="value" 
                                 label="Sales Ledger" 
                                 filter 
-                                placeholder="Select ..." 
+                                placeholder="Select" 
                                 :error="errors.ledger_id" 
                                 :disabled="isReadOnly"
                             />
                         </div>
-                        <div class="md:col-span-6 lg:col-span-4">
+                        <div class="md:col-span-6 lg:col-span-3">
                             <BaseDatePicker 
                                 v-model="modelValue.invoice_date" 
-                                label="Invoice Date" 
+                                label="Date" 
                                 :error="errors.invoice_date" 
                                 :disabled="isReadOnly"
                             />
@@ -253,10 +289,9 @@ const formatTime = (dateVal: any) => {
                                 type="button"
                                 @click="handleGenerateInvoice"
                                 :disabled="isReadOnly"
-                                class="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all text-white text-xs font-bold uppercase tracking-wider rounded-xl shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                class="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-2 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all text-white text-xs font-semibold tracking-wider rounded disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             >
-                                <SparklesIcon class="h-4 w-4" />
-                                <span>Generate Invoice</span>
+                                <span>Generate </span>
                             </button>
                         </div>
                     </div>

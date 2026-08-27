@@ -11,7 +11,18 @@ import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { CubeIcon, InformationCircleIcon, BeakerIcon, ListBulletIcon, ArrowDownTrayIcon, PlusCircleIcon, ClockIcon } from '@heroicons/vue/24/outline';
+import { 
+    CubeIcon, 
+    InformationCircleIcon, 
+    BeakerIcon, 
+    ListBulletIcon, 
+    ArrowDownTrayIcon, 
+    PlusCircleIcon, 
+    ClockIcon,
+    LockClosedIcon,
+    CheckCircleIcon,
+    PencilSquareIcon
+} from '@heroicons/vue/24/outline';
 import { useWeighbridge } from '@/Composables/useWeighbridge';
 import { usePermissions } from '@/Composables/usePermissions';
 import BatchSheetUploader from './BatchSheetUploader.vue';
@@ -68,51 +79,11 @@ const form = useForm({
     sales_order_id: props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null),
     batch_no: props.batch?.batch_no ?? null,
     batch_size: Number(props.batch?.batch_size ?? 1),
-    truck_id: (() => {
-        const direct = props.batch?.dispatches?.[0]?.truck_id || props.batch?.truck_id;
-        if (direct) return Number(direct);
-        const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
-        return so?.latest_dispatch?.truck_id ? Number(so.latest_dispatch.truck_id) : null;
-    })(),
-    transport_id: (() => {
-        const direct = props.batch?.dispatches?.[0]?.transport_id || props.batch?.transport_id;
-        if (direct) return Number(direct);
-        const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
-        if (so?.latest_dispatch?.transport_id) return Number(so.latest_dispatch.transport_id);
-        const drId = props.batch?.dispatches?.[0]?.driver_id || props.batch?.driver_id || so?.latest_dispatch?.driver_id;
-        if (drId) {
-            const driverObj = props.drivers?.find((d: any) => Number(d.id) === Number(drId));
-            if (driverObj?.transporter_id) return Number(driverObj.transporter_id);
-        }
-        return null;
-    })(),
-    driver_id: (() => {
-        const direct = props.batch?.dispatches?.[0]?.driver_id || props.batch?.driver_id;
-        if (direct) return Number(direct);
-        const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
-        return so?.latest_dispatch?.driver_id ? Number(so.latest_dispatch.driver_id) : null;
-    })(),
-    sales_executive_id: (() => {
-        const direct = props.batch?.dispatches?.[0]?.sales_executive_id || props.batch?.sales_executive_id;
-        if (direct) return Number(direct);
-        const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
-        const val = so?.sales_executive_id ?? so?.customer_p_o?.sales_executive_id ?? so?.customer_p_o?.quotation?.sales_executive_id ?? so?.latest_dispatch?.sales_executive_id ?? null;
-        return val ? Number(val) : null;
-    })(),
-    concrete_pump: (() => {
-        const direct = props.batch?.dispatches?.[0]?.concrete_pump || props.batch?.concrete_pump;
-        if (direct) {
-            const num = Number(direct);
-            return isNaN(num) ? direct : num;
-        }
-        const so = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === (props.batch?.sales_order_id ?? (props.salesOrders?.[0]?.id ?? null)));
-        const val = so?.concrete_pump ?? so?.customer_p_o?.concrete_pump ?? so?.customer_p_o?.quotation?.concrete_pump ?? so?.latest_dispatch?.concrete_pump ?? null;
-        if (val) {
-            const num = Number(val);
-            return isNaN(num) ? val : num;
-        }
-        return null;
-    })(),
+    truck_id: props.batch?.dispatches?.[0]?.truck_id || props.batch?.truck_id,
+    transport_id: props.batch?.dispatches?.[0]?.transport_id || props.batch?.transport_id,
+    driver_id:props.batch?.dispatches?.[0]?.driver_id || props.batch?.driver_id,
+    sales_executive_id: props.batch?.dispatches?.[0]?.sales_executive_id || props.batch?.sales_executive_id,
+    concrete_pump:props.batch?.dispatches?.[0]?.concrete_pump || props.batch?.concrete_pump,
     empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? props.batch?.empty_weight_truck ?? props.batch?.sales_order?.latest_dispatch?.empty_weight_truck ?? 0),
     loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? props.batch?.loaded_weight_truck ?? props.batch?.sales_order?.latest_dispatch?.loaded_weight_truck ?? 0),
         
@@ -146,26 +117,36 @@ const form = useForm({
 
         return Object.values(grouped).map((group: any) => {
             const size = Number(props.batch?.batch_size ?? 1);
-            const matchingSO = props.batch?.sales_order || props.salesOrders.find((wo: any) => wo.id === props.batch?.sales_order_id);
-            const cap = Number(matchingSO?.plant?.mixer_capacity || 1.25);
+            const matchingSO = props.batch?.sales_order || props.salesOrders.find((wo: any) => Number(wo.id) === Number(props.batch?.sales_order_id));
+            const cap = Number(matchingSO?.mixer_capacity || matchingSO?.plant?.mixer_capacity || 1.25);
             const runsCount = Math.ceil(size / cap) || 1;
             
             const runsArray = Array(runsCount).fill(0);
-            group.rawItems.forEach((item: any) => {
-                const match = String(item.material_name).match(/Run (\d+)/i);
-                if (match) {
-                    const runIdx = parseInt(match[1]) - 1;
-                    if (runIdx >= 0 && runIdx < runsCount) {
-                        runsArray[runIdx] = Number(item.actual_qty || 0);
+            const hasRunNames = group.rawItems.some((item: any) => /Run \d+/i.test(item.material_name));
+
+            if (hasRunNames) {
+                group.rawItems.forEach((item: any) => {
+                    const match = String(item.material_name).match(/Run (\d+)/i);
+                    if (match) {
+                        const runIdx = parseInt(match[1]) - 1;
+                        if (runIdx >= 0 && runIdx < runsCount) {
+                            runsArray[runIdx] = Number(item.actual_qty || 0);
+                        }
                     }
-                } else {
-                    runsArray[0] = Number(item.actual_qty || 0);
+                });
+            } else {
+                const totalActual = Number(group.rawItems[0]?.actual_qty || 0);
+                if (totalActual > 0) {
+                    for (let i = 0; i < runsCount; i++) {
+                        const runSz = (i < runsCount - 1) ? cap : (size - cap * (runsCount - 1));
+                        runsArray[i] = Number((totalActual * (runSz / size)).toFixed(3));
+                    }
                 }
-            });
+            }
 
             return {
                 product_id: group.product_id,
-                material_name: group.material_name,
+                material_name: group.material_name.replace(/\s*-\s*Run\s*\d+/gi, '').trim(),
                 target_qty: Number(group.target_qty.toFixed(3)),
                 uom_id: group.uom_id,
                 runs: runsArray,
@@ -177,14 +158,19 @@ const form = useForm({
 const activeTabIndex = ref(0);
 
 const selectedSalesOrder = computed(() => {
-    if (props.batch?.sales_order && props.batch.sales_order.id === form.sales_order_id) {
+    if (props.batch?.sales_order && Number(props.batch.sales_order.id) === Number(form.sales_order_id)) {
         return props.batch.sales_order;
     }
-    return props.salesOrders.find(wo => wo.id === form.sales_order_id);
+    return props.salesOrders.find(wo => Number(wo.id) === Number(form.sales_order_id));
 });
 
 const mixerCapacity = computed(() => {
-    return Number(selectedSalesOrder.value?.plant?.mixer_capacity || props.batch?.sales_order?.plant?.mixer_capacity || 1.25);
+    return Number(
+        (page.props as any).mixer_capacity ||
+        (page.props as any).active_plant?.mixer_capacity ||
+        selectedSalesOrder.value?.mixer_capacity ||
+        1.25
+    );
 });
 
 const numberOfRuns = computed(() => {
@@ -211,17 +197,21 @@ const runSizes = computed(() => {
     return runs;
 });
 
-// console.log('batcjh==',props);
-
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
 
-
-
 const { isAdmin, isSuperAdmin } = usePermissions();
 
+const hasInvoice = computed(() => {
+    if (props.batch?.invoice_id) return true;
+    if (props.batch?.invoice_number) return true;
+    if (props.batch?.dispatches?.some((d: any) => d.invoice_id || d.status?.invoice_id || d.invoice_number || (d.invoice_status && Number(d.invoice_status) > 0))) return true;
+    return false;
+});
+
 const isLocked = computed(() => {
-    return form.status === 3;
+    // Only lock editability when invoice is already generated
+    return hasInvoice.value;
 });
 
 const isRestrictedFieldLocked = computed(() => {
@@ -235,14 +225,10 @@ const salesOrderDetails = computed(() => {
     if (!selectedSalesOrder.value) return [];
     const wo = selectedSalesOrder.value;
     return [
-        { label: 'Customer', value: wo.customer?.legal_name || 'N/A' },
-        { label: 'Site', value: wo.site?.name || 'N/A' },
-        { label: 'Design', value: wo.mix_design?.design_name || 'N/A' },
-        { label: 'Grade/Ratio', value: wo.mix_design?.concrete_grade?.name 
-            ? `${wo.mix_design.concrete_grade.name}${wo.mix_design.concrete_grade.concrete_ratio ? ` (${wo.mix_design.concrete_grade.concrete_ratio})` : ''}` 
-            : (wo.mix_design?.grade || 'N/A') 
-        },
-        { label: 'Total Qty', value: `${wo.produced_qty} / ${wo.total_qty} m³` },
+        { label: 'Customer', value: wo.customer_name || wo.customer?.legal_name || 'N/A' },
+        { label: 'Site', value: wo.site_name || wo.site?.name || 'N/A' },
+        { label: 'Design', value: wo.mix_design_name || wo.mix_design?.design_name || 'N/A' },
+        { label: 'Total Qty', value: `${wo.produced_qty || 0} / ${wo.total_qty || 0} m³` },
     ];
 });
 
@@ -316,7 +302,7 @@ const applyBatchToForm = (newBatch: any) => {
     form.batch_size = Number(newBatch.batch_size ?? 1);
     
     const dispatch = newBatch.dispatches?.[0];
-    const so = newBatch.sales_order || props.salesOrders.find((wo: any) => wo.id === newBatch.sales_order_id);
+    const so = newBatch.sales_order || props.salesOrders.find((wo: any) => Number(wo.id) === Number(newBatch.sales_order_id));
     const po = so?.customer_p_o;
     const quotation = po?.quotation;
     const latestDispatch = so?.latest_dispatch;
@@ -392,21 +378,32 @@ const applyBatchToForm = (newBatch: any) => {
     const runsCount = numberOfRuns.value;
     form.materials = Object.values(grouped).map((group: any) => {
         const runsArray = Array(runsCount).fill(0);
-        group.rawItems.forEach((item: any) => {
-            const match = String(item.material_name).match(/Run (\d+)/i);
-            if (match) {
-                const runIdx = parseInt(match[1]) - 1;
-                if (runIdx >= 0 && runIdx < runsCount) {
-                    runsArray[runIdx] = Number(item.actual_qty || 0);
+        const hasRunNames = group.rawItems.some((item: any) => /Run \d+/i.test(item.material_name));
+
+        if (hasRunNames) {
+            group.rawItems.forEach((item: any) => {
+                const match = String(item.material_name).match(/Run (\d+)/i);
+                if (match) {
+                    const runIdx = parseInt(match[1]) - 1;
+                    if (runIdx >= 0 && runIdx < runsCount) {
+                        runsArray[runIdx] = Number(item.actual_qty || 0);
+                    }
                 }
-            } else {
-                runsArray[0] = Number(item.actual_qty || 0);
+            });
+        } else {
+            const totalActual = Number(group.rawItems[0]?.actual_qty || 0);
+            const size = Number(form.batch_size || 1);
+            if (totalActual > 0) {
+                for (let i = 0; i < runsCount; i++) {
+                    const runSz = runSizes.value[i] || 0;
+                    runsArray[i] = Number((totalActual * (runSz / size)).toFixed(3));
+                }
             }
-        });
+        }
 
         return {
             product_id: group.product_id,
-            material_name: group.material_name,
+            material_name: group.material_name.replace(/\s*-\s*Run\s*\d+/gi, '').trim(),
             target_qty: Number(group.target_qty.toFixed(3)),
             uom_id: group.uom_id,
             runs: runsArray,
@@ -721,26 +718,19 @@ const submit = (onSuccessCallback?: () => void) => {
         end_time: formatDateTime(data.end_time),
         empty_time: formatDateTime(data.empty_time),
         load_time: formatDateTime(data.load_time),
-        materials: data.materials.flatMap((mat: any) => {
-            const runsCount = numberOfRuns.value;
+        materials: data.materials.map((mat: any) => {
             const pTitle = props.products.find((p: any) => p.id === mat.product_id)?.title || 'Material';
-            const baseName = mat.material_name || pTitle;
-            
-            const list = [];
-            for (let i = 0; i < runsCount; i++) {
-                const actual = Number(mat.runs?.[i] || 0);
-                const runSz = runSizes.value[i] || 0;
-                const target = Number(mat.target_qty || 0) * (runSz / Number(form.batch_size || 1));
-                list.push({
-                    product_id: mat.product_id,
-                    material_name: `${baseName} - Run ${i + 1}`,
-                    target_qty: Number(target.toFixed(3)),
-                    actual_qty: actual,
-                    deviation_quantity: Number((actual - target).toFixed(3)),
-                    uom_id: mat.uom_id
-                });
-            }
-            return list;
+            const baseName = (mat.material_name || pTitle).replace(/\s*-\s*Run\s*\d+/gi, '').trim();
+            const totalActual = (mat.runs || []).reduce((sum: number, val: any) => sum + Number(val || 0), 0);
+            const target = Number(mat.target_qty || 0);
+            return {
+                product_id: mat.product_id,
+                material_name: baseName,
+                target_qty: Number(target.toFixed(3)),
+                actual_qty: Number(totalActual.toFixed(3)),
+                deviation_quantity: Number((totalActual - target).toFixed(3)),
+                uom_id: mat.uom_id
+            };
         }),
     }));
                 // router.reload({ only: ['batch'] });
@@ -843,7 +833,16 @@ const updateBatch = (onSuccessCallback?: () => void) => {
                     <div v-if="salesOrderDetails.length" class="lg:col-span-3 border-t lg:border-t-0 lg:border-l border-slate-200/60 lg:pl-6 pt-4 lg:pt-0">
                         <h3 class="mb-3 text-[10px] font-bold uppercase tracking-widest text-cyan-600 flex items-center justify-between">
                             <span>Reference Details</span>
-                            <span class="rounded bg-cyan-100 px-2 py-0.5 text-[9px] font-bold text-cyan-700">Live</span>
+                            <div class="flex items-center gap-2">
+                                <span v-if="hasInvoice" class="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-800">
+                                    <LockClosedIcon class="w-3 h-3 text-amber-600" />
+                                    Invoice Generated (Locked)
+                                </span>
+                                <span v-else class="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">
+                                    <PencilSquareIcon class="w-3 h-3 text-emerald-600" />
+                                    Editable (Pre-Invoice)
+                                </span>
+                            </div>
                         </h3>
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             <div v-for="detail in salesOrderDetails" :key="detail.label" class="flex flex-col">
@@ -1009,7 +1008,7 @@ const updateBatch = (onSuccessCallback?: () => void) => {
                                 <div class="flex flex-wrap items-center gap-2">
                                     <!-- Upload Batch Sheet button -->
                                     <Button
-                                        v-if="form.status !== 3 && isUploadFetchEnabled"
+                                        v-if="!hasInvoice && isUploadFetchEnabled"
                                         :label="sheetUrl || props.batch?.sheet_url ? 'Re-upload Sheet' : 'Upload Batch Sheet'"
                                         icon="pi pi-upload"
                                         size="small"
@@ -1067,7 +1066,7 @@ const updateBatch = (onSuccessCallback?: () => void) => {
 
                                     <!-- Sync Consumption -->
                                     <Button
-                                        v-if="form.status !== 3 && !isUploadFetchEnabled"
+                                        v-if="!hasInvoice && !isUploadFetchEnabled"
                                         label="Sync Consumption"
                                         icon="pi pi-sync"
                                         size="small"
@@ -1080,7 +1079,7 @@ const updateBatch = (onSuccessCallback?: () => void) => {
                                     
                                     <!-- One-Click Target to Actual -->
                                     <Button
-                                        v-if="form.status !== 3 && customSettings?.batching?.target_to_actual == 1"
+                                        v-if="!hasInvoice && customSettings?.batching?.target_to_actual == 1"
                                         label="Set Actuals = Targets"
                                         icon="pi pi-copy"
                                         size="small"
@@ -1090,7 +1089,7 @@ const updateBatch = (onSuccessCallback?: () => void) => {
                                         @click="copyTargetsToActuals"
                                     />
 
-                                    <Button v-if="form.status !== 3" label="Add Material" icon="pi pi-plus" size="small" outlined severity="info" class="!text-xs" @click="addMaterial" />
+                                    <Button v-if="!hasInvoice" label="Add Material" icon="pi pi-plus" size="small" outlined severity="info" class="!text-xs" @click="addMaterial" />
                                 </div>
                             </div>
 
@@ -1156,13 +1155,13 @@ const updateBatch = (onSuccessCallback?: () => void) => {
                                                             filter
                                                             size="small"
                                                             :fluid="true"
-                                                            :disabled="!!item.id || isLocked"
+                                                            :disabled="isLocked"
                                                             :error="form.errors[`materials.${index}.product_id`]"
                                                             placeholder="Select Product"
                                                             class="!text-[10px] w-full"
                                                         />
                                                         <Button
-                                                            v-if="!isLocked && form.status !== 3 && !item.id"
+                                                            v-if="!isLocked"
                                                             icon="pi pi-trash" 
                                                             text rounded severity="danger"
                                                             class="!h-6 !w-6 !p-0 flex-shrink-0"
@@ -1188,7 +1187,7 @@ const updateBatch = (onSuccessCallback?: () => void) => {
                                                     <BaseInputNumber
                                                         :modelValue="form.materials[index].target_qty"
                                                         @update:modelValue="form.materials[index].target_qty = Number($event ?? 0)"
-                                                        :disabled="!!item.id || isLocked"
+                                                        :disabled="isLocked"
                                                         :minFractionDigits="3"
                                                         size="small"
                                                         :fluid="true"
@@ -1261,7 +1260,7 @@ const updateBatch = (onSuccessCallback?: () => void) => {
         </div>
 
         <!-- Update Actions Footer (Sticky) -->
-        <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-4 flex items-center justify-between gap-3" v-if="form.status !== 3">
+        <div class="border-t border-slate-100 bg-slate-50/50 px-6 py-4 flex items-center justify-between gap-3" v-if="!hasInvoice">
             <div>
                 <Button 
                     v-if="activeTabIndex === 1"
@@ -1303,6 +1302,21 @@ const updateBatch = (onSuccessCallback?: () => void) => {
                     @click="submit" 
                 />
             </div>
+        </div>
+
+        <div v-else class="border-t border-amber-200 bg-amber-50/70 px-6 py-3.5 flex items-center justify-between gap-3 text-xs text-amber-800 font-semibold">
+            <div class="flex items-center gap-2">
+                <LockClosedIcon class="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>Invoice has already been generated for this batch. Editing is locked.</span>
+            </div>
+            <Button 
+                label="Close" 
+                severity="secondary" 
+                outlined
+                size="small"
+                class="!px-4 !py-1.5 !rounded-xl text-xs font-bold" 
+                @click="emit('cancel')" 
+            />
         </div>
     </div>
 </template>

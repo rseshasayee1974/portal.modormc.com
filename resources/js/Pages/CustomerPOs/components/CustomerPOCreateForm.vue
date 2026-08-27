@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import { useForm, usePage } from '@inertiajs/vue3';
-import { computed, watch, ref } from 'vue';
-import axios from 'axios';
+import { useForm } from '@inertiajs/vue3';
+import { computed, watch } from 'vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import Button from 'primevue/button';
 import Swal from 'sweetalert2';
-import { PlusCircleIcon, DocumentTextIcon, TrashIcon, PlusIcon, CalculatorIcon } from '@heroicons/vue/24/outline';
+import { PlusCircleIcon, TrashIcon, PlusIcon, CalculatorIcon } from '@heroicons/vue/24/outline';
 import RecipePopover from '@/Components/Base/RecipePopover.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
-import BaseButton from '@/Components/Base/BaseButton.vue';
-import { calculateLineItemTotals } from '@/composables/useLineItemCalculation';
+import { calculateLineItemTotals } from '@/Composables/useLineItemCalculation';
 
 const props = withDefaults(defineProps<{
     patrons?: any[];
@@ -28,7 +26,6 @@ const props = withDefaults(defineProps<{
     quotations: () => [],
     mixDesigns: () => [],
     salesExecutives: () => [],
-    concretePumpOptions: () => [],
     taxes: () => [],
     pumpTypeOptions: () => [],
     pumpRates: () => [],
@@ -53,14 +50,13 @@ const form = useForm({
 
 // Watch quotation selection to auto-fill patron, site, and sales executive
 watch(() => form.quotation_id, (newVal) => {
-    excludedMixDesignPumpRates.value = [];
     if (newVal) {
         const quote = props.quotations.find((q) => Number(q.id) === Number(newVal));
         if (quote) {
             form.patron_id = quote.patron_id;
             form.site_id = quote.site_id;
             form.sales_executive_id = quote.sales_executive_id;
-            form.is_tax_inclusive = quote.is_tax_inclusive ? true : false;
+            form.is_tax_inclusive = Boolean(quote.is_tax_inclusive);
             const quoteItems = quote.items || [];
             form.items = quoteItems.map((item: any) => {
                 const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => Number(pr.pump_rate) > 0);
@@ -111,10 +107,6 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
 
     return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
 };
-
-const page = usePage();
-const customSettings = page.props.custom_settings as any;
-const addPouringRatesToTotal = customSettings?.batching?.add_pouring_rates_to_total == 1;
 
 const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
@@ -189,95 +181,45 @@ const taxOptions = computed(() => (props.taxes || []).map(t => ({
     value: t.id
 })));
 
-// Watch form items and is_tax_inclusive status to dynamically update tax_amount
-watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) => {
-    if (newItems) {
-        (newItems as any).forEach((item: any) => {
-            const qty = Number(item.quantity || 0);
-            const rate = Number(item.rate || 0);
-            const pumpRate = Number(item.pump_rate || 0);
-            const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
-            const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
-            const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
+/**
+ * Line item totals calculation helper using centralized composable
+ */
+const getItemTotals = (item: any) => {
+    const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
+    const taxRate = tax ? Number(tax.tax_rate ?? tax.rate ?? 0) : 0;
+    const pumpRate = Number(item.pump_rate || item.pump_rates?.[0]?.pump_rate || 0);
 
-            if (isTaxInclusive) {
-                const total = qty * rate + pumpCharge;
-                item.tax_amount = Number((total - (total / (1 + taxRate / 100))).toFixed(2));
-            } else {
-                const untaxed = qty * rate + pumpCharge;
-                item.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
-            }
-        });
-    }
-}, { deep: true, immediate: true });
-
-const excludedMixDesignPumpRates = ref<number[]>([]);
-
-const uniqueSelectedMixDesignIds = computed(() => {
-    const ids = new Set<number>();
-    form.items.forEach(item => {
-        if (item.mix_design_id && !excludedMixDesignPumpRates.value.includes(Number(item.mix_design_id))) {
-            ids.add(Number(item.mix_design_id));
-        }
-    });
-    // For quotation-linked, load items from quotation
-    if (form.quotation_id) {
-        const quote = props.quotations.find(q => Number(q.id) === Number(form.quotation_id));
-        if (quote && quote.items) {
-            quote.items.forEach((item: any) => {
-                if (item.mix_design_id && !excludedMixDesignPumpRates.value.includes(Number(item.mix_design_id))) {
-                    ids.add(Number(item.mix_design_id));
-                }
-            });
-        }
-    }
-    return Array.from(ids);
-});
-
-const removePumpRatesForDesign = (designId: number) => {
-    excludedMixDesignPumpRates.value.push(Number(designId));
-    // Zero out pump rates for this design in the items
-    form.items.forEach(item => {
-        if (Number(item.mix_design_id) === Number(designId)) {
-            item.pump_rates.forEach(pr => {
-                pr.pump_rate = 0;
-            });
-        }
+    return calculateLineItemTotals({
+        quantity: Number(item.quantity || 0),
+        rate: Number(item.rate || 0),
+        pump_rate: pumpRate,
+        taxRate,
+        isTaxInclusive: Boolean(form.is_tax_inclusive),
     });
 };
 
-
-
+// Watch form items and is_tax_inclusive status to dynamically synchronize tax_amount
+watch(() => [form.items, form.is_tax_inclusive], ([newItems]) => {
+    if (newItems) {
+        (newItems as any[]).forEach((item: any) => {
+            item.tax_amount = getItemTotals(item).taxAmount;
+        });
+    }
+}, { deep: true, immediate: true });
 
 const calculatedTotals = computed(() => {
     let subtotal = 0;
     let taxAmount = 0;
 
-    const processItems = (itemsList: any[]) => {
-        itemsList.forEach((item: any) => {
-            const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
-            const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
+    const itemsList = (form.quotation_id && selectedQuotation.value)
+        ? (selectedQuotation.value.items || [])
+        : (form.items || []);
 
-            const res = calculateLineItemTotals({
-                quantity: Number(item.quantity || 0),
-                rate: Number(item.rate || 0),
-                pump_rate: Number(item.pump_rate || 0),
-                taxRate,
-                isTaxInclusive: Boolean(form.is_tax_inclusive),
-            });
-
-            subtotal += res.materialUntaxed + res.pumpCharge;
-            taxAmount += res.materialTax;
-        });
-    };
-
-    if (form.quotation_id && selectedQuotation.value) {
-        // Quotation-linked PO items
-        processItems(selectedQuotation.value.items || []);
-    } else {
-        // Direct PO items
-        processItems(form.items || []);
-    }
+    itemsList.forEach((item: any) => {
+        const res = getItemTotals(item);
+        subtotal += res.untaxedAmount;
+        taxAmount += res.taxAmount;
+    });
 
     return {
         subtotal: Number(subtotal.toFixed(2)),
@@ -291,16 +233,9 @@ const onMixDesignChange = (index: number) => {
     const design = props.mixDesigns?.find((p: any) => p.id === item.mix_design_id);
     if (design) {
         if (!item.rate) item.rate = Number(design.rate || 0);
-        
-        // Remove from excluded list if re-selected/changed
-        const designId = Number(item.mix_design_id);
-        excludedMixDesignPumpRates.value = excludedMixDesignPumpRates.value.filter(id => id !== designId);
-
         resolveItemPumpRate(item, true);
     }
 };
-
-
 
 // Quotation dropdown options with labels
 const quotationOptions = computed(() => {
@@ -428,8 +363,6 @@ const submit = () => {
         </p>
     </div>
 
-    
-
     <!-- Unloading Site -->
     <div>
         <BaseSelect
@@ -465,7 +398,6 @@ const submit = () => {
         />
     </div>
 
-
     <!-- Order Date -->
     <div>
         <BaseDatePicker
@@ -486,35 +418,34 @@ const submit = () => {
             :error="form.errors.customer_po_reference"
         />
     </div>
-         <div class="col-span-12 md:col-span-1">
-                <BaseSelect
-                    v-model="form.status"
-                    :options="[
-                        { label: 'Draft', value: 0 },
-                        { label: 'Confirmed', value: 1 },
-                        { label: 'Completed', value: 2 }
-                    ]"
-                    optionLabel="label"
-                    optionValue="value"
-                    label="Status"
-                    placeholder="Select Status"
-                    :error="form.errors.status"
-                />
-            </div>
+    <div class="col-span-12 md:col-span-1">
+        <BaseSelect
+            v-model="form.status"
+            :options="[
+                { label: 'Draft', value: 0 },
+                { label: 'Confirmed', value: 1 },
+                { label: 'Completed', value: 2 }
+            ]"
+            optionLabel="label"
+            optionValue="value"
+            label="Status"
+            placeholder="Select Status"
+            :error="form.errors.status"
+        />
+    </div>
     <!-- Mix Design Section -->
     <template v-if="!form.quotation_id">
-        <div class="col-span-full  pt-4">
+        <div class="col-span-full pt-4">
             <div class="flex justify-between items-center mb-3">
                 <h3 class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
-                                                    <CalculatorIcon class="w-3.5 h-3.5" />
-
+                    <CalculatorIcon class="w-3.5 h-3.5" />
                     Estimation Details
                 </h3>
-                    <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
-                        <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
-                        <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_create" class="peer hidden" />
-                        <label for="is_tax_inclusive_po_create" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
-                    </div>
+                <div class="flex items-center gap-2 bg-slate-50 border border-slate-200/50 rounded-xl px-3 py-1 shadow-sm font-normal">
+                    <span class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Tax Inclusive Rates</span>
+                    <input type="checkbox" v-model="form.is_tax_inclusive" id="is_tax_inclusive_po_create" class="peer hidden" />
+                    <label for="is_tax_inclusive_po_create" class="relative w-9 h-5 bg-slate-200 peer-checked:bg-indigo-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"></label>
+                </div>
             </div>
 
             <div class="rounded-md border border-slate-200 shadow-sm overflow-visible">
@@ -561,7 +492,7 @@ const submit = () => {
                             <td class="p-3">
                                 <BaseInputNumber v-model="item.rate" prefix="₹" :minFractionDigits="2" placeholder="0.00"/>
                             </td>
-                              <td class="p-3">
+                            <td class="p-3">
                                 <BaseSelect
                                     v-model="item.tax_id"
                                     :options="taxOptions"
@@ -589,13 +520,8 @@ const submit = () => {
                                     :minFractionDigits="2"
                                 />
                             </td>
-                          
                             <td class="p-3 text-right font-bold text-slate-800 text-sm">
-                                <span>₹ {{ (
-                                    (Number(item.quantity || 0) * Number(item.rate || 0)) + 
-                                    (addPouringRatesToTotal ? Number(item.pump_rate || 0) : (Number(item.pump_rate || 0) * Number(item.quantity || 0))) + 
-                                    (form.is_tax_inclusive ? 0 : Number(item.tax_amount || 0))
-                                ).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                <span>₹ {{ getItemTotals(item).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                             </td>
                             <td class="p-3 text-center">
                                 <button type="button" @click="removeItem(idx)" class="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-all" :disabled="form.items.length === 1">
@@ -651,10 +577,10 @@ const submit = () => {
                                 {{ (item.pump_rate || item.pump_rates?.[0]?.pump_rate) ? `₹${Number(item.pump_rate || item.pump_rates?.[0]?.pump_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-' }}
                             </td>
                             <td class="p-2 text-right font-mono">
-                                ₹{{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || item.pump_rates?.[0]?.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                ₹{{ getItemTotals(item).taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                             </td>
                             <td class="p-2 text-right font-mono font-bold text-indigo-900">
-                                ₹{{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || item.pump_rates?.[0]?.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                ₹{{ getItemTotals(item).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                             </td>
                         </tr>
                     </tbody>
@@ -662,65 +588,6 @@ const submit = () => {
             </div>
         </div>
     </template>
-
-
-
-    <!-- ── Pump Rates per Mix Design ── -->
-    <!-- <div v-if="uniqueSelectedMixDesignIds.length && pumpTypeOptions && pumpTypeOptions.length" class="col-span-full mt-4 rounded-xl border border-indigo-200 bg-indigo-100/30 p-5 shadow-sm">
-        <div class="flex items-center gap-2 mb-4">
-            <span class="text-[11px] font-black text-indigo-700 uppercase tracking-[0.18em]">⚙ Operation Charges per Mix Design</span>
-            <span class="text-[10px] text-indigo-500 font-medium">(enter rate per m³ for each operation type)</span>
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-3 gap-3 w-full items-start">
-            <div 
-                v-for="designId in uniqueSelectedMixDesignIds" 
-                :key="designId" 
-                class="w-full flex flex-col"
-            >
-                <div class="mb-2 flex items-center justify-between">
-                    <span class="rounded-md bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-800 uppercase tracking-wider border border-indigo-100/50 shadow-sm">
-                        {{ props.mixDesigns.find(d => Number(d.id) === Number(designId))?.title || props.mixDesigns.find(d => Number(d.id) === Number(designId))?.design_name || '-' }}
-                    </span>
-                    <button 
-                        type="button" 
-                        @click="removePumpRatesForDesign(designId)"
-                        class="text-rose-500 hover:text-rose-700 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 hover:underline mr-1"
-                    >
-                        <TrashIcon class="w-3.5 h-3.5" /> Remove
-                    </button>
-                </div>
-
-                <div class="w-full rounded-lg border border-indigo-100 bg-white overflow-hidden shadow-sm">
-                    <table class="w-full text-xs table-fixed">
-                        <thead>
-                            <tr class="bg-indigo-50/60 border-b border-indigo-100 text-[10px] uppercase font-bold text-indigo-700 tracking-wider">
-                                <th class="px-4 py-2.5 text-left w-1/2">Operation Type</th>
-                                <th class="px-4 py-2.5 text-right w-1/2">Rate (₹ / m³)</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-indigo-50/50">
-                            <template v-for="item in form.items" :key="String(item.mix_design_id) + '-cpo-pr'">
-                                <template v-if="Number(item.mix_design_id) === Number(designId)">
-                                    <tr v-for="pr in item.pump_rates" :key="pr.concrete_pump" class="hover:bg-indigo-50/20 transition-colors p-1">
-                                        <td class="px-4 py-0 font-medium text-slate-700 truncate">{{ props.pumpTypeOptions?.find(opt => String(opt.value) === String(pr.concrete_pump))?.label || pr.concrete_pump }}</td>
-                                        <td class="px-1 py-3 text-right">
-                                            <BaseInputNumber 
-                                                v-model="pr.pump_rate" 
-                                                prefix="₹" 
-                                                :min="0" 
-                                                class="!w-32 ml-auto" 
-                                            />
-                                        </td>
-                                    </tr>
-                                </template>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div> -->
 
     <!-- Totals & Summary Block -->
     <div class="col-span-full flex flex-col md:flex-row justify-between items-start gap-8 mt-4 border-t border-slate-100 dark:border-slate-800 pt-4">

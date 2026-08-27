@@ -11,6 +11,7 @@ export interface LineItemCalculationResult {
     materialTax: number;
     materialTotal: number;
     pumpCharge: number;
+    grossAmount: number;
     untaxedAmount: number;
     taxAmount: number;
     amountTotal: number;
@@ -25,40 +26,43 @@ export function calculateLineItemTotals(
     const taxRate = Number(params.taxRate || 0);
     const isTaxInclusive = Boolean(params.isTaxInclusive);
 
-    // 1. Pump charge (fixed lump sum / unit charge) and material amount (rate * qty)
     const pumpCharge = pumpRate;
-    const materialAmount = qty * rate;
-
-    // 2. Untaxed Amount = (rate * qty) + pump_rate
-    const untaxedAmount = materialAmount + pumpCharge;
 
     let materialUntaxed = 0;
     let materialTax = 0;
     let materialTotal = 0;
+    let untaxedAmount = 0;
     let taxAmount = 0;
     let amountTotal = 0;
+    let grossAmount = 0;
 
     if (isTaxInclusive) {
-        // TAX INCLUSIVE
-        // Total = (rate * qty) + pump_rate
-        amountTotal = untaxedAmount;
+        // TAX INCLUSIVE:
+        // gross_amount = (qty * rate) + pump_charge
+        // taxable_amount (untaxed) = gross_amount * 100 / (100 + tax_rate)
+        // tax_amount = gross_amount - taxable_amount
+        // amount_total = gross_amount
+        grossAmount = qty * rate + pumpCharge;
+        untaxedAmount = taxRate > 0 ? (grossAmount * 100) / (100 + taxRate) : grossAmount;
+        taxAmount = grossAmount - untaxedAmount;
+        amountTotal = grossAmount;
 
-        taxAmount = amountTotal - amountTotal / (1 + taxRate / 100);
-
-        materialUntaxed = materialAmount / (1 + taxRate / 100);
-        materialTax = materialAmount - materialUntaxed;
-        materialTotal = materialAmount;
+        materialTotal = qty * rate;
+        materialUntaxed = taxRate > 0 ? (materialTotal * 100) / (100 + taxRate) : materialTotal;
+        materialTax = materialTotal - materialUntaxed;
     } else {
-        // TAX EXCLUSIVE
-        // Untaxed Amount = (rate * qty) + pump_rate
-        // Tax Amount = Untaxed Amount * (taxRate / 100)
-        // Total = Untaxed Amount + Tax Amount
-
-        materialUntaxed = materialAmount;
+        // TAX EXCLUSIVE:
+        // material_amount = qty * rate
+        // untaxed_amount = material_amount + pump_charge
+        // tax_amount = untaxed_amount * (tax_rate / 100)
+        // amount_total = untaxed_amount + tax_amount
+        materialUntaxed = qty * rate;
         materialTax = (materialUntaxed * taxRate) / 100;
         materialTotal = materialUntaxed + materialTax;
 
+        untaxedAmount = materialUntaxed + pumpCharge;
         taxAmount = (untaxedAmount * taxRate) / 100;
+        grossAmount = untaxedAmount;
         amountTotal = untaxedAmount + taxAmount;
     }
 
@@ -70,6 +74,7 @@ export function calculateLineItemTotals(
         untaxedAmount: Number(untaxedAmount.toFixed(2)),
         taxAmount: Number(taxAmount.toFixed(2)),
         amountTotal: Number(amountTotal.toFixed(2)),
+        grossAmount: Number(grossAmount.toFixed(2)),
     };
 }
 

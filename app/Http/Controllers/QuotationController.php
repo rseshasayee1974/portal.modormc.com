@@ -161,6 +161,7 @@ class QuotationController extends Controller
                         'pump_rate' => $qItem->pump_rate,
                     ]);
                 }
+                $customerPO->updateTotals();
             } else {
                 $pos = \App\Models\CustomerPO::where('quotation_id', $quotation->id)->get();
                 foreach ($pos as $po) {

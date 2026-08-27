@@ -84,6 +84,21 @@ class SalesOrder extends Model
         'sales_executive_id' => 'integer',
     ];
 
+    protected $hidden = [
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'deleted_at',
+    ];
+
+    public function getIsTaxInclusiveAttribute($value): bool
+    {
+        if ($value !== null) {
+            return (bool) $value;
+        }
+        return (bool) ($this->customerPO?->is_tax_inclusive ?? false);
+    }
+
     public const STATUS_DRAFT = 0;
     public const STATUS_CONFIRMED = 1;
     public const STATUS_SCHEDULED = 1;

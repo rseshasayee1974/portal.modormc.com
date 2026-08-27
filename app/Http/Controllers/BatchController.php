@@ -29,145 +29,157 @@ class BatchController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'sales_orders';
+    protected string $module = 'batches';
 
     public function index()
     {
         $this->authorizeModule('menu');
         $activePlantId = session('active_plant_id');
 
-     $batches = Batch::with([
-        'dispatches:id,batch_id,truck_id,transport_id,driver_id,operator_id,sales_executive_id,concrete_pump,empty_weight_truck,loaded_weight_truck,empty_time,load_time',
-        'dispatches.truck',
-        'dispatches.transport', 
-        'dispatches.driver',
-        'dispatches.operator',
-        'dispatches.salesExecutive',
-        'dispatches.status.invoice',
-        'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
-        'materials.product:id,title',
-        'materials.uom:id,unit_code',
-        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id,customer_po_id,concrete_pump,pump_rate',
-        'salesOrder.plant:id,name,mixer_capacity',
-        'salesOrder.customer:id,legal_name',
-        'salesOrder.mixDesign:id,design_name,design_code',
-        'salesOrder.site:id,name',
-    ])
-
-        ->whereHas('salesOrder', fn ($q) => $q->where('plant_id', $activePlantId))
-        ->latest()
-        ->get(); 
-
-        $batches->each(function ($batch) {
-            $batch->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-            if ($batch->salesOrder) {
-                $batch->salesOrder->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-                if ($batch->salesOrder->mixDesign) {
-                    $batch->salesOrder->mixDesign->makeHidden([
-                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                        // 'is_used_in_quotations', 'is_used_in_batching'
-                    ]);
-                }
-                if ($batch->salesOrder->customer) {
-                    $batch->salesOrder->customer->makeHidden([
-                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                        'is_in_use'
-                    ]);
-                }
-                if ($batch->salesOrder->site) {
-                    $batch->salesOrder->site->makeHidden([
-                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                        'is_in_use'
-                    ]);
-                }
-            }
-            $batch->dispatches->each(function ($dispatch) {
-                $dispatch->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-                $dispatch->truck?->makeHidden([
-                    'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                    'can_delete', 'can_update', 'is_in_use'
-                ]);
-            });
-        });
-
-        $salesOrders = SalesOrder::query()
-            ->with([
-                'plant:id,name,mixer_capacity',
-                'customer:id,plant_id,legal_name,code,patron_type,gstin,email,mobile',
-                'site:id,plant_id,name,site_address_1,type',
-                'mixDesign:id,plant_id,partner_id,concrete_grade_id,design_name,design_code,design_type,unit_id,rate_per_qty',
-                'mixDesign.items:id,plant_id,mix_design_id,product_id,uom_id,rate,actual_quantity,cross_quantity,variation_quantity',
-                'mixDesign.items.product:id,plant_id,category_id,unit_id,is_service,purchase_tax_id,sale_tax_id,purchase_price,sales_price,title,material_code,product_type,conversion_quantity,code,hsn_code',
-                'mixDesign.items.uom:id,unit_code',
-                'mixDesign.concrete_grade:id,name,concrete_ratio',
-                'customerPO.patron',
-                'customerPO.site',
-                'customerPO.quotation.items.mixDesign',
-                'customerPO.quotation',
-                'latestDispatch:id,sales_order_id,truck_id,transport_id,driver_id,concrete_pump,sales_executive_id,empty_weight_truck'
+        $batches = DB::table('mm_batches as b')
+            ->join('mm_sales_orders as so', 'so.id', '=', 'b.sales_order_id')
+            ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
+            ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
+            ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
+            ->leftJoin('mm_dispatches as d', function ($join) {
+                $join->on('d.batch_id', '=', 'b.id')
+                     ->whereNull('d.deleted_at');
+            })
+            ->leftJoin('mm_machines as t', 't.id', '=', 'd.truck_id')
+            ->leftJoin('mm_dispatch_statuses as ds', 'ds.dispatch_id', '=', 'd.id')
+            ->leftJoin('mm_invoices as inv', 'inv.id', '=', 'ds.invoice_id')
+            ->where('so.plant_id', $activePlantId)
+            ->whereNull('b.deleted_at')
+            ->whereNull('so.deleted_at')
+            ->select([
+                'b.id',
+                'b.batch_no',
+                'b.batch_size',
+                'b.status',
+                'b.start_time',
+                'b.end_time',
+                'b.is_verified',
+                'b.sync_status',
+                'b.created_at',
+                'b.sales_order_id',
+                'so.prefix as so_prefix',
+                'so.order_no as so_order_no',
+                'so.rate as so_rate',
+                'so.tax_id as so_tax_id',
+                'so.is_tax_inclusive as so_is_tax_inclusive',
+                'so.concrete_pump as so_concrete_pump',
+                'so.pump_rate as so_pump_rate',
+                'p.id as customer_id',
+                'p.legal_name as customer_name',
+                's.id as site_id',
+                's.name as site_name',
+                'm.id as mix_design_id',
+                'm.design_name as mix_design_name',
+                'm.design_code as mix_design_code',
+                'd.id as dispatch_id',
+                'd.truck_id as dispatch_truck_id',
+                't.registration as truck_registration',
+                'ds.id as dispatch_status_id',
+                'ds.invoice_id',
+                'ds.is_tax_inclusive as dispatch_is_tax_inclusive',
+                'inv.invoice_number',
+                'inv.status as invoice_status',
+                'inv.einvoice_irn',
+                'inv.einvoice_status',
             ])
-            ->withCount('batches')
-            ->where('plant_id', $activePlantId)
-            ->whereIn('status', [SalesOrder::STATUS_IN_PROGRESS])
-            ->orderBy('order_no')
-            ->get();
+            ->orderByDesc('b.created_at')
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'id' => $row->id,
+                    'encrypted_id' => encrypt($row->id),
+                    'batch_no' => $row->batch_no,
+                    'batch_size' => $row->batch_size,
+                    'status' => $row->status,
+                    'start_time' => $row->start_time,
+                    'end_time' => $row->end_time,
+                    'is_verified' => (bool)$row->is_verified,
+                    'sync_status' => $row->sync_status,
+                    'created_at' => $row->created_at,
+                    'sales_order_id' => $row->sales_order_id,
+                    'rate' => (float)$row->so_rate,
+                    'tax_id' => $row->so_tax_id,
+                    'is_tax_inclusive' => (bool)$row->so_is_tax_inclusive,
+                    'invoice_id' => $row->invoice_id,
+                    'invoice_number' => $row->invoice_number,
+                    'has_invoice' => !empty($row->invoice_id),
+                    'einvoice_irn' => $row->einvoice_irn,
+                    'einvoice_status' => $row->einvoice_status,
+                    'has_einvoice' => !empty($row->einvoice_irn) || $row->einvoice_status === 'generated',
+                    'sales_order' => [
+                        'id' => $row->sales_order_id,
+                        'prefix' => $row->so_prefix,
+                        'order_no' => $row->so_order_no,
+                        'full_number' => ($row->so_prefix ?? '') . ($row->so_order_no ?? ''),
+                        'rate' => (float)$row->so_rate,
+                        'tax_id' => $row->so_tax_id,
+                        'is_tax_inclusive' => (bool)$row->so_is_tax_inclusive,
+                        'concrete_pump' => $row->so_concrete_pump,
+                        'pump_rate' => (float)$row->so_pump_rate,
+                        'customer' => [
+                            'id' => $row->customer_id,
+                            'legal_name' => $row->customer_name,
+                        ],
+                        'site' => [
+                            'id' => $row->site_id,
+                            'name' => $row->site_name,
+                        ],
+                        'mix_design' => [
+                            'id' => $row->mix_design_id,
+                            'design_name' => $row->mix_design_name,
+                            'design_code' => $row->mix_design_code,
+                        ],
+                    ],
+                    'dispatches' => $row->dispatch_id ? [
+                        [
+                            'id' => $row->dispatch_id,
+                            'batch_id' => $row->id,
+                            'truck_id' => $row->dispatch_truck_id,
+                            'truck' => [
+                                'id' => $row->dispatch_truck_id,
+                                'registration' => $row->truck_registration,
+                            ],
+                            'status' => [
+                                'id' => $row->dispatch_status_id,
+                                'invoice_id' => $row->invoice_id,
+                                'invoice_status' => $row->invoice_id ? 1 : 0,
+                                'invoice_number' => $row->invoice_number,
+                                'is_tax_inclusive' => $row->dispatch_is_tax_inclusive !== null ? (bool)$row->dispatch_is_tax_inclusive : (bool)$row->so_is_tax_inclusive,
+                                'invoice' => $row->invoice_id ? [
+                                    'id' => $row->invoice_id,
+                                    'invoice_number' => $row->invoice_number,
+                                    'status' => $row->invoice_status,
+                                    'einvoice_irn' => $row->einvoice_irn,
+                                    'einvoice_status' => $row->einvoice_status,
+                                ] : null,
+                            ],
+                        ]
+                    ] : [],
+                ];
+            }); 
 
-        $salesOrders->each(function ($so) {
-            $so->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-            
-            if ($so->customer_po_id && $so->customerPO) {
-                $po = $so->customerPO;
-                $so->customer_id = $so->customer_id ?? $po->patron_id;
-                $so->site_id = $so->site_id ?? $po->site_id;
-                $so->concrete_pump = $so->concrete_pump ?? $po->concrete_pump;
-                $so->sales_executive_id = $so->sales_executive_id ?? $po->sales_executive_id;
-                
-                if ($po->quotation && $po->quotation->items && $po->quotation->items->isNotEmpty()) {
-                    $firstItem = $po->quotation->items->first();
-                    $so->mix_design_id = $so->mix_design_id ?? $firstItem->mix_design_id;
-                    $so->total_qty = $so->total_qty ?? $firstItem->quantity;
-                }
-            }
-
-            if ($so->mixDesign) {
-                $so->mixDesign->makeHidden([
-                    'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                    // 'is_used_in_quotations', 'is_used_in_batching'
-                ]);
-                if ($so->mixDesign->concreteGrade) {
-                    $so->mixDesign->concreteGrade->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-                }
-                $so->mixDesign->items->each(function ($item) {
-                    $item->makeHidden([
-                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                        'used_in_batching'
-                    ]);
-                    if ($item->product) {
-                        $item->product->makeHidden([
-                            'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                            'can_delete', 'can_update', 'is_in_use'
-                        ]);
-                    }
-                    if ($item->uom) {
-                        $item->uom->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-                    }
-                });
-            }
-
-            if ($so->customer) {
-                $so->customer->makeHidden([
-                    'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                    'is_in_use'
-                ]);
-            }
-
-            if ($so->site) {
-                $so->site->makeHidden([
-                    'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                    'is_in_use'
-                ]);
-            }
-        });
+        $salesOrders = DB::table('mm_sales_orders as so')
+                ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
+                ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
+                ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
+               
+                ->select([
+                    'so.id',
+                      DB::raw("CONCAT(so.prefix, so.order_no) as full_number"),
+                    'so.produced_qty','p.legal_name as customer_name','s.name as site_name','m.design_name as mix_design_name',
+                    
+                    'so.total_qty',
+                    'so.is_tax_inclusive',
+                ])
+                ->where('so.plant_id', $activePlantId)
+                ->where('so.status', SalesOrder::STATUS_IN_PROGRESS)
+                ->orderBy('so.order_no')
+                ->get();
 
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
@@ -182,7 +194,7 @@ class BatchController extends Controller
             //     'batches' => $batches,
             //     'salesOrders' => $salesOrders,
             // ]);
-    //   dd($salesOrders);
+
         return Inertia::render('Batches/Index', [
             'batches'           => $batches,
             'salesOrders'        => $salesOrders,
@@ -214,10 +226,10 @@ class BatchController extends Controller
     $this->authorizeModule('create');
     
     $payload = $request->validated();
-    
+   
     $salesOrder = SalesOrder::query()->findOrFail($payload['sales_order_id']);
     $this->ensurePlantScope($salesOrder);
-
+ 
         // Extract photos before unsetting
         $emptyPhoto = $payload['empty_weight_photo'] ?? null;
         $loadedPhoto = $payload['loaded_weight_photo'] ?? null;
@@ -344,17 +356,20 @@ class BatchController extends Controller
                 Log::info('Creating Dispatch', $dispatchData);
                 $dispatch = Dispatch::create($dispatchData);
                     
-                    $dispatch->status()->updateOrCreate(
-                        ['dispatch_id' => $dispatch->id],
-                        ['plant_id' => $dispatch->plant_id]
-                    );
-                }
+                $dispatch->status()->updateOrCreate(
+                    ['dispatch_id' => $dispatch->id],
+                    [
+                        'plant_id' => $dispatch->plant_id,
+                        'is_tax_inclusive' => (bool)$salesOrder->is_tax_inclusive,
+                    ]
+                );
+            }
 
-                if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
-                if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
+            if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
+            if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
 
-                return $batch;
-            });
+            return $batch;
+        });
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
@@ -495,62 +510,308 @@ class BatchController extends Controller
         });
     }
 
-    public function show(Batch $batch, Request $request)
+    public function show($batch, Request $request)
     {
-        // Log::info($request->all());
         $this->authorizeModule('menu');
-        $batch->unsetRelation('salesOrder');
-        $batch->unsetRelation('dispatches');
 
-        $batch->load([
-            'salesOrder.customer',
-            'salesOrder.mixDesign.items.product',
-            'salesOrder.mixDesign.items.uom',
-            'salesOrder.mixDesign.concrete_grade',
-            'salesOrder.site',
-            'salesOrder.customerPO.patron',
-            'salesOrder.customerPO.site',
-            'salesOrder.customerPO.quotation.items.mixDesign',
-            'materials',
-            'materials.product:id,title', 
-            'materials.uom:id,unit_name,unit_code',
-            'dispatches.status.invoice.creator:id,username,email',
-            'dispatches.payments',
-            'dispatches.truck',
-            'dispatches.driver',
-            'dispatches.operator',
-            'dispatches.salesExecutive',
-            'dispatches.creator:id,email',
-            'dispatches.modifier:id,email'
-        ]);
+        $batchId = $batch instanceof Batch ? $batch->id : (int)$batch;
 
-        if ($batch->salesOrder && $batch->salesOrder->customer_po_id && $batch->salesOrder->customerPO) {
-            $po = $batch->salesOrder->customerPO;
-            $batch->salesOrder->customer_id = $batch->salesOrder->customer_id ?? $po->patron_id;
-            $batch->salesOrder->site_id = $batch->salesOrder->site_id ?? $po->site_id;
-            $batch->salesOrder->concrete_pump = $batch->salesOrder->concrete_pump ?? $po->concrete_pump;
-            $batch->salesOrder->sales_executive_id = $batch->salesOrder->sales_executive_id ?? $po->sales_executive_id;
-            
-            if ($po->quotation && $po->quotation->items && $po->quotation->items->isNotEmpty()) {
-                $firstItem = $po->quotation->items->first();
-                $batch->salesOrder->mix_design_id = $batch->salesOrder->mix_design_id ?? $firstItem->mix_design_id;
-                $batch->salesOrder->total_qty = $batch->salesOrder->total_qty ?? $firstItem->quantity;
-            }
+        $batchRow = DB::table('mm_batches as b')
+            ->join('mm_sales_orders as so', 'so.id', '=', 'b.sales_order_id')
+            ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
+            ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
+            ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
+            ->leftJoin('mm_concrete_grades as cg', 'cg.id', '=', 'm.concrete_grade_id')
+            ->leftJoin('mm_customer_pos as po', 'po.id', '=', 'so.customer_po_id')
+            ->leftJoin('mm_quotations as q', 'q.id', '=', 'po.quotation_id')
+            ->where('b.id', $batchId)
+            ->whereNull('b.deleted_at')
+            ->select([
+                'b.id',
+                'b.plant_id',
+                'b.sales_order_id',
+                'b.batch_no',
+                'b.batch_size',
+                'b.status',
+                'b.start_time',
+                'b.end_time',
+                'b.operator_id',
+                'b.shift',
+                'b.is_verified',
+                'b.sync_status',
+                'b.created_at',
+                'b.updated_at',
+                // Customer / Patron
+                'p.id as customer_id',
+                'p.legal_name as customer_legal_name',
+                'p.code as customer_code',
+                // Site
+                's.id as site_id',
+                's.name as site_name',
+                's.site_address_1',
+                // Mix Design
+                'm.id as mix_design_id',
+                'm.design_name as mix_design_name',
+                'm.design_code as mix_design_code',
+                'cg.id as concrete_grade_id',
+                'cg.name as concrete_grade_name'
+            ])
+            ->first();
+
+        if (!$batchRow) {
+            abort(404, 'Batch not found');
         }
 
-        // if ($batch->salesOrder?->mixDesign) {
-        //     $batch->salesOrder->mixDesign->makeHidden(['is_used_in_quotations', 'is_used_in_batching']);
-        // }
+        $materials = DB::table('mm_batch_materials as bm')
+            ->leftJoin('mm_products as p', 'p.id', '=', 'bm.product_id')
+            ->leftJoin('mm_product_units as u', 'u.id', '=', 'bm.uom_id')
+            ->where('bm.batch_id', $batchId)
+            ->whereNull('bm.deleted_at')
+            ->select([
+                'bm.id',
+                'bm.batch_id',
+                'bm.product_id',
+                'bm.material_name',
+                'bm.target_qty',
+                'bm.actual_qty',
+                'bm.deviation_quantity',
+                'bm.uom_id',
+                'p.title as product_title',
+                'u.unit_code',
+                'u.unit_name',
+            ])
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'batch_id' => $item->batch_id,
+                    'product_id' => $item->product_id,
+                    'material_name' => $item->material_name,
+                    'target_qty' => (float)$item->target_qty,
+                    'actual_qty' => (float)$item->actual_qty,
+                    'deviation_quantity' => (float)$item->deviation_quantity,
+                    'uom_id' => $item->uom_id,
+                    'product' => $item->product_id ? [
+                        'id' => $item->product_id,
+                        'title' => $item->product_title,
+                    ] : null,
+                    'uom' => $item->uom_id ? [
+                        'id' => $item->uom_id,
+                        'unit_code' => $item->unit_code,
+                        'unit_name' => $item->unit_name,
+                    ] : null,
+                ];
+            });
 
-        $batch->salesOrder?->mixDesign?->items->each(function ($item) {
-            $item->makeHidden(['used_in_batching']);
-            $item->product?->makeHidden(['can_delete', 'can_update', 'is_in_use']);
-        });
+        $mixDesignItems = collect();
+        if ($batchRow->mix_design_id) {
+            $mixDesignItems = DB::table('mm_mix_design_items as mdi')
+                ->leftJoin('mm_products as p', 'p.id', '=', 'mdi.product_id')
+                ->leftJoin('mm_product_units as u', 'u.id', '=', 'mdi.uom_id')
+                ->where('mdi.mix_design_id', $batchRow->mix_design_id)
+                ->whereNull('mdi.deleted_at')
+                ->select([
+                    'mdi.id',
+                    'mdi.mix_design_id',
+                    'mdi.product_id',
+                    'mdi.uom_id',
+                    'mdi.rate',
+                    'mdi.actual_quantity',
+                    'mdi.cross_quantity',
+                    'mdi.variation_quantity',
+                    'p.title as product_title',
+                    'p.material_code',
+                    'u.unit_code',
+                ])
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'id' => $item->id,
+                        'mix_design_id' => $item->mix_design_id,
+                        'product_id' => $item->product_id,
+                        'uom_id' => $item->uom_id,
+                        'rate' => (float)$item->rate,
+                        'actual_quantity' => (float)$item->actual_quantity,
+                        'cross_quantity' => (float)$item->cross_quantity,
+                        'variation_quantity' => (float)$item->variation_quantity,
+                        'product' => $item->product_id ? [
+                            'id' => $item->product_id,
+                            'title' => $item->product_title,
+                            'material_code' => $item->material_code,
+                        ] : null,
+                        'uom' => $item->uom_id ? [
+                            'id' => $item->uom_id,
+                            'unit_code' => $item->unit_code,
+                        ] : null,
+                    ];
+                });
+        }
 
-        $batch->materials->each(function ($material) {
-            $material->product?->makeHidden(['can_delete', 'can_update', 'is_in_use']);
-        });
-        return response()->json($batch);
+        $dispatches = DB::table('mm_dispatches as d')
+            ->leftJoin('mm_machines as t', 't.id', '=', 'd.truck_id')
+            ->leftJoin('mm_patrons as tr', 'tr.id', '=', 'd.transport_id')
+            ->leftJoin('mm_personnels as dr', 'dr.id', '=', 'd.driver_id')
+            ->leftJoin('mm_personnels as op', 'op.id', '=', 'd.operator_id')
+            ->leftJoin('mm_personnels as se', 'se.id', '=', 'd.sales_executive_id')
+            ->leftJoin('mm_dispatch_statuses as ds', 'ds.dispatch_id', '=', 'd.id')
+            ->leftJoin('mm_invoices as inv', 'inv.id', '=', 'ds.invoice_id')
+            ->leftJoin('mm_users as inv_user', 'inv_user.id', '=', 'inv.created_by')
+            ->where('d.batch_id', $batchId)
+            ->whereNull('d.deleted_at')
+            ->select([
+                'd.id',
+                'd.batch_id',
+                'd.sales_order_id',
+                'd.plant_id',
+                'd.customer_id',
+                'd.mixdesign_id',
+                'd.unload_site_id',
+                'd.load_site_id',
+                'd.uom_id',
+                'd.truck_id',
+                'd.transport_id',
+                'd.driver_id',
+                'd.operator_id',
+                'd.sales_executive_id',
+                'd.concrete_pump',
+                'd.pump_charges',
+                'd.pump_charge_with_tax',
+                'd.empty_weight_truck',
+                'd.loaded_weight_truck',
+                'd.net_weight',
+                'd.empty_time',
+                'd.load_time',
+                'd.dispatch_status',
+                'd.prefix',
+                'd.dispatch_no',
+                'd.dispatch_time',
+                'd.delivered_qty',
+                'd.load_rate',
+                'd.load_tax_id',
+                'd.load_untax_amount',
+                'd.load_tax_amount',
+                'd.load_total_amount',
+                't.registration as truck_registration',
+                'tr.legal_name as transport_legal_name',
+                'dr.first_name as driver_first_name',
+                'dr.last_name as driver_last_name',
+                'op.first_name as operator_first_name',
+                'op.last_name as operator_last_name',
+                'se.first_name as sales_executive_first_name',
+                'se.last_name as sales_executive_last_name',
+                'ds.id as dispatch_status_id',
+                'ds.invoice_id',
+                'ds.invoice_status',
+                'ds.is_tax_inclusive as dispatch_is_tax_inclusive',
+                'inv.invoice_number',
+                'inv.status as invoice_status_text',
+                'inv.total_amount as invoice_total_amount',
+                'inv_user.username as invoice_creator_username',
+                'inv_user.email as invoice_creator_email',
+            ])
+            ->get()
+            ->map(function ($d) {
+                return [
+                    'id' => $d->id,
+                    'batch_id' => $d->batch_id,
+                    'sales_order_id' => $d->sales_order_id,
+                    'plant_id' => $d->plant_id,
+                    'customer_id' => $d->customer_id,
+                    'mixdesign_id' => $d->mixdesign_id,
+                    'unload_site_id' => $d->unload_site_id,
+                    'load_site_id' => $d->load_site_id,
+                    'uom_id' => $d->uom_id,
+                    'truck_id' => $d->truck_id,
+                    'transport_id' => $d->transport_id,
+                    'driver_id' => $d->driver_id,
+                    'operator_id' => $d->operator_id,
+                    'sales_executive_id' => $d->sales_executive_id,
+                    'concrete_pump' => $d->concrete_pump,
+                    'pump_charges' => (float)($d->pump_charges ?? 0),
+                    'pump_charge_with_tax' => (bool)$d->pump_charge_with_tax,
+                    'empty_weight_truck' => (float)$d->empty_weight_truck,
+                    'loaded_weight_truck' => (float)$d->loaded_weight_truck,
+                    'net_weight' => (float)$d->net_weight,
+                    'empty_time' => $d->empty_time,
+                    'load_time' => $d->load_time,
+                    'dispatch_status' => $d->dispatch_status,
+                    'prefix' => $d->prefix,
+                    'dispatch_no' => $d->dispatch_no,
+                    'dispatch_time' => $d->dispatch_time,
+                    'delivered_qty' => (float)$d->delivered_qty,
+                    'load_rate' => (float)$d->load_rate,
+                    'load_tax_id' => $d->load_tax_id,
+                    'load_untax_amount' => (float)$d->load_untax_amount,
+                    'load_tax_amount' => (float)$d->load_tax_amount,
+                    'load_total_amount' => (float)$d->load_total_amount,
+                    'truck' => $d->truck_id ? [
+                        'id' => $d->truck_id,
+                        'registration' => $d->truck_registration,
+                    ] : null,
+                    'transport' => $d->transport_id ? [
+                        'id' => $d->transport_id,
+                        'legal_name' => $d->transport_legal_name,
+                    ] : null,
+                    'driver' => $d->driver_id ? [
+                        'id' => $d->driver_id,
+                        'first_name' => $d->driver_first_name,
+                        'last_name' => $d->driver_last_name,
+                        'label' => trim(($d->driver_first_name ?? '') . ' ' . ($d->driver_last_name ?? '')),
+                    ] : null,
+                    'operator' => $d->operator_id ? [
+                        'id' => $d->operator_id,
+                        'first_name' => $d->operator_first_name,
+                        'last_name' => $d->operator_last_name,
+                    ] : null,
+                    'sales_executive' => $d->sales_executive_id ? [
+                        'id' => $d->sales_executive_id,
+                        'first_name' => $d->sales_executive_first_name,
+                        'last_name' => $d->sales_executive_last_name,
+                        'label' => trim(($d->sales_executive_first_name ?? '') . ' ' . ($d->sales_executive_last_name ?? '')),
+                    ] : null,
+                    'status' => [
+                        'id' => $d->dispatch_status_id,
+                        'dispatch_id' => $d->id,
+                        'invoice_id' => $d->invoice_id,
+                        'invoice_status' => $d->invoice_status,
+                        'is_tax_inclusive' => (bool)$d->dispatch_is_tax_inclusive,
+                        'invoice' => $d->invoice_id ? [
+                            'id' => $d->invoice_id,
+                            'invoice_number' => $d->invoice_number,
+                            'status' => $d->invoice_status_text,
+                            'total_amount' => (float)$d->invoice_total_amount,
+                            'creator' => [
+                                'username' => $d->invoice_creator_username,
+                                'email' => $d->invoice_creator_email,
+                            ],
+                        ] : null,
+                    ],
+                    'payments' => [],
+                ];
+            });
+
+        $responseData = [
+            'id' => $batchRow->id,
+            'encrypted_id' => encrypt($batchRow->id),
+            'plant_id' => $batchRow->plant_id,
+            'sales_order_id' => $batchRow->sales_order_id,
+            'batch_no' => $batchRow->batch_no,
+            'batch_size' => (float)$batchRow->batch_size,
+            'status' => $batchRow->status,
+            'start_time' => $batchRow->start_time,
+            'end_time' => $batchRow->end_time,
+            'operator_id' => $batchRow->operator_id,
+            'shift' => $batchRow->shift,
+            'is_verified' => (bool)$batchRow->is_verified,
+            'sync_status' => $batchRow->sync_status,
+            'created_at' => $batchRow->created_at,
+            'updated_at' => $batchRow->updated_at,
+            'materials' => $materials,
+            'dispatches' => $dispatches,
+            
+        ];
+
+        return response()->json($responseData);
     }
 
     public function update(UpdateBatchRequest $request, Batch $batch)
@@ -1147,8 +1408,28 @@ class BatchController extends Controller
     {
         $plantId = $batch->plant_id ?? session('active_plant_id');
         
-        // Delete existing materials to avoid duplicate product constraints
+        // Remove existing material records for this batch using soft delete to prevent duplicate or orphaned rows
         $batch->materials()->delete();
+
+        if (empty($materials)) {
+            $salesOrder = $batch->salesOrder ?: SalesOrder::find($batch->sales_order_id);
+            if ($salesOrder && $salesOrder->mixDesign && $salesOrder->mixDesign->items) {
+                foreach ($salesOrder->mixDesign->items as $item) {
+                    if (empty($item->product_id)) continue;
+                    $batch->materials()->create([
+                        'batch_id' => $batch->id,
+                        'plant_id' => $plantId,
+                        'product_id' => $item->product_id,
+                        'material_name' => $item->product?->title ?? 'Material',
+                        'target_qty' => (float)($item->cross_quantity ?: $item->actual_quantity ?: $item->quantity ?: 0) * (float)$batch->batch_size,
+                        'actual_qty' => 0,
+                        'deviation_quantity' => 0,
+                        'uom_id' => $item->uom_id ?: $item->product?->unit_id,
+                    ]);
+                }
+            }
+            return;
+        }
 
         $incomingProductIds = collect($materials)->pluck('product_id')->filter()->unique()->toArray();
         $productTitles = !empty($incomingProductIds) 

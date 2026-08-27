@@ -225,6 +225,15 @@ const onRowExpand = (event: any) => {
     // watch on expandedBatchId handles the fetch automatically
 };
 
+const onRowClick = (event: any) => {
+    if (!event?.data) return;
+    const target = event.originalEvent?.target as HTMLElement;
+    if (target && (target.closest('button') || target.closest('a') || target.closest('.p-row-toggler') || target.closest('.p-datatable-row-expansion'))) {
+        return;
+    }
+    toggleExpand(event.data);
+};
+
 /**
  * Watch expandedBatchId and fetch details whenever a row is opened.
  * Using the watch (instead of inline calls) means any code that sets
@@ -592,6 +601,7 @@ const shareBatchEmail = () => {
                         exportFilename="batch-report"
                         :rowClass="getRowClass"
                         @rowExpand="onRowExpand"
+                        @row-click="onRowClick"
                     >
                         <template #filters>
                             <div class="flex flex-col gap-1.5">
@@ -722,24 +732,48 @@ const shareBatchEmail = () => {
                                     </button>
 
                                     <!-- Status Menu -->
-   <div class="flex items-center gap-2">
-                                    <template v-if="slotProps.data.is_offline_pending">
-                                        <Tag value="Offline Pending" severity="warn" rounded />
-                                        <i class="pi pi-spinner animate-spin text-amber-500 text-lg" v-tooltip.top="'Pending Network Sync'"></i>
-                                    </template>
-                                    <template v-else>
-                                        <Tag 
-                                            :value="statusLabel(slotProps.data.status)?.charAt(0)" 
-                                            :severity="statusSeverity(slotProps.data.status)" 
-                                            rounded
-                                            
-                                            class="cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm"
-                                            v-tooltip.top="(slotProps.data.status === 3 || slotProps.data.status === 4) ? 'Click to open Dispatch & Invoicing' : 'Click to open Production & Materials'"
-                                            @click.stop="onStatusClick(slotProps.data)"
-                                        />
-                                        <Tag v-if="slotProps.data.is_verified" value="Verified" severity="success" rounded class="!bg-emerald-500/10 !text-emerald-600 !border-emerald-500/20" />
-                                    </template>
-                                </div>
+                                    <div class="flex items-center gap-2">
+                                        <template v-if="slotProps.data.is_offline_pending">
+                                            <Tag value="Offline Pending" severity="warn" rounded />
+                                            <i class="pi pi-spinner animate-spin text-amber-500 text-lg" v-tooltip.top="'Pending Network Sync'"></i>
+                                        </template>
+                                        <template v-else>
+                                            <!-- E-Invoice Generated -->
+                                            <Tag 
+                                                v-if="slotProps.data.has_einvoice || slotProps.data.einvoice_irn || slotProps.data.einvoice_status === 'generated' || slotProps.data.dispatches?.[0]?.status?.invoice?.einvoice_irn || slotProps.data.dispatches?.[0]?.status?.invoice?.einvoice_status === 'generated'"
+                                                value="E" 
+                                                severity="help" 
+                                                rounded
+                                                class="cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm !bg-purple-600 !text-white font-black"
+                                                v-tooltip.top="slotProps.data.invoice_number ? ('E-Invoiced (#' + slotProps.data.invoice_number + ') - Click to open') : 'E-Invoiced - Click to open'"
+                                                @click.stop="onStatusClick(slotProps.data)"
+                                            />
+                                            <!-- Standard Invoice Generated -->
+                                            <Tag 
+                                                v-else-if="slotProps.data.has_invoice || slotProps.data.invoice_id || slotProps.data.dispatches?.[0]?.status?.invoice_id || slotProps.data.dispatches?.[0]?.status?.invoice_status === 1"
+                                                value="I" 
+                                                severity="success" 
+                                                rounded
+                                                class="cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm !bg-emerald-600 !text-white font-black"
+                                                v-tooltip.top="slotProps.data.invoice_number ? ('Invoiced (#' + slotProps.data.invoice_number + ') - Click to open') : 'Invoiced - Click to open Dispatch & Invoicing'"
+                                                @click.stop="onStatusClick(slotProps.data)"
+                                            />
+                                            <!-- Other Statuses (Dispatched, Batching, Pending, etc.) -->
+                                            <Tag 
+                                                v-else
+                                                :value="statusLabel(slotProps.data.status, slotProps.data)?.charAt(0)" 
+                                                :severity="statusSeverity(slotProps.data.status, slotProps.data)" 
+                                                rounded
+                                                :class="[
+                                                    'cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm font-bold',
+                                                    slotProps.data.status === 3 ? '!bg-cyan-600 !text-white' : ''
+                                                ]"
+                                                v-tooltip.top="(slotProps.data.status === 3 || slotProps.data.status === 4) ? 'Dispatched (Pre-Invoice) - Click to open' : 'Click to open Production & Materials'"
+                                                @click.stop="onStatusClick(slotProps.data)"
+                                            />
+                                            <Tag v-if="slotProps.data.is_verified" value="Verified" severity="success" rounded class="!bg-emerald-500/10 !text-emerald-600 !border-emerald-500/20" />
+                                        </template>
+                                    </div>
                                     <!-- <i v-if="slotProps.data.sync_status === 'success'" 
                                        class="pi pi-check-circle text-emerald-500 text-lg cursor-help" 
                                        v-tooltip.top="'Synced to Scheduler'"></i>
@@ -978,8 +1012,8 @@ const shareBatchEmail = () => {
                                             </template>
                                             <div class=" bg-slate-50/20">
                                                 <BatchEditForm
-                                                    v-if="!hideBatchForm"
-                                                    :batch="detailedBatches[slotProps.data.id] || slotProps.data"
+                                                    v-if="!hideBatchForm && detailedBatches[slotProps.data.id]"
+                                                    :batch="detailedBatches[slotProps.data.id]"
                                                     :salesOrders="salesOrders"
                                                     :trucks="trucks"
                                                     :transporters="transporters"
@@ -1012,10 +1046,11 @@ const shareBatchEmail = () => {
                                             </template>
                                             <div class=" bg-slate-50/20">
                                                 <DispatchSection 
-                                                    v-if="slotProps.data.status === 3 || slotProps.data.status === 4"
-                                                    :batch="detailedBatches[slotProps.data.id] || slotProps.data" 
-                                                    :salesOrder="(detailedBatches[slotProps.data.id] || slotProps.data).sales_order"
-                                                    :dispatch="(detailedBatches[slotProps.data.id] || slotProps.data).dispatches?.[0]"
+                                                    v-if="(slotProps.data.status === 3 || slotProps.data.status === 4) && detailedBatches[slotProps.data.id]"
+                                                    :key="'dispatch-' + slotProps.data.id + '-' + (detailedBatches[slotProps.data.id].dispatches?.[0]?.id || 'new')"
+                                                    :batch="detailedBatches[slotProps.data.id]" 
+                                                    :salesOrder="detailedBatches[slotProps.data.id].sales_order || detailedBatches[slotProps.data.id].salesOrder"
+                                                    :dispatch="detailedBatches[slotProps.data.id].dispatches?.[0]"
                                                     :dropdownData="dropdownData"
                                                     :drivers="drivers"
                                                     :operators="operators"

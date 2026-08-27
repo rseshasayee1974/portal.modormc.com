@@ -173,8 +173,8 @@ const calculateTotals = () => {
         item.tax_amount = res.taxAmount;
         item.amount_total = res.amountTotal;
 
-        totalUntaxed += res.materialUntaxed + res.pumpCharge;
-        totalTax += res.materialTax;
+        totalUntaxed += res.untaxedAmount;
+        totalTax += res.taxAmount;
     });
 
     form.amount_untaxed = Number(totalUntaxed.toFixed(2));

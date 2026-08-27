@@ -27,6 +27,9 @@ class CustomerPO extends Model
         'notes',
         'sales_executive_id',
         'is_tax_inclusive',
+        'amount_untaxed',
+        'amount_tax',
+        'amount_total',
         'order_date',
         'status',
         'converted_by_user_id',
@@ -39,28 +42,57 @@ class CustomerPO extends Model
         'order_date' => 'date',
         'sales_executive_id' => 'integer',
         'is_tax_inclusive' => 'boolean',
+        'amount_untaxed' => 'decimal:2',
+        'amount_tax' => 'decimal:2',
+        'amount_total' => 'decimal:2',
     ];
 
     protected $appends = ['has_salesorders', 'amount_untaxed', 'amount_tax', 'amount_total'];
+
+    protected $hidden = [
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'deleted_at',
+    ];
 
     public function getHasSalesordersAttribute()
     {
         return $this->salesOrders()->exists();
     }
 
-    public function getAmountUntaxedAttribute()
+    public function getAmountUntaxedAttribute($value)
     {
-        return round((float)$this->items->sum('untaxed_amount'), 2);
+        return $value !== null ? round((float)$value, 2) : round((float)$this->items->sum('untaxed_amount'), 2);
     }
 
-    public function getAmountTaxAttribute()
+    public function getAmountTaxAttribute($value)
     {
-        return round((float)$this->items->sum('tax_amount'), 2);
+        return $value !== null ? round((float)$value, 2) : round((float)$this->items->sum('tax_amount'), 2);
     }
 
-    public function getAmountTotalAttribute()
+    public function getAmountTotalAttribute($value)
     {
-        return round((float)$this->items->sum('amount_total'), 2);
+        return $value !== null ? round((float)$value, 2) : round((float)$this->items->sum('amount_total'), 2);
+    }
+
+    public function updateTotals()
+    {
+        $untaxed = $this->items()->sum('untaxed_amount');
+        $taxAmount = $this->items()->sum('tax_amount');
+        $amountTotal = $this->items()->sum('amount_total');
+
+        if ($amountTotal == 0 && $this->quotation) {
+            $untaxed = $this->quotation->items()->sum('untaxed_amount');
+            $taxAmount = $this->quotation->items()->sum('tax_amount');
+            $amountTotal = $this->quotation->items()->sum('amount_total');
+        }
+
+        $this->update([
+            'amount_untaxed' => round((float)$untaxed, 2),
+            'amount_tax' => round((float)$taxAmount, 2),
+            'amount_total' => round((float)$amountTotal, 2),
+        ]);
     }
 
     const STATUS_DRAFT = 0;

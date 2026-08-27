@@ -15,6 +15,13 @@ class Site extends Model
 
     const CREATED_AT = 'created_at';
 
+    protected $hidden = [
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'deleted_at',
+    ];
+
     // ──────────────────────────────────────────────────────────────
     // Dropdown / Lookup Scopes
     // ──────────────────────────────────────────────────────────────

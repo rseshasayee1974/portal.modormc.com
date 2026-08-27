@@ -288,26 +288,42 @@ const taxOptions = computed(() => (props.taxes || []).map(t => ({
     value: t.id
 })));
 
-// console.log('sdfsdf',props.customerPO);
+/**
+ * Line item totals calculation helper using centralized composable
+ */
+const getItemTotals = (item: any) => {
+    const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
+    const taxRate = tax ? Number(tax.tax_rate ?? tax.rate ?? 0) : 0;
+    const pumpRate = Number(item.pump_rate || item.pump_rates?.[0]?.pump_rate || 0);
+
+    return calculateLineItemTotals({
+        quantity: Number(item.quantity || 0),
+        rate: Number(item.rate || 0),
+        pump_rate: pumpRate,
+        taxRate,
+        isTaxInclusive: Boolean(form.is_tax_inclusive),
+    });
+};
+
+const getSingleItemTotals = () => {
+    const tax = props.taxes?.find(t => Number(t.id) === Number(form.tax_id));
+    const taxRate = tax ? Number(tax.tax_rate ?? tax.rate ?? 0) : 0;
+    const pumpRate = Number(form.pump_rate || 0);
+
+    return calculateLineItemTotals({
+        quantity: Number(form.quantity || 0),
+        rate: Number(form.rate || 0),
+        pump_rate: pumpRate,
+        taxRate,
+        isTaxInclusive: Boolean(form.is_tax_inclusive),
+    });
+};
 
 // Watch form items and is_tax_inclusive status to dynamically update tax_amount
-watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) => {
+watch(() => [form.items, form.is_tax_inclusive], ([newItems]) => {
     if (newItems) {
-        (newItems as any).forEach((item: any) => {
-            const qty = Number(item.quantity || 0);
-            const rate = Number(item.rate || 0);
-            const pumpRate = Number(item.pump_rate || 0);
-            const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
-            const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
-            const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
-
-            if (isTaxInclusive) {
-                const total = qty * rate + pumpCharge;
-                item.tax_amount = Number((total - (total / (1 + taxRate / 100))).toFixed(2));
-            } else {
-                const untaxed = qty * rate + pumpCharge;
-                item.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
-            }
+        (newItems as any[]).forEach((item: any) => {
+            item.tax_amount = getItemTotals(item).taxAmount;
         });
     }
 }, { deep: true, immediate: true });
@@ -315,20 +331,7 @@ watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) =>
 // Watch single item fields and is_tax_inclusive status to dynamically update tax_amount
 watch(() => [form.quantity, form.rate, form.tax_id, form.pump_rate, form.is_tax_inclusive], () => {
     if (form.quantity !== null && form.rate !== null) {
-        const qty = Number(form.quantity || 0);
-        const rate = Number(form.rate || 0);
-        const pumpRate = Number(form.pump_rate || 0);
-        const pumpCharge = addPouringRatesToTotal ? pumpRate : pumpRate * qty;
-        const tax = props.taxes?.find(t => Number(t.id) === Number(form.tax_id));
-        const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
-
-        if (form.is_tax_inclusive) {
-            const total = qty * rate + pumpCharge;
-            form.tax_amount = Number((total - (total / (1 + taxRate / 100))).toFixed(2));
-        } else {
-            const untaxed = qty * rate + pumpCharge;
-            form.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
-        }
+        form.tax_amount = getSingleItemTotals().taxAmount;
     }
 }, { deep: true, immediate: true });
 
@@ -441,41 +444,17 @@ const calculatedTotals = computed(() => {
     let subtotal = 0;
     let taxAmount = 0;
 
-    // Determine if it uses the single-item edit mode
-    const isSingleItem = !form.quotation_id && form.items.length <= 1;
-    const isSingleQuote = form.quotation_id && (props.customerPO?.quotation?.items?.length === 1 || props.customerPO?.items?.length === 1);
+    const isSingleQuote = Boolean(form.quotation_id) && (props.customerPO?.quotation?.items?.length === 1 || props.customerPO?.items?.length === 1);
 
-    if (isSingleItem || isSingleQuote) {
-        // Single item mode
-        const tax = props.taxes?.find(t => Number(t.id) === Number(form.tax_id));
-        const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
-
-        const res = calculateLineItemTotals({
-            quantity: Number(form.quantity || 0),
-            rate: Number(form.rate || 0),
-            pump_rate: Number(form.pump_rate || 0),
-            taxRate,
-            isTaxInclusive: Boolean(form.is_tax_inclusive),
-        });
-
-        subtotal = res.materialUntaxed + res.pumpCharge;
-        taxAmount = res.materialTax;
+    if (isSingleQuote) {
+        const res = getSingleItemTotals();
+        subtotal = res.untaxedAmount;
+        taxAmount = res.taxAmount;
     } else {
-        // Multi item mode
         (form.items || []).forEach((item: any) => {
-            const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
-            const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
-
-            const res = calculateLineItemTotals({
-                quantity: Number(item.quantity || 0),
-                rate: Number(item.rate || 0),
-                pump_rate: Number(item.pump_rate || 0),
-                taxRate,
-                isTaxInclusive: Boolean(form.is_tax_inclusive),
-            });
-
-            subtotal += res.materialUntaxed + res.pumpCharge;
-            taxAmount += res.materialTax;
+            const res = getItemTotals(item);
+            subtotal += res.untaxedAmount;
+            taxAmount += res.taxAmount;
         });
     }
 
@@ -830,7 +809,7 @@ const performSubmit = (customerPOId: any) => {
                                     </td>
                                  
                                     <td class="p-3 text-right font-bold text-slate-800 text-sm">
-                                        <span>₹ {{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+                                        <span>₹ {{ getItemTotals(item).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                                     </td>
                                     <td class="p-3 text-center">
                                         <button
@@ -955,7 +934,7 @@ const performSubmit = (customerPOId: any) => {
                         <div class="col-span-12 md:col-span-2">
                             <label class="block text-xs font-medium text-gray-700">Total Amount</label>
                             <div class="h-8 flex items-center px-3 text-sm font-semibold text-indigo-700 bg-indigo-50 rounded-md">
-                                ₹{{ calculateLineItemTotals({ quantity: Number(form.quantity || 0), rate: Number(form.rate || 0), pump_rate: Number(form.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(form.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).amountTotal.toFixed(2) }}
+                                ₹{{ getSingleItemTotals().amountTotal.toFixed(2) }}
                             </div>
                         </div>
                     </div>
@@ -1007,10 +986,10 @@ const performSubmit = (customerPOId: any) => {
                                         {{ item.pump_rate ? `₹${Number(item.pump_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-' }}
                                     </td>
                                     <td class="p-2 text-right font-mono">
-                                        ₹{{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                        ₹{{ getItemTotals(item).taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                                     </td>
                                     <td class="p-2 text-right font-mono font-bold text-indigo-900">
-                                        ₹{{ calculateLineItemTotals({ quantity: Number(item.quantity || 0), rate: Number(item.rate || 0), pump_rate: Number(item.pump_rate || 0), taxRate: (props.taxes?.find(t => Number(t.id) === Number(item.tax_id))?.tax_rate || 0), isTaxInclusive: Boolean(form.is_tax_inclusive) }).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                        ₹{{ getItemTotals(item).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
                                     </td>
                                 </tr>
                             </tbody>

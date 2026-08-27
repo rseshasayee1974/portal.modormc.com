@@ -35,6 +35,7 @@ class DispatchStoreRequest extends FormRequest
             'dispatch_reference' => 'nullable|string',
             'dispatch_time' => 'nullable|date',
             'delivered_qty' => 'nullable|numeric|min:0',
+            'is_tax_inclusive' => 'nullable|boolean',
             'dispatch_status' => 'nullable|string',
 
             // Weights (Will be excluded from insert but kept for logic)
@@ -53,7 +54,9 @@ class DispatchStoreRequest extends FormRequest
             'financials.load_total_amount' => 'nullable|numeric',
             'financials.pass_amount' => 'nullable|numeric',
             'financials.discount_amount' => 'nullable|numeric',
-            'financials.pump_charge' => 'nullable|numeric',
+            'financials.pump_charges' => 'nullable|numeric',
+            'pump_charges' => 'nullable|numeric',
+            'pump_charge_with_tax' => 'nullable|boolean',
             'financials.transport_expenses' => 'nullable|numeric|min:0',
             'financials.adjustment_amount' => 'nullable|numeric',
             'financials.round_off' => 'nullable|numeric',

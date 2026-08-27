@@ -42,7 +42,14 @@ class Batch extends Model
         // 'site_id',
     ];
 
-    protected $appends = ['sheet_url', 'original_sheet_url', 'rate', 'tax_id', 'encrypted_id'];
+    protected $appends = ['sheet_url', 'original_sheet_url', 'rate', 'tax_id', 'is_tax_inclusive', 'encrypted_id'];
+
+    protected $hidden = [
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'deleted_at',
+    ];
 
     public function getEncryptedIdAttribute(): string
     {
@@ -67,6 +74,11 @@ class Batch extends Model
     public function getTaxIdAttribute()
     {
         return $this->salesOrder ? $this->salesOrder->tax_id : null;
+    }
+
+    public function getIsTaxInclusiveAttribute(): bool
+    {
+        return $this->salesOrder ? (bool)$this->salesOrder->is_tax_inclusive : false;
     }
 
     protected $casts = [

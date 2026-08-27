@@ -35,7 +35,19 @@ class Dispatch extends Model
         'pump_charges' => 'decimal:2',
     ];
 
-    protected $appends = ['dispatch_date'];
+    protected $appends = ['dispatch_date', 'is_tax_inclusive'];
+
+    protected $hidden = [
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'deleted_at',
+    ];
+
+    public function getIsTaxInclusiveAttribute(): bool
+    {
+        return (bool) ($this->status?->is_tax_inclusive ?? false);
+    }
 
     public function getDispatchDateAttribute()
     {

@@ -75,10 +75,23 @@ class DispatchController extends Controller
                 // Merge valid financial fields
                 $dispatchData = array_merge($dispatchData, $this->mapNestedFields($validated['financials'] ?? null, [
                     'load_rate', 'load_tax_id', 'load_tax_amount', 'load_untax_amount', 'load_total_amount',
-                    'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off'
+                    'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off', 'pump_charges'
                 ]));
-                if (isset($validated['financials']['pump_charge'])) {
+                if (isset($validated['financials']['pump_charges'])) {
+                    $dispatchData['pump_charges'] = $validated['financials']['pump_charges'];
+                } elseif (isset($validated['financials']['pump_charge'])) {
                     $dispatchData['pump_charges'] = $validated['financials']['pump_charge'];
+                }
+
+                if (array_key_exists('pump_charge_with_tax', $validated)) {
+                    $dispatchData['pump_charge_with_tax'] = (bool)$validated['pump_charge_with_tax'];
+                }
+
+                $isTaxInclusive = false;
+                if (array_key_exists('is_tax_inclusive', $validated)) {
+                    $isTaxInclusive = (bool) $validated['is_tax_inclusive'];
+                } elseif (isset($validated['status']['is_tax_inclusive'])) {
+                    $isTaxInclusive = (bool) $validated['status']['is_tax_inclusive'];
                 }
 
                 $dispatchData['plant_id'] = session('active_plant_id');
@@ -98,10 +111,11 @@ class DispatchController extends Controller
 
                 // 2. Create Main Dispatch Record
                 $dispatch = Dispatch::create($dispatchData);
-Log::info($dispatch);
+                Log::info($dispatch);
                 // 4. Create/Update Status / Logistical Record (mm_dispatch_statuses)
                 $statusData = $validated['status'] ?? [];
                 $statusData['plant_id'] = $dispatch->plant_id;
+                $statusData['is_tax_inclusive'] = $isTaxInclusive;
                 $dispatch->status()->updateOrCreate(['dispatch_id' => $dispatch->id], $statusData);
 
                 // 5. Process Immediate Payment if provided
@@ -193,10 +207,23 @@ Log::info($dispatch);
 
             $dispatchData = array_merge($dispatchData, $this->mapNestedFields($validated['financials'] ?? null, [
                 'load_rate', 'load_tax_id', 'load_tax_amount', 'load_untax_amount', 'load_total_amount',
-                'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off'
+                'pass_amount', 'discount_amount', 'transport_expenses', 'adjustment_amount', 'round_off', 'pump_charges'
             ]));
-            if (isset($validated['financials']['pump_charge'])) {
+            if (isset($validated['financials']['pump_charges'])) {
+                $dispatchData['pump_charges'] = $validated['financials']['pump_charges'];
+            } elseif (isset($validated['financials']['pump_charge'])) {
                 $dispatchData['pump_charges'] = $validated['financials']['pump_charge'];
+            }
+
+            if (array_key_exists('pump_charge_with_tax', $validated)) {
+                $dispatchData['pump_charge_with_tax'] = (bool)$validated['pump_charge_with_tax'];
+            }
+
+            $isTaxInclusive = null;
+            if (array_key_exists('is_tax_inclusive', $validated)) {
+                $isTaxInclusive = (bool) $validated['is_tax_inclusive'];
+            } elseif (isset($validated['status']['is_tax_inclusive'])) {
+                $isTaxInclusive = (bool) $validated['status']['is_tax_inclusive'];
             }
 
             // if (array_key_exists('sales_order_id', $dispatchData)) {
@@ -213,9 +240,12 @@ Log::info($dispatch);
             Log::info("Dispatch updated successfully: ".$dispatch);
 
             // 4. Update Status Record
-            if (!empty($validated['status'])) {
-                $statusData = $validated['status'];
+            if (!empty($validated['status']) || $isTaxInclusive !== null) {
+                $statusData = $validated['status'] ?? [];
                 $statusData['plant_id'] = $dispatch->plant_id;
+                if ($isTaxInclusive !== null) {
+                    $statusData['is_tax_inclusive'] = $isTaxInclusive;
+                }
                 $dispatch->status()->updateOrCreate(['dispatch_id' => $dispatch->id], $statusData);
             }
 

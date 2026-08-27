@@ -15,6 +15,13 @@ class Patron extends Model
         use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping;
     
     protected $table = 'mm_patrons';
+
+    protected $hidden = [
+        'created_by',
+        'updated_by',
+        'deleted_by',
+        'deleted_at',
+    ];
     
     protected static function booted()
     {

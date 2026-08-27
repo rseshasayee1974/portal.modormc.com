@@ -199,9 +199,13 @@ class EntityContextController extends Controller
             }
         }
 
+        $plant = Plant::find($plantId);
+        $mixerCapacity = $plant ? (float)($plant->mixer_capacity ?: 1.25) : 1.25;
+
         session([
             'active_entity_id' => $entityId,
-            'active_plant_id'  => $plantId
+            'active_plant_id'  => $plantId,
+            'mixer_capacity'   => $mixerCapacity,
         ]);
 
         // Always save selected entity and plant as the user's default / last login context
@@ -211,8 +215,9 @@ class EntityContextController extends Controller
         ]);
 
         return response()->json([
-            'status'   => 'plant_set',
-            'plant_id' => $plantId,
+            'status'         => 'plant_set',
+            'plant_id'       => $plantId,
+            'mixer_capacity' => $mixerCapacity,
         ]);
     }
 

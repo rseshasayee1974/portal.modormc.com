@@ -169,7 +169,7 @@ class CustomerPOController extends Controller
                     $rate = (float)($item['rate'] ?? 0);
                     $pumpRate = (float)($item['pump_rate'] ?? 0);
                     $concretePump = $item['concrete_pump'] ?? null;
-                    $pumpCharge = $addPouringRatesToTotal ? $pumpRate : $pumpRate * $qty;
+                    $pumpCharge = $pumpRate;
                     
                     $taxId = $item['tax_id'] ?? null;
                     $taxRate = 0.0;
@@ -180,8 +180,8 @@ class CustomerPOController extends Controller
 
                     if ($isTaxInclusive) {
                         $amountTotal = $qty * $rate + $pumpCharge;
-                        $taxAmount = $amountTotal - ($amountTotal / (1 + $taxRate / 100));
-                        $untaxedAmount = $amountTotal - $taxAmount;
+                        $untaxedAmount = $taxRate > 0 ? ($amountTotal * 100) / (100 + $taxRate) : $amountTotal;
+                        $taxAmount = $amountTotal - $untaxedAmount;
                     } else {
                         $untaxedAmount = $qty * $rate + $pumpCharge;
                         $taxAmount = ($untaxedAmount * $taxRate) / 100;
@@ -216,6 +216,8 @@ class CustomerPOController extends Controller
                     ]);
                 }
             }
+
+            $customerPO->updateTotals();
         });
 
         return redirect()->back()->with('success', 'Customer PO created successfully.');
@@ -360,7 +362,7 @@ class CustomerPOController extends Controller
                     $rate = (float)($item['rate'] ?? 0);
                     $pumpRate = (float)($item['pump_rate'] ?? 0);
                     $concretePump = $item['concrete_pump'] ?? null;
-                    $pumpCharge = $addPouringRatesToTotal ? $pumpRate : $pumpRate * $qty;
+                    $pumpCharge = $pumpRate;
                     
                     $taxId = $item['tax_id'] ?? null;
                     $taxRate = 0.0;
@@ -371,8 +373,8 @@ class CustomerPOController extends Controller
 
                     if ($isTaxInclusive) {
                         $amountTotal = $qty * $rate + $pumpCharge;
-                        $taxAmount = $amountTotal - ($amountTotal / (1 + $taxRate / 100));
-                        $untaxedAmount = $amountTotal - $taxAmount;
+                        $untaxedAmount = $taxRate > 0 ? ($amountTotal * 100) / (100 + $taxRate) : $amountTotal;
+                        $taxAmount = $amountTotal - $untaxedAmount;
                     } else {
                         $untaxedAmount = $qty * $rate + $pumpCharge;
                         $taxAmount = ($untaxedAmount * $taxRate) / 100;
@@ -419,22 +421,26 @@ class CustomerPOController extends Controller
 
                 if ($request->has('mix_design_id') && $validated['mix_design_id']) {
                     $item = $quotation->items()->first();
-                    $taxAmount = (float)($request->input('tax_amount') ?? 0);
                     $qty = (float)$validated['quantity'];
                     $rate = (float)$validated['rate'];
+                    $pumpRate = (float)($request->input('pump_rate') ?? 0);
+                    $concretePump = $request->input('concrete_pump') ?? null;
                     $taxId = $request->input('tax_id');
+                    $pumpCharge = $pumpRate;
+
+                    $taxRate = 0.0;
+                    if ($taxId) {
+                        $taxModel = \App\Models\Tax::find($taxId);
+                        $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
+                    }
                     
                     if ($isTaxInclusive) {
-                        $amountTotal = $qty * $rate;
-                        $taxRate = 0.0;
-                        if ($taxId) {
-                            $taxModel = \App\Models\Tax::find($taxId);
-                            $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
-                        }
-                        $taxAmount = $amountTotal - ($amountTotal / (1 + $taxRate / 100));
-                        $untaxedAmount = $amountTotal - $taxAmount;
+                        $amountTotal = $qty * $rate + $pumpCharge;
+                        $untaxedAmount = $taxRate > 0 ? ($amountTotal * 100) / (100 + $taxRate) : $amountTotal;
+                        $taxAmount = $amountTotal - $untaxedAmount;
                     } else {
-                        $untaxedAmount = $qty * $rate;
+                        $untaxedAmount = $qty * $rate + $pumpCharge;
+                        $taxAmount = ($untaxedAmount * $taxRate) / 100;
                         $amountTotal = $untaxedAmount + $taxAmount;
                     }
 
@@ -451,6 +457,8 @@ class CustomerPOController extends Controller
                             'tax_amount' => $taxAmount,
                             'untaxed_amount' => $untaxedAmount,
                             'amount_total' => $amountTotal,
+                            'concrete_pump' => $concretePump,
+                            'pump_rate' => $pumpRate,
                         ]);
                     } else {
                         $quotation->items()->create([
@@ -461,6 +469,8 @@ class CustomerPOController extends Controller
                             'tax_amount' => $taxAmount,
                             'untaxed_amount' => $untaxedAmount,
                             'amount_total' => $amountTotal,
+                            'concrete_pump' => $concretePump,
+                            'pump_rate' => $pumpRate,
                         ]);
                     }
                     $quotation->updateTotals();
@@ -499,6 +509,8 @@ class CustomerPOController extends Controller
                     ]);
                 }
             }
+
+            $customerPO->updateTotals();
         });
 
         return redirect()->back()->with('success', 'Customer PO updated successfully.');
