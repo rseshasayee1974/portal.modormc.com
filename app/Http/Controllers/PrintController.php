@@ -51,9 +51,9 @@ class PrintController extends Controller
                 );
                 $forceParam = $request->query('force');
 
-                if ($forceParam === 'original' && $isAdmin) {
+                if ($forceParam === 'original') {
                     $data['is_duplicate'] = 0;
-                } elseif ($forceParam === 'duplicate' && $isAdmin) {
+                } elseif ($forceParam === 'duplicate') {
                     $data['is_duplicate'] = 1;
                 } else {
                     if ($invoice->is_duplicate == 1 && !$isAdmin) {

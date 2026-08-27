@@ -63,7 +63,8 @@
     $customerPO = $firstDispatch?->customerPO ?? $salesOrder?->customerPO;
 
     // Copy Type: ORIGINAL / DUPLICATE / TRIPLICATE / EXTRA COPY
-    $copyType = strtoupper($copy_type ?? (isset($inv) && $inv->is_duplicate ? 'DUPLICATE' : 'ORIGINAL'));
+    $isDup = isset($data['is_duplicate']) ? (bool)$data['is_duplicate'] : (!empty($inv?->is_duplicate));
+    $copyType = strtoupper($copy_type ?? ($data['copy_type'] ?? ($isDup ? 'DUPLICATE' : 'ORIGINAL')));
 
     // Company & Addresses
     $companyName = $plant?->name ?? ($entity?->legal_name ?? '');

@@ -373,38 +373,37 @@ const formatTime = (dateVal: any) => {
                             </a>
 
                             <template v-if="modelValue.status.invoice?.encrypted_id || modelValue.status.invoice?.id">
-                                <!-- <a 
-                                    v-if="canExportInvoice"
-                                    :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id, action: 'download', force: 'original' })" 
+                                <!-- Print Original Invoice Button -->
+                                <a 
+                                    :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id, action: 'view', force: 'original' })" 
                                     target="_blank"
                                     class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 active:scale-[0.98] text-emerald-700 border border-emerald-200/80 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
+                                    title="Print Original Invoice (Recipient Copy)"
                                 >
                                     <PrinterIcon class="h-4 w-4 text-emerald-600" />
-                                    <span>Print</span>
+                                    <span>Print Original</span>
                                 </a>
+
+                                <!-- Print Duplicate Invoice Button -->
                                 <a 
-                                    v-else
-                                    :href="modelValue.status.invoice?.is_duplicate 
-                                        ? route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id, action: 'download', force: 'duplicate' })
-                                        : route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id, action: 'view' })" 
+                                    :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id, action: 'view', force: 'duplicate' })" 
                                     target="_blank"
-                                    @click="modelValue.status.invoice.is_duplicate = 1"
-                                    class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 active:scale-[0.98] text-emerald-700 border border-emerald-200/80 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
+                                    class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 active:scale-[0.98] text-indigo-700 border border-indigo-200/80 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
+                                    title="Print Duplicate Invoice (Transporter Copy)"
                                 >
-                                    <DocumentDuplicateIcon v-if="modelValue.status.invoice?.is_duplicate" class="h-4 w-4 text-emerald-600" />
-                                    <PrinterIcon v-else class="h-4 w-4 text-emerald-600" />
-                                    <span>Print</span>
-                                </a> -->
+                                    <DocumentDuplicateIcon class="h-4 w-4 text-indigo-600" />
+                                    <span>Print Duplicate</span>
+                                </a>
                           
-                            <button 
-                                type="button"
-                                @click="$emit('deleteInvoice')"
-                                class="inline-flex items-center text-red-500 gap-1.5 px-3.5 py-2 bg-white border border-red-600 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
-                            >
-                                <TrashIcon class="h-4 w-5" />
-                                <span>Delete</span>
-                            </button>
-                              </template>
+                                <button 
+                                    type="button"
+                                    @click="$emit('deleteInvoice')"
+                                    class="inline-flex items-center text-red-500 gap-1.5 px-3.5 py-2 bg-white border border-red-600 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
+                                >
+                                    <TrashIcon class="h-4 w-5" />
+                                    <span>Delete</span>
+                                </button>
+                            </template>
                         </div>
                     </div>
                 </div>

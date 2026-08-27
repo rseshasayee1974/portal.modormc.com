@@ -591,10 +591,11 @@ class PrintDataFormatter
         float $hireCharge = 0.0,
         float $passAmount = 0.0,
         float $taxAmount = 0.0,
+        float $shipping = 0.0,
         float $adjustment = 0.0,
         float $roundOff = 0.0
     ): float {
-        return (float) (($subTotal + $pumpCharge + $hireCharge + $passAmount + $taxAmount  + $adjustment + $roundOff) - $discount);
+        return (float) (($subTotal + $pumpCharge + $hireCharge + $passAmount + $taxAmount + $shipping + $adjustment + $roundOff) - $discount);
     }
 
     // ─────────────────────────────────────────────────────
@@ -856,21 +857,24 @@ class PrintDataFormatter
         if ($taxVal == 0 && !empty($taxLines)) {
             $taxVal = (float) array_sum(array_column($taxLines, 'amount'));
         }
-        $shippingVal = (float)($invoice->shipping_charges ?? $invoice->shipping ?? 0);
+        $shippingVal = ($hireVal > 0) ? 0.0 : (float)($invoice->shipping_charges ?? $invoice->shipping ?? 0);
         $adjVal = (float)($invoice->adjustment ?? 0);
         $roundVal = (float)($invoice->round_off ?? 0);
 
-        $grandTotalVal = self::calculateGrandTotal(
-            $subtotalVal,
-            $pumpVal,
-            $discVal,
-            $hireVal,
-            $passVal,
-            $taxVal,
-            $shippingVal,
-            $adjVal,
-            $roundVal
-        );
+        $grandTotalVal = (float)($invoice->total_amount ?? 0);
+        if ($grandTotalVal <= 0) {
+            $grandTotalVal = self::calculateGrandTotal(
+                $subtotalVal,
+                $pumpVal,
+                $discVal,
+                $hireVal,
+                $passVal,
+                $taxVal,
+                $shippingVal,
+                $adjVal,
+                $roundVal
+            );
+        }
 
         $data['totals'] = [
             'sub_total'   => $subtotalVal,
@@ -880,6 +884,7 @@ class PrintDataFormatter
             'pass_amount' => $passVal,
             'tax_amount'  => $taxVal,
             'tax_lines'   => $taxLines,
+            'shipping'    => $shippingVal,
             'adjustment'  => $adjVal,
             'round_off'   => $roundVal,
             'grand_total' => $grandTotalVal,
