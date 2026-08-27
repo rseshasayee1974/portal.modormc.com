@@ -33,14 +33,12 @@ class Invoice extends Model implements Postable
         'shipping_charges', 'shipping_tax_id',
         'total_amount', 'round_off', 'tds_amount', 'tds_tax_id',
         'paid_amount', 'balance_amount',
-        'status', 'einvoice_status', 'is_duplicate', 'is_sent', 'is_reconciled',
+        'status', 'is_duplicate', 'is_sent', 'is_reconciled',
         'is_active',
-        'einvoice_irn', 'einvoice_ack_no', 'einvoice_ack_date', 'einvoice_qr_code',
-        'eway_bill_no', 'eway_bill_date', 'eway_bill_valid_until',
         'created_by', 'updated_by',
     ];
 
-    protected $appends = ['encrypted_id', 'full_number'];
+    protected $appends = ['encrypted_id', 'full_number', 'einvoice_irn', 'einvoice_ack_no', 'einvoice_ack_date', 'einvoice_qr_code', 'einvoice_status', 'eway_bill_no', 'eway_bill_date', 'eway_bill_valid_until'];
 
     public function getEncryptedIdAttribute()
     {
@@ -52,12 +50,49 @@ class Invoice extends Model implements Postable
         return ($this->prefix ?? '') . ($this->invoice_number ?? '');
     }
 
+    public function getEinvoiceIrnAttribute()
+    {
+        return $this->einvoiceRelation?->einv_irn ?? $this->attributes['einvoice_irn'] ?? null;
+    }
+
+    public function getEinvoiceAckNoAttribute()
+    {
+        return $this->einvoiceRelation?->einv_ackno ?? $this->attributes['einvoice_ack_no'] ?? null;
+    }
+
+    public function getEinvoiceAckDateAttribute()
+    {
+        return $this->einvoiceRelation?->einv_ack_date ?? $this->attributes['einvoice_ack_date'] ?? null;
+    }
+
+    public function getEinvoiceQrCodeAttribute()
+    {
+        return $this->einvoiceRelation?->einv_signed_qrcode ?? $this->attributes['einvoice_qr_code'] ?? null;
+    }
+
+    public function getEinvoiceStatusAttribute()
+    {
+        return $this->einvoiceRelation?->einv_status ?? $this->attributes['einvoice_status'] ?? null;
+    }
+
+    public function getEwayBillNoAttribute()
+    {
+        return $this->ewaybillDetail?->ewaybill_no ?? $this->attributes['eway_bill_no'] ?? null;
+    }
+
+    public function getEwayBillDateAttribute()
+    {
+        return $this->ewaybillDetail?->ewaybill_date ?? $this->attributes['eway_bill_date'] ?? null;
+    }
+
+    public function getEwayBillValidUntilAttribute()
+    {
+        return $this->ewaybillDetail?->valid_upto ?? $this->attributes['eway_bill_valid_until'] ?? null;
+    }
+
     protected $casts = [
         'invoice_date' => 'date',
         'due_date'     => 'date',
-        'einvoice_ack_date' => 'datetime',
-        'eway_bill_date' => 'datetime',
-        'eway_bill_valid_until' => 'datetime',
     ];
 
     // ------------------------------------------------------------------ constants
@@ -267,6 +302,11 @@ class Invoice extends Model implements Postable
     public function einvoiceRelation()
     {
         return $this->hasOne(EinvoiceInvoiceRel::class, 'invoice_id');
+    }
+
+    public function ewaybillDetail()
+    {
+        return $this->hasOne(EwaybillDetail::class, 'origin_id')->where('generation_type', 'invoice');
     }
 
     public function plant()

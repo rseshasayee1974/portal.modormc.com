@@ -48,6 +48,11 @@ class BatchController extends Controller
             ->leftJoin('mm_machines as t', 't.id', '=', 'd.truck_id')
             ->leftJoin('mm_dispatch_statuses as ds', 'ds.dispatch_id', '=', 'd.id')
             ->leftJoin('mm_invoices as inv', 'inv.id', '=', 'ds.invoice_id')
+            ->leftJoin('mm_einvoice_invoice_rel as einv_rel', 'einv_rel.invoice_id', '=', 'inv.id')
+            ->leftJoin('mm_ewaybill_details as ewb', function ($join) {
+                $join->on('ewb.origin_id', '=', 'inv.id')
+                     ->where('ewb.generation_type', '=', 'invoice');
+            })
             ->where('so.plant_id', $activePlantId)
             ->whereNull('b.deleted_at')
             ->whereNull('so.deleted_at')
@@ -84,8 +89,10 @@ class BatchController extends Controller
                 'ds.is_tax_inclusive as dispatch_is_tax_inclusive',
                 'inv.invoice_number',
                 'inv.status as invoice_status',
-                'inv.einvoice_irn',
-                'inv.einvoice_status',
+                'einv_rel.einv_irn as einvoice_irn',
+                'einv_rel.einv_status as einvoice_status',
+                'einv_rel.einv_ackno as einvoice_ack_no',
+                'ewb.ewaybill_no as eway_bill_no',
             ])
             ->orderByDesc('b.created_at')
             ->get()
@@ -678,6 +685,11 @@ class BatchController extends Controller
             ->leftJoin('mm_personnels as se', 'se.id', '=', 'd.sales_executive_id')
             ->leftJoin('mm_dispatch_statuses as ds', 'ds.dispatch_id', '=', 'd.id')
             ->leftJoin('mm_invoices as inv', 'inv.id', '=', 'ds.invoice_id')
+            ->leftJoin('mm_einvoice_invoice_rel as einv_rel', 'einv_rel.invoice_id', '=', 'inv.id')
+            ->leftJoin('mm_ewaybill_details as ewb', function ($join) {
+                $join->on('ewb.origin_id', '=', 'inv.id')
+                     ->where('ewb.generation_type', '=', 'invoice');
+            })
             ->leftJoin('mm_users as inv_user', 'inv_user.id', '=', 'inv.created_by')
             ->where('d.batch_id', $batchId)
             ->whereNull('d.deleted_at')
@@ -753,6 +765,14 @@ class BatchController extends Controller
                 'inv.total_amount as invoice_total_amount',
                 'inv_user.username as invoice_creator_username',
                 'inv_user.email as invoice_creator_email',
+                'einv_rel.einv_irn as invoice_einvoice_irn',
+                'einv_rel.einv_status as invoice_einvoice_status',
+                'einv_rel.einv_ackno as invoice_einvoice_ack_no',
+                'einv_rel.einv_ack_date as invoice_einvoice_ack_date',
+                'einv_rel.einv_signed_qrcode as invoice_einvoice_qr_code',
+                'ewb.ewaybill_no as invoice_eway_bill_no',
+                'ewb.ewaybill_date as invoice_eway_bill_date',
+                'ewb.valid_upto as invoice_eway_bill_valid_until',
             ])
             ->get();
 
@@ -869,9 +889,20 @@ class BatchController extends Controller
                     'note' => $d->status_note ?? '',
                     'invoice' => $d->invoice_id ? [
                         'id' => $d->invoice_id,
+                        'encrypted_id' => encrypt($d->invoice_id),
                         'invoice_number' => $d->invoice_number,
+                        'invoice_prefix' => $d->prefix,
+                        'full_number' => ($d->prefix ?? '') . ($d->invoice_number ?? ''),
                         'status' => $d->invoice_status_text,
                         'total_amount' => (float)$d->invoice_total_amount,
+                        'einvoice_irn' => $d->invoice_einvoice_irn,
+                        'einvoice_status' => $d->invoice_einvoice_status,
+                        'einvoice_ack_no' => $d->invoice_einvoice_ack_no,
+                        'einvoice_ack_date' => $d->invoice_einvoice_ack_date,
+                        'einvoice_qr_code' => $d->invoice_einvoice_qr_code,
+                        'eway_bill_no' => $d->invoice_eway_bill_no,
+                        'eway_bill_date' => $d->invoice_eway_bill_date,
+                        'eway_bill_valid_until' => $d->invoice_eway_bill_valid_until,
                         'creator' => [
                             'username' => $d->invoice_creator_username,
                             'email' => $d->invoice_creator_email,

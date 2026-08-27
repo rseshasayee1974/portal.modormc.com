@@ -305,24 +305,12 @@ const formatTime = (dateVal: any) => {
                     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                         <!-- Left: Status & Details -->
                         <div class="flex flex-wrap items-center gap-4 sm:gap-6">
-                            <!-- Status Badge -->
-                            <div class="flex items-center gap-2.5 bg-emerald-50/80 border border-emerald-100 px-3 py-1.5 rounded-xl">
-                                <div class="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500 text-white shadow-xs">
-                                    <CheckCircleIcon class="h-4 w-4 stroke-[2.5]" />
-                                </div>
-                                <div>
-                                    <span class="text-[10px] font-black uppercase tracking-wider text-emerald-800 leading-none block">Invoice Linked</span>
-                                    <span class="text-[9px] text-emerald-600 font-semibold uppercase tracking-wider">Billing Completed</span>
-                                </div>
-                            </div>
-
-                            <div class="h-8 w-px bg-slate-200 hidden sm:block"></div>
-
+                    
                             <!-- Metadata Cards -->
                             <div class="flex flex-wrap items-center gap-4 sm:gap-6 text-xs">
                                 <div>
                                     <span class="text-[10px] block text-slate-400 font-semibold uppercase tracking-wider">Invoice No</span>
-                                    <span class="font-mono font-bold text-slate-800 text-sm tracking-tight">{{ modelValue.status.invoice?.full_number || '---' }}</span>
+                                    <span class="font-mono font-bold text-slate-800 text-sm tracking-tight">{{ modelValue.status.invoice?.invoice_prefix+''+modelValue.status.invoice.invoice_number  }}</span>
                                 </div>
                                 <div class="h-6 w-px bg-slate-100 hidden sm:block"></div>
                                 <div>
@@ -344,7 +332,7 @@ const formatTime = (dateVal: any) => {
                                     </div>
                                 </div>
                                 <div class="h-6 w-px bg-slate-100 hidden sm:block" v-if="modelValue.status.invoice?.einvoice_status === 'generated' || modelValue.status.invoice?.einvoice_irn"></div>
-                                <div v-if="modelValue.status.invoice?.einvoice_status === 'generated' || modelValue.status.invoice?.einvoice_irn">
+                                <!-- <div v-if="modelValue.status.invoice?.einvoice_status === 'generated' || modelValue.status.invoice?.einvoice_irn">
                                     <span class="text-[10px] block text-purple-500 font-semibold uppercase tracking-wider">E-Invoice</span>
                                     <div class="flex items-center gap-1.5 mt-0.5">
                                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
@@ -355,7 +343,7 @@ const formatTime = (dateVal: any) => {
                                             #{{ modelValue.status.invoice.einvoice_ack_no }}
                                         </span>
                                     </div>
-                                </div>
+                                </div> -->
                             </div>
                         </div>
 
@@ -366,8 +354,7 @@ const formatTime = (dateVal: any) => {
                                 v-if="modelValue.status.invoice?.id && modelValue.status.invoice?.einvoice_status !== 'generated' && !modelValue.status.invoice?.einvoice_irn"
                                 type="button"
                                 @click="$emit('generateEInvoice', modelValue.status.invoice.id)"
-                                :disabled="isReadOnly"
-                                :class="[isReadOnly ? 'opacity-50 cursor-not-allowed' : 'hover:bg-purple-700 active:scale-[0.98] cursor-pointer']"
+ 
                                 class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 text-white text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
                             >
                                 <SparklesIcon class="h-4 w-4 text-purple-200" />
@@ -376,8 +363,8 @@ const formatTime = (dateVal: any) => {
 
                             <!-- Print E-Invoice Button (When E-Invoice IRN is generated) -->
                             <a 
-                                v-if="modelValue.status.invoice?.encrypted_id && (modelValue.status.invoice?.einvoice_status === 'generated' || modelValue.status.invoice?.einvoice_irn)"
-                                :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'view' })" 
+                                v-if="(modelValue.status.invoice?.encrypted_id || modelValue.status.invoice?.id) && (modelValue.status.invoice?.einvoice_status === 'generated' || modelValue.status.invoice?.einvoice_irn)"
+                                :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id, action: 'view' })" 
                                 target="_blank"
                                 class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-50 hover:bg-purple-100 active:scale-[0.98] text-purple-700 border border-purple-200/80 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
                             >
@@ -385,10 +372,10 @@ const formatTime = (dateVal: any) => {
                                 <span>E-Invoice Print</span>
                             </a>
 
-                            <template v-if="modelValue.status.invoice?.encrypted_id">
-                                <a 
+                            <template v-if="modelValue.status.invoice?.encrypted_id || modelValue.status.invoice?.id">
+                                <!-- <a 
                                     v-if="canExportInvoice"
-                                    :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'download', force: 'original' })" 
+                                    :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id, action: 'download', force: 'original' })" 
                                     target="_blank"
                                     class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 active:scale-[0.98] text-emerald-700 border border-emerald-200/80 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
                                 >
@@ -398,8 +385,8 @@ const formatTime = (dateVal: any) => {
                                 <a 
                                     v-else
                                     :href="modelValue.status.invoice?.is_duplicate 
-                                        ? route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'download', force: 'duplicate' })
-                                        : route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id, action: 'view' })" 
+                                        ? route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id, action: 'download', force: 'duplicate' })
+                                        : route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id, action: 'view' })" 
                                     target="_blank"
                                     @click="modelValue.status.invoice.is_duplicate = 1"
                                     class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 active:scale-[0.98] text-emerald-700 border border-emerald-200/80 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
@@ -407,16 +394,17 @@ const formatTime = (dateVal: any) => {
                                     <DocumentDuplicateIcon v-if="modelValue.status.invoice?.is_duplicate" class="h-4 w-4 text-emerald-600" />
                                     <PrinterIcon v-else class="h-4 w-4 text-emerald-600" />
                                     <span>Print</span>
-                                </a>
-                            </template>
+                                </a> -->
+                          
                             <button 
                                 type="button"
                                 @click="$emit('deleteInvoice')"
-                                class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
+                                class="inline-flex items-center text-red-500 gap-1.5 px-3.5 py-2 bg-white border border-red-600 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
                             >
-                                <TrashIcon class="h-4 w-4" />
+                                <TrashIcon class="h-4 w-5" />
                                 <span>Delete</span>
                             </button>
+                              </template>
                         </div>
                     </div>
                 </div>

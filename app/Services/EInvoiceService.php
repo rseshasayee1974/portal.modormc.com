@@ -183,13 +183,7 @@ class EInvoiceService
             throw new \Exception('PeriOne Gateway did not return an E-Way Bill number.');
         }
 
-        // 5. Update mm_invoices and mm_ewaybill_details table
-        $invoice->update([
-            'eway_bill_no'          => $ewbNo,
-            'eway_bill_date'        => $ewbDt,
-            'eway_bill_valid_until' => $ewbValidTill,
-        ]);
-
+        // 5. Update mm_ewaybill_details table
         EwaybillDetail::updateOrCreate(
             [
                 'generation_type' => 'invoice',
@@ -291,11 +285,7 @@ class EInvoiceService
             }
         }
 
-        // 5. Update database records across mm_invoices, mm_einvoice_invoice_rel, and mm_ewaybill_details
-        $invoice->update([
-            'einvoice_status' => 'CNL',
-        ]);
-
+        // 5. Update database records in mm_einvoice_invoice_rel and mm_ewaybill_details
         EinvoiceInvoiceRel::where('invoice_id', $invoice->id)->update([
             'einv_status'    => 'CNL',
             'einv_cancel_at' => $cancelDate,
@@ -556,22 +546,11 @@ class EInvoiceService
     }
 
     /**
-     * Persist IRN and QR code results in mm_invoices & mm_einvoice_invoice_rel tables.
+     * Persist IRN and QR code results in mm_einvoice_invoice_rel & mm_ewaybill_details tables.
      */
     public function persistIrnRecord(Invoice $invoice, array $data, ?Plant $plant, int $userId): void
     {
-        $invoice->update([
-            'einvoice_irn'          => $data['irn'],
-            'einvoice_ack_no'       => $data['ack_no'],
-            'einvoice_ack_date'     => $data['ack_date'],
-            'einvoice_qr_code'      => $data['signed_qrcode'],
-            'einvoice_status'       => 'ACT',
-            'eway_bill_no'          => $data['ewb_no'] ?: $invoice->eway_bill_no,
-            'eway_bill_date'        => $data['ewb_date'] ?: $invoice->eway_bill_date,
-            'eway_bill_valid_until' => $data['ewb_valid_till'] ?: $invoice->eway_bill_valid_until,
-        ]);
-
-        // 2. Persist into mm_einvoice_invoice_rel table
+        // 1. Persist into mm_einvoice_invoice_rel table
         EinvoiceInvoiceRel::updateOrCreate(
             ['invoice_id' => $invoice->id],
             [
