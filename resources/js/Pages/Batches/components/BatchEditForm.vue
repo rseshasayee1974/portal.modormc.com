@@ -775,6 +775,7 @@ const updateBatch = (onSuccessCallback?: () => void) => {
             }
 
             emit('saved', { batchId: props.batch.id, type: 'batching' });
+            emit('cancel');
             if (typeof onSuccessCallback === 'function') {
                 onSuccessCallback();
             }

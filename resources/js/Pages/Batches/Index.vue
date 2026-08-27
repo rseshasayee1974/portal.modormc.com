@@ -279,14 +279,12 @@ const collapseExpandedRows = (batchId?: number) => {
     });
 };
 
-// Global router success hook — belt-and-suspenders fallback.
-// Fires whenever an Inertia visit succeeds (including form.put / form.post).
-// This catches any case where the emit('saved') chain fails to reach us.
 const cleanupSuccessHook = router.on('success', (event) => {
     const url = event.detail.visit?.url?.toString() || '';
     const method = event.detail.visit?.method?.toLowerCase() || '';
     console.log('Index.vue: Inertia success hook fired. URL:', url, '| method:', method, '| expandedBatchId:', expandedBatchId.value);
     // Modified to keep the row expanded on save.
+    collapseExpandedRows();
 });
 
 onUnmounted(() => {
