@@ -533,7 +533,8 @@ class PrintDataFormatter
         float $pumpRate = 0.0,
         float $taxRate = 0.0,
         bool $isTaxInclusive = false,
-        float $discount = 0.0
+        float $discount = 0.0,
+        bool $pumpChargeWithTax = true
     ): array {
         $qty = (float) $quantity;
         $unitRate = (float) $rate;
@@ -541,32 +542,39 @@ class PrintDataFormatter
         $tRate = (float) $taxRate;
         $disc = (float) $discount;
 
-        $materialAmount = $qty * $unitRate;
-        $untaxedAmount = $materialAmount + $pumpCharge;
-
         $materialUntaxed = 0.0;
         $materialTax = 0.0;
-        $materialTotal = 0.0;
-        $taxAmount = 0.0;
-        $amountTotal = 0.0;
 
         if ($isTaxInclusive) {
-            $amountTotal = $untaxedAmount;
-            $taxAmount = $tRate > 0 ? ($amountTotal - ($amountTotal / (1 + $tRate / 100))) : 0.0;
-
-            $materialUntaxed = $tRate > 0 ? ($materialAmount / (1 + $tRate / 100)) : $materialAmount;
-            $materialTax = $materialAmount - $materialUntaxed;
-            $materialTotal = $materialAmount - $disc;
-            $displayUnitPrice = $qty > 0 ? ($materialUntaxed / $qty) : $unitRate;
+            $grossMaterial = $qty * $unitRate;
+            $materialUntaxed = $tRate > 0 ? (($grossMaterial * 100) / (100 + $tRate)) : $grossMaterial;
+            $materialTax = $grossMaterial - $materialUntaxed;
         } else {
-            $materialUntaxed = $materialAmount;
+            $materialUntaxed = $qty * $unitRate;
             $materialTax = ($materialUntaxed * $tRate) / 100;
-            $materialTotal = $materialUntaxed + $materialTax - $disc;
-
-            $taxAmount = ($untaxedAmount * $tRate) / 100;
-            $amountTotal = $untaxedAmount + $taxAmount;
-            $displayUnitPrice = $unitRate;
         }
+
+        $pumpUntaxed = 0.0;
+        $pumpTax = 0.0;
+
+        if ($pumpChargeWithTax) {
+            if ($isTaxInclusive) {
+                $pumpUntaxed = $tRate > 0 ? (($pumpCharge * 100) / (100 + $tRate)) : $pumpCharge;
+                $pumpTax = $pumpCharge - $pumpUntaxed;
+            } else {
+                $pumpUntaxed = $pumpCharge;
+                $pumpTax = ($pumpUntaxed * $tRate) / 100;
+            }
+        } else {
+            $pumpUntaxed = $pumpCharge;
+            $pumpTax = 0.0;
+        }
+
+        $untaxedAmount = $materialUntaxed + $pumpUntaxed;
+        $taxAmount = $materialTax + $pumpTax;
+        $materialTotal = $materialUntaxed + $materialTax - $disc;
+        $amountTotal = $untaxedAmount + $taxAmount - $disc;
+        $displayUnitPrice = $qty > 0 ? ($materialUntaxed / $qty) : $unitRate;
 
         return [
             'materialUntaxed'  => (float) $materialUntaxed,
@@ -832,7 +840,7 @@ class PrintDataFormatter
             $pumpChargesTotal += $dispatchPumpCharge;
 
             $itemSubtotal = (float)($item->subtotal ?? ($item->quantity * $item->price_unit));
-            $itemTotal = $itemSubtotal + $lineTaxAmount;
+            $itemTotal = (float)($itemSubtotal + $lineTaxAmount);
 
             return [
                 'no' => $idx + 1, 'name' => $item->item_name, 'description' => '', 'hsn' => $item->hsn_code ?? '-',
@@ -859,9 +867,9 @@ class PrintDataFormatter
         }
         $shippingVal = ($hireVal > 0) ? 0.0 : (float)($invoice->shipping_charges ?? $invoice->shipping ?? 0);
         $adjVal = (float)($invoice->adjustment ?? 0);
-        $roundVal = (float)($invoice->round_off ?? 0);
+        $roundVal = (float)(($invoice->round_off != 0 ? $invoice->round_off : ($dispatch?->round_off ?? 0)));
 
-        $grandTotalVal = (float)($invoice->total_amount ?? 0);
+        $grandTotalVal = (float)($dispatch?->load_total_amount ?? $invoice->total_amount ?? 0);
         if ($grandTotalVal <= 0) {
             $grandTotalVal = self::calculateGrandTotal(
                 $subtotalVal,
@@ -896,7 +904,8 @@ class PrintDataFormatter
             ?: ($salesOrder?->customer_po_reference 
             ?: ($salesOrder?->po_number 
             ?: ($dispatch?->customer_po_reference 
-            ?: ($invoice->ref_title ?? '')))));
+            ?: ($dispatch?->dispatch_reference 
+            ?: ($invoice->ref_title ?? ''))))));
 
         // TODO: Remove $testDummyQrPath before pushing to production
         $testDummyQrPath = asset('storage/plants/demo-mining-corp/parker-llc-plant/upi_qr_1784092752.png');
@@ -906,9 +915,9 @@ class PrintDataFormatter
             'currency_symbol'       => '₹',
             'notes'                 => $invoice->notes ?? '',
             'terms_text'            => self::resolveTermsCondition($data['settings'], $orderTypeForTerms, $invoice->plant_id, "1. Goods once sold will not be taken back.\n2. Interest @ 18% will be charged if not paid within due date.\n3. All disputes are subject to local jurisdiction."),
-            'total_words'           => self::numberToWords($invoice->total_amount, 'INR'),
+            'total_words'           => self::numberToWords($grandTotalVal, 'INR'),
             'po_number'             => $poNumber,
-            'project_name'          => $invoice->ref_title ?? '',
+            'project_name'          => $invoice->ref_title ?? ($salesOrder?->site?->name ?? ''),
             'irn'                  => $invoice->einvoice_irn ?? '',
             'ack_no'                => $invoice->einvoice_ack_no ?? '',
             'ack_date'              => $invoice->einvoice_ack_date?->format('d/m/Y') ?? '',
@@ -918,11 +927,11 @@ class PrintDataFormatter
                 $testDummyQrPath
             ),
             'eway_bill_no'          => $invoice->eway_bill_no ?? '',
-            'so_no'                 => $salesOrder ? $salesOrder->full_number : '',
-            'acc_no'                => $partner?->account_number ?? $partner?->code ?? ($partner ? 'AC-' . $partner->id : ''),
+            'so_no'                 => $salesOrder ? ($salesOrder->full_number ?? $salesOrder->order_no) : ($dispatch?->salesOrder?->order_no ?? ''),
+            'acc_no'                => $partner?->account_number ?? $partner?->code ?? ($partner ? 'AC-' . sprintf('%04d', $partner->id) : ''),
             'sales_person'          => $salesPersonName,
             'pump'                  => $pumpName,
-            'quality_incharge'      => $dispatch?->quality_incharge ?? '',
+            'quality_incharge'      => $dispatch?->quality_incharge ?? $salesOrder?->quality_incharge ?? $invoice->plant?->quality_incharge ?? '-',
             'design_mix_ref'        => $designMixRef,
             'carrier_driver'        => $carrierDriverText,
             'sales_executive_name'   => $salesPersonName,

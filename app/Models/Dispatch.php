@@ -94,7 +94,7 @@ class Dispatch extends Model
             'total_discount' => 0,
             'price_subtotal' => (float) $this->load_untax_amount,
             'price_tax' => (float) $this->load_tax_amount,
-            'price_total' => (float) $this->load_total_amount,
+            'price_total' => (float) ($this->load_untax_amount + $this->load_tax_amount),
             'tax_id' => $this->load_tax_id,
             'product' => (object)['title' => $designName, 'hsn_code' => '3824'],
         ]]);

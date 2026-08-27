@@ -573,7 +573,11 @@ class Invoice extends Model implements Postable
                 $passAmount = (float) ($source->pass_amount ?? 0);
                 
                 // Calculate exact grand total matching dispatch total calculation
-                $totalAmount = ($subtotal + $taxAmount + $pumpCharges + $shippingCharges + $passAmount + $adjustment + $roundOff) - $discountTotal;
+                if ($source instanceof \App\Models\Dispatch || isset($source->load_total_amount)) {
+                    $totalAmount = (float) ($source->load_total_amount ?? $source->amount_total);
+                } else {
+                    $totalAmount = ($subtotal + $taxAmount + $pumpCharges + $shippingCharges + $passAmount + $adjustment + $roundOff) - $discountTotal;
+                }
             }
 
             // 1. Create the Invoice Header
