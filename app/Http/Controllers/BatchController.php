@@ -36,7 +36,6 @@ class BatchController extends Controller
         $this->authorizeModule('menu');
         $activePlantId = session('active_plant_id');
 
-<<<<<<< HEAD
         $batches = DB::table('mm_batches as b')
             ->join('mm_sales_orders as so', 'so.id', '=', 'b.sales_order_id')
             ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
@@ -87,77 +86,6 @@ class BatchController extends Controller
                 'inv.status as invoice_status',
                 'inv.einvoice_irn',
                 'inv.einvoice_status',
-=======
-     $batches = Batch::with([
-        'dispatches:id,batch_id,truck_id,transport_id,driver_id,operator_id,sales_executive_id,concrete_pump,empty_weight_truck,loaded_weight_truck,empty_time,load_time',
-        'dispatches.truck',
-        'dispatches.transport', 
-        'dispatches.driver',
-        'dispatches.operator',
-        'dispatches.salesExecutive',
-        'dispatches.status.invoice',
-        'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
-        'materials.product:id,title',
-        'materials.uom:id,unit_code',
-        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id,customer_po_id,concrete_pump,pump_rate,rate,tax_id,is_tax_inclusive',
-        'salesOrder.plant:id,name,mixer_capacity',
-        'salesOrder.customer:id,legal_name',
-        'salesOrder.mixDesign:id,design_name,design_code',
-        'salesOrder.site:id,name',
-    ])
-
-        ->whereHas('salesOrder', fn ($q) => $q->where('plant_id', $activePlantId))
-        ->latest()
-        ->get(); 
-
-        $batches->each(function ($batch) {
-            $batch->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-            if ($batch->salesOrder) {
-                $batch->salesOrder->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-                if ($batch->salesOrder->mixDesign) {
-                    $batch->salesOrder->mixDesign->makeHidden([
-                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                        // 'is_used_in_quotations', 'is_used_in_batching'
-                    ]);
-                }
-                if ($batch->salesOrder->customer) {
-                    $batch->salesOrder->customer->makeHidden([
-                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                        'is_in_use'
-                    ]);
-                }
-                if ($batch->salesOrder->site) {
-                    $batch->salesOrder->site->makeHidden([
-                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                        'is_in_use'
-                    ]);
-                }
-            }
-            $batch->dispatches->each(function ($dispatch) {
-                $dispatch->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
-                $dispatch->truck?->makeHidden([
-                    'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
-                    'can_delete', 'can_update', 'is_in_use'
-                ]);
-            });
-        });
-
-        $salesOrders = SalesOrder::query()
-            ->with([
-                'plant:id,name,mixer_capacity',
-                'customer:id,plant_id,legal_name,code,patron_type,gstin,email,mobile',
-                'site:id,plant_id,name,site_address_1,type',
-                'mixDesign:id,plant_id,partner_id,concrete_grade_id,design_name,design_code,design_type,unit_id,rate_per_qty',
-                'mixDesign.items:id,plant_id,mix_design_id,product_id,uom_id,rate,actual_quantity,cross_quantity,variation_quantity',
-                'mixDesign.items.product:id,plant_id,category_id,unit_id,is_service,purchase_tax_id,sale_tax_id,purchase_price,sales_price,title,material_code,product_type,conversion_quantity,code,hsn_code',
-                'mixDesign.items.uom:id,unit_code',
-                'mixDesign.concrete_grade:id,name,concrete_ratio',
-                'customerPO.patron',
-                'customerPO.site',
-                'customerPO.quotation.items.mixDesign',
-                'customerPO.quotation',
-                'latestDispatch:id,sales_order_id,truck_id,transport_id,driver_id,concrete_pump,sales_executive_id,empty_weight_truck'
->>>>>>> 57252a5b5e716a6f24f0cc0dda0c11f7688f9b28
             ])
             ->orderByDesc('b.created_at')
             ->get()
@@ -446,17 +374,10 @@ class BatchController extends Controller
                     ['dispatch_id' => $dispatch->id],
                     [
                         'plant_id' => $dispatch->plant_id,
-<<<<<<< HEAD
                         'is_tax_inclusive' => (bool)$salesOrder->is_tax_inclusive,
                     ]
                 );
             }
-=======
-                        'is_tax_inclusive' => $isTaxInclusive
-                    ]
-                );
-                }
->>>>>>> 57252a5b5e716a6f24f0cc0dda0c11f7688f9b28
 
             if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
             if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');
@@ -634,6 +555,17 @@ class BatchController extends Controller
                 'b.sync_status',
                 'b.created_at',
                 'b.updated_at',
+                // Sales Order
+                'so.prefix as so_prefix',
+                'so.order_no as so_order_no',
+                'so.total_qty as so_total_qty',
+                'so.produced_qty as so_produced_qty',
+                'so.rate as so_rate',
+                'so.tax_id as so_tax_id',
+                'so.is_tax_inclusive as so_is_tax_inclusive',
+                'so.concrete_pump as so_concrete_pump',
+                'so.pump_rate as so_pump_rate',
+                'so.sales_executive_id as so_sales_executive_id',
                 // Customer / Patron
                 'p.id as customer_id',
                 'p.legal_name as customer_legal_name',
@@ -647,7 +579,14 @@ class BatchController extends Controller
                 'm.design_name as mix_design_name',
                 'm.design_code as mix_design_code',
                 'cg.id as concrete_grade_id',
-                'cg.name as concrete_grade_name'
+                'cg.name as concrete_grade_name',
+                // PO / Quotation
+                'po.id as customer_po_id',
+                'po.sales_executive_id as po_sales_executive_id',
+                'po.concrete_pump as po_concrete_pump',
+                'q.id as quotation_id',
+                'q.sales_executive_id as quotation_sales_executive_id',
+                'q.concrete_pump as quotation_concrete_pump',
             ])
             ->first();
 
@@ -777,6 +716,7 @@ class BatchController extends Controller
                 'd.dispatch_status',
                 'd.prefix',
                 'd.dispatch_no',
+                'd.dispatch_reference',
                 'd.dispatch_time',
                 'd.delivered_qty',
                 'd.load_rate',
@@ -784,6 +724,14 @@ class BatchController extends Controller
                 'd.load_untax_amount',
                 'd.load_tax_amount',
                 'd.load_total_amount',
+                'd.pass_amount',
+                'd.discount_amount',
+                'd.transport_expenses',
+                'd.adjustment_amount',
+                'd.round_off',
+                'd.payment_mode',
+                'd.created_at',
+                'd.updated_at',
                 't.registration as truck_registration',
                 'tr.legal_name as transport_legal_name',
                 'dr.first_name as driver_first_name',
@@ -795,93 +743,161 @@ class BatchController extends Controller
                 'ds.id as dispatch_status_id',
                 'ds.invoice_id',
                 'ds.invoice_status',
+                'ds.invoice_date as status_invoice_date',
+                'ds.invoice_number as status_invoice_number',
                 'ds.is_tax_inclusive as dispatch_is_tax_inclusive',
+                'ds.transport_units as status_transport_units',
+                'ds.transport_rate as status_transport_rate',
+                'ds.transport_tax_id as status_transport_tax_id',
+                'ds.transport_tax_amount as status_transport_tax_amount',
+                'ds.transport_total_amount as status_transport_total_amount',
+                'ds.total_amount as status_total_amount',
+                'ds.transport_reference as status_transport_reference',
+                'ds.transport_km as status_transport_km',
+                'ds.receiver_name as status_receiver_name',
+                'ds.receive_mobile as status_receive_mobile',
+                'ds.note as status_note',
                 'inv.invoice_number',
                 'inv.status as invoice_status_text',
                 'inv.total_amount as invoice_total_amount',
                 'inv_user.username as invoice_creator_username',
                 'inv_user.email as invoice_creator_email',
             ])
-            ->get()
-            ->map(function ($d) {
+            ->get();
+
+        $dispatchIds = $dispatches->pluck('id')->filter()->toArray();
+        $paymentsByDispatch = [];
+        if (!empty($dispatchIds)) {
+            $paymentsByDispatch = DB::table('mm_dispatch_payments')
+                ->whereIn('dispatch_id', $dispatchIds)
+                ->whereNull('deleted_at')
+                ->get()
+                ->groupBy('dispatch_id');
+        }
+
+        $mappedDispatches = $dispatches->map(function ($d) use ($paymentsByDispatch) {
+            $payments = ($paymentsByDispatch[$d->id] ?? collect())->map(function ($p) {
                 return [
-                    'id' => $d->id,
-                    'batch_id' => $d->batch_id,
-                    'sales_order_id' => $d->sales_order_id,
-                    'plant_id' => $d->plant_id,
-                    'customer_id' => $d->customer_id,
-                    'mixdesign_id' => $d->mixdesign_id,
-                    'unload_site_id' => $d->unload_site_id,
-                    'load_site_id' => $d->load_site_id,
-                    'uom_id' => $d->uom_id,
-                    'truck_id' => $d->truck_id,
-                    'transport_id' => $d->transport_id,
-                    'driver_id' => $d->driver_id,
-                    'operator_id' => $d->operator_id,
-                    'sales_executive_id' => $d->sales_executive_id,
-                    'concrete_pump' => $d->concrete_pump,
-                    'pump_charges' => (float)($d->pump_charges ?? 0),
-                    'pump_charge_with_tax' => (bool)$d->pump_charge_with_tax,
-                    'empty_weight_truck' => (float)$d->empty_weight_truck,
-                    'loaded_weight_truck' => (float)$d->loaded_weight_truck,
-                    'net_weight' => (float)$d->net_weight,
-                    'empty_time' => $d->empty_time,
-                    'load_time' => $d->load_time,
-                    'dispatch_status' => $d->dispatch_status,
-                    'prefix' => $d->prefix,
-                    'dispatch_no' => $d->dispatch_no,
-                    'dispatch_time' => $d->dispatch_time,
-                    'delivered_qty' => (float)$d->delivered_qty,
-                    'load_rate' => (float)$d->load_rate,
-                    'load_tax_id' => $d->load_tax_id,
-                    'load_untax_amount' => (float)$d->load_untax_amount,
-                    'load_tax_amount' => (float)$d->load_tax_amount,
-                    'load_total_amount' => (float)$d->load_total_amount,
-                    'truck' => $d->truck_id ? [
-                        'id' => $d->truck_id,
-                        'registration' => $d->truck_registration,
-                    ] : null,
-                    'transport' => $d->transport_id ? [
-                        'id' => $d->transport_id,
-                        'legal_name' => $d->transport_legal_name,
-                    ] : null,
-                    'driver' => $d->driver_id ? [
-                        'id' => $d->driver_id,
-                        'first_name' => $d->driver_first_name,
-                        'last_name' => $d->driver_last_name,
-                        'label' => trim(($d->driver_first_name ?? '') . ' ' . ($d->driver_last_name ?? '')),
-                    ] : null,
-                    'operator' => $d->operator_id ? [
-                        'id' => $d->operator_id,
-                        'first_name' => $d->operator_first_name,
-                        'last_name' => $d->operator_last_name,
-                    ] : null,
-                    'sales_executive' => $d->sales_executive_id ? [
-                        'id' => $d->sales_executive_id,
-                        'first_name' => $d->sales_executive_first_name,
-                        'last_name' => $d->sales_executive_last_name,
-                        'label' => trim(($d->sales_executive_first_name ?? '') . ' ' . ($d->sales_executive_last_name ?? '')),
-                    ] : null,
-                    'status' => [
-                        'id' => $d->dispatch_status_id,
-                        'dispatch_id' => $d->id,
-                        'invoice_id' => $d->invoice_id,
-                        'invoice_status' => $d->invoice_status,
-                        'is_tax_inclusive' => (bool)$d->dispatch_is_tax_inclusive,
-                        'invoice' => $d->invoice_id ? [
-                            'id' => $d->invoice_id,
-                            'invoice_number' => $d->invoice_number,
-                            'status' => $d->invoice_status_text,
-                            'total_amount' => (float)$d->invoice_total_amount,
-                            'creator' => [
-                                'username' => $d->invoice_creator_username,
-                                'email' => $d->invoice_creator_email,
-                            ],
-                        ] : null,
-                    ],
-                    'payments' => [],
+                    'id' => $p->id,
+                    'dispatch_id' => $p->dispatch_id,
+                    'payment_method_id' => $p->payment_method_id,
+                    'amount' => (float)$p->amount,
+                    'payment_type' => $p->payment_type ?? null,
+                    'collected_by' => $p->collected_by ?? null,
+                    'reference' => $p->reference ?? null,
+                    'is_active' => (bool)($p->is_active ?? true),
                 ];
-            });
+            })->values()->all();
+
+            return [
+                'id' => $d->id,
+                'batch_id' => $d->batch_id,
+                'sales_order_id' => $d->sales_order_id,
+                'plant_id' => $d->plant_id,
+                'customer_id' => $d->customer_id,
+                'mixdesign_id' => $d->mixdesign_id,
+                'unload_site_id' => $d->unload_site_id,
+                'load_site_id' => $d->load_site_id,
+                'uom_id' => $d->uom_id,
+                'truck_id' => $d->truck_id,
+                'transport_id' => $d->transport_id,
+                'driver_id' => $d->driver_id,
+                'operator_id' => $d->operator_id,
+                'sales_executive_id' => $d->sales_executive_id,
+                'concrete_pump' => $d->concrete_pump,
+                'pump_charges' => (float)($d->pump_charges ?? 0),
+                'pump_charge_with_tax' => (bool)$d->pump_charge_with_tax,
+                'empty_weight_truck' => (float)$d->empty_weight_truck,
+                'loaded_weight_truck' => (float)$d->loaded_weight_truck,
+                'net_weight' => (float)$d->net_weight,
+                'empty_time' => $d->empty_time,
+                'load_time' => $d->load_time,
+                'dispatch_status' => $d->dispatch_status,
+                'prefix' => $d->prefix,
+                'dispatch_no' => $d->dispatch_no,
+                'dispatch_reference' => $d->dispatch_reference,
+                'dispatch_time' => $d->dispatch_time,
+                'delivered_qty' => (float)$d->delivered_qty,
+                'load_units' => (float)($d->delivered_qty ?? 0),
+                'load_rate' => (float)$d->load_rate,
+                'load_tax_id' => $d->load_tax_id,
+                'load_untax_amount' => (float)$d->load_untax_amount,
+                'load_tax_amount' => (float)$d->load_tax_amount,
+                'load_total_amount' => (float)$d->load_total_amount,
+                'pass_amount' => (float)($d->pass_amount ?? 0),
+                'discount_amount' => (float)($d->discount_amount ?? 0),
+                'transport_expenses' => (float)($d->transport_expenses ?? 0),
+                'adjustment_amount' => (float)($d->adjustment_amount ?? 0),
+                'round_off' => (float)($d->round_off ?? 0),
+                'payment_mode' => $d->payment_mode ?? 'credit',
+                'created_at' => $d->created_at,
+                'updated_at' => $d->updated_at,
+                'truck' => $d->truck_id ? [
+                    'id' => $d->truck_id,
+                    'registration' => $d->truck_registration,
+                ] : null,
+                'transport' => $d->transport_id ? [
+                    'id' => $d->transport_id,
+                    'legal_name' => $d->transport_legal_name,
+                ] : null,
+                'driver' => $d->driver_id ? [
+                    'id' => $d->driver_id,
+                    'first_name' => $d->driver_first_name,
+                    'last_name' => $d->driver_last_name,
+                    'label' => trim(($d->driver_first_name ?? '') . ' ' . ($d->driver_last_name ?? '')),
+                ] : null,
+                'operator' => $d->operator_id ? [
+                    'id' => $d->operator_id,
+                    'first_name' => $d->operator_first_name,
+                    'last_name' => $d->operator_last_name,
+                ] : null,
+                'sales_executive' => $d->sales_executive_id ? [
+                    'id' => $d->sales_executive_id,
+                    'first_name' => $d->sales_executive_first_name,
+                    'last_name' => $d->sales_executive_last_name,
+                    'label' => trim(($d->sales_executive_first_name ?? '') . ' ' . ($d->sales_executive_last_name ?? '')),
+                ] : null,
+                'status' => [
+                    'id' => $d->dispatch_status_id,
+                    'dispatch_id' => $d->id,
+                    'invoice_id' => $d->invoice_id,
+                    'invoice_status' => (int)($d->invoice_status ?? ($d->invoice_id ? 1 : 0)),
+                    'invoice_date' => $d->status_invoice_date ?? null,
+                    'invoice_number' => $d->status_invoice_number ?? $d->invoice_number ?? '',
+                    'is_tax_inclusive' => (bool)$d->dispatch_is_tax_inclusive,
+                    'transport_units' => (float)($d->status_transport_units ?? 0),
+                    'transport_rate' => (float)($d->status_transport_rate ?? 0),
+                    'transport_tax_id' => $d->status_transport_tax_id,
+                    'transport_tax_amount' => (float)($d->status_transport_tax_amount ?? 0),
+                    'transport_total_amount' => (float)($d->status_transport_total_amount ?? 0),
+                    'total_amount' => (float)($d->status_total_amount ?? 0),
+                    'transport_reference' => $d->status_transport_reference ?? '',
+                    'transport_km' => (float)($d->status_transport_km ?? 0),
+                    'receiver_name' => $d->status_receiver_name ?? '',
+                    'receive_mobile' => $d->status_receive_mobile ?? '',
+                    'note' => $d->status_note ?? '',
+                    'invoice' => $d->invoice_id ? [
+                        'id' => $d->invoice_id,
+                        'invoice_number' => $d->invoice_number,
+                        'status' => $d->invoice_status_text,
+                        'total_amount' => (float)$d->invoice_total_amount,
+                        'creator' => [
+                            'username' => $d->invoice_creator_username,
+                            'email' => $d->invoice_creator_email,
+                        ],
+                    ] : null,
+                ],
+                'payments' => $payments,
+            ];
+        });
+
+        $primaryDispatch = $mappedDispatches->first();
+
+        $latestDispatch = DB::table('mm_dispatches')
+            ->where('sales_order_id', $batchRow->sales_order_id)
+            ->whereNull('deleted_at')
+            ->orderByDesc('id')
+            ->first();
 
         $responseData = [
             'id' => $batchRow->id,
@@ -899,9 +915,75 @@ class BatchController extends Controller
             'sync_status' => $batchRow->sync_status,
             'created_at' => $batchRow->created_at,
             'updated_at' => $batchRow->updated_at,
+            'truck_id' => $primaryDispatch['truck_id'] ?? null,
+            'transport_id' => $primaryDispatch['transport_id'] ?? null,
+            'driver_id' => $primaryDispatch['driver_id'] ?? null,
+            'sales_executive_id' => $primaryDispatch['sales_executive_id'] ?? $batchRow->so_sales_executive_id ?? null,
+            'concrete_pump' => $primaryDispatch['concrete_pump'] ?? $batchRow->so_concrete_pump ?? null,
+            'empty_weight_truck' => (float)($primaryDispatch['empty_weight_truck'] ?? 0),
+            'loaded_weight_truck' => (float)($primaryDispatch['loaded_weight_truck'] ?? 0),
+            'net_weight' => (float)($primaryDispatch['net_weight'] ?? 0),
             'materials' => $materials,
-            'dispatches' => $dispatches,
-            
+            'dispatches' => $mappedDispatches,
+            'dispatch' => $primaryDispatch,
+            'sales_order' => [
+                'id' => $batchRow->sales_order_id,
+                'prefix' => $batchRow->so_prefix,
+                'order_no' => $batchRow->so_order_no,
+                'full_number' => ($batchRow->so_prefix ?? '') . ($batchRow->so_order_no ?? ''),
+                'produced_qty' => (float)($batchRow->so_produced_qty ?? 0),
+                'total_qty' => (float)($batchRow->so_total_qty ?? 0),
+                'rate' => (float)($batchRow->so_rate ?? 0),
+                'tax_id' => $batchRow->so_tax_id,
+                'is_tax_inclusive' => (bool)$batchRow->so_is_tax_inclusive,
+                'concrete_pump' => $batchRow->so_concrete_pump,
+                'pump_rate' => (float)($batchRow->so_pump_rate ?? 0),
+                'sales_executive_id' => $batchRow->so_sales_executive_id,
+                'customer_name' => $batchRow->customer_legal_name,
+                'site_name' => $batchRow->site_name,
+                'mix_design_name' => $batchRow->mix_design_name,
+                'customer' => [
+                    'id' => $batchRow->customer_id,
+                    'legal_name' => $batchRow->customer_legal_name,
+                    'code' => $batchRow->customer_code,
+                ],
+                'site' => [
+                    'id' => $batchRow->site_id,
+                    'name' => $batchRow->site_name,
+                    'site_address_1' => $batchRow->site_address_1,
+                ],
+                'mix_design' => [
+                    'id' => $batchRow->mix_design_id,
+                    'design_name' => $batchRow->mix_design_name,
+                    'design_code' => $batchRow->mix_design_code,
+                    'concrete_grade' => [
+                        'id' => $batchRow->concrete_grade_id,
+                        'name' => $batchRow->concrete_grade_name,
+                    ],
+                    'items' => $mixDesignItems,
+                ],
+                'customer_p_o' => $batchRow->customer_po_id ? [
+                    'id' => $batchRow->customer_po_id,
+                    'sales_executive_id' => $batchRow->po_sales_executive_id,
+                    'concrete_pump' => $batchRow->po_concrete_pump,
+                    'quotation' => $batchRow->quotation_id ? [
+                        'id' => $batchRow->quotation_id,
+                        'sales_executive_id' => $batchRow->quotation_sales_executive_id,
+                        'concrete_pump' => $batchRow->quotation_concrete_pump,
+                    ] : null,
+                ] : null,
+                'latest_dispatch' => $latestDispatch ? [
+                    'id' => $latestDispatch->id,
+                    'truck_id' => $latestDispatch->truck_id,
+                    'driver_id' => $latestDispatch->driver_id,
+                    'transport_id' => $latestDispatch->transport_id,
+                    'sales_executive_id' => $latestDispatch->sales_executive_id,
+                    'concrete_pump' => $latestDispatch->concrete_pump,
+                    'empty_weight_truck' => (float)$latestDispatch->empty_weight_truck,
+                    'loaded_weight_truck' => (float)$latestDispatch->loaded_weight_truck,
+                    'net_weight' => (float)$latestDispatch->net_weight,
+                ] : null,
+            ],
         ];
 
         return response()->json($responseData);
@@ -1154,8 +1236,8 @@ class BatchController extends Controller
                     'error' => 'No email address configured for this customer.'
                 ], 422);
             } 
-            \Illuminate\Support\Facades\Notification::route('mail', $customerEmail)
-                ->notify(new \App\Notifications\BatchCompletedNotification($batch));
+            // \Illuminate\Support\Facades\Notification::route('mail', $customerEmail)
+            //     ->notify(new \App\Notifications\BatchCompletedNotification($batch));
 
             return response()->json([
                 'success' => true,

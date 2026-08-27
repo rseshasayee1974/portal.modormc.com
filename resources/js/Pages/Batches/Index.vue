@@ -1030,11 +1030,11 @@ const shareBatchEmail = () => {
                                             </div>
                                         </TabPanel>
 
-                                        <TabPanel :disabled="slotProps.data.status !== 3 && slotProps.data.status !== 4">
+                                        <TabPanel :disabled="Number(slotProps.data.status) !== 3 && Number(slotProps.data.status) !== 4 && Number(detailedBatches[slotProps.data.id]?.status) !== 3 && Number(detailedBatches[slotProps.data.id]?.status) !== 4">
                                             <template #header>
                                                 <div :class="[
                                                     'flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 text-xs font-bold uppercase tracking-wider',
-                                                    (slotProps.data.status !== 3 && slotProps.data.status !== 4)
+                                                    (Number(slotProps.data.status) !== 3 && Number(slotProps.data.status) !== 4 && Number(detailedBatches[slotProps.data.id]?.status) !== 3 && Number(detailedBatches[slotProps.data.id]?.status) !== 4)
                                                         ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400'
                                                         : getBatchActiveTab(slotProps.data.id) === 1
                                                             ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 ring-1 ring-indigo-500'
@@ -1046,11 +1046,11 @@ const shareBatchEmail = () => {
                                             </template>
                                             <div class=" bg-slate-50/20">
                                                 <DispatchSection 
-                                                    v-if="(slotProps.data.status === 3 || slotProps.data.status === 4) && detailedBatches[slotProps.data.id]"
-                                                    :key="'dispatch-' + slotProps.data.id + '-' + (detailedBatches[slotProps.data.id].dispatches?.[0]?.id || 'new')"
+                                                    v-if="(Number(slotProps.data.status) === 3 || Number(slotProps.data.status) === 4 || Number(detailedBatches[slotProps.data.id]?.status) === 3 || Number(detailedBatches[slotProps.data.id]?.status) === 4) && detailedBatches[slotProps.data.id]"
+                                                    :key="'dispatch-' + slotProps.data.id + '-' + (detailedBatches[slotProps.data.id].dispatches?.[0]?.id || detailedBatches[slotProps.data.id].dispatch?.id || 'new')"
                                                     :batch="detailedBatches[slotProps.data.id]" 
-                                                    :salesOrder="detailedBatches[slotProps.data.id].sales_order || detailedBatches[slotProps.data.id].salesOrder"
-                                                    :dispatch="detailedBatches[slotProps.data.id].dispatches?.[0]"
+                                                    :salesOrder="detailedBatches[slotProps.data.id].sales_order || detailedBatches[slotProps.data.id].salesOrder || slotProps.data.sales_order"
+                                                    :dispatch="detailedBatches[slotProps.data.id].dispatches?.[0] || detailedBatches[slotProps.data.id].dispatch"
                                                     :dropdownData="dropdownData"
                                                     :drivers="drivers"
                                                     :operators="operators"

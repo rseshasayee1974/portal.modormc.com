@@ -321,25 +321,8 @@ const getSingleItemTotals = () => {
 // Watch form items and is_tax_inclusive status to dynamically update tax_amount
 watch(() => [form.items, form.is_tax_inclusive], ([newItems]) => {
     if (newItems) {
-<<<<<<< HEAD
         (newItems as any[]).forEach((item: any) => {
             item.tax_amount = getItemTotals(item).taxAmount;
-=======
-        (newItems as any).forEach((item: any) => {
-            const qty = Number(item.quantity || 0);
-            const rate = Number(item.rate || 0);
-            const pumpCharge = Number(item.pump_rate || 0);
-            const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
-            const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
-
-            if (isTaxInclusive) {
-                const total = qty * rate + pumpCharge;
-                item.tax_amount = Number((total - (total / (1 + taxRate / 100))).toFixed(2));
-            } else {
-                const untaxed = qty * rate + pumpCharge;
-                item.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
-            }
->>>>>>> 57252a5b5e716a6f24f0cc0dda0c11f7688f9b28
         });
     }
 }, { deep: true, immediate: true });
@@ -347,23 +330,7 @@ watch(() => [form.items, form.is_tax_inclusive], ([newItems]) => {
 // Watch single item fields and is_tax_inclusive status to dynamically update tax_amount
 watch(() => [form.quantity, form.rate, form.tax_id, form.pump_rate, form.is_tax_inclusive], () => {
     if (form.quantity !== null && form.rate !== null) {
-<<<<<<< HEAD
         form.tax_amount = getSingleItemTotals().taxAmount;
-=======
-        const qty = Number(form.quantity || 0);
-        const rate = Number(form.rate || 0);
-        const pumpCharge = Number(form.pump_rate || 0);
-        const tax = props.taxes?.find(t => Number(t.id) === Number(form.tax_id));
-        const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
-
-        if (form.is_tax_inclusive) {
-            const total = qty * rate + pumpCharge;
-            form.tax_amount = Number((total - (total / (1 + taxRate / 100))).toFixed(2));
-        } else {
-            const untaxed = qty * rate + pumpCharge;
-            form.tax_amount = Number(((untaxed * taxRate) / 100).toFixed(2));
-        }
->>>>>>> 57252a5b5e716a6f24f0cc0dda0c11f7688f9b28
     }
 }, { deep: true, immediate: true });
 

@@ -158,10 +158,10 @@ const form = useForm({
 const activeTabIndex = ref(0);
 
 const selectedSalesOrder = computed(() => {
-    if (props.batch?.sales_order && Number(props.batch.sales_order.id) === Number(form.sales_order_id)) {
+    if (props.batch?.sales_order && (!form.sales_order_id || Number(props.batch.sales_order.id) === Number(form.sales_order_id))) {
         return props.batch.sales_order;
     }
-    return props.salesOrders.find(wo => Number(wo.id) === Number(form.sales_order_id));
+    return props.salesOrders?.find(wo => Number(wo.id) === Number(form.sales_order_id)) || props.batch?.sales_order;
 });
 
 const mixerCapacity = computed(() => {
@@ -222,13 +222,18 @@ const isRestrictedFieldLocked = computed(() => {
 });
 
 const salesOrderDetails = computed(() => {
-    if (!selectedSalesOrder.value) return [];
     const wo = selectedSalesOrder.value;
+    if (!wo) return [];
+    const customer = wo.customer_name || wo.customer?.legal_name || wo.customer?.name || '-';
+    const site = wo.site_name || wo.site?.name || '-';
+    const design = wo.mix_design_name || wo.mix_design?.design_name || wo.mix_design?.design_code || '-';
+    const produced = Number(wo.produced_qty || 0).toFixed(2);
+    const total = Number(wo.total_qty || 0).toFixed(2);
     return [
-        { label: 'Customer', value: wo.customer_name || wo.customer?.legal_name || 'N/A' },
-        { label: 'Site', value: wo.site_name || wo.site?.name || 'N/A' },
-        { label: 'Design', value: wo.mix_design_name || wo.mix_design?.design_name || 'N/A' },
-        { label: 'Total Qty', value: `${wo.produced_qty || 0} / ${wo.total_qty || 0} m³` },
+        { label: 'Customer', value: customer },
+        { label: 'Site', value: site },
+        { label: 'Design', value: design },
+        { label: 'Total Qty', value: `${produced} / ${total} m³` },
     ];
 });
 
@@ -568,11 +573,14 @@ const viewBatchSheet = () => {
 };
 const unifiedSalesOrders = computed(() => {
     const list = [...(props.salesOrders || [])];
-    if (props.batch?.sales_order) {
-        // If the batch's sales order isn't in the list, inject it
-        const exists = list.some(so => so.id === props.batch.sales_order.id);
+    const so = props.batch?.sales_order;
+    if (so && so.id) {
+        const exists = list.some(item => Number(item.id) === Number(so.id));
         if (!exists) {
-            list.unshift(props.batch.sales_order);
+            list.unshift({
+                ...so,
+                full_number: so.full_number || (so.prefix || '') + String(so.order_no || ''),
+            });
         }
     }
     return list;
@@ -814,7 +822,7 @@ const updateBatch = (onSuccessCallback?: () => void) => {
             <div class="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 shadow-sm">
                 <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     <div class="flex flex-col justify-center">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mbfv-3 flex items-center gap-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-600 mb-3 flex items-center gap-2">
                             <span class="h-2 w-2 rounded-full bg-cyan-600"></span>
                             Sales Order Context
                         </h3>
