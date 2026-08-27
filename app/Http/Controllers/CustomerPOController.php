@@ -158,9 +158,6 @@ class CustomerPOController extends Controller
             ]);
 
             if (empty($validated['quotation_id'])) {
-                $batchSettings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
-                $addPouringRatesToTotal = !empty($batchSettings['add_pouring_rates_to_total']) && (int)$batchSettings['add_pouring_rates_to_total'] === 1;
-
                 foreach ($items as $item) {
                     if (empty($item['mix_design_id'])) {
                         continue;
@@ -353,9 +350,6 @@ class CustomerPOController extends Controller
                 foreach ($customerPO->items()->whereNotIn('id', $itemIds)->get() as $oldItem) {
                     $oldItem->delete();
                 }
-
-                $batchSettings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
-                $addPouringRatesToTotal = !empty($batchSettings['add_pouring_rates_to_total']) && (int)$batchSettings['add_pouring_rates_to_total'] === 1;
 
                 foreach ($items as $item) {
                     $qty = (float)($item['quantity'] ?? 0);

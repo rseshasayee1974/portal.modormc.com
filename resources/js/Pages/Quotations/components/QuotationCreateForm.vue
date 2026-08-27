@@ -22,7 +22,7 @@ import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import axios from 'axios';
-import { calculateLineItemTotals } from '@/composables/useLineItemCalculation';
+import { calculateLineItemTotals } from '@/Composables/useLineItemCalculation';
 
 interface QuotationItemPayload {
     id?: number | null;

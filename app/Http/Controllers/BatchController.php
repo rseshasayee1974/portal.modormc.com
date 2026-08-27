@@ -36,6 +36,7 @@ class BatchController extends Controller
         $this->authorizeModule('menu');
         $activePlantId = session('active_plant_id');
 
+<<<<<<< HEAD
         $batches = DB::table('mm_batches as b')
             ->join('mm_sales_orders as so', 'so.id', '=', 'b.sales_order_id')
             ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
@@ -86,6 +87,77 @@ class BatchController extends Controller
                 'inv.status as invoice_status',
                 'inv.einvoice_irn',
                 'inv.einvoice_status',
+=======
+     $batches = Batch::with([
+        'dispatches:id,batch_id,truck_id,transport_id,driver_id,operator_id,sales_executive_id,concrete_pump,empty_weight_truck,loaded_weight_truck,empty_time,load_time',
+        'dispatches.truck',
+        'dispatches.transport', 
+        'dispatches.driver',
+        'dispatches.operator',
+        'dispatches.salesExecutive',
+        'dispatches.status.invoice',
+        'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
+        'materials.product:id,title',
+        'materials.uom:id,unit_code',
+        'salesOrder:id,prefix,order_no,customer_id,mix_design_id,site_id,produced_qty,total_qty,plant_id,customer_po_id,concrete_pump,pump_rate,rate,tax_id,is_tax_inclusive',
+        'salesOrder.plant:id,name,mixer_capacity',
+        'salesOrder.customer:id,legal_name',
+        'salesOrder.mixDesign:id,design_name,design_code',
+        'salesOrder.site:id,name',
+    ])
+
+        ->whereHas('salesOrder', fn ($q) => $q->where('plant_id', $activePlantId))
+        ->latest()
+        ->get(); 
+
+        $batches->each(function ($batch) {
+            $batch->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+            if ($batch->salesOrder) {
+                $batch->salesOrder->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+                if ($batch->salesOrder->mixDesign) {
+                    $batch->salesOrder->mixDesign->makeHidden([
+                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                        // 'is_used_in_quotations', 'is_used_in_batching'
+                    ]);
+                }
+                if ($batch->salesOrder->customer) {
+                    $batch->salesOrder->customer->makeHidden([
+                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                        'is_in_use'
+                    ]);
+                }
+                if ($batch->salesOrder->site) {
+                    $batch->salesOrder->site->makeHidden([
+                        'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                        'is_in_use'
+                    ]);
+                }
+            }
+            $batch->dispatches->each(function ($dispatch) {
+                $dispatch->makeHidden(['created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at']);
+                $dispatch->truck?->makeHidden([
+                    'created_at', 'created_by', 'updated_at', 'updated_by', 'deleted_by', 'deleted_at',
+                    'can_delete', 'can_update', 'is_in_use'
+                ]);
+            });
+        });
+
+        $salesOrders = SalesOrder::query()
+            ->with([
+                'plant:id,name,mixer_capacity',
+                'customer:id,plant_id,legal_name,code,patron_type,gstin,email,mobile',
+                'site:id,plant_id,name,site_address_1,type',
+                'mixDesign:id,plant_id,partner_id,concrete_grade_id,design_name,design_code,design_type,unit_id,rate_per_qty',
+                'mixDesign.items:id,plant_id,mix_design_id,product_id,uom_id,rate,actual_quantity,cross_quantity,variation_quantity',
+                'mixDesign.items.product:id,plant_id,category_id,unit_id,is_service,purchase_tax_id,sale_tax_id,purchase_price,sales_price,title,material_code,product_type,conversion_quantity,code,hsn_code',
+                'mixDesign.items.uom:id,unit_code',
+                'mixDesign.concrete_grade:id,name,concrete_ratio',
+                'customerPO.patron',
+                'customerPO.site',
+                'customerPO.quotation.items.mixDesign',
+                'customerPO.quotation',
+                'latestDispatch:id,sales_order_id,truck_id,transport_id,driver_id,concrete_pump,sales_executive_id,empty_weight_truck'
+>>>>>>> 57252a5b5e716a6f24f0cc0dda0c11f7688f9b28
             ])
             ->orderByDesc('b.created_at')
             ->get()
@@ -310,14 +382,27 @@ class BatchController extends Controller
                 $units = $batchSize;
                 $loadRate = $baseRate;
 
-                $loadUntaxAmount = $units * $loadRate;
+                $isTaxInclusive = (bool)($salesOrder->is_tax_inclusive ?? false);
+
+                $grossTotal = $units * $loadRate;
+                $loadUntaxAmount = 0.0;
                 $loadTaxAmount = 0.0;
+
                 if ($taxId) {
                     $tax = \App\Models\Tax::find($taxId);
                     $taxRate = $tax ? (float)($tax->tax_rate ?? $tax->rate ?? 0) : 0.0;
-                    $loadTaxAmount = ($loadUntaxAmount * $taxRate) / 100;
+                    if ($isTaxInclusive && $taxRate > 0) {
+                        $loadUntaxAmount = $grossTotal / (1 + ($taxRate / 100));
+                        $loadTaxAmount = $grossTotal - $loadUntaxAmount;
+                    } else {
+                        $loadUntaxAmount = $grossTotal;
+                        $loadTaxAmount = ($loadUntaxAmount * $taxRate) / 100;
+                    }
+                } else {
+                    $loadUntaxAmount = $grossTotal;
                 }
-                $loadTotalAmount = $loadUntaxAmount + $loadTaxAmount;
+
+                $loadTotalAmount = $isTaxInclusive ? $grossTotal : ($loadUntaxAmount + $loadTaxAmount);
 
                 $dispatchData = [
                     'sales_order_id'      => $payload['sales_order_id'],
@@ -327,6 +412,7 @@ class BatchController extends Controller
                     'customer_id'         => $salesOrder->customer_id,
                     'mixdesign_id'        => $salesOrder->mix_design_id,
                     'unload_site_id'      => $salesOrder->site_id,
+                    
                     'load_site_id'        => $activePlantId, // usually plant is the load site, not $payload['site_id']
                     'uom_id'              => $payload['uom_id'] ?? null,
                     'truck_id'            => $payload['truck_id'] ?? null,
@@ -334,7 +420,7 @@ class BatchController extends Controller
                     'driver_id'           => $payload['driver_id'] ?? null,
                     'operator_id'         => $payload['operator_id'] ?? $batch->operator_id ?? null,
                     'sales_executive_id'  => $payload['sales_executive_id'] ?? $salesOrder->sales_executive_id ?? $salesOrder->customerPO?->sales_executive_id ?? null,
-                    'concrete_pump'       => $payload['concrete_pump'] ?? $payload['concrete_pump'] ?? null,
+                    'concrete_pump'       => $payload['concrete_pump'] ?? null,
                     'empty_weight_truck'  => $payload['empty_weight_truck'] ?? 0,
                     'loaded_weight_truck' => $payload['loaded_weight_truck'] ?? 0,
                     'net_weight'          => $payload['net_weight'] ?? 0,
@@ -360,10 +446,17 @@ class BatchController extends Controller
                     ['dispatch_id' => $dispatch->id],
                     [
                         'plant_id' => $dispatch->plant_id,
+<<<<<<< HEAD
                         'is_tax_inclusive' => (bool)$salesOrder->is_tax_inclusive,
                     ]
                 );
             }
+=======
+                        'is_tax_inclusive' => $isTaxInclusive
+                    ]
+                );
+                }
+>>>>>>> 57252a5b5e716a6f24f0cc0dda0c11f7688f9b28
 
             if ($emptyPhoto) $this->storeBatchImage($batch, $emptyPhoto, 'empty');
             if ($loadedPhoto) $this->storeBatchImage($batch, $loadedPhoto, 'loaded');

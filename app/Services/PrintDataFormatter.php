@@ -205,36 +205,50 @@ class PrintDataFormatter
             $data['items'] = $items;
             $data['totals'] = [
                 'sub_total'   => $subtotal,
-                'discount'    => 0,
+                'discount'    => 524.00,
+                'pump_charge' => 201.00,
+                'hire_charge' => 5244.00,
+                'pass_amount' => 4524.00,
+                'tax_amount'  => $totalTax,
                 'tax_lines'   => [
                     ['label' => 'CGST', 'amount' => $totalTax / 2],
                     ['label' => 'SGST', 'amount' => $totalTax / 2],
                 ],
                 'shipping'    => 0,
-                'adjustment'  => 0,
-                'round_off'   => 0,
-                'grand_total' => $subtotal + $totalTax,
+                'adjustment'  => 445.00,
+                'round_off'   => 45.00,
+                'grand_total' => $subtotal + 201.00 - 524.00 + 5244.00 + 4524.00 + $totalTax + 445.00 + 45.00,
             ];
-            $data['meta']['total_words'] = self::numberToWords($subtotal + $totalTax, 'INR');
+            $data['meta']['total_words'] = self::numberToWords($data['totals']['grand_total'], 'INR');
         } else {
             $data['items'] = [
                 [
                     'no' => 1, 'name' => 'High Grade Concrete Mix (M40)', 'description'  => 'Standard grade for heavy structural works',
                     'hsn' => '382450', 'qty' => 45.00, 'received_qty' => 45.00, 'unit' => 'm³', 'unit_price' => 4500.00,
-                    'tax_name' => 'GST 12%', 'tax_rate' => 12, 'tax_group' => 'GST', 'tax_amount' => 24300.00, 'total' => 226800.00,
+                    'operation_type' => 'TM', 'pump_charge' => 201.00, 'discount' => 524.00, 'taxable_amount' => 201976.00,
+                    'tax_name' => 'GST 12%', 'tax_rate' => 12, 'tax_group' => 'GST', 'tax_amount' => 24237.12, 'total' => 226213.12,
                 ],
                 [
                     'no' => 2, 'name' => 'Reinforcement Steel (12mm)', 'description'  => 'TMT Bars - FE500D Grade',
                     'hsn' => '721420', 'qty' => 2.50, 'received_qty' => 0.00, 'unit' => 'MT', 'unit_price' => 62000.00,
+                    'operation_type' => 'Manual', 'pump_charge' => 0.00, 'discount' => 0.00, 'taxable_amount' => 155000.00,
                     'tax_name' => 'GST 18%', 'tax_rate' => 18, 'tax_group' => 'GST', 'tax_amount' => 27900.00, 'total' => 182900.00,
                 ]
             ];
             $data['totals'] = [
-                'sub_total'   => 357500.00, 'discount'    => 5000.00,
-                'tax_lines'   => [['label' => 'CGST', 'amount' => 26100.00], ['label' => 'SGST', 'amount' => 26100.00]],
-                'shipping'    => 1200.00, 'adjustment'  => 0, 'round_off'   => 0, 'grand_total' => 405900.00,
+                'sub_total'   => 356976.00,
+                'discount'    => 0.00,
+                'pump_charge' => 201.00,
+                'hire_charge' => 5244.00,
+                'pass_amount' => 4524.00,
+                'tax_amount'  => 52137.12,
+                'tax_lines'   => [['label' => 'CGST', 'amount' => 26068.56], ['label' => 'SGST', 'amount' => 26068.56]],
+                'shipping'    => 1200.00,
+                'adjustment'  => 445.00,
+                'round_off'   => 0.88,
+                'grand_total' => 356976.00 + 201.00 + 5244.00 + 4524.00 + 52137.12 + 1200.00 + 445.00 + 0.88,
             ];
-            $data['meta']['total_words'] = 'Rupees Four Lakh Five Thousand Nine Hundred Only';
+            $data['meta']['total_words'] = self::numberToWords($data['totals']['grand_total'], 'INR');
         }
 
         $data['meta']['project_name']   = $plant?->name ?? 'Grand Mall Construction - Phase 1';
@@ -509,6 +523,80 @@ class PrintDataFormatter
         return $materials;
     }
 
+    /**
+     * Reusable line-item total calculation matching client-side useLineItemCalculation.ts.
+     * Follows strict DRY principles across backend PHP formatters and frontend TS composable.
+     */
+    public static function calculateLineItemTotals(
+        float $quantity,
+        float $rate,
+        float $pumpRate = 0.0,
+        float $taxRate = 0.0,
+        bool $isTaxInclusive = false,
+        float $discount = 0.0
+    ): array {
+        $qty = (float) $quantity;
+        $unitRate = (float) $rate;
+        $pumpCharge = (float) $pumpRate;
+        $tRate = (float) $taxRate;
+        $disc = (float) $discount;
+
+        $materialAmount = $qty * $unitRate;
+        $untaxedAmount = $materialAmount + $pumpCharge;
+
+        $materialUntaxed = 0.0;
+        $materialTax = 0.0;
+        $materialTotal = 0.0;
+        $taxAmount = 0.0;
+        $amountTotal = 0.0;
+
+        if ($isTaxInclusive) {
+            $amountTotal = $untaxedAmount;
+            $taxAmount = $tRate > 0 ? ($amountTotal - ($amountTotal / (1 + $tRate / 100))) : 0.0;
+
+            $materialUntaxed = $tRate > 0 ? ($materialAmount / (1 + $tRate / 100)) : $materialAmount;
+            $materialTax = $materialAmount - $materialUntaxed;
+            $materialTotal = $materialAmount - $disc;
+            $displayUnitPrice = $qty > 0 ? ($materialUntaxed / $qty) : $unitRate;
+        } else {
+            $materialUntaxed = $materialAmount;
+            $materialTax = ($materialUntaxed * $tRate) / 100;
+            $materialTotal = $materialUntaxed + $materialTax - $disc;
+
+            $taxAmount = ($untaxedAmount * $tRate) / 100;
+            $amountTotal = $untaxedAmount + $taxAmount;
+            $displayUnitPrice = $unitRate;
+        }
+
+        return [
+            'materialUntaxed'  => (float) $materialUntaxed,
+            'materialTax'      => (float) $materialTax,
+            'materialTotal'    => (float) $materialTotal,
+            'pumpCharge'       => (float) $pumpCharge,
+            'untaxedAmount'    => (float) $untaxedAmount,
+            'taxAmount'        => (float) $taxAmount,
+            'amountTotal'      => (float) $amountTotal,
+            'displayUnitPrice' => (float) $displayUnitPrice,
+        ];
+    }
+
+    /**
+     * Reusable grand total calculation function.
+     * Formula: Sub Total + Pump Charge - Discount + Hire Charge + Pass Amount + Tax Amount + Shipping + Adjustment + Round Off
+     */
+    public static function calculateGrandTotal(
+        float $subTotal,
+        float $pumpCharge = 0.0,
+        float $discount = 0.0,
+        float $hireCharge = 0.0,
+        float $passAmount = 0.0,
+        float $taxAmount = 0.0,
+        float $adjustment = 0.0,
+        float $roundOff = 0.0
+    ): float {
+        return (float) (($subTotal + $pumpCharge + $hireCharge + $passAmount + $taxAmount  + $adjustment + $roundOff) - $discount);
+    }
+
     // ─────────────────────────────────────────────────────
     //  FORMATTERS
     // ─────────────────────────────────────────────────────
@@ -548,10 +636,16 @@ class PrintDataFormatter
         })->toArray();
 
         $data['totals'] = [
-            'sub_total'   => (float)$order->amount_untaxed, 'discount'    => (float)($order->discount_amount ?? 0),
+            'sub_total'   => (float)$order->amount_untaxed,
+            'discount'    => (float)($order->discount_amount ?? 0),
+            'pump_charge' => 0.00,
+            'hire_charge' => (float)($order->shipping_charges ?? 0),
+            'pass_amount' => 0.00,
+            'tax_amount'  => (float)($order->amount_tax ?? 0),
             'tax_lines'   => self::compileTaxLines($order->items, $isIntra, 'price_tax', 'price_subtotal'),
-            'shipping'    => (float)($order->shipping_charges ?? 0), 'adjustment'  => (float)($order->adjustment ?? 0),
-            'round_off'   => (float)($order->round_off ?? 0), 'grand_total' => (float)$order->amount_total,
+            'adjustment'  => (float)($order->adjustment ?? 0),
+            'round_off'   => (float)($order->round_off ?? 0),
+            'grand_total' => (float)$order->amount_total,
         ];
         $data['meta'] = [
             'po_number' => $order->po_number ?? $order->ref_no, 'project_name' => $order->plant->name,
@@ -587,26 +681,27 @@ class PrintDataFormatter
         $data['state']     = strtoupper($invoice->status ?? 'DRAFT');
         $data['company']   = self::formatCompany($invoice->plant);
         
-        $partner = $invoice->partner;
         $dispatch = \App\Models\Dispatch::whereHas('status', function ($q) use ($invoice) {
             $q->where('invoice_id', $invoice->id);
         })->with([
-            'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign',
+            'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign', 'salesOrder.customerPO',
             'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site',
             'concretePump', 'truck', 'transport', 'driver', 'mixDesign', 'salesExecutive'
         ])->first();
 
         if (!$dispatch && !empty($invoice->ref_id)) {
-            $refIds = explode(',', $invoice->ref_id);
-            $firstRefId = trim($refIds[0] ?? '');
+            $refIds = array_filter(array_map('trim', explode(',', $invoice->ref_id)));
+            $firstRefId = reset($refIds);
             if (is_numeric($firstRefId)) {
                 $dispatch = \App\Models\Dispatch::with([
-                    'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign',
+                    'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign', 'salesOrder.customerPO',
                     'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site',
                     'concretePump', 'truck', 'transport', 'driver', 'mixDesign', 'salesExecutive'
                 ])->find($firstRefId);
             }
         }
+
+        $partner = $invoice->partner;
 
         if ($dispatch) {
             if (!$partner || empty($partner->name)) {
@@ -735,25 +830,68 @@ class PrintDataFormatter
 
             $pumpChargesTotal += $dispatchPumpCharge;
 
+            $itemSubtotal = (float)($item->subtotal ?? ($item->quantity * $item->price_unit));
+            $itemTotal = $itemSubtotal + $lineTaxAmount;
+
             return [
                 'no' => $idx + 1, 'name' => $item->item_name, 'description' => '', 'hsn' => $item->hsn_code ?? '-',
                 'qty' => (float)$item->quantity, 'unit' => $item->uom->unit_code ?? 'm³', 'unit_price' => (float)$item->price_unit,
+                'discount' => (float)($item->discount_amount ?? $item->discount ?? 0),
                 'operation_type' => $operationType, 'pump_charge' => $pumpCharge,
+                'taxable_amount' => $itemSubtotal,
                 'tax_name' => $taxDetails['name'] ?: '-', 'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => $lineTaxAmount,
-                'total' => (float)($item->line_total ?? ($item->quantity * $item->price_unit)),
+                'total' => $itemTotal,
             ];
         })->toArray();
-        
         $taxLines = $invoice->orderTaxes->map(function($ot) { return ['label' => $ot->name, 'amount' => (float)$ot->amount]; })->toArray();
+        $subtotalVal = (float)$invoice->subtotal;
+        $discVal = (float)($invoice->discount_total ?? $invoice->global_discount ?? 0);
+        if ($discVal == 0 && $invoice->items) {
+            $discVal = (float)$invoice->items->sum('discount_amount');
+        }
+        $pumpVal = (float)($dispatch?->pump_charges ?? $pumpChargesTotal ?? 0);
+        $hireVal = (float)($dispatch?->transport_expenses ?? 0);
+        $passVal = (float)($dispatch?->pass_amount ?? 0);
+        $taxVal = (float)($invoice->tax_amount ?? $invoice->amount_tax ?? 0);
+        if ($taxVal == 0 && !empty($taxLines)) {
+            $taxVal = (float) array_sum(array_column($taxLines, 'amount'));
+        }
+        $shippingVal = (float)($invoice->shipping_charges ?? $invoice->shipping ?? 0);
+        $adjVal = (float)($invoice->adjustment ?? 0);
+        $roundVal = (float)($invoice->round_off ?? 0);
+
+        $grandTotalVal = self::calculateGrandTotal(
+            $subtotalVal,
+            $pumpVal,
+            $discVal,
+            $hireVal,
+            $passVal,
+            $taxVal,
+            $shippingVal,
+            $adjVal,
+            $roundVal
+        );
+
         $data['totals'] = [
-            'sub_total' => (float)$invoice->subtotal, 'discount' => (float)($invoice->discount_total ?? $invoice->global_discount),
-            'tax_lines' => $taxLines, 'shipping' => (float)$invoice->shipping_charges, 'adjustment' => (float)$invoice->adjustment,
-            'round_off' => (float)$invoice->round_off,
-            'grand_total' => (float)$invoice->total_amount,
+            'sub_total'   => $subtotalVal,
+            'discount'    => $discVal,
+            'pump_charge' => $pumpVal,
+            'hire_charge' => $hireVal,
+            'pass_amount' => $passVal,
+            'tax_amount'  => $taxVal,
+            'tax_lines'   => $taxLines,
+            'adjustment'  => $adjVal,
+            'round_off'   => $roundVal,
+            'grand_total' => $grandTotalVal,
         ];
         $orderTypeForTerms = $invoice->invoice_type === 'bill' ? 'Purchase Bill' : [($invoice->invoice_label ?? 'Tax Invoice'), 'Tax Invoice'];
 
-        $poNumber = $customerPO?->customer_po_reference ?: ($customerPO?->reference ?? '');
+        $poNumber = $customerPO?->customer_po_reference 
+            ?: ($customerPO?->reference 
+            ?: ($salesOrder?->customer_po_reference 
+            ?: ($salesOrder?->po_number 
+            ?: ($dispatch?->customer_po_reference 
+            ?: ($invoice->ref_title ?? '')))));
 
         // TODO: Remove $testDummyQrPath before pushing to production
         $testDummyQrPath = asset('storage/plants/demo-mining-corp/parker-llc-plant/upi_qr_1784092752.png');
@@ -927,40 +1065,33 @@ class PrintDataFormatter
             $qty = (float)$item->quantity;
             $taxModel = $item->tax;
             $taxRate = $taxModel ? (float)($taxModel->tax_rate ?? $taxModel->rate ?? 0) : 0.0;
+            $itemDiscount = (float)($item->discount_amount ?? $item->discount ?? 0);
 
-            // Flat pump rate post-tax
-            $linePumpTotal = $actualItemPumpRate;
+            $calcs = self::calculateLineItemTotals(
+                $qty,
+                $rate,
+                $actualItemPumpRate,
+                $taxRate,
+                $isTaxInclusive,
+                $itemDiscount
+            );
 
-            $lineTotal = 0.0;
-            $lineTax = 0.0;
-            $lineUntaxed = 0.0;
-
-            if ($isTaxInclusive) {
-                $lineTotal = ($rate * $qty);
-                $lineTax = $lineTotal - ($lineTotal / (1 + $taxRate / 100));
-                $lineUntaxed = $lineTotal - $lineTax + $linePumpTotal;
-                $lineTotal = $lineTotal + $linePumpTotal;
-            } else {
-                $lineUntaxed = ($rate * $qty);
-                $lineTax = ($lineUntaxed * $taxRate) / 100;
-                $lineTotal = $lineUntaxed + $lineTax + $linePumpTotal;
-                $lineUntaxed = $lineUntaxed + $linePumpTotal;
-            }
+            $lineTotal = $calcs['amountTotal'];
+            $lineTax = $calcs['taxAmount'];
+            $lineUntaxed = $calcs['untaxedAmount'];
 
             $subtotalAmt += $lineUntaxed;
             $totalTaxAmt += $lineTax;
             $grandTotalAmt += $lineTotal;
 
             $taxDetails = self::resolveTaxDetails($taxModel, $isIntra, $lineTax, $lineUntaxed);
-            $unitPrice = $isTaxInclusive ? (float)($qty > 0 ? ($lineUntaxed / $qty) : $rate) : $rate;
-
             $showPumpCharges = !isset($data['settings']['pdf']['show_pump_charges']) || $data['settings']['pdf']['show_pump_charges'];
 
             if ($showPumpCharges) {
-                $displayUnitPrice = $unitPrice - ($isTaxInclusive ? (float)($actualItemPumpRate / (1 + $taxRate / 100)) : (float)$actualItemPumpRate);
+                $displayUnitPrice = $calcs['displayUnitPrice'];
                 $displayPumpCharge = $actualItemPumpRate;
             } else {
-                $displayUnitPrice = $unitPrice;
+                $displayUnitPrice = $calcs['displayUnitPrice'];
                 $displayPumpCharge = 0.0;
                 $pumpTypeLabel = '-';
             }
@@ -1088,18 +1219,11 @@ class PrintDataFormatter
                 $taxGroup = $taxModel->tax_group ?? '';
                 $taxName  = $taxModel->tax_name ?? '';
             }
-            $subtotal = $qty * $rate;
-            if ($isTaxInclusive) {
-                $total = $subtotal;
-                $untaxedAmt = $taxRate > 0 ? ($total / (1 + ($taxRate / 100))) : $total;
-                $priceTax = $total - $untaxedAmt;
-                $unitPrice = $qty > 0 ? ($untaxedAmt / $qty) : $rate;
-            } else {
-                $untaxedAmt = $subtotal;
-                $priceTax = $untaxedAmt * ($taxRate / 100);
-                $total = $untaxedAmt + $priceTax;
-                $unitPrice = $rate;
-            }
+            $calcs = self::calculateLineItemTotals($qty, $rate, 0.0, $taxRate, $isTaxInclusive);
+            $untaxedAmt = $calcs['materialUntaxed'];
+            $priceTax = $calcs['materialTax'];
+            $total = $calcs['materialTotal'];
+            $unitPrice = $calcs['displayUnitPrice'];
             if ($taxRate <= 0 && $poItem) {
                 $itemTaxAmount = (float)$poItem->tax_amount; $itemUntaxedAmount = (float)($poItem->untaxed_amount ?? ($poItem->quantity * $poItem->rate));
                 if ($itemTaxAmount > 0 && $itemUntaxedAmount > 0) {
@@ -1446,10 +1570,13 @@ class PrintDataFormatter
                 'company_name'=>true,'logo'=>true,'address'=>true,'phone'=>true,'email'=>true,'gstin'=>true,
                 'invoice_title'=>true,'invoice_number'=>true,'date'=>true,'due_date'=>true,'status'=>false,
                 'bill_to'=>true,'ship_to'=>true,'hsn_code'=>true,'description'=>true,'unit'=>true,'discount'=>true,
-                'tax_percent'=>true,'cgst'=>true,'sgst'=>true,'igst'=>true,'shipping'=>true,'adjustment'=>true,
+                'tax_percent'=>true,'cgst'=>true,'sgst'=>true,'igst'=>true,'adjustment'=>true,
                 'round_off'=>true,'total_words'=>true,'notes'=>true,'terms'=>true,'signature'=>true,
                 'upi_qr'=>true,
                 'pump_rates'=>true,
+                'show_pump_charges'=>true,
+                'hire_charge'=>true,
+                'pass_amount'=>true,
                 'labels' => ['invoice_title'=>$invoiceTitle,'bill_to'=>'Bill To','ship_to'=>'Ship To','rate'=>'Rate','amount'=>'Amount']
             ],
             'excel' => ['hsn_code'=>true,'discount'=>true]

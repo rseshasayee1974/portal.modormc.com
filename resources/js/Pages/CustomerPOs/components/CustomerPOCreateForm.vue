@@ -9,6 +9,10 @@ import Swal from 'sweetalert2';
 import { PlusCircleIcon, TrashIcon, PlusIcon, CalculatorIcon } from '@heroicons/vue/24/outline';
 import RecipePopover from '@/Components/Base/RecipePopover.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+<<<<<<< HEAD
+=======
+import BaseButton from '@/Components/Base/BaseButton.vue';
+>>>>>>> 57252a5b5e716a6f24f0cc0dda0c11f7688f9b28
 import { calculateLineItemTotals } from '@/Composables/useLineItemCalculation';
 
 const props = withDefaults(defineProps<{
@@ -108,6 +112,12 @@ const resolvePumpRatesLocally = (customerId: number | null, siteId: number | nul
     return Object.values(resolved).sort((a: any, b: any) => b.score - a.score);
 };
 
+<<<<<<< HEAD
+=======
+const page = usePage();
+const customSettings = page.props.custom_settings as any;
+
+>>>>>>> 57252a5b5e716a6f24f0cc0dda0c11f7688f9b28
 const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
     const resolved = resolvePumpRatesLocally(form.patron_id, form.site_id);
     
@@ -181,6 +191,7 @@ const taxOptions = computed(() => (props.taxes || []).map(t => ({
     value: t.id
 })));
 
+<<<<<<< HEAD
 /**
  * Line item totals calculation helper using centralized composable
  */
@@ -188,6 +199,18 @@ const getItemTotals = (item: any) => {
     const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
     const taxRate = tax ? Number(tax.tax_rate ?? tax.rate ?? 0) : 0;
     const pumpRate = Number(item.pump_rate || item.pump_rates?.[0]?.pump_rate || 0);
+=======
+// Watch form items and is_tax_inclusive status to dynamically update tax_amount
+watch(() => [form.items, form.is_tax_inclusive], ([newItems, isTaxInclusive]) => {
+    if (newItems) {
+        (newItems as any).forEach((item: any) => {
+            const qty = Number(item.quantity || 0);
+            const rate = Number(item.rate || 0);
+            const pumpCharge = Number(item.pump_rate || 0);
+
+            const tax = props.taxes?.find(t => Number(t.id) === Number(item.tax_id));
+            const taxRate = tax ? Number(tax.tax_rate || 0) : 0;
+>>>>>>> 57252a5b5e716a6f24f0cc0dda0c11f7688f9b28
 
     return calculateLineItemTotals({
         quantity: Number(item.quantity || 0),
@@ -521,7 +544,15 @@ const submit = () => {
                                 />
                             </td>
                             <td class="p-3 text-right font-bold text-slate-800 text-sm">
+<<<<<<< HEAD
                                 <span>₹ {{ getItemTotals(item).amountTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+=======
+                                <span>₹ {{ (
+                                    (Number(item.quantity || 0) * Number(item.rate || 0)) + 
+                                    Number(item.pump_rate || 0) + 
+                                    (form.is_tax_inclusive ? 0 : Number(item.tax_amount || 0))
+                                ).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
+>>>>>>> 57252a5b5e716a6f24f0cc0dda0c11f7688f9b28
                             </td>
                             <td class="p-3 text-center">
                                 <button type="button" @click="removeItem(idx)" class="p-1.5 text-slate-300 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-all" :disabled="form.items.length === 1">

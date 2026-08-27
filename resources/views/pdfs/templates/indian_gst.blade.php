@@ -182,78 +182,101 @@
     @endif
 
     {{-- ITEMS TABLE --}}
+    {{-- ITEMS TABLE --}}
     <table class="items-table">
         <thead>
             <tr>
-                <th style="width: 8%;">Code</th>
+                @if($pdfSettings['hsn_code'] ?? true) <th style="width: 8%;">Code</th> @endif
                 <th style="width: 12%;">Grade</th>
-                <th style="width: 20%;">Description</th>
-                <th style="width: 10%;">QTY.in CU.M</th>
-                <th style="width: 10%;">Unit Price</th>
-                <th style="width: 12%;">Taxable Amount</th>
-                <th style="width: 18%;">Tax</th>
-                <th style="width: 10%;">Total</th>
+                @if($pdfSettings['description'] ?? true) <th style="width: 18%;">Description</th> @endif
+                @if($pdfSettings['show_pump_charges'] ?? false) <th style="width: 9%;">Op. Type</th> @endif
+                @if($pdfSettings['qty'] ?? true) <th style="width: 9%;">QTY.in CU.M</th> @endif
+                @if($pdfSettings['unit'] ?? true) <th style="width: 9%;">Unit Price</th> @endif
+                @if($pdfSettings['discount'] ?? false) <th style="width: 8%;">Discount</th> @endif
+                @if($pdfSettings['show_pump_charges'] ?? false) <th style="width: 9%;">Pump Chg</th> @endif
+                <th style="width: 11%;">Taxable Amount</th>
+                @if(($pdfSettings['tax_rate'] ?? true) || ($pdfSettings['tax_amount'] ?? true)) <th style="width: 17%;">Tax</th> @endif
+                @if($pdfSettings['amount'] ?? true) <th style="width: 10%;">Total</th> @endif
             </tr>
         </thead>
         <tbody>
+            @php
+                $igstTotalCols = 2; // Grade + Taxable Amount
+                if ($pdfSettings['hsn_code'] ?? true) $igstTotalCols++;
+                if ($pdfSettings['description'] ?? true) $igstTotalCols++;
+                if ($pdfSettings['show_pump_charges'] ?? false) $igstTotalCols += 2;
+                if ($pdfSettings['qty'] ?? true) $igstTotalCols++;
+                if ($pdfSettings['unit'] ?? true) $igstTotalCols++;
+                if ($pdfSettings['discount'] ?? false) $igstTotalCols++;
+                if (($pdfSettings['tax_rate'] ?? true) || ($pdfSettings['tax_amount'] ?? true)) $igstTotalCols++;
+                if ($pdfSettings['amount'] ?? true) $igstTotalCols++;
+
+                $igstRecipeColspan = min(7, $igstTotalCols - 1);
+                $igstRemainingCols = max(0, $igstTotalCols - 1 - $igstRecipeColspan);
+            @endphp
             @foreach($data['items'] as $item)
                 @php
                     $hasRecipe = !empty($item['recipe_materials']) && count($item['recipe_materials']) > 0;
                 @endphp
                 <tr>
-                    <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">HSN :<br><strong>{{ $item['hsn'] ?? '38245010' }}</strong></td>
+                    @if($pdfSettings['hsn_code'] ?? true) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">HSN :<br><strong>{{ $item['hsn'] ?? '38245010' }}</strong></td> @endif
                     <td style="text-align: center; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['name'] }}</td>
-                    <td style="{{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['description'] }}</td>
-                    <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['qty'], 2) }}</td>
-                    <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['unit_price'], 2) }}</td>
+                    @if($pdfSettings['description'] ?? true) <td style="{{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['description'] }}</td> @endif
+                    @if($pdfSettings['show_pump_charges'] ?? false) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['operation_type'] ?? 'TM' }}</td> @endif
+                    @if($pdfSettings['qty'] ?? true) <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ (float)$item['qty'] == floor((float)$item['qty']) ? number_format($item['qty'], 2) : rtrim(rtrim(number_format($item['qty'], 3), '0'), '.') }}</td> @endif
+                    @if($pdfSettings['unit'] ?? true) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['unit_price'], 2) }}</td> @endif
+                    @if($pdfSettings['discount'] ?? false) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ !empty($item['discount']) && $item['discount'] > 0 ? number_format($item['discount'], 2) : '-' }}</td> @endif
+                    @if($pdfSettings['show_pump_charges'] ?? false) <td style="text-align: right; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['pump_charge'] ?? 0, 2) }}</td> @endif
                     <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['taxable_amount'] ?? ($item['qty'] * $item['unit_price']), 2) }}</td>
-                    <td style="padding: 0; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">
-                        <table class="tax-table">
-                            @php
-                                $itemTaxRate = (float)($item['tax_rate'] ?? 18);
-                                $itemTaxAmt = (float)($item['tax_amount'] ?? 0);
-                                $taxGroup = strtoupper($item['tax_group'] ?? '');
-                                $taxName = strtoupper($item['tax_name'] ?? '');
-                                $isIgst = !empty($item['is_igst']) || $taxGroup === 'IGST' || str_contains($taxName, 'IGST');
-                                $formattedTaxRate = $itemTaxRate == floor($itemTaxRate) ? (int)$itemTaxRate : number_format($itemTaxRate, 2);
-                            @endphp
-                            @if($isIgst)
-                                @if(($pdfSettings['igst'] ?? true) !== false)
-                                    <tr>
-                                        <td style="width: 40%;">IGST@ {{ $formattedTaxRate }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ $formattedTaxRate }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ number_format($itemTaxAmt, 2) }}</td>
-                                    </tr>
-                                @endif
-                            @else
+                    @if(($pdfSettings['tax_rate'] ?? true) || ($pdfSettings['tax_amount'] ?? true))
+                        <td style="padding: 0; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">
+                            <table class="tax-table">
                                 @php
-                                    $halfRate = $itemTaxRate / 2;
-                                    $halfAmt = $itemTaxAmt / 2;
-                                    $formattedHalfRate = $halfRate == floor($halfRate) ? (int)$halfRate : number_format($halfRate, 2);
+                                    $itemTaxRate = (float)($item['tax_rate'] ?? 18);
+                                    $itemTaxAmt = (float)($item['tax_amount'] ?? 0);
+                                    $taxGroup = strtoupper($item['tax_group'] ?? '');
+                                    $taxName = strtoupper($item['tax_name'] ?? '');
+                                    $isIgst = !empty($item['is_igst']) || $taxGroup === 'IGST' || str_contains($taxName, 'IGST');
+                                    $formattedTaxRate = $itemTaxRate == floor($itemTaxRate) ? (int)$itemTaxRate : number_format($itemTaxRate, 2);
                                 @endphp
-                                @if(($pdfSettings['cgst'] ?? true) !== false)
-                                    <tr>
-                                        <td style="width: 40%;">CGST@ {{ $formattedHalfRate }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ $formattedHalfRate }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ number_format($halfAmt, 2) }}</td>
-                                    </tr>
+                                @if($isIgst)
+                                    @if(($pdfSettings['igst'] ?? true) !== false)
+                                        <tr>
+                                            <td style="width: 40%;">IGST@ {{ $formattedTaxRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ $formattedTaxRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ number_format($itemTaxAmt, 2) }}</td>
+                                        </tr>
+                                    @endif
+                                @else
+                                    @php
+                                        $halfRate = $itemTaxRate / 2;
+                                        $halfAmt = $itemTaxAmt / 2;
+                                        $formattedHalfRate = $halfRate == floor($halfRate) ? (int)$halfRate : number_format($halfRate, 2);
+                                    @endphp
+                                    @if(($pdfSettings['cgst'] ?? true) !== false)
+                                        <tr>
+                                            <td style="width: 40%;">CGST@ {{ $formattedHalfRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ $formattedHalfRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ number_format($halfAmt, 2) }}</td>
+                                        </tr>
+                                    @endif
+                                    @if(($pdfSettings['sgst'] ?? true) !== false)
+                                        <tr>
+                                            <td style="width: 40%;">SGST@ {{ $formattedHalfRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ $formattedHalfRate }}%</td>
+                                            <td style="width: 30%; text-align: right;">{{ number_format($halfAmt, 2) }}</td>
+                                        </tr>
+                                    @endif
                                 @endif
-                                @if(($pdfSettings['sgst'] ?? true) !== false)
-                                    <tr>
-                                        <td style="width: 40%;">SGST@ {{ $formattedHalfRate }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ $formattedHalfRate }}%</td>
-                                        <td style="width: 30%; text-align: right;">{{ number_format($halfAmt, 2) }}</td>
-                                    </tr>
-                                @endif
-                            @endif
-                        </table>
-                    </td>
-                    <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['total'], 2) }}</td>
+                            </table>
+                        </td>
+                    @endif
+                    @if($pdfSettings['amount'] ?? true) <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ number_format($item['total'], 2) }}</td> @endif
                 </tr>
                 @if ($hasRecipe)
                     <tr>
                         <td style="border-top: none; padding-top: 0;"></td>
-                        <td colspan="6" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
+                        <td colspan="{{ $igstRecipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
                             <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">Recipe Details:</div>
                             <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
                                 <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
@@ -278,7 +301,9 @@
                                 </table>
                             </div>
                         </td>
-                        <td style="border-top: none;"></td>
+                        @if ($igstRemainingCols > 0)
+                            <td colspan="{{ $igstRemainingCols }}" style="border-top: none;"></td>
+                        @endif
                     </tr>
                 @endif
             @endforeach
@@ -288,7 +313,7 @@
     {{-- AMOUNT IN WORDS & GRAND TOTAL SUMMARY --}}
     <table class="totals-table">
         <tr>
-            <td style="width: 65%; border-right: 1px solid #000;">
+            <td style="width: 60%; border-right: 1px solid #000;">
                 <div style="font-weight: bold; margin-bottom: 4px;">Amount in Words :</div>
                 @php
                     $totTaxAmt = (float)($data['totals']['tax_amount'] ?? array_sum(array_column($data['totals']['tax_lines'] ?? [], 'amount')));
@@ -318,17 +343,77 @@
                 @endif
                 <div style="margin-top: 4px;">Grand Total <strong>{{ $data['meta']['total_words'] ?: 'Rs. ' . number_format($data['totals']['grand_total'], 2) . ' Only' }}</strong></div>
             </td>
-            <td style="width: 35%; padding: 0;">
+            <td style="width: 40%; padding: 0;">
                 <table style="width: 100%; border-collapse: collapse;">
+                    @if (!empty($data['totals']['sub_total']) && $data['totals']['sub_total'] > 0)
+                        <tr>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px;">Sub Total / Gross Amount</td>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; width: 90px;">{{ number_format($data['totals']['sub_total'], 2) }}</td>
+                        </tr>
+                    @endif
+                    @php $pumpChg = $data['totals']['pump_charge'] ?? $data['totals']['pump_charges'] ?? $data['totals']['pump_rate'] ?? 0; @endphp
+                    @if ((($pdfSettings['show_pump_charges'] ?? true) || ($pdfSettings['pump_rates'] ?? true)) && $pumpChg > 0)
+                        <tr>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px;">Pump Charge</td>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; width: 90px;">{{ number_format($pumpChg, 2) }}</td>
+                        </tr>
+                    @endif
+                    @if (($pdfSettings['discount'] ?? true) && !empty($data['totals']['discount']) && $data['totals']['discount'] > 0)
+                        <tr>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; color: #dc2626;">Discount (-)</td>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; width: 90px; color: #dc2626;">-{{ number_format($data['totals']['discount'], 2) }}</td>
+                        </tr>
+                    @endif
+                    @php $hireChg = $data['totals']['hire_charge'] ?? $data['totals']['transport_expenses'] ?? 0; @endphp
+                    @if (($pdfSettings['hire_charge'] ?? true) && $hireChg > 0)
+                        <tr>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px;">Hire Charge</td>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; width: 90px;">{{ number_format($hireChg, 2) }}</td>
+                        </tr>
+                    @endif
+                    @if (($pdfSettings['pass_amount'] ?? true) && !empty($data['totals']['pass_amount']) && $data['totals']['pass_amount'] > 0)
+                        <tr>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px;">Pass Amount</td>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; width: 90px;">{{ number_format($data['totals']['pass_amount'], 2) }}</td>
+                        </tr>
+                    @endif
+                    @if (!empty($data['totals']['tax_lines']))
+                        @foreach ($data['totals']['tax_lines'] as $tl)
+                            @php
+                                $showTax = true;
+                                if (str_contains($tl['label'], 'CGST') && !($pdfSettings['cgst'] ?? true)) $showTax = false;
+                                if (str_contains($tl['label'], 'SGST') && !($pdfSettings['sgst'] ?? true)) $showTax = false;
+                                if (str_contains($tl['label'], 'IGST') && !($pdfSettings['igst'] ?? true)) $showTax = false;
+                            @endphp
+                            @if ($showTax)
+                                <tr>
+                                    <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px;">{{ $tl['label'] }}</td>
+                                    <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; width: 90px;">{{ number_format($tl['amount'], 2) }}</td>
+                                </tr>
+                            @endif
+                        @endforeach
+                    @endif
+                    @if (($pdfSettings['shipping'] ?? true) && !empty($data['totals']['shipping']) && $data['totals']['shipping'] > 0)
+                        <tr>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px;">Shipping</td>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; width: 90px;">{{ number_format($data['totals']['shipping'], 2) }}</td>
+                        </tr>
+                    @endif
+                    @if (($pdfSettings['adjustment'] ?? true) && ($data['totals']['adjustment'] ?? 0) != 0)
+                        <tr>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px;">Adjustment</td>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; width: 90px;">{{ $data['totals']['adjustment'] > 0 ? '+' : '' }}{{ number_format($data['totals']['adjustment'], 2) }}</td>
+                        </tr>
+                    @endif
                     @if (($pdfSettings['round_off'] ?? true) && ($data['totals']['round_off'] ?? 0) != 0)
                         <tr>
                             <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px;">Rounding off</td>
-                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; width: 80px;">{{ number_format($data['totals']['round_off'], 2) }}</td>
+                            <td style="text-align: right; border-bottom: 1px solid #000; padding: 4px 8px; width: 90px;">{{ $data['totals']['round_off'] > 0 ? '+' : '' }}{{ number_format($data['totals']['round_off'], 2) }}</td>
                         </tr>
                     @endif
                     <tr>
                         <td style="text-align: right; font-weight: bold; font-size: 10pt; padding: 6px 8px;">Grand Total</td>
-                        <td style="text-align: right; font-weight: bold; font-size: 10pt; padding: 6px 8px; width: 80px;">{{ number_format($data['totals']['grand_total'], 2) }}</td>
+                        <td style="text-align: right; font-weight: bold; font-size: 10pt; padding: 6px 8px; width: 90px;">{{ number_format($data['totals']['grand_total'], 2) }}</td>
                     </tr>
                 </table>
             </td>

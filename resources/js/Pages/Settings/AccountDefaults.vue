@@ -37,6 +37,7 @@ const moduleConfigs = [
             { key: 'igst_output', label: 'IGST Output Account', description: 'Integrated GST liability for inter-state sales' },
             { key: 'shipping_account', label: 'Shipping/Freight Account', description: 'Ledger for recovery of freight charges' },
             { key: 'round_off_account', label: 'Round Off Account', description: 'Ledger for rounding adjustments' },
+            { key: 'tax_account', label: 'Tax Fallback / Rounding Account', description: 'Fallback ledger for tax rounding mismatches' },
             { key: 'adjustment_account', label: 'Other Adjustment Account', description: 'Ledger for manual price adjustments' },
             { key: 'tds_receivable', label: 'TDS Receivable Account', description: 'Ledger for TDS deducted by customers' },
         ]
@@ -52,6 +53,7 @@ const moduleConfigs = [
             { key: 'igst_input', label: 'IGST Input Account', description: 'Integrated GST credit for inter-state purchases' },
             { key: 'shipping_account', label: 'Shipping/Freight Account', description: 'Ledger for freight expenses paid' },
             { key: 'round_off_account', label: 'Round Off Account', description: 'Ledger for rounding adjustments' },
+            { key: 'tax_account', label: 'Tax Fallback / Rounding Account', description: 'Fallback ledger for tax rounding mismatches' },
             { key: 'tds_payable', label: 'TDS Payable Account', description: 'Ledger for TDS deducted from vendors' },
         ]
     },
