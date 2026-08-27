@@ -536,8 +536,6 @@ class BatchController extends Controller
             ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
             ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
             ->leftJoin('mm_concrete_grades as cg', 'cg.id', '=', 'm.concrete_grade_id')
-            ->leftJoin('mm_customer_pos as po', 'po.id', '=', 'so.customer_po_id')
-            ->leftJoin('mm_quotations as q', 'q.id', '=', 'po.quotation_id')
             ->where('b.id', $batchId)
             ->whereNull('b.deleted_at')
             ->select([
@@ -580,13 +578,6 @@ class BatchController extends Controller
                 'm.design_code as mix_design_code',
                 'cg.id as concrete_grade_id',
                 'cg.name as concrete_grade_name',
-                // PO / Quotation
-                'po.id as customer_po_id',
-                'po.sales_executive_id as po_sales_executive_id',
-                'po.concrete_pump as po_concrete_pump',
-                'q.id as quotation_id',
-                'q.sales_executive_id as quotation_sales_executive_id',
-                'q.concrete_pump as quotation_concrete_pump',
             ])
             ->first();
 
@@ -962,16 +953,6 @@ class BatchController extends Controller
                     ],
                     'items' => $mixDesignItems,
                 ],
-                'customer_p_o' => $batchRow->customer_po_id ? [
-                    'id' => $batchRow->customer_po_id,
-                    'sales_executive_id' => $batchRow->po_sales_executive_id,
-                    'concrete_pump' => $batchRow->po_concrete_pump,
-                    'quotation' => $batchRow->quotation_id ? [
-                        'id' => $batchRow->quotation_id,
-                        'sales_executive_id' => $batchRow->quotation_sales_executive_id,
-                        'concrete_pump' => $batchRow->quotation_concrete_pump,
-                    ] : null,
-                ] : null,
                 'latest_dispatch' => $latestDispatch ? [
                     'id' => $latestDispatch->id,
                     'truck_id' => $latestDispatch->truck_id,
