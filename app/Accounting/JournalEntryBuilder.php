@@ -46,6 +46,7 @@ class JournalEntryBuilder
         $this->addBaseLine();
         $this->addTaxLines();
         $this->addAdjustmentLines();
+        $this->balanceRoundingDifference();
         $this->assertBalanced();
 
         return $this->lines;
@@ -230,6 +231,63 @@ class JournalEntryBuilder
         $this->lines[]         = $line;
         $this->totalDebitCents  += $line['debit_cents'];
         $this->totalCreditCents += $line['credit_cents'];
+    }
+
+    private function balanceRoundingDifference(): void
+    {
+        $diff = $this->totalDebitCents - $this->totalCreditCents;
+        if ($diff === 0) {
+            return;
+        }
+
+        // Auto-balance rounding discrepancies up to ₹2.00 (200 cents) into Round Off line
+        if (abs($diff) <= 200) {
+            $roundOffAccountId = $this->ledger->resolve(
+                $this->document->getPlantId(),
+                $this->config['module'],
+                'round_off_account',
+                'Round Off'
+            );
+
+            if (!$roundOffAccountId) {
+                $roundOffAccountId = $this->document->getBaseAccountId()
+                    ?? $this->ledger->resolve(
+                        $this->document->getPlantId(),
+                        $this->config['module'],
+                        $this->config['base_setting'],
+                        'Sales'
+                    );
+            }
+
+            if ($roundOffAccountId) {
+                $side = $diff > 0 ? 'credit' : 'debit';
+                $voucherNo = $this->document->getVoucherNumber();
+
+                $adjusted = false;
+                foreach ($this->lines as &$line) {
+                    if (($line['narration_name'] ?? '') === 'Round Off') {
+                        if ($side === 'credit') {
+                            $line['credit_cents'] += abs($diff);
+                            $this->totalCreditCents += abs($diff);
+                        } else {
+                            $line['debit_cents'] += abs($diff);
+                            $this->totalDebitCents += abs($diff);
+                        }
+                        $adjusted = true;
+                        break;
+                    }
+                }
+                unset($line);
+
+                if (!$adjusted) {
+                    $this->pushLine($side, abs($diff), [
+                        'account_id'     => $roundOffAccountId,
+                        'narration_name' => 'Round Off',
+                        'line_narration' => "Round off adjustment for #{$voucherNo}",
+                    ]);
+                }
+            }
+        }
     }
 
     private function assertBalanced(): void

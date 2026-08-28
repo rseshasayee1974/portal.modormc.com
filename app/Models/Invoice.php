@@ -557,23 +557,32 @@ class Invoice extends Model implements Postable
                 ];
             }
 
-            $subtotal = $type === 'bill' ? ($subtotalSum - $source->discount_amount) : $source->amount_untaxed;
-            $discountTotal = $type === 'bill' ? ($discountSum + $source->discount_amount) : $source->discount_amount;
-            $taxAmount = $type === 'bill' ? $taxSum : $source->amount_tax;
+            $subtotal = $type === 'bill' ? ($subtotalSum - $source->discount_amount) : (float)($source->amount_untaxed ?? $subtotalSum);
+            $discountTotal = $type === 'bill' ? ($discountSum + $source->discount_amount) : (float)($source->discount_amount ?? 0);
+            $taxAmount = $type === 'bill' ? $taxSum : (float)($source->amount_tax ?? $taxSum);
             
-            $adjustment = $source->adjustment;
-            $shippingCharges = $source->shipping_charges;
+            $adjustment = (float)($source->adjustment ?? 0);
+            $shippingCharges = (float)($source->shipping_charges ?? 0);
             
             if ($type === 'bill') {
-                $totalAmount = $subtotal + $taxAmount + $shippingCharges + $adjustment;
+                $totalAmount = round($subtotal + $taxAmount + $shippingCharges + $adjustment, 2);
                 $roundOff = 0.0;
             } else {
-                $roundOff = (float) $source->rounding_value;
+                $roundOff = (float) ($source->rounding_value ?? $source->round_off ?? 0);
                 $pumpCharges = (float) ($source->pump_charges ?? 0);
                 $passAmount = (float) ($source->pass_amount ?? 0);
                 
-                // Calculate exact grand total matching dispatch total calculation
-                $totalAmount = ($subtotal + $taxAmount + $pumpCharges + $shippingCharges + $passAmount + $adjustment + $roundOff) - $discountTotal;
+                $sourceTotal = (float)($source->amount_total ?? $source->total_amount ?? 0);
+                $calcBeforeRound = ($subtotal + $taxAmount + $pumpCharges + $shippingCharges + $passAmount + $adjustment) - $discountTotal;
+                
+                if ($sourceTotal > 0) {
+                    $totalAmount = round($sourceTotal, 2);
+                    if ($roundOff == 0) {
+                        $roundOff = round($totalAmount - $calcBeforeRound, 2);
+                    }
+                } else {
+                    $totalAmount = round(($calcBeforeRound + $roundOff), 2);
+                }
             }
 
             // 1. Create the Invoice Header
@@ -587,14 +596,14 @@ class Invoice extends Model implements Postable
                 'ref_title'        => null,
                 'invoice_date'     => $params['invoice_date'] ?? now(),
                 'due_date'         => $params['due_date'] ?? $source->due_date,
-                'subtotal'         => $subtotal,
-                'global_discount'  => $discountTotal,
-                'tax_amount'       => $taxAmount,
-                'adjustment'       => $adjustment,
-                'shipping_charges' => $shippingCharges,
-                'round_off'        => $roundOff,
-                'total_amount'     => $totalAmount,
-                'balance_amount'   => $totalAmount,
+                'subtotal'         => round($subtotal, 2),
+                'global_discount'  => round($discountTotal, 2),
+                'tax_amount'       => round($taxAmount, 2),
+                'adjustment'       => round($adjustment, 2),
+                'shipping_charges' => round($shippingCharges, 2),
+                'round_off'        => round($roundOff, 2),
+                'total_amount'     => round($totalAmount, 2),
+                'balance_amount'   => round($totalAmount, 2),
                 'status'           => self::STATUS_APPROVED,
                 'created_by'       => $userId,
                 'updated_by'       => $userId,
@@ -707,17 +716,17 @@ class Invoice extends Model implements Postable
 
     public function getSubtotalCents(): int
     {
-        return (float)($this->subtotal ?? 0) * 100;
+        return (int) round((float)($this->subtotal ?? 0) * 100);
     }
 
     public function getTaxTotalCents(): int
     {
-        return (float)($this->tax_amount ?? 0) * 100;
+        return (int) round((float)($this->tax_amount ?? 0) * 100);
     }
 
     public function getTotalAmountCents(): int
     {
-        return (float)($this->total_amount ?? 0) * 100;
+        return (int) round((float)($this->total_amount ?? 0) * 100);
     }
 
     /**
@@ -739,7 +748,7 @@ class Invoice extends Model implements Postable
             ->where('order_type', $module)
             ->get()
             ->map(fn($row) => new TaxLineDTO(
-                amountCents: (float)($row->amount ?? 0) * 100,
+                amountCents: (int) round((float)($row->amount ?? 0) * 100),
                 accountId:   $row->account_id ? (int) $row->account_id : null,
                 taxName:     $row->name ?? 'Tax',
                 taxId:       $row->tax_id ? (int) $row->tax_id : null,
@@ -771,9 +780,9 @@ class Invoice extends Model implements Postable
 
         foreach ($map as $field => $cfg) {
             $value = (float)($this->{$field} ?? 0);
-            if ($value == 0) continue;
+            if (abs($value) < 0.01) continue;
 
-            $amountCents = $value * 100;
+            $amountCents = (int) round($value * 100);
             if ($cfg['invert']) $amountCents = -$amountCents; // discount = negative
 
             $accountId = $resolver->resolve($plantId, $module, $cfg['key'], $cfg['label']);
