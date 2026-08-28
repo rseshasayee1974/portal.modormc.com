@@ -21,7 +21,7 @@ use Illuminate\Validation\Rule;
 class PaymentController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'payments';
+    protected string $module = 'payment';
 
     public function index()
     {

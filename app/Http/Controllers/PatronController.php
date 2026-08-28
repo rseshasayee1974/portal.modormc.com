@@ -24,7 +24,7 @@ use Illuminate\Validation\Rule;
 class PatronController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'patrons';
+    protected string $module = 'patron';
 
     public function index()
     {

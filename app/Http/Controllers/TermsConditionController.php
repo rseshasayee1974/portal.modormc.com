@@ -16,7 +16,7 @@ class TermsConditionController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'terms_conditions';
+    protected string $module = 'terms_condition';
     /**
      * Display a listing of the resource.
      */

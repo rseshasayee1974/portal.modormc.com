@@ -25,7 +25,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class EntityController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'entities';
+    protected string $module = 'entity';
     /**
      * Display a listing of the resource.
      */

@@ -13,7 +13,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class AccountDefaultSettingController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'setting';
+    protected string $module = 'default_account';
     public function index()
     {
         $this->authorizeModule('menu');

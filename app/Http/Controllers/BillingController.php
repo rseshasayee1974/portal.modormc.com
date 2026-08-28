@@ -16,7 +16,7 @@ use App\Models\CustomSetting;
 class BillingController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'billings';
+    protected string $module = 'billing';
 
     public function index()
     {
