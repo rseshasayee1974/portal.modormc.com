@@ -39,8 +39,8 @@ class MixDesignController extends Controller
                 ->latest()
                 ->get(),
             'partners'  => PatronsDropdown(['Customer']),
-            'products' => ProductsDropdown('Purchase'),
             'units' => $units,
+            'products' => ProductsDropdown('Purchase'),
             'defaultUomId' => $defaultUomId,
             'designTypes' => ConcreteGrade::query()->where('plant_id', '=', $plantId)->select(['id', 'name'])->get(),
         ]);
@@ -127,7 +127,7 @@ class MixDesignController extends Controller
         }
 
         $validated = $request->validate([
-            'partner_id' => 'required|exists:mm_patrons,id',
+            'partner_id' => 'nullable|exists:mm_patrons,id',
             'design_name' => [
                 'required',
                 'string',

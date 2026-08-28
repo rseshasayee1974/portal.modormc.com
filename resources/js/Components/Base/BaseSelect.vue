@@ -24,6 +24,7 @@ const props = withDefaults(
         fieldClass?: string;
         showClear?: boolean;
         dark?: boolean;
+        autoFilterFocus?: boolean;
     }>(),
     {
         options: () => [],
@@ -33,6 +34,7 @@ const props = withDefaults(
         size: 'medium',
         fluid: true,
         showClear: true,
+        autoFilterFocus: true,
     }
 );
 
@@ -54,10 +56,13 @@ const effectiveFilterFields = computed(() => {
 const handleShow = () => {
     // Force focus on the filter input after the overlay is shown
     nextTick(() => {
-        const filterInput = document.querySelector('.p-select-filter-input');
-        if (filterInput instanceof HTMLInputElement) {
-            filterInput.focus();
-        }
+        setTimeout(() => {
+            const overlay = document.querySelector('.p-select-overlay:not([style*="display: none"])');
+            const filterInput = overlay?.querySelector('.p-select-filter-input') || document.querySelector('.p-select-filter-input');
+            if (filterInput instanceof HTMLInputElement) {
+                filterInput.focus();
+            }
+        }, 50);
     });
 };
 
@@ -84,6 +89,7 @@ const handleShow = () => {
                 :disabled="disabled"
                 :filter="filter"
                 :filterFields="effectiveFilterFields"
+                :autoFilterFocus="autoFilterFocus"
                 :checkmark="true"
                 :size="size"
                 :fluid="fluid"

@@ -122,7 +122,7 @@ const submit = () => {
     form.clearErrors();
     let hasErrors = false;
 
-    if (!form.partner_id) { form.setError('partner_id', 'Partner is required.'); hasErrors = true; }
+    // if (!form.partner_id) { form.setError('partner_id', 'Partner is required.'); hasErrors = true; }
     if (!form.design_name?.trim()) { form.setError('design_name', 'Design Name is required.'); hasErrors = true; }
 
     if (form.items.length === 0) {

@@ -157,22 +157,31 @@ const downloadSOPDF = () => {
 
             <Column header="Mix Design">
                 <template #body="{ data }">
-                    <div class="flex flex-col">
+                    <div class="flex flex-col justify-center align-center">
                         <span class="text-xs font-semibold text-slate-700">{{ data.mix_design?.design_name || '-' }}</span>
                         <span class="text-[11px] text-slate-400">{{ data.mix_design?.design_code || '-' }}</span>
                     </div>
                 </template>
             </Column>
 
-            <Column header="Progress" sortable field="produced_qty">
+              <Column header="Progress" sortable field="produced_qty" style="min-width: 160px">
                 <template #body="{ data }">
-                    <div class="text-xs">
-                        <span class="font-semibold text-slate-700">{{ data.produced_qty }} / {{ data.total_qty }} m³</span>
-                        <div class="mt-1 h-1.5 w-28 rounded bg-slate-100">
+                    <div class="flex flex-col gap-1 text-xs w-36 py-0.5">
+                        <div class="flex items-center justify-between font-semibold text-slate-700">
+                            <span>{{ Number(data.produced_qty || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }) }} / {{ Number(data.total_qty || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 }) }} <span class="text-[10px] text-slate-400 font-normal">m³</span></span>
+                            <!-- <span class="text-[10px] font-bold text-slate-500">{{ Math.min(100, Math.max(0, Math.round(((Number(data.produced_qty) || 0) / Math.max(1, Number(data.total_qty) || 1)) * 100))) }}%</span> -->
+                        </div>
+
+                        <div class="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
                             <div
-                                class="h-1.5 rounded bg-emerald-500"
-                                :style="{ width: `${Math.min(100, (Number(data.produced_qty) / Math.max(1, Number(data.total_qty))) * 100)}%` }"
+                                class="h-full rounded-full transition-all duration-300"
+                                :class="(Number(data.produced_qty) >= Number(data.total_qty)) ? 'bg-emerald-500' : 'bg-indigo-600'"
+                                :style="{ width: `${Math.min(100, Math.max(0, ((Number(data.produced_qty) || 0) / Math.max(1, Number(data.total_qty) || 1)) * 100))}%` }"
                             />
+                        </div>
+
+                        <div class="flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                            <span><strong class="text-indigo-600 font-semibold">{{ Math.max(0, Number(data.total_qty || 0) - Number(data.produced_qty || 0)).toFixed(2) }}</strong></span>
                         </div>
                     </div>
                 </template>
