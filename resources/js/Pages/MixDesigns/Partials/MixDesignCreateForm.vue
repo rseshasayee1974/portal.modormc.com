@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, readonly } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import BaseInput from '@/Components/Base/BaseInput.vue';
@@ -21,9 +21,10 @@ const props = defineProps<{
     partners: any[];
     defaultUomId?: number | null;
     designTypes: any[];
+    initialDesign?: any;
 }>();
 
-const emit = defineEmits(['created']);
+const emit = defineEmits(['created', 'cancel']);
 
 const isOpen = ref(true);
 const toggle = () => { isOpen.value = !isOpen.value; };
@@ -58,6 +59,43 @@ const form = useForm({
     rate_per_qty: 0,
     items: [blankItem()] as any[]
 });
+
+const populateFromInitialDesign = () => {
+    if (!props.initialDesign) return;
+    form.partner_id = props.initialDesign.partner_id ?? null;
+    form.design_name = props.initialDesign.design_name ? `${props.initialDesign.design_name} (Copy)` : '';
+    form.design_code = props.initialDesign.design_code ? `${props.initialDesign.design_code}-COPY` : '';
+    form.design_type = props.initialDesign.design_type || '';
+    form.unit_id = props.initialDesign.unit_id ?? fallbackUomId.value;
+    form.rate_per_qty = parseFloat(props.initialDesign.rate_per_qty || '0');
+    if (props.initialDesign.items && props.initialDesign.items.length > 0) {
+        form.items = props.initialDesign.items.map((item: any) => ({
+            product_id: item.product_id,
+            uom_id: item.uom_id ?? defaultKgsUomId.value,
+            rate: parseFloat(item.rate || 0),
+            actual_quantity: parseFloat(item.cross_quantity || item.actual_quantity || 0),
+            cross_quantity: parseFloat(item.cross_quantity || item.actual_quantity || 0),
+            variation_quantity: parseFloat(item.variation_quantity || 0)
+        }));
+    } else {
+        form.items = [blankItem()];
+    }
+};
+
+watch(() => props.initialDesign, () => {
+    if (props.initialDesign) {
+        populateFromInitialDesign();
+    }
+}, { immediate: true });
+
+const resetForm = () => {
+    form.reset();
+    if (props.initialDesign) {
+        populateFromInitialDesign();
+    } else {
+        form.items = [blankItem()];
+    }
+};
 
 const addItem = () => form.items.push(blankItem());
 const removeItem = (index: number) => { if (form.items.length > 1) form.items.splice(index, 1); };
@@ -104,6 +142,7 @@ const submit = () => {
             if (!item.uom_id) { form.setError(`items.${i}.uom_id`, 'UOM required.'); hasErrors = true; }
             // if (!item.actual_quantity || item.actual_quantity <= 0) { form.setError(`items.${i}.actual_quantity`, 'Qty > 0'); hasErrors = true; }
              if (!item.cross_quantity || item.cross_quantity <= 0) { form.setError(`items.${i}.cross_quantity`, 'Qty > 0'); hasErrors = true; }
+            item.actual_quantity = item.cross_quantity;
         });
     }
 
@@ -111,8 +150,7 @@ const submit = () => {
 
     form.post(route('mixdesigns.store'), {
         onSuccess: () => {
-            form.reset();
-            form.items = [blankItem()];
+            resetForm();
             emit('created');
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Mix Design created', timer: 1500, showConfirmButton: false });
         }
@@ -128,8 +166,8 @@ const submit = () => {
                     <BeakerIcon class="w-5 h-5 text-indigo-500" />
                 </div>
                 <div class="text-left">
-                    <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">Create New Mix Design</p>
-                    <p class="text-[11px] text-gray-400 font-medium mt-0.5">Define ingredient matrix, rates and partner assignment</p>
+                    <p class="text-xs font-bold text-gray-700 uppercase tracking-widest">{{ initialDesign ? 'Duplicate Mix Design' : 'Create New Mix Design' }}</p>
+                    <p class="text-[11px] text-gray-400 font-medium mt-0.5">{{ initialDesign ? 'Review and create a copy of the selected mix design' : 'Define ingredient matrix, rates and partner assignment' }}</p>
                 </div>
             </div>
             <div class="create-panel__toggle" :class="{ 'create-panel__toggle--open': isOpen }">
@@ -231,8 +269,14 @@ const submit = () => {
             
         </div>
         <div class="flex justify-end p-4 border-t border-slate-100">
-                <BaseFormActions label="Save Mix Design" :loading="form.processing" @submit="submit" @reset="() => { form.reset(); form.items = [blankItem()]; }" />
-            </div>
+            <BaseFormActions 
+                :label="'Save Mix Design'" 
+                :loading="form.processing" 
+                @submit="submit" 
+                @cancel="() => emit('cancel')" 
+                @reset="resetForm" 
+            />
+        </div>
     </div>
 </template>
 
