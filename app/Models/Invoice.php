@@ -572,7 +572,6 @@ class Invoice extends Model implements Postable
                 $pumpCharges = (float) ($source->pump_charges ?? 0);
                 $passAmount = (float) ($source->pass_amount ?? 0);
                 
-<<<<<<< HEAD
                 $sourceTotal = (float)($source->amount_total ?? $source->total_amount ?? 0);
                 $calcBeforeRound = ($subtotal + $taxAmount + $pumpCharges + $shippingCharges + $passAmount + $adjustment) - $discountTotal;
                 
@@ -583,13 +582,6 @@ class Invoice extends Model implements Postable
                     }
                 } else {
                     $totalAmount = round(($calcBeforeRound + $roundOff), 2);
-=======
-                // Calculate exact grand total matching dispatch total calculation
-                if ($source instanceof \App\Models\Dispatch || isset($source->load_total_amount)) {
-                    $totalAmount = (float) ($source->load_total_amount ?? $source->amount_total);
-                } else {
-                    $totalAmount = ($subtotal + $taxAmount + $pumpCharges + $shippingCharges + $passAmount + $adjustment + $roundOff) - $discountTotal;
->>>>>>> refs/remotes/origin/main
                 }
             }
 
