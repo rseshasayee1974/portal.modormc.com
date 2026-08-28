@@ -16,7 +16,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class KnowledgeController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'setting';
+    protected string $module = 'knowledge';
     /**
      * List all indexed knowledge base documents.
      */
