@@ -14,7 +14,7 @@ class CustomerPOController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'customer_pos';
+    protected string $module = 'customer_po';
 
 
     public function index()

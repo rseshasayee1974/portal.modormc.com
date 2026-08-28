@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 class InvoiceController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'invoices';
+    protected string $module = 'invoice';
 
     public function index()
     {

@@ -10,7 +10,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class CustomSettingController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'setting';
+    protected string $module = 'custom_setting';
     public function index()
     {
         $this->authorizeModule('menu');

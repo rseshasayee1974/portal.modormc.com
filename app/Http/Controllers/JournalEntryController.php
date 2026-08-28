@@ -18,29 +18,29 @@ class JournalEntryController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'journal_entries';
+    protected string $module = 'journal_entry';
     /**
      * Display a listing of journal entries.
      */
     public function index()
     {
         $this->authorizeModule('menu');
-        $entityId = session('active_entity_id');
+        $plantId = session('active_plant_id');
 
         $entries = JournalEntry::with(['lines.ledger', 'creator'])
-            ->where('entity_id', $entityId)
+            ->where('plant_id', $plantId)
             ->where('is_deleted', 0)
             ->latest()
             ->get();
 
-        $ledgers = Ledger::where('entity_id', $entityId)
+        $ledgers = Ledger::where('plant_id', $plantId)
             ->where('status', 1)
             ->orderBy('title', 'asc')
             ->get();
 
-        $voucherTypes = VoucherType::where(function ($q) use ($entityId) {
-                $q->whereNull('entity_id')
-                  ->orWhere('entity_id', $entityId);
+        $voucherTypes = VoucherType::where(function ($q) use ($plantId) {
+                $q->whereNull('plant_id')
+                  ->orWhere('plant_id', $plantId);
             })
             ->get();
 
@@ -61,7 +61,7 @@ class JournalEntryController extends Controller
     public function store(Request $request)
     {
         $this->authorizeModule('create');
-        $entityId = session('active_entity_id');
+        $plantId = session('active_plant_id');
         $userId = Auth::id();
 
         $validated = $request->validate([
@@ -77,7 +77,7 @@ class JournalEntryController extends Controller
             'lines.*.line_narration' => ['nullable', 'string', 'max:255'],
         ]);
 
-        return DB::transaction(function () use ($validated, $entityId, $userId) {
+        return DB::transaction(function () use ($validated, $plantId, $userId) {
             $totalDebit = collect($validated['lines'])->sum('debit_amount');
             $totalCredit = collect($validated['lines'])->sum('credit_amount');
 
@@ -93,7 +93,7 @@ class JournalEntryController extends Controller
             $vType = VoucherType::where('short_code', $validated['voucher_type'])->first();
             $prefix = $vType ? $vType->prefix : ($validated['voucher_type'] . '-');
             
-            $lastEntry = JournalEntry::where('entity_id', $entityId)
+            $lastEntry = JournalEntry::where('plant_id', $plantId)
                 ->where('voucher_type', $validated['voucher_type'])
                 ->orderBy('id', 'desc')
                 ->first();
@@ -103,7 +103,7 @@ class JournalEntryController extends Controller
 
             // 3. Create Header
             $entry = JournalEntry::create([
-                'entity_id'      => $entityId,
+                'plant_id'       => $plantId,
                 'voucher_type'   => $validated['voucher_type'],
                 'voucher_number' => $voucherNumber,
                 'voucher_date'   => $validated['voucher_date'],
@@ -124,6 +124,7 @@ class JournalEntryController extends Controller
 
                 JournalEntryLine::create(array_merge($line, [
                     'journal_entry_id' => $entry->id,
+                    'plant_id'         => $plantId,
                     'created_by'       => $userId,
                 ]));
             }
@@ -141,8 +142,8 @@ class JournalEntryController extends Controller
     public function destroy($id)
     {
         $this->authorizeModule('delete');
-        $entityId = session('active_entity_id');
-        $entry = JournalEntry::where('entity_id', $entityId)->findOrFail($id);
+        $plantId = session('active_plant_id');
+        $entry = JournalEntry::where('plant_id', $plantId)->findOrFail($id);
         
         // Handle logic for posted entries if needed (maybe only allow deletion if DRAFT)
         
