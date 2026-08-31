@@ -593,11 +593,7 @@ const isPdf = computed(() => {
                                 </select>
                             </div>
 
-<<<<<<< HEAD
-                            <!-- Work Order Link -->
-=======
                             <!-- Sales Order Dropdown mapping -->
->>>>>>> 053465c1e6c079dad07f37cfe21ff38c1e030d30
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">Sales Order Link</label>
                                 <select v-model="headerData.sales_order_id" class="w-full px-3 py-2 bg-white border border-gray-300 rounded text-xs focus:outline-none focus:border-indigo-500">
