@@ -85,8 +85,13 @@ class ProcessBatchSheetJob implements ShouldQueue
 
             $upload->transitionTo(BatchSheetUpload::STATUS_EXTRACTING, "Extracting and mapping key-value fields...");
 
-            // 3. Match template
-            $template = $templateMatcher->match($parsedDoc->headerFields, $upload->plant_id);
+            // 3. Match template with high-speed pattern recognizer
+            $template = $templateMatcher->match(
+                $parsedDoc->headerFields,
+                $upload->plant_id,
+                $parsedDoc->materialRows,
+                $parsedDoc->rawText
+            );
             if ($template) {
                 $upload->update(['template_id' => $template->id]);
             }

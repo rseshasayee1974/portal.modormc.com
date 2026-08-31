@@ -338,7 +338,7 @@ class PurchaseOrderControllerTest extends TestCase
             'invoice_date' => '2026-06-05',
         ]);
         if (!session()->has('success')) {
-            dd(session()->all());
+            // dd(session()->all());
         }
         $response1->assertSessionHas('success');
 

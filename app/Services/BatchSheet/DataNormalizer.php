@@ -7,7 +7,7 @@ use App\Models\Machine;
 use App\Models\Patron;
 use App\Models\Personnel;
 use App\Models\Product;
-use App\Models\WorkOrder;
+use App\Models\SalesOrder;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -31,7 +31,7 @@ class DataNormalizer
             'truck_id' => null,
             'driver_id' => null,
             'operator_id' => null,
-            'work_order_id' => null,
+            'sales_order_id' => null,
         ];
 
         // Resolve customer
@@ -55,10 +55,10 @@ class DataNormalizer
             $normalizedHeader['operator_id'] = $this->resolveOperator($opName, $plantId);
         }
 
-        // Resolve work order
+        // Resolve sales order
         $orderNo = $extractedHeader['order_number'] ?? null;
         if (!empty($orderNo)) {
-            $normalizedHeader['work_order_id'] = $this->resolveWorkOrder($orderNo, $plantId);
+            $normalizedHeader['sales_order_id'] = $this->resolveSalesOrder($orderNo, $plantId);
         }
 
         // Saved Plant Material Mappings
@@ -199,16 +199,16 @@ class DataNormalizer
         return $op ? $op->id : null;
     }
 
-    protected function resolveWorkOrder(string $orderNo, int $plantId): ?int
+    protected function resolveSalesOrder(string $orderNo, int $plantId): ?int
     {
         $cleanNo = trim($orderNo);
         if (empty($cleanNo)) return null;
 
-        $wo = WorkOrder::where('plant_id', $plantId)->where('order_no', $cleanNo)->first();
-        if ($wo) return $wo->id;
+        $so = SalesOrder::where('plant_id', $plantId)->where('order_no', $cleanNo)->first();
+        if ($so) return $so->id;
 
-        $wo = WorkOrder::where('plant_id', $plantId)->where('order_no', 'like', "%{$cleanNo}%")->first();
-        if ($wo) return $wo->id;
+        $so = SalesOrder::where('plant_id', $plantId)->where('order_no', 'like', "%{$cleanNo}%")->first();
+        if ($so) return $so->id;
 
         return null;
     }

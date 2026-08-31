@@ -1,0 +1,101 @@
+{
+  "fp_167a66fdc99fc84287cb6c97fcec510dbf7cc51813a1d4d513937fb8d7b24a18": {
+    "detected_cols": [
+      {
+        "name": "D SAND",
+        "x": 149
+      },
+      {
+        "name": "M SAND",
+        "x": 217
+      },
+      {
+        "name": "20MM",
+        "x": 284
+      },
+      {
+        "name": "12MM",
+        "x": 352
+      },
+      {
+        "name": "AGG 5",
+        "x": 420
+      },
+      {
+        "name": "AGG 6",
+        "x": 485
+      },
+      {
+        "name": "GGBS",
+        "x": 550
+      },
+      {
+        "name": "CEM1",
+        "x": 620
+      },
+      {
+        "name": "CEM2",
+        "x": 696
+      },
+      {
+        "name": "FLY",
+        "x": 771
+      },
+      {
+        "name": "CEM5",
+        "x": 835
+      },
+      {
+        "name": "WTR",
+        "x": 911
+      },
+      {
+        "name": "WC",
+        "x": 980
+      },
+      {
+        "name": "WTR 2",
+        "x": 1045
+      },
+      {
+        "name": "ICE",
+        "x": 1120
+      },
+      {
+        "name": "ADM 1",
+        "x": 1206
+      },
+      {
+        "name": "ADM 2",
+        "x": 1282
+      },
+      {
+        "name": "ADM 3",
+        "x": 1360
+      },
+      {
+        "name": "ADM 4",
+        "x": 1437
+      },
+      {
+        "name": "SIL",
+        "x": 1524
+      }
+    ],
+    "fingerprint": "fp_167a66fdc99fc84287cb6c97fcec510dbf7cc51813a1d4d513937fb8d7b24a18",
+    "keys": [
+      "batch_number",
+      "recipe_name",
+      "batch_date",
+      "recipe_code",
+      "batch_size",
+      "batch_start_time",
+      "truck_number",
+      "batch_end_time",
+      "driver",
+      "order_number",
+      "customer",
+      "site"
+    ]
+  }
+}

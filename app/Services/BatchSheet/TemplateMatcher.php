@@ -7,63 +7,35 @@ use Illuminate\Support\Facades\Log;
 
 class TemplateMatcher
 {
-    /**
-     * Match extracted raw header fields to an existing template for the plant
-     * based on the keys (labels) present in the document.
-     */
-    public function match(array $rawFields, int $plantId): ?BatchSheetTemplate
+    protected PatternRecognitionService $patternService;
+
+    public function __construct(PatternRecognitionService $patternService)
     {
-        Log::info("TemplateMatcher: Attempting to match template for plant {$plantId} with " . count($rawFields) . " raw fields");
+        $this->patternService = $patternService;
+    }
 
-        if (empty($rawFields)) {
+    /**
+     * Match extracted raw header fields and material rows to an existing template
+     * for the plant with O(1) best-case time complexity.
+     *
+     * @param array $rawFields
+     * @param int $plantId
+     * @param array $materialRows
+     * @param string|null $rawText
+     * @return BatchSheetTemplate|null
+     */
+    public function match(
+        array $rawFields,
+        int $plantId,
+        array $materialRows = [],
+        ?string $rawText = null
+    ): ?BatchSheetTemplate {
+        Log::info("TemplateMatcher: Matching pattern for plant {$plantId} (" . count($rawFields) . " headers, " . count($materialRows) . " materials)");
+
+        if (empty($rawFields) && empty($materialRows)) {
             return null;
         }
 
-        $templates = BatchSheetTemplate::where('plant_id', $plantId)
-            ->where('is_active', true)
-            ->get();
-
-        if ($templates->isEmpty()) {
-            Log::info("TemplateMatcher: No active templates found for plant {$plantId}");
-            return null;
-        }
-
-        $rawLabelsLower = array_map('strtolower', array_keys($rawFields));
-        
-        $bestMatch = null;
-        $highestSimilarity = 0.0;
-        $threshold = 0.7; // 70% key overlap threshold
-
-        foreach ($templates as $template) {
-            $mapping = $template->field_mapping ?? [];
-            if (empty($mapping)) continue;
-
-            // Template expected labels
-            $templateLabelsLower = array_map('strtolower', array_values($mapping));
-
-            // Calculate Jaccard similarity: intersection / union of keys
-            $intersection = array_intersect($rawLabelsLower, $templateLabelsLower);
-            $union = array_unique(array_merge($rawLabelsLower, $templateLabelsLower));
-
-            if (empty($union)) continue;
-
-            $similarity = count($intersection) / count($union);
-            Log::debug("TemplateMatcher: Comparing with template '{$template->name}' - Similarity: {$similarity}");
-
-            if ($similarity > $highestSimilarity && $similarity >= $threshold) {
-                $highestSimilarity = $similarity;
-                $bestMatch = $template;
-            }
-        }
-
-        if ($bestMatch) {
-            Log::info("TemplateMatcher: Matched template '{$bestMatch->name}' (Similarity: {$highestSimilarity})");
-            // Increment usage count
-            $bestMatch->increment('usage_count');
-        } else {
-            Log::info("TemplateMatcher: No matching template found above threshold");
-        }
-
-        return $bestMatch;
+        return $this->patternService->findBestMatch($plantId, $rawFields, $materialRows, $rawText);
     }
 }

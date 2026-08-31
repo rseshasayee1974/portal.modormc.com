@@ -32,8 +32,7 @@ class FieldExtractor
 
         // For any remaining canonical fields that aren't filled yet, resolve via dictionary or direct canonical passthrough
         foreach ($rawFields as $rawLabel => $rawValue) {
-            // Skip labels that are numeric or too long
-            if (is_numeric($rawLabel) || strlen($rawLabel) > 50) {
+            if (!is_string($rawLabel) || is_numeric($rawLabel) || strlen($rawLabel) > 50) {
                 continue;
             }
 

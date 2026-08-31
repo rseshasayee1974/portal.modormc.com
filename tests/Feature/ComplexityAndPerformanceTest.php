@@ -65,7 +65,7 @@ class ComplexityAndPerformanceTest extends TestCase
 
         return Batch::create([
             'plant_id' => $this->plant->id,
-            'work_order_id' => $workOrder->id,
+            'sales_order_id' => $workOrder->id,
             'batch_no' => $batchNo,
             'batch_size' => 1.5,
             'status' => Batch::STATUS_PLANNED,
@@ -86,7 +86,7 @@ class ComplexityAndPerformanceTest extends TestCase
         $driver = Personnel::factory()->create(['plant_id' => $this->plant->id]);
 
         return Dispatch::create([
-            'work_order_id' => $batch->work_order_id,
+            'sales_order_id' => $batch->sales_order_id,
             'batch_id' => $batch->id,
             'truck_id' => $truck->id,
             'driver_id' => $driver->id,

@@ -7,6 +7,7 @@ use App\Services\BatchSheet\Parsers\CsvParser;
 use App\Services\BatchSheet\Parsers\ExcelParser;
 use App\Services\BatchSheet\Parsers\ImageAiParser;
 use App\Services\BatchSheet\Parsers\PdfTextParser;
+use App\Services\BatchSheet\Parsers\PythonOcrParser;
 use Illuminate\Support\Facades\App;
 use Smalot\PdfParser\Parser as SmalotPdfParser;
 
@@ -18,6 +19,7 @@ class ParserRegistry
     {
         // Register default parsers
         $this->register(App::make(PdfTextParser::class));
+        $this->register(App::make(PythonOcrParser::class));
         $this->register(App::make(ImageAiParser::class));
         $this->register(App::make(ExcelParser::class));
         $this->register(App::make(CsvParser::class));
@@ -36,10 +38,10 @@ class ParserRegistry
      */
     public function resolve(string $mimeType, string $extension, ?string $filePath = null): DocumentParser
     {
-        // Special check: If PDF is scanned, route to ImageAiParser
+        // Special check: If PDF is scanned, route to PythonOcrParser or ImageAiParser
         if ($extension === 'pdf' && $filePath && $this->detectOcrRequired($filePath)) {
             foreach ($this->parsers as $parser) {
-                if ($parser instanceof ImageAiParser) {
+                if ($parser instanceof PythonOcrParser || $parser instanceof ImageAiParser) {
                     return $parser;
                 }
             }

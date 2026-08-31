@@ -97,9 +97,7 @@ PROMPT;
     {
         Log::info("ImageAiParser: Calling Gemini Vision API");
 
-        // If mime type is not supported by Gemini (e.g. tiff/bmp), we might fallback, but flash supports pdf, png, jpeg, webp
-        // Normalize TIFF or BMP to png in general, but let's send it directly first
-        $response = Http::timeout(45)->post(
+        $response = Http::withoutVerifying()->timeout(45)->post(
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}",
             [
                 'contents' => [[
@@ -132,7 +130,7 @@ PROMPT;
             throw new \RuntimeException('OpenAI GPT-4o does not support parsing PDF files directly. Use Gemini or upload image format.');
         }
 
-        $response = Http::withToken($apiKey)->timeout(45)->post(
+        $response = Http::withoutVerifying()->withToken($apiKey)->timeout(45)->post(
             'https://api.openai.com/v1/chat/completions',
             [
                 'model' => 'gpt-4o',
