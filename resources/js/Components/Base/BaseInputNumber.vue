@@ -22,6 +22,7 @@ const props = withDefaults(
         suffix?: string;
         mode?: 'decimal' | 'currency';
         currency?: string;
+        useGrouping?: boolean;
         size?: 'small' | 'large';
         fluid?: boolean;
         fieldClass?: string;
@@ -32,6 +33,7 @@ const props = withDefaults(
         disabled: false,
         readonly: false,
         minFractionDigits: 2,
+        maxFractionDigits: 3,
         size: 'small',
         fluid: true,
     }
@@ -59,14 +61,15 @@ const emit = defineEmits<{
                 :placeholder="placeholder"
                 :disabled="disabled"
                 :readonly="readonly"
-                :minFractionDigits="2"
-                :maxFractionDigits="3"
+                :minFractionDigits="minFractionDigits"
+                :maxFractionDigits="maxFractionDigits"
                 :min="min"
                 :max="max"
                 :prefix="prefix"
                 :suffix="suffix"
                 :mode="mode"
                 :currency="currency"
+                :useGrouping="useGrouping"
                 :size="size"
                 :fluid="fluid"
                 :class="[

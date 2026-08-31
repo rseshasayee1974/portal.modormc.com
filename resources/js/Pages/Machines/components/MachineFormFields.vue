@@ -107,7 +107,7 @@ defineExpose({ activeTab });
 
                 <div class="col-span-6 md:col-span-3 field-group">
                     <label class="field-label">Make Year</label>
-                    <BaseInputNumber v-model="form.make_year" :useGrouping="false" placeholder="2024" />
+                    <BaseInputNumber v-model="form.make_year"  :minFractionDigits="0" :maxFractionDigits="0" placeholder="2024" />
                 </div>
 
                 <div class="col-span-6 md:col-span-3 field-group">

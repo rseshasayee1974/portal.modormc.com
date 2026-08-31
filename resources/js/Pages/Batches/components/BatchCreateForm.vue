@@ -124,14 +124,20 @@ const nextBatchNoDisplay = computed(() => {
 const salesOrderDetails = computed(() => {
     if (!selectedSalesOrder.value) return [];
     const wo = selectedSalesOrder.value;
+    const prodQty = Number(wo.produced_qty || 0).toFixed(2);
+    const totalQty = Number(wo.total_qty || 0).toFixed(2);
+    const pendingQty = Math.max(0, Number(wo.total_qty || 0) - Number(wo.produced_qty || 0)).toFixed(2);
+
     return [
         { label: 'Order #', value: wo.full_number },
         { label: 'Customer', value: wo.customer_name || 'N/A' },
         { label: 'Site', value: wo.site_name || 'N/A' },
         { label: 'Design', value: wo.mix_design_name || 'N/A' },
-        // { label: 'Grade/Ratio', value: `${wo.mix_design?.concrete_grade?.name || wo.mix_design?.grade || 'N/A'} (${wo.mix_design?.concrete_grade?.concrete_ratio || 'N/A'})` },
-        { label: 'Total Qty', value: `${wo.produced_qty} / ${wo.total_qty} m³` },
-        // { label: 'Produced', value: `${wo.produced_qty} m³` },
+        { 
+            label: 'Total Qty', 
+            value: `${prodQty} / ${totalQty} m³`,
+            pending: `${pendingQty} m³`
+        },
     ];
 });
 const isAutofillingSalesOrder = ref(false);
@@ -566,6 +572,9 @@ const submit = () => {
                             <div v-for="detail in salesOrderDetails" :key="detail.label" class="flex flex-col">
                                 <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{{ detail.label }}</span>
                                 <span class="text-xs font-bold text-slate-800 mt-0.5 leading-tight">{{ detail.value }}</span>
+                                <p v-if="detail.pending" class="text-[10px] font-semibold text-slate-400 mt-1">
+                                    <span class="text-indigo-500 font-semibold">Pending:</span> {{ detail.pending }}
+                                </p>
                             </div>
                             <div class="flex flex-col">
                                 <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Loading Site</span>
@@ -612,7 +621,7 @@ const submit = () => {
                         <BaseSelect v-model="form.concrete_pump" :options="concretePumpOptions" optionLabel="label" optionValue="value" label="Concrete Type" placeholder="Select Concrete Type" :error="form.errors.concrete_pump" />
                     </div> -->
                     <div>
-                        <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :minFractionDigits="1" :maxFractionDigits="1" :max="9.9" required :error="form.errors.batch_size" />
+                        <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :minFractionDigits="1" :maxFractionDigits="1" required :error="form.errors.batch_size" />
                     </div>
                     <div>
                         <div class="flex items-end gap-2">
