@@ -16,6 +16,7 @@ use App\Jobs\ProcessBatchSheetJob;
 use App\Models\SalesOrder;
 use App\Services\BatchSheet\UploadService;
 use App\Services\BatchSheet\AiMappingSuggestionService;
+use App\Services\BatchSheet\PatternRecognitionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -49,28 +50,61 @@ class BatchSheetUploadController extends Controller
             $duplicate = $this->uploadService->checkDuplicate($hash, $plantId);
 
             if ($duplicate) {
-                return response()->json([
-                    'status' => 'duplicate',
-                    'duplicate' => [
-                        'id' => $duplicate->id,
-                        'original_filename' => $duplicate->original_filename,
-                        'status' => $duplicate->status,
-                        'created_at' => $duplicate->created_at ? $duplicate->created_at->toIso8601String() : null,
-                    ]
-                ]);
+                // If a duplicate exists, re-process extraction to ensure latest patterns are applied
+                try {
+                    ProcessBatchSheetJob::dispatchSync($duplicate->id);
+                } catch (\Exception $e) {
+                    Log::warning("Duplicate re-process warning: " . $e->getMessage());
+                }
+                $upload = $duplicate;
+            } else {
+                // Store file and create upload record
+                $upload = $this->uploadService->store($file, $plantId, auth()->id() ?? 1);
+                $upload->transitionTo(BatchSheetUpload::STATUS_UPLOADED, "File successfully uploaded to local storage disk.");
+
+                // Process batch sheet extraction
+                try {
+                    ProcessBatchSheetJob::dispatchSync($upload->id);
+                } catch (\Exception $e) {
+                    Log::warning("Immediate batch sheet processing warning: " . $e->getMessage());
+                    ProcessBatchSheetJob::dispatch($upload->id);
+                }
             }
 
-            // Store file and create upload record
-            $upload = $this->uploadService->store($file, $plantId, auth()->id() ?? 1);
-            $upload->transitionTo(BatchSheetUpload::STATUS_UPLOADED, "File successfully uploaded to local storage disk.");
-
-            // Dispatch async job
-            ProcessBatchSheetJob::dispatch($upload->id);
+            // Dump complete extracted data and workflow state for inspection
+            $upload->refresh();
+            // dd([
+            //     'workflow_step' => 'Batch Sheet Upload & OCR Extraction Workflow',
+            //     'upload_record' => [
+            //         'id' => $upload->id,
+            //         'plant_id' => $upload->plant_id,
+            //         'original_filename' => $upload->original_filename,
+            //         'stored_path' => $upload->stored_path,
+            //         'file_url' => $upload->file_url,
+            //         'mime_type' => $upload->mime_type,
+            //         'file_extension' => $upload->file_extension,
+            //         'ocr_required' => $upload->ocr_required,
+            //         'parser_used' => $upload->parser_used,
+            //         'status' => $upload->status,
+            //     ],
+            //     'step_1_raw_ocr_extracted_json' => $upload->parsed_json,
+            //     'step_2_pattern_matched_template' => $upload->template ? [
+            //         'id' => $upload->template->id,
+            //         'name' => $upload->template->name,
+            //         'layout_fingerprint' => $upload->template->layout_fingerprint,
+            //         'keywords' => $upload->template->keywords,
+            //         'field_mapping' => $upload->template->field_mapping,
+            //         'material_mapping' => $upload->template->material_mapping,
+            //     ] : null,
+            //     'step_3_field_confidence_scores' => $upload->field_scores,
+            //     'step_4_normalized_database_ready_json' => $upload->normalized_json,
+            //     'raw_ocr_full_text' => $upload->raw_text,
+            // ]);
 
             return response()->json([
                 'status' => 'success',
                 'upload_id' => $upload->id,
-                'message' => 'Batch sheet uploaded and queued for intelligent extraction.'
+                'message' => 'Batch sheet uploaded and extracted successfully.'
             ]);
 
         } catch (\InvalidArgumentException $e) {
@@ -146,7 +180,7 @@ class BatchSheetUploadController extends Controller
             });
         $products = Product::where('plant_id', $plantId)->get(['id', 'title']);
         
-        $workOrders = SalesOrder::query()->where('plant_id', $plantId)
+        $salesOrders = SalesOrder::query()->where('plant_id', $plantId)
             ->get(['id', 'order_no', 'produced_qty', 'total_qty']);
 
         return response()->json([
@@ -167,7 +201,7 @@ class BatchSheetUploadController extends Controller
                 'drivers' => $drivers,
                 'operators' => $operators,
                 'products' => $products,
-                'work_orders' => $workOrders,
+                'sales_orders' => $salesOrders,
             ]
         ]);
     }
@@ -195,7 +229,7 @@ class BatchSheetUploadController extends Controller
                 // 1. Create Batch record
                 $batch = Batch::create([
                     'plant_id' => $upload->plant_id,
-                    'work_order_id' => $header['work_order_id'] ?? null,
+                    'sales_order_id' => $header['sales_order_id'] ?? null,
                     'batch_no' => $header['batch_no'] ?? 'BS-' . time(),
                     'batch_size' => (float)($header['batch_size'] ?? 1.0),
                     'start_time' => $header['start_time'] ? date('H:i:s', strtotime($header['start_time'])) : null,
@@ -285,7 +319,7 @@ class BatchSheetUploadController extends Controller
                 Dispatch::create([
                     'plant_id' => $upload->plant_id,
                     'batch_id' => $batch->id,
-                    'work_order_id' => $header['work_order_id'] ?? null,
+                    'sales_order_id' => $header['sales_order_id'] ?? null,
                     'customer_id' => $header['customer_id'] ?? null,
                     'truck_id' => $header['truck_id'] ?? null,
                     'driver_id' => $header['driver_id'] ?? null,
@@ -304,6 +338,23 @@ class BatchSheetUploadController extends Controller
                 ]);
                 $upload->transitionTo(BatchSheetUpload::STATUS_COMPLETED, "Data verified and saved to system batches/trips successfully.");
             });
+
+            // 5. Auto-learn and enrich layout template for instant O(1) matching on future uploads
+            try {
+                $patternService = app(PatternRecognitionService::class);
+                $learnedTemplate = $patternService->autoLearnPattern(
+                    plantId: $upload->plant_id,
+                    headerFields: $header,
+                    materials: $materials,
+                    rawText: $upload->raw_text,
+                    sourceType: $upload->file_extension ?: 'ocr_image'
+                );
+                if ($learnedTemplate && !$upload->template_id) {
+                    $upload->update(['template_id' => $learnedTemplate->id]);
+                }
+            } catch (\Throwable $t) {
+                Log::warning("BatchSheetUploadController: Auto-learning pattern non-fatal error: " . $t->getMessage());
+            }
 
             return response()->json([
                 'status' => 'success',
@@ -341,15 +392,28 @@ class BatchSheetUploadController extends Controller
                 $sourceType = str_starts_with($upload->mime_type, 'image/') ? 'image' : 'pdf';
             }
 
-            $template = BatchSheetTemplate::create([
-                'plant_id' => $upload->plant_id,
-                'name' => $request->input('template_name'),
-                'source_type' => $sourceType,
-                'field_mapping' => $request->input('corrections', []),
-                'material_mapping' => $request->input('material_mapping', []),
-                'is_active' => true,
-            ]);
+            $rawHeaders = $upload->parsed_json['header_fields'] ?? [];
+            $rawMaterials = $upload->parsed_json['materials'] ?? [];
 
+            $patternService = app(PatternRecognitionService::class);
+            $fingerprint = $patternService->generateFingerprint(array_keys($rawHeaders), $rawMaterials);
+            $keywords = $patternService->extractKeywords(array_keys($rawHeaders), $rawMaterials, $upload->raw_text);
+
+            $template = BatchSheetTemplate::updateOrCreate(
+                [
+                    'plant_id' => $upload->plant_id,
+                    'name' => $request->input('template_name'),
+                ],
+                [
+                    'source_type' => $sourceType,
+                    'layout_fingerprint' => $fingerprint,
+                    'keywords' => $keywords,
+                    'field_mapping' => $request->input('corrections', []),
+                    'material_mapping' => $request->input('material_mapping', []),
+                    'is_active' => true,
+                ]
+            );
+// dd($patternService, $template, $upload , $rawMaterials , $keywords , $fingerprint);
             $upload->update([
                 'template_id' => $template->id
             ]);

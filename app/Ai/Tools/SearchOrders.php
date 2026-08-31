@@ -59,8 +59,8 @@ class SearchOrders implements Tool
         $plantId = session('active_plant_id');
 
         $batchQuery = Batch::query()
-            ->with(['workOrder.patron:id,name', 'workOrder.mixDesign:id,name'])
-            ->select(['id', 'batch_no', 'status', 'batch_size', 'work_order_id', 'created_at'])
+            ->with(['salesOrder.patron:id,legal_name', 'salesOrder.mixDesign:id,design_name'])
+            ->select(['id', 'batch_no', 'status', 'batch_size', 'sales_order_id', 'created_at'])
             ->orderByDesc('created_at')
             ->take(min($limit, 20));
 

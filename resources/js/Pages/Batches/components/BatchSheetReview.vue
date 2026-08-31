@@ -279,6 +279,9 @@ const submitVerification = async () => {
 const isPdf = computed(() => {
     return upload.value?.mime_type === 'application/pdf';
 });
+
+// console.log('sdcsfcds',props);
+
 </script>
 
 <template>
@@ -590,13 +593,17 @@ const isPdf = computed(() => {
                                 </select>
                             </div>
 
+<<<<<<< HEAD
                             <!-- Work Order Link -->
+=======
+                            <!-- Sales Order Dropdown mapping -->
+>>>>>>> 053465c1e6c079dad07f37cfe21ff38c1e030d30
                             <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">Work Order Link</label>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Sales Order Link</label>
                                 <select v-model="headerData.sales_order_id" class="w-full px-3 py-2 bg-white border border-gray-300 rounded text-xs focus:outline-none focus:border-indigo-500">
-                                    <option :value="null">-- Map Work Order --</option>
-                                    <option v-for="wo in dropdowns.sales_orders" :key="wo.id" :value="wo.id">
-                                        Order #{{ wo.order_no }} (Qty: {{ wo.produced_qty }}/{{ wo.total_qty }} m³)
+                                    <option :value="null">-- Map Sales Order --</option>
+                                    <option v-for="so in (dropdowns.sales_orders || dropdowns.work_orders)" :key="so.id" :value="so.id">
+                                        Order #{{ so.order_no }} (Qty: {{ so.produced_qty }}/{{ so.total_qty }} m³)
                                     </option>
                                 </select>
                             </div>

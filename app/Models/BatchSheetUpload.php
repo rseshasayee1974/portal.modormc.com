@@ -71,7 +71,16 @@ class BatchSheetUpload extends Model
 
     public function getFileUrlAttribute(): ?string
     {
-        return $this->stored_path ? Storage::disk(config('batchsheet.storage_disk', 'public'))->url($this->stored_path) : null;
+        if (!$this->stored_path) {
+            return null;
+        }
+
+        $disk = config('batchsheet.storage_disk', 'public');
+        if ($disk === 'public') {
+            return '/storage/' . ltrim($this->stored_path, '/');
+        }
+
+        return Storage::disk($disk)->url($this->stored_path);
     }
 
     /**
