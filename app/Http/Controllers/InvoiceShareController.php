@@ -48,14 +48,19 @@ class InvoiceShareController extends Controller
         // Determine plant context scoping
         $plantId = null;
         if ($docType === 'invoice') {
-            $invoice = Invoice::findOrFail($docId);
+            $invoice = Invoice::withoutGlobalScopes()->findOrFail($docId);
             $plantId = $invoice->plant_id;
         } elseif ($docType === 'batch') {
-            $batch = \App\Models\Batch::findOrFail($docId);
+            $batch = \App\Models\Batch::withoutGlobalScopes()->findOrFail($docId);
             $plantId = $batch->plant_id;
         } else {
-            // For reports, default to active plant in session
-            $plantId = session('active_plant_id') ?? app(\App\Services\PlantContextService::class)->plantId();
+            // For reports, check request param first, then session/service, then user default, then fallback
+            $plantId = $reportParams['plant_id'] 
+                ?? $request->input('plant_id') 
+                ?? session('active_plant_id') 
+                ?? app(\App\Services\PlantContextService::class)->plantId()
+                ?? auth()->user()?->default_plant_id
+                ?? Plant::withoutGlobalScopes()->value('id');
         }
 
         if (!$plantId) {
@@ -68,7 +73,7 @@ class InvoiceShareController extends Controller
         // Generate secure 64-char token
         do {
             $token = Str::random(64);
-        } while (PublicDocumentLink::where('token', $token)->exists());
+        } while (PublicDocumentLink::withoutGlobalScopes()->where('token', $token)->exists());
 
         // Save Link
         $link = PublicDocumentLink::create([
@@ -102,7 +107,7 @@ class InvoiceShareController extends Controller
      */
     public function viewBatch(string $token)
     {
-        $link = PublicDocumentLink::where('token', $token)->first();
+        $link = PublicDocumentLink::withoutGlobalScopes()->where('token', $token)->first();
 
         if (!$this->validateLink($link) || $link->document_type !== 'batch') {
             return response()->view('public.invalid_link', [], 410);
@@ -110,17 +115,21 @@ class InvoiceShareController extends Controller
 
         Session::put('active_plant_id', $link->plant_id);
 
-        $batch = \App\Models\Batch::findOrFail($link->document_id);
-        $batch->load([
-            'workOrder.customer',
-            'workOrder.site',
-            'workOrder.plant.entity',
-            'workOrder.mixDesign.concrete_grade',
-            'dispatches.truck',
-            'dispatches.driver',
-            'materials.product.category',
-            'materials.uom',
-        ]);
+        $batch = \App\Models\Batch::withoutGlobalScopes()
+            ->with([
+                'workOrder' => fn($q) => $q->withoutGlobalScopes(),
+                'workOrder.customer' => fn($q) => $q->withoutGlobalScopes(),
+                'workOrder.site' => fn($q) => $q->withoutGlobalScopes(),
+                'workOrder.plant.entity' => fn($q) => $q->withoutGlobalScopes(),
+                'workOrder.mixDesign.concrete_grade' => fn($q) => $q->withoutGlobalScopes(),
+                'dispatches' => fn($q) => $q->withoutGlobalScopes(),
+                'dispatches.truck' => fn($q) => $q->withoutGlobalScopes(),
+                'dispatches.driver' => fn($q) => $q->withoutGlobalScopes(),
+                'materials' => fn($q) => $q->withoutGlobalScopes(),
+                'materials.product.category' => fn($q) => $q->withoutGlobalScopes(),
+                'materials.uom' => fn($q) => $q->withoutGlobalScopes(),
+            ])
+            ->findOrFail($link->document_id);
 
         $sheet = $batch->getReportData();
 
@@ -136,7 +145,7 @@ class InvoiceShareController extends Controller
      */
     public function downloadBatchPDF(string $token)
     {
-        $link = PublicDocumentLink::where('token', $token)->first();
+        $link = PublicDocumentLink::withoutGlobalScopes()->where('token', $token)->first();
 
         if (!$this->validateLink($link) || $link->document_type !== 'batch') {
             abort(410, "This link is no longer available.");
@@ -144,17 +153,21 @@ class InvoiceShareController extends Controller
 
         Session::put('active_plant_id', $link->plant_id);
 
-        $batch = \App\Models\Batch::findOrFail($link->document_id);
-        $batch->load([
-            'workOrder.customer',
-            'workOrder.site',
-            'workOrder.plant.entity',
-            'workOrder.mixDesign.concrete_grade',
-            'dispatches.truck',
-            'dispatches.driver',
-            'materials.product.category',
-            'materials.uom',
-        ]);
+        $batch = \App\Models\Batch::withoutGlobalScopes()
+            ->with([
+                'workOrder' => fn($q) => $q->withoutGlobalScopes(),
+                'workOrder.customer' => fn($q) => $q->withoutGlobalScopes(),
+                'workOrder.site' => fn($q) => $q->withoutGlobalScopes(),
+                'workOrder.plant.entity' => fn($q) => $q->withoutGlobalScopes(),
+                'workOrder.mixDesign.concrete_grade' => fn($q) => $q->withoutGlobalScopes(),
+                'dispatches' => fn($q) => $q->withoutGlobalScopes(),
+                'dispatches.truck' => fn($q) => $q->withoutGlobalScopes(),
+                'dispatches.driver' => fn($q) => $q->withoutGlobalScopes(),
+                'materials' => fn($q) => $q->withoutGlobalScopes(),
+                'materials.product.category' => fn($q) => $q->withoutGlobalScopes(),
+                'materials.uom' => fn($q) => $q->withoutGlobalScopes(),
+            ])
+            ->findOrFail($link->document_id);
 
         $sheet = $batch->getReportData();
 
@@ -180,7 +193,7 @@ class InvoiceShareController extends Controller
      */
     public function viewInvoice(string $token)
     {
-        $link = PublicDocumentLink::where('token', $token)->first();
+        $link = PublicDocumentLink::withoutGlobalScopes()->where('token', $token)->first();
 
         if (!$this->validateLink($link) || $link->document_type !== 'invoice') {
             return response()->view('public.invalid_link', [], 410);
@@ -189,7 +202,16 @@ class InvoiceShareController extends Controller
         // Override session plant context temporarily for this request lifecycle
         Session::put('active_plant_id', $link->plant_id);
 
-        $invoice = Invoice::with(['plant', 'plant.entity', 'partner', 'items.tax', 'items.uom', 'orderTaxes'])
+        $invoice = Invoice::withoutGlobalScopes()
+            ->with([
+                'plant' => fn($q) => $q->withoutGlobalScopes(),
+                'plant.entity' => fn($q) => $q->withoutGlobalScopes(),
+                'partner' => fn($q) => $q->withoutGlobalScopes(),
+                'items' => fn($q) => $q->withoutGlobalScopes(),
+                'items.tax' => fn($q) => $q->withoutGlobalScopes(),
+                'items.uom' => fn($q) => $q->withoutGlobalScopes(),
+                'orderTaxes' => fn($q) => $q->withoutGlobalScopes(),
+            ])
             ->findOrFail($link->document_id);
 
         $data = PrintDataFormatter::fromInvoice($invoice);
@@ -209,7 +231,7 @@ class InvoiceShareController extends Controller
      */
     public function downloadPDF(string $token)
     {
-        $link = PublicDocumentLink::where('token', $token)->first();
+        $link = PublicDocumentLink::withoutGlobalScopes()->where('token', $token)->first();
 
         if (!$this->validateLink($link) || $link->document_type !== 'invoice') {
             abort(410, "This link is no longer available.");
@@ -217,7 +239,17 @@ class InvoiceShareController extends Controller
 
         Session::put('active_plant_id', $link->plant_id);
 
-        $invoice = Invoice::findOrFail($link->document_id);
+        $invoice = Invoice::withoutGlobalScopes()
+            ->with([
+                'plant' => fn($q) => $q->withoutGlobalScopes(),
+                'plant.entity' => fn($q) => $q->withoutGlobalScopes(),
+                'partner' => fn($q) => $q->withoutGlobalScopes(),
+                'items' => fn($q) => $q->withoutGlobalScopes(),
+                'items.tax' => fn($q) => $q->withoutGlobalScopes(),
+                'items.uom' => fn($q) => $q->withoutGlobalScopes(),
+                'orderTaxes' => fn($q) => $q->withoutGlobalScopes(),
+            ])
+            ->findOrFail($link->document_id);
         $data = PrintDataFormatter::fromInvoice($invoice);
         $templateKey = PrintDataFormatter::resolveTemplateKey('invoices', $invoice->plant_id);
         $view = PrintDataFormatter::resolveView($templateKey);
@@ -235,7 +267,7 @@ class InvoiceShareController extends Controller
      */
     public function viewReport(string $token)
     {
-        $link = PublicDocumentLink::where('token', $token)->first();
+        $link = PublicDocumentLink::withoutGlobalScopes()->where('token', $token)->first();
 
         if (!$this->validateLink($link) || strtolower($link->document_type) !== 'report') {
             return response()->view('public.invalid_link', [], 410);
@@ -259,7 +291,7 @@ class InvoiceShareController extends Controller
      */
     public function downloadReportPDF(string $token)
     {
-        $link = PublicDocumentLink::where('token', $token)->first();
+        $link = PublicDocumentLink::withoutGlobalScopes()->where('token', $token)->first();
 
         if (!$this->validateLink($link) || strtolower($link->document_type) !== 'report') {
             abort(410, "This link is no longer available.");
@@ -304,7 +336,12 @@ class InvoiceShareController extends Controller
         $start = $params['start_date'] ?? $params['from_date'] ?? $params['start'] ?? now()->startOfMonth()->toDateString();
         $end = $params['end_date'] ?? $params['to_date'] ?? $params['end'] ?? now()->toDateString();
 
-        $plant = Plant::with(['addresses.state', 'contacts'])->find($link->plant_id);
+        $plant = Plant::withoutGlobalScopes()
+            ->with([
+                'addresses.state' => fn($q) => $q->withoutGlobalScopes(),
+                'contacts' => fn($q) => $q->withoutGlobalScopes()
+            ])
+            ->find($link->plant_id);
 
         if (in_array($type, ['sales_register', 'purchase_register', 'machine_summary', 'vehicle_pl'])) {
             $filters = [
@@ -400,9 +437,9 @@ class InvoiceShareController extends Controller
         $ledgerId = $reportParams['id'];
 
         if ($patronId) {
-            $patron = Patron::with(['addresses.state'])->find($patronId);
+            $patron = Patron::withoutGlobalScopes()->with(['addresses.state' => fn($q) => $q->withoutGlobalScopes()])->find($patronId);
         } elseif ($ledgerId) {
-            $patron = Patron::with(['addresses.state'])->where('ledger_id', $ledgerId)->first();
+            $patron = Patron::withoutGlobalScopes()->with(['addresses.state' => fn($q) => $q->withoutGlobalScopes()])->where('ledger_id', $ledgerId)->first();
         }
 
         $extraParams = [];

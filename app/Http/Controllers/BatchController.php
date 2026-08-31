@@ -1010,26 +1010,26 @@ class BatchController extends Controller
         $this->authorizeModule('edit');
 
         $user = auth()->user();
-        $isAdmin = $user && method_exists($user, 'hasRole') && (
-            $user->hasRole('Saas Owner') || 
-            $user->hasRole('Platform Admin') || 
-            $user->hasRole('Super Admin') || 
-            $user->hasRole('Admin') || 
-            $user->hasRole('Super Administrator') ||
-            $user->hasRole('Administrator')
-        );
+        // $isAdmin = $user && method_exists($user, 'hasRole') && (
+        //     $user->hasRole('Saas Owner') || 
+        //     $user->hasRole('Platform Admin') || 
+        //     $user->hasRole('Super Admin') || 
+        //     $user->hasRole('Admin') || 
+        //     $user->hasRole('Super Administrator') ||
+        //     $user->hasRole('Administrator')
+        // );
 
-        if (!$isAdmin) {
-            $dispatch = $batch->dispatches()->first();
-            $dispatchPump = $dispatch ? ($dispatch->concrete_pump ?? $dispatch->concrete_pump) : null;
-            if (
-                ($request->has('batch_size') && (float)$request->batch_size !== (float)$batch->batch_size) ||
-                ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$batch->sales_order_id) ||
-                (($request->has('concrete_pump') || $request->has('concrete_pump')) && ($request->get('concrete_pump') ?? $request->get('concrete_pump')) !== $dispatchPump)
-            ) {
-                return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Sales Order, Batch Size, or Concrete Pump.']);
-            }
-        }
+        // if (!$isAdmin) {
+        //     $dispatch = $batch->dispatches()->first();
+        //     $dispatchPump = $dispatch ? ($dispatch->concrete_pump ?? $dispatch->concrete_pump) : null;
+        //     if (
+        //         ($request->has('batch_size') && (float)$request->batch_size !== (float)$batch->batch_size) ||
+        //         ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$batch->sales_order_id) ||
+        //         (($request->has('concrete_pump') || $request->has('concrete_pump')) && ($request->get('concrete_pump') ?? $request->get('concrete_pump')) !== $dispatchPump)
+        //     ) {
+        //         return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Sales Order, Batch Size, or Concrete Pump.']);
+        //     }
+        // }
 
         $payload = $request->validated();
         
