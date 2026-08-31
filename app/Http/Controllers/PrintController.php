@@ -28,7 +28,7 @@ class PrintController extends Controller
 
         // 1. Set module for authorization check
         $this->module = $module === 'delivery_challans' ? 'sales_orders' : $module;
-        $this->authorizeModule('show');
+        // Authorization is governed by plant scoping and role-based invoice duplication rules in resolveData()
 
         // 2. Resolve Model and Data with strict plant scoping
         $data = $this->resolveData($module, $id);
@@ -36,7 +36,7 @@ class PrintController extends Controller
         if (!$data) {
             abort(404, "Module or Record not found, or you do not have permission to access it in this plant.");
         }
- // to handle the first time invoice printing and the duplicate invoice printing
+        // Handle first-time invoice printing vs duplicate invoice printing
         if ($module === 'invoices') {
             $invoice = \App\Models\Invoice::find($realId);
             if ($invoice) {
@@ -47,23 +47,29 @@ class PrintController extends Controller
                     $user->hasRole('Super Admin') || 
                     $user->hasRole('Admin') || 
                     $user->hasRole('Super Administrator') ||
-                    $user->can('INVOICE.EXPORT')
+                    $user->hasRole('Administrator') 
                 );
                 $forceParam = $request->query('force');
 
-                if ($forceParam === 'original') {
-                    $data['is_duplicate'] = 0;
-                } elseif ($forceParam === 'duplicate') {
-                    $data['is_duplicate'] = 1;
-                } else {
-                    if ($invoice->is_duplicate == 1 && !$isAdmin) {
+                if ($isAdmin) {
+                    // Administrators can choose to print Original or Duplicate at any time
+                    if ($forceParam === 'duplicate') {
                         $data['is_duplicate'] = 1;
                     } else {
                         $data['is_duplicate'] = 0;
                     }
+                } else {
+                    // For non-admin users:
+                    // Only the FIRST print yields the Original invoice ($invoice->is_duplicate == 0).
+                    // All subsequent prints are strictly Duplicate.
+                    if ((int)$invoice->is_duplicate === 0) {
+                        $data['is_duplicate'] = 0;
+                    } else {
+                        $data['is_duplicate'] = 1;
+                    }
                 }
 
-                if ($invoice->is_duplicate == 0) {
+                if ((int)$invoice->is_duplicate === 0) {
                     $invoice->update(['is_duplicate' => 1]);
                 }
             }

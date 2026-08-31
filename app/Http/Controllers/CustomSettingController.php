@@ -14,6 +14,7 @@ class CustomSettingController extends Controller
     public function index()
     {
         $this->authorizeModule('menu');
+        
         $plantId = session('active_plant_id');
         if (!$plantId) {
             return redirect()->back()->with('error', 'Please select a plant first.');

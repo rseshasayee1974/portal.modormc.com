@@ -179,7 +179,7 @@ class Invoice extends Model implements Postable
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
         $endYear = $startYear + 1;
-        $fy = substr($startYear, -2) . substr($endYear, -2);
+        $fy = substr($startYear, -2) .'-'. substr($endYear, -2);
 
         $normalizedLabel = strtolower($label);
         $query = self::withTrashed()->where('plant_id', $plantId);
@@ -209,6 +209,7 @@ class Invoice extends Model implements Postable
             
         $lastInvoice = $query->where('prefix', $prefix)
             ->orderByRaw('CAST(invoice_number AS UNSIGNED) DESC')
+            ->whereNull('deleted_at')
             ->first();
 
         $next = $lastInvoice ? ((int)$lastInvoice->invoice_number + 1) : 1;

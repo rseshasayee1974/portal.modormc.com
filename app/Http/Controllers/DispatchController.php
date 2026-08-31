@@ -281,7 +281,7 @@ class DispatchController extends Controller
 
     public function generateInvoice(\Illuminate\Http\Request $request, Dispatch $dispatch)
     {
-                $this->authorizeModule('pdf');
+                $this->authorizeModule('edit');
 
         $validated = $request->validate([
             'ledger_id' => 'required|exists:mm_ledgers,id',

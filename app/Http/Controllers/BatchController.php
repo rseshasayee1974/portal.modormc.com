@@ -89,6 +89,7 @@ class BatchController extends Controller
                 'ds.is_tax_inclusive as dispatch_is_tax_inclusive',
                 'inv.invoice_number',
                 'inv.status as invoice_status',
+                'inv.is_duplicate as invoice_is_duplicate',
                 'einv_rel.einv_irn as einvoice_irn',
                 'einv_rel.einv_status as einvoice_status',
                 'einv_rel.einv_ackno as einvoice_ack_no',
@@ -159,8 +160,10 @@ class BatchController extends Controller
                                 'is_tax_inclusive' => $row->dispatch_is_tax_inclusive !== null ? (bool)$row->dispatch_is_tax_inclusive : (bool)$row->so_is_tax_inclusive,
                                 'invoice' => $row->invoice_id ? [
                                     'id' => $row->invoice_id,
+                                    'encrypted_id' => encrypt($row->invoice_id),
                                     'invoice_number' => $row->invoice_number,
                                     'status' => $row->invoice_status,
+                                    'is_duplicate' => (int)($row->invoice_is_duplicate ?? 0),
                                     'einvoice_irn' => $row->einvoice_irn,
                                     'einvoice_status' => $row->einvoice_status,
                                 ] : null,

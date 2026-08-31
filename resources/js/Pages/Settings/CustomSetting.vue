@@ -23,6 +23,9 @@ import {
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
+import { usePermissions } from '@/Composables/usePermissions';
+
+const { isSassOwner } = usePermissions();
 
 const props = defineProps<{
     batchingSettings: any;
@@ -198,6 +201,7 @@ const deleteModule = (id: number) => {
         }
     });
 };
+
 </script>
 
 <template>
@@ -227,22 +231,24 @@ const deleteModule = (id: number) => {
                             <h3 class="text-sm font-bold uppercase tracking-wide text-slate-600">Current Settings Summary</h3>
                         </div>
                         <div class="flex items-center gap-2">
-                            <Button
-                                icon="pi pi-plus-circle"
-                                label="Add Parameter"
-                                size="small"
-                                severity="help"
-                                text
-                                @click="showParamDialog = true"
-                            />
-                            <Button
-                                icon="pi pi-plus"
-                                label="New Module"
-                                size="small"
-                                severity="secondary"
-                                text
-                                @click="showNewDialog = true"
-                            />
+                            <template v-if="isSassOwner">
+                                <Button
+                                    icon="pi pi-plus-circle"
+                                    label="Add Parameter"
+                                    size="small"
+                                    severity="help"
+                                    text
+                                    @click="showParamDialog = true"
+                                />
+                                <Button
+                                    icon="pi pi-plus"
+                                    label="New Module"
+                                    size="small"
+                                    severity="secondary"
+                                    text
+                                    @click="showNewDialog = true"
+                                />
+                            </template>
                             <Button
                                 icon="pi pi-save"
                                 label="Save All Settings"
