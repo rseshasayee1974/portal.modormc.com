@@ -5,6 +5,7 @@
  */
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -55,7 +56,7 @@ use App\Helpers\DateTimeHelper;
  */
 class User extends Authenticatable implements MustVerifyEmail
 {
-	use HasFactory, Notifiable, HasApiTokens, HasProfilePhoto, TwoFactorAuthenticatable, HasRoles;
+	use HasFactory, Notifiable, HasApiTokens, HasProfilePhoto, TwoFactorAuthenticatable, HasRoles, TracksModelChanges;
 	    use SoftDeletes;
 	protected $table = 'mm_users';
 

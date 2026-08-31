@@ -3,12 +3,20 @@
 namespace App\Services\BatchSheet\Parsers;
 
 use App\Services\BatchSheet\Contracts\DocumentParser;
+use App\Services\BatchSheet\Drivers\PlantDriverRegistry;
 use App\Services\BatchSheet\DTOs\ParsedDocument;
 use Illuminate\Support\Facades\Log;
 use Smalot\PdfParser\Parser as SmalotPdfParser;
 
 class PdfTextParser implements DocumentParser
 {
+    protected PlantDriverRegistry $plantDriverRegistry;
+
+    public function __construct(?PlantDriverRegistry $plantDriverRegistry = null)
+    {
+        $this->plantDriverRegistry = $plantDriverRegistry ?? new PlantDriverRegistry();
+    }
+
     public function canHandle(string $mimeType, string $extension): bool
     {
         return $mimeType === 'application/pdf' || $extension === 'pdf';
@@ -16,7 +24,7 @@ class PdfTextParser implements DocumentParser
 
     public function getParserName(): string
     {
-        return 'PDF Text Parser';
+        return 'Dynamic Multi-Plant PDF Parser';
     }
 
     public function parse(string $filePath, array $options = []): ParsedDocument
@@ -29,16 +37,28 @@ class PdfTextParser implements DocumentParser
 
         Log::info("PdfTextParser: Extracted text length: " . strlen($text));
 
-        // Extract header key-value fields from text
+        // 1. Check dynamic plant driver registry for matching plant file
+        $driver = $this->plantDriverRegistry->resolve($text, $options);
+        if ($driver) {
+            Log::info("PdfTextParser: Routing to dedicated plant driver [{$driver->getDriverCode()}] {$driver->getDriverName()}");
+            $driverData = $driver->parse($text, $options);
+            return new ParsedDocument([
+                'rawText' => $text,
+                'headerFields' => $driverData['headerFields'] ?? [],
+                'materialRows' => $driverData['materialRows'] ?? [],
+                'confidence' => $driverData['confidence'] ?? 98.0,
+                'parserUsed' => $driver->getDriverName(),
+            ]);
+        }
+
+        // 2. Generic fallback extraction
         $headerFields = $this->extractHeaderFields($text);
         
-        // Extract batch number
         $batchNo = $this->extractBatchNo($text);
         if ($batchNo) {
             $headerFields['batch_number'] = $batchNo;
         }
 
-        // Extract materials using strategies
         $materialRows = $this->extractMaterials($text);
 
         return new ParsedDocument([
@@ -51,35 +71,105 @@ class PdfTextParser implements DocumentParser
     }
 
     /**
-     * Extracts lines that look like key-value pairs (e.g. "Customer: XYZ", "Date = 2026-06-20")
+     * Detects if the text matches the MCI 360 Control System format.
      */
-    protected function extractHeaderFields(string $text): array
+    protected function isMci360Report(string $text): bool
     {
-        $fields = [];
-        $lines = preg_split('/\r?\n/', $text);
+        return stripos($text, 'MCI 360') !== false 
+            || stripos($text, 'Autographic Record') !== false 
+            || (stripos($text, 'Docket / Batch Report') !== false && stripos($text, 'Mass of Total Set weight') !== false);
+    }
 
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if (empty($line)) continue;
+    /**
+     * Dedicated parser for MCI 360 Control System Ver 1.0 reports.
+     */
+    protected function parseMci360(string $text): array
+    {
+        $headerFields = [];
+        
+        $patterns = [
+            'batch_date' => '/(?:Batch Date)\s*[:=]?\s*([0-9]{1,2}-[A-Za-z]{3}-[0-9]{4}|[0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{1,2}\/[0-9]{1,2}\/[0-9]{4})/i',
+            'plant_serial' => '/(?:Plant Serial Number|Plant S\/?N)\s*[:=]?\s*([A-Za-z0-9\-]+)/i',
+            'batch_start_time' => '/(?:Batch Start Time|Start Time)\s*[:=]?\s*([0-9]{1,2}:[0-9]{2}(?::[0-9]{2})?)/i',
+            'batch_end_time' => '/(?:Batch End Time|End Time)\s*[:=]?\s*([0-9]{1,2}:[0-9]{2}(?::[0-9]{2})?)/i',
+            'batch_number' => '/(?:Batch Number|Batch No\.?)\s*[:=]?\s*([A-Za-z0-9\-]+)/i',
+            'recipe_code' => '/(?:Recipe Code)\s*[:=]?\s*([^\n\r]+)/i',
+            'recipe_name' => '/(?:Recipe Name)\s*[:=]?\s*([^\n\r]+)/i',
+            'truck_number' => '/(?:Truck Number|Truck No\.?)\s*[:=]?\s*([A-Za-z0-9\-]+)/i',
+            'driver' => '/(?:Truck Driver|Driver)\s*[:=]?\s*([^\n\r]+)/i',
+            'batcher_name' => '/(?:Batcher Name|Batcher)\s*[:=]?\s*([^\n\r]+)/i',
+            'customer' => '/(?:Customer)\s*[:=]?\s*([^\n\r]+)/i',
+            'site' => '/(?:Site)\s*[:=]?\s*([^\n\r]+)/i',
+            'order_number' => '/(?:Order Number|Order No\.?)\s*[:=]?\s*([^\n\r]+)/i',
+            'mixer_capacity' => '/(?:Mixer Capacity)\s*[:=]?\s*([0-9\.]+)\s*(?:M³|m3|M3)?/i',
+            'batch_size' => '/(?:Production Quantity|With This Load|Batch Size)\s*[:=]?\s*([0-9\.]+)\s*(?:M³|m3|M3)?/i',
+            'ordered_qty' => '/(?:Ordered Quantity)\s*[:=]?\s*([0-9\.]+)\s*(?:M³|m3|M3)?/i',
+            'production_qty' => '/(?:Production Quantity)\s*[:=]?\s*([0-9\.]+)\s*(?:M³|m3|M3)?/i',
+            'total_set_weight' => '/(?:Mass of Total Set weight in Kgs\.?|Total Set Weight)\s*[:=]?\s*([0-9\.,]+)/i',
+            'total_actual_weight' => '/(?:Mass of Total Actual in Kgs\.?|Total Actual)\s*[:=]?\s*([0-9\.,]+)/i',
+        ];
 
-            if (preg_match('/^([a-zA-Z0-9\s_\-\.]+)\s*[:=]\s*(.+)$/', $line, $matches)) {
-                $key = trim($matches[1]);
-                $val = trim($matches[2]);
-                if (strlen($key) > 2 && strlen($key) < 40 && strlen($val) > 0 && strlen($val) < 100) {
-                    $fields[$key] = $val;
-                }
+        foreach ($patterns as $key => $pattern) {
+            if (preg_match($pattern, $text, $match)) {
+                $headerFields[$key] = trim($match[1]);
             }
         }
 
-        return $fields;
+        // Extract Material breakdown for MCI 360
+        $materialRows = $this->parseMci360Materials($text);
+
+        return [
+            'headerFields' => $headerFields,
+            'materialRows' => $materialRows,
+        ];
     }
 
-    protected function extractBatchNo(string $text): ?string
+    /**
+     * Parses the columnar aggregate/cement/water/admixture matrix from MCI 360 reports.
+     */
+    protected function parseMci360Materials(string $text): array
     {
-        if (preg_match('/(?:Batch|Docket|Delivery|Order)\s*(?:Number|No\.?|Num)?\s*[:=]?\s*([a-zA-Z0-9\-\_]+)/i', $text, $match)) {
-            return trim($match[1]);
+        $materials = [];
+
+        // MCI 360 standard column names in header
+        $colNames = ['MSA1', 'MSA2', '12MM', '6MM', '20MM', 'Agg6', 'CEM 1', 'CEM 2', 'CEM 3', 'CEM 4', 'CEM 5', 'WAT', 'Wtr2', 'Wtr3', 'ADM 1', 'ADM 2', 'Admi 3', 'Admi 4', 'Silica'];
+
+        // Try extracting Total Set Weight row and Total Actual row
+        $setWeights = [];
+        $actualWeights = [];
+
+        if (preg_match('/Total Set Weight in Kgs\.?\s*\n([0-9\.\s\-]+)/i', $text, $setMatch)) {
+            $setWeights = $this->extractNumbers($setMatch[1]);
         }
-        return null;
+        
+        if (preg_match('/Total Actual in Kgs\.?\s*\n([0-9\.\s\-]+)/i', $text, $actMatch)) {
+            $actualWeights = $this->extractNumbers($actMatch[1]);
+        }
+
+        // Pair column names with weights
+        $maxCount = max(count($setWeights), count($actualWeights));
+        for ($i = 0; $i < $maxCount; $i++) {
+            $target = $setWeights[$i] ?? 0.0;
+            $actual = $actualWeights[$i] ?? 0.0;
+            
+            // Only include non-zero materials in active batch
+            if ($target > 0 || $actual > 0) {
+                $name = $colNames[$i] ?? ("Material " . ($i + 1));
+                $materials[] = [
+                    'material_name' => $name,
+                    'target_qty' => $target,
+                    'actual_qty' => $actual,
+                    'deviation_quantity' => round($actual - $target, 3),
+                ];
+            }
+        }
+
+        // Fallback to standard columnar parsing if empty
+        if (empty($materials)) {
+            $materials = $this->parseColumnar($text);
+        }
+
+        return $materials;
     }
 
     protected function extractMaterials(string $text): array

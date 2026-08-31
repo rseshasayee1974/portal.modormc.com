@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 class StockExhaustLine extends Model
 {
-    use SoftDeletes, HasFactory;
+    use SoftDeletes, HasFactory, TracksModelChanges;
 
     protected $table = 'mm_stock_exhaust_lines';
 

@@ -1,12 +1,14 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 use Illuminate\Database\Eloquent\Model;
 
 class SalesOrderLog extends Model
 {
     
-    protected $table = 'mm_sales_order_logs';
+        use TracksModelChanges;
+protected $table = 'mm_sales_order_logs';
     public $timestamps = false;
 
     protected $fillable = [

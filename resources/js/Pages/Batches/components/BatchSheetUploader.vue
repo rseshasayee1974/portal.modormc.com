@@ -53,7 +53,35 @@ const onFileSelect = (e: Event) => {
     }
 };
 
+const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'xlsx', 'xls', 'csv'];
+const maxSizeBytes = 20 * 1024 * 1024; // 20MB
+
 const handleFile = async (file: File) => {
+    // 1. Client-Side Pre-Validation
+    const fileName = file.name || '';
+    const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
+
+    if (!allowedExtensions.includes(fileExt)) {
+        Swal.fire({
+            title: 'Unsupported File Format',
+            text: `File ".${fileExt}" is not supported. Please upload a Batch Sheet in PDF, JPEG, PNG, WEBP, or Excel format.`,
+            icon: 'error',
+            confirmButtonColor: '#4f46e5'
+        });
+        return;
+    }
+
+    if (file.size > maxSizeBytes) {
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+        Swal.fire({
+            title: 'File Too Large',
+            text: `The selected file is ${sizeMb} MB. Maximum allowed upload size is 20 MB.`,
+            icon: 'error',
+            confirmButtonColor: '#4f46e5'
+        });
+        return;
+    }
+
     uploading.value = true;
     errorMsg.value = null;
     logs.value = [];
@@ -66,34 +94,41 @@ const handleFile = async (file: File) => {
     }
 
     try {
-        statusMsg.value = 'Extracting data...';
+        statusMsg.value = 'Uploading & Identifying Plant Driver...';
         processing.value = true;
         uploading.value = false;
         
-        const response = await axios.post(route('batches.ocr'), formData, {
+        const response = await axios.post(route('batch-sheets.upload'), formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
         });
 
-        const result = response.data;
         processing.value = false;
 
-        if (!result.status) {
-            Swal.fire({
-                timer: 6000,
-                timerProgressBar: true,
-                title: 'Extraction Failed',
-                text: result.message || 'Could not automatically read materials. Please enter them manually.',
-                icon: 'warning',
-                confirmButtonText: 'Enter Manually',
-                confirmButtonColor: '#4f46e5'
-            });
+        if (response.data.status === 'duplicate') {
+            duplicateData.value = response.data.duplicate;
+            showDuplicateDialog.value = true;
+            return;
         }
 
-        emit('completed', result);
+        if (response.data.upload_id) {
+            activeUploadId.value = response.data.upload_id;
+            // Emit openReview so parent opens the split-screen verification window
+            emit('openReview', response.data.upload_id);
+            emit('completed', response.data);
+        }
     } catch (e: any) {
         processing.value = false;
         uploading.value = false;
-        errorMsg.value = e.response?.data?.message || e.response?.data?.error || 'Failed to upload file. Please verify format.';
+        const msg = e.response?.data?.message || e.response?.data?.error || 'Failed to upload batch sheet. Please verify document format.';
+        errorMsg.value = msg;
+        
+        Swal.fire({
+            title: 'Upload Validation Failed',
+            text: msg,
+            icon: 'warning',
+            confirmButtonText: 'Try Another Document',
+            confirmButtonColor: '#4f46e5'
+        });
     }
 };
 

@@ -5,6 +5,7 @@
  */
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -22,7 +23,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class InvoiceStatus extends Model
 {
-	use SoftDeletes, HasFactory;
+	use SoftDeletes, HasFactory, TracksModelChanges;
 
 	protected $table = 'mm_invoice_statuses';
 	public $timestamps = false;

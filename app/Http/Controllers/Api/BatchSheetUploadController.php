@@ -15,6 +15,7 @@ use App\Models\WorkOrder;
 use App\Jobs\ProcessBatchSheetJob;
 use App\Models\SalesOrder;
 use App\Services\BatchSheet\UploadService;
+use App\Services\BatchSheet\AiMappingSuggestionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -38,10 +39,10 @@ class BatchSheetUploadController extends Controller
             'file' => 'required|file',
         ]);
 
-        $plantId = session('active_plant_id');
-        if (!$plantId) {
-            return response()->json(['error' => 'No active plant selected in session.'], 400);
-        }
+        $plantId = session('active_plant_id') 
+            ?? auth()->user()?->default_plant_id 
+            ?? \App\Models\Plant::first()?->id 
+            ?? 1;
 
         try {
             $file = $request->file('file');
@@ -330,15 +331,25 @@ class BatchSheetUploadController extends Controller
 
         $request->validate([
             'template_name' => 'required|string|max:100',
-            'corrections' => 'required|array',
+            'corrections' => 'nullable|array',
+            'material_mapping' => 'nullable|array',
         ]);
 
         try {
+            $sourceType = 'pdf';
+            if ($upload->file_extension) {
+                $ext = strtolower($upload->file_extension);
+                $sourceType = in_array($ext, ['jpg', 'jpeg', 'png', 'webp']) ? 'image' : $ext;
+            } elseif ($upload->mime_type) {
+                $sourceType = str_starts_with($upload->mime_type, 'image/') ? 'image' : 'pdf';
+            }
+
             $template = BatchSheetTemplate::create([
                 'plant_id' => $upload->plant_id,
-                'customer_id' => $upload->customer_id,
                 'name' => $request->input('template_name'),
-                'field_mapping' => $request->input('corrections'),
+                'source_type' => $sourceType,
+                'field_mapping' => $request->input('corrections', []),
+                'material_mapping' => $request->input('material_mapping', []),
                 'is_active' => true,
             ]);
 
@@ -349,12 +360,40 @@ class BatchSheetUploadController extends Controller
             return response()->json([
                 'status' => 'success',
                 'template_id' => $template->id,
-                'message' => 'Layout mapping template saved successfully.'
+                'message' => 'Plant material mapping & layout template saved successfully.'
             ]);
 
         } catch (\Exception $e) {
             Log::error("BatchSheetUploadController@saveTemplate failed: " . $e->getMessage());
             return response()->json(['error' => 'Failed to save template: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * AI-assisted onboarding: suggest a field mapping and material mapping
+     * for this upload's plant, based on the fields/materials already
+     * extracted from this document. Configuration-time only — never called
+     * during normal, automatic processing of subsequent uploads.
+     */
+    public function suggestMapping($id, AiMappingSuggestionService $suggestionService)
+    {
+        $upload = BatchSheetUpload::find($id);
+        if (!$upload) {
+            return response()->json(['error' => 'Upload record not found.'], 404);
+        }
+
+        try {
+            $suggestions = $suggestionService->suggest($upload);
+
+            return response()->json([
+                'status' => 'success',
+                'suggestions' => $suggestions,
+            ]);
+        } catch (\Exception $e) {
+            Log::error("BatchSheetUploadController@suggestMapping failed: " . $e->getMessage());
+            return response()->json([
+                'error' => 'AI mapping suggestion failed: ' . $e->getMessage(),
+            ], 500);
         }
     }
 

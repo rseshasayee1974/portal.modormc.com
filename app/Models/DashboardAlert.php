@@ -1,12 +1,13 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 class DashboardAlert extends Model
 {
-        use SoftDeletes;
+        use SoftDeletes, TracksModelChanges;
 
     protected $table = 'mm_dashboard_alerts';
 

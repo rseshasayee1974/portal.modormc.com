@@ -18,7 +18,7 @@ class DataNormalizer
     /**
      * Normalize values and resolve relational foreign keys (customer, truck, driver, operator, work order, product)
      */
-    public function normalize(array $extractedHeader, array $extractedMaterials, int $plantId): array
+    public function normalize(array $extractedHeader, array $extractedMaterials, int $plantId, ?\App\Models\BatchSheetTemplate $template = null): array
     {
         Log::info("DataNormalizer: Normalizing values for plant {$plantId}");
 
@@ -50,8 +50,9 @@ class DataNormalizer
         }
 
         // Resolve operator
-        if (!empty($extractedHeader['operator'])) {
-            $normalizedHeader['operator_id'] = $this->resolveOperator($extractedHeader['operator'], $plantId);
+        $opName = $extractedHeader['operator'] ?? $extractedHeader['batcher_name'] ?? null;
+        if (!empty($opName)) {
+            $normalizedHeader['operator_id'] = $this->resolveOperator($opName, $plantId);
         }
 
         // Resolve work order
@@ -60,17 +61,33 @@ class DataNormalizer
             $normalizedHeader['work_order_id'] = $this->resolveWorkOrder($orderNo, $plantId);
         }
 
+        // Saved Plant Material Mappings
+        $materialMapping = $template?->material_mapping ?? [];
+        if (empty($materialMapping)) {
+            $activeTpl = \App\Models\BatchSheetTemplate::where('plant_id', $plantId)
+                ->where('is_active', true)
+                ->whereNotNull('material_mapping')
+                ->first();
+            $materialMapping = $activeTpl?->material_mapping ?? [];
+        }
+
         // Normalize materials and map to system products
         $normalizedMaterials = [];
         foreach ($extractedMaterials as $m) {
             $name = $m['material_name'] ?? '';
             if (empty($name)) continue;
 
-            $productId = $this->resolveProduct($name, $plantId);
+            // 1. Check saved material mapping
+            $productId = $materialMapping[$name] ?? null;
+
+            // 2. Fallback to automatic name resolution
+            if (!$productId) {
+                $productId = $this->resolveProduct($name, $plantId);
+            }
 
             $normalizedMaterials[] = [
                 'material_name' => $name,
-                'product_id' => $productId,
+                'product_id' => $productId ? (int)$productId : null,
                 'target_qty' => $this->parseDecimal($m['target_qty'] ?? 0),
                 'actual_qty' => $this->parseDecimal($m['actual_qty'] ?? 0),
                 'deviation_quantity' => $this->parseDecimal($m['deviation_quantity'] ?? 0),

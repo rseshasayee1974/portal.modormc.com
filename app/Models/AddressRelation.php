@@ -1,13 +1,14 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AddressRelation extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, TracksModelChanges;
     protected $table = 'mm_address_relation';
 
     protected $fillable = [

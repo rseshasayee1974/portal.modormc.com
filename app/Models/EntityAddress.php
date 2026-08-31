@@ -5,6 +5,7 @@
  */
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -37,7 +38,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class EntityAddress extends Model
 {
-	use HasFactory;
+	use HasFactory, TracksModelChanges;
 
 	use SoftDeletes;
 	protected $table = 'mm_entity_addresses';

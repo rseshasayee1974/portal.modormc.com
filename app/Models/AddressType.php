@@ -5,6 +5,7 @@
  */
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -21,7 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class AddressType extends Model
 {
-	use HasFactory , SoftDeletes;
+	use HasFactory , SoftDeletes, TracksModelChanges;
 
 	protected $table = 'mm_address_types';
 	public $timestamps = false;

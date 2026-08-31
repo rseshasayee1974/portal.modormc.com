@@ -30,21 +30,26 @@ class FieldExtractor
             }
         }
 
-        // For any remaining canonical fields that aren't filled yet, resolve via dictionary
+        // For any remaining canonical fields that aren't filled yet, resolve via dictionary or direct canonical passthrough
         foreach ($rawFields as $rawLabel => $rawValue) {
             // Skip labels that are numeric or too long
             if (is_numeric($rawLabel) || strlen($rawLabel) > 50) {
                 continue;
             }
 
+            // 1. Direct canonical passthrough if key is already canonical
+            if (!isset($normalized[$rawLabel])) {
+                $normalized[$rawLabel] = $rawValue;
+                $fieldScores[$rawLabel] = 100.0;
+            }
+
+            // 2. Resolve via dictionary for raw human labels
             $dictEntry = BatchSheetFieldDictionary::resolveCanonical($rawLabel, 'header');
             if ($dictEntry) {
                 $canonical = $dictEntry->canonical_name;
 
-                // Only overwrite if it wasn't mapped by template (which has 100% confidence)
                 if (!isset($normalized[$canonical])) {
                     $normalized[$canonical] = $rawValue;
-                    // Score confidence based on exact or fuzzy match
                     $distance = levenshtein(strtolower(trim($rawLabel)), strtolower($canonical));
                     $confidence = max(100.0 - ($distance * 10), 60.0);
                     $fieldScores[$canonical] = $confidence;

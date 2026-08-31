@@ -5,6 +5,7 @@
  */
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -26,7 +27,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class MainGroupMaster extends Model
 {
-    use SoftDeletes, HasFactory;
+    use SoftDeletes, HasFactory, TracksModelChanges;
 
     protected $table = 'mm_main_group_master';
 

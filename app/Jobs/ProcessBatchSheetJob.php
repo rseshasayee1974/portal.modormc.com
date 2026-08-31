@@ -95,7 +95,7 @@ class ProcessBatchSheetJob implements ShouldQueue
             $extracted = $fieldExtractor->extract($parsedDoc->headerFields, $template);
             
             // 5. Normalize extracted fields and resolve database foreign keys
-            $normalized = $dataNormalizer->normalize($extracted['header'], $parsedDoc->materialRows, $upload->plant_id);
+            $normalized = $dataNormalizer->normalize($extracted['header'], $parsedDoc->materialRows, $upload->plant_id, $template);
 
             // 6. Update database record with JSON values
             $upload->raw_text = $parsedDoc->rawText;

@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -10,7 +11,7 @@ use App\Traits\PlantScoping;
 
 class TruckEmptyWeight extends Model
 {
-    use SoftDeletes, HasFactory, PlantScoping;
+    use SoftDeletes, HasFactory, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_truck_empty_weights';
 

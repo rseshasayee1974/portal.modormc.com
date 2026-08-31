@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use App\Traits\PlantScoping;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 
 class MachineService extends Model
 {
-    use HasFactory, SoftDeletes, PlantScoping;
+    use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_machine_service';
 

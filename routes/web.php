@@ -225,6 +225,7 @@ Route::middleware([
             Route::get('{id}/verify', [\App\Http\Controllers\Api\BatchSheetUploadController::class, 'verify'])->name('batch-sheets.verify');
             Route::post('{id}/save', [\App\Http\Controllers\Api\BatchSheetUploadController::class, 'saveToDatabase'])->name('batch-sheets.save');
             Route::post('{id}/template', [\App\Http\Controllers\Api\BatchSheetUploadController::class, 'saveTemplate'])->name('batch-sheets.save-template');
+            Route::post('{id}/suggest-mapping', [\App\Http\Controllers\Api\BatchSheetUploadController::class, 'suggestMapping'])->name('batch-sheets.suggest-mapping');
             Route::delete('{id}', [\App\Http\Controllers\Api\BatchSheetUploadController::class, 'destroy'])->name('batch-sheets.destroy');
         });
         Route::post('weighbridge/alert', [\App\Http\Controllers\Api\WeighbridgeApiController::class, 'sendAlert'])->name('weighbridge.alert');

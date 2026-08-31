@@ -1,13 +1,14 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class EwaybillDetail extends Model
 {
-    use HasFactory;
+    use HasFactory, TracksModelChanges;
 
     protected $table = 'mm_ewaybill_details';
 

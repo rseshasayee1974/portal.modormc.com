@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,8 @@ use App\Traits\PlantScoping;
 
 class ProductCategory extends Model
 {
-    /** @use HasFactory<\Database\Factories\ProductCategoryFactory> */
+        use TracksModelChanges;
+/** @use HasFactory<\Database\Factories\ProductCategoryFactory> */
     use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping;
 
     protected $table = 'mm_product_categories';

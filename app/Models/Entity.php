@@ -5,6 +5,7 @@
  */
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -43,7 +44,7 @@ use Spatie\Permission\Traits\HasRoles;
  */
 class Entity extends Model
 {
-	    use HasFactory, HasRoles;
+	    use HasFactory, HasRoles, TracksModelChanges;
 
 	use SoftDeletes;
 	protected $table = 'mm_entities';

@@ -287,19 +287,27 @@ class DispatchController extends Controller
             'ledger_id' => 'required|exists:mm_ledgers,id',
             'invoice_date' => 'required|date',
         ]);
-        return DB::transaction(function () use ($dispatch, $validated) {
-            $partnerId = $dispatch->customer_id ?: $dispatch->salesOrder?->customer_id;
-            $invoice = \App\Models\Invoice::createFromSource($dispatch, 'sales', [
-                'account_id'    => $validated['ledger_id'],
-                'invoice_date'  => $validated['invoice_date'],
-                'partner_id'    => $partnerId,
-                'plant_id'      => $dispatch->plant_id,
-                'invoice_label' => 'Dispatch'
-            ]);
-            $dispatch->invoice($invoice);
+        try {
+            return DB::transaction(function () use ($dispatch, $validated) {
+                $partnerId = $dispatch->customer_id ?: $dispatch->salesOrder?->customer_id;
+                $invoice = \App\Models\Invoice::createFromSource($dispatch, 'sales', [
+                    'account_id'    => $validated['ledger_id'],
+                    'invoice_date'  => $validated['invoice_date'],
+                    'partner_id'    => $partnerId,
+                    'plant_id'      => $dispatch->plant_id,
+                    'invoice_label' => 'Dispatch'
+                ]);
+                $dispatch->invoice($invoice);
 
-            return redirect()->back()->with('success', 'Invoice generated successfully: ' . $invoice->invoice_number);
-        });
+                return redirect()->back()->with('success', 'Invoice generated successfully: ' . $invoice->invoice_number);
+            });
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Invoice generation failed: ' . $e->getMessage(), [
+                'dispatch_id' => $dispatch->id,
+                'error'       => $e->getMessage(),
+            ]);
+            return redirect()->back()->with('error', $e->getMessage());
+        }
     }
     public function deleteInvoice(Dispatch $dispatch)
     {

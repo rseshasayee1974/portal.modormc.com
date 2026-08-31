@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,7 +10,7 @@ use App\Traits\PlantScoping;
 
 class Personnel extends Model
 {
-        use HasFactory, SoftDeletes, PlantScoping;
+        use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
     protected $table = 'mm_personnels';
 

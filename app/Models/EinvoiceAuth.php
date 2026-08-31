@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -8,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 class EinvoiceAuth extends Model
 {
-        use SoftDeletes, HasFactory;
+        use SoftDeletes, HasFactory, TracksModelChanges;
 
     protected $table = 'mm_einvoice_auth';
 

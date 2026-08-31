@@ -104,12 +104,8 @@ const currentMappings = computed(() => {
     const extractedHeader = upload.value?.parsed_json?.header_fields || {};
     const normHeader = upload.value?.normalized_json?.header || {};
 
-    // Match back canonical keys to the raw labels that supplied them
     canonicalKeys.forEach(ck => {
-        // e.g. mapping canonical key to the raw label
-        // Let's check from field extractor format
         const fieldData = upload.value?.normalized_json?.header?.[ck.key];
-        // We'll search parsed_json header keys to find a match
         for (const [rawLabel, rawVal] of Object.entries(extractedHeader)) {
             if (rawVal === fieldData) {
                 maps[ck.key] = rawLabel;
@@ -121,11 +117,33 @@ const currentMappings = computed(() => {
     return maps;
 });
 
-const handleSaveTemplate = async (templateData: { name: string; mappings: Record<string, string> }) => {
+const totalTargetWeight = computed(() => {
+    return materialsData.value.reduce((acc, m) => acc + (parseFloat(m.target_qty) || 0), 0);
+});
+
+const totalActualWeight = computed(() => {
+    return materialsData.value.reduce((acc, m) => acc + (parseFloat(m.actual_qty) || 0), 0);
+});
+
+const netVarianceKg = computed(() => {
+    return totalActualWeight.value - totalTargetWeight.value;
+});
+
+const netVariancePercent = computed(() => {
+    if (totalTargetWeight.value === 0) return 0;
+    return (netVarianceKg.value / totalTargetWeight.value) * 100;
+});
+
+const isToleranceValid = computed(() => {
+    return Math.abs(netVariancePercent.value) <= 2.0; // within ±2% tolerance
+});
+
+const handleSaveTemplate = async (templateData: { name: string; mappings: Record<string, string>; materialMappings?: Record<string, number | null> }) => {
     try {
         const response = await axios.post(route('batch-sheets.save-template', props.uploadId), {
             template_name: templateData.name,
             corrections: templateData.mappings,
+            material_mapping: templateData.materialMappings || {},
         });
 
         Swal.fire({
@@ -146,17 +164,87 @@ const handleSaveTemplate = async (templateData: { name: string; mappings: Record
     }
 };
 
+const savingMaterialMapping = ref(false);
+
+const saveMaterialMappingsForPlant = async () => {
+    savingMaterialMapping.value = true;
+    try {
+        const matMapping: Record<string, number> = {};
+        materialsData.value.forEach(m => {
+            if (m.material_name && m.product_id) {
+                matMapping[m.material_name] = m.product_id;
+            }
+        });
+
+        const response = await axios.post(route('batch-sheets.save-template', props.uploadId), {
+            template_name: `Plant Material Mapping (${upload.value?.original_filename || 'Auto'})`,
+            material_mapping: matMapping,
+            corrections: currentMappings.value,
+        });
+
+        Swal.fire({
+            title: 'Plant Material Mapping Saved!',
+            text: 'All future batch sheets for this plant will automatically reconcile these materials.',
+            icon: 'success',
+            toast: true,
+            position: 'top-end',
+            timer: 4000,
+            showConfirmButton: false,
+        });
+
+        if (upload.value) {
+            upload.value.template_id = response.data.template_id;
+        }
+    } catch (e: any) {
+        Swal.fire('Error', e.response?.data?.error || 'Failed to save material mapping.', 'error');
+    } finally {
+        savingMaterialMapping.value = false;
+    }
+};
+
+const syncTargetToActual = () => {
+    materialsData.value.forEach(m => {
+        m.actual_qty = m.target_qty;
+        m.deviation_quantity = 0;
+    });
+    Swal.fire({
+        title: 'Zero Difference Mode Applied',
+        text: 'All actual weights have been matched exactly to targets (0.00 kg variance).',
+        icon: 'info',
+        toast: true,
+        position: 'top-end',
+        timer: 3000,
+        showConfirmButton: false,
+    });
+};
+
 const submitVerification = async () => {
     saving.value = true;
     try {
+        // Auto-save material mappings for future AI recognition
+        const matMapping: Record<string, number> = {};
+        materialsData.value.forEach(m => {
+            if (m.material_name && m.product_id) {
+                matMapping[m.material_name] = m.product_id;
+            }
+        });
+
+        if (Object.keys(matMapping).length > 0) {
+            axios.post(route('batch-sheets.save-template', props.uploadId), {
+                template_name: `Auto Mapped Materials`,
+                material_mapping: matMapping,
+                corrections: currentMappings.value,
+            }).catch(() => {});
+        }
+
         await axios.post(route('batch-sheets.save', props.uploadId), {
             header: headerData.value,
             materials: materialsData.value,
         });
 
         Swal.fire({
-            title: 'Success!',
-            text: 'Batch sheet data imported successfully.',
+            title: 'Material Consumption Posted!',
+            text: 'Batch material consumption and actuals saved successfully.',
             icon: 'success',
         });
         emit('saved');
@@ -262,9 +350,12 @@ const isPdf = computed(() => {
 
                 <div v-else-if="showTemplateCreator">
                     <FieldMappingEditor 
+                        :uploadId="upload.id"
                         :rawHeaders="upload.parsed_json?.header_fields || {}"
+                        :rawMaterials="upload.parsed_json?.materials || []"
                         :canonicalKeys="canonicalKeys"
                         :initialMapping="currentMappings"
+                        :products="dropdowns.products || []"
                         @save="handleSaveTemplate"
                         @cancel="showTemplateCreator = false"
                     />
@@ -372,10 +463,30 @@ const isPdf = computed(() => {
 
                     <!-- Materials Table mapping section -->
                     <div>
-                        <h3 class="text-sm font-black uppercase text-gray-500 tracking-wider mb-4 border-b border-gray-100 pb-2">
-                            Material weights
-                        </h3>
-                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <div class="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
+                            <div>
+                                <h3 class="text-sm font-black uppercase text-gray-700 tracking-wider">
+                                    Material Consumption & Reconciliation
+                                </h3>
+                                <p class="text-[11px] text-gray-500">Map your batch sheet material labels to system products once to automate future uploads.</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <Button 
+                                    label="Zero Difference (Sync Targets)" 
+                                    icon="pi pi-check-circle" 
+                                    class="p-button-secondary p-button-outlined p-button-sm !text-xs !py-1.5"
+                                    @click="syncTargetToActual"
+                                />
+                                <Button 
+                                    label="Remember Mappings for this Plant" 
+                                    icon="pi pi-bookmark" 
+                                    class="p-button-outlined p-button-sm !text-xs !py-1.5"
+                                    :loading="savingMaterialMapping"
+                                    @click="saveMaterialMappingsForPlant"
+                                />
+                            </div>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
                             <table class="w-full text-left text-xs border-collapse">
                                 <thead>
                                     <tr class="bg-gray-50 text-gray-500 uppercase tracking-wider font-bold text-[10px] border-b border-gray-200">
@@ -383,6 +494,7 @@ const isPdf = computed(() => {
                                         <th class="px-4 py-3">System Product Mapping</th>
                                         <th class="px-4 py-3 text-right">Target (kg)</th>
                                         <th class="px-4 py-3 text-right">Actual (kg)</th>
+                                        <th class="px-4 py-3 text-right">Variance</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100">
@@ -402,8 +514,35 @@ const isPdf = computed(() => {
                                         <td class="px-4 py-2 text-right">
                                             <input type="number" v-model="mat.actual_qty" class="w-20 px-2 py-1 text-right bg-white border border-gray-200 rounded text-xs" />
                                         </td>
+                                        <td class="px-4 py-2 text-right font-mono text-[11px]">
+                                            <span :class="(mat.actual_qty - mat.target_qty) === 0 ? 'text-gray-400' : ((mat.actual_qty - mat.target_qty) > 0 ? 'text-blue-600' : 'text-amber-600')">
+                                                {{ ((mat.actual_qty || 0) - (mat.target_qty || 0)) >= 0 ? '+' : '' }}{{ ((mat.actual_qty || 0) - (mat.target_qty || 0)).toFixed(2) }}
+                                            </span>
+                                        </td>
                                     </tr>
                                 </tbody>
+                                <tfoot class="bg-gray-50 font-bold border-t-2 border-gray-200 text-gray-800">
+                                    <tr>
+                                        <td colspan="2" class="px-4 py-3 text-xs uppercase tracking-wider">
+                                            Total Batch Mass (kg)
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-xs font-mono">
+                                            {{ totalTargetWeight.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-right text-xs font-mono">
+                                            {{ totalActualWeight.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                        </td>
+                                    </tr>
+                                    <tr :class="isToleranceValid ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800'">
+                                        <td colspan="2" class="px-4 py-2.5 text-xs flex items-center gap-2">
+                                            <i :class="isToleranceValid ? 'pi pi-check-circle text-emerald-600' : 'pi pi-exclamation-triangle text-amber-600'"></i>
+                                            <span>Load Tolerance: {{ isToleranceValid ? '✓ Within ±2.0% Tolerance' : '⚠ Tolerance Limit Exceeded' }}</span>
+                                        </td>
+                                        <td colspan="2" class="px-4 py-2.5 text-right text-xs font-mono">
+                                            Variance: {{ netVarianceKg >= 0 ? '+' : '' }}{{ netVarianceKg.toFixed(2) }} kg ({{ netVariancePercent >= 0 ? '+' : '' }}{{ netVariancePercent.toFixed(2) }}%)
+                                        </td>
+                                    </tr>
+                                </tfoot>
                             </table>
                         </div>
                     </div>

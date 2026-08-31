@@ -1,8 +1,7 @@
 <?php
 
 namespace App\Models;
-
-use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +9,7 @@ use Illuminate\Support\Str;
 
 class BatchSheetFieldDictionary extends Model
 {
-    use SoftDeletes, HasFactory;
+    use HasFactory, TracksModelChanges;
 
     protected $table = 'mm_batch_sheet_field_dictionary';
 
@@ -22,7 +21,6 @@ class BatchSheetFieldDictionary extends Model
         'db_column',
         'db_table',
         'is_system',
-        'deleted_by',
     ];
 
     protected $casts = [

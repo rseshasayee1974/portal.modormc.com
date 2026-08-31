@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Model;
 
@@ -12,7 +13,7 @@ use Illuminate\Support\Arr;
 
 class Patron extends Model
 {
-        use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping;
+        use HasFactory, SoftDeletes, ProtectsSystemItems, PlantScoping, TracksModelChanges;
     
     protected $table = 'mm_patrons';
 

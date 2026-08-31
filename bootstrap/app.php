@@ -49,6 +49,18 @@ return Application::configure(basePath: dirname(__DIR__))
             return redirect()->route('login')->with('status', 'Your session has expired. Please log in again.');
         });
 
+        $exceptions->render(function (\App\Exceptions\AccountingException $e, \Illuminate\Http\Request $request) {
+            if ($request->expectsJson() && !$request->inertia()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                    'code'    => 422,
+                ], 422);
+            }
+
+            return redirect()->back()->with('error', $e->getMessage());
+        });
+
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, \Illuminate\Http\Request $request) {
             if ($request->inertia()) {
                 return \Inertia\Inertia::location(route('login'));

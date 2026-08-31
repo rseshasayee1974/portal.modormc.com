@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -10,7 +11,7 @@ use Illuminate\Support\Str;
 
 class AiConversation extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, TracksModelChanges;
     protected $fillable = [
         'entity_id',
         'plant_id',

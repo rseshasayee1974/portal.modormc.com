@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,7 +10,8 @@ use Illuminate\Support\Facades\Auth;
 
 class PartyRate extends Model
 {
-    protected $table = 'mm_party_rates';
+        use TracksModelChanges;
+protected $table = 'mm_party_rates';
         use HasFactory, SoftDeletes;
 
     protected $fillable = [

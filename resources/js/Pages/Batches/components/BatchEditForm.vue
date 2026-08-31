@@ -7,6 +7,7 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import Button from 'primevue/button';
+import Dialog from 'primevue/dialog';
 import TabView from 'primevue/tabview';
 import TabPanel from 'primevue/tabpanel';
 import axios from 'axios';
@@ -26,6 +27,7 @@ import {
 import { useWeighbridge } from '@/Composables/useWeighbridge';
 import { usePermissions } from '@/Composables/usePermissions';
 import BatchSheetUploader from './BatchSheetUploader.vue';
+import BatchSheetReview from './BatchSheetReview.vue';
 
 interface BatchMaterial {
     id?: number;
@@ -565,6 +567,26 @@ const applyMaterialData = (materials: any[]) => {
     });
 };
 
+const activeUploadReviewId = ref<number | null>(null);
+
+const handleOpenReview = (uploadId: number) => {
+    activeUploadReviewId.value = uploadId;
+    closeUploadZone();
+};
+
+const handleReviewSaved = () => {
+    activeUploadReviewId.value = null;
+    Swal.fire({
+        title: 'Batch Imported!',
+        text: 'Batch sheet data and materials saved successfully.',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+    }).then(() => {
+        router.reload();
+    });
+};
+
 const viewBatchSheet = () => {
     const url = sheetUrl.value ?? props.batch?.original_sheet_url ?? props.batch?.sheet_url;
     if (url) {
@@ -1053,6 +1075,7 @@ const updateBatch = (onSuccessCallback?: () => void) => {
                                                 <div class="p-5">
                                                     <BatchSheetUploader
                                                         :batchId="props.batch?.id"
+                                                        @openReview="handleOpenReview"
                                                         @completed="handleUploaderCompleted"
                                                         @close="closeUploadZone"
                                                     />
@@ -1327,6 +1350,23 @@ const updateBatch = (onSuccessCallback?: () => void) => {
                 @click="emit('cancel')" 
             />
         </div>
+
+        <!-- Fullscreen Split-Screen Document & Mapping Verification Window -->
+        <Dialog 
+            :visible="activeUploadReviewId !== null" 
+            modal 
+            :closable="false" 
+            :dismissableMask="false"
+            class="!w-[96vw] !h-[94vh] !max-w-none !p-0 !overflow-hidden"
+            :contentClass="'!p-0 !h-full'"
+        >
+            <BatchSheetReview 
+                v-if="activeUploadReviewId"
+                :uploadId="activeUploadReviewId"
+                @close="activeUploadReviewId = null"
+                @saved="handleReviewSaved"
+            />
+        </Dialog>
     </div>
 </template>
 

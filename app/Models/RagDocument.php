@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -8,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class RagDocument extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, TracksModelChanges;
     protected $fillable = [
         'entity_id',
         'source_type',

@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PublicDocumentLink extends Model
 {
-    use SoftDeletes, HasFactory;
+    use SoftDeletes, HasFactory, TracksModelChanges;
 
     protected $table = 'mm_public_document_links';
 

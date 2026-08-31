@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Models;
+use App\Traits\TracksModelChanges;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,7 +10,7 @@ use App\Traits\ProtectsSystemItems;
 
 class MachineType extends Model
 {
-    use HasFactory, SoftDeletes, ProtectsSystemItems;
+    use HasFactory, SoftDeletes, ProtectsSystemItems, TracksModelChanges;
     protected $table = 'mm_machine_types';
     protected $fillable = [
         'plant_id',
