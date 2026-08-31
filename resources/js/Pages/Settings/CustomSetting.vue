@@ -53,6 +53,7 @@ const form = useForm({
         so_prefix:         props.batchingSettings?.so_prefix    || 'SO',
         quote_prefix:      props.batchingSettings?.quote_prefix || 'QT',
         target_to_actual:  props.batchingSettings?.target_to_actual == 1,
+        auto_carry_pump:   props.batchingSettings?.auto_carry_pump == 1,
         default_transport: props.batchingSettings?.default_transport || '',
         quote_validity:    props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
 
@@ -88,6 +89,7 @@ const settingRows = computed(() => [
     { section: 'Batch Sheet', key: 'sheet_upload',       label: 'Upload Batch Sheet',             value: form.settings.sheet_upload,        type: 'bool' },
     { section: 'Batch Sheet', key: 'hide_batch_form',    label: 'Hide Add & Edit Batch Forms',    value: form.settings.hide_batch_form,     type: 'bool' },
     { section: 'Batch Sheet', key: 'target_to_actual',   label: 'One-Click Target to Actual',     value: form.settings.target_to_actual,    type: 'bool' },
+    { section: 'Batch Sheet', key: 'auto_carry_pump',    label: 'Auto-Select Previous Batch Pump', value: form.settings.auto_carry_pump,   type: 'bool' },
     { section: 'Defaults',    key: 'default_transport',  label: 'Default Transporter Name',        value: form.settings.default_transport,   type: 'text' },
     { section: 'Defaults',    key: 'quote_validity',     label: 'Quotation Validity (Days)',       value: form.settings.quote_validity,      type: 'text' },
     // Appearance
@@ -118,6 +120,7 @@ const submit = () => {
         sheet_upload:       form.settings.sheet_upload       ? 1 : 0,
         hide_batch_form:    form.settings.hide_batch_form    ? 1 : 0,
         target_to_actual:   form.settings.target_to_actual   ? 1 : 0,
+        auto_carry_pump:    form.settings.auto_carry_pump    ? 1 : 0,
         quote_validity:     form.settings.quote_validity     ? parseInt(form.settings.quote_validity as any, 10) : 15,
         material_print_mode: form.settings.material_print_mode || 'run',
     };
@@ -534,6 +537,18 @@ const deleteModule = (id: number) => {
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.target_to_actual" />
+                            </div>
+
+                            <!-- auto_carry_pump -->
+                            <div class="flex items-center justify-between p-4 bg-sky-50 rounded-xl border border-sky-100">
+                                <div>
+                                    <h4 class="font-bold text-sky-700 text-sm">Auto-Select Previous Batch Pump <code class="text-[9px] text-sky-400 ml-1 font-normal">[auto_carry_pump]</code></h4>
+                                    <p class="text-xs text-sky-500 mt-0.5">Automatically select the concrete pump type from the previous batch of the same sales order.</p>
+                                    <div v-if="form.settings.auto_carry_pump" class="mt-2">
+                                        <span class="text-[9px] bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Pump Auto-Selection Enabled</span>
+                                    </div>
+                                </div>
+                                <InputSwitch v-model="form.settings.auto_carry_pump" />
                             </div>
 
                             <!-- material_print_mode -->

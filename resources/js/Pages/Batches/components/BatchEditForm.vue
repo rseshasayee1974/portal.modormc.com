@@ -85,7 +85,12 @@ const form = useForm({
     transport_id: props.batch?.dispatches?.[0]?.transport_id || props.batch?.transport_id,
     driver_id:props.batch?.dispatches?.[0]?.driver_id || props.batch?.driver_id,
     sales_executive_id: props.batch?.dispatches?.[0]?.sales_executive_id || props.batch?.sales_executive_id,
-    concrete_pump:props.batch?.dispatches?.[0]?.concrete_pump || props.batch?.concrete_pump,
+    concrete_pump: props.batch?.dispatches?.[0]?.concrete_pump 
+        || props.batch?.concrete_pump 
+        || props.batch?.sales_order?.latest_dispatch?.concrete_pump 
+        || props.batch?.sales_order?.concrete_pump 
+        || props.salesOrders?.find((wo: any) => Number(wo.id) === Number(props.batch?.sales_order_id))?.concrete_pump
+        || null,
     empty_weight_truck: Number(props.batch?.dispatches?.[0]?.empty_weight_truck ?? props.batch?.empty_weight_truck ?? props.batch?.sales_order?.latest_dispatch?.empty_weight_truck ?? 0),
     loaded_weight_truck: Number(props.batch?.dispatches?.[0]?.loaded_weight_truck ?? props.batch?.loaded_weight_truck ?? props.batch?.sales_order?.latest_dispatch?.loaded_weight_truck ?? 0),
         
@@ -334,10 +339,10 @@ const applyBatchToForm = (newBatch: any) => {
                  : (latestDispatch?.sales_executive_id ? Number(latestDispatch.sales_executive_id) : null))));
 
     const rawPump = dispatch?.concrete_pump 
+        ?? latestDispatch?.concrete_pump 
         ?? so?.concrete_pump 
         ?? po?.concrete_pump 
         ?? quotation?.concrete_pump 
-        ?? latestDispatch?.concrete_pump 
         ?? null;
     if (rawPump !== null) {
         const num = Number(rawPump);
@@ -599,9 +604,12 @@ const unifiedSalesOrders = computed(() => {
     if (so && so.id) {
         const exists = list.some(item => Number(item.id) === Number(so.id));
         if (!exists) {
+            const baseNo = (so.prefix || '') + String(so.order_no || '');
+            const custName = so.customer_name || so.customer?.legal_name || so.customer?.name || '';
+            const fullNo = custName ? `${baseNo} (${custName})` : baseNo;
             list.unshift({
                 ...so,
-                full_number: so.full_number || (so.prefix || '') + String(so.order_no || ''),
+                full_number: so.full_number?.includes('(') ? so.full_number : fullNo,
             });
         }
     }

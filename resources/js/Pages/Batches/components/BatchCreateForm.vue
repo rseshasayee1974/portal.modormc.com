@@ -48,7 +48,7 @@ const emit = defineEmits(['offline-batch-added', 'cancel','created']);
 
 
 
-// console.log("concretePumpOptions",props?.concretePumpOptions);
+// console.log("salesOrders",props?.salesOrders);
 
 const form = useForm({
     sales_order_id: null as number | null,
@@ -114,7 +114,7 @@ watch(() => form.empty_time, (newVal) => {
 
 const selectedSalesOrder = computed(() => {
     if (!form.sales_order_id) return null;
-    return props.salesOrders.find(wo => Number(wo.id) === Number(form.sales_order_id));
+    return props.salesOrders.find(so => Number(so.id) === Number(form.sales_order_id));
 });
 
 const nextBatchNoDisplay = computed(() => {
@@ -123,16 +123,16 @@ const nextBatchNoDisplay = computed(() => {
 
 const salesOrderDetails = computed(() => {
     if (!selectedSalesOrder.value) return [];
-    const wo = selectedSalesOrder.value;
-    const prodQty = Number(wo.produced_qty || 0).toFixed(2);
-    const totalQty = Number(wo.total_qty || 0).toFixed(2);
-    const pendingQty = Math.max(0, Number(wo.total_qty || 0) - Number(wo.produced_qty || 0)).toFixed(2);
+    const so = selectedSalesOrder.value;
+    const prodQty = Number(so.produced_qty || 0).toFixed(2);
+    const totalQty = Number(so.total_qty || 0).toFixed(2);
+    const pendingQty = Math.max(0, Number(so.total_qty || 0) - Number(so.produced_qty || 0)).toFixed(2);
 
     return [
-        { label: 'Order #', value: wo.full_number },
-        { label: 'Customer', value: wo.customer_name || 'N/A' },
-        { label: 'Site', value: wo.site_name || 'N/A' },
-        { label: 'Design', value: wo.mix_design_name || 'N/A' },
+        { label: 'Order #', value: so.order_number || (so.order_no ? ((so.prefix || '') + so.order_no) : (so.full_number?.split(' (')[0] || so.full_number)) },
+        { label: 'Customer', value: so.customer_name || 'N/A' },
+        { label: 'Site', value: so.site_name || 'N/A' },
+        { label: 'Design', value: so.mix_design_name || 'N/A' },
         { 
             label: 'Total Qty', 
             value: `${prodQty} / ${totalQty} m³`,
@@ -157,9 +157,9 @@ watch(() => form.sales_order_id, (newVal) => {
 
         // Fallbacks for concrete_pump and sales_executive_id
         const concretePumpVal = selectedSalesOrder.value.concrete_pump
+            ?? latestDispatch?.concrete_pump
             ?? po?.concrete_pump
             ?? quotation?.concrete_pump
-            ?? latestDispatch?.concrete_pump
             ?? null;
         if (concretePumpVal !== null) {
             const num = Number(concretePumpVal);
@@ -249,8 +249,8 @@ watch(() => props.transporters, (transporters) => {
 
 watch(() => form.batch_size, (newVal) => {
     if (newVal !== null && newVal !== undefined) {
-        if (newVal > 9.9) {
-            form.batch_size = 9.9;
+        if (newVal > 20) {
+            form.batch_size = 20;
         }
     }
 });
@@ -383,7 +383,7 @@ const submit = () => {
     
     const maxAllowed = selectedSalesOrder.value 
         ? Math.max(0, Number(selectedSalesOrder.value.total_qty) - Number(selectedSalesOrder.value.produced_qty))
-        : 9.9;
+        : 20;
         const remainingQty = selectedSalesOrder.value
     ? Number(
         (
@@ -391,7 +391,7 @@ const submit = () => {
             Number(selectedSalesOrder.value.produced_qty)
         ).toFixed(3)
       )
-    : 9.9;
+    : 20;
 
     const validations = [
         { condition: !form.sales_order_id, field: 'sales_order_id', message: 'Sales Order is required' },
@@ -399,7 +399,7 @@ const submit = () => {
         // { condition: !form.transport_id, field: 'transport_id', message: 'Transporter is required' },
         // { condition: !form.driver_id, field: 'driver_id', message: 'Driver is required' },
         // { condition: !form.sales_executive_id, field: 'sales_executive_id', message: 'Sales Executive is required' },
-        { condition: !form.batch_size || form.batch_size < 0.1 || form.batch_size > 9.9, field: 'batch_size', message: 'Batch Quantity must be between 0.1 and 9.9 m³' },
+        { condition: !form.batch_size || form.batch_size < 0.1 || form.batch_size > 20, field: 'batch_size', message: 'Batch Quantity must be between 0.1 and 20 m³' },
         {
             condition:
                 form.sales_order_id &&

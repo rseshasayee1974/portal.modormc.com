@@ -19,7 +19,7 @@ class StoreBatchRequest extends FormRequest
         return [
             'sales_order_id' => ['required', 'integer', 'exists:mm_sales_orders,id'],
             'batch_no' => ['nullable', 'integer', 'min:1'],
-            'batch_size' => ['required', 'numeric', 'min:0.1', 'max:9.9'],
+            'batch_size' => ['required', 'numeric', 'min:0.1', 'max:20'],
             'start_time' => ['nullable', 'date'],
             'end_time' => ['nullable', 'date', 'after_or_equal:start_time'],
             'operator_id' => ['nullable', 'integer', 'exists:mm_personnels,id'],

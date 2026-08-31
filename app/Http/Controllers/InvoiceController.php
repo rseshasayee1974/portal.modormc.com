@@ -37,7 +37,7 @@ class InvoiceController extends Controller
                 ->latest()
                 ->get(),
             'patrons' => toSelectOptions(PatronsDropdown(), 'legal_name'),
-            'taxes'   => collect(TaxesDropdown('sales'))->map(fn($t) => [
+            'taxes'   => collect(TaxesDropdown('sales',['GST','IGST']))->map(fn($t) => [
                 'label' => $t->tax_name,
                 'value' => $t->id,
                 'rate'  => $t->tax_rate,

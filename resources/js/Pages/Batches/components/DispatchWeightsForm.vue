@@ -312,7 +312,7 @@ console.log('jkghkjgk', props.modelValue);
                             <div class="flex flex-wrap items-center gap-4 sm:gap-6 text-xs">
                                 <div>
                                     <span class="text-[10px] block text-slate-400 font-semibold uppercase tracking-wider">Invoice No</span>
-                                    <span class="font-mono font-bold text-slate-800 text-sm tracking-tight">{{ modelValue.status.invoice?.invoice_prefix+''+modelValue.status.invoice.invoice_number  }}</span>
+                                    <span class="font-mono font-bold text-slate-800 text-sm tracking-tight">{{ modelValue.status.invoice?.full_number || modelValue.status.invoice?.invoice_number || modelValue.status.invoice_number || '-' }}</span>
                                 </div>
                                 <div class="h-6 w-px bg-slate-100 hidden sm:block"></div>
                                 <div>
