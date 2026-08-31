@@ -58,7 +58,7 @@ class PersonnelController extends Controller
         $activePlantId = session('active_plant_id');
 
         $validated = $request->validate([
-            'employee_code' => ['nullable', 'string', Rule::unique('mm_personnels', 'employee_code')->where('plant_id', $activePlantId)],
+            'employee_code' => ['nullable', 'string', Rule::unique('mm_personnels', 'employee_code')->where('plant_id', $activePlantId)->whereNull('deleted_at')],
             'first_name' => 'required|string|max:100',
             'last_name' => 'nullable|string|max:100',
             'department_id' => 'nullable|exists:mm_departments,id',
@@ -170,7 +170,7 @@ class PersonnelController extends Controller
             'department_id' => 'nullable|exists:mm_departments,id',
             'designation_id' => 'nullable|exists:mm_designations,id',
             'reporting_manager_id' => 'nullable|exists:mm_personnels,id',
-            'employee_code' => ['nullable', 'string', Rule::unique('mm_personnels', 'employee_code')->where('plant_id', $personnel->plant_id)->ignore($personnel->id)],
+            'employee_code' => ['nullable', 'string', Rule::unique('mm_personnels', 'employee_code')->where('plant_id', $personnel->plant_id)->whereNull('deleted_at')->ignore($personnel->id)],
             'email' => ['nullable', 'email', Rule::unique('mm_personnels')->ignore($personnel->id)],
             'mobile' => 'nullable|string|max:20',
             'date_of_birth' => 'nullable|date',

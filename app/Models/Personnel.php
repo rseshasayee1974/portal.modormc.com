@@ -32,7 +32,7 @@ class Personnel extends Model
             $plantId = session('active_plant_id');
         }
 
-        $existingCodes = static::withTrashed()
+        $existingCodes = static::query()
             ->where('plant_id', $plantId)
             ->whereNotNull('employee_code')
             ->where('employee_code', '!=', '')
