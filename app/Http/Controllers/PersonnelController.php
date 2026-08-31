@@ -55,7 +55,10 @@ class PersonnelController extends Controller
     {
         $this->authorizeModule('create');
         
+        $activePlantId = session('active_plant_id');
+
         $validated = $request->validate([
+            'employee_code' => ['nullable', 'string', Rule::unique('mm_personnels', 'employee_code')->where('plant_id', $activePlantId)],
             'first_name' => 'required|string|max:100',
             'last_name' => 'nullable|string|max:100',
             'department_id' => 'nullable|exists:mm_departments,id',
@@ -97,7 +100,7 @@ class PersonnelController extends Controller
             'salary_structures.*.effective_to' => 'nullable|date',
         ]);
 
-        DB::transaction(function () use ($validated) {
+        DB::transaction(function () use ($validated, $activePlantId) {
             $personnelData = collect($validated)->except(['contacts', 'patron_ids', 'salary_structures'])->toArray();
             
             // Format dates
@@ -111,15 +114,15 @@ class PersonnelController extends Controller
                 $personnelData['exit_date'] = date('Y-m-d', strtotime($personnelData['exit_date']));
             }
 
-            $personnelData['plant_id'] = session('active_plant_id');
+            $personnelData['plant_id'] = $activePlantId;
             $personnelData['entity_id'] = session('active_entity_id');
             $personnelData['created_by'] = auth()->id();
             
-            $personnel = Personnel::create($personnelData);
+            if (empty($personnelData['employee_code'])) {
+                $personnelData['employee_code'] = Personnel::generateNextEmployeeCode($activePlantId);
+            }
 
-            // Auto-generate employee code after insert: EMP-<plant_id>-<zero-padded id>
-            $personnel->employee_code = 'EMP-' . str_pad($personnel->id, 4, '0', STR_PAD_LEFT);
-            $personnel->saveQuietly();
+            $personnel = Personnel::create($personnelData);
 
             if (!empty($validated['contacts'])) {
                 foreach ($validated['contacts'] as $contact) {
@@ -167,7 +170,7 @@ class PersonnelController extends Controller
             'department_id' => 'nullable|exists:mm_departments,id',
             'designation_id' => 'nullable|exists:mm_designations,id',
             'reporting_manager_id' => 'nullable|exists:mm_personnels,id',
-            'employee_code' => ['nullable', 'string', Rule::unique('mm_personnels')->ignore($personnel->id)],
+            'employee_code' => ['nullable', 'string', Rule::unique('mm_personnels', 'employee_code')->where('plant_id', $personnel->plant_id)->ignore($personnel->id)],
             'email' => ['nullable', 'email', Rule::unique('mm_personnels')->ignore($personnel->id)],
             'mobile' => 'nullable|string|max:20',
             'date_of_birth' => 'nullable|date',

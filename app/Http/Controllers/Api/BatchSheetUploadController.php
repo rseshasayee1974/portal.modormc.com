@@ -39,10 +39,7 @@ class BatchSheetUploadController extends Controller
             'file' => 'required|file',
         ]);
 
-        $plantId = session('active_plant_id') 
-            ?? auth()->user()?->default_plant_id 
-            ?? \App\Models\Plant::first()?->id 
-            ?? 1;
+        $plantId = session('active_plant_id');
 
         try {
             $file = $request->file('file');

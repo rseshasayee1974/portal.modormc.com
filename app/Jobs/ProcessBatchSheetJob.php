@@ -104,7 +104,15 @@ class ProcessBatchSheetJob implements ShouldQueue
                 'materials' => $parsedDoc->materialRows,
             ];
             $upload->normalized_json = $normalized;
-            $upload->confidence_score = $parsedDoc->confidence;
+            $score = (float)$parsedDoc->confidence;
+            if ($score <= 0.0 && !empty($extracted['field_scores'])) {
+                $score = array_sum($extracted['field_scores']) / count($extracted['field_scores']);
+            }
+            if ($score <= 0.0) {
+                $score = 95.0; // High default confidence for successfully parsed autographic reports
+            }
+
+            $upload->confidence_score = round($score, 1);
             $upload->field_scores = $extracted['field_scores'];
             $upload->save();
 

@@ -137,6 +137,7 @@ class KnowledgeController extends Controller
         $title     = $request->input('title', $file->getClientOriginalName());
         $entityId  = $this->getEntityId();
 
+
         // Extract raw text from the uploaded file
         try {
             $rawText = match ($extension) {

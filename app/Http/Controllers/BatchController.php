@@ -183,7 +183,7 @@ class BatchController extends Controller
                     'so.total_qty',
                     'so.is_tax_inclusive',
                 ])
-                ->where('so.plant_id', $activePlantId)
+                ->where('so.plant_id', $activePlantId)->where('so.deleted_at', null)
                 ->where('so.status', SalesOrder::STATUS_IN_PROGRESS)
                 ->orderBy('so.order_no')
                 ->get();

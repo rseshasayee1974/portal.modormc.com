@@ -24,8 +24,8 @@ class ImageAiParser implements DocumentParser
     {
         Log::info("ImageAiParser: Processing file {$filePath}");
 
-        $geminiKey = env('GEMINI_API_KEY');
-        $openaiKey = env('OPENAI_API_KEY');
+        $geminiKey = config('ai.providers.gemini.key') ?? config('services.gemini.key') ?? env('GEMINI_API_KEY');
+        $openaiKey = config('ai.providers.openai.key') ?? config('services.openai.key') ?? env('OPENAI_API_KEY');
 
         if (!$geminiKey && !$openaiKey) {
             throw new \RuntimeException(
@@ -40,50 +40,101 @@ class ImageAiParser implements DocumentParser
         $mimeType = $options['mime_type'] ?? $this->detectMimeType($filePath);
 
         $prompt = <<<PROMPT
-You are a high-accuracy document parsing assistant for concrete batching plants.
-Your task is to extract information from the provided batch sheet report (PDF or image).
-You must analyze the layout and extract both the header information and the material weights.
-Perform a strict cross-verification to match material labels with their target, actual, and deviation weights.
+You are an expert document parsing assistant specialized in Concrete Batching Plant reports (such as SCHWING Stetter MCI 70, Command Alkon, Aquarius, Macons, Liebherr).
+Your task is to extract the header information and the material weights from the uploaded batch sheet report (PDF or photo).
 
-Return ONLY a valid JSON object structure. Do NOT wrap in markdown blocks, do NOT write markdown fences, do NOT include explanations.
+IMPORTANT EXTRACTION GUIDELINES:
+1. HEADER:
+   - "batch_number": The Docket Number or Batch Number (e.g. "338").
+   - "batch_date": Date of batching (e.g. "2024-04-26" or "26-04-2024").
+   - "batch_start_time": Start time (e.g. "09:16").
+   - "batch_end_time": End time (e.g. "09:45").
+   - "batch_size": Total load / production quantity in m3 / cu.m (e.g. "Production Quantity" or "Order Quantity" or "With This Load", e.g. 7.5).
+   - "customer": Customer name (e.g. "PRABU SIVARAJ").
+   - "truck_number": Transit mixer or vehicle plate registration (e.g. "TN32BD2738").
+   - "driver": Truck driver name (e.g. "EALUMALAI").
+   - "recipe_name": Mix design grade / name (e.g. "M 30").
+   - "recipe_code": Mix design code (e.g. "M 30").
+   - "batcher_name": Operator / batcher name or machine system (e.g. "Stetter").
 
-Expected JSON output format:
+2. MATERIALS TABLE:
+   - Concrete batch sheets often display multiple batching cycles (e.g. 15 batches of 0.5 m3) and conclude with summary rows: "Total Set Weight in Kgs" and "Total Actual Weight in Kgs".
+   - Extract the overall TOTAL weights for each material column across the entire docket:
+     * "material_name": Clean material column name (e.g. "SAND", "12MM", "20MM", "CEMENT", "WATER", "ADMIX1" / "ADMIXTURE"). Ignore columns with only 0 or pure moisture % (MOI).
+     * "target_qty": Total Set Weight in Kgs (e.g. for SAND: 6232.5, 12MM: 2925, 20MM: 5430, CEMENT: 2850, WATER: 952.5, ADMIX1: 11.25).
+     * "actual_qty": Total Actual Weight in Kgs (e.g. for SAND: 6234.5, 12MM: 2941, 20MM: 5423, CEMENT: 2850, WATER: 944.5, ADMIX1: 7.25).
+     * "deviation_quantity": actual_qty - target_qty.
+
+3. CONFIDENCE & FIELD SCORES:
+   - Provide realistic confidence score (0-100) based on visual clarity and OCR accuracy.
+   - Provide field_scores (0-100) for each extracted header field.
+
+Return ONLY a valid JSON object. Do NOT wrap in markdown code blocks or backticks. No commentary.
+
+JSON format:
 {
   "header": {
-    "batch_number": "docket number or batch number value",
-    "batch_date": "date value, e.g. YYYY-MM-DD or DD-MM-YYYY",
-    "batch_start_time": "start time value, e.g. HH:MM:SS",
-    "batch_end_time": "end time value, e.g. HH:MM:SS",
-    "batch_size": 1.5,
-    "customer": "customer legal name",
-    "site": "site location name",
-    "truck_number": "transit mixer or truck plate registration",
-    "driver": "driver name",
-    "recipe_name": "mix design title, e.g. M30",
-    "recipe_code": "mix design code, e.g. M30(N)",
-    "order_number": "sales order or work order reference number"
+    "batch_number": "338",
+    "batch_date": "26-04-2024",
+    "batch_start_time": "09:16",
+    "batch_end_time": "09:45",
+    "batch_size": 7.5,
+    "customer": "PRABU SIVARAJ",
+    "truck_number": "TN32BD2738",
+    "driver": "EALUMALAI",
+    "recipe_name": "M 30",
+    "recipe_code": "M 30",
+    "batcher_name": "Stetter"
   },
   "materials": [
     {
-      "material_name": "D SAND",
-      "target_qty": 1300.0,
-      "actual_qty": 1301.0,
-      "deviation_quantity": 1.0
+      "material_name": "SAND",
+      "target_qty": 6232.5,
+      "actual_qty": 6234.5,
+      "deviation_quantity": 2.0
+    },
+    {
+      "material_name": "12MM",
+      "target_qty": 2925.0,
+      "actual_qty": 2941.0,
+      "deviation_quantity": 16.0
+    },
+    {
+      "material_name": "20MM",
+      "target_qty": 5430.0,
+      "actual_qty": 5423.0,
+      "deviation_quantity": -7.0
+    },
+    {
+      "material_name": "CEMENT",
+      "target_qty": 2850.0,
+      "actual_qty": 2850.0,
+      "deviation_quantity": 0.0
+    },
+    {
+      "material_name": "WATER",
+      "target_qty": 952.5,
+      "actual_qty": 944.5,
+      "deviation_quantity": -8.0
+    },
+    {
+      "material_name": "ADMIX1",
+      "target_qty": 11.25,
+      "actual_qty": 7.25,
+      "deviation_quantity": -4.0
     }
   ],
-  "confidence": 92.5,
+  "confidence": 98.0,
   "field_scores": {
-    "batch_number": 95,
-    "batch_date": 90,
-    "batch_size": 95,
-    "customer": 85,
-    "truck_number": 80,
-    "driver": 85,
-    "recipe_name": 90
+    "batch_number": 99,
+    "batch_date": 98,
+    "batch_size": 98,
+    "customer": 97,
+    "truck_number": 96,
+    "driver": 95,
+    "recipe_name": 98
   }
 }
-
-Ensure all materials (e.g. D Sand, M Sand, Cement, Water, Admixture) are extracted. If target or actual weights are zero or empty, still include them with 0.
 PROMPT;
 
         if ($geminiKey) {

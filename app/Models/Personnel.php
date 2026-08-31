@@ -14,6 +14,45 @@ class Personnel extends Model
 
     protected $table = 'mm_personnels';
 
+    protected static function booted()
+    {
+        static::creating(function (Personnel $personnel) {
+            if (empty($personnel->employee_code)) {
+                $personnel->employee_code = static::generateNextEmployeeCode($personnel->plant_id);
+            }
+        });
+    }
+
+    /**
+     * Generate the next employee code for a specific plant starting from 0001 (e.g. EMP-0001).
+     */
+    public static function generateNextEmployeeCode(?int $plantId, string $prefix = 'EMP-'): string
+    {
+        if (!$plantId) {
+            $plantId = session('active_plant_id');
+        }
+
+        $existingCodes = static::withTrashed()
+            ->where('plant_id', $plantId)
+            ->whereNotNull('employee_code')
+            ->where('employee_code', '!=', '')
+            ->pluck('employee_code');
+
+        $maxNumber = 0;
+        foreach ($existingCodes as $code) {
+            if (preg_match('/(\d+)$/', (string)$code, $matches)) {
+                $num = (int)$matches[1];
+                if ($num > $maxNumber) {
+                    $maxNumber = $num;
+                }
+            }
+        }
+
+        $nextNumber = $maxNumber + 1;
+
+        return $prefix . str_pad((string)$nextNumber, 4, '0', STR_PAD_LEFT);
+    }
+
     protected $appends = ['label'];
 
     // ──────────────────────────────────────────────────────────────
