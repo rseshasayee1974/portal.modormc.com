@@ -823,6 +823,7 @@ const updateBatch = (onSuccessCallback?: () => void) => {
     });
 };
 
+console.log('test');
 
 </script>
 
