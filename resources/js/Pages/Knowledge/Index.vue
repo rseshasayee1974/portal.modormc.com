@@ -54,7 +54,7 @@ const activePageTab = ref<'documents' | 'chat_logs'>('documents');
 const onFileUploaded = (response: any) => {
     toast.add({ severity: 'success', summary: 'Uploaded', detail: response.message || 'File uploaded and chunked.' });
     closeModal();
-    router.reload({ preserveState: false });
+    router.visit(window.location.href, { preserveState: false });
 };
 
 const onUploadError = (errorMsg: string) => {

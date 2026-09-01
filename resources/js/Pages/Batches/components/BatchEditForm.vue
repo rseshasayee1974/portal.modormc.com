@@ -1339,7 +1339,7 @@ const updateBatch = (onSuccessCallback?: () => void) => {
                     icon="pi pi-check" 
                     class="!bg-cyan-600 hover:!bg-cyan-700 !border-cyan-600 !px-8 !py-2.5 !rounded-xl !text-[13px] font-bold uppercase tracking-wider shadow-lg shadow-cyan-100" 
                     :loading="form.processing"
-                    @click="submit" 
+                    @click="submit()" 
                 />
             </div>
         </div>
