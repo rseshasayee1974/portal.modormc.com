@@ -228,12 +228,8 @@ class BatchController extends Controller
                     'q.concrete_pump as q_concrete_pump',
                     'so.sales_executive_id',
                 ])
-<<<<<<< HEAD
-                ->where('so.plant_id', $activePlantId)->where('so.deleted_at', null)
-=======
                 ->where('so.plant_id', $activePlantId)
                 ->whereNull('so.deleted_at')
->>>>>>> f983cd25a54a32def06659616b0f31eefad514fb
                 ->where('so.status', SalesOrder::STATUS_IN_PROGRESS)
                 ->orderBy('so.order_no')
                 ->get()
