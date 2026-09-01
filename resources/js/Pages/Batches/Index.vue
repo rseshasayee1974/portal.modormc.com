@@ -30,28 +30,48 @@ import { CubeIcon, ListBulletIcon, PaperAirplaneIcon } from '@heroicons/vue/24/o
 
 declare const route: any;
 
-const props = defineProps<{
-    batches: any[];
-    salesOrders: any[];
-    trucks: any[];
-    customers: any[];
-    transporters: any[];
-    drivers: any[];
+const props = withDefaults(defineProps<{
+    batches?: any[];
+    salesOrders?: any[];
+    trucks?: any[];
+    customers?: any[];
+    transporters?: any[];
+    drivers?: any[];
     operators?: any[];
-    sales_executives: any[];
-    taxes: any[];
-    products: any[];
-    loading_sites: any[];
-    unloading_sites: any[];
-    uoms: any[];
-    statuses: { label: string; value: number }[];
+    sales_executives?: any[];
+    taxes?: any[];
+    products?: any[];
+    loading_sites?: any[];
+    unloading_sites?: any[];
+    uoms?: any[];
+    statuses?: { label: string; value: number }[];
     schemaWarning?: string | null;
-    nextBatchNo: number;
-    batchingSettings: any;
-    payment_methods: any[];
-    sales_ledgers: any[];
+    nextBatchNo?: number;
+    batchingSettings?: any;
+    payment_methods?: any[];
+    sales_ledgers?: any[];
     concretePumpOptions?: any[];
-}>();
+}>(), {
+    batches: () => [],
+    salesOrders: () => [],
+    trucks: () => [],
+    customers: () => [],
+    transporters: () => [],
+    drivers: () => [],
+    operators: () => [],
+    sales_executives: () => [],
+    taxes: () => [],
+    products: () => [],
+    loading_sites: () => [],
+    unloading_sites: () => [],
+    uoms: () => [],
+    statuses: () => [],
+    nextBatchNo: 1,
+    batchingSettings: () => ({}),
+    payment_methods: () => [],
+    sales_ledgers: () => [],
+    concretePumpOptions: () => [],
+});
 const dropdownData = computed(() => ({
     trucks: props.trucks,
     transporters: props.transporters,
@@ -960,7 +980,7 @@ const shareBatchEmail = () => {
                                                 >
                                                     <i class="pi pi-whatsapp mr-2 text-emerald-500 font-bold"></i>
                                                     WhatsApp Send
-                                                </button>
+                                                </button>   
                                             </div>
 
                                             <!-- Group 4: Delete Batch -->

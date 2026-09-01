@@ -5,16 +5,14 @@ import SalesOrderCreateForm from './components/SalesOrderCreateForm.vue';
 import SalesOrderDataTable from './components/SalesOrderDataTable.vue';
 import { ClipboardDocumentListIcon } from '@heroicons/vue/24/outline';
 
-defineProps<{
-    salesOrders: any[];
-    plants: any[];
-    customers: any[];
-    sites: any[];
-    mixDesigns: any[];
-    customerPOs?: any[];
-    statuses: { label: string; value: number }[];
-    activePlantId: number;
-    nextReference: string;
+const props = withDefaults(defineProps<{
+    salesOrders?: any[];
+    customers?: any[];
+    sites?: any[];
+    mixDesigns?: any[];
+    statuses?: { label: string; value: number }[];
+    activePlantId?: number;
+    nextReference?: string;
     concretePumpOptions?: any[];
     products?: any[];
     units?: any[];
@@ -22,7 +20,22 @@ defineProps<{
     salesExecutives?: any[];
     taxes?: any[];
     pumpRates?: any[];
-}>();
+}>(), {
+    salesOrders: () => [],
+    customers: () => [],
+    sites: () => [],
+    mixDesigns: () => [],
+    statuses: () => [],
+    activePlantId: 0,
+    nextReference: '',
+    concretePumpOptions: () => [],
+    products: () => [],
+    units: () => [],
+    designTypes: () => [],
+    salesExecutives: () => [],
+    taxes: () => [],
+    pumpRates: () => [],
+});
 </script>
 
 <template>

@@ -18,8 +18,8 @@ import CustomerPOCreateForm from './components/CustomerPOCreateForm.vue';
 import CustomerPOEditForm from './components/CustomerPOEditForm.vue';
 import { usePermissions } from '@/Composables/usePermissions';
 
-const props = defineProps<{
-    customerPOs: any[];
+const props = withDefaults(defineProps<{
+    customerPOs?: any[];
     patrons?: any[];
     sites?: any[];
     quotations?: any[];
@@ -28,7 +28,17 @@ const props = defineProps<{
     taxes?: any[];
     pumpTypeOptions?: any[];
     pumpRates?: any[];
-}>();
+}>(), {
+    customerPOs: () => [],
+    patrons: () => [],
+    sites: () => [],
+    quotations: () => [],
+    mixDesigns: () => [],
+    salesExecutives: () => [],
+    taxes: () => [],
+    pumpTypeOptions: () => [],
+    pumpRates: () => [],
+});
 
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
@@ -363,7 +373,6 @@ watch(() => props.customerPOs, () => {
                 :quotations="quotations"
                 :mix-designs="mixDesigns"
                 :salesExecutives="salesExecutives"
-                :concretePumpOptions="concretePumpOptions"
                 :taxes="taxes"
                 :pumpTypeOptions="pumpTypeOptions"
                 :pumpRates="pumpRates"
@@ -523,7 +532,6 @@ watch(() => props.customerPOs, () => {
                                 :sites="sites"
                                 :mixDesigns="mixDesigns"
                                 :salesExecutives="salesExecutives"
-                                :concretePumpOptions="concretePumpOptions"
                                 :taxes="taxes"
                                 :pumpTypeOptions="pumpTypeOptions"
                                 :pumpRates="pumpRates"

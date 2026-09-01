@@ -117,12 +117,8 @@ const resolveItemPumpRate = (item: any, isDropdownChange = false) => {
             if (isDropdownChange) {
                 item.pump_rate = Number(matched.rate || matched.pump_rate || 0);
             }
-        } else {
-            if (isDropdownChange) {
-                item.pump_rate = 0;
-            }
         }
-    } else {
+    } else if (!isDropdownChange) {
         if (resolved.length > 0) {
             const matched = resolved[0];
             item.concrete_pump = matched.concrete_pump;
@@ -277,8 +273,12 @@ const submit = () => {
                 form.setError(`items.${idx}.quantity` as any, 'Quantity must be greater than 0.');
                 hasError = true;
             }
-            if (!item.rate || Number(item.rate) < 0) {
+            if (item.rate === null || item.rate === undefined || Number(item.rate) < 0) {
                 form.setError(`items.${idx}.rate` as any, 'Rate cannot be negative.');
+                hasError = true;
+            }
+            if (Number(item.pump_rate || 0) > 0 && !item.concrete_pump) {
+                form.setError(`items.${idx}.concrete_pump` as any, 'Pump Type is required when Pump Rate is greater than 0.');
                 hasError = true;
             }
         });
@@ -478,7 +478,11 @@ const submit = () => {
                                             optionValue="value"
                                             placeholder="Search design..."
                                             filter
-                                            @update:modelValue="onMixDesignChange(idx)"
+                                            :error="form.errors[`items.${idx}.mix_design_id` as any]"
+                                            @update:modelValue="() => {
+                                                onMixDesignChange(idx);
+                                                if (item.mix_design_id) form.clearErrors(`items.${idx}.mix_design_id` as any);
+                                            }"
                                             class="w-full"
                                         />
                                     </div>
@@ -487,10 +491,28 @@ const submit = () => {
                                 </div>
                             </td>
                             <td class="p-3">
-                                <BaseInputNumber v-model="item.quantity" :min="0.001" :minFractionDigits="3" placeholder="0.00" />
+                                <BaseInputNumber 
+                                    v-model="item.quantity" 
+                                    :min="0.001" 
+                                    :minFractionDigits="3" 
+                                    placeholder="0.00" 
+                                    :error="form.errors[`items.${idx}.quantity` as any]"
+                                    @update:modelValue="() => {
+                                        if (item.quantity && Number(item.quantity) > 0) form.clearErrors(`items.${idx}.quantity` as any);
+                                    }"
+                                />
                             </td>
                             <td class="p-3">
-                                <BaseInputNumber v-model="item.rate" prefix="₹" :minFractionDigits="2" placeholder="0.00"/>
+                                <BaseInputNumber 
+                                    v-model="item.rate" 
+                                    prefix="₹" 
+                                    :minFractionDigits="2" 
+                                    placeholder="0.00"
+                                    :error="form.errors[`items.${idx}.rate` as any]"
+                                    @update:modelValue="() => {
+                                        if (item.rate !== null && item.rate !== undefined && Number(item.rate) >= 0) form.clearErrors(`items.${idx}.rate` as any);
+                                    }"
+                                />
                             </td>
                             <td class="p-3">
                                 <BaseSelect
@@ -510,7 +532,13 @@ const submit = () => {
                                     optionValue="value"
                                     placeholder="Select Type"
                                     showClear
-                                    @update:modelValue="resolveItemPumpRate(item, true)"
+                                    :error="form.errors[`items.${idx}.concrete_pump` as any]"
+                                    @update:modelValue="() => {
+                                        resolveItemPumpRate(item, true);
+                                        if (item.concrete_pump || !Number(item.pump_rate)) {
+                                            form.clearErrors(`items.${idx}.concrete_pump` as any);
+                                        }
+                                    }"
                                 />
                             </td>
                             <td class="p-2">
@@ -518,6 +546,11 @@ const submit = () => {
                                     v-model="item.pump_rate"
                                     prefix="₹"
                                     :minFractionDigits="2"
+                                    @update:modelValue="() => {
+                                        if (!Number(item.pump_rate) || item.concrete_pump) {
+                                            form.clearErrors(`items.${idx}.concrete_pump` as any);
+                                        }
+                                    }"
                                 />
                             </td>
                             <td class="p-3 text-right font-bold text-slate-800 text-sm">
