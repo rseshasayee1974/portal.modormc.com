@@ -244,63 +244,82 @@
             <td class="meta-label">Shift:</td>
             <td class="meta-value">{{ $batch->shift ?? '-' }}</td>
         </tr> --}}
+        @if (!empty($batch->operator?->label))
         <tr>
             <td class="meta-label">Operator:</td>
-            <td class="meta-value">{{ $batch->operator?->label ?? '-' }}</td>
+            <td class="meta-value">{{ $batch->operator->label }}</td>
         </tr>
+        @endif
     </table>
 
     <div class="divider"></div>
 
     <table class="meta-table">
+        @if (!empty($batch->salesOrder?->customer?->legal_name))
         <tr>
             <td class="meta-label">Customer:</td>
-            <td class="meta-value">{{ $batch->salesOrder?->customer?->legal_name ?? '-' }}</td>
+            <td class="meta-value">{{ $batch->salesOrder->customer->legal_name }}</td>
         </tr>
+        @endif
+        @if (!empty($batch->salesOrder?->site?->name))
         <tr>
             <td class="meta-label">Site:</td>
-            <td class="meta-value">{{ $batch->salesOrder?->site?->name ?? '-' }}</td>
+            <td class="meta-value">{{ $batch->salesOrder->site->name }}</td>
         </tr>
+        @endif
+        @if (!empty($batch->salesOrder?->order_no))
         <tr>
             <td class="meta-label">Order No:</td>
-            <td class="meta-value font-mono">{{ $batch->salesOrder?->order_no ?? '-' }}</td>
+            <td class="meta-value font-mono">{{ $batch->salesOrder->prefix . $batch->salesOrder->order_no }}</td>
         </tr>
+        @endif
     </table>
 
     <div class="divider"></div>
 
     <table class="meta-table">
+        @if (!empty($batch->salesOrder?->mixDesign?->concrete_grade?->name) || !empty($batch->salesOrder?->mixDesign?->design_name))
         <tr>
             <td class="meta-label">Recipe:</td>
             <td class="meta-value">
-                {{ $batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->design_name ?? '-') }}
+                {{ $batch->salesOrder->mixDesign->concrete_grade->name ?? $batch->salesOrder->mixDesign->design_name }}
             </td>
         </tr>
+        @endif
+        @if (!empty($batch->salesOrder?->mixDesign?->design_code))
         <tr>
             <td class="meta-label">Code:</td>
-            <td class="meta-value font-mono">{{ $batch->salesOrder?->mixDesign?->design_code ?? '-' }}</td>
+            <td class="meta-value font-mono">{{ $batch->salesOrder->mixDesign->design_code }}</td>
         </tr>
+        @endif
+        @if (!empty($batch->batch_size) && (float) $batch->batch_size > 0)
         <tr>
             <td class="meta-label">Batch Size:</td>
             <td class="meta-value font-mono" style="font-weight: bold;">
                 {{ number_format((float) $batch->batch_size, 2) }} m³</td>
         </tr>
+        @endif
     </table>
 
     <div class="divider"></div>
 
     <table class="meta-table">
+        @if (!empty($batch->dispatches->first()?->truck?->registration))
         <tr>
             <td class="meta-label">Truck No:</td>
             <td class="meta-value font-mono" style="font-weight: bold;">
-                {{ $batch->dispatches->first()?->truck?->registration ?? '-' }}</td>
+                {{ $batch->dispatches->first()->truck->registration }}</td>
         </tr>
+        @endif
+        @php
+            $driverName = trim(($batch->dispatches->first()?->driver?->first_name ?? '') . ' ' . ($batch->dispatches->first()?->driver?->last_name ?? ''));
+        @endphp
+        @if (!empty($driverName))
         <tr>
             <td class="meta-label">Driver:</td>
-            <td class="meta-value">
-                {{ trim(($batch->dispatches->first()?->driver?->first_name ?? '') . ' ' . ($batch->dispatches->first()?->driver?->last_name ?? '')) ?: '-' }}
-            </td>
+            <td class="meta-value">{{ $driverName }}</td>
         </tr>
+        @endif
         @if ($batch->dispatches->first()?->transport?->legal_name)
             <tr>
                 <td class="meta-label">Transporter:</td>
@@ -321,7 +340,9 @@
         @endif
         @php
             $emptyWeight = (float) ($batch->dispatches->first()?->empty_weight_truck ?? 0);
-            $emptyWeightStr = number_format($emptyWeight, 2) . ' MTR';
+            // $unitLabel = ' ' . ($batch->dispatches->first()?->uom?->unit_code ?? $batch->uom?->unit_code ?? 'MTR');
+            $unitLabel = ' MTR';
+            $emptyWeightStr = (fmod($emptyWeight, 1) != 0 ? number_format($emptyWeight, 2) : number_format($emptyWeight, 0)) . $unitLabel;
         @endphp
         <tr>
             <td class="meta-label">Empty Wt:</td>
@@ -359,7 +380,7 @@
     @endif
 
     <div class="footer">
-        <div>Batching Token - v1</div>
+        <div>Batching Token</div>
         <div class="font-mono" style="margin-top: 2px;">Date Printed: {{ now()->format('d-m-Y H:i:s') }}</div>
         <div style="margin-top: 4px; font-weight: bold;">Thank you!</div>
     </div>

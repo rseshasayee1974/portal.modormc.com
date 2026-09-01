@@ -1404,10 +1404,11 @@ class BatchController extends Controller
         ]);
 
         // Query 2 – only the first dispatch + its belongsTo associations
+        // Query 2 – only the first dispatch + its belongsTo associations
         // (blade only ever calls $batch->dispatches->first(), never iterates all dispatches)
         $batch->load([
             'dispatches' => fn ($q) => $q
-                ->select('id', 'batch_id', 'truck_id', 'driver_id', 'transport_id', 'load_site_id', 'sales_executive_id', 'empty_weight_truck', 'empty_time')
+                ->select('id', 'batch_id', 'truck_id', 'driver_id', 'transport_id', 'load_site_id', 'sales_executive_id', 'empty_weight_truck', 'empty_time', 'uom_id')
                 ->oldest('id')
                 ->limit(1),
             'dispatches.truck:id,registration',
@@ -1415,6 +1416,8 @@ class BatchController extends Controller
             'dispatches.salesExecutive:id,first_name,last_name',
             'dispatches.transport:id,legal_name',
             'dispatches.loadSite:id,name',
+            'dispatches.uom:id,unit_code',
+            'uom:id,unit_code',
         ]);
 
         // Query 3 – plant addresses (hasMany on a nested model — isolated to prevent row duplication)
@@ -1439,12 +1442,14 @@ class BatchController extends Controller
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,uom_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
             'dispatches.transport:id,legal_name',
             'dispatches.loadSite:id,name',
+            'dispatches.uom:id,unit_code',
+            'uom:id,unit_code',
             'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
             'materials.product:id,title',
             'materials.uom:id,unit_code',
@@ -1473,12 +1478,14 @@ class BatchController extends Controller
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,uom_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
             'dispatches.transport:id,legal_name',
             'dispatches.loadSite:id,name',
+            'dispatches.uom:id,unit_code',
+            'uom:id,unit_code',
             'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
             'materials.product:id,title',
             'materials.uom:id,unit_code',
@@ -1513,13 +1520,15 @@ class BatchController extends Controller
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,transport_expenses,adjustment_amount,round_off,load_tax_id',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,transport_expenses,adjustment_amount,round_off,load_tax_id,uom_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
             'dispatches.transport:id,legal_name',
             'dispatches.loadSite:id,name',
             'dispatches.loadTax',
+            'dispatches.uom:id,unit_code',
+            'uom:id,unit_code',
             'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
             'materials.product:id,title',
             'materials.uom:id,unit_code',
@@ -1547,13 +1556,15 @@ class BatchController extends Controller
             'salesOrder.plant.addresses',
             'salesOrder.mixDesign:id,design_name,design_code,design_type',
             'salesOrder.mixDesign.concrete_grade:id,name',
-            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,transport_expenses,adjustment_amount,round_off,load_tax_id',
+            'dispatches:id,batch_id,truck_id,driver_id,transport_id,load_site_id,sales_executive_id,empty_weight_truck,empty_time,loaded_weight_truck,load_time,net_weight,load_rate,load_untax_amount,load_tax_amount,load_total_amount,discount_amount,transport_expenses,adjustment_amount,round_off,load_tax_id,uom_id',
             'dispatches.truck:id,registration',
             'dispatches.driver:id,first_name,last_name',
             'dispatches.salesExecutive:id,first_name,last_name',
             'dispatches.transport:id,legal_name',
             'dispatches.loadSite:id,name',
             'dispatches.loadTax',
+            'dispatches.uom:id,unit_code',
+            'uom:id,unit_code',
             'materials:id,batch_id,product_id,material_name,target_qty,actual_qty,deviation_quantity,uom_id',
             'materials.product:id,title',
             'materials.uom:id,unit_code',

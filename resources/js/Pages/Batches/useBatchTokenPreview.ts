@@ -50,8 +50,8 @@ export function useBatchTokenPreview({
             tokenPreviewUrl.value = route('batches.dispatch-token', id);
         } else if (type === 'delivery') {
             previewTitle.value = 'Delivery Token Preview (A4)';
-            previewWidth.value = '850px';
-            previewIframeWidth.value = '810px';
+            previewWidth.value = '900px';
+            previewIframeWidth.value = '100%';
             tokenPreviewUrl.value = route('batches.delivery-token', id);
         } else if (type === 'gate-pass') {
             previewTitle.value = 'Gate Pass Preview';
@@ -147,8 +147,8 @@ export function useBatchTokenPreview({
             previewIframeWidth.value = '340px';
         } else if (e.detail.url.includes('delivery-token')) {
             previewTitle.value = 'Delivery Token Preview (A4)';
-            previewWidth.value = '850px';
-            previewIframeWidth.value = '810px';
+            previewWidth.value = '900px';
+            previewIframeWidth.value = '100%';
         } else if (e.detail.url.includes('dispatch-token')) {
             previewTitle.value = 'Dispatch Token Preview';
             previewWidth.value = '380px';

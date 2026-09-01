@@ -164,21 +164,27 @@
     {{-- ── Customer & Site ── --}}
     <div class="section-title">Customer / Site Details</div>
     <table class="meta-table">
+        @if (!empty($batch->workOrder?->customer?->legal_name))
         <tr>
             <td class="meta-label">Customer</td>
             <td class="meta-colon">:</td>
-            <td class="meta-value">{{ $batch->workOrder?->customer?->legal_name ?? '-' }}</td>
+            <td class="meta-value">{{ $batch->workOrder->customer->legal_name }}</td>
         </tr>
+        @endif
+        @if (!empty($batch->workOrder?->site?->name))
         <tr>
             <td class="meta-label">Site</td>
             <td class="meta-colon">:</td>
-            <td class="meta-value">{{ $batch->workOrder?->site?->name ?? '-' }}</td>
+            <td class="meta-value">{{ $batch->workOrder->site->name }}</td>
         </tr>
+        @endif
+        @if (!empty($batch->workOrder?->order_no))
         <tr>
             <td class="meta-label">Order No</td>
             <td class="meta-colon">:</td>
-            <td class="meta-value font-mono">{{ $batch->workOrder?->order_no ?? '-' }}</td>
+            <td class="meta-value font-mono">{{ $batch->workOrder->prefix . $batch->workOrder->order_no }}</td>
         </tr>
+        @endif
     </table>
 
     <div class="divider"></div>
@@ -186,18 +192,23 @@
     {{-- ── Mix Design ── --}}
     <div class="section-title">Mix Design</div>
     <table class="meta-table">
+        @if (!empty($batch->workOrder?->mixDesign?->concrete_grade?->name) || !empty($batch->workOrder?->mixDesign?->design_name))
         <tr>
             <td class="meta-label">Grade</td>
             <td class="meta-colon">:</td>
             <td class="meta-value">
-                {{ $batch->workOrder?->mixDesign?->concrete_grade?->name ?? ($batch->workOrder?->mixDesign?->design_name ?? '-') }}
+                {{ $batch->workOrder->mixDesign->concrete_grade->name ?? $batch->workOrder->mixDesign->design_name }}
             </td>
         </tr>
+        @endif
+        @if (!empty($batch->workOrder?->mixDesign?->design_code))
         <tr>
             <td class="meta-label">Code</td>
             <td class="meta-colon">:</td>
-            <td class="meta-value font-mono">{{ $batch->workOrder?->mixDesign?->design_code ?? '-' }}</td>
+            <td class="meta-value font-mono">{{ $batch->workOrder->mixDesign->design_code }}</td>
         </tr>
+        @endif
+        @if (!empty($batch->batch_size) && (float) $batch->batch_size > 0)
         <tr>
             <td class="meta-label">Batch Qty</td>
             <td class="meta-colon">:</td>
@@ -205,6 +216,7 @@
                 {{ number_format((float) $batch->batch_size, 2) }} m&sup3;
             </td>
         </tr>
+        @endif
     </table>
 
     <div class="divider"></div>
@@ -212,20 +224,27 @@
     {{-- ── Transport / Truck ── --}}
     <div class="section-title">Transport Details</div>
     <table class="meta-table">
+        @if (!empty($dispatch?->truck?->registration))
         <tr>
             <td class="meta-label">Truck No</td>
             <td class="meta-colon">:</td>
             <td class="meta-value font-mono" style="font-size:13px; font-weight:900; letter-spacing:1px;">
-                {{ $dispatch?->truck?->registration ?? '-' }}
+                {{ $dispatch->truck->registration }}
             </td>
         </tr>
+        @endif
+        @php
+            $gpDriverName = trim(($dispatch?->driver?->first_name ?? '') . ' ' . ($dispatch?->driver?->last_name ?? ''));
+        @endphp
+        @if (!empty($gpDriverName))
         <tr>
             <td class="meta-label">Driver</td>
             <td class="meta-colon">:</td>
             <td class="meta-value">
-                {{ trim(($dispatch?->driver?->first_name ?? '') . ' ' . ($dispatch?->driver?->last_name ?? '')) ?: '-' }}
+                {{ $gpDriverName }}
             </td>
         </tr>
+        @endif
         @if ($dispatch?->transport?->legal_name)
             <tr>
                 <td class="meta-label">Transporter</td>
@@ -233,11 +252,13 @@
                 <td class="meta-value">{{ $dispatch->transport->legal_name }}</td>
             </tr>
         @endif
+        @if (!empty($batch->operator?->label))
         <tr>
             <td class="meta-label">Operator</td>
             <td class="meta-colon">:</td>
-            <td class="meta-value">{{ $batch->operator?->label ?? 'System' }}</td>
+            <td class="meta-value">{{ $batch->operator->label }}</td>
         </tr>
+        @endif
     </table>
 
     <div class="divider"></div>

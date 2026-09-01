@@ -18,7 +18,8 @@ import {
     ChevronDownIcon,
     ChevronUpIcon,
     PlusIcon,
-    DocumentTextIcon
+    DocumentTextIcon,
+    PrinterIcon
 } from '@heroicons/vue/24/outline';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
@@ -56,6 +57,9 @@ const form = useForm({
         auto_carry_pump:   props.batchingSettings?.auto_carry_pump == 1,
         default_transport: props.batchingSettings?.default_transport || '',
         quote_validity:    props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
+        print_delivery_ingredients: props.batchingSettings?.print_delivery_ingredients !== undefined 
+            ? (props.batchingSettings?.print_delivery_ingredients == 1 || props.batchingSettings?.print_delivery_ingredients === true || props.batchingSettings?.print_delivery_ingredients === "true") 
+            : true,
 
         custom_params:     props.batchingSettings?.custom_params || [],
     }
@@ -66,6 +70,7 @@ const expanded = ref<Record<string, boolean>>({
     weighbridge: true,
     camera: true,
     batch_sync: true,
+    print: true,
     pouring_settings: true,
     prefixes: true,
     appearance: true,
@@ -92,6 +97,8 @@ const settingRows = computed(() => [
     { section: 'Batch Sheet', key: 'auto_carry_pump',    label: 'Auto-Select Previous Batch Pump', value: form.settings.auto_carry_pump,   type: 'bool' },
     { section: 'Defaults',    key: 'default_transport',  label: 'Default Transporter Name',        value: form.settings.default_transport,   type: 'text' },
     { section: 'Defaults',    key: 'quote_validity',     label: 'Quotation Validity (Days)',       value: form.settings.quote_validity,      type: 'text' },
+    // Print
+    { section: 'Print',       key: 'print_delivery_ingredients', label: 'Delivery Token Ingredients', value: form.settings.print_delivery_ingredients, type: 'bool' },
     // Appearance
     { section: 'Appearance',  key: 'loader_gif',         label: 'Custom Global Loader (GIF URL)', value: form.settings.loader_gif,          type: 'text' },
     // Document Prefixes
@@ -122,6 +129,7 @@ const submit = () => {
         target_to_actual:   form.settings.target_to_actual   ? 1 : 0,
         auto_carry_pump:    form.settings.auto_carry_pump    ? 1 : 0,
         quote_validity:     form.settings.quote_validity     ? parseInt(form.settings.quote_validity as any, 10) : 15,
+        print_delivery_ingredients: form.settings.print_delivery_ingredients ? 1 : 0,
         material_print_mode: form.settings.material_print_mode || 'run',
     };
 
@@ -590,7 +598,35 @@ const deleteModule = (id: number) => {
                         </div>
                     </div>
 
+                    <!-- Print Configuration -->
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                        <button type="button"
+                            class="w-full flex items-center justify-between px-6 py-4 border-b border-slate-100 hover:bg-purple-50/30 transition-colors"
+                            @click="toggle('print')">
+                            <div class="flex items-center gap-2">
+                                <div class="p-1.5 bg-purple-100 rounded-lg"><PrinterIcon class="w-4 h-4 text-purple-600" /></div>
+                                <span class="text-sm font-bold text-slate-700">Print Configuration</span>
+                                <span v-if="form.settings.print_delivery_ingredients" 
+                                    class="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
+                            </div>
+                            <ChevronDownIcon v-if="!expanded.print" class="w-4 h-4 text-slate-400" />
+                            <ChevronUpIcon   v-else                 class="w-4 h-4 text-slate-400" />
+                        </button>
 
+                        <div v-if="expanded.print" class="p-6 space-y-4 animate-fade-in">
+                            <!-- print_delivery_ingredients -->
+                            <div class="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-100">
+                                <div>
+                                    <h4 class="font-bold text-purple-700 text-sm">Batching &amp; Ingredients Details on Delivery Token <code class="text-[9px] text-purple-400 ml-1 font-normal">[print_delivery_ingredients]</code></h4>
+                                    <p class="text-xs text-purple-500 mt-0.5">Show or hide the Recipe, Actual Quantity, and Deviation breakdown table on the Delivery Token (A4).</p>
+                                    <div v-if="form.settings.print_delivery_ingredients" class="mt-2">
+                                        <span class="text-[9px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Ingredients Section Visible on Delivery Token</span>
+                                    </div>
+                                </div>
+                                <InputSwitch v-model="form.settings.print_delivery_ingredients" />
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Document Prefixes -->
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">

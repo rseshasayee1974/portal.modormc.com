@@ -17,7 +17,11 @@
             margin: 15mm;
         }
 
-        body {
+        *, *:before, *:after {
+            box-sizing: border-box;
+        }
+
+        html, body {
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             font-size: 11px;
             color: #1e293b;
@@ -25,18 +29,25 @@
             background: #ffffff;
             margin: 0;
             padding: 0;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            box-sizing: border-box;
         }
 
         .top-bar {
             height: 5px;
             background: linear-gradient(90deg, #4f46e5 0%, #0ea5e9 100%);
-            margin: -15mm -15mm 15mm -15mm;
+            margin: 0 0 15px 0;
+            width: 100%;
         }
 
         .container {
             width: 100%;
-            padding: 10px 20px;
+            max-width: 100%;
+            padding: 10px 15px;
             box-sizing: border-box;
+            overflow-x: hidden;
         }
 
         /* Header block */
@@ -332,6 +343,9 @@
             .preview-toolbar {
                 display: none !important;
             }
+            .top-bar {
+                margin: -15mm -15mm 15mm -15mm !important;
+            }
             .container {
                 padding: 0 !important;
             }
@@ -401,14 +415,18 @@
                             <td class="doc-meta-value">
                                 {{ optional($batch->load_time ?? $batch->created_at)->format('d-m-Y H:i') }}</td>
                         </tr>
+                        @if (!empty($batch->shift))
                         <tr>
                             <td class="doc-meta-label">Shift:</td>
-                            <td class="doc-meta-value">{{ $batch->shift ?? '-' }}</td>
+                            <td class="doc-meta-value">{{ $batch->shift }}</td>
                         </tr>
+                        @endif
+                        @if (!empty($batch->operator?->label))
                         <tr>
                             <td class="doc-meta-label">Operator:</td>
-                            <td class="doc-meta-value">{{ $batch->operator?->label ?? 'System' }}</td>
+                            <td class="doc-meta-value">{{ $batch->operator->label }}</td>
                         </tr>
+                        @endif
                     </table>
                 </td>
             </tr>
@@ -420,39 +438,51 @@
                 <td>
                     <div class="section-title">Delivery & Customer Details</div>
                     <table class="details-grid">
+                        @if (!empty($batch->salesOrder?->customer?->legal_name))
                         <tr>
                             <td class="grid-label">Customer</td>
-                            <td class="grid-value">{{ $batch->salesOrder?->customer?->legal_name ?? '-' }}</td>
+                            <td class="grid-value">{{ $batch->salesOrder->customer->legal_name }}</td>
                         </tr>
+                        @endif
+                        @if (!empty($batch->salesOrder?->site?->name))
                         <tr>
                             <td class="grid-label">Delivery Site</td>
-                            <td class="grid-value">{{ $batch->salesOrder?->site?->name ?? '-' }}</td>
+                            <td class="grid-value">{{ $batch->salesOrder->site->name }}</td>
                         </tr>
+                        @endif
+                        @if (!empty($batch->salesOrder?->order_no))
                         <tr>
                             <td class="grid-label">Order Number</td>
                             <td class="grid-value" style="font-family: monospace;">
-                                {{ $batch->salesOrder?->order_no ?? '-' }}</td>
+                                {{$batch->salesOrder->prefix . $batch->salesOrder->order_no }}</td>
                         </tr>
+                        @endif
                     </table>
                 </td>
                 <td>
                     <div class="section-title">Logistics & Concrete Mix</div>
                     <table class="details-grid">
+                        @if (!empty($batch->salesOrder?->mixDesign?->concrete_grade?->name) || !empty($batch->salesOrder?->mixDesign?->design_name))
                         <tr>
                             <td class="grid-label">Concrete Grade</td>
                             <td class="grid-value">
-                                {{ $batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->design_name ?? '-') }}
+                                {{ $batch->salesOrder->mixDesign->concrete_grade->name ?? $batch->salesOrder->mixDesign->design_name }}
                             </td>
                         </tr>
+                        @endif
+                        @if (!empty($batch->salesOrder?->mixDesign?->design_code))
                         <tr>
                             <td class="grid-label">Recipe Code</td>
                             <td class="grid-value" style="font-family: monospace;">
-                                {{ $batch->salesOrder?->mixDesign?->design_code ?? '-' }}</td>
+                                {{ $batch->salesOrder->mixDesign->design_code }}</td>
                         </tr>
+                        @endif
+                        @if (!empty($batch->batch_size) && (float) $batch->batch_size > 0)
                         <tr>
                             <td class="grid-label">Batch size</td>
                             <td class="grid-value">{{ number_format((float) $batch->batch_size, 2) }} m³</td>
                         </tr>
+                        @endif
                         @if ($batch->dispatches->first()?->salesExecutive)
                         <tr>
                             <td class="grid-label">Sales Executive</td>
@@ -472,17 +502,22 @@
             <tr>
                 <td style="width: 45%;">
                     <table class="details-grid" style="height: 100%;">
+                        @if (!empty($batch->dispatches->first()?->truck?->registration))
                         <tr>
                             <td class="grid-label">Truck Registration</td>
                             <td class="grid-value" style="font-family: monospace; font-weight: bold;">
-                                {{ $batch->dispatches->first()?->truck?->registration ?? '-' }}</td>
+                                {{ $batch->dispatches->first()->truck->registration }}</td>
                         </tr>
+                        @endif
+                        @php
+                            $driverName = trim(($batch->dispatches->first()?->driver?->first_name ?? '') . ' ' . ($batch->dispatches->first()?->driver?->last_name ?? ''));
+                        @endphp
+                        @if (!empty($driverName))
                         <tr>
                             <td class="grid-label">Driver Name</td>
-                            <td class="grid-value">
-                                {{ trim(($batch->dispatches->first()?->driver?->first_name ?? '') . ' ' . ($batch->dispatches->first()?->driver?->last_name ?? '')) ?: '-' }}
-                            </td>
+                            <td class="grid-value">{{ $driverName }}</td>
                         </tr>
+                        @endif
                         @if ($batch->dispatches->first()?->transport?->legal_name)
                             <tr>
                                 <td class="grid-label">Transporter</td>
@@ -513,10 +548,10 @@
                                 }
                             }
                         @endphp
-                        <tr>
+                        {{-- <tr>
                             <td class="grid-label">Trips Done / Trip No</td>
                             <td class="grid-value">{{ $tripsDoneCount }} / {{ $tripsDoneCount + 1 }}</td>
-                        </tr>
+                        </tr> --}}
                     </table>
                 </td>
                 <td style="width: 55%; padding-left: 10px; padding-right: 0;">
@@ -525,14 +560,19 @@
 
                         $emptyWeight = (float) ($dispatch?->empty_weight_truck ?? 0);
                         $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
-                        $netWeight = (float) ($dispatch?->net_weight ?? $loadedWeight - $emptyWeight);
+                        $netWeight = (float) ($dispatch?->net_weight ?? ($loadedWeight > 0 ? $loadedWeight - $emptyWeight : 0));
 
+                        // $unitLabel = ' ' . ($dispatch?->uom?->unit_code ?? $batch->uom?->unit_code ?? 'MTR');
                         $unitLabel = ' MTR';
-                        $decimals = 0;
 
-                        $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel;
-                        $loadedWeightStr = number_format($loadedWeight, $decimals) . $unitLabel;
-                        $netWeightStr = number_format($netWeight, $decimals) . $unitLabel;
+                        $formatWeight = function($val) {
+                            $num = (float) $val;
+                            return fmod($num, 1) != 0 ? number_format($num, 2) : number_format($num, 0);
+                        };
+
+                        $emptyWeightStr = $formatWeight($emptyWeight) . $unitLabel;
+                        $loadedWeightStr = $formatWeight($loadedWeight) . $unitLabel;
+                        $netWeightStr = $formatWeight($netWeight) . $unitLabel;
                     @endphp
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
@@ -541,7 +581,7 @@
                                     <div class="weight-card-label">Empty Wt</div>
                                     <div class="weight-card-value">{{ $emptyWeightStr }}</div>
                                     <div style="font-size: 8px; color: #64748b; margin-top: 4px;">
-                                        {{ $dispatch?->empty_time ? \Carbon\Carbon::parse($dispatch->empty_time)->format('H:i') : '-' }}
+                                        {{-- {{ $dispatch?->empty_time ? \Carbon\Carbon::parse($dispatch->empty_time)->format('H:i') : '-' }} --}}
                                     </div>
                                 </div>
                             </td>
@@ -550,7 +590,7 @@
                                     <div class="weight-card-label">Loaded Wt</div>
                                     <div class="weight-card-value">{{ $loadedWeightStr }}</div>
                                     <div style="font-size: 8px; color: #64748b; margin-top: 4px;">
-                                        {{ $dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('H:i') : '-' }}
+                                        {{-- {{ $dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('H:i') : '-' }} --}}
                                     </div>
                                 </div>
                             </td>
@@ -693,7 +733,15 @@
         @endif
 
         <!-- Ingredients Section -->
-        @if ($batch->salesOrder?->mixDesign?->items?->count() > 0)
+        @php
+            $showIngredients = $settings['print_delivery_ingredients'] ?? true;
+            if ($showIngredients === '0' || $showIngredients === 0 || $showIngredients === false || $showIngredients === 'false') {
+                $showIngredients = false;
+            } else {
+                $showIngredients = true;
+            }
+        @endphp
+        @if ($showIngredients && $batch->salesOrder?->mixDesign?->items?->count() > 0)
             <div class="section-title" style="margin-top: 25px;">Batching &amp; Ingredients Details</div>
             <table class="materials-table">
                 <thead>

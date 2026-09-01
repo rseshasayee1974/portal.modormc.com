@@ -1109,11 +1109,11 @@ const shareBatchEmail = () => {
                 </div>
             </template>
 
-            <div class="w-full flex justify-center bg-slate-100 py-2.5 px-1 overflow-y-auto max-h-[70vh] border-b border-slate-100">
+            <div class="w-full flex justify-center bg-slate-100 py-2.5 px-1 overflow-x-hidden overflow-y-auto max-h-[75vh] border-b border-slate-100">
                 <iframe
                     v-if="tokenPreviewUrl"
                     :src="tokenPreviewUrl"
-                    :style="{ height: iframeHeight, width: previewIframeWidth }"
+                    :style="{ height: iframeHeight, width: previewIframeWidth, maxWidth: '100%' }"
                     style="border: none; background: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); border-radius: 6px; display: block;"
                     sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                     @load="adjustIframeHeight"
