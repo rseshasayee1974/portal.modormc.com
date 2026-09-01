@@ -334,15 +334,11 @@ const applyBatchToForm = (newBatch: any) => {
 
     form.sales_executive_id = dispatch?.sales_executive_id ? Number(dispatch.sales_executive_id)
         : (so?.sales_executive_id ? Number(so.sales_executive_id)
-           : (po?.sales_executive_id ? Number(po.sales_executive_id)
-              : (quotation?.sales_executive_id ? Number(quotation.sales_executive_id)
-                 : (latestDispatch?.sales_executive_id ? Number(latestDispatch.sales_executive_id) : null))));
+           : (latestDispatch?.sales_executive_id ? Number(latestDispatch.sales_executive_id) : null));
 
     const rawPump = dispatch?.concrete_pump 
         ?? latestDispatch?.concrete_pump 
         ?? so?.concrete_pump 
-        ?? po?.concrete_pump 
-        ?? quotation?.concrete_pump 
         ?? null;
     if (rawPump !== null) {
         const num = Number(rawPump);

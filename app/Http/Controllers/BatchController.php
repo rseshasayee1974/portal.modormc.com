@@ -212,8 +212,6 @@ class BatchController extends Controller
                 ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
                 ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
                 ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
-                ->leftJoin('mm_customer_pos as cpo', 'cpo.id', '=', 'so.customer_po_id')
-                ->leftJoin('mm_quotations as q', 'q.id', '=', 'cpo.quotation_id')
                 ->select([
                     'so.id',
                     DB::raw("CONCAT(so.prefix, so.order_no) as full_number"),
@@ -224,8 +222,6 @@ class BatchController extends Controller
                     'so.total_qty',
                     'so.is_tax_inclusive',
                     'so.concrete_pump',
-                    'cpo.concrete_pump as cpo_concrete_pump',
-                    'q.concrete_pump as q_concrete_pump',
                     'so.sales_executive_id',
                 ])
                 ->where('so.plant_id', $activePlantId)
@@ -237,7 +233,7 @@ class BatchController extends Controller
                     $ld = $latestDispatches->get($so->id);
                     $ldPump = $autoCarryPump ? $latestDispatchesWithPump->get($so->id) : null;
                     $concretePump = $autoCarryPump
-                        ? ($ldPump?->concrete_pump ?? $ld?->concrete_pump ?? $so->concrete_pump ?? $so->cpo_concrete_pump ?? $so->q_concrete_pump ?? null)
+                        ? ($ldPump?->concrete_pump ?? $ld?->concrete_pump ?? $so->concrete_pump ?? null)
                         : null;
                     $fullNumber = $so->customer_name ? "{$so->full_number} ({$so->customer_name})" : $so->full_number;
                     return array_merge((array)$so, [
