@@ -321,7 +321,7 @@
         @endif
         @php
             $emptyWeight = (float) ($batch->dispatches->first()?->empty_weight_truck ?? 0);
-            $emptyWeightStr = number_format($emptyWeight, 2) . ' KGS';
+            $emptyWeightStr = number_format($emptyWeight, 2) . ' MTR';
         @endphp
         <tr>
             <td class="meta-label">Empty Wt:</td>

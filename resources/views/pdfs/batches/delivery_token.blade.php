@@ -527,7 +527,7 @@
                         $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
                         $netWeight = (float) ($dispatch?->net_weight ?? $loadedWeight - $emptyWeight);
 
-                        $unitLabel = ' MTS';
+                        $unitLabel = ' MTR';
                         $decimals = 0;
 
                         $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel;
@@ -581,7 +581,7 @@
                     $deviation = $group->sum('deviation_quantity');
                     return (object)[
                         'material_name' => $first->material_name ?: ($first->product->title ?? 'Material'),
-                        'uom_code' => $first->uom->unit_code ?? 'KGS',
+                        'uom_code' => $first->uom->unit_code ?? 'MTR',
                         'target_qty' => $target,
                         'actual_qty' => $actual,
                         'deviation_quantity' => $deviation,
@@ -719,7 +719,7 @@
                             $actual   = (float) ($batchActuals[$item->product_id] ?? 0);     // what was actually dispensed
                             $devVal   = $actual - $recipe;
                             $devPct   = $recipe > 0 ? ($devVal / $recipe) * 100 : 0;
-                            $uomCode  = $item->uom?->unit_code ?? 'KGS';
+                            $uomCode  = $item->uom?->unit_code ?? 'MTR';
                         @endphp
                         <tr class="secondary-row">
                             <td>{{ $ingSno++ }}</td>

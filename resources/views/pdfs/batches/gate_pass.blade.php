@@ -112,7 +112,7 @@
 
         $dispatch = $batch->dispatches->first();
 
-        $unitLabel   = ' KGS';
+        $unitLabel   = ' MTR';
         $decimals    = 0;
         $emptyWeight  = (float) ($dispatch?->empty_weight_truck ?? 0);
         $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);

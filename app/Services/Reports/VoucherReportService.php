@@ -58,7 +58,7 @@ class VoucherReportService implements ReportServiceInterface
             : 'Receipt Vouchers';
 
         return isset($params['patron_id'])
-            ? (Patron::find($params['patron_id'])?->legal_name ?? 'Patron')
+            ? (Patron::whereNull('deleted_at')->find($params['patron_id'])?->legal_name ?? 'Patron')
             : "All $label";
     }
 }

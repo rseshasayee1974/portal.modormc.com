@@ -219,6 +219,39 @@ const getStatusSeverity = (status: string) => {
         default: return 'secondary';
     }
 };
+const formatDate = (date: string | Date) => {
+    if (!date) return '-';
+
+    const d = new Date(date);
+
+    return d.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    });
+};
+
+const formatDuration = (hours: number | string | null | undefined, status?: string) => {
+    if (hours === null || hours === undefined || hours === '') return '-';
+    const num = Number(hours);
+    if (isNaN(num)) return String(hours);
+    if (num === 0) return '0 h';
+
+    // If logged as day values (e.g. 0.5 for half day, 1 with day statuses)
+    if (num === 0.5 || (num === 1 && status && ['present', 'half_day', 'leave', 'holiday', 'weekoff', 'on_duty'].includes(status))) {
+        return num === 1 ? '1 day' : `${num} days`;
+    }
+
+    return num === 1 ? '1 hr' : `${num} hrs`;
+};
+
+const formatOtDuration = (hours: number | string | null | undefined) => {
+    if (hours === null || hours === undefined || hours === '') return '0 h';
+    const num = Number(hours);
+    if (isNaN(num)) return String(hours);
+    if (num === 0) return '0 h';
+    return num === 1 ? '1 hr' : `${num} hrs`;
+};
 </script>
 
 <template>
@@ -356,7 +389,7 @@ const getStatusSeverity = (status: string) => {
                         >
                             <Column header="Date">
                                 <template #body="slotProps">
-                                    <span class="font-semibold">{{ slotProps.data.attendance_date }}</span>
+                                    <span class="font-semibold">{{ formatDate(slotProps.data.attendance_date) }}</span>
                                 </template>
                             </Column>
                             <Column header="Employee Name">
@@ -382,8 +415,8 @@ const getStatusSeverity = (status: string) => {
                             <Column header="Hours Details">
                                 <template #body="slotProps">
                                     <div class="flex flex-col text-[11px]">
-                                        <span>Worked: {{ slotProps.data.worked_hours }} h</span>
-                                        <span>OT: {{ slotProps.data.overtime_hours }} h</span>
+                                        <span>Worked: {{ formatDuration(slotProps.data.worked_hours, slotProps.data.status) }}</span>
+                                        <span>OT: {{ formatOtDuration(slotProps.data.overtime_hours) }}</span>
                                     </div>
                                 </template>
                             </Column>

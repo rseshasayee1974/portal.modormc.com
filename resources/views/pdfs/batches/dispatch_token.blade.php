@@ -346,7 +346,7 @@
         $loadedWeight = (float) ($dispatch?->loaded_weight_truck ?? 0);
         $netWeight = (float) ($dispatch?->net_weight ?? $loadedWeight - $emptyWeight);
 
-        $unitLabel = ' KGS';
+        $unitLabel = ' MTR';
         $decimals = 0;
 
         $emptyWeightStr = number_format($emptyWeight, $decimals) . $unitLabel;
