@@ -38,7 +38,7 @@ const emit = defineEmits<{
     <BaseField :label="label" :required="required" :error="error" :hint="hint" :disabled="disabled" :class="fieldClass">
         <template #default="{ invalid, inputId }">
             <InputText :id="inputId" :modelValue="modelValue ?? ''" :type="type" :placeholder="placeholder"
-                :disabled="disabled" :size="size" :fluid="fluid" class="!bg-white" :class="[
+                :disabled="disabled" :size="size" :fluid="fluid" :class="[
                     inputClass,
                     invalid ? 'p-invalid' : null,
                 ]" @update:modelValue="emit('update:modelValue', $event as any)" @blur="emit('blur', $event)" />
@@ -47,8 +47,22 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.p-component {
+:deep(.p-component) {
     border-radius: 4px !important;
+}
+
+:deep(.p-inputtext) {
+    background-color: white !important;
+}
+
+:deep(.p-inputtext:disabled),
+:deep(.p-inputtext[readonly]),
+:deep(.p-inputtext.p-disabled) {
+    background-color: #eff1f1 !important;
+    border-color: #d5d7d8 !important;
+    color: #475569 !important;
+    opacity: 0.75 !important;
+    cursor: not-allowed !important;
 }
 
 .fieldClass {
