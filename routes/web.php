@@ -62,6 +62,13 @@ Route::middleware([
     Route::post('/settings/customsetting/store', [\App\Http\Controllers\CustomSettingController::class, 'store'])->name('settings.customsetting.store');
     Route::delete('/settings/customsetting/{customsetting}', [\App\Http\Controllers\CustomSettingController::class, 'destroy'])->name('settings.customsetting.destroy');
 
+    // Plant Data Cleanup (Bulk Delete & Restore per Active Plant)
+    Route::prefix('settings/plant-data-cleanup')->name('plant-data-cleanup.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PlantDataCleanupController::class, 'index'])->name('index');
+        Route::post('/bulk-delete', [\App\Http\Controllers\PlantDataCleanupController::class, 'bulkDelete'])->name('bulk-delete');
+        Route::post('/bulk-restore', [\App\Http\Controllers\PlantDataCleanupController::class, 'bulkRestore'])->name('bulk-restore');
+    });
+
     // 1. Context (Entity/Plant Switcher)
     Route::prefix('context')->group(function () {
         Route::get('/selectentity', [\App\Http\Controllers\EntityContextController::class, 'index'])->name('entity-context.index');

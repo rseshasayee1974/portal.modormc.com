@@ -95,10 +95,7 @@ const setBatchActiveTab = (batchId: number, tabIndex: number) => {
 
 // Fallback REST polling via Inertia reload
 const fetchBatchesFallback = () => {
-    router.reload({
-        preserveScroll: true,
-        preserveState: true
-    });
+    router.reload();
 };
 
 // ── Offline Sync ──────────────────────────────────────────────────────────
@@ -365,10 +362,8 @@ const handlePreviewClose = async (batchId: number | null) => {
 const handleBatchCreated = () => {
     router.reload({ 
         only: ['batches', 'nextBatchNo', 'salesOrders'],
-        preserveState: false,
-        preserveScroll: true,
-    })
-}
+    });
+};
 const handleBatchSaved = async (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => {
     // console.log('[Index.vue] handleBatchSaved triggered with payload:', payload);
     if (payload?.batchId) {
@@ -399,12 +394,10 @@ const {
         // Reset the BatchCreateForm by incrementing its key
         batchFormKey.value++;
 
-        if (reason === 'print' || 'close') {
+        if (reason === 'print' || reason === 'close') {
             router.reload({ 
                 only: ['batches', 'nextBatchNo'], 
-                preserveScroll: true,
-                preserveState: true
-            })
+            });
         }
     }
 });
@@ -483,8 +476,6 @@ const openShareBatch = (batch: any) => {
 const handleInvoiceGenerated = () => {
     router.reload({ 
         only: ['batches', 'nextBatchNo'],
-        preserveScroll: true,
-        preserveState: true
     });
 };
 
