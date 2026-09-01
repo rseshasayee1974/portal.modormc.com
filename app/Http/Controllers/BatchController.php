@@ -87,8 +87,10 @@ class BatchController extends Controller
                 'ds.id as dispatch_status_id',
                 'ds.invoice_id',
                 'ds.is_tax_inclusive as dispatch_is_tax_inclusive',
+                'inv.prefix as invoice_prefix',
                 'inv.invoice_number',
                 'inv.status as invoice_status',
+                'inv.is_duplicate as invoice_is_duplicate',
                 'einv_rel.einv_irn as einvoice_irn',
                 'einv_rel.einv_status as einvoice_status',
                 'einv_rel.einv_ackno as einvoice_ack_no',
@@ -97,6 +99,7 @@ class BatchController extends Controller
             ->orderByDesc('b.created_at')
             ->get()
             ->map(function ($row) {
+                $fullInvoiceNumber = ($row->invoice_prefix ?? '') . ($row->invoice_number ?? '');
                 return [
                     'id' => $row->id,
                     'encrypted_id' => encrypt($row->id),
@@ -113,7 +116,7 @@ class BatchController extends Controller
                     'tax_id' => $row->so_tax_id,
                     'is_tax_inclusive' => (bool)$row->so_is_tax_inclusive,
                     'invoice_id' => $row->invoice_id,
-                    'invoice_number' => $row->invoice_number,
+                    'invoice_number' => $fullInvoiceNumber,
                     'has_invoice' => !empty($row->invoice_id),
                     'einvoice_irn' => $row->einvoice_irn,
                     'einvoice_status' => $row->einvoice_status,
@@ -155,12 +158,16 @@ class BatchController extends Controller
                                 'id' => $row->dispatch_status_id,
                                 'invoice_id' => $row->invoice_id,
                                 'invoice_status' => $row->invoice_id ? 1 : 0,
-                                'invoice_number' => $row->invoice_number,
+                                'invoice_number' => $fullInvoiceNumber,
                                 'is_tax_inclusive' => $row->dispatch_is_tax_inclusive !== null ? (bool)$row->dispatch_is_tax_inclusive : (bool)$row->so_is_tax_inclusive,
                                 'invoice' => $row->invoice_id ? [
                                     'id' => $row->invoice_id,
-                                    'invoice_number' => $row->invoice_number,
+                                    'encrypted_id' => encrypt($row->invoice_id),
+                                    'invoice_number' => $fullInvoiceNumber,
+                                    'invoice_prefix' => $row->invoice_prefix,
+                                    'full_number' => $fullInvoiceNumber,
                                     'status' => $row->invoice_status,
+                                    'is_duplicate' => (int)($row->invoice_is_duplicate ?? 0),
                                     'einvoice_irn' => $row->einvoice_irn,
                                     'einvoice_status' => $row->einvoice_status,
                                 ] : null,
@@ -170,23 +177,80 @@ class BatchController extends Controller
                 ];
             }); 
 
+        $batchingSettings = CustomSetting::getForModule($activePlantId, 'batching');
+        $autoCarryPump = !empty($batchingSettings['auto_carry_pump']);
+
+        $latestDispatches = DB::table('mm_dispatches as d')
+            ->select('d.sales_order_id', 'd.concrete_pump', 'd.truck_id', 'd.driver_id', 'd.transport_id', 'd.sales_executive_id', 'd.empty_weight_truck', 'd.loaded_weight_truck', 'd.net_weight')
+            ->whereIn('d.id', function ($query) use ($activePlantId) {
+                $query->select(DB::raw('MAX(id)'))
+                    ->from('mm_dispatches')
+                    ->where('plant_id', $activePlantId)
+                    ->whereNull('deleted_at')
+                    ->groupBy('sales_order_id');
+            })
+            ->get()
+            ->keyBy('sales_order_id');
+
+        $latestDispatchesWithPump = collect();
+        if ($autoCarryPump) {
+            $latestDispatchesWithPump = DB::table('mm_dispatches as d')
+                ->select('d.sales_order_id', 'd.concrete_pump')
+                ->whereIn('d.id', function ($query) use ($activePlantId) {
+                    $query->select(DB::raw('MAX(id)'))
+                        ->from('mm_dispatches')
+                        ->where('plant_id', $activePlantId)
+                        ->whereNotNull('concrete_pump')
+                        ->whereNull('deleted_at')
+                        ->groupBy('sales_order_id');
+                })
+                ->get()
+                ->keyBy('sales_order_id');
+        }
+
         $salesOrders = DB::table('mm_sales_orders as so')
                 ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
                 ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
                 ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
-               
+                ->leftJoin('mm_customer_pos as cpo', 'cpo.id', '=', 'so.customer_po_id')
+                ->leftJoin('mm_quotations as q', 'q.id', '=', 'cpo.quotation_id')
                 ->select([
                     'so.id',
-                      DB::raw("CONCAT(so.prefix, so.order_no) as full_number"),
-                    'so.produced_qty','p.legal_name as customer_name','s.name as site_name','m.design_name as mix_design_name',
-                    
+                    DB::raw("CONCAT(so.prefix, so.order_no) as full_number"),
+                    'so.produced_qty',
+                    'p.legal_name as customer_name',
+                    's.name as site_name',
+                    'm.design_name as mix_design_name',
                     'so.total_qty',
                     'so.is_tax_inclusive',
+                    'so.concrete_pump',
+                    'cpo.concrete_pump as cpo_concrete_pump',
+                    'q.concrete_pump as q_concrete_pump',
+                    'so.sales_executive_id',
                 ])
+<<<<<<< HEAD
                 ->where('so.plant_id', $activePlantId)->where('so.deleted_at', null)
+=======
+                ->where('so.plant_id', $activePlantId)
+                ->whereNull('so.deleted_at')
+>>>>>>> f983cd25a54a32def06659616b0f31eefad514fb
                 ->where('so.status', SalesOrder::STATUS_IN_PROGRESS)
                 ->orderBy('so.order_no')
-                ->get();
+                ->get()
+                ->map(function ($so) use ($latestDispatches, $latestDispatchesWithPump, $autoCarryPump) {
+                    $ld = $latestDispatches->get($so->id);
+                    $ldPump = $autoCarryPump ? $latestDispatchesWithPump->get($so->id) : null;
+                    $concretePump = $autoCarryPump
+                        ? ($ldPump?->concrete_pump ?? $ld?->concrete_pump ?? $so->concrete_pump ?? $so->cpo_concrete_pump ?? $so->q_concrete_pump ?? null)
+                        : null;
+                    $fullNumber = $so->customer_name ? "{$so->full_number} ({$so->customer_name})" : $so->full_number;
+                    return array_merge((array)$so, [
+                        'full_number' => $fullNumber,
+                        'order_number' => $so->full_number,
+                        'concrete_pump' => $concretePump,
+                        'latest_dispatch' => $ld ? (array)$ld + ['concrete_pump' => $concretePump] : ($concretePump ? ['concrete_pump' => $concretePump] : null),
+                    ]);
+                });
 
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
@@ -760,6 +824,7 @@ class BatchController extends Controller
                 'ds.receiver_name as status_receiver_name',
                 'ds.receive_mobile as status_receive_mobile',
                 'ds.note as status_note',
+                'inv.prefix as invoice_prefix',
                 'inv.invoice_number',
                 'inv.status as invoice_status_text',
                 'inv.total_amount as invoice_total_amount',
@@ -799,6 +864,8 @@ class BatchController extends Controller
                     'is_active' => (bool)($p->is_active ?? true),
                 ];
             })->values()->all();
+
+            $fullInvoiceNo = ($d->invoice_prefix ?? '') . ($d->invoice_number ?? $d->status_invoice_number ?? '');
 
             return [
                 'id' => $d->id,
@@ -874,7 +941,7 @@ class BatchController extends Controller
                     'invoice_id' => $d->invoice_id,
                     'invoice_status' => (int)($d->invoice_status ?? ($d->invoice_id ? 1 : 0)),
                     'invoice_date' => $d->status_invoice_date ?? null,
-                    'invoice_number' => $d->status_invoice_number ?? $d->invoice_number ?? '',
+                    'invoice_number' => $fullInvoiceNo,
                     'is_tax_inclusive' => (bool)$d->dispatch_is_tax_inclusive,
                     'transport_units' => (float)($d->status_transport_units ?? 0),
                     'transport_rate' => (float)($d->status_transport_rate ?? 0),
@@ -890,9 +957,9 @@ class BatchController extends Controller
                     'invoice' => $d->invoice_id ? [
                         'id' => $d->invoice_id,
                         'encrypted_id' => encrypt($d->invoice_id),
-                        'invoice_number' => $d->invoice_number,
-                        'invoice_prefix' => $d->prefix,
-                        'full_number' => ($d->prefix ?? '') . ($d->invoice_number ?? ''),
+                        'invoice_number' => $fullInvoiceNo,
+                        'invoice_prefix' => $d->invoice_prefix,
+                        'full_number' => $fullInvoiceNo,
                         'status' => $d->invoice_status_text,
                         'total_amount' => (float)$d->invoice_total_amount,
                         'einvoice_irn' => $d->invoice_einvoice_irn,
@@ -915,11 +982,28 @@ class BatchController extends Controller
 
         $primaryDispatch = $mappedDispatches->first();
 
+        $batchingSettings = CustomSetting::getForModule($batchRow->plant_id ?? session('active_plant_id'), 'batching');
+        $autoCarryPump = !empty($batchingSettings['auto_carry_pump']);
+
         $latestDispatch = DB::table('mm_dispatches')
             ->where('sales_order_id', $batchRow->sales_order_id)
             ->whereNull('deleted_at')
             ->orderByDesc('id')
             ->first();
+
+        $latestDispatchWithPump = null;
+        if ($autoCarryPump) {
+            $latestDispatchWithPump = DB::table('mm_dispatches')
+                ->where('sales_order_id', $batchRow->sales_order_id)
+                ->whereNotNull('concrete_pump')
+                ->whereNull('deleted_at')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        $resolvedPump = $primaryDispatch['concrete_pump'] 
+            ?? ($autoCarryPump ? ($latestDispatchWithPump?->concrete_pump ?? $latestDispatch?->concrete_pump ?? $batchRow->so_concrete_pump) : null)
+            ?? null;
 
         $responseData = [
             'id' => $batchRow->id,
@@ -941,7 +1025,7 @@ class BatchController extends Controller
             'transport_id' => $primaryDispatch['transport_id'] ?? null,
             'driver_id' => $primaryDispatch['driver_id'] ?? null,
             'sales_executive_id' => $primaryDispatch['sales_executive_id'] ?? $batchRow->so_sales_executive_id ?? null,
-            'concrete_pump' => $primaryDispatch['concrete_pump'] ?? $batchRow->so_concrete_pump ?? null,
+            'concrete_pump' => $resolvedPump,
             'empty_weight_truck' => (float)($primaryDispatch['empty_weight_truck'] ?? 0),
             'loaded_weight_truck' => (float)($primaryDispatch['loaded_weight_truck'] ?? 0),
             'net_weight' => (float)($primaryDispatch['net_weight'] ?? 0),
@@ -958,7 +1042,7 @@ class BatchController extends Controller
                 'rate' => (float)($batchRow->so_rate ?? 0),
                 'tax_id' => $batchRow->so_tax_id,
                 'is_tax_inclusive' => (bool)$batchRow->so_is_tax_inclusive,
-                'concrete_pump' => $batchRow->so_concrete_pump,
+                'concrete_pump' => $resolvedPump,
                 'pump_rate' => (float)($batchRow->so_pump_rate ?? 0),
                 'sales_executive_id' => $batchRow->so_sales_executive_id,
                 'customer_name' => $batchRow->customer_legal_name,
@@ -1006,26 +1090,26 @@ class BatchController extends Controller
         $this->authorizeModule('edit');
 
         $user = auth()->user();
-        $isAdmin = $user && method_exists($user, 'hasRole') && (
-            $user->hasRole('Saas Owner') || 
-            $user->hasRole('Platform Admin') || 
-            $user->hasRole('Super Admin') || 
-            $user->hasRole('Admin') || 
-            $user->hasRole('Super Administrator') ||
-            $user->hasRole('Administrator')
-        );
+        // $isAdmin = $user && method_exists($user, 'hasRole') && (
+        //     $user->hasRole('Saas Owner') || 
+        //     $user->hasRole('Platform Admin') || 
+        //     $user->hasRole('Super Admin') || 
+        //     $user->hasRole('Admin') || 
+        //     $user->hasRole('Super Administrator') ||
+        //     $user->hasRole('Administrator')
+        // );
 
-        if (!$isAdmin) {
-            $dispatch = $batch->dispatches()->first();
-            $dispatchPump = $dispatch ? ($dispatch->concrete_pump ?? $dispatch->concrete_pump) : null;
-            if (
-                ($request->has('batch_size') && (float)$request->batch_size !== (float)$batch->batch_size) ||
-                ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$batch->sales_order_id) ||
-                (($request->has('concrete_pump') || $request->has('concrete_pump')) && ($request->get('concrete_pump') ?? $request->get('concrete_pump')) !== $dispatchPump)
-            ) {
-                return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Sales Order, Batch Size, or Concrete Pump.']);
-            }
-        }
+        // if (!$isAdmin) {
+        //     $dispatch = $batch->dispatches()->first();
+        //     $dispatchPump = $dispatch ? ($dispatch->concrete_pump ?? $dispatch->concrete_pump) : null;
+        //     if (
+        //         ($request->has('batch_size') && (float)$request->batch_size !== (float)$batch->batch_size) ||
+        //         ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$batch->sales_order_id) ||
+        //         (($request->has('concrete_pump') || $request->has('concrete_pump')) && ($request->get('concrete_pump') ?? $request->get('concrete_pump')) !== $dispatchPump)
+        //     ) {
+        //         return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Sales Order, Batch Size, or Concrete Pump.']);
+        //     }
+        // }
 
         $payload = $request->validated();
         

@@ -58,9 +58,11 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits(['update:modelValue', 'generateInvoice', 'generateEInvoice', 'deleteInvoice']);
 
-const { can, isAdmin, isSuperAdmin, permissions, userRole } = usePermissions();
+const { can, isAdmin, isSuperAdmin, isSassOwner, permissions, userRole } = usePermissions();
 
-const canExportInvoice = computed(() => isAdmin.value );
+const hasAdminInvoicePrivilege = computed(() => {
+    return isSassOwner.value || isSuperAdmin.value || isAdmin.value;
+});
 
 const handleGenerateInvoice = () => {
     if (!props.modelValue.ledger_id) {
@@ -107,7 +109,7 @@ const formatTime = (dateVal: any) => {
     return new Date(dateVal).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
-// console.log('jkghkjgk', props.modelValue);
+console.log('jkghkjgk', props.modelValue);
 
 </script>
 
@@ -310,7 +312,7 @@ const formatTime = (dateVal: any) => {
                             <div class="flex flex-wrap items-center gap-4 sm:gap-6 text-xs">
                                 <div>
                                     <span class="text-[10px] block text-slate-400 font-semibold uppercase tracking-wider">Invoice No</span>
-                                    <span class="font-mono font-bold text-slate-800 text-sm tracking-tight">{{ modelValue.status.invoice?.invoice_prefix+''+modelValue.status.invoice.invoice_number  }}</span>
+                                    <span class="font-mono font-bold text-slate-800 text-sm tracking-tight">{{ modelValue.status.invoice?.full_number || modelValue.status.invoice?.invoice_number || modelValue.status.invoice_number || '-' }}</span>
                                 </div>
                                 <div class="h-6 w-px bg-slate-100 hidden sm:block"></div>
                                 <div>
@@ -350,7 +352,7 @@ const formatTime = (dateVal: any) => {
                         <!-- Right: Action Buttons -->
                         <div class="flex items-center gap-2 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100 flex-wrap">
                             <!-- Generate E-Invoice Button (Visible when Invoice is generated & linked, but E-Invoice is not yet generated) -->
-                            <button 
+                            <!-- <button 
                                 v-if="modelValue.status.invoice?.id && modelValue.status.invoice?.einvoice_status !== 'generated' && !modelValue.status.invoice?.einvoice_irn"
                                 type="button"
                                 @click="$emit('generateEInvoice', modelValue.status.invoice.id)"
@@ -359,7 +361,7 @@ const formatTime = (dateVal: any) => {
                             >
                                 <SparklesIcon class="h-4 w-4 text-purple-200" />
                                 <span>Generate E-Invoice</span>
-                            </button>
+                            </button> -->
 
                             <!-- Print E-Invoice Button (When E-Invoice IRN is generated) -->
                             <a 
@@ -373,26 +375,15 @@ const formatTime = (dateVal: any) => {
                             </a>
 
                             <template v-if="modelValue.status.invoice?.encrypted_id || modelValue.status.invoice?.id">
-                                <!-- Print Original Invoice Button -->
+                                <!-- Print Invoice Button (Original/Duplicate logic handled dynamically in backend) -->
                                 <a 
-                                    :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id, action: 'view', force: 'original' })" 
+                                    :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id})" 
                                     target="_blank"
                                     class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 active:scale-[0.98] text-emerald-700 border border-emerald-200/80 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
-                                    title="Print Original Invoice (Recipient Copy)"
+                                    title="Print Invoice"
                                 >
                                     <PrinterIcon class="h-4 w-4 text-emerald-600" />
-                                    <span>Print Original</span>
-                                </a>
-
-                                <!-- Print Duplicate Invoice Button -->
-                                <a 
-                                    :href="route('print.document', { module: 'invoices', id: modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id, action: 'view', force: 'duplicate' })" 
-                                    target="_blank"
-                                    class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 active:scale-[0.98] text-indigo-700 border border-indigo-200/80 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
-                                    title="Print Duplicate Invoice (Transporter Copy)"
-                                >
-                                    <DocumentDuplicateIcon class="h-4 w-4 text-indigo-600" />
-                                    <span>Print Duplicate</span>
+                                    <span>Print Invoice</span>
                                 </a>
                           
                                 <button 

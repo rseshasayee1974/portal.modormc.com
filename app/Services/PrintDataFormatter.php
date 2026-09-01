@@ -841,13 +841,14 @@ class PrintDataFormatter
 
             $itemSubtotal = (float)($item->subtotal ?? ($item->quantity * $item->price_unit));
             $itemTotal = (float)($itemSubtotal + $lineTaxAmount);
-
+            $taxInWords = self::numberToWords($lineTaxAmount);
             return [
                 'no' => $idx + 1, 'name' => $item->item_name, 'description' => '', 'hsn' => $item->hsn_code ?? '-',
                 'qty' => (float)$item->quantity, 'unit' => $item->uom->unit_code ?? 'm³', 'unit_price' => (float)$item->price_unit,
                 'discount' => (float)($item->discount_amount ?? $item->discount ?? 0),
                 'operation_type' => $operationType, 'pump_charge' => $pumpCharge,
                 'taxable_amount' => $itemSubtotal,
+                'tax_words'=> $taxInWords,
                 'tax_name' => $taxDetails['name'] ?: '-', 'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => $lineTaxAmount,
                 'total' => $itemTotal,
             ];

@@ -382,11 +382,19 @@ Route::middleware([
 
 // Public Document Share Access (Guest/No Authentication)
 Route::get('public/invoice/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewInvoice'])->name('public.invoice.view');
+Route::get('share/invoice/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewInvoice'])->name('share.invoice.view');
 Route::get('public/invoice/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadPDF'])->name('public.invoice.pdf');
+Route::get('share/invoice/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadPDF'])->name('share.invoice.pdf');
+
 Route::get('public/report/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewReport'])->name('public.report.view');
+Route::get('share/report/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewReport'])->name('share.report.view');
 Route::get('public/report/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadReportPDF'])->name('public.report.pdf');
-Route::get('/public/batch/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewBatch'])->name('public.batch.view');
-Route::get('/public/batch/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadBatchPDF'])->name('public.batch.pdf');
+Route::get('share/report/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadReportPDF'])->name('share.report.pdf');
+
+Route::get('public/batch/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewBatch'])->name('public.batch.view');
+Route::get('share/batch/{token}', [\App\Http\Controllers\InvoiceShareController::class, 'viewBatch'])->name('share.batch.view');
+Route::get('public/batch/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadBatchPDF'])->name('public.batch.pdf');
+Route::get('share/batch/{token}/pdf', [\App\Http\Controllers\InvoiceShareController::class, 'downloadBatchPDF'])->name('share.batch.pdf');
 
 // Public Gate Pass Verification (Guest)
 Route::get('/public/gatepass/verify/{batch}/{hash}', [\App\Http\Controllers\BatchController::class, 'publicVerifyGatePass'])->name('public.gatepass.verify');
