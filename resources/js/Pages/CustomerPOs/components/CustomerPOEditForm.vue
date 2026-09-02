@@ -74,6 +74,7 @@ const form = useForm({
 // Pre-fill items from sales order or quotation items
 const itemsList = props.customerPO?.items || props.customerPO?.quotation?.items || [];
 form.items = itemsList.map((item: any) => {
+    const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
     return {
         id: props.customerPO?.items?.some((i: any) => i.id === item.id) ? item.id : null,
         mix_design_id: item.mix_design_id,
@@ -114,6 +115,7 @@ watch(() => form.quotation_id, (newVal) => {
             form.is_tax_inclusive = quote.is_tax_inclusive ? true : false;
             const quoteItems = quote.items || [];
             form.items = quoteItems.map((item: any) => {
+                const savedPumpRate = (item.pump_rates || item.pumpRates || []).find((pr: any) => pr.concrete_pump !== null && pr.concrete_pump !== undefined && pr.concrete_pump !== '');
                 return {
                     id: null,
                     mix_design_id: item.mix_design_id,
@@ -979,7 +981,7 @@ const performSubmit = (customerPOId: any) => {
                                         {{ props.taxes?.find(t => Number(t.id) === Number(item.tax_id)) ? `${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_name} (${props.taxes.find(t => Number(t.id) === Number(item.tax_id)).tax_rate}%)` : '-' }}
                                     </td>
                                     <td class="p-2 text-center font-mono">
-                                        {{ (props.concretePumpOptions || props.pumpTypeOptions || [])?.find(opt => String(opt.value).toLowerCase() === String(item.concrete_pump || '').toLowerCase())?.label || (item.concrete_pump ? String(item.concrete_pump).charAt(0).toUpperCase() + String(item.concrete_pump).slice(1) : '-') }}
+                                        {{ (props.pumpTypeOptions || [])?.find(opt => String(opt.value).toLowerCase() === String(item.concrete_pump || '').toLowerCase())?.label || (item.concrete_pump ? String(item.concrete_pump).charAt(0).toUpperCase() + String(item.concrete_pump).slice(1) : '-') }}
                                     </td>
                                     <td class="p-2 text-right font-mono">
                                         {{ item.pump_rate ? `₹${Number(item.pump_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : '-' }}

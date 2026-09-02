@@ -29,8 +29,8 @@ class TdsCertificateReportService implements ReportServiceInterface
             ];
         }
 
-        $plant  = Plant::with(['addresses.state'])->find($plantId);
-        $patron = Patron::with(['addresses.state'])->find($patronId);
+        $plant  = Plant::with(['addresses.state'])->whereNull('deleted_at')->find($plantId);
+        $patron = Patron::with(['addresses.state'])->whereNull('deleted_at')->find($patronId);
 
         $transactions = [];
 

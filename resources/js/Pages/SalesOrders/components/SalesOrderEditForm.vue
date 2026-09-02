@@ -16,7 +16,6 @@ import {
     SparklesIcon
 } from '@heroicons/vue/24/outline';
 import RecipePopover from '@/Components/Base/RecipePopover.vue';
-import { usePermissions } from '@/Composables/usePermissions';
 import MixDesignCreateForm from '@/Pages/MixDesigns/Partials/MixDesignCreateForm.vue';
 
 const props = withDefaults(defineProps<{
@@ -54,8 +53,6 @@ const emit = defineEmits<{
     (e: 'cancel'): void;
 }>();
 
-const { can, isAdmin, isSuperAdmin } = usePermissions();
-
 const showMixDesignModal = ref(false);
 const isLoading = ref(true);
 const isInitializing = ref(true);
@@ -84,30 +81,21 @@ const hasActiveData = computed(() => {
            Number(props.salesOrder?.status) === 3;
 });
 
-const isCriticalLocked = computed(() => hasActiveData.value);
-
 const isLocked = computed(() => {
-    if (!can('SALES_ORDER.UPDATE')) return true;
-    if (can('SALES_ORDER.APPROVE')) return false;
-
     const status = Number(props.salesOrder?.status);
-    return hasActiveData.value || (status !== 1 && status !== 4);
+    return status !== 1 || hasActiveData.value;
 });
 
-const isRestrictedFieldLocked = computed(() => {
-    if (!isAdmin.value && !isSuperAdmin.value) return true;
-    return isLocked.value;
-});
+const isCriticalLocked = computed(() => isLocked.value);
+
+const isRestrictedFieldLocked = computed(() => isLocked.value);
 
 const isMixDesignLocked = computed(() => {
-    if (!isAdmin.value && !isSuperAdmin.value) return true;
-    return isCriticalLocked.value || !!form.customer_po_id;
+    return isLocked.value || !!form.customer_po_id;
 });
 
 const isRateTaxLocked = computed(() => {
-    if (!form.customer_po_id) return isLocked.value;
-    if (isAdmin.value || isSuperAdmin.value) return false;
-    return true;
+    return isLocked.value || !!form.customer_po_id;
 });
 
 const defaultStart = new Date();
@@ -392,8 +380,7 @@ const handleMixCreated = () => {
             <div>
                 <span class="font-bold block">Order Locked</span>
                 <span v-if="hasActiveData">This sales order has active batches, dispatches, or is completed.</span>
-                <span v-else>This sales order is no longer in a modifiable status.</span>
-                Only authorized users can modify locked records.
+                <span v-else>This sales order is no longer in Scheduled status and is locked for edits.</span>
             </div>
         </div>
 
@@ -567,23 +554,18 @@ const handleMixCreated = () => {
                             label="Pump Rate"
                             :error="form.errors.pump_rate"
                             :minFractionDigits="2"
-                            :disabled="isRateTaxLocked"
+                            :disabled="isRestrictedFieldLocked"
                         />
                     </div>
 
                     <!-- Total Quantity -->
-                    <div v-if="can('SALES_ORDER.UPDATE')">
+                    <div>
                         <BaseInputNumber
                             v-model="form.total_qty"
                             label="Total Quantity (m³)"
                             :error="form.errors.total_qty"
                             :minFractionDigits="3"
-                            :disabled="isRestrictedFieldLocked"
                         />
-                    </div>
-                    <div v-else class="flex flex-col gap-1 mt-1">
-                        <span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Total Quantity (m³)</span>
-                        <span class="font-semibold text-sm text-slate-800 dark:text-slate-200">{{ form.total_qty }} m³</span>
                     </div>
 
                     <!-- Produced Quantity -->
@@ -632,7 +614,6 @@ const handleMixCreated = () => {
                             optionValue="value"
                             label="Status"
                             :error="form.errors.status"
-                            :disabled="isLocked"
                         />
                     </div>
 
@@ -698,7 +679,7 @@ const handleMixCreated = () => {
                         </div>
                     </div>
 
-                    <div v-if="!isLocked" class="pt-2 flex flex-col gap-2">
+                    <div class="pt-2 flex flex-col gap-2">
                         <Button 
                             label="Update Sales Order" 
                             icon="pi pi-check" 

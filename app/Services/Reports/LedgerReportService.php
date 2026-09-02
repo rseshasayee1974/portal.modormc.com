@@ -69,7 +69,7 @@ class LedgerReportService implements ReportServiceInterface
     public function targetName(array $params): string
     {
         return isset($params['id'])
-            ? (Ledger::find($params['id'])?->title ?? 'Ledger')
+            ? (Ledger::whereNull('deleted_at')->find($params['id'])?->title ?? 'Ledger')
             : 'All Ledgers Consolidated';
     }
 }

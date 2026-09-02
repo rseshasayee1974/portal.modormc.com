@@ -93,7 +93,7 @@ class PurchaseReportService implements ReportServiceInterface
     public function targetName(array $params): string
     {
         return isset($params['patron_id'])
-            ? (Patron::find($params['patron_id'])?->legal_name ?? 'Vendor')
+            ? (Patron::whereNull('deleted_at')->find($params['patron_id'])?->legal_name ?? 'Vendor')
             : 'All Vendor Purchases';
     }
 }

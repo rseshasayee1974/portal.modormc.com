@@ -82,11 +82,22 @@ const emit = defineEmits<{
         </template>
     </BaseField>
 </template>
-<style>
-.p-component {
-   border-radius:4px !important;
+<style scoped>
+:deep(.p-component) {
+   border-radius: 4px !important;
 }
-.p-inputnumber-fluid .p-inputnumber-input {
+
+:deep(.p-inputnumber-input) {
     background-color: white !important;
+}
+
+:deep(.p-inputnumber.p-disabled .p-inputnumber-input),
+:deep(.p-inputnumber-input:disabled),
+:deep(.p-inputnumber-input[readonly]) {
+    background-color: #eff1f1 !important;
+    border-color: #d5d7d8 !important;
+    color: #475569 !important;
+    opacity: 0.75 !important;
+    cursor: not-allowed !important;
 }
 </style>

@@ -30,28 +30,48 @@ import { CubeIcon, ListBulletIcon, PaperAirplaneIcon } from '@heroicons/vue/24/o
 
 declare const route: any;
 
-const props = defineProps<{
-    batches: any[];
-    salesOrders: any[];
-    trucks: any[];
-    customers: any[];
-    transporters: any[];
-    drivers: any[];
+const props = withDefaults(defineProps<{
+    batches?: any[];
+    salesOrders?: any[];
+    trucks?: any[];
+    customers?: any[];
+    transporters?: any[];
+    drivers?: any[];
     operators?: any[];
-    sales_executives: any[];
-    taxes: any[];
-    products: any[];
-    loading_sites: any[];
-    unloading_sites: any[];
-    uoms: any[];
-    statuses: { label: string; value: number }[];
+    sales_executives?: any[];
+    taxes?: any[];
+    products?: any[];
+    loading_sites?: any[];
+    unloading_sites?: any[];
+    uoms?: any[];
+    statuses?: { label: string; value: number }[];
     schemaWarning?: string | null;
-    nextBatchNo: number;
-    batchingSettings: any;
-    payment_methods: any[];
-    sales_ledgers: any[];
+    nextBatchNo?: number;
+    batchingSettings?: any;
+    payment_methods?: any[];
+    sales_ledgers?: any[];
     concretePumpOptions?: any[];
-}>();
+}>(), {
+    batches: () => [],
+    salesOrders: () => [],
+    trucks: () => [],
+    customers: () => [],
+    transporters: () => [],
+    drivers: () => [],
+    operators: () => [],
+    sales_executives: () => [],
+    taxes: () => [],
+    products: () => [],
+    loading_sites: () => [],
+    unloading_sites: () => [],
+    uoms: () => [],
+    statuses: () => [],
+    nextBatchNo: 1,
+    batchingSettings: () => ({}),
+    payment_methods: () => [],
+    sales_ledgers: () => [],
+    concretePumpOptions: () => [],
+});
 const dropdownData = computed(() => ({
     trucks: props.trucks,
     transporters: props.transporters,
@@ -987,7 +1007,7 @@ const shareBatchEmail = () => {
                                                 >
                                                     <i class="pi pi-whatsapp mr-2 text-emerald-500 font-bold"></i>
                                                     WhatsApp Send
-                                                </button>
+                                                </button>   
                                             </div>
 
                                             <!-- Group 4: Delete Batch -->
@@ -1125,11 +1145,11 @@ const shareBatchEmail = () => {
                 </div>
             </template>
 
-            <div class="w-full flex justify-center bg-slate-100 py-2.5 px-1 overflow-y-auto max-h-[70vh] border-b border-slate-100">
+            <div class="w-full flex justify-center bg-slate-100 py-2.5 px-1 overflow-x-hidden overflow-y-auto max-h-[75vh] border-b border-slate-100">
                 <iframe
                     v-if="tokenPreviewUrl"
                     :src="tokenPreviewUrl"
-                    :style="{ height: iframeHeight, width: previewIframeWidth }"
+                    :style="{ height: iframeHeight, width: previewIframeWidth, maxWidth: '100%' }"
                     style="border: none; background: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); border-radius: 6px; display: block;"
                     sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                     @load="adjustIframeHeight"

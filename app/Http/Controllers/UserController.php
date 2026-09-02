@@ -35,13 +35,26 @@ class UserController extends Controller
             $user->hasRole('Super Admin')
         );
 
-        $query = User::with(['entityUsers.entity', 'entityUsers.plant', 'entityUsers.role']);
+        $query = User::with(['entityUsers.entity', 'entityUsers.plant', 'entityUsers.role'])
+            ->where('id', '!=', $user->id);
 
         if ($isSuperUser) {
             $query->withTrashed();
         } else {
-            $query->whereDoesntHave('roles', function ($q) {
-                $q->where('code', 'SAAS_OWNER');
+            $spatieLevel = $user->roles->max('level');
+            $entityLevel = $user->entityUsers()->with('role')->get()->max('role.level');
+            $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
+            $userLevel = empty($levels) ? 0 : max($levels);
+
+            // Exclude super users and any users having roles higher than the logged-in user
+            $query->whereDoesntHave('roles', function ($q) use ($userLevel) {
+                $q->whereIn('code', ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN'])
+                  ->orWhere('level', '>', $userLevel);
+            });
+
+            $query->whereDoesntHave('entityUsers.role', function ($q) use ($userLevel) {
+                $q->whereIn('code', ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN'])
+                  ->orWhere('level', '>', $userLevel);
             });
 
             $activePlantId = app(\App\Services\PlantContextService::class)->plantId();
@@ -94,17 +107,20 @@ class UserController extends Controller
                 ];
             })->values();
         } else {
-            $spatieLevel = $user->roles->min('level');
-            $entityLevel = $user->entityUsers()->with('role')->get()->min('role.level');
+            $spatieLevel = $user->roles->max('level');
+            $entityLevel = $user->entityUsers()->with('role')->get()->max('role.level');
             $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
-            $userLevel = empty($levels) ? 100 : min($levels);
+            $userLevel = empty($levels) ? 0 : max($levels);
             
-            $userGroups = Role::where('level', '<=', $userLevel)->get()->map(function ($group) {
-                return [
-                    'value' => $group->id,
-                    'label' => $group->name,
-                ];
-            })->values();
+            $userGroups = Role::where('level', '<', $userLevel)
+                ->whereNotIn('code', ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR'])
+                ->get()
+                ->map(function ($group) {
+                    return [
+                        'value' => $group->id,
+                        'label' => $group->name,
+                    ];
+                })->values();
         }
 
         $plantsQuery = Plant::where('is_active', 1);
@@ -181,6 +197,7 @@ class UserController extends Controller
     public function show(User $user)
     {
         $this->authorizeModule('show');
+        $this->ensureUserAccess($user, auth()->user());
         $user->load(['entityUsers.entity', 'entityUsers.role', 'entityUsers.plant']);
         return response()->json($user);
     }
@@ -191,6 +208,7 @@ class UserController extends Controller
     public function update(UpdateUserRequest $request, User $user)
     {
         $this->authorizeModule('edit');
+        $this->ensureUserAccess($user, $request->user());
 
         $data = $request->validated();
 
@@ -210,6 +228,7 @@ class UserController extends Controller
     public function destroy(User $user)
     {
         $this->authorizeModule('delete');
+        $this->ensureUserAccess($user, auth()->user());
         if ($user->profile_photo_path) {
             Storage::disk('public')->delete($user->profile_photo_path);
         }
@@ -304,5 +323,47 @@ class UserController extends Controller
         }
 
         return redirect()->back()->with('success', 'User permanently deleted.');
+    }
+
+    protected function ensureUserAccess(User $targetUser, ?User $currentUser): void
+    {
+        if (!$currentUser) {
+            abort(401, 'Unauthenticated.');
+        }
+
+        $isSuperUser = method_exists($currentUser, 'hasRole') && (
+            $currentUser->hasRole('Saas Owner') || 
+            $currentUser->hasRole('Platform Admin') || 
+            $currentUser->hasRole('Super Admin')
+        );
+
+        if ($isSuperUser) {
+            return;
+        }
+
+        $spatieLevel = $currentUser->roles->max('level');
+        $entityLevel = $currentUser->entityUsers()->with('role')->get()->max('role.level');
+        $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
+        $userLevel = empty($levels) ? 0 : max($levels);
+
+        $targetSpatie = $targetUser->roles->max('level');
+        $targetEntity = $targetUser->entityUsers()->with('role')->get()->max('role.level');
+        $targetLevels = array_filter([$targetSpatie, $targetEntity], fn($v) => !is_null($v));
+        $targetLevel = empty($targetLevels) ? 0 : max($targetLevels);
+
+        $hasSuperRole = $targetUser->roles()->whereIn('code', ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN'])->exists()
+            || $targetUser->entityUsers()->whereHas('role', fn($q) => $q->whereIn('code', ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN']))->exists();
+
+        if ($hasSuperRole || $targetLevel > $userLevel) {
+            abort(403, 'Unauthorized access to user with higher privileges.');
+        }
+
+        $activePlantId = app(\App\Services\PlantContextService::class)->plantId();
+        if ($activePlantId) {
+            $belongsToPlant = $targetUser->entityUsers()->where('plant_id', $activePlantId)->exists();
+            if (!$belongsToPlant) {
+                abort(403, 'Unauthorized access to user outside current plant.');
+            }
+        }
     }
 }

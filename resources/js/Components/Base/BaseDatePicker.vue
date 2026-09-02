@@ -137,11 +137,29 @@ const internalValue = computed({
         </template>
     </BaseField>
 </template>
-<style>
-.p-component {
-   border-radius:4px !important;
+<style scoped>
+:deep(.p-component) {
+   border-radius: 4px !important;
 }
-.p-datepicker-input {
+
+:deep(.p-datepicker-input) {
     background-color: white !important;
+}
+
+:deep(.p-datepicker.p-disabled .p-datepicker-input),
+:deep(.p-datepicker-input:disabled),
+:deep(.p-datepicker-input[readonly]) {
+    background-color: #eff1f1 !important;
+    border-color: #d5d7d8 !important;
+    color: #475569 !important;
+    opacity: 0.75 !important;
+    cursor: not-allowed !important;
+}
+
+:deep(.p-datepicker.p-disabled .p-datepicker-dropdown) {
+    background-color: #eff1f1 !important;
+    border-color: #d5d7d8 !important;
+    opacity: 0.75 !important;
+    cursor: not-allowed !important;
 }
 </style>

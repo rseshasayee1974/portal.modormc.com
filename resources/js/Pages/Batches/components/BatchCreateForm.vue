@@ -158,8 +158,6 @@ watch(() => form.sales_order_id, (newVal) => {
         // Fallbacks for concrete_pump and sales_executive_id
         const concretePumpVal = selectedSalesOrder.value.concrete_pump
             ?? latestDispatch?.concrete_pump
-            ?? po?.concrete_pump
-            ?? quotation?.concrete_pump
             ?? null;
         if (concretePumpVal !== null) {
             const num = Number(concretePumpVal);
@@ -169,8 +167,6 @@ watch(() => form.sales_order_id, (newVal) => {
         }
 
         const salesExecVal = selectedSalesOrder.value.sales_executive_id
-            ?? po?.sales_executive_id
-            ?? quotation?.sales_executive_id
             ?? latestDispatch?.sales_executive_id
             ?? null;
         form.sales_executive_id = salesExecVal ? Number(salesExecVal) : null;

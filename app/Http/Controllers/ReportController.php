@@ -25,8 +25,8 @@ class ReportController extends Controller
     {
         $this->authorizeModule('view');
         $plantId = session('active_plant_id');
-        $ledgers = Ledger::where('plant_id', $plantId)->orderBy('title')->get();
-        $patrons = Patron::where('plant_id', $plantId)->orderBy('legal_name')->get();
+        $ledgers = Ledger::where('plant_id', $plantId)->orderBy('title')->whereNull('deleted_at')->get();
+        $patrons = Patron::where('plant_id', $plantId)->orderBy('legal_name')->whereNull('deleted_at')->get();
         $machines = MachinesDropdown();
 
         return Inertia::render('Reports/Index', [
@@ -118,13 +118,13 @@ class ReportController extends Controller
         $view = $viewMap[strtoupper($type)] ?? 'reports.ledger_report';
 
         $plantId = session('active_plant_id');
-        $plant   = \App\Models\Plant::with(['addresses.state', 'contacts'])->find($plantId);
+        $plant   = \App\Models\Plant::with(['addresses.state', 'contacts'])->whereNull('deleted_at')->find($plantId);
 
         $patron = null;
         if ($patronId) {
-            $patron = \App\Models\Patron::with(['addresses.state'])->find($patronId);
+            $patron = \App\Models\Patron::with(['addresses.state'])->whereNull('deleted_at')->find($patronId);
         } elseif ($ledgerId) {
-            $patron = \App\Models\Patron::with(['addresses.state'])->where('ledger_id', $ledgerId)->first();
+            $patron = \App\Models\Patron::with(['addresses.state'])->where('ledger_id', $ledgerId)->whereNull('deleted_at')->first();
         }
 
         $extraParams = [];

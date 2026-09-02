@@ -163,16 +163,16 @@ class QueueReportExportJob implements ShouldQueue
         $view = $viewMap[strtoupper($type)] ?? 'reports.ledger_report';
 
         $plantId = session('active_plant_id');
-        $plant   = \App\Models\Plant::with(['addresses.state', 'contacts'])->find($plantId);
+        $plant   = \App\Models\Plant::with(['addresses.state', 'contacts'])->whereNull('deleted_at')->find($plantId);
 
         $patronId = $params['patron_id'] ?? null;
         $ledgerId = $params['id'] ?? null;
 
         $patron = null;
         if ($patronId) {
-            $patron = \App\Models\Patron::with(['addresses.state'])->find($patronId);
+            $patron = \App\Models\Patron::with(['addresses.state'])->whereNull('deleted_at')->find($patronId);
         } elseif ($ledgerId) {
-            $patron = \App\Models\Patron::with(['addresses.state'])->where('ledger_id', $ledgerId)->first();
+            $patron = \App\Models\Patron::with(['addresses.state'])->where('ledger_id', $ledgerId)->whereNull('deleted_at')->first();
         }
 
         $extraParams = [];

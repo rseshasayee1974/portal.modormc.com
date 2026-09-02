@@ -824,16 +824,15 @@ const shareEmail = () => {
                                         </svg>
                                         Export PDF
                                     </button>
-                                    <button 
+                                    <!-- <button 
                                         @click="openShareReport"
                                         class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded transition-all flex items-center gap-1.5"
                                     >
-                                        <!-- Share Icon -->
                                         <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 10.742l-1.996-1.002a2.003 2.003 0 110-3.048l1.996-1.002a2.003 2.003 0 113.417 1.41l-1.996 1.002a2.003 2.003 0 010 3.048l1.996 1.002a2.003 2.003 0 11-3.417-1.41z" />
                                         </svg>
                                         Share Report
-                                    </button>
+                                    </button> -->
                                     <button 
                                         @click="generateReport"
                                         :disabled="loading"
