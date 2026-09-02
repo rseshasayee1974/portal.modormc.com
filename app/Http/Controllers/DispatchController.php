@@ -281,21 +281,47 @@ class DispatchController extends Controller
 
     public function generateInvoice(\Illuminate\Http\Request $request, Dispatch $dispatch)
     {
-                $this->authorizeModule('edit');
+        $this->authorizeModule('edit');
 
         $validated = $request->validate([
-            'ledger_id' => 'required|exists:mm_ledgers,id',
-            'invoice_date' => 'required|date',
+            'ledger_id'      => 'required|exists:mm_ledgers,id',
+            'invoice_date'   => 'required|date',
+            'invoice_number' => [
+                'nullable',
+                'string',
+                'max:191',
+                function ($attribute, $value, $fail) use ($dispatch) {
+                    if (!empty($value)) {
+                        $trimmed = trim($value);
+                        $exists = \App\Models\Invoice::withoutGlobalScopes()
+                            ->where('plant_id', $dispatch->plant_id)
+                            ->where('is_active', 1)
+                            ->whereNull('deleted_at')
+                            ->where(function ($q) use ($trimmed) {
+                                $q->where('invoice_number', $trimmed)
+                                  ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $trimmed);
+                            })
+                            ->exists();
+
+                        if ($exists) {
+                            $fail("The invoice number '{$trimmed}' is already in use and active in the database.");
+                        }
+                    }
+                },
+            ],
+            'notes'          => 'nullable|string',
         ]);
         try {
             return DB::transaction(function () use ($dispatch, $validated) {
                 $partnerId = $dispatch->customer_id ?: $dispatch->salesOrder?->customer_id;
                 $invoice = \App\Models\Invoice::createFromSource($dispatch, 'sales', [
-                    'account_id'    => $validated['ledger_id'],
-                    'invoice_date'  => $validated['invoice_date'],
-                    'partner_id'    => $partnerId,
-                    'plant_id'      => $dispatch->plant_id,
-                    'invoice_label' => 'Dispatch'
+                    'account_id'     => $validated['ledger_id'],
+                    'invoice_date'   => $validated['invoice_date'],
+                    'invoice_number' => !empty($validated['invoice_number']) ? trim($validated['invoice_number']) : null,
+                    'notes'          => $validated['notes'] ?? null,
+                    'partner_id'     => $partnerId,
+                    'plant_id'       => $dispatch->plant_id,
+                    'invoice_label'  => 'Dispatch'
                 ]);
                 $dispatch->invoice($invoice);
 
@@ -309,6 +335,7 @@ class DispatchController extends Controller
             return redirect()->back()->with('error', $e->getMessage());
         }
     }
+
     public function deleteInvoice(Dispatch $dispatch)
     {
         $this->authorizeModule('edit');

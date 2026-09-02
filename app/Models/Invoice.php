@@ -34,7 +34,7 @@ class Invoice extends Model implements Postable
         'total_amount', 'round_off', 'tds_amount', 'tds_tax_id',
         'paid_amount', 'balance_amount',
         'status', 'is_duplicate', 'is_sent', 'is_reconciled',
-        'is_active',
+        'is_active', 'notes',
         'created_by', 'updated_by',
     ];
 
@@ -587,7 +587,7 @@ class Invoice extends Model implements Postable
             }
 
             // 1. Create the Invoice Header
-            $invoice = self::create([
+            $invoiceHeaderData = [
                 'plant_id'         => $plantId,
                 'partner_id'       => $params['partner_id'] ?? ($type === 'bill' ? $source->vendor_id : $source->customer_id),
                 'account_id'       => $params['account_id'] ?? null,
@@ -606,9 +606,17 @@ class Invoice extends Model implements Postable
                 'total_amount'     => round($totalAmount, 2),
                 'balance_amount'   => round($totalAmount, 2),
                 'status'           => self::STATUS_APPROVED,
+                'notes'            => $params['notes'] ?? null,
                 'created_by'       => $userId,
                 'updated_by'       => $userId,
-            ]);
+            ];
+
+            if (!empty($params['invoice_number'])) {
+                $invoiceHeaderData['invoice_number'] = $params['invoice_number'];
+                $invoiceHeaderData['prefix'] = $params['prefix'] ?? '';
+            }
+
+            $invoice = self::create($invoiceHeaderData);
  
             // 2. Create Invoice Items
             foreach ($itemsData as $itemData) {

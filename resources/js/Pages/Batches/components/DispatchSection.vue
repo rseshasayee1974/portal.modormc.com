@@ -140,6 +140,8 @@ console.log(currentBatch,'batch');
             generate_invoice: true,
             ledger_id: currentDispatch.ledger_id || currentDispatch.status?.invoice?.account_id || null,
             invoice_date: currentDispatch.invoice_date ? new Date(currentDispatch.invoice_date) : (currentDispatch.status?.invoice_date ? new Date(currentDispatch.status.invoice_date) : new Date()),
+            invoice_number: currentDispatch.status?.invoice?.invoice_number || currentDispatch.status?.invoice_number || '',
+            invoice_notes: currentDispatch.status?.invoice?.notes || '',
             created_at: currentDispatch.created_at || null,
             updated_at: currentDispatch.updated_at || null,
             creator: currentDispatch.creator || null,
@@ -261,6 +263,8 @@ console.log(currentBatch,'batch');
         generate_invoice: false,
         ledger_id: null,
         invoice_date: new Date(),
+        invoice_number: '',
+        invoice_notes: '',
         created_at: null,
         updated_at: null,
         creator: null,
@@ -562,17 +566,35 @@ const handleGenerateInvoice = () => {
         return;
     }
 
+    form.clearErrors();
     router.post(route('dispatches.generate-invoice', form.id), {
         ledger_id: form.ledger_id,
         invoice_date: form.invoice_date,
+        invoice_number: form.invoice_number,
+        notes: form.invoice_notes,
     }, {
         preserveScroll: true,
         onSuccess: () => {
+            form.clearErrors();
             if (props.onSaved) {
                 props.onSaved({ batchId: props.batch.id, type: 'dispatch' });
             } else {
                 emit('saved', { batchId: props.batch.id, type: 'dispatch' });
             }
+        },
+        onError: (errors: any) => {
+            if (typeof form.setError === 'function') {
+                for (const key in errors) {
+                    form.setError(key as any, errors[key]);
+                }
+            }
+            const firstError = errors.invoice_number || errors.error || Object.values(errors)[0] || 'Failed to generate invoice.';
+            Swal.fire({
+                icon: 'error',
+                title: 'Invoice Generation Failed',
+                text: String(firstError),
+                confirmButtonColor: '#d33'
+            });
         }
     });
 };

@@ -44,6 +44,14 @@ export function useInvoiceActions(
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Invoice Date</label>
                         <input id="swal-invoice-date" type="date" value="${defaultDate}" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
                     </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Invoice Number</label>
+                        <input id="swal-invoice-number" type="text" placeholder="Auto-generate if blank" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Notes</label>
+                        <textarea id="swal-notes" rows="2" placeholder="Enter invoice notes..." class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white"></textarea>
+                    </div>
                 </div>
             `,
             focusConfirm: false,
@@ -53,6 +61,8 @@ export function useInvoiceActions(
             preConfirm: () => {
                 const ledgerId = (document.getElementById('swal-ledger-id') as HTMLSelectElement).value;
                 const invoiceDate = (document.getElementById('swal-invoice-date') as HTMLInputElement).value;
+                const invoiceNumber = (document.getElementById('swal-invoice-number') as HTMLInputElement).value;
+                const notes = (document.getElementById('swal-notes') as HTMLTextAreaElement).value;
                 if (!ledgerId) {
                     Swal.showValidationMessage('Please select a Sales Ledger');
                     return false;
@@ -61,7 +71,7 @@ export function useInvoiceActions(
                     Swal.showValidationMessage('Please select an Invoice Date');
                     return false;
                 }
-                return { ledgerId, invoiceDate };
+                return { ledgerId, invoiceDate, invoiceNumber, notes };
             },
         }).then((result) => {
             if (result.isConfirmed && result.value) {
@@ -70,6 +80,8 @@ export function useInvoiceActions(
                     {
                         ledger_id: result.value.ledgerId,
                         invoice_date: result.value.invoiceDate,
+                        invoice_number: result.value.invoiceNumber,
+                        notes: result.value.notes,
                     },
                     {
                         preserveScroll: true,
@@ -83,6 +95,15 @@ export function useInvoiceActions(
                                 timer: 2000,
                             });
                             if (onInvoiceChange) onInvoiceChange(dispatch.batch_id);
+                        },
+                        onError: (errors: any) => {
+                            const errorMsg = errors.invoice_number || errors.error || Object.values(errors)[0] || 'Failed to generate invoice.';
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Invoice Generation Failed',
+                                text: String(errorMsg),
+                                confirmButtonColor: '#d33',
+                            });
                         },
                     }
                 );

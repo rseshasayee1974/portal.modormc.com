@@ -28,6 +28,7 @@ class StoreInvoiceRequest extends FormRequest
             'invoice_date'     => 'required|date',
             'due_date'         => 'nullable|date',
             'period'           => 'nullable|string|max:100',
+            'notes'            => 'nullable|string',
             'global_discount_type' => 'nullable|in:%,₹',
             'global_discount'  => 'nullable|numeric|min:0',
             'adjustment'       => 'nullable|numeric',

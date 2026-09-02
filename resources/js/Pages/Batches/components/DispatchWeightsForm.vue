@@ -264,36 +264,54 @@ console.log('jkghkjgk', props.modelValue);
                         </span>
                     </div>
 
-                    <div class="grid grid-cols-4 md:grid-cols-12 gap-4 items-end">
-                        <div class="md:col-span-12 lg:col-span-3">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                        <div class="md:col-span-6 lg:col-span-3">
                             <BaseSelect 
                                 v-model="modelValue.ledger_id" 
                                 :options="sales_ledgers" 
                                 optionLabel="label" 
                                 optionValue="value" 
-                                label="Sales Ledger" 
+                                label="Sales Ledger *" 
                                 filter 
                                 placeholder="Select" 
                                 :error="errors.ledger_id" 
                                 :disabled="isReadOnly"
                             />
                         </div>
-                        <div class="md:col-span-6 lg:col-span-3">
+                        <div class="md:col-span-6 lg:col-span-2">
                             <BaseDatePicker 
                                 v-model="modelValue.invoice_date" 
-                                label="Date" 
+                                label="Date *" 
                                 :error="errors.invoice_date" 
                                 :disabled="isReadOnly"
                             />
                         </div>
-                        <div class="md:col-span-12 lg:col-span-3 flex justify-start lg:justify-end">
+                        <div class="md:col-span-6 lg:col-span-2">
+                            <BaseInput 
+                                v-model="modelValue.invoice_number" 
+                                label="Invoice #" 
+                                placeholder="Auto-generate if blank"
+                                :error="errors.invoice_number" 
+                                :disabled="isReadOnly"
+                            />
+                        </div>
+                        <div class="md:col-span-6 lg:col-span-3">
+                            <BaseInput 
+                                v-model="modelValue.invoice_notes" 
+                                label="Notes" 
+                                placeholder="Enter invoice notes..." 
+                                :error="errors.notes" 
+                                :disabled="isReadOnly"
+                            />
+                        </div>
+                        <div class="md:col-span-12 lg:col-span-1">
                             <button 
                                 type="button"
                                 @click="handleGenerateInvoice"
                                 :disabled="isReadOnly"
-                                class="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-2 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all text-white text-xs font-semibold tracking-wider rounded disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                class="w-full lg:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] transition-all text-white text-xs font-semibold tracking-wider rounded disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             >
-                                <span>Generate </span>
+                                <span>Generate</span>
                             </button>
                         </div>
                     </div>
