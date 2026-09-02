@@ -46,7 +46,7 @@ export function useInvoiceActions(
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Invoice Number</label>
-                        <input id="swal-invoice-number" type="text" placeholder="Auto-generate if blank" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                        <input id="swal-invoice-number" type="text" placeholder="e.g. 101 (Prefix added automatically)" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Notes</label>
@@ -281,10 +281,109 @@ export function useInvoiceActions(
         }
     };
 
+    // ── Generate Standalone E-Way Bill (Without IRN) ──────────────────────────
+    const generateEwayBillDirect = (batchOrInvoice: any, callback?: () => void) => {
+        if (!batchOrInvoice) return;
+
+        const isBatch = !!batchOrInvoice.batch_no || !batchOrInvoice.invoice_date;
+        const batchId = isBatch ? (batchOrInvoice.id || batchOrInvoice.batch_id) : (batchOrInvoice.dispatch?.batch_id || null);
+        const invoiceId = !isBatch ? batchOrInvoice.id : (batchOrInvoice.dispatches?.[0]?.status?.invoice_id || batchOrInvoice.invoice_id);
+
+        const defaultVehNo = batchOrInvoice.truck_registration
+            || batchOrInvoice.dispatches?.[0]?.truck?.registration
+            || batchOrInvoice.vehicle_number
+            || '';
+
+        const defaultDistance = batchOrInvoice.dispatches?.[0]?.transport_km
+            || batchOrInvoice.transport_km
+            || 20;
+
+        Swal.fire({
+            title: 'Generate E-Way Bill',
+            html: `
+                <div class="text-left space-y-3">
+                    <p class="text-xs text-slate-500 mb-2">
+                        Generate a standard E-Way Bill directly without requiring an E-Invoice (IRN).
+                    </p>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vehicle Number *</label>
+                        <input id="swal-ewb-veh-no" type="text" value="${defaultVehNo}" placeholder="e.g. TN09AB1234" class="w-full px-3 py-2 border rounded-md text-sm uppercase dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Distance (in KM)</label>
+                        <input id="swal-ewb-distance" type="number" min="1" value="${defaultDistance}" placeholder="e.g. 25" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                    </div>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Generate E-Way Bill',
+            confirmButtonColor: '#0d9488',
+            cancelButtonColor: '#64748b',
+            preConfirm: () => {
+                const vehNo = (document.getElementById('swal-ewb-veh-no') as HTMLInputElement)?.value?.trim();
+                const distance = (document.getElementById('swal-ewb-distance') as HTMLInputElement)?.value?.trim();
+                if (!vehNo) {
+                    Swal.showValidationMessage('Please enter a vehicle number');
+                    return false;
+                }
+                return { vehNo, distance: Number(distance) || 20 };
+            },
+        }).then(async (result) => {
+            if (result.isConfirmed && result.value) {
+                Swal.fire({
+                    title: 'Generating E-Way Bill...',
+                    text: 'Please wait while the E-Way Bill is being generated.',
+                    allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); },
+                });
+
+                try {
+                    const postUrl = batchId
+                        ? route('batches.generate-ewaybill', batchId)
+                        : route('invoices.generate-standalone-ewaybill', invoiceId);
+
+                    const res = await axios.post(postUrl, {
+                        veh_no: result.value.vehNo,
+                        distance: result.value.distance,
+                    });
+
+                    Swal.close();
+
+                    if (res.data?.success) {
+                        const ewbNo = res.data.data?.eway_bill_no || '';
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: `E-Way Bill #${ewbNo} generated successfully.`,
+                            showConfirmButton: false,
+                            timer: 3000,
+                        });
+                        if (callback) callback();
+                        if (onInvoiceChange && batchId) onInvoiceChange(batchId);
+                    } else {
+                        Swal.fire('Error', res.data?.message || 'Failed to generate E-Way Bill', 'error');
+                    }
+                } catch (error: any) {
+                    Swal.close();
+                    const msg = error.response?.data?.message || error.response?.data?.error || 'Failed to generate E-Way Bill.';
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'E-Way Bill Failed',
+                        text: msg,
+                        confirmButtonColor: '#d33',
+                    });
+                }
+            }
+        });
+    };
+
     // ── Public API ───────────────────────────────────────────────────────────
     return {
         generateInvoiceDirect,
         generateEInvoiceDirect,
+        generateEwayBillDirect,
         printInvoiceDirect,
         printOriginalInvoiceDirect,
         printDuplicateInvoiceDirect,

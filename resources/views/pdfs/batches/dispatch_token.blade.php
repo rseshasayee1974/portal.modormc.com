@@ -281,11 +281,18 @@
     <div class="divider"></div>
 
     <table class="meta-table">
-        @if (!empty($batch->salesOrder?->mixDesign?->concrete_grade?->name) || !empty($batch->salesOrder?->mixDesign?->design_name))
+        @php
+            $cgName = $batch->salesOrder?->mixDesign?->concrete_grade?->name 
+                ?? $batch->salesOrder?->mixDesign?->concreteGrade?->name 
+                ?? (!empty($batch->salesOrder?->mixDesign?->concrete_grade_id) ? \App\Models\ConcreteGrade::find($batch->salesOrder->mixDesign->concrete_grade_id)?->name : null)
+                ?? $batch->salesOrder?->mixDesign?->grade 
+                ?? $batch->salesOrder?->mixDesign?->design_type;
+        @endphp
+        @if (!empty($cgName))
         <tr>
-            <td class="meta-label">Recipe:</td>
+            <td class="meta-label">Concrete Grade:</td>
             <td class="meta-value">
-                {{ $batch->salesOrder->mixDesign->concrete_grade->name ?? $batch->salesOrder->mixDesign->design_name }}
+                {{ $cgName }}
             </td>
         </tr>
         @endif

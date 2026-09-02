@@ -109,11 +109,40 @@ class Invoice extends Model implements Postable
         parent::boot();
 
         static::creating(function ($m) {
-            if (empty($m->invoice_number)) {
+            if (empty($m->prefix) || empty($m->invoice_number)) {
                 $details = self::generateNumber($m->plant_id, $m->invoice_label ?? $m->invoice_type, $m->account_id);
-                $m->prefix = $details['prefix'];
-                $m->invoice_number = $details['next_number'];
+                if (empty($m->prefix)) {
+                    $m->prefix = $details['prefix'];
+                }
+                if (empty($m->invoice_number)) {
+                    $m->invoice_number = $details['next_number'];
+                }
             }
+            if (!empty($m->prefix) && !empty($m->invoice_number) && str_starts_with((string)$m->invoice_number, $m->prefix)) {
+                $m->invoice_number = substr($m->invoice_number, strlen($m->prefix));
+            }
+
+            // Enforce duplicate restriction plant-wide for prefix + invoice_number
+            if (!empty($m->prefix) && !empty($m->invoice_number) && !empty($m->plant_id)) {
+                $fullNumber = ($m->prefix ?? '') . ($m->invoice_number ?? '');
+                $alreadyExists = self::withoutGlobalScopes()
+                    ->where('plant_id', $m->plant_id)
+                    ->where('is_active', 1)
+                    ->whereNull('deleted_at')
+                    ->where(function ($q) use ($m, $fullNumber) {
+                        $q->where(function ($sub) use ($m) {
+                            $sub->where('prefix', $m->prefix)
+                                ->where('invoice_number', $m->invoice_number);
+                        })
+                        ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber);
+                    })
+                    ->exists();
+
+                if ($alreadyExists) {
+                    throw new \Exception("The invoice number '{$fullNumber}' is already in use and active in the database.");
+                }
+            }
+
             $m->adjustment = $m->adjustment ?? 0;
             $m->shipping_charges = $m->shipping_charges ?? 0;
             $m->round_off = $m->round_off ?? 0;
@@ -189,24 +218,36 @@ class Invoice extends Model implements Postable
                  $q->whereRaw('LOWER(invoice_type) = ?', ['bill'])
                    ->orWhereRaw('LOWER(invoice_label) = ?', ['purchase']);
              });
-             $prefix = "Bill/{$fy}/";
+             $defaultPrefix = "Bill/{$fy}/";
         } elseif ($normalizedLabel === 'batching' || $normalizedLabel === 'dispatch') {
              $query->whereRaw('LOWER(invoice_label) = ?', ['dispatch']);
-             $prefix = "Inv/{$fy}/";
+             $defaultPrefix = "Inv/{$fy}/";
         } else {
              $query->where(function($q) {
                  $q->whereRaw('LOWER(invoice_type) = ?', ['sales'])
                    ->orWhereRaw('LOWER(invoice_label) = ?', ['tax invoice'])
                    ->orWhereNull('invoice_label');
              });
-             $prefix = "INV/{$fy}/";
+             $defaultPrefix = "INV/{$fy}/";
         }
 
-        // if ($accountId) {
-        //      $prefix .= "{$accountId}/";
-        //      $query->where('account_id', $accountId);
-        // }
+        $prefix = $defaultPrefix;
+        $hasCustomPrefix = false;
+        if ($accountId) {
+             $ledger = \App\Models\Ledger::withoutGlobalScopes()->find($accountId);
+             if ($ledger && !empty(trim((string)$ledger->description))) {
+                 $desc = trim((string)$ledger->description);
+                 $prefix = str_ireplace('{fy}', $fy, $desc);
+                 $hasCustomPrefix = true;
+             }
+        }
             
+        // If the ledger specifies its own custom prefix in description, scope sequence to this account.
+        // If it uses the plant default prefix, sequence must track across the plant for this prefix to avoid duplicates.
+        if ($hasCustomPrefix) {
+            $query->where('account_id', $accountId);
+        }
+
         $lastInvoice = $query->where('prefix', $prefix)
             ->orderByRaw('CAST(invoice_number AS UNSIGNED) DESC')
             ->whereNull('deleted_at')
@@ -611,9 +652,20 @@ class Invoice extends Model implements Postable
                 'updated_by'       => $userId,
             ];
 
+            // Resolve prefix automatically if not supplied
+            $prefixDetails = self::generateNumber($plantId, $params['invoice_label'] ?? $type, $params['account_id'] ?? null);
+            $autoPrefix = $params['prefix'] ?? $prefixDetails['prefix'];
+
             if (!empty($params['invoice_number'])) {
-                $invoiceHeaderData['invoice_number'] = $params['invoice_number'];
-                $invoiceHeaderData['prefix'] = $params['prefix'] ?? '';
+                $rawNumber = trim((string)$params['invoice_number']);
+                if (!empty($autoPrefix) && str_starts_with($rawNumber, $autoPrefix)) {
+                    $rawNumber = substr($rawNumber, strlen($autoPrefix));
+                }
+                $invoiceHeaderData['invoice_number'] = $rawNumber;
+                $invoiceHeaderData['prefix'] = $autoPrefix;
+            } else {
+                $invoiceHeaderData['invoice_number'] = $prefixDetails['next_number'];
+                $invoiceHeaderData['prefix'] = $autoPrefix;
             }
 
             $invoice = self::create($invoiceHeaderData);

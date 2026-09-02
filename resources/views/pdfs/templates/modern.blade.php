@@ -378,7 +378,7 @@
                                 <div>Quality InCharge: <strong>{{ $data['meta']['quality_incharge'] }}</strong></div>
                             @endif
                             @if (!empty($data['meta']['design_mix_ref']))
-                                <div>Design Mix Ref: <strong>{{ $data['meta']['design_mix_ref'] }}</strong></div>
+                                <div>Concrete Grade: <strong>{{ $data['meta']['design_mix_ref'] }}</strong></div>
                             @endif
                         </div>
                     </td>

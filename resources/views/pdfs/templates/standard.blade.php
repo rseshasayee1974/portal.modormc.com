@@ -426,7 +426,7 @@
                             @endif
                             @if (!empty($data['meta']['design_mix_ref']))
                                 <tr>
-                                    <td class="kv-key">Design Mix Ref</td>
+                                    <td class="kv-key">Concrete Grade</td>
                                     <td class="kv-sep">:</td>
                                     <td class="kv-val bold">{{ $data['meta']['design_mix_ref'] }}</td>
                                 </tr>

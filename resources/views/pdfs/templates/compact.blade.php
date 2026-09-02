@@ -347,6 +347,9 @@
                             @if (!empty($data['meta']['pump']))
                                 <div>Pump: <strong>{{ $data['meta']['pump'] }}</strong></div>
                             @endif
+                            @if (!empty($data['meta']['design_mix_ref']))
+                                <div>Concrete Grade: <strong>{{ $data['meta']['design_mix_ref'] }}</strong></div>
+                            @endif
                         </div>
                     </td>
                 @endif

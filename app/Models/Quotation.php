@@ -256,7 +256,15 @@ class Quotation extends Model
     protected static function booted()
     {
         static::deleting(function ($quotation) {
+            if (auth()->check()) {
+                $quotation->deleted_by = auth()->id();
+                $quotation->saveQuietly();
+            }
             foreach ($quotation->items as $item) {
+                if (auth()->check()) {
+                    $item->deleted_by = auth()->id();
+                    $item->saveQuietly();
+                }
                 $item->delete();
             }
         });

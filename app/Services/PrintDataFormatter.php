@@ -476,12 +476,18 @@ class PrintDataFormatter
     public static function resolveMixDesignName($mixDesign): string
     {
         if (!$mixDesign) {
-            return 'Concrete Mix';
+            return '-';
         }
-        return $mixDesign->concrete_grade?->name 
-            ?? $mixDesign->concreteGrade?->name 
+        $name = $mixDesign->concrete_grade?->name 
+            ?? $mixDesign->concreteGrade?->name;
+
+        if (empty($name) && !empty($mixDesign->concrete_grade_id)) {
+            $name = \App\Models\ConcreteGrade::find($mixDesign->concrete_grade_id)?->name;
+        }
+
+        return $name 
+            ?? $mixDesign->grade 
             ?? $mixDesign->design_type 
-            ?? $mixDesign->design_name 
             ?? '-';
     }
 
@@ -693,9 +699,9 @@ class PrintDataFormatter
         $dispatch = \App\Models\Dispatch::whereHas('status', function ($q) use ($invoice) {
             $q->where('invoice_id', $invoice->id);
         })->with([
-            'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign', 'salesOrder.customerPO',
+            'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign.concrete_grade', 'salesOrder.mixDesign', 'salesOrder.customerPO',
             'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site',
-            'concretePump', 'truck', 'transport', 'driver', 'mixDesign', 'salesExecutive'
+            'concretePump', 'truck', 'transport', 'driver', 'mixDesign.concrete_grade', 'mixDesign', 'salesExecutive'
         ])->first();
 
         if (!$dispatch && !empty($invoice->ref_id)) {
@@ -703,9 +709,9 @@ class PrintDataFormatter
             $firstRefId = reset($refIds);
             if (is_numeric($firstRefId)) {
                 $dispatch = \App\Models\Dispatch::with([
-                    'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign', 'salesOrder.customerPO',
+                    'salesOrder.customer', 'salesOrder.site', 'salesOrder.salesExecutive', 'salesOrder.mixDesign.concrete_grade', 'salesOrder.mixDesign', 'salesOrder.customerPO',
                     'unloadSite', 'customer', 'customerPO.patron', 'customerPO.site',
-                    'concretePump', 'truck', 'transport', 'driver', 'mixDesign', 'salesExecutive'
+                    'concretePump', 'truck', 'transport', 'driver', 'mixDesign.concrete_grade', 'mixDesign', 'salesExecutive'
                 ])->find($firstRefId);
             }
         }
@@ -791,7 +797,7 @@ class PrintDataFormatter
             $dispatchPumpCharge = (float)($dispatch->pump_charges ?? 0.0);
         }
 
-        $data['items'] = $invoice->items->map(function ($item, $idx) use ($isIntra, $showPumpCharges, $dispatch, $dispatchPumpCharge, &$pumpChargesTotal) {
+        $data['items'] = $invoice->items->map(function ($item, $idx) use ($isIntra, $showPumpCharges, $dispatch, $dispatchPumpCharge, $designMixRef, $mixDesignObj, &$pumpChargesTotal) {
             $taxModel = $item->tax;
             $lineTaxAmount = (float)$item->line_tax_amount;
 
@@ -842,8 +848,18 @@ class PrintDataFormatter
             $itemSubtotal = (float)($item->subtotal ?? ($item->quantity * $item->price_unit));
             $itemTotal = (float)($itemSubtotal + $lineTaxAmount);
             $taxInWords = self::numberToWords($lineTaxAmount);
+
+            $itemName = $item->item_name;
+            if (!empty($designMixRef) && $designMixRef !== '-') {
+                if (empty($itemName) 
+                    || str_starts_with($itemName, 'RMC Dispatch:') 
+                    || ($mixDesignObj && ($itemName === $mixDesignObj->design_name || $itemName === $mixDesignObj->design_code))) {
+                    $itemName = $designMixRef;
+                }
+            }
+
             return [
-                'no' => $idx + 1, 'name' => $item->item_name, 'description' => '', 'hsn' => $item->hsn_code ?? '-',
+                'no' => $idx + 1, 'name' => $itemName, 'description' => '', 'hsn' => $item->hsn_code ?? '-',
                 'qty' => (float)$item->quantity, 'unit' => $item->uom->unit_code ?? 'm³', 'unit_price' => (float)$item->price_unit,
                 'discount' => (float)($item->discount_amount ?? $item->discount ?? 0),
                 'operation_type' => $operationType, 'pump_charge' => $pumpCharge,

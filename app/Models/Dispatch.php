@@ -79,16 +79,22 @@ class Dispatch extends Model
 
     public function getItemsAttribute()
     {
-        $designName = $this->mixDesign?->design_name;
-        if (empty($designName) && $this->salesOrder) {
-            $designName = $this->salesOrder->mixDesign?->design_name;
-        }
-        $designName = $designName ?? 'Concrete';
+        $gradeName = $this->mixDesign?->concrete_grade?->name 
+            ?? $this->mixDesign?->concreteGrade?->name 
+            ?? (!empty($this->mixDesign?->concrete_grade_id) ? \App\Models\ConcreteGrade::find($this->mixDesign->concrete_grade_id)?->name : null)
+            ?? $this->salesOrder?->mixDesign?->concrete_grade?->name 
+            ?? $this->salesOrder?->mixDesign?->concreteGrade?->name 
+            ?? (!empty($this->salesOrder?->mixDesign?->concrete_grade_id) ? \App\Models\ConcreteGrade::find($this->salesOrder->mixDesign->concrete_grade_id)?->name : null)
+            ?? $this->mixDesign?->grade 
+            ?? $this->salesOrder?->mixDesign?->grade 
+            ?? $this->mixDesign?->design_type 
+            ?? $this->salesOrder?->mixDesign?->design_type 
+            ?? 'Ready-Mix Concrete';
 
         return collect([(object)[
             'mix_design_id' => $this->mixdesign_id ?? $this->salesOrder?->mix_design_id,
             'product_id' => null, 
-            'description' => "RMC Dispatch: " . $designName,
+            'description' => "RMC Dispatch: " . $gradeName,
             'quantity' => (float) $this->delivered_qty,
             'uom_id' => $this->uom_id ?? $this->mixDesign?->unit_id ?? $this->salesOrder?->mixDesign?->unit_id,
             'unit_price' => (float) $this->load_rate,
@@ -99,7 +105,7 @@ class Dispatch extends Model
             'price_tax' => (float) $this->load_tax_amount,
             'price_total' => (float) ($this->load_untax_amount + $this->load_tax_amount),
             'tax_id' => $this->load_tax_id,
-            'product' => (object)['title' => $designName, 'hsn_code' => '3824'],
+            'product' => (object)['title' => $gradeName, 'hsn_code' => '3824'],
         ]]);
     }
 

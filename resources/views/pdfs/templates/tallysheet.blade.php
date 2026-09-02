@@ -293,7 +293,7 @@
                     Pump: <strong>{{ $data['meta']['pump'] }}</strong> &bull;
                 @endif
                 @if (!empty($data['meta']['design_mix_ref']))
-                    Design Mix Ref: <strong>{{ $data['meta']['design_mix_ref'] }}</strong>
+                    Concrete Grade: <strong>{{ $data['meta']['design_mix_ref'] }}</strong>
                 @endif
             </div>
         @endif

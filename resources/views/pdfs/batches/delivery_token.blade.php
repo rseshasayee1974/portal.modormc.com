@@ -462,11 +462,18 @@
                 <td>
                     <div class="section-title">Logistics & Concrete Mix</div>
                     <table class="details-grid">
-                        @if (!empty($batch->salesOrder?->mixDesign?->concrete_grade?->name) || !empty($batch->salesOrder?->mixDesign?->design_name))
+                        @php
+                            $cgName = $batch->salesOrder?->mixDesign?->concrete_grade?->name 
+                                ?? $batch->salesOrder?->mixDesign?->concreteGrade?->name 
+                                ?? (!empty($batch->salesOrder?->mixDesign?->concrete_grade_id) ? \App\Models\ConcreteGrade::find($batch->salesOrder->mixDesign->concrete_grade_id)?->name : null)
+                                ?? $batch->salesOrder?->mixDesign?->grade 
+                                ?? $batch->salesOrder?->mixDesign?->design_type;
+                        @endphp
+                        @if (!empty($cgName))
                         <tr>
                             <td class="grid-label">Concrete Grade</td>
                             <td class="grid-value">
-                                {{ $batch->salesOrder->mixDesign->concrete_grade->name ?? $batch->salesOrder->mixDesign->design_name }}
+                                {{ $cgName }}
                             </td>
                         </tr>
                         @endif
@@ -649,7 +656,11 @@
                     @if ($dispatch)
                         @php
                             $mixDesign = $batch->salesOrder?->mixDesign;
-                            $mixDesignName = $mixDesign?->concrete_grade?->name ?? ($mixDesign?->concreteGrade?->name ?? ($mixDesign?->design_type ?? ($mixDesign?->design_name ?? 'Concrete Mix')));
+                            $mixDesignName = $mixDesign?->concrete_grade?->name 
+                                ?? ($mixDesign?->concreteGrade?->name 
+                                ?? (!empty($mixDesign?->concrete_grade_id) ? \App\Models\ConcreteGrade::find($mixDesign->concrete_grade_id)?->name : null)
+                                ?? ($mixDesign?->grade 
+                                ?? ($mixDesign?->design_type ?? 'Ready-Mix Concrete')));
                             $qty = (float)($dispatch->delivered_qty ?: $batch->batch_size);
                             $rate = (float)($dispatch->load_rate ?? 0);
                             $subTotal = (float)($dispatch->load_untax_amount ?? ($qty * $rate));

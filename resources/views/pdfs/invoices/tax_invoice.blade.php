@@ -115,7 +115,11 @@
     }
 
     $mixDesignObj = $firstDispatch?->mixDesign ?? $salesOrder?->mixDesign;
-    $designMixRef = $mixDesignObj?->concrete_grade?->name ?? ($mixDesignObj?->concreteGrade?->name ?? ($mixDesignObj?->design_type ?? ($mixDesignObj?->design_name ?? '')));
+    $designMixRef = $mixDesignObj?->concrete_grade?->name 
+        ?? ($mixDesignObj?->concreteGrade?->name 
+        ?? (!empty($mixDesignObj?->concrete_grade_id) ? \App\Models\ConcreteGrade::find($mixDesignObj->concrete_grade_id)?->name : null)
+        ?? ($mixDesignObj?->grade 
+        ?? ($mixDesignObj?->design_type ?? '-')));
 
     // Carrier & Driver
     $transporterName = $firstDispatch?->transport?->name ?? '';
@@ -798,7 +802,7 @@
                     <div class="info-line"><strong>Sales Person :</strong> {{ $salesPersonName }}</div>
                     <div class="info-line"><strong>Pump :</strong> {{ $pumpName }}</div>
                     <div class="info-line"><strong>Quality InCharge :</strong> -</div>
-                    <div class="info-line"><strong>Design Mix Ref :</strong> {{ $designMixRef }}</div>
+                    <div class="info-line"><strong>Concrete Grade :</strong> {{ $designMixRef }}</div>
                 </td>
             </tr>
         </table>
@@ -831,7 +835,10 @@
                         $lineTax = (float) ($item->line_tax_amount ?? 0);
                         $lineTotal = (float) ($item->line_total ?? $taxable + $lineTax);
                         $hsn = $item->hsn_code ?? '38245010';
-                        $gradeName = $item->item_name ?? 'M20 (Gst)';
+                        $gradeName = (!empty($designMixRef) && $designMixRef !== '-') ? $designMixRef : ($item->item_name ?? 'Ready-Mix Concrete');
+                        if (str_starts_with($gradeName, 'RMC Dispatch:')) {
+                            $gradeName = (!empty($designMixRef) && $designMixRef !== '-') ? $designMixRef : trim(str_replace('RMC Dispatch:', '', $gradeName));
+                        }
                     @endphp
                     <tr>
                         <td class="text-center font-bold">

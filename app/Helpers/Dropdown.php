@@ -653,7 +653,7 @@ if (!function_exists('LedgersDropdown')) {
             });
         }
 
-        return $query->select('id', 'code as name', 'title')
+        return $query->select('id', 'code as name', 'title', 'description')
             ->whereNull('deleted_at')
             ->orderBy('title')
             ->get();
@@ -869,10 +869,15 @@ if (!function_exists('toSelectOptions')) {
     function toSelectOptions($collection, string $labelField, string $valueField = 'id')
     {
         return collect($collection)->map(function ($item) use ($labelField, $valueField) {
-            return [
+            $opt = [
                 'label' => data_get($item, $labelField),
                 'value' => data_get($item, $valueField),
             ];
+            $desc = data_get($item, 'description');
+            if ($desc !== null) {
+                $opt['description'] = $desc;
+            }
+            return $opt;
         })->values();
     }
 }

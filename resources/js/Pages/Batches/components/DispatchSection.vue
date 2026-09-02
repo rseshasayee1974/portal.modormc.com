@@ -355,6 +355,10 @@ onMounted(async () => {
 const syncDispatchData = () => {
     const data = getResolvedFormData();
     for (const key in data) {
+        // Do not wipe user-entered pending invoice values if invoice is not generated yet
+        if (['invoice_number', 'invoice_notes'].includes(key) && form.status?.invoice_status !== 1 && form[key]) {
+            continue;
+        }
         if (data[key] && typeof data[key] === 'object' && !Array.isArray(data[key]) && !(data[key] instanceof Date)) {
             if (!form[key]) form[key] = {};
             Object.assign(form[key], data[key]);
@@ -555,7 +559,7 @@ const submit = () => {
     }
 };
 
-const handleGenerateInvoice = () => {
+const handleGenerateInvoice = (payload?: any) => {
     if (!form.id) {
         Swal.fire({
             icon: 'warning',
@@ -566,12 +570,19 @@ const handleGenerateInvoice = () => {
         return;
     }
 
+    const ledgerId = payload?.ledger_id ?? form.ledger_id;
+    const invoiceDate = payload?.invoice_date ?? form.invoice_date;
+    const invoiceNumber = (payload?.invoice_number !== undefined && payload?.invoice_number !== null && payload?.invoice_number !== '')
+        ? payload.invoice_number 
+        : form.invoice_number;
+    const invoiceNotes = payload?.invoice_notes ?? payload?.notes ?? form.invoice_notes;
+
     form.clearErrors();
     router.post(route('dispatches.generate-invoice', form.id), {
-        ledger_id: form.ledger_id,
-        invoice_date: form.invoice_date,
-        invoice_number: form.invoice_number,
-        notes: form.invoice_notes,
+        ledger_id: ledgerId,
+        invoice_date: invoiceDate,
+        invoice_number: invoiceNumber,
+        notes: invoiceNotes,
     }, {
         preserveScroll: true,
         onSuccess: () => {
@@ -581,6 +592,7 @@ const handleGenerateInvoice = () => {
             } else {
                 emit('saved', { batchId: props.batch.id, type: 'dispatch' });
             }
+            emit('generateInvoice', { batchId: props.batch.id, type: 'dispatch' });
         },
         onError: (errors: any) => {
             if (typeof form.setError === 'function') {
@@ -669,6 +681,91 @@ const handleGenerateEInvoice = (passedInvoiceIdOrObj?: any) => {
     });
 };
 
+const handleGenerateEwayBill = () => {
+    const invoiceId = form.status?.invoice_id || form.status?.invoice?.id;
+    if (!invoiceId) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Action Required',
+            text: 'Please generate the invoice first before generating an E-Way Bill.',
+            confirmButtonColor: '#4f46e5'
+        });
+        return;
+    }
+
+    const defaultVehNo = props.batch?.truck_registration 
+        || form.truck_id 
+        || '';
+    const defaultDistance = form.status?.transport_km || 20;
+
+    Swal.fire({
+        title: 'Generate E-Way Bill',
+        html: `
+            <div class="text-left space-y-3">
+                <p class="text-xs text-slate-500 mb-2">
+                    Generate a standard E-Way Bill directly without requiring an E-Invoice (IRN).
+                </p>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vehicle Number *</label>
+                    <input id="swal-dispatch-ewb-veh" type="text" value="${defaultVehNo}" placeholder="e.g. TN09AB1234" class="w-full px-3 py-2 border rounded-md text-sm uppercase dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Distance (in KM)</label>
+                    <input id="swal-dispatch-ewb-dist" type="number" min="1" value="${defaultDistance}" placeholder="e.g. 25" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                </div>
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Generate E-Way Bill',
+        confirmButtonColor: '#0d9488',
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            const vehNo = (document.getElementById('swal-dispatch-ewb-veh') as HTMLInputElement)?.value?.trim();
+            const distance = (document.getElementById('swal-dispatch-ewb-dist') as HTMLInputElement)?.value?.trim();
+            if (!vehNo) {
+                Swal.showValidationMessage('Please enter a vehicle number');
+                return false;
+            }
+            return { vehNo, distance: Number(distance) || 20 };
+        },
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            router.post(route('batches.generate-ewaybill', props.batch.id), {
+                veh_no: result.value.vehNo,
+                distance: result.value.distance,
+                invoice_id: invoiceId,
+            }, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    Swal.fire({
+                        toast: true,
+                        position: 'top-end',
+                        icon: 'success',
+                        title: 'E-Way Bill generated successfully.',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                    if (props.onSaved) {
+                        props.onSaved({ batchId: props.batch.id, type: 'dispatch' });
+                    } else {
+                        emit('saved', { batchId: props.batch.id, type: 'dispatch' });
+                    }
+                },
+                onError: (errors: any) => {
+                    const msg = errors.error || errors.message || Object.values(errors)[0] || 'Failed to generate E-Way Bill.';
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'E-Way Bill Failed',
+                        text: String(msg),
+                        confirmButtonColor: '#d33'
+                    });
+                }
+            });
+        }
+    });
+};
+
 const handleDeleteInvoice = () => {
     Swal.fire({
         title: 'Are you sure?',
@@ -719,6 +816,7 @@ const handleDeleteInvoice = () => {
                 @submit="submit"
                 @generateInvoice="handleGenerateInvoice"
                 @generateEInvoice="handleGenerateEInvoice"
+                @generateEwayBill="handleGenerateEwayBill"
                 @deleteInvoice="handleDeleteInvoice"
             />
  <!-- <hr class="border-slate-100" /> -->

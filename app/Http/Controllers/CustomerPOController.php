@@ -224,18 +224,25 @@ class CustomerPOController extends Controller
     {
         $this->authorizeModule('delete');
         
-        if ($customerPO->quotation_id) {
-            $quote = Quotation::find($customerPO->quotation_id);
-            if ($quote) {
-                $quote->update([
+        // Prevent deletion if already converted into Sales Order
+        if ($customerPO->salesOrders()->exists()) {
+            return redirect()->back()->with('error', 'This Customer PO cannot be deleted because it has already been converted into a Sales Order.');
+        }
+
+        $quotationId = $customerPO->quotation_id;
+
+        $customerPO->delete();
+
+        if ($quotationId) {
+            $hasOtherActivePOs = CustomerPO::where('quotation_id', $quotationId)->exists();
+            if (!$hasOtherActivePOs) {
+                Quotation::where('id', $quotationId)->update([
                     'is_customer_po' => 0
                 ]);
             }
         }
 
-        $customerPO->delete();
-
-        return redirect()->back()->with('success', 'Customer PO deleted.');
+        return redirect()->back()->with('success', 'Customer PO deleted successfully.');
     }
 
     public function update(Request $request, CustomerPO $customerPO)

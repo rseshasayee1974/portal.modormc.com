@@ -347,6 +347,9 @@ Route::middleware([
         Route::post('invoices/{invoice}/cancel-einvoice', [\App\Http\Controllers\EInvoiceController::class, 'cancel'])->name('invoices.cancel-einvoice');
         Route::post('invoices/{invoice}/generate-ewaybill', [\App\Http\Controllers\EInvoiceController::class, 'generateEWayBill'])->name('invoices.generate-ewaybill');
         Route::post('invoices/{invoice}/cancel-ewaybill', [\App\Http\Controllers\EInvoiceController::class, 'cancelEWayBill'])->name('invoices.cancel-ewaybill');
+        Route::post('batches/{batch}/generate-ewaybill', [\App\Http\Controllers\EwayBillController::class, 'generateForBatch'])->name('batches.generate-ewaybill');
+        Route::post('invoices/{invoice}/generate-standalone-ewaybill', [\App\Http\Controllers\EwayBillController::class, 'generate'])->name('invoices.generate-standalone-ewaybill');
+        Route::post('invoices/{invoice}/cancel-standalone-ewaybill', [\App\Http\Controllers\EwayBillController::class, 'cancel'])->name('invoices.cancel-standalone-ewaybill');
         Route::post('invoices/{invoice}/setup-demo-compliance', [\App\Http\Controllers\EInvoiceController::class, 'setupDemoCompliance'])->name('invoices.setup-demo-compliance');
         Route::get('compliance/test', [\App\Http\Controllers\EInvoiceController::class, 'testPage'])->name('compliance.test');
         Route::post('compliance/test-action', [\App\Http\Controllers\EInvoiceController::class, 'testAction'])->name('compliance.test-action');

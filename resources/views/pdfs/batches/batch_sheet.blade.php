@@ -293,9 +293,9 @@
             <tr>
                 <td class="k">Batch Number</td>
                 <td class="v">: {{ $batch->batch_no }}</td>
-                <td class="k">Recipe Name</td>
+                <td class="k">Concrete Grade</td>
                 <td class="v">:
-                    {{ $batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->design_type ?? '-') }}
+                    {{ $batch->salesOrder?->mixDesign?->concrete_grade?->name ?? ($batch->salesOrder?->mixDesign?->concreteGrade?->name ?? (!empty($batch->salesOrder?->mixDesign?->concrete_grade_id) ? \App\Models\ConcreteGrade::find($batch->salesOrder->mixDesign->concrete_grade_id)?->name : null ?? ($batch->salesOrder?->mixDesign?->grade ?? ($batch->salesOrder?->mixDesign?->design_type ?? '-')))) }}
                 </td>
                 <td class="k">Mixer Capacity</td>
                 <td class="v">:

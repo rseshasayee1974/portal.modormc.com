@@ -15,8 +15,8 @@ import {
     CheckCircleIcon,
     LockClosedIcon,
     CalendarIcon,
-    UserIcon,
-    QrCodeIcon
+    QrCodeIcon,
+    PaperAirplaneIcon
 } from '@heroicons/vue/24/outline';
 import { usePermissions } from '@/Composables/usePermissions';
 import { watch, computed } from 'vue';
@@ -56,7 +56,7 @@ const props = withDefaults(defineProps<{
     showInvoiceSection: false,
 });
 
-const emit = defineEmits(['update:modelValue', 'generateInvoice', 'generateEInvoice', 'deleteInvoice']);
+const emit = defineEmits(['update:modelValue', 'generateInvoice', 'generateEInvoice', 'generateEwayBill', 'deleteInvoice']);
 
 const { can, isAdmin, isSuperAdmin, isSassOwner, permissions, userRole } = usePermissions();
 
@@ -74,7 +74,12 @@ const handleGenerateInvoice = () => {
         });
         return;
     }
-    emit('generateInvoice');
+    emit('generateInvoice', {
+        ledger_id: props.modelValue.ledger_id,
+        invoice_date: props.modelValue.invoice_date,
+        invoice_number: props.modelValue.invoice_number,
+        invoice_notes: props.modelValue.invoice_notes,
+    });
 };
 
 watch(() => props.modelValue.payment_mode, (newMode) => {
@@ -290,9 +295,10 @@ console.log('jkghkjgk', props.modelValue);
                             <BaseInput 
                                 v-model="modelValue.invoice_number" 
                                 label="Invoice #" 
-                                placeholder="Auto-generate if blank"
+                                placeholder="e.g. 101 (Auto-prefix)"
                                 :error="errors.invoice_number" 
                                 :disabled="isReadOnly"
+                                @update:modelValue="emit('update:modelValue', modelValue)"
                             />
                         </div>
                         <div class="md:col-span-6 lg:col-span-3">
@@ -302,6 +308,7 @@ console.log('jkghkjgk', props.modelValue);
                                 placeholder="Enter invoice notes..." 
                                 :error="errors.notes" 
                                 :disabled="isReadOnly"
+                                @update:modelValue="emit('update:modelValue', modelValue)"
                             />
                         </div>
                         <div class="md:col-span-12 lg:col-span-1">
@@ -370,16 +377,27 @@ console.log('jkghkjgk', props.modelValue);
                         <!-- Right: Action Buttons -->
                         <div class="flex items-center gap-2 w-full lg:w-auto justify-end border-t lg:border-t-0 pt-3 lg:pt-0 border-slate-100 flex-wrap">
                             <!-- Generate E-Invoice Button (Visible when Invoice is generated & linked, but E-Invoice is not yet generated) -->
-                            <!-- <button 
-                                v-if="modelValue.status.invoice?.id && modelValue.status.invoice?.einvoice_status !== 'generated' && !modelValue.status.invoice?.einvoice_irn"
-                                type="button"
-                                @click="$emit('generateEInvoice', modelValue.status.invoice.id)"
- 
-                                class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 text-white text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"
-                            >
-                                <SparklesIcon class="h-4 w-4 text-purple-200" />
-                                <span>Generate E-Invoice</span>
-                            </button> -->
+                            <!-- Standalone E-Way Bill Button (When Invoice is generated) -->
+                            <template v-if="modelValue.status.invoice?.id">
+                                <button 
+                                    v-if="!modelValue.status.invoice?.eway_bill_no"
+                                    type="button"
+                                    @click="$emit('generateEwayBill')"
+                                    class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer"
+                                    title="Generate E-Way Bill directly without E-Invoice"
+                                >
+                                    <PaperAirplaneIcon class="h-4 w-4 text-teal-200" />
+                                    <span>Generate E-Way Bill</span>
+                                </button>
+                                <div 
+                                    v-else
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 border border-teal-200/80 text-[11px] font-bold rounded-xl"
+                                    :title="'E-Way Bill: ' + modelValue.status.invoice.eway_bill_no"
+                                >
+                                    <CheckCircleIcon class="h-4 w-4 text-teal-600" />
+                                    <span>EWB #{{ modelValue.status.invoice.eway_bill_no }}</span>
+                                </div>
+                            </template>
 
                             <!-- Print E-Invoice Button (When E-Invoice IRN is generated) -->
                             <a 

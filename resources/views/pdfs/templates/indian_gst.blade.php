@@ -168,7 +168,7 @@
                     <div class="kv-line">Sales Person : <strong>{{ $data['meta']['sales_person'] ?? '-' }}</strong></div>
                     <div class="kv-line">Pump : <strong>{{ $data['meta']['pump'] ?? '-' }}</strong></div>
                     <div class="kv-line">Quality InCharge :-</div>
-                    <div class="kv-line">Design Mix Ref : <strong>{{ $data['meta']['design_mix_ref'] ?? '-' }}</strong></div>
+                    <div class="kv-line">Concrete Grade : <strong>{{ $data['meta']['design_mix_ref'] ?? '-' }}</strong></div>
                 @endif
             </td>
         </tr>

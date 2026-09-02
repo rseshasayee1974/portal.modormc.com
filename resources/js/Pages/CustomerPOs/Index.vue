@@ -123,50 +123,38 @@ const getCustomerPOProgressPercent = (customerPO: any) => {
     return Math.min(100, Math.round((completed / total) * 100));
 };
 // --- Delete restriction helpers ---
-const { isAdmin } = usePermissions();
-
-const hasSalesOrders = (customerPO: any) => {
+const isConvertedToSalesOrder = (customerPO: any): boolean => {
+    if (!customerPO) return false;
+    if (customerPO.has_salesorders) return true;
+    if (customerPO.sales_orders && customerPO.sales_orders.length > 0) return true;
     return getCustomerPOCompletedQty(customerPO) > 0;
 };
 
 const canDeleteCustomerPO = (customerPO: any): boolean => {
     if (!customerPO) return false;
-    
-    const completedQty = getCustomerPOCompletedQty(customerPO);
-    
-    // Rule: allow delete when nothing has been allocated to Sales Orders yet
-    // Admin bypass: allow delete but with a warning
-    return completedQty === 0 || isAdmin.value;
+    return !isConvertedToSalesOrder(customerPO);
 };
 
 const getDeleteRestrictionReason = (customerPO: any): string => {
     if (!customerPO) return 'Invalid PO';
-    
-    const completedQty = getCustomerPOCompletedQty(customerPO);
-    
-    if (completedQty === 0) return ''; // no restriction
-    
-    return `Cannot delete — ${completedQty} m³ already allocated to Sales Orders`;
+    if (!isConvertedToSalesOrder(customerPO)) return '';
+    return 'Cannot delete — this Customer PO has already been converted into a Sales Order.';
 };
 
 const deleteCustomerPO = (customerPO: any) => {
     if (!canDeleteCustomerPO(customerPO)) {
         Swal.fire({
             icon: 'error',
-            title: 'Delete blocked',
+            title: 'Delete Blocked',
             text: getDeleteRestrictionReason(customerPO),
+            confirmButtonColor: '#4f46e5',
         });
         return;
     }
 
-    const completedQty = getCustomerPOCompletedQty(customerPO);
-    const isWarning = completedQty > 0;
-
     Swal.fire({
-        title: isWarning ? 'Warning: Sales Orders Exist!' : 'Delete Customer PO?',
-        text: isWarning 
-            ? `${getDeleteRestrictionReason(customerPO)}. Are you sure you want to proceed?`
-            : `Are you sure you want to delete this Customer PO?`,
+        title: 'Delete Customer PO?',
+        text: `Are you sure you want to delete ${customerPO.reference || 'this Customer PO'}?`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
@@ -186,6 +174,15 @@ const deleteCustomerPO = (customerPO: any) => {
                     timer: 1500,
                 });
             },
+            onError: (errors: any) => {
+                const msg = errors?.error || Object.values(errors || {})[0] || 'Failed to delete Customer PO.';
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Delete Failed',
+                    text: String(msg),
+                    confirmButtonColor: '#4f46e5',
+                });
+            }
         });
     });
 };
@@ -329,9 +326,9 @@ const printCustomerPO = (po: any, action: string = 'view') => {
 const activeCustomerPO = ref<any>(null);
 const actionMenu = ref();
 
-const toggleActionMenu = (event: Event, salesOrder: any) => {
+const toggleActionMenu = (event: Event, customerPO: any) => {
     event.stopPropagation();
-    activeCustomerPO.value = salesOrder;
+    activeCustomerPO.value = customerPO;
     if (actionMenu.value) {
         actionMenu.value.toggle(event);
     }
@@ -343,15 +340,9 @@ const closeAllMenus = () => {
     }
 };
 
-const onActionMenuShow = () => {
-    nextTick(() => {
-        const el = document.getElementById('so-action-menu');
-        if (el) {
-            const top = parseFloat(el.style.top) || 0;
-            const height = el.offsetHeight || 0;
-            el.style.top = `${top - height - 10}px`;
-        }
-    });
+const handleEditCustomerPO = (po: any) => {
+    closeAllMenus();
+    toggleEditRow(po);
 };
 
 watch(() => props.customerPOs, () => {
@@ -406,11 +397,13 @@ watch(() => props.customerPOs, () => {
                                 optionLabel="label"
                                 optionValue="value"
                                 placeholder="Filter Status"
-                                class="w-44!h-9!rounded-lg!border-slate-300!text-"
+                                class="w-44 !h-9 !rounded-lg !border-slate-300 text-xs"
                                 pt:label:class="!px-3!py-1"
                             />
                         </div>
                     </template>
+
+                    <Column expander style="width: 3rem" />
 
                     <Column field="order_date" header="Date" sortable>
                         <template #body="slotProps">
@@ -514,11 +507,11 @@ watch(() => props.customerPOs, () => {
                         <template #body="slotProps">
                             <button
                                 type="button"
-                                class="inline-flex justify-center items-center w-8 h-8 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 focus:outline-none transition-all duration-200"
+                                class="inline-flex justify-center items-center w-8 h-8 rounded-full text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-700 focus:outline-none transition-all duration-200 cursor-pointer"
                                 @click.stop="toggleActionMenu($event, slotProps.data)"
                                 v-tooltip.top="'Actions'"
                             >
-                                <i class="pi pi-ellipsis-v text-sm font-bold"></i>
+                                <i class="pi pi-ellipsis-v text-sm font-bold pointer-events-none"></i>
                             </button>
                         </template>
                     </Column>
@@ -545,17 +538,22 @@ watch(() => props.customerPOs, () => {
         </div>
         <Popover
             ref="actionMenu"
-            class="!shadow-2xl!border!border-slate-200/80 dark:!border-slate-700/80!rounded-xl overflow-hidden"
-            style="padding: 0; width: 14rem;"
-            :pt="{ root: { id: 'so-action-menu' } }"
-            @show="onActionMenuShow"
+            class="z-50 !shadow-xl !border !border-slate-200 dark:!border-slate-700 !rounded-xl overflow-hidden"
+            style="padding: 0; min-width: 14rem;"
         >
             <div v-if="activeCustomerPO" class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left">
-                <!-- Group 1: WO Generation -->
+                <!-- Group 1: Edit & Sales Order Actions -->
                 <div class="py-1">
                     <button
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
+                        @click="handleEditCustomerPO(activeCustomerPO)"
+                    >
+                        <i class="pi pi-pencil mr-2 text-amber-500 font-bold"></i>
+                        {{ expandedRows[activeCustomerPO.id] ? 'Collapse Edit Form' : 'Edit Customer PO' }}
+                    </button>
+                    <button
                         v-if="!isCustomerPOCompleted(activeCustomerPO)"
-                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                         @click="convertToSalesOrder(activeCustomerPO); closeAllMenus();"
                     >
                         <i class="pi pi-cog mr-2 text-indigo-500 font-bold"></i>
@@ -570,14 +568,14 @@ watch(() => props.customerPOs, () => {
                 <!-- Group 2: Print/Download PDF -->
                 <div class="py-1">
                     <button
-                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                         @click="printCustomerPO(activeCustomerPO, 'view'); closeAllMenus();"
                     >
                         <i class="pi pi-print mr-2 text-indigo-500 font-bold"></i>
                         Print PO
                     </button>
                     <button
-                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/50 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                         @click="printCustomerPO(activeCustomerPO, 'download'); closeAllMenus();"
                     >
                         <i class="pi pi-file-pdf mr-2 text-indigo-500 font-bold"></i>
@@ -589,7 +587,7 @@ watch(() => props.customerPOs, () => {
                 <div class="py-1">
                     <button
                         v-if="canDeleteCustomerPO(activeCustomerPO)"
-                        class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
+                        class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
                         @click="deleteCustomerPO(activeCustomerPO); closeAllMenus();"
                     >
                         <i class="pi pi-trash mr-2 text-rose-500 font-bold"></i>
@@ -597,11 +595,11 @@ watch(() => props.customerPOs, () => {
                     </button>
                     <div
                         v-else
-                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-400 cursor-not-allowed"
-                        v-tooltip.right="getDeleteRestrictionReason(activeCustomerPO)"
+                        class="flex w-full items-center px-4 py-2 text-xs font-semibold text-slate-400 dark:text-slate-500 cursor-not-allowed bg-slate-50/50 dark:bg-slate-700/20"
+                        v-tooltip.right="'Cannot delete: Converted to Sales Order'"
                     >
-                        <i class="pi pi-trash mr-2 text-slate-400 font-bold"></i>
-                        Delete (Locked)
+                        <i class="pi pi-lock mr-2 text-slate-400 font-bold"></i>
+                        Delete (Converted)
                     </div>
                 </div>
             </div>

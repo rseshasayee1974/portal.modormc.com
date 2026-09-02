@@ -189,15 +189,22 @@
 
     <div class="divider"></div>
 
-    {{-- ── Mix Design ── --}}
-    <div class="section-title">Mix Design</div>
+    {{-- ── Concrete Grade ── --}}
+    <div class="section-title">Concrete Grade</div>
     <table class="meta-table">
-        @if (!empty($batch->workOrder?->mixDesign?->concrete_grade?->name) || !empty($batch->workOrder?->mixDesign?->design_name))
+        @php
+            $cgName = $batch->workOrder?->mixDesign?->concrete_grade?->name 
+                ?? $batch->workOrder?->mixDesign?->concreteGrade?->name 
+                ?? (!empty($batch->workOrder?->mixDesign?->concrete_grade_id) ? \App\Models\ConcreteGrade::find($batch->workOrder->mixDesign->concrete_grade_id)?->name : null)
+                ?? $batch->workOrder?->mixDesign?->grade 
+                ?? $batch->workOrder?->mixDesign?->design_type;
+        @endphp
+        @if (!empty($cgName))
         <tr>
             <td class="meta-label">Grade</td>
             <td class="meta-colon">:</td>
             <td class="meta-value">
-                {{ $batch->workOrder->mixDesign->concrete_grade->name ?? $batch->workOrder->mixDesign->design_name }}
+                {{ $cgName }}
             </td>
         </tr>
         @endif

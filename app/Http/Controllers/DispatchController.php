@@ -290,34 +290,59 @@ class DispatchController extends Controller
                 'nullable',
                 'string',
                 'max:191',
-                function ($attribute, $value, $fail) use ($dispatch) {
-                    if (!empty($value)) {
-                        $trimmed = trim($value);
-                        $exists = \App\Models\Invoice::withoutGlobalScopes()
+                function ($attribute, $value, $fail) use ($dispatch, $request) {
+                    if ($value !== null && trim((string)$value) !== '') {
+                        $trimmed = trim((string)$value);
+                        $ledgerId = $request->input('ledger_id') ? (int)$request->input('ledger_id') : null;
+                        $details = \App\Models\Invoice::generateNumber($dispatch->plant_id, 'dispatch', $ledgerId);
+                        $autoPrefix = $details['prefix'] ?? '';
+
+                        $numberPart = $trimmed;
+                        if (!empty($autoPrefix) && str_starts_with($trimmed, $autoPrefix)) {
+                            $numberPart = substr($trimmed, strlen($autoPrefix));
+                        }
+                        $fullNumber = $autoPrefix . $numberPart;
+
+                        $query = \App\Models\Invoice::withoutGlobalScopes()
                             ->where('plant_id', $dispatch->plant_id)
                             ->where('is_active', 1)
-                            ->whereNull('deleted_at')
-                            ->where(function ($q) use ($trimmed) {
-                                $q->where('invoice_number', $trimmed)
-                                  ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $trimmed);
+                            ->whereNull('deleted_at');
+
+                        $exists = $query->where(function ($q) use ($numberPart, $fullNumber, $autoPrefix) {
+                                $q->where(function ($sub) use ($numberPart, $autoPrefix) {
+                                    $sub->where('invoice_number', $numberPart)
+                                        ->where('prefix', $autoPrefix);
+                                })
+                                ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber);
                             })
                             ->exists();
 
                         if ($exists) {
-                            $fail("The invoice number '{$trimmed}' is already in use and active in the database.");
+                            $fail("The invoice number '{$fullNumber}' is already in use and active in the database.");
                         }
                     }
                 },
             ],
             'notes'          => 'nullable|string',
         ]);
+
+        \Illuminate\Support\Facades\Log::info('generateInvoice called', [
+            'dispatch_id' => $dispatch->id,
+            'request'     => $request->all(),
+            'validated'   => $validated,
+        ]);
+
         try {
             return DB::transaction(function () use ($dispatch, $validated) {
                 $partnerId = $dispatch->customer_id ?: $dispatch->salesOrder?->customer_id;
+                $manualNumber = (isset($validated['invoice_number']) && trim((string)$validated['invoice_number']) !== '') 
+                    ? trim((string)$validated['invoice_number']) 
+                    : null;
+
                 $invoice = \App\Models\Invoice::createFromSource($dispatch, 'sales', [
                     'account_id'     => $validated['ledger_id'],
                     'invoice_date'   => $validated['invoice_date'],
-                    'invoice_number' => !empty($validated['invoice_number']) ? trim($validated['invoice_number']) : null,
+                    'invoice_number' => $manualNumber,
                     'notes'          => $validated['notes'] ?? null,
                     'partner_id'     => $partnerId,
                     'plant_id'       => $dispatch->plant_id,
@@ -325,7 +350,7 @@ class DispatchController extends Controller
                 ]);
                 $dispatch->invoice($invoice);
 
-                return redirect()->back()->with('success', 'Invoice generated successfully: ' . $invoice->invoice_number);
+                return redirect()->back()->with('success', 'Invoice generated successfully: ' . ($invoice->full_number ?? $invoice->invoice_number));
             });
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::error('Invoice generation failed: ' . $e->getMessage(), [

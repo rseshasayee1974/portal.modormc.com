@@ -76,12 +76,13 @@ class QuotationController extends Controller
     {
         $this->authorizeModule('delete');
         
-        if (in_array((int)$quotation->status, [Quotation::STATUS_ACCEPTED, Quotation::STATUS_REJECTED])) {
-            return redirect()->back()->with('error', 'Finalized quotations cannot be deleted.');
+        // Prevent deletion if quotation is converted into a Customer PO
+        if ((int)$quotation->is_customer_po === 1 || $quotation->customerPOs()->exists()) {
+            return redirect()->back()->with('error', 'This quotation cannot be deleted because it has already been converted into a Customer PO.');
         }
 
         $quotation->delete();
-        return redirect()->back()->with('success', 'Quotation voided.');
+        return redirect()->back()->with('success', 'Quotation deleted successfully.');
     }
 
     public function downloadPdf(Quotation $quotation)

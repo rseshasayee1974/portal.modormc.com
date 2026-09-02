@@ -100,7 +100,24 @@ const printQuotation = (quotation: any, action: string = 'report') => {
     window.open(route(routeName, quotation.id), '_blank');
 };
 
+const isConvertedToCustomerPO = (quotation: any) => {
+    if (!quotation) return false;
+    if (Number(quotation.is_customer_po) === 1) return true;
+    const pos = quotation.customerPOs || quotation.customer_p_os || [];
+    return pos.length > 0;
+};
+
 const deleteQuotation = (quotation: any) => {
+    if (isConvertedToCustomerPO(quotation)) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Action Denied',
+            text: 'This quotation has already been converted into a Customer PO and cannot be deleted.',
+            confirmButtonColor: '#4f46e5'
+        });
+        return;
+    }
+
     Swal.fire({
         title: 'Delete Quotation?',
         text: `Are you sure you want to delete ${quotation.reference || 'this quotation'}?`,
@@ -110,11 +127,6 @@ const deleteQuotation = (quotation: any) => {
         confirmButtonText: 'Yes, delete',
     }).then((result) => {
         if (!result.isConfirmed) return;
-
-        if ([2, 3].includes(Number(quotation.status))) {
-            Swal.fire({ icon: 'error', title: 'Action Denied', text: 'Finalized quotations cannot be deleted.' });
-            return;
-        }
 
         router.delete(route('quotations.destroy', quotation.id), {
             preserveScroll: true,
@@ -128,6 +140,14 @@ const deleteQuotation = (quotation: any) => {
                     timer: 1500,
                 });
             },
+            onError: (errors: any) => {
+                const msg = errors?.error || Object.values(errors || {})[0] || 'Failed to delete quotation.';
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Delete Failed',
+                    text: String(msg)
+                });
+            }
         });
     });
 };
@@ -422,16 +442,26 @@ const updateConversion = (quotation: any) => {
                                 </button>
                             </template>
 
-                            <!-- Delete Option (only if NOT Approved or Rejected: status != 2 and status != 3) -->
-                            <template v-if="![2, 3].includes(Number(activeActionRow?.status))">
+                            <!-- Delete Option (available only if NOT converted into Customer PO) -->
+                            <template v-if="!isConvertedToCustomerPO(activeActionRow)">
                                 <hr class="border-slate-100 my-1" />
                                 <button
                                     @click="handleDeleteQuote"
-                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors w-full text-left"
+                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors w-full text-left cursor-pointer"
                                 >
                                     <i class="pi pi-trash text-red-500"></i>
                                     Delete Quotation
                                 </button>
+                            </template>
+                            <template v-else>
+                                <hr class="border-slate-100 my-1" />
+                                <div
+                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 cursor-not-allowed select-none"
+                                    title="This quotation is converted to a Customer PO and cannot be deleted"
+                                >
+                                    <i class="pi pi-lock text-slate-400 text-xs"></i>
+                                    Cannot Delete (Converted)
+                                </div>
                             </template>
                         </div>
                     </Popover>

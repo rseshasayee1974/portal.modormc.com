@@ -151,7 +151,15 @@ class CustomerPO extends Model
     protected static function booted()
     {
         static::deleting(function ($customerPO) {
+            if (auth()->check()) {
+                $customerPO->deleted_by = auth()->id();
+                $customerPO->saveQuietly();
+            }
             foreach ($customerPO->items as $item) {
+                if (auth()->check()) {
+                    $item->deleted_by = auth()->id();
+                    $item->saveQuietly();
+                }
                 $item->delete();
             }
         });
