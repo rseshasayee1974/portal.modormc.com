@@ -30,6 +30,8 @@ class PurchaseRegisterExport
             ->join('mm_patrons', 'mm_purchase_orders.vendor_id', '=', 'mm_patrons.id')
             ->whereIn('mm_purchase_order_items.id', $subQuery)
             ->whereNull('mm_purchase_order_items.deleted_at')
+            ->whereNull('mm_purchase_orders.deleted_at')
+            ->whereNull('mm_patrons.deleted_at')
             ->selectRaw('mm_taxes.tax_name, mm_taxes.tax_rate, mm_taxes.tax_group, mm_patrons.gstin, mm_purchase_order_items.price_tax, mm_purchase_order_items.price_subtotal')
             ->distinct()
             ->get();

@@ -20,7 +20,9 @@ class SalesReportService implements ReportServiceInterface
         $end      = $params['end'];
 
         // 1. Invoice-level transactions
-        $baseInvoiceQuery = Invoice::with(['partner'])->where('plant_id', $plantId);
+        $baseInvoiceQuery = Invoice::with(['partner'])
+            ->where('plant_id', $plantId)
+            ->whereNull('deleted_at');
         if ($patronId) $baseInvoiceQuery->where('partner_id', $patronId);
 
         $invoiceQuery = (clone $baseInvoiceQuery)->where(function ($q) use ($start, $end) {
@@ -50,13 +52,14 @@ class SalesReportService implements ReportServiceInterface
         ]);
 
         // 2. Product-wise consolidated
-        $baseItemQuery = InvoiceItem::whereHas('invoice', function ($q) use ($plantId, $patronId) {
-            $q->where('plant_id', $plantId);
-            if ($patronId) $q->where('partner_id', $patronId);
-        })->with(['uom']);
+        $baseItemQuery = InvoiceItem::whereNull('deleted_at')
+            ->whereHas('invoice', function ($q) use ($plantId, $patronId) {
+                $q->where('plant_id', $plantId)->whereNull('deleted_at');
+                if ($patronId) $q->where('partner_id', $patronId);
+            })->with(['uom']);
 
         $itemQuery = (clone $baseItemQuery)->whereHas('invoice', function ($q) use ($start, $end) {
-            $q->where(function ($sq) use ($start, $end) {
+            $q->whereNull('deleted_at')->where(function ($sq) use ($start, $end) {
                 $sq->whereBetween('invoice_date', [$start, $end])
                    ->orWhereBetween('created_at', [$start, $end]);
             });
@@ -86,6 +89,7 @@ class SalesReportService implements ReportServiceInterface
         // 3. Dispatch summaries
         $dispatchQuery = Dispatch::with(['customer', 'mixDesign.unit'])
             ->where('plant_id', $plantId)
+            ->whereNull('deleted_at')
             ->whereBetween('dispatch_time', [$start . ' 00:00:00', $end . ' 23:59:59']);
         if ($patronId) $dispatchQuery->where('customer_id', $patronId);
         $dispatches = $dispatchQuery->get();

@@ -23,6 +23,7 @@ class Gstr3bReportService implements ReportServiceInterface
 
         // 1. OUTWARD SUPPLIES (Sales Invoices)
         $salesInvoices = Invoice::where('plant_id', $plantId)
+            ->whereNull('deleted_at')
             ->where('invoice_type', 'sales')
             ->whereIn('status', ['approved', 'paid'])
             ->whereBetween('invoice_date', [$start, $end])
@@ -37,7 +38,7 @@ class Gstr3bReportService implements ReportServiceInterface
         ];
 
         foreach ($salesInvoices as $inv) {
-            $taxes    = OrderTax::where('order_id', $inv->id)->where('order_type', 'Invoice')->get();
+            $taxes    = OrderTax::where('order_id', $inv->id)->where('order_type', 'Invoice')->whereNull('deleted_at')->get();
             $cgst     = (float) $taxes->filter(fn($t) => str_contains(strtoupper($t->name), 'CGST'))->sum('amount');
             $sgst     = (float) $taxes->filter(fn($t) => str_contains(strtoupper($t->name), 'SGST') || str_contains(strtoupper($t->name), 'UGST') || str_contains(strtoupper($t->name), 'UTGST'))->sum('amount');
             $igst     = (float) $taxes->filter(fn($t) => str_contains(strtoupper($t->name), 'IGST'))->sum('amount');

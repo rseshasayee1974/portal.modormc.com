@@ -25,6 +25,7 @@ class SalesRegisterExport
 
         $taxes = DB::table('mm_order_taxes')
             ->where('order_type', 'Invoice')
+            ->whereNull('deleted_at')
             ->whereIn('order_items_id', $subQuery)
             ->selectRaw('name, rate')
             ->distinct()

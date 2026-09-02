@@ -38,14 +38,17 @@ class BatchController extends Controller
 
         $batches = DB::table('mm_batches as b')
             ->join('mm_sales_orders as so', 'so.id', '=', 'b.sales_order_id')
-            ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
-            ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
-            ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
             ->leftJoin('mm_dispatches as d', function ($join) {
                 $join->on('d.batch_id', '=', 'b.id')
                      ->whereNull('d.deleted_at');
             })
+            ->leftJoin('mm_patrons as dp', 'dp.id', '=', 'd.customer_id')
+            ->leftJoin('mm_sites as ds_site', 'ds_site.id', '=', 'd.unload_site_id')
+            ->leftJoin('mm_mix_designs as dm', 'dm.id', '=', 'd.mixdesign_id')
             ->leftJoin('mm_machines as t', 't.id', '=', 'd.truck_id')
+            ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
+            ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
+            ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
             ->leftJoin('mm_dispatch_statuses as ds', 'ds.dispatch_id', '=', 'd.id')
             ->leftJoin('mm_invoices as inv', 'inv.id', '=', 'ds.invoice_id')
             ->leftJoin('mm_einvoice_invoice_rel as einv_rel', 'einv_rel.invoice_id', '=', 'inv.id')
@@ -74,18 +77,20 @@ class BatchController extends Controller
                 'so.is_tax_inclusive as so_is_tax_inclusive',
                 'so.concrete_pump as so_concrete_pump',
                 'so.pump_rate as so_pump_rate',
-                'p.id as customer_id',
-                'p.legal_name as customer_name',
-                's.id as site_id',
-                's.name as site_name',
-                'm.id as mix_design_id',
-                'm.design_name as mix_design_name',
-                'm.design_code as mix_design_code',
+                DB::raw('COALESCE(d.customer_id, so.customer_id) as customer_id'),
+                DB::raw('COALESCE(dp.legal_name, p.legal_name) as customer_name'),
+                DB::raw('COALESCE(d.unload_site_id, so.site_id) as site_id'),
+                DB::raw('COALESCE(ds_site.name, s.name) as site_name'),
+                DB::raw('COALESCE(d.mixdesign_id, so.mix_design_id) as mix_design_id'),
+                DB::raw('COALESCE(dm.design_name, m.design_name) as mix_design_name'),
+                DB::raw('COALESCE(dm.design_code, m.design_code) as mix_design_code'),
                 'd.id as dispatch_id',
                 'd.truck_id as dispatch_truck_id',
+                'd.delivered_qty as dispatch_delivered_qty',
                 't.registration as truck_registration',
                 'ds.id as dispatch_status_id',
                 'ds.invoice_id',
+                'd.load_total_amount',
                 'ds.is_tax_inclusive as dispatch_is_tax_inclusive',
                 'inv.prefix as invoice_prefix',
                 'inv.invoice_number',
@@ -110,13 +115,23 @@ class BatchController extends Controller
                     'end_time' => $row->end_time,
                     'is_verified' => (bool)$row->is_verified,
                     'sync_status' => $row->sync_status,
+                    'load_total_amount' => $row->load_total_amount,
                     'created_at' => $row->created_at,
                     'sales_order_id' => $row->sales_order_id,
+                    'customer_id' => $row->customer_id,
+                    'customer_name' => $row->customer_name,
+                    'site_id' => $row->site_id,
+                    'site_name' => $row->site_name,
+                    'mix_design_id' => $row->mix_design_id,
+                    'mix_design_name' => $row->mix_design_name,
+                    'mix_design_code' => $row->mix_design_code,
+                    'truck_registration' => $row->truck_registration,
                     'rate' => (float)$row->so_rate,
                     'tax_id' => $row->so_tax_id,
                     'is_tax_inclusive' => (bool)$row->so_is_tax_inclusive,
                     'invoice_id' => $row->invoice_id,
                     'invoice_number' => $fullInvoiceNumber,
+                    'invoice_prefix' => $row->invoice_prefix,
                     'has_invoice' => !empty($row->invoice_id),
                     'einvoice_irn' => $row->einvoice_irn,
                     'einvoice_status' => $row->einvoice_status,
@@ -142,7 +157,6 @@ class BatchController extends Controller
                         'mix_design' => [
                             'id' => $row->mix_design_id,
                             'design_name' => $row->mix_design_name,
-                            'design_code' => $row->mix_design_code,
                         ],
                     ],
                     'dispatches' => $row->dispatch_id ? [
@@ -150,9 +164,23 @@ class BatchController extends Controller
                             'id' => $row->dispatch_id,
                             'batch_id' => $row->id,
                             'truck_id' => $row->dispatch_truck_id,
+                            'delivered_qty' => $row->dispatch_delivered_qty,
                             'truck' => [
                                 'id' => $row->dispatch_truck_id,
                                 'registration' => $row->truck_registration,
+                            ],
+                            'customer' => [
+                                'id' => $row->customer_id,
+                                'legal_name' => $row->customer_name,
+                            ],
+                            'site' => [
+                                'id' => $row->site_id,
+                                'name' => $row->site_name,
+                            ],
+                            'mix_design' => [
+                                'id' => $row->mix_design_id,
+                                'design_name' => $row->mix_design_name,
+                                'design_code' => $row->mix_design_code,
                             ],
                             'status' => [
                                 'id' => $row->dispatch_status_id,
@@ -598,11 +626,26 @@ class BatchController extends Controller
         $batchId = $batch instanceof Batch ? $batch->id : (int)$batch;
 
         $batchRow = DB::table('mm_batches as b')
-            ->join('mm_sales_orders as so', 'so.id', '=', 'b.sales_order_id')
-            ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
-            ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
-            ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
-            ->leftJoin('mm_concrete_grades as cg', 'cg.id', '=', 'm.concrete_grade_id')
+            ->join('mm_sales_orders as so', function ($join) {
+                $join->on('so.id', '=', 'b.sales_order_id')
+                     ->whereNull('so.deleted_at');
+            })
+            ->leftJoin('mm_patrons as p', function ($join) {
+                $join->on('p.id', '=', 'so.customer_id')
+                     ->whereNull('p.deleted_at');
+            })
+            ->leftJoin('mm_sites as s', function ($join) {
+                $join->on('s.id', '=', 'so.site_id')
+                     ->whereNull('s.deleted_at');
+            })
+            ->leftJoin('mm_mix_designs as m', function ($join) {
+                $join->on('m.id', '=', 'so.mix_design_id')
+                     ->whereNull('m.deleted_at');
+            })
+            ->leftJoin('mm_concrete_grades as cg', function ($join) {
+                $join->on('cg.id', '=', 'm.concrete_grade_id')
+                     ->whereNull('cg.deleted_at');
+            })
             ->where('b.id', $batchId)
             ->whereNull('b.deleted_at')
             ->select([

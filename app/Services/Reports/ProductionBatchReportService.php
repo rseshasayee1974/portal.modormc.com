@@ -16,7 +16,14 @@ class ProductionBatchReportService implements ReportServiceInterface
         $end     = $params['end'];
 
         $batches = Batch::where('plant_id', $plantId)
-            ->with(['operator', 'salesOrder.mixDesign', 'materials.product'])
+            ->whereNull('deleted_at')
+            ->with([
+                'operator' => fn($q) => $q->whereNull('deleted_at'),
+                'salesOrder' => fn($q) => $q->whereNull('deleted_at'),
+                'salesOrder.mixDesign' => fn($q) => $q->whereNull('deleted_at'),
+                'materials' => fn($q) => $q->whereNull('deleted_at'),
+                'materials.product' => fn($q) => $q->whereNull('deleted_at')
+            ])
             ->whereBetween('start_time', [$start . ' 00:00:00', $end . ' 23:59:59'])
             ->get();
 

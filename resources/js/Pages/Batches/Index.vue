@@ -79,6 +79,12 @@ const { isAdmin, isSuperAdmin, can } = usePermissions();
 const dateFrom = ref<any>(null);
 const dateTo = ref<any>(null);
 
+const formatAmount = (val: any) => {
+    const num = Number(val);
+    if (isNaN(num) || num <= 0) return null;
+    return '₹' + num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 
 
 const expandedRows     = ref<Record<number, boolean>>({});
@@ -581,7 +587,7 @@ const shareBatchEmail = () => {
                         rowHover
                         filterDisplay="menu"
                         class="cursor-pointer"
-                        :globalFilterFields="['batch_no', 'sales_order.order_no', 'sales_order.customer.legal_name', 'sales_order.mix_design.design_name']"
+                        :globalFilterFields="['batch_no', 'sales_order.order_no', 'sales_order.full_number', 'customer_name', 'site_name', 'mix_design_name', 'truck_registration', 'invoice_number', 'sales_order.customer.legal_name', 'sales_order.mix_design.design_name']"
                         showSerial
                         heading="List Of Batches"
                         headingIcon="ListBulletIcon"
@@ -650,27 +656,37 @@ const shareBatchEmail = () => {
                             </template>
                         </Column>
 
-                        <Column field="sales_order.customer.legal_name" class="max-w-[200px]" header="Customer" sortable>
+                        <Column field="customer_name" class="max-w-[200px]" header="Customer" sortable>
                             <template #body="slotProps">
                                 <div class="flex flex-col min-w-0">
-                                    <span class="text-xs font-bold text-slate-700 truncate" :title="slotProps.data.sales_order?.customer?.legal_name">{{ slotProps.data.sales_order?.customer?.legal_name || '-' }}</span>
-                                    <span class="text-[10px] text-slate-400 font-medium uppercase truncate" :title="slotProps.data.sales_order?.site?.name || 'Main Site'">{{ slotProps.data.sales_order?.site?.name || 'Main Site' }}</span>
+                                    <span class="text-xs font-bold text-slate-700 truncate" :title="slotProps.data.dispatches?.[0]?.customer?.legal_name || slotProps.data.customer_name || slotProps.data.sales_order?.customer?.legal_name">
+                                        {{ slotProps.data.dispatches?.[0]?.customer?.legal_name || slotProps.data.customer_name || slotProps.data.sales_order?.customer?.legal_name || '-' }}
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 font-medium uppercase truncate" :title="slotProps.data.dispatches?.[0]?.site?.name || slotProps.data.site_name || slotProps.data.sales_order?.site?.name || 'Main Site'">
+                                        {{ slotProps.data.dispatches?.[0]?.site?.name || slotProps.data.site_name || slotProps.data.sales_order?.site?.name || 'Main Site' }}
+                                    </span>
                                 </div>
                             </template>
                         </Column>
 
-                        <Column field="sales_order.mix_design.design_name" header="Design" sortable>
+                        <Column field="mix_design_name" header="Design" sortable>
                             <template #body="slotProps">
                                 <div class="flex flex-col">
-                                    <span class="text-xs font-black text-slate-800">{{ slotProps.data.sales_order?.mix_design?.design_name || '-' }}</span>
-                                    <span class="text-[10px] text-emerald-600 font-black tracking-tighter uppercase">{{ slotProps.data.sales_order?.mix_design?.design_code || '-' }}</span>
+                                    <span class="text-xs font-black text-slate-800">
+                                        {{ slotProps.data.dispatches?.[0]?.mix_design?.design_name || slotProps.data.mix_design_name || slotProps.data.sales_order?.mix_design?.design_name || '-' }}
+                                    </span>
+                                    <span class="text-xs font-bold text-slate-700">
+                                        {{ slotProps.data.batch_size }} m³
+                                    </span>
                                 </div>
                             </template>
                         </Column>
 
-                        <Column header="Truck">
+                        <Column field="truck_registration" header="Truck" sortable>
                             <template #body="slotProps">
-                                <span class="text-xs font-semibold text-slate-700">{{ slotProps.data.dispatches?.[0]?.truck?.registration || '-' }}</span>
+                                <span class="text-xs font-semibold text-slate-700">
+                                    {{ slotProps.data.dispatches?.[0]?.truck?.registration || slotProps.data.truck_registration || '-' }}
+                                </span>
                             </template>
                         </Column>
                         
@@ -680,9 +696,29 @@ const shareBatchEmail = () => {
                             </template>
                         </Column> -->
 
-                        <Column field="batch_size" header="Qty" sortable>
+                        <Column field="invoice_number" header="Invoice No" sortable>
                             <template #body="slotProps">
-                                <span class="text-xs font-bold text-slate-700">{{ slotProps.data.batch_size }} m³</span>
+                                <div class="flex flex-col min-w-0"> 
+                                    <span 
+                                        class="text-xs font-black tracking-tight"
+                                        :class="formatAmount(slotProps.data.load_total_amount) ? 'text-slate-800' : 'text-slate-300 font-medium italic'"
+                                    >
+                                        {{ formatAmount(slotProps.data.load_total_amount) || '-' }}
+                                    </span>
+                                    <div 
+                                        v-if="slotProps.data.invoice_number || slotProps.data.dispatches?.[0]?.status?.invoice_number || slotProps.data.dispatches?.[0]?.status?.invoice?.full_number" 
+                                        class="flex items-center gap-1 mt-0.5"
+                                        :title="'Invoice #' + (slotProps.data.invoice_number || slotProps.data.dispatches?.[0]?.status?.invoice_number || slotProps.data.dispatches?.[0]?.status?.invoice?.full_number)"
+                                    >
+                                        <i class="pi pi-receipt text-[9px] text-indigo-500"></i>
+                                        <span class="text-[10px] font-black text-indigo-600 uppercase tracking-wider truncate">
+                                            {{ slotProps.data.invoice_number || slotProps.data.dispatches?.[0]?.status?.invoice_number || slotProps.data.dispatches?.[0]?.status?.invoice?.full_number }}
+                                        </span>
+                                    </div>
+                                    <span v-else class="text-[10px] text-slate-400 font-medium uppercase tracking-tight">
+                                        -
+                                    </span>
+                                </div>
                             </template>
                         </Column>
 

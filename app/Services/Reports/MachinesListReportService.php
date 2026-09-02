@@ -14,7 +14,8 @@ class MachinesListReportService implements ReportServiceInterface
         $plantId = $this->ctx->requirePlantId();
 
         $query = Machine::where('plant_id', $plantId)
-            ->with(['owner']);
+            ->whereNull('deleted_at')
+            ->with(['owner' => fn($q) => $q->whereNull('deleted_at')]);
 
         if (!empty($params['truck_id'])) {
             $query->where('id', $params['truck_id']);

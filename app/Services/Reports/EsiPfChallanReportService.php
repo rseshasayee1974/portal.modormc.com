@@ -37,6 +37,7 @@ class EsiPfChallanReportService implements ReportServiceInterface
 
         // 3. Fetch payslips in the selected date range
         $payslips = Payslip::where('plant_id', $plantId)
+            ->whereNull('deleted_at')
             ->with(['personnel.department', 'personnel.designation', 'payrollPeriod', 'items'])
             ->whereHas('payrollPeriod', function ($q) use ($start, $end) {
                 $q->whereBetween('from_date', [$start, $end])

@@ -15,6 +15,7 @@ class PayrollPersonnelReportService implements ReportServiceInterface
         $plantId = $this->ctx->requirePlantId();
 
         $personnel = Personnel::where('plant_id', $plantId)
+            ->whereNull('deleted_at')
             ->with(['user', 'contacts'])
             ->get();
 

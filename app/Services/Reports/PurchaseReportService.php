@@ -21,6 +21,7 @@ class PurchaseReportService implements ReportServiceInterface
         // 1. PO-wise transactions
         $poQuery = PurchaseOrder::with(['vendor'])
             ->where('plant_id', $plantId)
+            ->whereNull('deleted_at')
             ->where(function ($q) use ($start, $end) {
                 $q->whereBetween('date_order', [$start, $end])
                   ->orWhereBetween('created_at', [$start, $end]);
@@ -46,13 +47,16 @@ class PurchaseReportService implements ReportServiceInterface
         ]);
 
         // 2. Product-wise consolidated
-        $itemQuery = PurchaseOrderItem::whereHas('order', function ($q) use ($plantId, $start, $end, $patronId) {
-            $q->where('plant_id', $plantId)->where(function ($sq) use ($start, $end) {
-                $sq->whereBetween('date_order', [$start, $end])
-                   ->orWhereBetween('created_at', [$start, $end]);
-            });
-            if ($patronId) $q->where('vendor_id', $patronId);
-        })->with(['product', 'uom']);
+        $itemQuery = PurchaseOrderItem::whereNull('deleted_at')
+            ->whereHas('order', function ($q) use ($plantId, $start, $end, $patronId) {
+                $q->where('plant_id', $plantId)
+                  ->whereNull('deleted_at')
+                  ->where(function ($sq) use ($start, $end) {
+                      $sq->whereBetween('date_order', [$start, $end])
+                         ->orWhereBetween('created_at', [$start, $end]);
+                  });
+                if ($patronId) $q->where('vendor_id', $patronId);
+            })->with(['product', 'uom']);
 
         $items = $itemQuery->get();
 

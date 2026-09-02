@@ -35,12 +35,13 @@ class ReportRepository
                 'mm_invoice_items.line_tax_amount',
                 'mm_invoice_items.line_total',
             ])
+            ->whereNull('mm_invoice_items.deleted_at')
             ->whereHas('invoice', function ($q) {
-                $q->where('invoice_type', 'sales');
+                $q->where('invoice_type', 'sales')->whereNull('deleted_at');
             })
             ->with([
                 'invoice' => function ($q) {
-                    $q->withoutGlobalScopes()->select([
+                    $q->withoutGlobalScopes()->whereNull('deleted_at')->select([
                         'id',
                         'prefix',
                         'invoice_number',
@@ -56,13 +57,13 @@ class ReportRepository
                     ]);
                 },
                 'invoice.partner' => function ($q) {
-                    $q->withoutGlobalScopes()->select(['id', 'legal_name', 'gstin']);
+                    $q->withoutGlobalScopes()->whereNull('deleted_at')->select(['id', 'legal_name', 'gstin']);
                 },
                 'uom' => function ($q) {
                     $q->select(['id', 'unit_name', 'unit_code']);
                 },
                 'itemTaxes' => function ($q) {
-                    $q->select(['id', 'order_items_id', 'name', 'rate', 'amount']);
+                    $q->whereNull('deleted_at')->select(['id', 'order_items_id', 'name', 'rate', 'amount']);
                 },
             ]);
 
@@ -139,6 +140,7 @@ class ReportRepository
 
         // JOIN for ordering — must come after all whereHas filters
         $query->join('mm_invoices', 'mm_invoice_items.invoice_id', '=', 'mm_invoices.id')
+            ->whereNull('mm_invoices.deleted_at')
             ->orderBy('mm_invoices.invoice_date', 'asc')
             ->orderBy('mm_invoice_items.id', 'asc');
 
@@ -156,6 +158,10 @@ class ReportRepository
     public function getPurchaseRegisterQuery(array $filters): Builder
     {
         $query = PurchaseOrderItem::query()
+            ->whereNull('mm_purchase_order_items.deleted_at')
+            ->whereHas('order', function ($q) {
+                $q->whereNull('deleted_at');
+            })
             ->select([
                 'mm_purchase_order_items.id',
                 'mm_purchase_order_items.order_id',
@@ -169,7 +175,7 @@ class ReportRepository
             ])
             ->with([
                 'order' => function ($q) {
-                    $q->withoutGlobalScopes()->select([
+                    $q->withoutGlobalScopes()->whereNull('deleted_at')->select([
                         'id',
                         'po_number',
                         'bill_number',
@@ -180,7 +186,7 @@ class ReportRepository
                     ]);
                 },
                 'order.vendor' => function ($q) {
-                    $q->withoutGlobalScopes()->select(['id', 'legal_name', 'gstin']);
+                    $q->withoutGlobalScopes()->whereNull('deleted_at')->select(['id', 'legal_name', 'gstin']);
                 },
                 'order.plant' => function ($q) {
                     $q->select(['id', 'gstin']);
@@ -201,21 +207,21 @@ class ReportRepository
         $toDate   = isset($filters['to_date'])   ? Carbon::parse($filters['to_date'])->endOfDay()     : now()->endOfDay();
 
         $query->whereHas('order', function ($q) use ($fromDate, $toDate) {
-            $q->whereBetween('date_order', [$fromDate, $toDate]);
+            $q->whereNull('deleted_at')->whereBetween('date_order', [$fromDate, $toDate]);
         });
 
         // Filter: Plant Scoping (session active_plant_id OR explicit filter)
         $plantId = $filters['branch_id'] ?? $filters['plant_id'] ?? Session::get('active_plant_id');
         if ($plantId) {
             $query->whereHas('order', function ($q) use ($plantId) {
-                $q->where('plant_id', $plantId);
+                $q->whereNull('deleted_at')->where('plant_id', $plantId);
             });
         }
 
         // Filter: Supplier (vendor_id)
         if (!empty($filters['supplier_id'])) {
             $query->whereHas('order', function ($q) use ($filters) {
-                $q->where('vendor_id', $filters['supplier_id']);
+                $q->whereNull('deleted_at')->where('vendor_id', $filters['supplier_id']);
             });
         }
 
@@ -239,7 +245,9 @@ class ReportRepository
 
                 // First join orders table so vendor_id is available
                 $query->join('mm_purchase_orders as po_gst', 'mm_purchase_order_items.order_id', '=', 'po_gst.id')
+                    ->whereNull('po_gst.deleted_at')
                     ->join('mm_patrons as gst_vendor', 'po_gst.vendor_id', '=', 'gst_vendor.id')
+                    ->whereNull('gst_vendor.deleted_at')
                     ->where(function ($q) use ($gstType, $plantStateCode) {
                         if ($gstType === 'intra') {
                             $q->whereRaw("LEFT(gst_vendor.gstin, 2) = ?", [$plantStateCode]);
@@ -260,6 +268,7 @@ class ReportRepository
 
         // JOIN for ordering (only when no GST type filter — avoids duplicate join)
         $query->join('mm_purchase_orders', 'mm_purchase_order_items.order_id', '=', 'mm_purchase_orders.id')
+            ->whereNull('mm_purchase_orders.deleted_at')
             ->orderBy('mm_purchase_orders.date_order', 'asc')
             ->orderBy('mm_purchase_order_items.id', 'asc');
 
@@ -279,6 +288,7 @@ class ReportRepository
 
         $result = DB::table('mm_invoice_items')
             ->whereIn('mm_invoice_items.id', $subQuery)
+            ->whereNull('mm_invoice_items.deleted_at')
             ->selectRaw('
                 COALESCE(SUM(quantity), 0)        AS total_qty,
                 COALESCE(SUM(subtotal), 0)         AS total_taxable,
@@ -290,6 +300,7 @@ class ReportRepository
         $taxTotals = DB::table('mm_order_taxes')
             ->where('order_type', 'Invoice')
             ->whereIn('order_items_id', $subQuery)
+            ->whereNull('deleted_at')
             ->selectRaw("
                 COALESCE(SUM(CASE WHEN name LIKE '%CGST%' THEN amount ELSE 0 END), 0) as total_cgst,
                 COALESCE(SUM(CASE WHEN name LIKE '%SGST%' OR name LIKE '%UTGST%' OR name LIKE '%UGST%' THEN amount ELSE 0 END), 0) as total_sgst,
@@ -318,6 +329,9 @@ class ReportRepository
             ->join('mm_purchase_orders as po', 'poi.order_id', '=', 'po.id')
             ->join('mm_patrons as pat', 'po.vendor_id', '=', 'pat.id')
             ->whereIn('poi.id', $subQuery)
+            ->whereNull('poi.deleted_at')
+            ->whereNull('po.deleted_at')
+            ->whereNull('pat.deleted_at')
             ->selectRaw("
                 COALESCE(SUM(poi.product_quantity), 0) AS total_qty,
                 COALESCE(SUM(poi.price_subtotal), 0)   AS total_taxable,
@@ -376,6 +390,7 @@ class ReportRepository
 
         // Main machine query
         $query = \App\Models\Machine::query()
+            ->whereNull('mm_machines.deleted_at')
             ->leftJoinSub($tripSub, 'trips', 'mm_machines.id', '=', 'trips.truck_id')
             ->leftJoinSub($expSub, 'expenses', 'mm_machines.id', '=', 'expenses.machine_id')
             ->select([
@@ -505,6 +520,7 @@ class ReportRepository
 
         // Main machine query
         $query = \App\Models\Machine::query()
+            ->whereNull('mm_machines.deleted_at')
             ->leftJoinSub($tripSub, 'trips', 'mm_machines.id', '=', 'trips.truck_id')
             ->leftJoinSub($expSub, 'expenses', 'mm_machines.id', '=', 'expenses.machine_id')
             ->select([

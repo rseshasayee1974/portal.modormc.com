@@ -21,6 +21,7 @@ class Gstr1ReportService implements ReportServiceInterface
 
         // Query all sales invoices, credit notes, and debit notes
         $invoices = Invoice::where('plant_id', $plantId)
+            ->whereNull('deleted_at')
             ->with(['partner.addresses.state'])
             ->whereIn('invoice_type', ['sales', 'credit_note', 'debit_note'])
             ->whereIn('status', ['approved', 'paid'])
@@ -33,7 +34,7 @@ class Gstr1ReportService implements ReportServiceInterface
         $exp = [];
 
         foreach ($invoices as $inv) {
-            $taxes = OrderTax::where('order_id', $inv->id)->where('order_type', 'Invoice')->get();
+            $taxes = OrderTax::where('order_id', $inv->id)->where('order_type', 'Invoice')->whereNull('deleted_at')->get();
             $cgst  = (float) $taxes->filter(fn($t) => str_contains(strtoupper($t->name), 'CGST'))->sum('amount');
             $sgst  = (float) $taxes->filter(fn($t) => str_contains(strtoupper($t->name), 'SGST') || str_contains(strtoupper($t->name), 'UGST') || str_contains(strtoupper($t->name), 'UTGST'))->sum('amount');
             $igst  = (float) $taxes->filter(fn($t) => str_contains(strtoupper($t->name), 'IGST'))->sum('amount');

@@ -18,7 +18,14 @@ class InventoryInwardReportService implements ReportServiceInterface
         $truckId  = $params['truck_id'] ?? null;
 
         $query = PurchaseOrderHistory::where('plant_id', $plantId)
-            ->with(['order.vendor', 'product', 'uom', 'truck'])
+            ->whereNull('deleted_at')
+            ->with([
+                'order' => fn($q) => $q->whereNull('deleted_at'),
+                'order.vendor' => fn($q) => $q->whereNull('deleted_at'),
+                'product' => fn($q) => $q->whereNull('deleted_at'),
+                'uom',
+                'truck' => fn($q) => $q->whereNull('deleted_at')
+            ])
             ->where(function ($q) use ($start, $end) {
                 $q->whereBetween('received_date', [$start, $end])
                   ->orWhereBetween('created_at', [$start, $end]);
@@ -26,7 +33,7 @@ class InventoryInwardReportService implements ReportServiceInterface
 
         if ($patronId) {
             $query->whereHas('order', function ($q) use ($patronId) {
-                $q->where('vendor_id', $patronId);
+                $q->whereNull('deleted_at')->where('vendor_id', $patronId);
             });
         }
 

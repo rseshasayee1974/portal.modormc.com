@@ -15,7 +15,9 @@ class InventoryStockReportService implements ReportServiceInterface
         $start   = $params['start'];
         $end     = $params['end'];
 
-        $query = Quantity::where('plant_id', $plantId)->with(['product', 'uom']);
+        $query = Quantity::where('plant_id', $plantId)
+            ->whereNull('deleted_at')
+            ->with(['product', 'uom']);
 
         // Check if there are records matching date range or created_at
         $stocks = (clone $query)->where(function ($q) use ($start, $end) {

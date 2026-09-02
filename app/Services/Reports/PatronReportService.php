@@ -19,22 +19,31 @@ class PatronReportService implements ReportServiceInterface
         $start    = $params['start'];
         $end      = $params['end'];
 
-        $query = JournalEntryLine::where('plant_id', $plantId);
+        $query = JournalEntryLine::where('plant_id', $plantId)
+            ->whereNull('deleted_at')
+            ->where(fn($q) => $q->where('is_deleted', 0)->orWhereNull('is_deleted'))
+            ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')));
+
         if ($patronId) $query->where('partner_id', $patronId)->where('partner_type', 'Patron');
 
         $openingBalance = (clone $query)
-            ->whereHas('entry', fn($q) => $q->where('voucher_date', '<', $start))
+            ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))->where('voucher_date', '<', $start))
             ->selectRaw('SUM(debit_amount) - SUM(credit_amount) as balance')
             ->value('balance') ?: 0;
 
         $transactions = $query
-            ->with(['entry.lines.ledger', 'partner'])
-            ->whereHas('entry', fn($q) => $q->whereBetween('voucher_date', [$start, $end]))
+            ->with([
+                'entry' => fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')),
+                'entry.lines' => fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')),
+                'entry.lines.ledger', 
+                'partner'
+            ])
+            ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))->whereBetween('voucher_date', [$start, $end]))
             ->get()
             ->sortBy(fn($line) => $line->entry->voucher_date . $line->entry->id)
             ->map(function ($line) {
                 $isDebit      = $line->debit_amount > 0;
-                $oppositeLines = $line->entry->lines->filter(fn($l) => $l->id != $line->id);
+                $oppositeLines = $line->entry->lines->filter(fn($l) => $l->id != $line->id && empty($l->deleted_at) && empty($l->is_deleted));
                 $particulars  = $oppositeLines->count() == 1
                     ? ($isDebit ? 'To ' : 'By ') . ($oppositeLines->first()->ledger?->title ?? 'General Account')
                     : ($isDebit ? 'To ' : 'By ') . 'As per details';
@@ -61,6 +70,7 @@ class PatronReportService implements ReportServiceInterface
         if ($patronId) {
             $invoices = Invoice::where('partner_id', $patronId)
                 ->where('plant_id', $plantId)
+                ->whereNull('deleted_at')
                 ->whereBetween('invoice_date', [$start, $end])
                 ->get();
 
@@ -72,12 +82,15 @@ class PatronReportService implements ReportServiceInterface
 
             $purchased = PurchaseOrder::where('vendor_id', $patronId)
                 ->where('plant_id', $plantId)
+                ->whereNull('deleted_at')
                 ->whereBetween('date_order', [$start, $end])
                 ->sum('amount_total');
 
             $jel = fn($type, $col) => JournalEntryLine::where('plant_id', $plantId)
+                ->whereNull('deleted_at')
+                ->where(fn($q) => $q->where('is_deleted', 0)->orWhereNull('is_deleted'))
                 ->where('partner_id', $patronId)->where('partner_type', 'Patron')
-                ->whereHas('entry', fn($q) => $q->where('voucher_type', $type)->whereBetween('voucher_date', [$start, $end]))
+                ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))->where('voucher_type', $type)->whereBetween('voucher_date', [$start, $end]))
                 ->sum($col);
 
             $amountReceived = $jel('RECEIPT', 'credit_amount');

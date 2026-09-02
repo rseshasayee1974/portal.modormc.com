@@ -23,14 +23,22 @@ class VoucherReportService implements ReportServiceInterface
         $end         = $params['end'];
 
         $query = JournalEntryLine::where('plant_id', $plantId)
+            ->whereNull('deleted_at')
+            ->where(fn($q) => $q->where('is_deleted', 0)->orWhereNull('is_deleted'))
             ->whereHas('entry', fn($q) => $q
+                ->whereNull('deleted_at')
+                ->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))
                 ->where('voucher_type', $voucherType)
                 ->whereBetween('voucher_date', [$start, $end])
             );
 
         if ($patronId) $query->where('partner_id', $patronId)->where('partner_type', 'Patron');
 
-        $transactions = $query->with(['entry', 'ledger', 'partner'])->get()->map(function ($line) {
+        $transactions = $query->with([
+            'entry' => fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')),
+            'ledger',
+            'partner'
+        ])->get()->map(function ($line) {
             $isDebit      = $line->debit_amount > 0;
             $partnerPrefix = $line->partner
                 ? '[' . $line->partner->legal_name . '] '

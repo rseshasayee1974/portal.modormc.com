@@ -36,6 +36,7 @@ class TdsCertificateReportService implements ReportServiceInterface
 
         // 1. Check if Patron is a Vendor (TDS deducted by us on vendor bills)
         $purchaseTds = PurchaseOrder::where('plant_id', $plantId)
+            ->whereNull('deleted_at')
             ->where('vendor_id', $patronId)
             ->where('tds_amount', '>', 0)
             ->whereBetween('date_order', [$start, $end])
@@ -56,6 +57,7 @@ class TdsCertificateReportService implements ReportServiceInterface
 
         // 2. Check if Patron is a Customer (TDS deducted by customer on sales invoices)
         $salesTds = Invoice::where('plant_id', $plantId)
+            ->whereNull('deleted_at')
             ->where('partner_id', $patronId)
             ->where('invoice_type', 'sales')
             ->where('tds_amount', '>', 0)
