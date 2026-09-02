@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -119,10 +119,62 @@ const setBatchActiveTab = (batchId: number, tabIndex: number) => {
     activeTabsPerBatch.value[batchId] = tabIndex;
 };
 
+const page = usePage();
+const isRefreshing = ref(false);
+
 // Fallback REST polling via Inertia reload
 const fetchBatchesFallback = () => {
     router.reload();
 };
+
+const refreshBatches = async () => {
+    isRefreshing.value = true;
+    if (expandedBatchId.value) {
+        await refreshBatchRow(expandedBatchId.value);
+    }
+    router.reload({
+        only: ['batches', 'nextBatchNo', 'salesOrders'],
+        onFinish: () => {
+            isRefreshing.value = false;
+        },
+    });
+};
+
+// ── Automatic Data Watchers & Window Focus Listener ───────────────────────
+
+// 1. Watch server props updates (e.g. from background sync, pagination, or store events)
+// watch(
+//     () => props.batches,
+//     async () => {
+//         if (expandedBatchId.value) {
+//             await refreshBatchRow(expandedBatchId.value);
+//         }
+//     },
+//     { deep: true }
+// );
+
+// 2. Watch flash notifications or newly created batch ID
+watch(
+    () => page.props.flash,
+    (flash: any) => {
+        if (flash?.new_batch_id || flash?.status) {
+            refreshBatches();
+        }
+    },
+    { deep: true }
+);
+
+// 3. Auto-refresh when tab/window regains focus or visibility
+// const handleVisibilityChange = () => {
+//     if (document.visibilityState === 'visible') {
+//         refreshBatches();
+//     }
+// };
+
+// onMounted(() => {
+//     window.addEventListener('focus', refreshBatches);
+//     document.addEventListener('visibilitychange', handleVisibilityChange);
+// });
 
 // ── Offline Sync ──────────────────────────────────────────────────────────
 // Delegate all offline-batch logic to the dedicated composable.
@@ -492,7 +544,6 @@ const {
 } = useInvoiceActions(props);
 
 // ── Page Settings ────────────────────────────────────────────────────────────
-const page           = usePage();
 const customSettings = page.props.custom_settings as any;
 const hideBatchForm  = computed(() => !!customSettings?.batching?.hide_batch_form);
 
@@ -686,6 +737,7 @@ const shareBatchEmail = () => {
 
                     <BaseDataTable
                         :value="filteredBatches"
+                        :loading="isRefreshing"
                         v-model:first="first"
                         v-model:rows="rows"
                         v-model:filters="filters"

@@ -66,7 +66,7 @@ class PurchaseReportService implements ReportServiceInterface
                 $totalQty   = (float)$items->sum('product_quantity');
                 $untaxed    = (float)$items->sum('price_subtotal');
                 return [
-                    'product_name'   => $first->product?->title ?? 'Unknown Product',
+                    'product_name'   => $first->product?->title ?? '',
                     'uom'            => $first->uom?->unit_name ?? $first->uom?->code ?? 'Unit',
                     'quantity'       => $totalQty,
                     'avg_rate'       => $totalQty > 0 ? $untaxed / $totalQty : 0.0,

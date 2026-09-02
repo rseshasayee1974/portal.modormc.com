@@ -276,8 +276,9 @@ console.log('jkghkjgk', props.modelValue);
                                 :options="sales_ledgers" 
                                 optionLabel="label" 
                                 optionValue="value" 
-                                label="Sales Ledger *" 
+                                label="Sales Ledger" 
                                 filter 
+                                required
                                 placeholder="Select" 
                                 :error="errors.ledger_id" 
                                 :disabled="isReadOnly"
@@ -286,7 +287,8 @@ console.log('jkghkjgk', props.modelValue);
                         <div class="md:col-span-6 lg:col-span-2">
                             <BaseDatePicker 
                                 v-model="modelValue.invoice_date" 
-                                label="Date *" 
+                                label="Date"
+                                required 
                                 :error="errors.invoice_date" 
                                 :disabled="isReadOnly"
                             />

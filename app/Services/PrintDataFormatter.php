@@ -473,6 +473,35 @@ class PrintDataFormatter
         return collect($taxLines)->map(fn($amt, $lbl) => ['label' => $lbl, 'amount' => $amt])->values()->toArray();
     }
 
+    public static function resolveConcreteGrade($mixDesign, ?string $fallback = null): string
+    {
+        if ($mixDesign) {
+            $grade = $mixDesign->concrete_grade?->name 
+                ?? $mixDesign->concreteGrade?->name 
+                ?? $mixDesign->grade 
+                ?? $mixDesign->design_type;
+                
+            if (!empty($grade) && $grade !== '-') {
+                return (string)$grade;
+            }
+
+            if (!empty($mixDesign->design_name)) {
+                if (preg_match('/^(M\s*\d+(?:\.\d+)?|PQC|DLC|GMM|WMM|CTB|FSG)\b/i', trim($mixDesign->design_name), $matches)) {
+                    return strtoupper(str_replace(' ', '', $matches[1]));
+                }
+            }
+        }
+
+        if (!empty($fallback)) {
+            if (preg_match('/^(M\s*\d+(?:\.\d+)?|PQC|DLC|GMM|WMM|CTB|FSG)\b/i', trim($fallback), $matches)) {
+                return strtoupper(str_replace(' ', '', $matches[1]));
+            }
+            return $fallback;
+        }
+
+        return '-';
+    }
+
     public static function resolveMixDesignName($mixDesign): string
     {
         if (!$mixDesign) {
@@ -676,7 +705,11 @@ class PrintDataFormatter
 
     public static function fromInvoice($invoice): array
     {
-        $invoice->loadMissing(['plant', 'plant.entity', 'plant.addresses', 'partner', 'partner.addresses', 'partner.contacts.addresses', 'items.tax', 'items.uom', 'items.itemTaxes', 'orderTaxes']);
+        $invoice->loadMissing([
+            'plant', 'plant.entity', 'plant.addresses', 'partner', 'partner.addresses', 'partner.contacts.addresses',
+            'items.tax', 'items.uom', 'items.itemTaxes', 'orderTaxes',
+            'items.mixDesign.concreteGrade', 'items.mixDesign.concrete_grade', 'items.mixDesign.items.product', 'items.mixDesign.items.uom'
+        ]);
         $data = self::base();
         $data['id'] = $invoice->id;
         $data['invoice_id'] = $invoice->id;
@@ -862,11 +895,16 @@ class PrintDataFormatter
                 'no' => $idx + 1, 'name' => $itemName, 'description' => '', 'hsn' => $item->hsn_code ?? '-',
                 'qty' => (float)$item->quantity, 'unit' => $item->uom->unit_code ?? 'm³', 'unit_price' => (float)$item->price_unit,
                 'discount' => (float)($item->discount_amount ?? $item->discount ?? 0),
-                'operation_type' => $operationType, 'pump_charge' => $pumpCharge,
+                'operation_type' => $operationType,
+                'pump_charge' => $pumpCharge,
                 'taxable_amount' => $itemSubtotal,
                 'tax_words'=> $taxInWords,
-                'tax_name' => $taxDetails['name'] ?: '-', 'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => $lineTaxAmount,
+                'tax_name' => $taxDetails['name'] ?: '-',
+                'tax_rate' => $taxDetails['rate'],
+                'tax_group' => $taxDetails['group'],
+                'tax_amount' => $lineTaxAmount,
                 'total' => $itemTotal,
+                'recipe_materials' => self::resolveRecipeMaterials($mixDesign),
             ];
         })->toArray();
         $taxLines = $invoice->orderTaxes->map(function($ot) { return ['label' => $ot->name, 'amount' => (float)$ot->amount]; })->toArray();
@@ -1132,6 +1170,7 @@ class PrintDataFormatter
             return [
                 'no' => $idx + 1,
                 'name' => self::resolveMixDesignName($item->mixDesign),
+                'grade' => $item->mixDesign?->concreteGrade?->name ?? $item->mixDesign?->concrete_grade?->name ?? $item->mixDesign?->grade ?? self::resolveMixDesignName($item->mixDesign),
                 'description' => $itemDescription,
                 'hsn' => $item->mixDesign->hsn_code ?? '-',
                 'qty' => $qty,
@@ -1232,7 +1271,10 @@ class PrintDataFormatter
                 $description = self::formatMixDesignDescription($item->description, $item->mixDesign);
                 $unitPrice = $isTaxInclusive ? (float)($item->quantity > 0 ? ($subtotal / $item->quantity) : $item->rate) : (float)$item->rate;
                 return [
-                    'no' => $idx + 1, 'name' => self::resolveMixDesignName($item->mixDesign), 'description' => $description,
+                    'no' => $idx + 1,
+                    'name' => self::resolveMixDesignName($item->mixDesign),
+                    'grade' => $item->mixDesign?->concreteGrade?->name ?? $item->mixDesign?->concrete_grade?->name ?? $item->mixDesign?->grade ?? self::resolveMixDesignName($item->mixDesign),
+                    'description' => $description,
                     'hsn' => $item->mixDesign?->hsn_code ?? '-', 'qty' => (float)$item->quantity, 'received_qty'=> (float)($salesOrder->produced_qty ?? 0),
                     'unit' => $item->mixDesign?->unit?->unit_code ?? 'm³', 'unit_price' => $unitPrice, 'tax_name' => $taxDetails['name'] ?: '-',
                     'tax_rate' => $taxDetails['rate'], 'tax_group' => $taxDetails['group'], 'tax_amount' => (float)$item->tax_amount, 'total' => (float)($item->amount_total ?? ($item->quantity * $item->rate)),
@@ -1269,8 +1311,9 @@ class PrintDataFormatter
                 $taxDetails['name'] = ($taxGroup ?: ($isIntra ? 'GST' : 'IGST')) . ' ' . ($taxRate == floor($taxRate) ? (int)$taxRate : $taxRate) . '%';
             }
             $description = self::formatMixDesignDescription('', $mixDesign);
+            $grade = $mixDesign?->concreteGrade?->name ?? $mixDesign?->concrete_grade?->name ?? $mixDesign?->grade ?? self::resolveMixDesignName($mixDesign);
             $data['items'] = $mixDesign ? [[
-                'no' => 1, 'name' => self::resolveMixDesignName($mixDesign), 'description' => $description,
+                'no' => 1, 'name' => self::resolveMixDesignName($mixDesign), 'grade' => $grade, 'description' => $description,
                 'hsn' => $mixDesign->hsn_code ?? '-', 'qty' => $qty, 'received_qty'=> (float)($salesOrder->produced_qty ?? 0),
                 'unit' => $mixDesign->unit?->unit_code ?? 'm³', 'unit_price' => $unitPrice, 'tax_name' => $taxDetails['name'] ?: ($taxName ?: '-'),
                 'tax_rate' => $taxDetails['rate'] ?: $taxRate, 'tax_group' => $taxDetails['group'] ?: $taxGroup, 'tax_amount' => $priceTax, 'total' => $total,

@@ -30,7 +30,7 @@ class ProductionBatchReportService implements ReportServiceInterface
         $materialSummary = [];
         foreach ($batches as $batch) {
             foreach ($batch->materials as $mat) {
-                $matName = $mat->material_name ?: ($mat->product?->title ?? 'Unknown Material');
+                $matName = $mat->material_name ?: ($mat->product?->title ?? '');
                 if (!isset($materialSummary[$matName])) {
                     $materialSummary[$matName] = [
                         'material_name' => $matName,

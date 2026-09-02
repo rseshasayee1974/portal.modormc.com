@@ -101,6 +101,11 @@ class InvoiceItem extends Model
         return $this->belongsTo(ProductUnit::class, 'uom_id');
     }
 
+    public function mixDesign()
+    {
+        return $this->belongsTo(MixDesign::class, 'item_id');
+    }
+
     /**
      * Direct relationship to tax splits at line-item level.
      */

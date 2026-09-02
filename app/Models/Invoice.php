@@ -762,7 +762,7 @@ class Invoice extends Model implements Postable
 
     public function getPartnerName(): string
     {
-        return $this->partner?->legal_name ?? 'Unknown Partner';
+        return $this->partner?->legal_name ?? '';
     }
 
     public function getBaseAccountId(): ?int

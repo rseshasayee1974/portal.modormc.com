@@ -72,6 +72,7 @@ const ensurePdfStructure = (rawSettings: any) => {
     if (s.pdf.show_seal_signature === undefined) s.pdf.show_seal_signature = true;
     if (s.pdf.hire_charge === undefined) s.pdf.hire_charge = true;
     if (s.pdf.pass_amount === undefined) s.pdf.pass_amount = true;
+    if (s.pdf.show_recipe_details === undefined) s.pdf.show_recipe_details = true;
     return s;
 };
 
@@ -428,6 +429,19 @@ const downloadSample = () => {
                                         <p class="setting-desc">Display Concrete Type and Pump Charges columns in items table</p>
                                     </div>
                                     <InputSwitch v-model="activeSettings.pdf.show_pump_charges" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Recipe Details Breakdown</label>
+                                        <p class="setting-desc">Show batch recipe material components & quantities under line item</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.show_recipe_details" />
+                                </div>
+
+                                <div v-if="activeSettings.pdf.show_recipe_details !== false" class="pt-2">
+                                    <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Custom Recipe Details Title ({{ selectedTemplateKey.toUpperCase() }})</label>
+                                    <InputText v-model="activeSettings.pdf.labels.recipe_title" class="w-full" placeholder="e.g. Recipe Details:, Mix Materials:" />
                                 </div>
                             </div>
                         </div>
