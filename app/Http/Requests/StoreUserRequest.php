@@ -68,13 +68,20 @@ class StoreUserRequest extends FormRequest
                     if (!$assignedRole) {
                         return $fail('The selected role is invalid.');
                     }
-                    $spatieLevel = $user->roles->min('level');
-                    $entityLevel = $user->entityUsers()->with('role')->get()->min('role.level');
-                    $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
-                    $userLevel = empty($levels) ? 999 : min($levels);
-                    // dd($assignedRole->level,$userLevel,$spatieLevel,$entityLevel,$levels);
-                    if ($assignedRole->level >= $userLevel) {
-                        $fail('You cannot assign a role equal to or higher than your own.');
+                    $isSuper = $user && method_exists($user, 'hasRole') && (
+                        $user->hasRole('Saas Owner') || 
+                        $user->hasRole('Platform Admin') || 
+                        $user->hasRole('Super Admin')
+                    );
+                    if (!$isSuper) {
+                        $spatieLevel = $user->roles->max('level');
+                        $entityLevel = $user->entityUsers()->with('role')->get()->max('role.level');
+                        $levels = array_filter([$spatieLevel, $entityLevel], fn($v) => !is_null($v));
+                        $userLevel = empty($levels) ? 0 : max($levels);
+
+                        if ($assignedRole->level >= $userLevel || in_array($assignedRole->code, ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR'])) {
+                            $fail('You cannot assign an administrator role or a role equal to or higher than your own.');
+                        }
                     }
                 }
             ],
