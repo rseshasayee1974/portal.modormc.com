@@ -189,7 +189,7 @@ class PrintDataFormatter
                     'no' => $idx + 1,
                     'name' => $prod->title ?? $prod->name ?? 'Product ' . ($idx + 1),
                     'description' => $prod->description ?? $prod->title ?? '',
-                    'hsn' => $prod->hsn_code ?? '382450',
+                    'hsn' => $prod->hsn_code ?? '38245010',
                     'qty' => $qty,
                     'received_qty' => $qty,
                     'unit' => $prod->unit?->unit_code ?? $prod->uom?->unit_code ?? 'm³',
@@ -224,7 +224,7 @@ class PrintDataFormatter
             $data['items'] = [
                 [
                     'no' => 1, 'name' => 'High Grade Concrete Mix (M40)', 'description'  => 'Standard grade for heavy structural works',
-                    'hsn' => '382450', 'qty' => 45.00, 'received_qty' => 45.00, 'unit' => 'm³', 'unit_price' => 4500.00,
+                    'hsn' => '38245010', 'qty' => 45.00, 'received_qty' => 45.00, 'unit' => 'm³', 'unit_price' => 4500.00,
                     'operation_type' => 'TM', 'pump_charge' => 201.00, 'discount' => 524.00, 'taxable_amount' => 201976.00,
                     'tax_name' => 'GST 12%', 'tax_rate' => 12, 'tax_group' => 'GST', 'tax_amount' => 24237.12, 'total' => 226213.12,
                 ],
@@ -1474,7 +1474,7 @@ class PrintDataFormatter
             $qty = (float)($dispatch->delivered_qty ?: $batch->batch_size); $rate = (float)($dispatch->load_rate ?? 0);
             $subTotal = (float)($dispatch->load_untax_amount ?? ($qty * $rate)); $taxAmount = (float)($dispatch->load_tax_amount ?? 0);
             $totalAmount = (float)($dispatch->load_total_amount ?? ($subTotal + $taxAmount)); $taxRate = $dispatch->loadTax?->rate ?? 0; $taxName = $dispatch->loadTax?->name ?? '-';
-            $itemsList[] = ['no'=>1,'name'=>$mixDesignName,'description'=>'','hsn'=>'3824','qty'=>$qty,'received_qty'=>$qty,'unit'=>$dispatch->uom?->unit_code ?? 'CBM','unit_price'=>$rate,'tax_name'=>$taxName,'tax_rate'=>$taxRate,'tax_amount'=>$taxAmount,'total'=>$totalAmount];
+            $itemsList[] = ['no'=>1,'name'=>$mixDesignName,'description'=>'','hsn'=>'38245010','qty'=>$qty,'received_qty'=>$qty,'unit'=>$dispatch->uom?->unit_code ?? 'CBM','unit_price'=>$rate,'tax_name'=>$taxName,'tax_rate'=>$taxRate,'tax_amount'=>$taxAmount,'total'=>$totalAmount];
         }
         $sno = count($itemsList) + 1;
         foreach ($groupedMaterials->values() as $item) {
