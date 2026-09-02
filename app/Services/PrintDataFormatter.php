@@ -904,7 +904,7 @@ class PrintDataFormatter
                 'tax_group' => $taxDetails['group'],
                 'tax_amount' => $lineTaxAmount,
                 'total' => $itemTotal,
-                'recipe_materials' => self::resolveRecipeMaterials($mixDesign),
+                'recipe_materials' => self::resolveRecipeMaterials($item->mixDesign ?? $mixDesignObj),
             ];
         })->toArray();
         $taxLines = $invoice->orderTaxes->map(function($ot) { return ['label' => $ot->name, 'amount' => (float)$ot->amount]; })->toArray();
