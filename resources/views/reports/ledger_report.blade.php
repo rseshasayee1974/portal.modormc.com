@@ -166,12 +166,10 @@
                         @if($plAddr->line_2){{ $plAddr->line_2 }}<br>@endif
                         {{ $plAddr->city ?? '' }}, {{ $plAddr->state->state_name ?? $plAddr->state_code ?? '' }} - {{ $plAddr->zipcode ?? '' }}<br>
                     @else
-                        3/150, Akkiyampatti (Po),<br>
-                        Sendamangalam (Tk),<br>
-                        Namakkal (Dt), Tamil Nadu - 637409<br>
+                       {{ $plant->address ?? '' }}
                     @endif
                     <strong>GSTIN/UIN #:</strong> {{ $plant->gstin ?? '' }}<br>
-                    <strong>MSME - UDYAM-</strong> {{ $plant->msme_no ?? '' }}
+                    {{-- <strong>MSME - UDYAM-</strong> {{ $plant->msme_no ?? '' }} --}}
                 </div>
             </td>
         </tr>

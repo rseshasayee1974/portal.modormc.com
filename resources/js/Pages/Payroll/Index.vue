@@ -258,6 +258,12 @@ const deletePayslip = (id: number) => {
     });
 };
 
+const formatDate = (val: string | null | undefined) => {
+    if (!val) return '-';
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? val : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const getStatusSeverity = (status: string) => {
     switch (status) {
         case 'completed':
@@ -305,7 +311,7 @@ const getStatusSeverity = (status: string) => {
                         <!-- PAYSLIPS TAB -->
                         <TabPanel value="payslips">
                             <div class="space-y-6">
-                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div class="">
                                     <div class="lg:col-span-2">
                                         <!-- Generate Form (3-column layout) -->
                                         <BaseCard class="text-sm">
@@ -660,7 +666,7 @@ const getStatusSeverity = (status: string) => {
                                         </Column>
                                         <Column header="Period">
                                             <template #body="slotProps">
-                                                <span>{{ slotProps.data.from_date }} to {{ slotProps.data.to_date }}</span>
+                                                <span>{{ formatDate(slotProps.data.from_date) }} to {{ formatDate(slotProps.data.to_date) }}</span>
                                             </template>
                                         </Column>
                                         <Column header="Status">
