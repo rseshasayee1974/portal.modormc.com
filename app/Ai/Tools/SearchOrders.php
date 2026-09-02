@@ -95,8 +95,8 @@ class SearchOrders implements Tool
         $result = "Found {$batches->count()} batch(es):\n\n";
 
         foreach ($batches as $batch) {
-            $customer = $batch->workOrder?->patron?->name ?? 'Unknown Customer';
-            $mixName  = $batch->workOrder?->mixDesign?->name ?? 'Unknown Mix';
+            $customer = $batch->salesOrder?->patron?->name ?? '';
+            $mixName  = $batch->salesOrder?->mixDesign?->name ?? '';
 
             $result .= "• **Batch #{$batch->batch_no}** — Status: {$batch->status}\n";
             $result .= "  Customer: {$customer}\n";

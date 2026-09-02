@@ -27,16 +27,16 @@ class SalesReportService implements ReportServiceInterface
 
         $invoiceQuery = (clone $baseInvoiceQuery)->where(function ($q) use ($start, $end) {
             $q->whereBetween('invoice_date', [$start, $end])
-              ->orWhereBetween('created_at', [$start, $end]);
+              ->orWhere(function ($sq) use ($start, $end) {
+                  $sq->whereNull('invoice_date')
+                     ->whereBetween('created_at', [$start . ' 00:00:00', $end . ' 23:59:59']);
+              });
         });
 
         $invoicesList = $invoiceQuery->orderBy('invoice_date', 'desc')->orderBy('invoice_number', 'desc')->get();
-        if ($invoicesList->isEmpty()) {
-            $invoicesList = $baseInvoiceQuery->orderBy('invoice_date', 'desc')->orderBy('invoice_number', 'desc')->get();
-        }
 
         $transactions = $invoicesList->map(fn($inv) => [
-            'date'           => $inv->invoice_date ? \Carbon\Carbon::parse($inv->invoice_date)->toDateString() : ($inv->created_at ? $inv->created_at->toDateString() : now()->toDateString()),
+            'date'           => $inv->invoice_date ? \Carbon\Carbon::parse($inv->invoice_date)->format('d-M-Y') : ($inv->created_at ? $inv->created_at->format('d-M-Y') : now()->format('d-M-Y')),
             'voucher_type'   => 'SALES',
             'voucher_no'     => ($inv->prefix ?? '') . ($inv->invoice_number ?? ''),
             'invoice_number' => ($inv->prefix ?? '') . ($inv->invoice_number ?? ''),
@@ -61,14 +61,14 @@ class SalesReportService implements ReportServiceInterface
         $itemQuery = (clone $baseItemQuery)->whereHas('invoice', function ($q) use ($start, $end) {
             $q->whereNull('deleted_at')->where(function ($sq) use ($start, $end) {
                 $sq->whereBetween('invoice_date', [$start, $end])
-                   ->orWhereBetween('created_at', [$start, $end]);
+                   ->orWhere(function ($ssq) use ($start, $end) {
+                       $ssq->whereNull('invoice_date')
+                          ->whereBetween('created_at', [$start . ' 00:00:00', $end . ' 23:59:59']);
+                   });
             });
         });
 
         $items = $itemQuery->get();
-        if ($items->isEmpty()) {
-            $items = $baseItemQuery->get();
-        }
 
         $groupedProducts = $items->groupBy('item_name')
             ->map(function ($items) {
@@ -77,7 +77,7 @@ class SalesReportService implements ReportServiceInterface
                 $untaxed  = (float)$items->sum('subtotal');
                 return [
                     'product_name'   => $first->item_name ?? 'Unknown Item',
-                    'uom'            => $first->uom?->name ?? $first->uom?->code ?? 'Unit',
+                    'uom'            => $first->uom?->unit_code ?? $first->uom?->unit_name ?? $first->uom?->name ?? 'm³',
                     'quantity'       => $totalQty,
                     'avg_rate'       => $totalQty > 0 ? $untaxed / $totalQty : 0.0,
                     'amount_untaxed' => $untaxed,
@@ -87,7 +87,7 @@ class SalesReportService implements ReportServiceInterface
             })->values()->sortBy('product_name')->values();
 
         // 3. Dispatch summaries
-        $dispatchQuery = Dispatch::with(['customer', 'mixDesign.unit'])
+        $dispatchQuery = Dispatch::with(['customer', 'mixDesign.unit', 'mixDesign.concreteGrade'])
             ->where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->whereBetween('dispatch_time', [$start . ' 00:00:00', $end . ' 23:59:59']);
@@ -99,10 +99,10 @@ class SalesReportService implements ReportServiceInterface
             $totalQty = (float)$items->sum('delivered_qty');
             $untaxed  = (float)$items->sum('load_untax_amount');
             return [
-                'mix_name'       => $first->mixDesign?->design_name ?? 'Unknown Mix',
-                'concrete_grade' => $first->mixDesign?->grade ?? $first->mixDesign?->design_type ?? 'N/A',
-                'uom'            => $first->mixDesign?->unit?->name ?? 'm³',
-                'quantity'       => $totalQty,
+                'mix_name'       => $first->mixDesign?->design_name ?? '',
+                'concrete_grade' => $first->mixDesign?->concreteGrade?->name ?? $first->mixDesign?->grade ?? $first->mixDesign?->design_type ?? 'N/A',
+                'uom'            => $first->mixDesign?->unit?->unit_code ?? $first->mixDesign?->unit?->unit_name ?? $first->mixDesign?->unit?->name ?? 'm³',
+                'quantity'       =>  $totalQty,
                 'avg_rate'       => $totalQty > 0 ? $untaxed / $totalQty : 0.0,
                 'amount_untaxed' => $untaxed,
                 'amount_tax'     => (float)$items->sum('load_tax_amount'),

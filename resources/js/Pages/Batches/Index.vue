@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -26,7 +26,7 @@ import Button from 'primevue/button';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import Dialog from 'primevue/dialog';
 import Popover from 'primevue/popover';
-import { CubeIcon, ListBulletIcon, PaperAirplaneIcon } from '@heroicons/vue/24/outline';
+import { CubeIcon, ListBulletIcon, PaperAirplaneIcon, ArrowPathIcon } from '@heroicons/vue/24/outline';
 
 declare const route: any;
 
@@ -119,10 +119,62 @@ const setBatchActiveTab = (batchId: number, tabIndex: number) => {
     activeTabsPerBatch.value[batchId] = tabIndex;
 };
 
+const page = usePage();
+const isRefreshing = ref(false);
+
 // Fallback REST polling via Inertia reload
 const fetchBatchesFallback = () => {
     router.reload();
 };
+
+const refreshBatches = async () => {
+    isRefreshing.value = true;
+    if (expandedBatchId.value) {
+        await refreshBatchRow(expandedBatchId.value);
+    }
+    router.reload({
+        only: ['batches', 'nextBatchNo', 'salesOrders'],
+        onFinish: () => {
+            isRefreshing.value = false;
+        },
+    });
+};
+
+// ── Automatic Data Watchers & Window Focus Listener ───────────────────────
+
+// 1. Watch server props updates (e.g. from background sync, pagination, or store events)
+// watch(
+//     () => props.batches,
+//     async () => {
+//         if (expandedBatchId.value) {
+//             await refreshBatchRow(expandedBatchId.value);
+//         }
+//     },
+//     { deep: true }
+// );
+
+// 2. Watch flash notifications or newly created batch ID
+watch(
+    () => page.props.flash,
+    (flash: any) => {
+        if (flash?.new_batch_id || flash?.status) {
+            refreshBatches();
+        }
+    },
+    { deep: true }
+);
+
+// 3. Auto-refresh when tab/window regains focus or visibility
+// const handleVisibilityChange = () => {
+//     if (document.visibilityState === 'visible') {
+//         refreshBatches();
+//     }
+// };
+
+// onMounted(() => {
+//     window.addEventListener('focus', refreshBatches);
+//     document.addEventListener('visibilitychange', handleVisibilityChange);
+// });
 
 // ── Offline Sync ──────────────────────────────────────────────────────────
 // Delegate all offline-batch logic to the dedicated composable.
@@ -442,7 +494,6 @@ const {
 } = useInvoiceActions(props);
 
 // ── Page Settings ────────────────────────────────────────────────────────────
-const page           = usePage();
 const customSettings = page.props.custom_settings as any;
 const hideBatchForm  = computed(() => !!customSettings?.batching?.hide_batch_form);
 
@@ -594,6 +645,7 @@ const shareBatchEmail = () => {
 
                     <BaseDataTable
                         :value="filteredBatches"
+                        :loading="isRefreshing"
                         v-model:first="first"
                         v-model:rows="rows"
                         v-model:filters="filters"
@@ -618,6 +670,21 @@ const shareBatchEmail = () => {
                         @rowExpand="onRowExpand"
                         @row-click="onRowClick"
                     >
+                        <template #toolbar>
+                            <button
+                                type="button"
+                                @click="refreshBatches"
+                                :disabled="isRefreshing"
+                                class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 active:bg-slate-200 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm transition-all duration-150 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed group h-10"
+                            >
+                                <ArrowPathIcon
+                                    class="w-4 h-4 text-slate-500 group-hover:text-indigo-600 transition-colors"
+                                    :class="{ 'animate-spin text-indigo-600': isRefreshing }"
+                                />
+                                <span class="hidden sm:inline">Refresh</span>
+                            </button>
+                        </template>
+
                         <template #filters>
                             <div class="flex flex-col gap-1.5">
                                 <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filter by Sales Order</label>

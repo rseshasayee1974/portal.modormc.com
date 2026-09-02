@@ -216,11 +216,11 @@
             @endphp
             @foreach($data['items'] as $item)
                 @php
-                    $hasRecipe = !empty($item['recipe_materials']) && count($item['recipe_materials']) > 0;
+                    $hasRecipe = ($pdfSettings['show_recipe_details'] ?? true) && !empty($item['recipe_materials']) && count($item['recipe_materials']) > 0;
                 @endphp
                 <tr>
                     @if($pdfSettings['hsn_code'] ?? true) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">HSN :<br><strong>{{ $item['hsn'] ?? '38245010' }}</strong></td> @endif
-                    <td style="text-align: center; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['name'] }}</td>
+                    <td style="text-align: center; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['grade'] ?? $item['name'] }}</td>
                     @if($pdfSettings['description'] ?? true) <td style="{{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['description'] }}</td> @endif
                     @if($pdfSettings['show_pump_charges'] ?? false) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ $item['operation_type'] ?? 'TM' }}</td> @endif
                     @if($pdfSettings['qty'] ?? true) <td style="text-align: right; font-weight: bold; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">{{ (float)$item['qty'] == floor((float)$item['qty']) ? number_format($item['qty'], 2) : rtrim(rtrim(number_format($item['qty'], 3), '0'), '.') }}</td> @endif
@@ -277,7 +277,7 @@
                     <tr>
                         <td style="border-top: none; padding-top: 0;"></td>
                         <td colspan="{{ $igstRecipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
-                            <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">Recipe Details:</div>
+                            <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
                             <div style="display: inline-block; background-color: #f8faff; border: 1px solid #dbeafe; border-radius: 6px; padding: 3px 8px;">
                                 <table style="border-collapse: collapse; border: none; margin: 0; padding: 0; font-size: 9.5px; color: #334155;">
                                     @php

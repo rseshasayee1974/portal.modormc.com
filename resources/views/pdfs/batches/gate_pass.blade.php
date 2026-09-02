@@ -45,6 +45,7 @@
 
         /* ── Gate Pass Number ── */
         .pass-number-row { text-align: center; margin: 3px 0 5px 0; }
+        .pass-number-container { display: flex; justify-content: space-between; }
         .pass-number-label { font-size: 9px; text-transform: uppercase; color: #000 !important; letter-spacing: 0.5px; }
         .pass-number-value { font-size: 20px; font-weight: 900; letter-spacing: 2px; color: #000 !important; }
 
@@ -63,7 +64,7 @@
         }
 
         /* ── Weight Box ── */
-        .weight-box { border: 1.5px solid #000 !important; padding: 3px 4px; margin: 4px 0; }
+        .weight-box { !important; padding: 3px 4px; margin: 4px 0; }
         .weight-box table { width: 100%; border-collapse: collapse; }
         .weight-box td { padding: 2px 0; font-size: 10px; color: #000 !important; }
         .weight-box .net-row td { font-size: 12px; font-weight: 900; padding-top: 4px; border-top: 1px dashed #000 !important; }
@@ -147,22 +148,21 @@
                 {{ $plAddr->line_1 ?? '' }}, {{ $plAddr->city ?? '' }} - {{ $plAddr->zipcode ?? '' }}
             </div>
         @endif
-        <div class="token-title">** GATE PASS **</div>
     </div>
 
     {{-- ── Batch / Pass Number ── --}}
     <div class="pass-number-row">
-        <div class="pass-number-label">Batch / Gate Pass No.</div>
+        <div class="flex justify-between ">
+        <div class="pass-number-label">Dispatch No.</div>
         <div class="pass-number-value font-mono">{{ $batchNo }}</div>
         <div style="font-size: 9px; color: #000; margin-top: 2px;">
             {{ optional($batch->load_time ?? $batch->created_at)->format('d-M-Y  H:i') }}
         </div>
     </div>
+    </div>
 
-    <div class="divider-solid"></div>
 
     {{-- ── Customer & Site ── --}}
-    <div class="section-title">Customer / Site Details</div>
     <table class="meta-table">
         @if (!empty($batch->workOrder?->customer?->legal_name))
         <tr>
@@ -187,10 +187,7 @@
         @endif
     </table>
 
-    <div class="divider"></div>
-
-    {{-- ── Mix Design ── --}}
-    <div class="section-title">Mix Design</div>
+  
     <table class="meta-table">
         @if (!empty($batch->workOrder?->mixDesign?->concrete_grade?->name) || !empty($batch->workOrder?->mixDesign?->design_name))
         <tr>
@@ -219,10 +216,7 @@
         @endif
     </table>
 
-    <div class="divider"></div>
-
-    {{-- ── Transport / Truck ── --}}
-    <div class="section-title">Transport Details</div>
+ 
     <table class="meta-table">
         @if (!empty($dispatch?->truck?->registration))
         <tr>
@@ -263,8 +257,6 @@
 
     <div class="divider"></div>
 
-    {{-- ── Weight Record ── --}}
-    <div class="section-title">Weight Record</div>
     <div class="weight-box">
         <table>
             <tr>
@@ -348,14 +340,14 @@
     @endif --}}
 
     {{-- ── QR Code (server-side SVG, works in browser + dompdf) ── --}}
-    <div class="divider"></div>
+    {{-- <div class="divider"></div>
     <div class="qr-section">
         <img class="qr-img" src="{{ $qrDataUri }}" alt="QR Code" />
         <div class="qr-label">Scan to Verify &mdash; {{ $batchNo }}</div>
-    </div>
+    </div> --}}
 
     {{-- ── Signature Lines ── --}}
-    <table class="sig-table">
+    {{-- <table class="sig-table">
         <tr>
             <td style="width:33%; padding-bottom: 18px;"></td>
             <td style="width:34%; padding-bottom: 18px;"></td>
@@ -366,11 +358,10 @@
             <td><div class="sig-line">Security</div></td>
             <td><div class="sig-line">Driver</div></td>
         </tr>
-    </table>
+    </table> --}}
 
     {{-- ── Footer ── --}}
     <div class="footer">
-        <div style="letter-spacing: 1px;">MODOR MC &mdash; GATE PASS</div>
         <div class="font-mono" style="margin-top: 2px; font-size:8px;">Printed: {{ now()->format('d-m-Y H:i:s') }}</div>
         <div style="margin-top: 5px;">** AUTHORISED PASS &mdash; VALID FOR ONE TRIP **</div>
     </div>
