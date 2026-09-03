@@ -35,7 +35,7 @@ const showTemplateCreator = ref(false);
 const showHeaderFields = ref(false);
 
 const canonicalKeys = [
-    { key: 'batch_number', label: 'Batch/Docket Number' },
+    { key: 'batch_number', label: 'Batch/Dispatch Number' },
     { key: 'batch_date', label: 'Batch Date' },
     { key: 'batch_start_time', label: 'Start Time' },
     { key: 'batch_end_time', label: 'End Time' },
@@ -395,7 +395,7 @@ const isPdf = computed(() => {
                             <div>
                                 <div class="flex items-center gap-2">
                                     <h3 class="text-sm font-extrabold text-gray-900">
-                                        Docket #{{ headerData.batch_no || upload.parsed_json?.header_fields?.batch_number || 'N/A' }}
+                                        Batch #{{ headerData.batch_no || upload.parsed_json?.header_fields?.batch_number || 'N/A' }}
                                     </h3>
                                     <span v-if="upload.parsed_json?.header_fields?.recipe_name" class="px-2 py-0.5 text-[11px] font-bold rounded bg-indigo-100 text-indigo-700">
                                         {{ upload.parsed_json?.header_fields?.recipe_name }}
@@ -562,7 +562,7 @@ const isPdf = computed(() => {
                         <div class="grid grid-cols-2 gap-x-6 gap-y-4">
                             <!-- Batch Number -->
                             <div>
-                                <label class="block text-xs font-bold text-gray-600 mb-1">Batch / Docket Number</label>
+                                <label class="block text-xs font-bold text-gray-600 mb-1">Batch Number</label>
                                 <InputText v-model="headerData.batch_no" class="w-full text-xs" />
                             </div>
 

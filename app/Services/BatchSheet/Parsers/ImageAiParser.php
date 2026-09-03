@@ -148,29 +148,66 @@ PROMPT;
     {
         Log::info("ImageAiParser: Calling Gemini Vision API");
 
-        $response = Http::withoutVerifying()->timeout(45)->post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={$apiKey}",
-            [
-                'contents' => [[
-                    'parts' => [
-                        ['text' => $prompt],
-                        ['inline_data' => ['mime_type' => $mimeType, 'data' => $base64Data]],
-                    ],
-                ]],
-                'generationConfig' => [
-                    'temperature' => 0.0,
-                    'maxOutputTokens' => 2048,
-                    'responseMimeType' => 'application/json'
-                ],
-            ]
-        );
+        $models = [
+            env('GEMINI_MODEL', 'gemini-2.5-flash'),
+            'gemini-2.5-flash',
+            'gemini-2.5-pro',
+        ];
+        // Remove duplicates while preserving order
+        $models = array_unique(array_filter($models));
 
-        if (!$response->successful()) {
-            throw new \RuntimeException('Gemini Vision API error: ' . $response->status() . ' - ' . $response->body());
+        $lastError = '';
+
+        foreach ($models as $model) {
+            try {
+                Log::info("ImageAiParser: Trying Gemini model: {$model}");
+
+                $response = Http::withoutVerifying()->timeout(45)->post(
+                    "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent?key={$apiKey}",
+                    [
+                        'contents' => [[
+                            'parts' => [
+                                ['text' => $prompt],
+                                ['inline_data' => ['mime_type' => $mimeType, 'data' => $base64Data]],
+                            ],
+                        ]],
+                        'generationConfig' => [
+                            'temperature' => 0.0,
+                            'maxOutputTokens' => 8192,
+                            'responseMimeType' => 'application/json'
+                        ],
+                    ]
+                );
+
+                if ($response->successful()) {
+                    $parts = $response->json('candidates.0.content.parts') ?? [];
+                    $text = '';
+                    foreach ($parts as $part) {
+                        if (!empty($part['thought'])) {
+                            continue;
+                        }
+                        if (isset($part['text'])) {
+                            $text .= $part['text'];
+                        }
+                    }
+                    if (empty($text) && !empty($parts[0]['text'])) {
+                        $text = $parts[0]['text'];
+                    }
+
+                    if (!empty($text)) {
+                        return $this->parseJsonResponse($text);
+                    }
+                }
+
+                $lastError = 'Gemini (' . $model . ') error: ' . $response->status() . ' - ' . $response->body();
+                Log::warning("ImageAiParser: {$lastError}");
+            } catch (\Exception $e) {
+                $lastError = 'Gemini (' . $model . ') exception: ' . $e->getMessage();
+                Log::warning("ImageAiParser: {$lastError}");
+            }
         }
 
-        $text = $response->json('candidates.0.content.parts.0.text') ?? '';
-        return $this->parseJsonResponse($text);
+        throw new \RuntimeException("Gemini Vision API failed on all attempted models. Last error: " . $lastError);
     }
 
     protected function parseWithOpenAI(string $base64Data, string $mimeType, string $prompt, string $apiKey): ParsedDocument
@@ -185,7 +222,7 @@ PROMPT;
             'https://api.openai.com/v1/chat/completions',
             [
                 'model' => 'gpt-4o',
-                'max_tokens' => 2048,
+                'max_tokens' => 4096,
                 'temperature' => 0.0,
                 'response_format' => ['type' => 'json_object'],
                 'messages' => [[
@@ -216,7 +253,18 @@ PROMPT;
 
         $decoded = json_decode($jsonText, true);
         if (!is_array($decoded)) {
-            throw new \RuntimeException("Failed to decode AI response as JSON: " . substr($text, 0, 200));
+            // Try extracting the outermost {...}
+            $jsonStart = strpos($jsonText, '{');
+            $jsonEnd = strrpos($jsonText, '}');
+            if ($jsonStart !== false && $jsonEnd !== false && $jsonEnd > $jsonStart) {
+                $subJson = substr($jsonText, $jsonStart, ($jsonEnd - $jsonStart + 1));
+                $decoded = json_decode($subJson, true);
+            }
+        }
+
+        if (!is_array($decoded)) {
+            Log::error("ImageAiParser: Failed to decode AI JSON. Raw text: " . $text);
+            throw new \RuntimeException("Failed to decode AI response as JSON: " . substr($text, 0, 300));
         }
 
         $header = $decoded['header'] ?? [];

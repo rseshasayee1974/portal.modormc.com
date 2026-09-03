@@ -40,7 +40,7 @@ const formatQuantity = (val) => {
                             <th class="py-3 px-3" width="28%">Unload Site Name</th>
                             <th class="py-3 px-3" width="23%">Customer / Party</th>
                             <th class="py-3 px-3 text-center" width="10%">Trips</th>
-                            <th class="py-3 px-3 text-right" width="11%">Batch Size</th>
+                            <!-- <th class="py-3 px-3 text-right" width="11%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="11%">Delivered Qty</th>
                             <th class="py-3 px-3 text-right" width="12%">Total Amt</th>
                         </tr>
@@ -51,7 +51,7 @@ const formatQuantity = (val) => {
                             <td class="py-2.5 px-3 font-bold text-slate-800">{{ row.site_name }}</td>
                             <td class="py-2.5 px-3 text-slate-600">{{ row.customer_name || '-' }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-700 font-bold">{{ row.trips_count }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
                             <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
                         </tr>
@@ -61,7 +61,7 @@ const formatQuantity = (val) => {
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                             <td colspan="3" class="py-3 px-3 text-center text-[#1d2d3e] uppercase">Total Site Volume</td>
                             <td class="py-3 px-3 text-center text-[#1d2d3e] font-black">{{ reportData.total_trips }}</td>
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_batch_size) }}</td>
+                            <!-- <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_batch_size) }}</td> -->
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_quantity) }}</td>
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_amount) }}</td>
                         </tr>

@@ -13,47 +13,66 @@ use Smalot\PdfParser\Parser as SmalotPdfParser;
 
 class ParserRegistry
 {
-    protected array $parsers = [];
+    protected PdfTextParser $pdfParser;
+    protected ImageAiParser $imageAiParser;
+    protected ExcelParser $excelParser;
+    protected CsvParser $csvParser;
+    protected PythonOcrParser $pythonParser;
 
     public function __construct()
     {
-        // Register default parsers
-        $this->register(App::make(PdfTextParser::class));
-        $this->register(App::make(PythonOcrParser::class));
-        $this->register(App::make(ImageAiParser::class));
-        $this->register(App::make(ExcelParser::class));
-        $this->register(App::make(CsvParser::class));
+        $this->pdfParser = App::make(PdfTextParser::class);
+        $this->imageAiParser = App::make(ImageAiParser::class);
+        $this->excelParser = App::make(ExcelParser::class);
+        $this->csvParser = App::make(CsvParser::class);
+        $this->pythonParser = App::make(PythonOcrParser::class);
     }
 
     /**
-     * Register a new document parser.
-     */
-    public function register(DocumentParser $parser): void
-    {
-        $this->parsers[] = $parser;
-    }
-
-    /**
-     * Resolve the appropriate parser for the given MIME type and extension.
+     * Resolve the primary parser for the given MIME type and extension.
+     * Strategy:
+     * - Images: AI Vision Parser (ImageAiParser) as major OCR
+     * - PDF (Digital): Native PHP Multi-Plant PDF Parser (PdfTextParser)
+     * - PDF (Scanned): AI Vision Parser (ImageAiParser)
+     * - Excel (.xlsx/.xls): Native Excel Spreadsheet Parser (ExcelParser)
+     * - CSV: Native CSV Parser (CsvParser)
      */
     public function resolve(string $mimeType, string $extension, ?string $filePath = null): DocumentParser
     {
-        // Special check: If PDF is scanned, route to PythonOcrParser or ImageAiParser
-        if ($extension === 'pdf' && $filePath && $this->detectOcrRequired($filePath)) {
-            foreach ($this->parsers as $parser) {
-                if ($parser instanceof PythonOcrParser || $parser instanceof ImageAiParser) {
-                    return $parser;
-                }
-            }
+        $ext = strtolower($extension);
+
+        // 1. Excel files
+        if (in_array($ext, ['xlsx', 'xls'], true) || str_contains($mimeType, 'spreadsheet') || str_contains($mimeType, 'excel')) {
+            return $this->excelParser;
         }
 
-        foreach ($this->parsers as $parser) {
-            if ($parser->canHandle($mimeType, $extension)) {
-                return $parser;
-            }
+        // 2. CSV files
+        if ($ext === 'csv' || str_contains($mimeType, 'csv')) {
+            return $this->csvParser;
         }
 
-        throw new \RuntimeException("No registered parser can handle file type: {$mimeType} (.{$extension})");
+        // 3. PDF files: Check if scanned or readable text
+        if ($ext === 'pdf' || $mimeType === 'application/pdf') {
+            if ($filePath && $this->detectOcrRequired($filePath)) {
+                return $this->imageAiParser; // Scanned PDF -> AI Vision
+            }
+            return $this->pdfParser; // Digital PDF -> Native PHP PDF parser
+        }
+
+        // 4. Image files -> Major OCR via AI Vision
+        if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'tiff', 'tif'], true) || str_starts_with($mimeType, 'image/')) {
+            return $this->imageAiParser;
+        }
+
+        return $this->imageAiParser;
+    }
+
+    /**
+     * Get the secondary / fallback parser if the primary parser fails.
+     */
+    public function getFallbackParser(): DocumentParser
+    {
+        return $this->pythonParser;
     }
 
     /**

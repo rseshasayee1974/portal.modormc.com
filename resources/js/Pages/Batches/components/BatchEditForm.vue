@@ -207,6 +207,10 @@ const runSizes = computed(() => {
 const page = usePage();
 const customSettings = page.props.custom_settings as any;
 
+const isUploadFetchEnabled = computed(() => {
+    return !!customSettings?.batching?.sheet_upload;
+});
+
 const { isAdmin, isSuperAdmin } = usePermissions();
 
 const hasInvoice = computed(() => {
@@ -485,87 +489,223 @@ const showUploadZone = ref(false);
 const openUploadZone = () => { showUploadZone.value = true; };
 const closeUploadZone = () => { showUploadZone.value = false; };
 
-const handleUploaderCompleted = (result: any) => {
-    const data = result.data || result; // Fallback in case just data was passed
-    
-    if (data?.materials?.length) applyMaterialData(data.materials);
-    if (data?.original_url || data?.url) sheetUrl.value = data.original_url || data.url;
+const findMatchingProduct = (rawName: string) => {
+    if (!rawName || !props.products?.length) return null;
+    const clean = rawName.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-    if (result.status === false) {
-        ocrWarning.value = result.message || 'Automatic parsing failed. Please enter the data manually.';
-        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'File uploaded, but parsing failed', showConfirmButton: false, timer: 3000 });
-    } else {
-        ocrWarning.value = null;
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Sheet uploaded & analysed successfully', showConfirmButton: false, timer: 1800 });
+    // 1. Exact match by title
+    let match = props.products.find((p: any) => p.title?.toUpperCase().trim() === rawName.toUpperCase().trim());
+    if (match) return match;
+
+    // 2. Substring / contains match
+    match = props.products.find((p: any) => {
+        const pClean = p.title?.toUpperCase().replace(/[^A-Z0-9]/g, '') || '';
+        return pClean && (clean.includes(pClean) || pClean.includes(clean));
+    });
+    if (match) return match;
+
+    // 3. Domain alias matching rules:
+    // Sand: 'SAND', 'MSAND', 'CSAND', 'DSAND', 'PSAND', 'FINE AGGREGATE'
+    if (/SAND/i.test(clean)) {
+        match = props.products.find((p: any) => /sand/i.test(p.title));
+        if (match) return match;
     }
-    setTimeout(() => closeUploadZone(), 1200);
+    // Aggregate: 10mm, 12mm, 20mm, 40mm
+    const aggMatch = rawName.match(/(40|20|12|10|6)\s*MM/i);
+    if (aggMatch) {
+        match = props.products.find((p: any) => new RegExp(aggMatch[1] + '\\s*mm', 'i').test(p.title));
+        if (match) return match;
+    }
+    // Cement: 'CEM', 'OPC', 'PPC', 'PSC', 'CEMENT'
+    if (/CEM|OPC|PPC|PSC/i.test(clean)) {
+        match = props.products.find((p: any) => /cement|opc|ppc|psc/i.test(p.title));
+        if (match) return match;
+    }
+    // Water
+    if (/WATER|WTR|H2O/i.test(clean)) {
+        match = props.products.find((p: any) => /water/i.test(p.title));
+        if (match) return match;
+    }
+    // Admixture / Chemical
+    if (/ADMIX|PLASTIC|HYPER|CHEMICAL|RETARDER/i.test(clean)) {
+        match = props.products.find((p: any) => /admix|chemical|additive|hyper|plastic/i.test(p.title));
+        if (match) return match;
+    }
+    // Fly ash / Micro silica / GGBS
+    if (/FLY|ASH|GGBS|SLAG|SILICA/i.test(clean)) {
+        match = props.products.find((p: any) => /fly\s*ash|ggbs|slag|silica/i.test(p.title));
+        if (match) return match;
+    }
+
+    return null;
 };
 
-onUnmounted(() => {
-    showUploadZone.value = false;
-    // showReviewZone.value = false;
-});
+const parseTimeString = (timeStr: any): Date | null => {
+    if (!timeStr) return null;
+    if (timeStr instanceof Date) return timeStr;
+    const s = String(timeStr).trim();
+    if (!s) return null;
+    if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) {
+        const parts = s.split(':').map(Number);
+        const d = new Date();
+        d.setHours(parts[0], parts[1], parts[2] || 0, 0);
+        return d;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+};
 
-const hasConsumptionData = computed(() => {
-    return form.materials.some(mat => (mat.runs || []).some(runVal => Number(runVal) > 0));
-});
+const applyHeaderData = (header: any) => {
+    if (!header || typeof header !== 'object') return;
 
-// Check if the upload-based fetch is enabled in custom settings
-const isUploadFetchEnabled = computed(() => !!customSettings?.batching?.sheet_upload);
+    if (header.batch_no || header.batch_number) {
+        form.batch_no = String(header.batch_no || header.batch_number);
+    }
+    if (header.batch_size || header.production_quantity || header.order_quantity) {
+        const sz = Number(header.batch_size || header.production_quantity || header.order_quantity);
+        if (sz > 0) form.batch_size = sz;
+    }
+    if (header.start_time || header.batch_start_time) {
+        const parsed = parseTimeString(header.start_time || header.batch_start_time);
+        if (parsed) form.start_time = parsed;
+    }
+    if (header.end_time || header.batch_end_time) {
+        const parsed = parseTimeString(header.end_time || header.batch_end_time);
+        if (parsed) form.end_time = parsed;
+    }
+    if (header.truck_id) {
+        form.truck_id = Number(header.truck_id);
+    } else if (header.truck_number) {
+        const cleanTruck = String(header.truck_number).toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const matchedTruck = props.trucks?.find((t: any) => {
+            const reg = (t.registration || t.plate_number || t.title || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+            return reg && (cleanTruck.includes(reg) || reg.includes(cleanTruck));
+        });
+        if (matchedTruck) form.truck_id = Number(matchedTruck.id);
+    }
+    if (header.driver_id) {
+        form.driver_id = Number(header.driver_id);
+    } else if (header.driver) {
+        const cleanDriver = String(header.driver).toUpperCase().trim();
+        const matchedDriver = props.drivers?.find((d: any) => {
+            const name = (d.first_name ? `${d.first_name} ${d.last_name || ''}` : (d.name || '')).toUpperCase().trim();
+            return name && (name.includes(cleanDriver) || cleanDriver.includes(name));
+        });
+        if (matchedDriver) form.driver_id = Number(matchedDriver.id);
+    }
+    if (header.sales_order_id) {
+        form.sales_order_id = Number(header.sales_order_id);
+    }
+};
 
 // Shared function – applies extracted material list to the form
 const applyMaterialData = (materials: any[]) => {
-    let usedIndices = new Set();
-    
-    materials.forEach((apiMat: any) => {
-        const key = (apiMat.item || apiMat.name || '').toString();
-        if (!key) return;
+    if (!materials || !materials.length) return;
 
-        let matchIndex = form.materials.findIndex((mat, idx) => {
+    // Check if form currently only has one empty default row
+    const isOnlyBlank = form.materials.length === 1 && !form.materials[0].product_id && Number(form.materials[0].target_qty || 0) === 0;
+    if (isOnlyBlank) {
+        form.materials = [];
+    }
+
+    const runsCount = numberOfRuns.value;
+    const size = Number(form.batch_size || 1);
+    const usedIndices = new Set<number>();
+
+    materials.forEach((apiMat: any) => {
+        const rawName = (apiMat.material_name || apiMat.item || apiMat.name || '').toString().trim();
+        if (!rawName) return;
+
+        const targetQty = Number(apiMat.target_qty ?? apiMat.target ?? 0);
+        const actualQty = Number(apiMat.actual_qty ?? apiMat.actual ?? apiMat.act ?? 0);
+        const prodId = apiMat.product_id ? Number(apiMat.product_id) : null;
+
+        // Find match in existing form.materials
+        let matchIdx = form.materials.findIndex((mat, idx) => {
             if (usedIndices.has(idx)) return false;
-            const productName = props.products.find((p: any) => p.id === mat.product_id)?.title || '';
-            const materialName = mat.material_name || '';
-            return (
-                productName.toUpperCase().includes(key.toUpperCase()) ||
-                materialName.toUpperCase().includes(key.toUpperCase()) ||
-                (productName.trim() && key.toUpperCase().includes(productName.toUpperCase().trim()))
-            );
+            if (prodId && mat.product_id === prodId) return true;
+            if (mat.material_name && mat.material_name.toUpperCase().trim() === rawName.toUpperCase()) return true;
+            const p = props.products?.find((p: any) => p.id === mat.product_id);
+            if (p && p.title.toUpperCase().trim() === rawName.toUpperCase()) return true;
+            return false;
         });
 
-        if (matchIndex === -1) {
-            matchIndex = form.materials.findIndex(mat => {
-                const productName = props.products.find((p: any) => p.id === mat.product_id)?.title || '';
-                const materialName = mat.material_name || '';
-                return (
-                    productName.toUpperCase().includes(key.toUpperCase()) ||
-                    materialName.toUpperCase().includes(key.toUpperCase()) ||
-                    (productName.trim() && key.toUpperCase().includes(productName.toUpperCase().trim()))
-                );
-            });
+        const matchedProduct = prodId ? props.products?.find((p: any) => p.id === prodId) : findMatchingProduct(rawName);
+        const resolvedProductId = prodId || (matchedProduct?.id ?? null);
+        const resolvedLabel = matchedProduct?.title || rawName;
+
+        // Distribute actual across runs
+        const runsArray = Array(runsCount).fill(0);
+        if (actualQty > 0) {
+            for (let i = 0; i < runsCount; i++) {
+                const runSz = runSizes.value[i] || 0;
+                runsArray[i] = Number((actualQty * (runSz / size)).toFixed(3));
+            }
         }
 
-        if (matchIndex !== -1) {
-            const val = Number(apiMat.actual ?? apiMat.act ?? 0);
-            if (!form.materials[matchIndex].runs) {
-                form.materials[matchIndex].runs = Array(numberOfRuns.value).fill(0);
+        if (matchIdx !== -1) {
+            usedIndices.add(matchIdx);
+            if (!form.materials[matchIdx].product_id && resolvedProductId) {
+                form.materials[matchIdx].product_id = resolvedProductId;
             }
-            
-            const runMatch = key.match(/Run (\d+)/i);
-            if (runMatch) {
-                const runIdx = parseInt(runMatch[1]) - 1;
-                if (runIdx >= 0 && runIdx < numberOfRuns.value) {
-                    form.materials[matchIndex].runs[runIdx] = val;
-                }
-            } else {
-                const size = Number(form.batch_size || 1);
-                for (let i = 0; i < numberOfRuns.value; i++) {
-                    const runSz = runSizes.value[i] || 0;
-                    form.materials[matchIndex].runs[i] = Number((val * (runSz / size)).toFixed(3));
-                }
+            if (!form.materials[matchIdx].material_name) {
+                form.materials[matchIdx].material_name = resolvedLabel;
             }
-            usedIndices.add(matchIndex);
+            if (targetQty > 0) {
+                form.materials[matchIdx].target_qty = targetQty;
+            }
+            form.materials[matchIdx].runs = runsArray;
+        } else {
+            form.materials.push({
+                product_id: resolvedProductId,
+                material_name: resolvedLabel,
+                target_qty: targetQty,
+                uom_id: null,
+                runs: runsArray,
+            });
+            usedIndices.add(form.materials.length - 1);
         }
     });
+
+    if (form.materials.length === 0) {
+        form.materials.push(blankMaterial());
+    }
+};
+
+const handleUploaderCompleted = (result: any) => {
+    const data = result.data || result;
+    const header = data.header || result.header || data.normalized_json?.header || data.parsed_json?.header_fields || {};
+    const materials = data.materials || result.materials || data.normalized_json?.materials || data.parsed_json?.materials || [];
+
+    if (result.file_url || data.file_url || data.original_url || data.url) {
+        sheetUrl.value = result.file_url || data.file_url || data.original_url || data.url;
+    }
+
+    // 1. Auto apply header details (batch_no, batch_size, timings, truck, driver)
+    applyHeaderData(header);
+
+    // 2. Auto apply materials breakdown table (products, target_qty, actual runs)
+    if (materials && materials.length) {
+        applyMaterialData(materials);
+    }
+
+    if (result.status === false) {
+        ocrWarning.value = result.message || 'Automatic parsing failed. Please enter the data manually.';
+        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'File uploaded, but manual verification needed', showConfirmButton: false, timer: 3000 });
+    } else {
+        ocrWarning.value = null;
+        const count = materials.length;
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: count > 0 ? `Batch sheet analysed! ${count} materials auto-applied.` : 'Batch sheet uploaded & analysed successfully',
+            showConfirmButton: false,
+            timer: 2200
+        });
+    }
+
+    setTimeout(() => closeUploadZone(), 600);
 };
 
 const activeUploadReviewId = ref<number | null>(null);
@@ -1080,7 +1220,6 @@ console.log('test');
                                                 <div class="p-5">
                                                     <BatchSheetUploader
                                                         :batchId="props.batch?.id"
-                                                        @openReview="handleOpenReview"
                                                         @completed="handleUploaderCompleted"
                                                         @close="closeUploadZone"
                                                     />

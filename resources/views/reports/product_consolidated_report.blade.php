@@ -142,16 +142,16 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th width="4%">#</th>
-                <th width="24%">Mix Design Name</th>
-                <th width="10%">Grade</th>
-                <th width="5%">UOM</th>
-                <th width="6%">Trips</th>
-                <th width="10%">Batch Size</th>
-                <th width="11%">Delivered Qty</th>
-                <th width="10%">Net Wt</th>
-                <th width="8%">Avg Rate</th>
-                <th width="12%">Total Amt</th>
+                <th width="5%">#</th>
+                <th width="35%">Mix Design Name</th>
+                <th width="15%">Grade</th>
+                <th width="10%">UOM</th>
+                <th width="10%">Trips</th>
+                <!-- <th width="10%">Batch Size</th> -->
+                <th width="10%">Delivered Qty</th>
+                <!-- <th width="10%">Net Wt</th>
+                <th width="8%">Avg Rate</th> -->
+                <th width="15%">Total Amt</th>
             </tr>
         </thead>
         <tbody>
@@ -162,10 +162,10 @@
                     <td class="text-center font-bold" style="color: #4338ca;">{{ $row['concrete_grade'] ?? 'N/A' }}</td>
                     <td class="text-center">{{ $row['uom'] ?? 'm³' }}</td>
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
-                    <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> -->
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['avg_rate'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td>
+                    <td class="text-right">₹ {{ number_format($row['avg_rate'] ?? 0, 2) }}</td> -->
                     <td class="text-right font-bold">₹ {{ number_format($row['amount_total'] ?? 0, 2) }}</td>
                 </tr>
             @endforeach
@@ -173,10 +173,10 @@
             <tr class="total-row">
                 <td colspan="4" class="text-center font-bold">Total Summary</td>
                 <td class="text-center font-bold">{{ $total_trips ?? collect($transactions ?? $items ?? [])->sum('trips_count') }}</td>
-                <td class="text-right font-bold">{{ number_format($total_batch_size ?? 0, 2) }}</td>
+                <!-- <td class="text-right font-bold">{{ number_format($total_batch_size ?? 0, 2) }}</td> -->
                 <td class="text-right font-bold">{{ number_format($total_quantity ?? 0, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_net_weight ?? 0, 2) }}</td>
-                <td></td>
+                <!-- <td class="text-right font-bold">{{ number_format($total_net_weight ?? 0, 2) }}</td>
+                <td></td> -->
                 <td class="text-right font-bold">₹ {{ number_format($total_amount ?? 0, 2) }}</td>
             </tr>
         </tbody>

@@ -108,38 +108,52 @@ const filteredTotals = computed(() => {
 <template>
     <div v-if="reportData" class="space-y-6">
         <!-- Overview summary banner -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-            <div class="bg-white p-3 rounded border border-slate-200 shadow-sm">
-                <span class="text-[9px] font-black uppercase text-slate-400">Total Trips</span>
-                <p class="text-sm font-black text-slate-800 mt-1">{{ filteredTrips.length }}</p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 2xl:grid-cols-8 gap-3">
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm min-w-0 flex flex-col justify-between hover:border-slate-300 transition-colors">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">Total Trips</span>
+                <p class="text-sm sm:text-base font-black text-slate-800 mt-1 truncate tracking-tight" :title="`${filteredTrips.length}`">{{ filteredTrips.length }}</p>
             </div>
-            <div class="bg-white p-3 rounded border border-slate-200 shadow-sm">
-                <span class="text-[9px] font-black uppercase text-slate-400">Batch Size</span>
-                <p class="text-sm font-black text-indigo-700 mt-1">{{ formatQuantity(filteredTotals.batch_size) }} m³</p>
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm min-w-0 flex flex-col justify-between hover:border-slate-300 transition-colors">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">Batch Size</span>
+                <p class="text-sm sm:text-base font-black text-indigo-700 mt-1 truncate tracking-tight" :title="`${formatQuantity(filteredTotals.batch_size)} m³`">
+                    {{ formatQuantity(filteredTotals.batch_size) }} <span class="text-xs font-semibold text-indigo-400">m³</span>
+                </p>
             </div>
-            <div class="bg-white p-3 rounded border border-slate-200 shadow-sm">
-                <span class="text-[9px] font-black uppercase text-slate-400">Delivered Qty</span>
-                <p class="text-sm font-black text-blue-700 mt-1">{{ formatQuantity(filteredTotals.delivered_qty) }} m³</p>
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm min-w-0 flex flex-col justify-between hover:border-slate-300 transition-colors">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">Delivered Qty</span>
+                <p class="text-sm sm:text-base font-black text-blue-700 mt-1 truncate tracking-tight" :title="`${formatQuantity(filteredTotals.delivered_qty)} m³`">
+                    {{ formatQuantity(filteredTotals.delivered_qty) }} <span class="text-xs font-semibold text-blue-400">m³</span>
+                </p>
             </div>
-            <div class="bg-white p-3 rounded border border-slate-200 shadow-sm">
-                <span class="text-[9px] font-black uppercase text-slate-400">Empty Wt</span>
-                <p class="text-sm font-bold text-slate-600 mt-1">{{ formatQuantity(filteredTotals.empty_weight) }} T</p>
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm min-w-0 flex flex-col justify-between hover:border-slate-300 transition-colors">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">Empty Wt</span>
+                <p class="text-sm sm:text-base font-bold text-slate-600 mt-1 truncate tracking-tight" :title="`${formatQuantity(filteredTotals.empty_weight)} T`">
+                    {{ formatQuantity(filteredTotals.empty_weight) }} <span class="text-xs font-medium text-slate-400">T</span>
+                </p>
             </div>
-            <div class="bg-white p-3 rounded border border-slate-200 shadow-sm">
-                <span class="text-[9px] font-black uppercase text-slate-400">Loaded Wt</span>
-                <p class="text-sm font-bold text-slate-600 mt-1">{{ formatQuantity(filteredTotals.loaded_weight) }} T</p>
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm min-w-0 flex flex-col justify-between hover:border-slate-300 transition-colors">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">Loaded Wt</span>
+                <p class="text-sm sm:text-base font-bold text-slate-600 mt-1 truncate tracking-tight" :title="`${formatQuantity(filteredTotals.loaded_weight)} T`">
+                    {{ formatQuantity(filteredTotals.loaded_weight) }} <span class="text-xs font-medium text-slate-400">T</span>
+                </p>
             </div>
-            <div class="bg-white p-3 rounded border border-slate-200 shadow-sm">
-                <span class="text-[9px] font-black uppercase text-slate-400">Net Wt</span>
-                <p class="text-sm font-black text-emerald-700 mt-1">{{ formatQuantity(filteredTotals.net_weight) }} T</p>
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm min-w-0 flex flex-col justify-between hover:border-slate-300 transition-colors">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">Net Wt</span>
+                <p class="text-sm sm:text-base font-black text-emerald-700 mt-1 truncate tracking-tight" :title="`${formatQuantity(filteredTotals.net_weight)} T`">
+                    {{ formatQuantity(filteredTotals.net_weight) }} <span class="text-xs font-semibold text-emerald-400">T</span>
+                </p>
             </div>
-            <div class="bg-white p-3 rounded border border-slate-200 shadow-sm">
-                <span class="text-[9px] font-black uppercase text-slate-400">Taxable Amt</span>
-                <p class="text-sm font-bold text-slate-700 mt-1">{{ formatCurrency(filteredTotals.amount_untaxed) }}</p>
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm min-w-0 flex flex-col justify-between hover:border-slate-300 transition-colors">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">Taxable Amt</span>
+                <p class="text-sm sm:text-base font-bold text-slate-700 mt-1 truncate tracking-tight" :title="formatCurrency(filteredTotals.amount_untaxed)">
+                    {{ formatCurrency(filteredTotals.amount_untaxed) }}
+                </p>
             </div>
-            <div class="bg-white p-3 rounded border border-slate-200 shadow-sm">
-                <span class="text-[9px] font-black uppercase text-slate-400">Total Revenue</span>
-                <p class="text-sm font-black text-[#1d2d3e] mt-1">{{ formatCurrency(filteredTotals.amount_total) }}</p>
+            <div class="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm min-w-0 flex flex-col justify-between hover:border-slate-300 transition-colors">
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">Total Revenue</span>
+                <p class="text-sm sm:text-base font-black text-[#1d2d3e] mt-1 truncate tracking-tight" :title="formatCurrency(filteredTotals.amount_total)">
+                    {{ formatCurrency(filteredTotals.amount_total) }}
+                </p>
             </div>
         </div>
 
@@ -161,7 +175,7 @@ const filteredTotals = computed(() => {
                 </div>
 
                 <!-- Truck Filter & Search -->
-                <div class="flex flex-wrap items-center gap-2">
+                <!-- <div class="flex flex-wrap items-center gap-2">
                     <select 
                         v-if="truckOptions.length > 1"
                         v-model="selectedTruckFilter"
@@ -179,7 +193,7 @@ const filteredTotals = computed(() => {
                         placeholder="Search trip, docket, site..." 
                         class="border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-[#0064d2] w-48"
                     />
-                </div>
+                </div> -->
             </div>            <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse min-w-[1200px]">
                     <thead>
@@ -187,7 +201,7 @@ const filteredTotals = computed(() => {
                             <th class="py-3 px-3 text-center" width="4%">Trip #</th>
                             <th class="py-3 px-3 text-center" width="9%">Truck / Mixer</th>
                             <th class="py-3 px-3" width="11%">Date & Time</th>
-                            <th class="py-3 px-3" width="11%">Docket / DSP #</th>
+                            <th class="py-3 px-3" width="11%">Dispatch / DSP #</th>
                             <th class="py-3 px-3" width="14%">Customer Name</th>
                             <th class="py-3 px-3" width="12%">Unload Site</th>
                             <th class="py-3 px-3 text-center" width="9%">Grade / Mix</th>
