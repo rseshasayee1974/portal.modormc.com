@@ -110,7 +110,7 @@
             <td style="width: 52%;">
                 <div class="address-box" style="margin-top: 5px;">
                     <span class="address-title">Customer / Partner:</span>
-                    @if($patron)
+                    @if(!empty($patron))
                         <span class="address-name">{{ $patron->legal_name }}</span>
                         @if($patron->addresses->isNotEmpty())
                             @php $pAddr = $patron->addresses->first(); @endphp

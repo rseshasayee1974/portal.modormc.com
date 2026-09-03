@@ -606,6 +606,29 @@ class ExcelExportService
                         'rows' => $pmRows,
                     ];
                 }
+
+                if (!empty($data['batch_dispatches'])) {
+                    $prodTripRows = [];
+                    foreach ($data['batch_dispatches'] as $bi => $bRow) {
+                        $prodTripRows[] = [
+                            $bi + 1,
+                            $bRow['dispatch_time'] ?? '',
+                            $bRow['docket_no'] ?? $bRow['dispatch_no'] ?? '',
+                            $bRow['mix_name'] ?? $bRow['concrete_grade'] ?? '',
+                            $bRow['customer_name'] ?? '',
+                            $bRow['site_name'] ?? '',
+                            $bRow['truck_no'] ?? '',
+                            (float)($bRow['batch_size'] ?? 0),
+                            (float)($bRow['delivered_qty'] ?? 0),
+                            (float)($bRow['amount_total'] ?? 0),
+                        ];
+                    }
+                    $extraSections['tables'][] = [
+                        'title' => 'PRODUCT BATCHING / TRIP VERIFICATION LIST',
+                        'headers' => ['Trip #', 'Date & Time', 'Docket / Dispatch No', 'Mix Design / Grade', 'Customer Name', 'Unloading Site', 'Truck / Mixer', 'Batch Size (m³)', 'Delivered Qty (m³)', 'Total Amt'],
+                        'rows' => $prodTripRows,
+                    ];
+                }
             } elseif ($type === 'customer_consolidated') {
                 $headersList = ['#', 'Customer / Party Name', 'Trips', 'Batch Size (m³)', 'Delivered Qty (m³)', 'Empty Wt (T)', 'Loaded Wt (T)', 'Net Wt (T)', 'Taxable Amt', 'Tax Amt', 'Total Amt'];
                 foreach (($data['transactions'] ?? $data['items'] ?? []) as $i => $row) {
@@ -695,6 +718,25 @@ class ExcelExportService
                     (float)($data['total_tax'] ?? 0),
                     (float)($data['total_amount'] ?? 0),
                 ];
+
+                if (!empty($data['truck_groups'])) {
+                    $tgRows = [];
+                    foreach ($data['truck_groups'] as $ti => $tRow) {
+                        $tgRows[] = [
+                            $ti + 1,
+                            $tRow['truck_no'] ?? '',
+                            (int)($tRow['trips_count'] ?? 1),
+                            (float)($tRow['total_batch'] ?? 0),
+                            (float)($tRow['total_qty'] ?? 0),
+                            (float)($tRow['total_amount'] ?? 0),
+                        ];
+                    }
+                    $extraSections['tables'][] = [
+                        'title' => 'TRUCK FLEET CONSOLIDATED SUMMARY',
+                        'headers' => ['#', 'Truck / Mixer Reg', 'Trips', 'Batch Size (m³)', 'Delivered Qty (m³)', 'Total Amt'],
+                        'rows' => $tgRows,
+                    ];
+                }
             } elseif ($type === 'site_consolidated') {
                 $title = "UNLOAD SITE CONSOLIDATED REPORT";
                 $headersList = ['#', 'Unload Site Name', 'Customer / Party', 'Trips', 'Batch Size (m³)', 'Delivered Qty (m³)', 'Total Amt'];
@@ -716,6 +758,29 @@ class ExcelExportService
                     (float)($data['total_quantity'] ?? 0),
                     (float)($data['total_amount'] ?? 0),
                 ];
+
+                if (!empty($data['batch_dispatches'])) {
+                    $siteTripRows = [];
+                    foreach ($data['batch_dispatches'] as $si => $sRow) {
+                        $siteTripRows[] = [
+                            $si + 1,
+                            $sRow['dispatch_time'] ?? '',
+                            $sRow['docket_no'] ?? $sRow['dispatch_no'] ?? '',
+                            $sRow['site_name'] ?? '',
+                            $sRow['customer_name'] ?? '',
+                            $sRow['truck_no'] ?? '',
+                            $sRow['concrete_grade'] ?? $sRow['mix_name'] ?? '',
+                            (float)($sRow['batch_size'] ?? 0),
+                            (float)($sRow['delivered_qty'] ?? 0),
+                            (float)($sRow['amount_total'] ?? 0),
+                        ];
+                    }
+                    $extraSections['tables'][] = [
+                        'title' => 'UNLOAD SITE BATCHING / TRIP VERIFICATION LIST',
+                        'headers' => ['Trip #', 'Date & Time', 'Docket / Dispatch No', 'Unload Site', 'Customer Name', 'Truck / Mixer', 'Mix Design / Grade', 'Batch Size (m³)', 'Delivered Qty (m³)', 'Total Amt'],
+                        'rows' => $siteTripRows,
+                    ];
+                }
             } elseif ($type === 'payment_mode_consolidated') {
                 $title = "PAYMENT MODE CONSOLIDATED REPORT";
                 $headersList = ['#', 'Payment Mode', 'Trips', 'Batch Size (m³)', 'Delivered Qty (m³)', 'Total Amt'];
@@ -736,6 +801,29 @@ class ExcelExportService
                     (float)($data['total_quantity'] ?? 0),
                     (float)($data['total_amount'] ?? 0),
                 ];
+
+                if (!empty($data['batch_dispatches'])) {
+                    $pmTripRows = [];
+                    foreach ($data['batch_dispatches'] as $pi => $pRow) {
+                        $pmTripRows[] = [
+                            $pi + 1,
+                            $pRow['dispatch_time'] ?? '',
+                            $pRow['docket_no'] ?? $pRow['dispatch_no'] ?? '',
+                            $pRow['payment_mode'] ?? '',
+                            $pRow['customer_name'] ?? '',
+                            $pRow['site_name'] ?? '',
+                            $pRow['truck_no'] ?? '',
+                            $pRow['concrete_grade'] ?? $pRow['mix_name'] ?? '',
+                            (float)($pRow['delivered_qty'] ?? 0),
+                            (float)($pRow['amount_total'] ?? 0),
+                        ];
+                    }
+                    $extraSections['tables'][] = [
+                        'title' => 'PAYMENT MODE BATCHING / TRIP VERIFICATION LIST',
+                        'headers' => ['Trip #', 'Date & Time', 'Docket / Dispatch No', 'Payment Mode', 'Customer Name', 'Unload Site', 'Truck / Mixer', 'Mix Design / Grade', 'Delivered Qty (m³)', 'Total Amt'],
+                        'rows' => $pmTripRows,
+                    ];
+                }
             } elseif ($type === 'sales') {
                 $title = "SALES DISPATCH DETAILED REPORT";
                 $headersList = [
@@ -1014,6 +1102,29 @@ class ExcelExportService
                         'rows' => $ecRows,
                     ];
                 }
+
+                if (!empty($data['transactions'])) {
+                    $execTripRows = [];
+                    foreach ($data['transactions'] as $ti => $tRow) {
+                        $execTripRows[] = [
+                            $ti + 1,
+                            $tRow['datetime'] ?? $tRow['date'] ?? '',
+                            $tRow['dispatch_no'] ?? '',
+                            $tRow['sales_executive_name'] ?? '',
+                            $tRow['customer_name'] ?? '',
+                            $tRow['site_name'] ?? '',
+                            $tRow['truck_no'] ?? '',
+                            $tRow['concrete_grade'] ?? $tRow['mix_name'] ?? '',
+                            (float)($tRow['batch_size'] ?? 0),
+                            (float)($tRow['quantity'] ?? $tRow['delivered_qty'] ?? 0),
+                        ];
+                    }
+                    $extraSections['tables'][] = [
+                        'title' => 'SALES EXECUTIVE BATCHING / TRIP VERIFICATION LIST',
+                        'headers' => ['Trip #', 'Date & Time', 'Dispatch / DSP No', 'Sales Executive', 'Customer Name', 'Unload Site', 'Truck / Mixer', 'Mix Design / Grade', 'Batch Size (m³)', 'Delivered Qty (m³)'],
+                        'rows' => $execTripRows,
+                    ];
+                }
             } elseif ($type === 'driver') {
                 $title = "DRIVER DISPATCH CONSOLIDATED REPORT";
                 $headersList = ['#', 'Driver Name', 'Code', 'Trips', 'Batch Size (m³)', 'Delivered Qty (m³)'];
@@ -1049,6 +1160,29 @@ class ExcelExportService
                         'title' => 'DRIVER & VEHICLE TRIPS BREAKDOWN',
                         'headers' => ['#', 'Driver Name', 'Vehicle / Truck Reg', 'Trips', 'Delivered Qty (m³)'],
                         'rows' => $dvRows,
+                    ];
+                }
+
+                if (!empty($data['transactions'])) {
+                    $drvTripRows = [];
+                    foreach ($data['transactions'] as $ti => $tRow) {
+                        $drvTripRows[] = [
+                            $ti + 1,
+                            $tRow['datetime'] ?? $tRow['date'] ?? '',
+                            $tRow['dispatch_no'] ?? '',
+                            $tRow['driver_name'] ?? '',
+                            $tRow['truck_no'] ?? '',
+                            $tRow['customer_name'] ?? '',
+                            $tRow['site_name'] ?? '',
+                            $tRow['concrete_grade'] ?? $tRow['mix_name'] ?? '',
+                            (float)($tRow['batch_size'] ?? 0),
+                            (float)($tRow['quantity'] ?? $tRow['delivered_qty'] ?? 0),
+                        ];
+                    }
+                    $extraSections['tables'][] = [
+                        'title' => 'DRIVER BATCHING / TRIP VERIFICATION LIST',
+                        'headers' => ['Trip #', 'Date & Time', 'Dispatch / DSP No', 'Driver Name', 'Truck / Mixer', 'Customer Name', 'Unload Site', 'Mix Design / Grade', 'Batch Size (m³)', 'Delivered Qty (m³)'],
+                        'rows' => $drvTripRows,
                     ];
                 }
             } else {

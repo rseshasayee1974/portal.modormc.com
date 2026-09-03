@@ -206,6 +206,52 @@
     </table>
     @endif
 
+    @if(!empty($transactions) && count($transactions) > 0)
+    <!-- Section 3: Driver Batching / Trip Verification List -->
+    <div class="statement-title-container" style="margin-top: 25px; border-bottom: 2px solid #0284c7; padding-bottom: 4px;">
+        <h3 style="font-size: 11pt; font-weight: bold; color: #0369a1; margin: 0; text-transform: uppercase;">Every Batching / Trip Verification List ({{ count($transactions) }} Trips)</h3>
+        <span style="font-size: 8.5pt; color: #64748b;">Itemized driver trip dispatch tickets for trip count audit and verification</span>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="4%">Trip #</th>
+                <th width="12%">Date & Time</th>
+                <th width="13%">Dispatch / DSP #</th>
+                <th width="14%">Driver Name</th>
+                <th width="10%">Truck / Mixer</th>
+                <th width="15%">Customer Name</th>
+                <th width="13%">Unload Site</th>
+                <th width="9%">Grade / Mix</th>
+                <th width="5%">Batch (m³)</th>
+                <th width="5%">Deliv (m³)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($transactions as $index => $trip)
+                <tr>
+                    <td class="text-center font-bold">{{ $index + 1 }}</td>
+                    <td class="text-center" style="font-size: 7.5pt;">{{ $trip['datetime'] ?? $trip['date'] ?? '-' }}</td>
+                    <td class="font-bold text-center">{{ $trip['dispatch_no'] ?? '-' }}</td>
+                    <td class="font-bold">{{ $trip['driver_name'] ?? '-' }}</td>
+                    <td class="text-center font-bold" style="color: #0369a1;">{{ $trip['truck_no'] ?? '-' }}</td>
+                    <td class="font-bold">{{ $trip['customer_name'] ?? '-' }}</td>
+                    <td>{{ $trip['site_name'] ?? '-' }}</td>
+                    <td class="text-center font-bold" style="color: #4338ca;">{{ $trip['concrete_grade'] ?? $trip['mix_name'] ?? '-' }}</td>
+                    <td class="text-right">{{ number_format($trip['batch_size'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($trip['quantity'] ?? $trip['delivered_qty'] ?? 0, 2) }}</td>
+                </tr>
+            @endforeach
+            <tr class="total-row">
+                <td colspan="8" class="text-center font-bold">Total Driver Dispatches ({{ count($transactions) }} Trips)</td>
+                <td class="text-right font-bold">{{ number_format(collect($transactions)->sum('batch_size'), 2) }}</td>
+                <td class="text-right font-bold">{{ number_format(collect($transactions)->sum('quantity'), 2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+    @endif
+
     @include('pdfs.partials._footer')
 
 </body>

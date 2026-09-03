@@ -138,8 +138,57 @@
     </table>
 
     <div class="statement-title-container">
-        <h2 class="statement-title">Truck Wise Trip Report</h2>
+        <h2 class="statement-title">Truck Consolidated & Trip Performance Report</h2>
         <span class="statement-period">Reporting Period: {{ $start }} to {{ $end }}</span>
+    </div>
+
+    @if(!empty($truck_groups) && count($truck_groups) > 0)
+    <!-- Section 1: Truck Fleet Consolidated Summary -->
+    <div class="statement-title-container" style="margin-top: 10px; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px;">
+        <h3 style="font-size: 10pt; font-weight: bold; color: #334155; margin: 0; text-transform: uppercase;">Fleet Consolidated Summary</h3>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="5%">#</th>
+                <th width="25%">Truck / Mixer Reg</th>
+                <th width="15%">Trips</th>
+                <th width="18%">Batch Size (m³)</th>
+                <th width="18%">Delivered Qty (m³)</th>
+                <th width="19%">Total Amt</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($truck_groups as $index => $tg)
+                <tr>
+                    <td class="text-center">{{ $index + 1 }}</td>
+                    <td class="font-bold text-center" style="color: #4338ca;">{{ $tg['truck_no'] }}</td>
+                    <td class="text-center font-bold">{{ $tg['trips_count'] }}</td>
+                    <td class="text-right">{{ number_format($tg['total_batch'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($tg['total_qty'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">₹ {{ number_format($tg['total_amount'] ?? 0, 2) }}</td>
+                </tr>
+            @endforeach
+            <tr class="total-row">
+                <td colspan="2" class="text-center font-bold">Grand Fleet Total</td>
+                <td class="text-center font-bold">{{ $total_trips ?? collect($truck_groups)->sum('trips_count') }}</td>
+                <td class="text-right font-bold">{{ number_format($total_batch_size ?? collect($truck_groups)->sum('total_batch'), 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_quantity ?? collect($truck_groups)->sum('total_qty'), 2) }}</td>
+                <td class="text-right font-bold">₹ {{ number_format($total_amount ?? collect($truck_groups)->sum('total_amount'), 2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+    @endif
+
+    @php
+        $trips = $truck_trips ?? $transactions ?? $items ?? [];
+    @endphp
+
+    <!-- Section 2: Truck Wise Every Batching / Trip Verification List -->
+    <div class="statement-title-container" style="margin-top: 20px; border-bottom: 2px solid #0284c7; padding-bottom: 4px;">
+        <h3 style="font-size: 11pt; font-weight: bold; color: #0369a1; margin: 0; text-transform: uppercase;">Every Batching / Trip Verification List ({{ count($trips) }} Trips)</h3>
+        <span style="font-size: 8.5pt; color: #64748b;">Itemized fleet trip dispatch tickets for audit and delivery verification</span>
     </div>
 
     <table class="data-table">
@@ -162,9 +211,6 @@
             </tr>
         </thead>
         <tbody>
-            @php
-                $trips = $truck_trips ?? $transactions ?? $items ?? [];
-            @endphp
             @foreach($trips as $index => $row)
                 <tr>
                     <td class="text-center">{{ $index + 1 }}</td>
