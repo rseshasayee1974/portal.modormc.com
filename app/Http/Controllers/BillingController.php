@@ -72,11 +72,17 @@ class BillingController extends Controller
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $plantId) {
             $validated = $request->validated();
 
+            // Strictly enforce prefix from verified ledger configuration, preventing any client-side tampering
+            $details = Invoice::generateNumber($plantId, 'bill', $validated['account_id'] ?? null);
+            $validated['prefix'] = $details['prefix'];
+
             // Auto-generate numbering if not provided
             if (empty($validated['invoice_number'])) {
-                $details = Invoice::generateNumber($plantId, 'bill', $validated['account_id'] ?? null);
-                $validated['prefix'] = $details['prefix'];
                 $validated['invoice_number'] = $details['next_number'];
+            } else {
+                if (str_starts_with((string)$validated['invoice_number'], $validated['prefix'])) {
+                    $validated['invoice_number'] = substr($validated['invoice_number'], strlen($validated['prefix']));
+                }
             }
 
             $poIds = !empty($validated['purchase_order_ids']) && is_array($validated['purchase_order_ids'])

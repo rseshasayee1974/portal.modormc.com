@@ -11,6 +11,28 @@ class StoreInvoiceRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $plantId = (int)session('active_plant_id');
+        $accountId = $this->input('account_id');
+        $gen = \App\Models\Invoice::generateNumber(
+            $plantId, 
+            $this->input('invoice_type', 'sales'), 
+            $accountId ? (int)$accountId : null
+        );
+
+        $cleanNumber = trim((string)$this->input('invoice_number', ''));
+        if (!empty($gen['prefix']) && str_starts_with($cleanNumber, $gen['prefix'])) {
+            $cleanNumber = substr($cleanNumber, strlen($gen['prefix']));
+        }
+
+        // Strictly overwrite prefix with system-calculated ledger prefix
+        $this->merge([
+            'prefix' => $gen['prefix'],
+            'invoice_number' => $cleanNumber !== '' ? $cleanNumber : null,
+        ]);
+    }
+
     public function rules(): array
     {
         
@@ -23,8 +45,48 @@ class StoreInvoiceRequest extends FormRequest
             'ref_id'           => 'nullable|integer',
             'ref_title'        => 'nullable|string|max:255',
             // 'truck_id'         => 'nullable|exists:mm_machines,id',
-            'prefix'           => 'nullable|string|max:10',
-            'invoice_number'   => 'nullable|string|max:255|unique:mm_invoices,invoice_number',
+            'prefix'           => 'nullable|string|max:50',
+            'invoice_number'   => [
+                'nullable',
+                'string',
+                'regex:/^[0-9A-Za-z\-_]+$/',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    $plantId = (int)session('active_plant_id');
+                    $accountId = request('account_id');
+                    $gen = \App\Models\Invoice::generateNumber($plantId, request('invoice_type', 'sales'), $accountId ? (int)$accountId : null);
+                    $prefix = $gen['prefix'];
+                    $val = trim((string)$value);
+                    if ($val === '') return;
+
+                    $full = (!empty($prefix) && !str_starts_with($val, $prefix)) ? ($prefix . $val) : $val;
+                    $numOnly = (!empty($prefix) && str_starts_with($val, $prefix)) ? substr($val, strlen($prefix)) : $val;
+
+                    $exists = \App\Models\Invoice::withoutGlobalScopes()
+                        ->where('plant_id', $plantId)
+                        ->where('is_active', 1)
+                        ->whereNull('deleted_at')
+                        ->where(function ($q) use ($prefix, $numOnly, $full, $val) {
+                            $q->where(function ($sub) use ($prefix, $numOnly) {
+                                if (!empty($prefix)) {
+                                    $sub->where('prefix', $prefix)
+                                        ->where('invoice_number', $numOnly);
+                                } else {
+                                    $sub->where('invoice_number', $numOnly);
+                                }
+                            })
+                            ->orWhere('invoice_number', $val)
+                            ->orWhere('invoice_number', $full)
+                            ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $full)
+                            ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $val);
+                        })
+                        ->exists();
+
+                    if ($exists) {
+                        $fail("Invoice number '{$full}' already exists in this plant. Duplicate not allowed.");
+                    }
+                }
+            ],
             'invoice_date'     => 'required|date',
             'due_date'         => 'nullable|date',
             'period'           => 'nullable|string|max:100',

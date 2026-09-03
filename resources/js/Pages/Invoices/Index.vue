@@ -15,6 +15,8 @@ const props = defineProps<{
     units: any[];
     machines: any[];
     instant_invoice_patron: number | boolean;
+    next_invoice_number?: string;
+    next_invoice_details?: any;
 }>();
 
 </script>
@@ -39,6 +41,8 @@ const props = defineProps<{
                         :mixdesign="mixdesign"
                         :units="units"
                         :instant_invoice_patron="instant_invoice_patron"
+                        :next_invoice_number="next_invoice_number"
+                        :next_invoice_details="next_invoice_details"
                     />
                 </section>
 

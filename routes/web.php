@@ -336,6 +336,8 @@ Route::middleware([
         Route::resource('payments', \App\Http\Controllers\PaymentController::class)->except(['create', 'edit', 'show']);
         Route::get('billings/unbilled-purchase-orders', [\App\Http\Controllers\BillingController::class, 'getUnbilledPurchaseOrders'])->name('billings.unbilled-pos');
         Route::get('invoices/uninvoiced-dispatches', [\App\Http\Controllers\InvoiceController::class, 'getUninvoicedDispatches'])->name('invoices.uninvoiced-dispatches');
+        Route::get('invoices/check-invoice-number', [\App\Http\Controllers\InvoiceController::class, 'checkInvoiceNumber'])->name('invoices.check-number');
+        Route::get('invoices/next-number', [\App\Http\Controllers\InvoiceController::class, 'getNextNumber'])->name('invoices.next-number');
 
         Route::get('invoices/outstanding', [\App\Http\Controllers\InvoiceController::class, 'outstanding'])->name('invoices.outstanding');
         Route::get('invoices/{invoice}/print-tax-invoice', [\App\Http\Controllers\InvoiceController::class, 'printTaxInvoice'])->name('invoices.print-tax-invoice');

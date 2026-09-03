@@ -60,11 +60,17 @@ class InvoiceController extends Controller
         return \Illuminate\Support\Facades\DB::transaction(function () use ($request, $plantId) {
             $validated = $request->validated();
             
+            // Strictly enforce prefix from verified ledger configuration, preventing any client-side tampering
+            $details = Invoice::generateNumber($plantId, $validated['invoice_type'] ?? 'sales', $validated['account_id'] ?? null);
+            $validated['prefix'] = $details['prefix'];
+
             // Auto-generate numbering if not provided
             if (empty($validated['invoice_number'])) {
-                $details = Invoice::generateNumber($plantId, $validated['invoice_type'] ?? 'sales', $validated['account_id'] ?? null);
-                $validated['prefix'] = $details['prefix'];
                 $validated['invoice_number'] = $details['next_number'];
+            } else {
+                if (str_starts_with((string)$validated['invoice_number'], $validated['prefix'])) {
+                    $validated['invoice_number'] = substr($validated['invoice_number'], strlen($validated['prefix']));
+                }
             }
 
             // Ensure mandatory fields and defaults
@@ -116,6 +122,82 @@ class InvoiceController extends Controller
             ->get();
 
         return response()->json($dispatches);
+    }
+
+    public function checkInvoiceNumber(Request $request)
+    {
+        $this->authorizeModule('menu');
+        $plantId = session('active_plant_id');
+
+        $rawNumber = trim((string)$request->query('invoice_number', ''));
+        $accountId = $request->query('account_id');
+        $type = $request->query('invoice_type', 'sales');
+        $excludeId = $request->query('exclude_id');
+
+        // Always strictly determine prefix from the ledger and plant configuration, never trust client input
+        $gen = Invoice::generateNumber($plantId, $type, $accountId ? (int)$accountId : null);
+        $prefix = $gen['prefix'];
+
+        if ($rawNumber === '') {
+            return response()->json([
+                'exists' => false,
+                'available' => true,
+                'message' => '',
+                'full_number' => '',
+                'prefix' => $prefix,
+            ]);
+        }
+
+        // Handle case where user entered the full number with prefix
+        if (!empty($prefix) && str_starts_with($rawNumber, $prefix)) {
+            $numOnly = substr($rawNumber, strlen($prefix));
+            $fullNumber = $rawNumber;
+        } else {
+            $numOnly = $rawNumber;
+            $fullNumber = (!empty($prefix) ? $prefix : '') . $rawNumber;
+        }
+
+        $exists = Invoice::withoutGlobalScopes()
+            ->where('plant_id', $plantId)
+            ->where('is_active', 1)
+            ->whereNull('deleted_at')
+            ->where(function ($q) use ($prefix, $numOnly, $fullNumber, $rawNumber) {
+                $q->where(function ($sub) use ($prefix, $numOnly) {
+                    if (!empty($prefix)) {
+                        $sub->where('prefix', $prefix)
+                            ->where('invoice_number', $numOnly);
+                    } else {
+                        $sub->where('invoice_number', $numOnly);
+                    }
+                })
+                ->orWhere('invoice_number', $rawNumber)
+                ->orWhere('invoice_number', $fullNumber)
+                ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber)
+                ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $rawNumber);
+            })
+            ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
+            ->exists();
+
+        return response()->json([
+            'exists' => $exists,
+            'available' => !$exists,
+            'full_number' => $fullNumber,
+            'message' => $exists
+                ? "Invoice #{$fullNumber} already exists in this plant. Duplicate not allowed."
+                : "Invoice #{$fullNumber} is available.",
+        ]);
+    }
+
+    public function getNextNumber(Request $request)
+    {
+        $this->authorizeModule('menu');
+        $plantId = session('active_plant_id');
+        $accountId = $request->query('account_id');
+        $type = $request->query('invoice_type', 'sales');
+
+        $details = Invoice::generateNumber($plantId, $type, $accountId ? (int)$accountId : null);
+
+        return response()->json($details);
     }
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice)

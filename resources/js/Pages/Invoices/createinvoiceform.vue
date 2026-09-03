@@ -32,7 +32,12 @@ const props = defineProps<{
     mixdesign: any[];
     units: any[];
     instant_invoice_patron: number | boolean;
-    
+    next_invoice_number?: string;
+    next_invoice_details?: {
+        prefix?: string;
+        next_number?: string | number;
+        full_number?: string;
+    };
 }>();
 
 const page = usePage();
@@ -268,15 +273,146 @@ const onMixDesignChange = (index: number) => {
 
 watch(() => [form.items, form.adjustment, form.shipping_charges], calculateTotals, { deep: true });
 
+const isManualInvoiceNumber = ref(false);
+const isCheckingInvoiceNumber = ref(false);
+const invoiceNumberStatus = ref<{
+    checked: boolean;
+    exists: boolean;
+    message: string;
+}>({
+    checked: false,
+    exists: false,
+    message: ''
+});
+let checkDebounceTimeout: any = null;
+
+const validateInvoiceNumber = async () => {
+    if (!isManualInvoiceNumber.value || !form.invoice_number?.trim()) {
+        invoiceNumberStatus.value = { checked: false, exists: false, message: '' };
+        return;
+    }
+
+    isCheckingInvoiceNumber.value = true;
+    try {
+        const response = await axios.get(route('invoices.check-number'), {
+            params: {
+                invoice_number: form.invoice_number.trim(),
+                prefix: form.prefix || '',
+                account_id: form.account_id || ''
+            }
+        });
+        invoiceNumberStatus.value = {
+            checked: true,
+            exists: Boolean(response.data.exists),
+            message: response.data.message || ''
+        };
+    } catch (error) {
+        console.error('Failed to validate invoice number', error);
+    } finally {
+        isCheckingInvoiceNumber.value = false;
+    }
+};
+
+const allowOnlyInvoiceChars = (e: KeyboardEvent) => {
+    const char = e.key;
+    if (!/^[0-9A-Za-z\-_]$/.test(char) && !['Backspace', 'ArrowLeft', 'ArrowRight', 'Tab', 'Delete', 'Enter'].includes(char)) {
+        e.preventDefault();
+    }
+};
+
+const onInvoiceNumberInput = () => {
+    // Strip prefix if user pastes the full number
+    if (form.prefix && form.invoice_number && form.invoice_number.startsWith(form.prefix)) {
+        form.invoice_number = form.invoice_number.substring(form.prefix.length);
+    }
+    invoiceNumberStatus.value = { checked: false, exists: false, message: '' };
+    if (checkDebounceTimeout) clearTimeout(checkDebounceTimeout);
+    checkDebounceTimeout = setTimeout(() => {
+        validateInvoiceNumber();
+    }, 350);
+};
+
+const autoInvoicePreview = ref(props.next_invoice_number || props.next_invoice_details?.full_number || '');
+
+const onAccountChange = async () => {
+    if (!form.account_id) return;
+    try {
+        const response = await axios.get(route('invoices.next-number'), {
+            params: {
+                account_id: form.account_id,
+                invoice_type: form.invoice_type || 'sales'
+            }
+        });
+        if (response.data?.prefix) {
+            form.prefix = response.data.prefix;
+        }
+        if (response.data?.full_number) {
+            autoInvoicePreview.value = response.data.full_number;
+        }
+        // If manual invoice number is entered, re-validate with the new prefix
+        if (isManualInvoiceNumber.value && form.invoice_number?.trim()) {
+            validateInvoiceNumber();
+        }
+    } catch (err) {
+        console.error('Failed to get sequence for account', err);
+    }
+};
+
+watch(() => form.account_id, () => {
+    onAccountChange();
+});
+
+watch(isManualInvoiceNumber, (manual) => {
+    if (!manual) {
+        form.invoice_number = '';
+        invoiceNumberStatus.value = { checked: false, exists: false, message: '' };
+    } else {
+        if (!form.prefix) {
+            if (props.next_invoice_details?.prefix) {
+                form.prefix = props.next_invoice_details.prefix;
+            }
+        }
+    }
+});
+
 const resetForm = () => {
     form.reset();
     form.items = [createNewItem()];
     form.dispatch_ids = [];
     selectedDispatches.value = [];
     uninvoicedDispatches.value = [];
+    isManualInvoiceNumber.value = false;
+    invoiceNumberStatus.value = { checked: false, exists: false, message: '' };
 };
 
-const submit = () => {
+const submit = async () => {
+    // Validate manual invoice number if manual entry is enabled
+    if (isManualInvoiceNumber.value) {
+        if (!form.invoice_number?.trim()) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Invoice Number Required', 
+                detail: 'Please enter a manual invoice number or switch to auto generation.', 
+                life: 3000 
+            });
+            return;
+        }
+
+        if (!invoiceNumberStatus.value.checked || isCheckingInvoiceNumber.value) {
+            await validateInvoiceNumber();
+        }
+
+        if (invoiceNumberStatus.value.exists) {
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Duplicate Invoice', 
+                detail: invoiceNumberStatus.value.message || 'Invoice number already exists. Duplicates are not allowed.', 
+                life: 4000 
+            });
+            return;
+        }
+    }
+
     // Check item quantity client-side before sending
     for (let i = 0; i < form.items.length; i++) {
         const item = form.items[i];
@@ -303,6 +439,21 @@ const submit = () => {
             });
             toast.add({ severity: 'success', summary: 'Success', detail: 'Invoice processed successfully', life: 1500 });
         },
+        onError: (err: any) => {
+            if (err.invoice_number) {
+                invoiceNumberStatus.value = {
+                    checked: true,
+                    exists: true,
+                    message: err.invoice_number
+                };
+                toast.add({
+                    severity: 'error',
+                    summary: 'Duplicate Invoice',
+                    detail: err.invoice_number,
+                    life: 4000
+                });
+            }
+        }
     });
 };
 
@@ -394,84 +545,152 @@ const taxOptions = computed(() => props.taxes);
 
                 <form @submit.prevent="submit" class="space-y-6">
                     <!-- Top Info Grid -->
-                    <div class="grid grid-cols-1 md:grid-cols-6 gap-4 px-1">
-                        <BaseCreatableSelect
-                            v-if="isInstantPartnerEnabled"
-                            v-model="form.partner_id" 
-                            label="Partner / Customer"
-                            :options="patrons"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Partner"
-                            :error="form.errors.partner_id"
-                            required
-                            :creating="isCreatingPartner"
-                            @create="handleCreatePartner"
-                        />
-                        <BaseSelect 
-                            v-else
-                            v-model="form.partner_id" 
-                            label="Partner / Customer"
-                            :options="patrons"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Partner"
-                            :error="form.errors.partner_id"
-                            filter
-                            required
-                        />
-                         <BaseSelect 
-                            v-model="form.account_id" 
-                            label="Ledger Account"
-                            :options="accounts"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Account"
-                            :error="form.errors.account_id"
-                            filter
-                             required
-                        />
-                        <!-- <BaseSelect 
-                            v-model="form.invoice_type" 
-                            label="Document Type"
-                            :options="invoiceTypeOptions"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Type"
-                            :error="form.errors.invoice_type"
-                            required
-                        /> -->
-                        
-                    <!-- </div>
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 px-1">
+                        <div class="col-span-12 md:col-span-3">
+                            <BaseCreatableSelect
+                                v-if="isInstantPartnerEnabled"
+                                v-model="form.partner_id" 
+                                label="Partner / Customer"
+                                :options="patrons"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Select Partner"
+                                :error="form.errors.partner_id"
+                                required
+                                :creating="isCreatingPartner"
+                                @create="handleCreatePartner"
+                            />
+                            <BaseSelect 
+                                v-else
+                                v-model="form.partner_id" 
+                                label="Partner / Customer"
+                                :options="patrons"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Select Partner"
+                                :error="form.errors.partner_id"
+                                filter
+                                required
+                            />
+                        </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 px-1"> -->
-                        <BaseDatePicker
-                            v-model="form.invoice_date"
-                            label="Invoice Date"
-                            required
-                            :error="form.errors.invoice_date"
-                        />
-                        <!-- <BaseDatePicker 
-                            v-model="form.due_date" 
-                            label="Due Date" 
-                            :error="form.errors.due_date"
-                        /> -->
-                        <!-- <BaseSelect 
-                            v-model="form.truck_id" 
-                            label="Linked Vehicle"
-                            :options="trucks"
-                            optionLabel="label"
-                            optionValue="value"
-                            placeholder="Select Truck"
-                            :error="form.errors.truck_id"
-                            filter
-                        /> -->
-                        <!-- <BaseInput 
-                            v-model="form.prefix" 
-                            label="Prefix"
-                            placeholder="INV"
-                            :error="form.errors.prefix"
-                        /> -->
+                        <div class="col-span-12 md:col-span-3">
+                            <BaseSelect 
+                                v-model="form.account_id" 
+                                label="Ledger Account"
+                                :options="accounts"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Select Account"
+                                :error="form.errors.account_id"
+                                filter
+                                required
+                            />
+                        </div>
+
+                        <div class="col-span-12 md:col-span-2">
+                            <BaseDatePicker
+                                v-model="form.invoice_date"
+                                label="Invoice Date"
+                                required
+                                :error="form.errors.invoice_date"
+                            />
+                        </div>
+
+                        <!-- Manual Invoice Number & Real-Time Axios Validation -->
+                        <div class="col-span-12 md:col-span-4">
+                            <div class="flex flex-col justify-between h-full">
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                                        Invoice #
+                                    </label>
+                                    <label class="inline-flex items-center gap-1.5 cursor-pointer select-none">
+                                        <input 
+                                            type="checkbox" 
+                                            v-model="isManualInvoiceNumber" 
+                                            class="w-3.5 h-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" 
+                                        />
+                                        <span class="text-[11px] font-semibold" :class="isManualInvoiceNumber ? 'text-indigo-700 font-bold' : 'text-slate-500'">
+                                            Manual Enter
+                                        </span>
+                                    </label>
+                                </div>
+
+                                <!-- Auto-generated Preview Mode -->
+                                <div v-if="!isManualInvoiceNumber" class="flex items-center gap-2 h-10 px-3 bg-slate-50 border border-dashed border-slate-300 rounded-md text-xs text-slate-600">
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-200 text-slate-700">
+                                        AUTO
+                                    </span>
+                                    <span class="font-mono text-slate-600 font-semibold truncate" title="Will be auto-generated upon saving">
+                                        {{ autoInvoicePreview || next_invoice_number || (form.prefix ? form.prefix + 'XXXX' : 'Auto Sequence') }}
+                                    </span>
+                                    <span class="ml-auto text-[10px] text-slate-400 italic">Auto-generated</span>
+                                </div>
+
+                                <!-- Manual Entry with Axios Real-Time Validation -->
+                                <div v-else class="space-y-1">
+                                    <div class="flex items-center gap-1.5">
+                                        <!-- Locked System Prefix Display (Non-editable, tamper-proof) -->
+                                        <div 
+                                            class="w-28 h-10 px-2.5 rounded-md border border-slate-300 text-xs font-mono font-bold text-slate-700 bg-slate-100 flex items-center justify-center select-none cursor-not-allowed pointer-events-none truncate shadow-inner"
+                                            :title="'System Prefix: ' + (form.prefix || 'Auto')"
+                                        >
+                                            {{ form.prefix || 'Auto' }}
+                                        </div>
+                                        <div class="relative flex-1">
+                                            <input 
+                                                type="text" 
+                                                v-model="form.invoice_number" 
+                                                @input="onInvoiceNumberInput"
+                                                @keypress="allowOnlyInvoiceChars"
+                                                @blur="validateInvoiceNumber"
+                                                placeholder="Enter Invoice #" 
+                                                class="w-full h-10 px-3 pr-8 rounded-md border text-xs font-mono font-bold transition-all focus:outline-none focus:ring-1"
+                                                :class="[
+                                                    invoiceNumberStatus.checked && invoiceNumberStatus.exists
+                                                        ? 'border-red-500 text-red-700 bg-red-50/40 focus:ring-red-500 focus:border-red-500'
+                                                        : invoiceNumberStatus.checked && !invoiceNumberStatus.exists
+                                                        ? 'border-emerald-500 text-emerald-800 bg-emerald-50/30 focus:ring-emerald-500 focus:border-emerald-500'
+                                                        : 'border-slate-300 text-slate-800 bg-white focus:ring-indigo-500 focus:border-indigo-500'
+                                                ]"
+                                            />
+                                            <!-- Status Icon Indicator -->
+                                            <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
+                                                <svg v-if="isCheckingInvoiceNumber" class="animate-spin h-4 w-4 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                                </svg>
+                                                <span v-else-if="invoiceNumberStatus.checked && !invoiceNumberStatus.exists" class="text-emerald-600 font-bold text-sm" title="Available">
+                                                    ✓
+                                                </span>
+                                                <span v-else-if="invoiceNumberStatus.checked && invoiceNumberStatus.exists" class="text-red-600 font-bold text-sm" title="Duplicate Not Allowed">
+                                                    ✕
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Feedback Status Message -->
+                                    <div class="text-[11px] leading-tight min-h-[16px]">
+                                        <span v-if="isCheckingInvoiceNumber" class="text-indigo-600 flex items-center gap-1 font-medium">
+                                            Checking availability...
+                                        </span>
+                                        <span v-else-if="invoiceNumberStatus.checked && invoiceNumberStatus.exists" class="text-red-600 font-bold flex items-center gap-1">
+                                            <span>⚠</span> {{ invoiceNumberStatus.message }}
+                                        </span>
+                                        <span v-else-if="invoiceNumberStatus.checked && !invoiceNumberStatus.exists" class="text-emerald-700 font-bold flex items-center gap-1">
+                                            <span>✓</span> {{ invoiceNumberStatus.message }}
+                                        </span>
+                                        <span v-else-if="form.errors.invoice_number" class="text-red-600 font-bold flex items-center gap-1">
+                                            <span>⚠</span> {{ form.errors.invoice_number }}
+                                        </span>
+                                        <span v-else class="text-slate-400 text-[10px]">
+                                            Validated in real-time against plant database
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Dispatch Selection Area (Only in Dispatch Mode) -->
@@ -667,6 +886,7 @@ const taxOptions = computed(() => props.taxes);
                                     <BaseFormActions
                                         label="Invoice"
                                         :loading="form.processing"
+                                        :disabled="isManualInvoiceNumber && (invoiceNumberStatus.exists || isCheckingInvoiceNumber || !form.invoice_number?.trim())"
                                         @submit="submit"
                                         @reset="resetForm()"
                                         cancelLabel="Clear"

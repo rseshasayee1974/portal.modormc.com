@@ -117,6 +117,12 @@ class Invoice extends Model implements Postable
                 if (empty($m->invoice_number)) {
                     $m->invoice_number = $details['next_number'];
                 }
+            } else {
+                // If prefix wasn't set or was set to default INV, and ledger has custom prefix, adopt it
+                if (!empty($m->account_id) && (empty($m->prefix) || $m->prefix === 'INV' || $m->prefix === 'INV/')) {
+                    $details = self::generateNumber($m->plant_id, $m->invoice_label ?? $m->invoice_type, $m->account_id);
+                    $m->prefix = $details['prefix'];
+                }
             }
             if (!empty($m->prefix) && !empty($m->invoice_number) && str_starts_with((string)$m->invoice_number, $m->prefix)) {
                 $m->invoice_number = substr($m->invoice_number, strlen($m->prefix));
@@ -237,7 +243,12 @@ class Invoice extends Model implements Postable
              $ledger = \App\Models\Ledger::withoutGlobalScopes()->find($accountId);
              if ($ledger && !empty(trim((string)$ledger->description))) {
                  $desc = trim((string)$ledger->description);
-                 $prefix = str_ireplace('{fy}', $fy, $desc);
+                 if (stripos($desc, '{fy}') !== false) {
+                     $prefix = str_ireplace('{fy}', $fy, $desc);
+                 } else {
+                     $cleanDesc = rtrim($desc, '/');
+                     $prefix = "{$cleanDesc}/{$fy}/";
+                 }
                  $hasCustomPrefix = true;
              }
         }

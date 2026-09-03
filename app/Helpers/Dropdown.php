@@ -874,9 +874,7 @@ if (!function_exists('toSelectOptions')) {
                 'value' => data_get($item, $valueField),
             ];
             $desc = data_get($item, 'description');
-            if ($desc !== null) {
-                $opt['description'] = $desc;
-            }
+            $opt['description'] = $desc ?? '';
             return $opt;
         })->values();
     }
