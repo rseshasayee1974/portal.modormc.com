@@ -207,7 +207,11 @@ class ReportRepository
         $toDate   = isset($filters['to_date'])   ? Carbon::parse($filters['to_date'])->endOfDay()     : now()->endOfDay();
 
         $query->whereHas('order', function ($q) use ($fromDate, $toDate) {
-            $q->whereNull('deleted_at')->whereBetween('date_order', [$fromDate, $toDate]);
+            $q->whereNull('deleted_at')->where(function ($sq) use ($fromDate, $toDate) {
+                $sq->whereBetween('date_order', [$fromDate, $toDate])
+                   ->orWhereBetween('billed_date', [$fromDate, $toDate])
+                   ->orWhereBetween('created_at', [$fromDate, $toDate]);
+            });
         });
 
         // Filter: Plant Scoping (session active_plant_id OR explicit filter)

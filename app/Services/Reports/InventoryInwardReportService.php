@@ -51,7 +51,7 @@ class InventoryInwardReportService implements ReportServiceInterface
                 'vendor_name'  => $i->order->vendor->legal_name ?? 'N/A',
                 'product_name' => $i->product->title ?? 'N/A',
                 'uom'          => $i->uom->unit_code ?? $i->uom->unit_name ?? 'N/A',
-                'quantity'     => (float)$i->received_qty,
+                'quantity'     => (float)$i->received_qty . ' ' . $i->uom->unit_code,
                 'truck_no'     => $i->truck->registration ?? 'N/A',
                 'truck_loaded' => (float)$i->truck_loaded,
                 'truck_empty'  => (float)$i->truck_empty,

@@ -109,21 +109,20 @@ class Invoice extends Model implements Postable
         parent::boot();
 
         static::creating(function ($m) {
-            if (empty($m->prefix) || empty($m->invoice_number)) {
-                $details = self::generateNumber($m->plant_id, $m->invoice_label ?? $m->invoice_type, $m->account_id);
-                if (empty($m->prefix)) {
-                    $m->prefix = $details['prefix'];
-                }
-                if (empty($m->invoice_number)) {
-                    $m->invoice_number = $details['next_number'];
-                }
-            } else {
-                // If prefix wasn't set or was set to default INV, and ledger has custom prefix, adopt it
-                if (!empty($m->account_id) && (empty($m->prefix) || $m->prefix === 'INV' || $m->prefix === 'INV/')) {
-                    $details = self::generateNumber($m->plant_id, $m->invoice_label ?? $m->invoice_type, $m->account_id);
-                    $m->prefix = $details['prefix'];
-                }
+            $plantId = (int)($m->plant_id ?: session('active_plant_id') ?: 1);
+            $m->plant_id = $plantId;
+
+            // Generate default details for prefix and next number
+            $details = self::generateNumber($plantId, $m->invoice_label ?? $m->invoice_type ?? 'sales', $m->account_id);
+
+            if (empty($m->prefix) || in_array(trim($m->prefix), ['INV', 'INV/', 'Inv', 'Inv/'], true)) {
+                $m->prefix = $details['prefix'];
             }
+
+            if (empty($m->invoice_number)) {
+                $m->invoice_number = $details['next_number'];
+            }
+
             if (!empty($m->prefix) && !empty($m->invoice_number) && str_starts_with((string)$m->invoice_number, $m->prefix)) {
                 $m->invoice_number = substr($m->invoice_number, strlen($m->prefix));
             }
@@ -152,6 +151,18 @@ class Invoice extends Model implements Postable
             $m->adjustment = $m->adjustment ?? 0;
             $m->shipping_charges = $m->shipping_charges ?? 0;
             $m->round_off = $m->round_off ?? 0;
+        });
+
+        static::saving(function ($m) {
+            if (empty($m->prefix)) {
+                $plantId = (int)($m->plant_id ?: session('active_plant_id') ?: 1);
+                $details = self::generateNumber($plantId, $m->invoice_label ?? $m->invoice_type ?? 'sales', $m->account_id);
+                $m->prefix = $details['prefix'];
+            }
+
+            if (!empty($m->prefix) && !empty($m->invoice_number) && str_starts_with((string)$m->invoice_number, $m->prefix)) {
+                $m->invoice_number = substr($m->invoice_number, strlen($m->prefix));
+            }
         });
 
         static::deleted(function ($m) {
@@ -209,14 +220,15 @@ class Invoice extends Model implements Postable
     /**
      * Auto-generate invoice number: INV-YYYYMM-0001
      */
-    public static function generateNumber(int $plantId, ?string $label = 'sales', ?int $accountId = null): array
+    public static function generateNumber(?int $plantId = null, ?string $label = 'sales', ?int $accountId = null): array
     {
+        $plantId = (int)($plantId ?: session('active_plant_id') ?: 1);
         $now = now();
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
         $endYear = $startYear + 1;
         $fy = substr($startYear, -2) .'-'. substr($endYear, -2);
 
-        $normalizedLabel = strtolower($label);
+        $normalizedLabel = strtolower((string)$label);
         $query = self::withTrashed()->where('plant_id', $plantId);
 
         if ($normalizedLabel === 'purchase' || $normalizedLabel === 'bill') {

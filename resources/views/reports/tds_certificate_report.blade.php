@@ -50,10 +50,10 @@
                 <th>Date</th>
                 <th>Document No</th>
                 <th>Doc Type</th>
-                <th>Taxable Value</th>
+                <th>Taxable Value (₹)</th>
                 <th>TDS Section</th>
                 <th>TDS Rate</th>
-                <th>TDS Amount</th>
+                <th>TDS Amount (₹)</th>
             </tr>
         </thead>
         <tbody>
@@ -64,17 +64,17 @@
                         <td class="text-center">{{ $row['date'] }}</td>
                         <td>{{ $row['doc_no'] }}</td>
                         <td>{{ $row['doc_type'] }}</td>
-                        <td class="text-right">₹ {{ number_format($row['taxable_amount'], 2) }}</td>
+                        <td class="text-right">{{ number_format($row['taxable_amount'], 2) }}</td>
                         <td>{{ $row['tds_section'] }}</td>
                         <td class="text-center">{{ number_format($row['tds_rate'], 1) }} %</td>
-                        <td class="text-right" style="font-weight: bold;">₹ {{ number_format($row['tds_amount'], 2) }}</td>
+                        <td class="text-right" style="font-weight: bold;">{{ number_format($row['tds_amount'], 2) }}</td>
                     </tr>
                 @endforeach
                 <tr class="total-row">
                     <td colspan="4" class="text-right">Total:</td>
-                    <td class="text-right">₹ {{ number_format(collect($transactions)->sum('taxable_amount'), 2) }}</td>
+                    <td class="text-right">{{ number_format(collect($transactions)->sum('taxable_amount'), 2) }}</td>
                     <td colspan="2"></td>
-                    <td class="text-right">₹ {{ number_format(collect($transactions)->sum('tds_amount'), 2) }}</td>
+                    <td class="text-right">{{ number_format(collect($transactions)->sum('tds_amount'), 2) }}</td>
                 </tr>
             @else
                 <tr>

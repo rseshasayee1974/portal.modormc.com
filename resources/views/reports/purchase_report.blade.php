@@ -150,8 +150,8 @@
                         Sendamangalam (Tk),<br>
                         Namakkal (Dt), Tamil Nadu - 637409<br>
                     @endif
-                    <strong>GSTIN/UIN #:</strong> {{ $plant->gstin ?? '' }}<br>
-                    <strong>MSME - UDYAM-</strong> {{ $plant->msme_no ?? '' }}
+                    <strong>GSTIN/UIN :</strong> {{ $plant->gstin ?? '' }}<br>
+                    {{-- <strong>MSME - UDYAM-</strong> {{ $plant->msme_no ?? '' }} --}}
                 </div>
             </td>
         </tr>
@@ -175,9 +175,9 @@
                 <th width="15%">Date</th>
                 <th width="20%">PO Number</th>
                 <th width="24%">Supplier / Vendor</th>
-                <th width="12%">Taxable Amt</th>
-                <th width="12%">Tax Amt</th>
-                <th width="12%">Total Amt</th>
+                <th width="12%">Taxable Amt (₹)</th>
+                <th width="12%">Tax Amt (₹)</th>
+                <th width="12%">Total Amt (₹)</th>
             </tr>
         </thead>
         <tbody>
@@ -187,18 +187,18 @@
                     <td class="text-center">{{ \Carbon\Carbon::parse($row['date'])->format('d-m-Y') }}</td>
                     <td class="font-bold text-center">{{ $row['po_number'] }}</td>
                     <td>{{ $row['vendor_name'] }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_untaxed'], 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_tax'], 2) }}</td>
-                    <td class="text-right font-bold">₹ {{ number_format($row['amount_total'], 2) }}</td>
+                    <td class="text-right">{{ number_format($row['amount_untaxed'], 2) }}</td>
+                    <td class="text-right">{{ number_format($row['amount_tax'], 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($row['amount_total'], 2) }}</td>
                 </tr>
             @endforeach
             
             <!-- Grand Totals -->
             <tr class="total-row">
                 <td colspan="4" class="text-center font-bold">Total Details</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_untaxed, 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_tax, 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_amount, 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_untaxed, 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_tax, 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_amount, 2) }}</td>
             </tr>
         </tbody>
     </table>
@@ -218,10 +218,10 @@
                 <th width="40%">Product Name</th>
                 <th width="10%">UOM</th>
                 <th width="10%">Quantity</th>
-                <th width="11%">Avg Rate</th>
-                <th width="12%">Taxable Amt</th>
-                <th width="12%">Tax Amt</th>
-                <th width="12%">Total Amt</th>
+                <th width="11%">Avg Rate (₹)</th>
+                <th width="12%">Taxable Amt (₹)</th>
+                <th width="12%">Tax Amt (₹)</th>
+                <th width="12%">Total Amt (₹)</th>
             </tr>
         </thead>
         <tbody>
@@ -231,10 +231,10 @@
                     <td class="font-bold">{{ $row['product_name'] }}</td>
                     <td class="text-center">{{ $row['uom'] }}</td>
                     <td class="text-right">{{ number_format($row['quantity'], 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['avg_rate'], 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_untaxed'], 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_tax'], 2) }}</td>
-                    <td class="text-right font-bold">₹ {{ number_format($row['amount_total'], 2) }}</td>
+                    <td class="text-right">{{ number_format($row['avg_rate'], 2) }}</td>
+                    <td class="text-right">{{ number_format($row['amount_untaxed'], 2) }}</td>
+                    <td class="text-right">{{ number_format($row['amount_tax'], 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($row['amount_total'], 2) }}</td>
                 </tr>
             @endforeach
             
@@ -243,9 +243,9 @@
                 <td colspan="3" class="text-center font-bold">Total Summary</td>
                 <td class="text-right font-bold">{{ number_format($total_quantity, 2) }}</td>
                 <td></td>
-                <td class="text-right font-bold">₹ {{ number_format($total_product_untaxed, 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_product_tax, 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_product_amount, 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_product_untaxed, 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_product_tax, 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_product_amount, 2) }}</td>
             </tr>
         </tbody>
     </table>

@@ -37,7 +37,7 @@ class InventoryStockReportService implements ReportServiceInterface
                 'uom'          => $s->uom->unit_code ?? $s->uom->unit_name ?? 'N/A',
                 'opening_qty'  => (float)$s->opening_quantity,
                 'quantity'     => (float)$s->quantity,
-                'status'       => $s->status ? 'Active' : 'Inactive',
+                // 'status'       => $s->status ? 'Active' : 'Inactive',
             ])->values(),
             'total_quantity'  => (float)$stocks->sum('quantity'),
             'opening_balance' => 0

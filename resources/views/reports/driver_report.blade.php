@@ -206,7 +206,7 @@
     </table>
     @endif
 
-    @if(!empty($transactions) && count($transactions) > 0)
+    {{-- @if(!empty($transactions) && count($transactions) > 0)
     <!-- Section 3: Driver Batching / Trip Verification List -->
     <div class="statement-title-container" style="margin-top: 25px; border-bottom: 2px solid #0284c7; padding-bottom: 4px;">
         <h3 style="font-size: 11pt; font-weight: bold; color: #0369a1; margin: 0; text-transform: uppercase;">Every Batching / Trip Verification List ({{ count($transactions) }} Trips)</h3>
@@ -250,7 +250,7 @@
             </tr>
         </tbody>
     </table>
-    @endif
+    @endif --}}
 
     @include('pdfs.partials._footer')
 

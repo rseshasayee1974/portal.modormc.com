@@ -120,7 +120,7 @@
                         <strong>GSTIN:</strong> {{ $patron->gstin ?? '-' }}
                     @else
                         <span class="address-name">All Customers (Party wise Consolidated)</span>
-                        <span>Consolidated dispatch summary with batch size, truck weights, and revenue</span>
+                        {{-- <span>Consolidated dispatch summary with batch size, truck weights, and revenue</span> --}}
                     @endif
                 </div>
             </td>
@@ -143,61 +143,7 @@
             </td>
         </tr>
     </table>
-
-    <div class="statement-title-container">
-        <h2 class="statement-title">Customer Consolidated Report (Customer / Party wise)</h2>
-        <span class="statement-period">Reporting Period: {{ $start }} to {{ $end }}</span>
-    </div>
-
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th width="5%">#</th>
-                <th width="45%">Customer / Party Name</th>
-                <th width="15%">Trips</th>
-                <!-- <th width="8%">Batch Size</th> -->
-                <th width="15%">Delivered Qty</th>
-                <!-- <th width="8%">Empty Wt</th>
-                <th width="8%">Loaded Wt</th>
-                <th width="8%">Net Wt</th> -->
-                <!-- <th width="11%">Taxable Amt</th>
-                <th width="8%">Tax Amt</th> -->
-                <th width="20%">Total Amt</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach(($transactions ?? $items ?? []) as $index => $row)
-                <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td class="font-bold">{{ $row['party_name'] ?? $row['customer_name'] }}</td>
-                    <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
-                    <!-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> -->
-                    <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
-                    <!-- <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
-                    <td class="text-right">{{ number_format($row['loaded_weight'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td> -->
-                    <!-- <td class="text-right">₹ {{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_tax'] ?? 0, 2) }}</td> -->
-                    <td class="text-right font-bold">₹ {{ number_format($row['amount_total'] ?? 0, 2) }}</td>
-                </tr>
-            @endforeach
-            
-            <tr class="total-row">
-                <td colspan="2" class="text-center font-bold">Total Customer Volume</td>
-                <td class="text-center font-bold">{{ $total_trips ?? collect($transactions ?? $items ?? [])->sum('trips_count') }}</td>
-                <!-- <td class="text-right font-bold">{{ number_format($total_batch_size ?? 0, 2) }}</td> -->
-                <td class="text-right font-bold">{{ number_format($total_quantity ?? 0, 2) }}</td>
-                <!-- <td class="text-right font-bold">{{ number_format($total_truck_empty ?? 0, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_loaded_weight ?? 0, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_net_weight ?? 0, 2) }}</td> -->
-                <!-- <td class="text-right font-bold">₹ {{ number_format($total_untaxed ?? 0, 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_tax ?? 0, 2) }}</td> -->
-                <td class="text-right font-bold">₹ {{ number_format($total_amount ?? 0, 2) }}</td>
-            </tr>
-        </tbody>
-    </table>
-
-    @if(!empty($batch_dispatches))
+@if(!empty($batch_dispatches))
     <!-- Section 2: Customer Batching / Trip Verification List -->
     <div class="statement-title-container" style="margin-top: 25px; border-bottom: 2px solid #0284c7; padding-bottom: 4px;">
         <h3 style="font-size: 11pt; font-weight: bold; color: #0369a1; margin: 0; text-transform: uppercase;">Every Batching / Trip Verification List ({{ count($batch_dispatches) }} Trips)</h3>
@@ -217,7 +163,7 @@
                 <th width="6%">Batch (m³)</th>
                 <th width="6%">Deliv (m³)</th>
                 <th width="5%">Net (T)</th>
-                <th width="7%">Total Amt</th>
+                <th width="7%">Total Amt (₹)</th>
             </tr>
         </thead>
         <tbody>
@@ -233,7 +179,7 @@
                     <td class="text-right">{{ number_format($trip['batch_size'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($trip['delivered_qty'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($trip['net_weight'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">₹ {{ number_format($trip['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($trip['amount_total'] ?? 0, 2) }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
@@ -241,11 +187,65 @@
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('batch_size'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('delivered_qty'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('net_weight'), 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format(collect($batch_dispatches)->sum('amount_total'), 2) }}</td>
+                <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('amount_total'), 2) }}</td>
             </tr>
         </tbody>
     </table>
     @endif
+    <div class="statement-title-container">
+        <h2 class="statement-title">Customer Consolidated Report (Customer / Party wise)</h2>
+        <span class="statement-period">Reporting Period: {{ $start }} to {{ $end }}</span>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="5%">#</th>
+                <th width="45%">Customer / Party Name</th>
+                <th width="15%">Trips</th>
+                <!-- <th width="8%">Batch Size</th> -->
+                <th width="15%">Delivered Qty</th>
+                <!-- <th width="8%">Empty Wt</th>
+                <th width="8%">Loaded Wt</th>
+                <th width="8%">Net Wt</th> -->
+                <!-- <th width="11%">Taxable Amt</th>
+                <th width="8%">Tax Amt</th> -->
+                <th width="20%">Total Amt (₹)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach(($transactions ?? $items ?? []) as $index => $row)
+                <tr>
+                    <td class="text-center">{{ $index + 1 }}</td>
+                    <td class="font-bold">{{ $row['party_name'] ?? $row['customer_name'] }}</td>
+                    <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
+                    <!-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> -->
+                    <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
+                    <td class="text-right">{{ number_format($row['loaded_weight'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td> -->
+                    <!-- <td class="text-right">{{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
+                    <td class="text-right">{{ number_format($row['amount_tax'] ?? 0, 2) }}</td> -->
+                    <td class="text-right font-bold">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                </tr>
+            @endforeach
+            
+            <tr class="total-row">
+                <td colspan="2" class="text-center font-bold">Total Customer Volume</td>
+                <td class="text-center font-bold">{{ $total_trips ?? collect($transactions ?? $items ?? [])->sum('trips_count') }}</td>
+                <!-- <td class="text-right font-bold">{{ number_format($total_batch_size ?? 0, 2) }}</td> -->
+                <td class="text-right font-bold">{{ number_format($total_quantity ?? 0, 2) }}</td>
+                <!-- <td class="text-right font-bold">{{ number_format($total_truck_empty ?? 0, 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_loaded_weight ?? 0, 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_net_weight ?? 0, 2) }}</td> -->
+                <!-- <td class="text-right font-bold">{{ number_format($total_untaxed ?? 0, 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_tax ?? 0, 2) }}</td> -->
+                <td class="text-right font-bold">{{ number_format($total_amount ?? 0, 2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    
 
     @php
         $resolvedPlantName = ($plantName ?? $plant?->name ?? '');

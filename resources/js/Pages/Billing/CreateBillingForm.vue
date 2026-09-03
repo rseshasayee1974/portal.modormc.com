@@ -53,7 +53,7 @@ const form = useForm({
     journal_id: null,
     invoice_type: 'bill',
     invoice_label: 'Purchase Bill',
-    prefix: 'BILL',
+    prefix: props.next_invoice_details?.prefix || '',
     invoice_number: '',
     ref_id: null,
     ref_title: '',

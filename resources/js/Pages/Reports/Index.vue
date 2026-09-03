@@ -99,11 +99,11 @@ const modules = [
         name: 'Production & Dispatch',
         reports: [
             { id: 'sales', name: 'Sales & Dispatches', description: 'Invoice listings, dispatch volumes and concrete grades' },
-            { id: 'product_consolidated', name: 'Product Consolidated Report', description: 'Mix design & concrete grade wise dispatches with batch size, weights, and revenue' },
+            { id: 'product_consolidated', name: 'Product  Report', description: 'Mix design & concrete grade wise dispatches with batch size, weights, and revenue' },
             { id: 'customer_consolidated', name: 'Customer Report', description: 'Customer wise dispatches consolidated with batch size, weights, and billing totals' },
-            { id: 'truck_consolidated', name: 'Truck Consolidated Report', description: 'Transit mixer & vehicle wise dispatches with batch size, weights, and trip counts' },
-            { id: 'site_consolidated', name: 'Unload Site Consolidated Report', description: 'Delivery & unloading site destination wise consolidated dispatches' },
-            { id: 'payment_mode_consolidated', name: 'Payment Mode Consolidated Report', description: 'Settlement terms & payment mode wise consolidated volumes' },
+            { id: 'truck_consolidated', name: 'Truck  Report', description: 'Transit mixer & vehicle wise dispatches with batch size, weights, and trip counts' },
+            { id: 'site_consolidated', name: 'Unload Site  Report', description: 'Delivery & unloading site destination wise consolidated dispatches' },
+            { id: 'payment_mode_consolidated', name: 'Payment Mode  Report', description: 'Settlement terms & payment mode wise consolidated volumes' },
             { id: 'sales_executive', name: 'Sales Executive Report', description: 'Sales executive wise consolidated dispatches, volumes, trip counts, and revenue performance' },
             { id: 'driver', name: 'Driver Report', description: 'Driver wise vehicle trips, delivered volume, batch sizes, and truck weights' },
             { id: 'sales_register', name: 'Sales Register Report', description: 'Itemized sales invoices with GST breakdown, rate, and taxable values' },
@@ -116,8 +116,8 @@ const modules = [
         reports: [
             { id: 'machines_list', name: 'Machine Fleet Inventory', description: 'Active fleet list, mixer capacities and vehicle specs' },
             { id: 'driver', name: 'Driver Trip Report', description: 'Driver transit mixer trips, volume, and vehicle weights' },
-            { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
-            { id: 'vehicle_pl', name: 'Vehicle Wise Profit & Loss', description: 'Vehicle financial breakdown: revenue, trip costs, fuel/maintenance, total costs, net profit, and profit margin %' },
+            // { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
+            // { id: 'vehicle_pl', name: 'Vehicle Wise Profit & Loss', description: 'Vehicle financial breakdown: revenue, trip costs, fuel/maintenance, total costs, net profit, and profit margin %' },
         ]
     },
     {

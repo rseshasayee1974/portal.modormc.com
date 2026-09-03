@@ -56,7 +56,7 @@ const props = defineProps({
                             <!-- <th class="py-3 px-3 text-right" width="10%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="10%">Delivered Qty</th>
                             <th class="py-3 px-3 text-right" width="9%">Net Wt</th>
-                            <th class="py-3 px-3 text-right" width="9%">Avg Rate</th>
+                            <!-- <th class="py-3 px-3 text-right" width="9%">Avg Rate</th> -->
                             <th class="py-3 px-3 text-right" width="10%">Total Amt</th>
                         </tr>
                     </thead>
@@ -70,7 +70,7 @@ const props = defineProps({
                             <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
                             <td class="py-2.5 px-3 text-right font-semibold text-slate-800">{{ formatQuantity(row.netweight) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.avg_rate) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.avg_rate) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
                         </tr>
                         <tr v-if="!reportData.transactions?.length">
@@ -82,7 +82,7 @@ const props = defineProps({
                             <!-- <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_batch_size) }}</td> -->
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_quantity) }}</td>
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_net_weight) }}</td>
-                            <td></td>
+                            <!-- <td></td> -->
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_amount) }}</td>
                         </tr>
                     </tbody>

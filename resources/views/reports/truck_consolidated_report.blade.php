@@ -137,50 +137,6 @@
         </tr>
     </table>
 
-    <div class="statement-title-container">
-        <h2 class="statement-title">Truck Consolidated & Trip Performance Report</h2>
-        <span class="statement-period">Reporting Period: {{ $start }} to {{ $end }}</span>
-    </div>
-
-    @if(!empty($truck_groups) && count($truck_groups) > 0)
-    <!-- Section 1: Truck Fleet Consolidated Summary -->
-    <div class="statement-title-container" style="margin-top: 10px; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px;">
-        <h3 style="font-size: 10pt; font-weight: bold; color: #334155; margin: 0; text-transform: uppercase;">Fleet Consolidated Summary</h3>
-    </div>
-
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th width="5%">#</th>
-                <th width="25%">Truck / Mixer Reg</th>
-                <th width="15%">Trips</th>
-                <th width="18%">Batch Size (m³)</th>
-                <th width="18%">Delivered Qty (m³)</th>
-                <th width="19%">Total Amt</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($truck_groups as $index => $tg)
-                <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td class="font-bold text-center" style="color: #4338ca;">{{ $tg['truck_no'] }}</td>
-                    <td class="text-center font-bold">{{ $tg['trips_count'] }}</td>
-                    <td class="text-right">{{ number_format($tg['total_batch'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($tg['total_qty'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">₹ {{ number_format($tg['total_amount'] ?? 0, 2) }}</td>
-                </tr>
-            @endforeach
-            <tr class="total-row">
-                <td colspan="2" class="text-center font-bold">Grand Fleet Total</td>
-                <td class="text-center font-bold">{{ $total_trips ?? collect($truck_groups)->sum('trips_count') }}</td>
-                <td class="text-right font-bold">{{ number_format($total_batch_size ?? collect($truck_groups)->sum('total_batch'), 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_quantity ?? collect($truck_groups)->sum('total_qty'), 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_amount ?? collect($truck_groups)->sum('total_amount'), 2) }}</td>
-            </tr>
-        </tbody>
-    </table>
-    @endif
-
     @php
         $trips = $truck_trips ?? $transactions ?? $items ?? [];
     @endphp
@@ -205,9 +161,9 @@
                 <th width="5%">Empty Wt</th>
                 <th width="5%">Load Wt</th>
                 <th width="5%">Net Wt</th>
-                <th width="7%">Taxable Amt</th>
-                <th width="6%">Tax Amt</th>
-                <th width="8%">Total Amt</th>
+                <th width="7%">Taxable Amt (₹)</th>
+                <th width="6%">Tax Amt (₹)</th>
+                <th width="8%">Total Amt (₹)</th>
             </tr>
         </thead>
         <tbody>
@@ -224,9 +180,9 @@
                     <td class="text-right">{{ number_format($row['empty_weight'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['loaded_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($row['net_weight'] ?? 0, 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_tax'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">₹ {{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right">{{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
+                    <td class="text-right">{{ number_format($row['amount_tax'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
                 </tr>
             @endforeach
             
@@ -236,12 +192,57 @@
                 <td class="text-right font-bold">{{ number_format($total_truck_empty ?? collect($trips)->sum('empty_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_loaded_weight ?? collect($trips)->sum('loaded_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_net_weight ?? collect($trips)->sum('net_weight'), 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_untaxed ?? collect($trips)->sum('amount_untaxed'), 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_tax ?? collect($trips)->sum('amount_tax'), 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_amount ?? collect($trips)->sum('amount_total'), 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_untaxed ?? collect($trips)->sum('amount_untaxed'), 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_tax ?? collect($trips)->sum('amount_tax'), 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_amount ?? collect($trips)->sum('amount_total'), 2) }}</td>
             </tr>
         </tbody>
     </table>
+    <div class="statement-title-container">
+        <h2 class="statement-title">Truck Consolidated & Trip Performance Report</h2>
+        <span class="statement-period">Reporting Period: {{ $start }} to {{ $end }}</span>
+    </div>
+
+    @if(!empty($truck_groups) && count($truck_groups) > 0)
+    <!-- Section 1: Truck Fleet Consolidated Summary -->
+    <div class="statement-title-container" style="margin-top: 10px; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px;">
+        <h3 style="font-size: 10pt; font-weight: bold; color: #334155; margin: 0; text-transform: uppercase;">Fleet Consolidated Summary</h3>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th width="5%">#</th>
+                <th width="25%">Truck / Mixer Reg</th>
+                <th width="15%">Trips</th>
+                <th width="18%">Batch Size (m³)</th>
+                <th width="18%">Delivered Qty (m³)</th>
+                <th width="19%">Total Amt (₹)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach($truck_groups as $index => $tg)
+                <tr>
+                    <td class="text-center">{{ $index + 1 }}</td>
+                    <td class="font-bold text-center" style="color: #4338ca;">{{ $tg['truck_no'] }}</td>
+                    <td class="text-center font-bold">{{ $tg['trips_count'] }}</td>
+                    <td class="text-right">{{ number_format($tg['total_batch'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($tg['total_qty'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($tg['total_amount'] ?? 0, 2) }}</td>
+                </tr>
+            @endforeach
+            <tr class="total-row">
+                <td colspan="2" class="text-center font-bold">Grand Fleet Total</td>
+                <td class="text-center font-bold">{{ $total_trips ?? collect($truck_groups)->sum('trips_count') }}</td>
+                <td class="text-right font-bold">{{ number_format($total_batch_size ?? collect($truck_groups)->sum('total_batch'), 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_quantity ?? collect($truck_groups)->sum('total_qty'), 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_amount ?? collect($truck_groups)->sum('total_amount'), 2) }}</td>
+            </tr>
+        </tbody>
+    </table>
+    @endif
+
+   
 
     <div style="margin-top: 25px; border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 8pt; color: #64748b; display: table; width: 100%;">
         <div style="display: table-cell; text-align: left; vertical-align: middle;">

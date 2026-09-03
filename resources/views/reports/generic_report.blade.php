@@ -152,7 +152,7 @@
                         Sendamangalam (Tk),<br>
                         Namakkal (Dt), Tamil Nadu - 637409<br>
                     @endif
-                    <strong>GSTIN/UIN #:</strong> {{ $plant->gstin ?? '' }}<br>
+                    <strong>GSTIN/UIN :</strong> {{ $plant->gstin ?? '' }}<br>
                 </div>
             </td>
         </tr>

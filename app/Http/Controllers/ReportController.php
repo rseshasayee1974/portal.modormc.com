@@ -170,11 +170,11 @@ class ReportController extends Controller
         $extraParams = [];
         if (str_contains(strtolower($type), 'inventory_stock')) {
             $extraParams = [
-                'headers'    => ['Date', 'Product Name', 'UOM', 'Opening Qty', 'Current Stock', 'Status'],
-                'fields'     => ['date', 'product_name', 'uom', 'opening_qty', 'quantity', 'status'],
-                'alignments' => ['center', 'left', 'center', 'right', 'right', 'center'],
+                'headers'    => ['Date', 'Product Name', 'UOM', 'Opening Qty', 'Current Stock'],
+                'fields'     => ['date', 'product_name', 'uom', 'opening_qty', 'quantity'],
+                'alignments' => ['center', 'left', 'center', 'right', 'right'],
                 'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
-            ];
+        ];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
             $extraParams = [
                 'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Truck No'],

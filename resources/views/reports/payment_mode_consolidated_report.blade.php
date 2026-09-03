@@ -153,7 +153,7 @@
                 <th width="15%">Trips</th>
                 <!-- <th width="14%">Batch Size</th> -->
                 <th width="15%">Delivered Qty</th>
-                <th width="20%">Total Amt</th>
+                <th width="20%">Total Amt (₹)</th>
             </tr>
         </thead>
         <tbody>
@@ -164,7 +164,7 @@
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
                     <!-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> -->
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">₹ {{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
                 </tr>
             @endforeach
             
@@ -173,7 +173,7 @@
                 <td class="text-center font-bold">{{ $total_trips ?? collect($transactions ?? $items ?? [])->sum('trips_count') }}</td>
                 <!-- <td class="text-right font-bold">{{ number_format($total_batch_size ?? 0, 2) }}</td> -->
                 <td class="text-right font-bold">{{ number_format($total_quantity ?? 0, 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_amount ?? 0, 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_amount ?? 0, 2) }}</td>
             </tr>
         </tbody>
     </table>
@@ -197,7 +197,7 @@
                 <th width="10%">Truck / Mixer</th>
                 <th width="12%">Grade / Mix</th>
                 <th width="6%">Deliv (m³)</th>
-                <th width="6%">Total Amt</th>
+                <th width="6%">Total Amt (₹)</th>
             </tr>
         </thead>
         <tbody>
@@ -212,13 +212,13 @@
                     <td class="text-center font-bold" style="color: #0369a1;">{{ $trip['truck_no'] ?? '-' }}</td>
                     <td class="text-center font-bold" style="color: #4338ca;">{{ $trip['concrete_grade'] ?? $trip['mix_name'] ?? '-' }}</td>
                     <td class="text-right font-bold">{{ number_format($trip['delivered_qty'] ?? $trip['quantity'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">₹ {{ number_format($trip['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($trip['amount_total'] ?? 0, 2) }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
                 <td colspan="8" class="text-center font-bold">Total Batch Dispatches ({{ count($batch_dispatches) }} Trips)</td>
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('delivered_qty'), 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format(collect($batch_dispatches)->sum('amount_total'), 2) }}</td>
+                <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('amount_total'), 2) }}</td>
             </tr>
         </tbody>
     </table>
