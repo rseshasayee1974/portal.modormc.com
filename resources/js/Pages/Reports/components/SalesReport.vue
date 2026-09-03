@@ -244,7 +244,7 @@ const visiblePages = computed(() => {
                 <span class="text-slate-400 font-normal normal-case">Consolidated by Mix Design & Concrete Grade with Batch Size and Weights</span>
             </div>
             <div class="overflow-x-auto border border-slate-200 rounded-b">
-                <table class="w-full text-left border-collapse min-w-[1100px]">
+                <table class="w-full text-left border-collapse ">
                     <thead>
                         <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
                             <th class="py-3 px-3 text-center" width="4%">#</th>
@@ -252,14 +252,14 @@ const visiblePages = computed(() => {
                             <th class="py-3 px-3 text-center" width="10%">Grade</th>
                             <th class="py-3 px-3 text-center" width="6%">UOM</th>
                             <th class="py-3 px-3 text-center" width="6%">Trips</th>
-                            <th class="py-3 px-3 text-right" width="7%">Batch Size</th>
+                            <!-- <th class="py-3 px-3 text-right" width="7%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="7%">Delivered Qty</th>
-                            <th class="py-3 px-3 text-right" width="7%">Empty Wt</th>
+                            <!-- <th class="py-3 px-3 text-right" width="7%">Empty Wt</th>
                             <th class="py-3 px-3 text-right" width="7%">Loaded Wt</th>
                             <th class="py-3 px-3 text-right" width="7%">Net Wt</th>
                             <th class="py-3 px-3 text-right" width="7%">Avg Rate</th>
                             <th class="py-3 px-3 text-right" width="8%">Taxable Amt</th>
-                            <th class="py-3 px-3 text-right" width="7%">Tax Amt</th>
+                            <th class="py-3 px-3 text-right" width="7%">Tax Amt</th> -->
                             <th class="py-3 px-3 text-right" width="9%">Total Amt</th>
                         </tr>
                     </thead>
@@ -270,14 +270,14 @@ const visiblePages = computed(() => {
                             <td class="py-2.5 px-3 text-center font-bold text-indigo-700">{{ row.concrete_grade }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-500 font-medium">{{ row.uom }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-700 font-bold">{{ row.trips_count }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(row.truck_empty) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(row.truck_empty) }}</td>
                             <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(row.loaded_weight) }}</td>
                             <td class="py-2.5 px-3 text-right font-semibold text-slate-800">{{ formatQuantity(row.netweight) }}</td>
                             <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.avg_rate) }}</td>
                             <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_untaxed) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_tax) }}</td>
+                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_tax) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
                         </tr>
                         <tr v-if="!reportData.product_summary?.length">
@@ -286,14 +286,14 @@ const visiblePages = computed(() => {
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                             <td colspan="4" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Product Summary</td>
                             <td class="py-3.5 px-3 text-center text-[#1d2d3e] font-black">{{ reportData.product_summary?.reduce((acc, r) => acc + (r.trips_count || 0), 0) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_product_batch_size) }}</td>
+                            <!-- <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_product_batch_size) }}</td> -->
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_product_quantity || reportData.total_quantity) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_product_truck_empty) }}</td>
+                            <!-- <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_product_truck_empty) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_product_loaded_weight) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_product_net_weight) }}</td>
                             <td></td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_product_untaxed) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_product_tax) }}</td>
+                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_product_tax) }}</td> -->
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_product_amount) }}</td>
                         </tr>
                     </tbody>
@@ -308,19 +308,19 @@ const visiblePages = computed(() => {
                 <span class="text-slate-400 font-normal normal-case">Consolidated by Customer with Batch Size and Weights</span>
             </div>
             <div class="overflow-x-auto border border-slate-200 rounded-b">
-                <table class="w-full text-left border-collapse min-w-[950px]">
+                <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
                             <th class="py-3 px-3 text-center" width="4%">#</th>
                             <th class="py-3 px-3" width="26%">Customer / Party Name</th>
                             <th class="py-3 px-3 text-center" width="7%">Trips</th>
-                            <th class="py-3 px-3 text-right" width="9%">Batch Size</th>
+                            <!-- <th class="py-3 px-3 text-right" width="9%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="10%">Delivered Qty</th>
-                            <th class="py-3 px-3 text-right" width="9%">Empty Wt</th>
+                            <!-- <th class="py-3 px-3 text-right" width="9%">Empty Wt</th>
                             <th class="py-3 px-3 text-right" width="9%">Loaded Wt</th>
-                            <th class="py-3 px-3 text-right" width="9%">Net Wt</th>
-                            <th class="py-3 px-3 text-right" width="11%">Taxable Amt</th>
-                            <th class="py-3 px-3 text-right" width="10%">Tax Amt</th>
+                            <th class="py-3 px-3 text-right" width="9%">Net Wt</th> -->
+                            <!-- <th class="py-3 px-3 text-right" width="11%">Taxable Amt</th>
+                            <th class="py-3 px-3 text-right" width="10%">Tax Amt</th> -->
                             <th class="py-3 px-3 text-right" width="11%">Total Amt</th>
                         </tr>
                     </thead>
@@ -329,13 +329,13 @@ const visiblePages = computed(() => {
                             <td class="py-2.5 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                             <td class="py-2.5 px-3 font-bold text-slate-800">{{ row.party_name }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-700 font-bold">{{ row.trips_count }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(row.truck_empty) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(row.truck_empty) }}</td>
                             <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(row.loaded_weight) }}</td>
-                            <td class="py-2.5 px-3 text-right font-semibold text-slate-800">{{ formatQuantity(row.netweight) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_untaxed) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_tax) }}</td>
+                            <td class="py-2.5 px-3 text-right font-semibold text-slate-800">{{ formatQuantity(row.netweight) }}</td> -->
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_untaxed) }}</td>
+                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_tax) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
                         </tr>
                         <tr v-if="!reportData.party_summary?.length">
@@ -344,13 +344,13 @@ const visiblePages = computed(() => {
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                             <td colspan="2" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Customer Volume</td>
                             <td class="py-3.5 px-3 text-center text-[#1d2d3e] font-black">{{ reportData.party_summary?.reduce((acc, r) => acc + (r.trips_count || 0), 0) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_party_batch_size) }}</td>
+                            <!-- <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_party_batch_size) }}</td> -->
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_party_quantity) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_party_truck_empty) }}</td>
+                            <!-- <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_party_truck_empty) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_party_loaded_weight) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_party_net_weight) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_party_untaxed) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_party_tax) }}</td>
+                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_party_net_weight) }}</td> -->
+                            <!-- <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_party_untaxed) }}</td>
+                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_party_tax) }}</td> -->
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_party_amount) }}</td>
                         </tr>
                     </tbody>
@@ -371,13 +371,13 @@ const visiblePages = computed(() => {
                             <th class="py-3 px-3 text-center" width="4%">#</th>
                             <th class="py-3 px-3" width="26%">Truck / Vehicle Registration</th>
                             <th class="py-3 px-3 text-center" width="7%">Trips</th>
-                            <th class="py-3 px-3 text-right" width="9%">Batch Size</th>
+                            <!-- <th class="py-3 px-3 text-right" width="9%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="10%">Delivered Qty</th>
                             <th class="py-3 px-3 text-right" width="9%">Empty Wt</th>
                             <th class="py-3 px-3 text-right" width="9%">Loaded Wt</th>
                             <th class="py-3 px-3 text-right" width="9%">Net Wt</th>
-                            <th class="py-3 px-3 text-right" width="11%">Taxable Amt</th>
-                            <th class="py-3 px-3 text-right" width="10%">Tax Amt</th>
+                            <!-- <th class="py-3 px-3 text-right" width="11%">Taxable Amt</th>
+                            <th class="py-3 px-3 text-right" width="10%">Tax Amt</th> -->
                             <th class="py-3 px-3 text-right" width="11%">Total Amt</th>
                         </tr>
                     </thead>
@@ -386,13 +386,13 @@ const visiblePages = computed(() => {
                             <td class="py-2.5 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                             <td class="py-2.5 px-3 font-bold text-slate-800">{{ row.truck_no }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-700 font-bold">{{ row.trips_count }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
                             <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(row.truck_empty) }}</td>
                             <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(row.loaded_weight) }}</td>
                             <td class="py-2.5 px-3 text-right font-semibold text-slate-800">{{ formatQuantity(row.netweight) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_untaxed) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_tax) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_untaxed) }}</td>
+                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_tax) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
                         </tr>
                         <tr v-if="!reportData.truck_summary?.length">
@@ -401,13 +401,13 @@ const visiblePages = computed(() => {
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                             <td colspan="2" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Fleet Volume</td>
                             <td class="py-3.5 px-3 text-center text-[#1d2d3e] font-black">{{ reportData.total_truck_trips || reportData.truck_summary?.reduce((acc, r) => acc + (r.trips_count || 0), 0) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_truck_batch_size) }}</td>
+                            <!-- <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_truck_batch_size) }}</td> -->
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_truck_quantity) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_truck_empty) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_truck_loaded_weight) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_truck_net_weight) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_truck_untaxed) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_truck_tax) }}</td>
+                            <!-- <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_truck_untaxed) }}</td>
+                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_truck_tax) }}</td> -->
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_truck_amount) }}</td>
                         </tr>
                     </tbody>
@@ -472,7 +472,7 @@ const visiblePages = computed(() => {
                             <th class="py-3 px-3 text-center" width="5%">#</th>
                             <th class="py-3 px-3" width="40%">Payment Mode</th>
                             <th class="py-3 px-3 text-center" width="13%">Trips</th>
-                            <th class="py-3 px-3 text-right" width="14%">Batch Size</th>
+                            <!-- <th class="py-3 px-3 text-right" width="14%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="14%">Delivered Qty</th>
                             <th class="py-3 px-3 text-right" width="14%">Total Amt</th>
                         </tr>
@@ -482,7 +482,7 @@ const visiblePages = computed(() => {
                             <td class="py-2.5 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                             <td class="py-2.5 px-3 font-bold text-slate-800">{{ row.payment_mode }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-700 font-bold">{{ row.trips_count }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
                             <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
                         </tr>
@@ -492,7 +492,7 @@ const visiblePages = computed(() => {
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                             <td colspan="2" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Payment Modes</td>
                             <td class="py-3.5 px-3 text-center text-[#1d2d3e] font-black">{{ reportData.total_payment_mode_trips || reportData.payment_mode_summary?.reduce((acc, r) => acc + (r.trips_count || 0), 0) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_payment_mode_batch_size) }}</td>
+                            <!-- <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_payment_mode_batch_size) }}</td> -->
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_payment_mode_quantity) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_payment_mode_amount) }}</td>
                         </tr>

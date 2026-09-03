@@ -73,8 +73,31 @@ class BatchSheetUploadController extends Controller
 
             // Dump complete extracted data and workflow state for inspection
             $upload->refresh();
+
+            $ocrEngine = 'Unknown Engine';
+            if (!empty($upload->parser_used)) {
+                if (stripos($upload->parser_used, 'AI') !== false) {
+                    $ocrEngine = 'AI Vision (Gemini / OpenAI)';
+                } elseif (stripos($upload->parser_used, 'Python') !== false || stripos($upload->parser_used, 'EasyOCR') !== false) {
+                    $ocrEngine = stripos($upload->parser_used, 'Fallback') !== false 
+                        ? 'Python Script (EasyOCR Secondary Fallback)' 
+                        : 'Python Script (batch_sheet_ocr.py / EasyOCR)';
+                } elseif (stripos($upload->parser_used, 'PDF') !== false || stripos($upload->parser_used, 'Plant') !== false) {
+                    $ocrEngine = 'Native PDF Text Parser (Digital PDF Text)';
+                } elseif (stripos($upload->parser_used, 'Excel') !== false || stripos($upload->parser_used, 'CSV') !== false) {
+                    $ocrEngine = 'Spreadsheet / Tabular Parser';
+                } else {
+                    $ocrEngine = $upload->parser_used;
+                }
+            }
+
+            Log::info("BatchSheetUpload [ID: {$upload->id}] - OCR Engine: [{$ocrEngine}] | Parser: [{$upload->parser_used}] | OCR Required: " . ($upload->ocr_required ? 'Yes' : 'No'));
+
             // dd([
             //     'workflow_step' => 'Batch Sheet Upload & OCR Extraction Workflow',
+            //     'ocr_processed_by' => $ocrEngine,
+            //     'ocr_source' => stripos($upload->parser_used, 'AI') !== false ? 'AI' : (stripos($upload->parser_used, 'Python') !== false ? 'Python Script' : 'Native Text Parser'),
+            //     'parser_used' => $upload->parser_used,
             //     'upload_record' => [
             //         'id' => $upload->id,
             //         'plant_id' => $upload->plant_id,
@@ -84,6 +107,7 @@ class BatchSheetUploadController extends Controller
             //         'mime_type' => $upload->mime_type,
             //         'file_extension' => $upload->file_extension,
             //         'ocr_required' => $upload->ocr_required,
+            //         'ocr_engine' => $ocrEngine,
             //         'parser_used' => $upload->parser_used,
             //         'status' => $upload->status,
             //     ],
@@ -99,11 +123,30 @@ class BatchSheetUploadController extends Controller
             //     'step_3_field_confidence_scores' => $upload->field_scores,
             //     'step_4_normalized_database_ready_json' => $upload->normalized_json,
             //     'raw_ocr_full_text' => $upload->raw_text,
-            // ]);
+            $header = $upload->normalized_json['header'] ?? $upload->parsed_json['header_fields'] ?? [];
+            $materials = $upload->normalized_json['materials'] ?? $upload->parsed_json['materials'] ?? [];
 
             return response()->json([
                 'status' => 'success',
                 'upload_id' => $upload->id,
+                'file_url' => $upload->file_url,
+                'stored_path' => $upload->stored_path,
+                'parser_used' => $upload->parser_used,
+                'ocr_engine' => $ocrEngine,
+                'header' => $header,
+                'materials' => $materials,
+                'normalized_json' => $upload->normalized_json,
+                'parsed_json' => $upload->parsed_json,
+                'confidence_score' => $upload->confidence_score,
+                'field_scores' => $upload->field_scores,
+                'data' => [
+                    'original_url' => $upload->file_url,
+                    'file_url' => $upload->file_url,
+                    'header' => $header,
+                    'materials' => $materials,
+                    'batch_no' => $header['batch_no'] ?? $header['batch_number'] ?? null,
+                    'batch_size' => $header['batch_size'] ?? null,
+                ],
                 'message' => 'Batch sheet uploaded and extracted successfully.'
             ]);
 

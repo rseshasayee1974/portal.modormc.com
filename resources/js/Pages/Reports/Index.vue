@@ -100,7 +100,7 @@ const modules = [
         reports: [
             { id: 'sales', name: 'Sales & Dispatches', description: 'Invoice listings, dispatch volumes and concrete grades' },
             { id: 'product_consolidated', name: 'Product Consolidated Report', description: 'Mix design & concrete grade wise dispatches with batch size, weights, and revenue' },
-            { id: 'customer_consolidated', name: 'Customer Consolidated Report', description: 'Customer wise dispatches consolidated with batch size, weights, and billing totals' },
+            { id: 'customer_consolidated', name: 'Customer Report', description: 'Customer wise dispatches consolidated with batch size, weights, and billing totals' },
             { id: 'truck_consolidated', name: 'Truck Consolidated Report', description: 'Transit mixer & vehicle wise dispatches with batch size, weights, and trip counts' },
             { id: 'site_consolidated', name: 'Unload Site Consolidated Report', description: 'Delivery & unloading site destination wise consolidated dispatches' },
             { id: 'payment_mode_consolidated', name: 'Payment Mode Consolidated Report', description: 'Settlement terms & payment mode wise consolidated volumes' },

@@ -242,19 +242,19 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th width="4%">#</th>
-                <th width="18%">Mix Design Name</th>
-                <th width="8%">Grade</th>
-                <th width="5%">UOM</th>
-                <th width="5%">Trips</th>
-                <th width="7%">Batch Size</th>
-                <th width="7%">Delivered Qty</th>
-                <th width="7%">Empty Wt</th>
+                <th width="5%">#</th>
+                <th width="35%">Mix Design Name</th>
+                <th width="15%">Grade</th>
+                <th width="10%">UOM</th>
+                <th width="10%">Trips</th>
+                <!-- <th width="7%">Batch Size</th> -->
+                <th width="10%">Delivered Qty</th>
+                <!-- <th width="7%">Empty Wt</th>
                 <th width="7%">Loaded Wt</th>
                 <th width="7%">Net Wt</th>
                 <th width="8%">Taxable Amt</th>
-                <th width="8%">Tax Amt</th>
-                <th width="9%">Total Amt</th>
+                <th width="8%">Tax Amt</th> -->
+                <th width="15%">Total Amt</th>
             </tr>
         </thead>
         <tbody>
@@ -265,13 +265,13 @@
                     <td class="text-center font-bold" style="color: #4338ca;">{{ $row['concrete_grade'] ?? 'N/A' }}</td>
                     <td class="text-center">{{ $row['uom'] ?? 'm³' }}</td>
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
-                    <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> -->
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
-                    <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['loaded_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td>
                     <td class="text-right">₹ {{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_tax'] ?? 0, 2) }}</td>
+                    <td class="text-right">₹ {{ number_format($row['amount_tax'] ?? 0, 2) }}</td> -->
                     <td class="text-right font-bold">₹ {{ number_format($row['amount_total'] ?? 0, 2) }}</td>
                 </tr>
             @endforeach
@@ -280,13 +280,13 @@
             <tr class="total-row">
                 <td colspan="4" class="text-center font-bold">Total Product Summary</td>
                 <td class="text-center font-bold">{{ collect($product_summary)->sum('trips_count') }}</td>
-                <td class="text-right font-bold">{{ number_format($total_product_batch_size ?? collect($product_summary)->sum('batch_size'), 2) }}</td>
+                <!-- <td class="text-right font-bold">{{ number_format($total_product_batch_size ?? collect($product_summary)->sum('batch_size'), 2) }}</td> -->
                 <td class="text-right font-bold">{{ number_format($total_product_quantity ?? $total_quantity, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_product_truck_empty ?? collect($product_summary)->sum('truck_empty'), 2) }}</td>
+                <!-- <td class="text-right font-bold">{{ number_format($total_product_truck_empty ?? collect($product_summary)->sum('truck_empty'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_product_loaded_weight ?? collect($product_summary)->sum('loaded_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_product_net_weight ?? collect($product_summary)->sum('netweight'), 2) }}</td>
                 <td class="text-right font-bold">₹ {{ number_format($total_product_untaxed, 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_product_tax, 2) }}</td>
+                <td class="text-right font-bold">₹ {{ number_format($total_product_tax, 2) }}</td> -->
                 <td class="text-right font-bold">₹ {{ number_format($total_product_amount, 2) }}</td>
             </tr>
         </tbody>
@@ -303,17 +303,17 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th width="4%">#</th>
-                <th width="26%">Customer / Party Name</th>
-                <th width="6%">Trips</th>
-                <th width="8%">Batch Size</th>
-                <th width="9%">Delivered Qty</th>
-                <th width="8%">Empty Wt</th>
+                <th width="5%">#</th>
+                <th width="45%">Customer / Party Name</th>
+                <th width="15%">Trips</th>
+                <!-- <th width="8%">Batch Size</th> -->
+                <th width="15%">Delivered Qty</th>
+                <!-- <th width="8%">Empty Wt</th>
                 <th width="8%">Loaded Wt</th>
-                <th width="8%">Net Wt</th>
-                <th width="11%">Taxable Amt</th>
-                <th width="8%">Tax Amt</th>
-                <th width="10%">Total Amt</th>
+                <th width="8%">Net Wt</th> -->
+                <!-- <th width="11%">Taxable Amt</th>
+                <th width="8%">Tax Amt</th> -->
+                <th width="20%">Total Amt</th>
             </tr>
         </thead>
         <tbody>
@@ -322,13 +322,13 @@
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td class="font-bold">{{ $row['party_name'] ?? $row['customer_name'] }}</td>
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
-                    <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> -->
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
-                    <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['loaded_weight'] ?? 0, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_tax'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td> -->
+                    <!-- <td class="text-right">₹ {{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
+                    <td class="text-right">₹ {{ number_format($row['amount_tax'] ?? 0, 2) }}</td> -->
                     <td class="text-right font-bold">₹ {{ number_format($row['amount_total'] ?? 0, 2) }}</td>
                 </tr>
             @endforeach
@@ -337,13 +337,13 @@
             <tr class="total-row">
                 <td colspan="2" class="text-center font-bold">Total Customer Volume</td>
                 <td class="text-center font-bold">{{ collect($party_summary)->sum('trips_count') }}</td>
-                <td class="text-right font-bold">{{ number_format($total_party_batch_size ?? collect($party_summary)->sum('batch_size'), 2) }}</td>
+                <!-- <td class="text-right font-bold">{{ number_format($total_party_batch_size ?? collect($party_summary)->sum('batch_size'), 2) }}</td> -->
                 <td class="text-right font-bold">{{ number_format($total_party_quantity, 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_party_truck_empty ?? collect($party_summary)->sum('truck_empty'), 2) }}</td>
+                <!-- <td class="text-right font-bold">{{ number_format($total_party_truck_empty ?? collect($party_summary)->sum('truck_empty'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_party_loaded_weight ?? collect($party_summary)->sum('loaded_weight'), 2) }}</td>
-                <td class="text-right font-bold">{{ number_format($total_party_net_weight ?? collect($party_summary)->sum('netweight'), 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_party_untaxed, 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_party_tax, 2) }}</td>
+                <td class="text-right font-bold">{{ number_format($total_party_net_weight ?? collect($party_summary)->sum('netweight'), 2) }}</td> -->
+                <!-- <td class="text-right font-bold">₹ {{ number_format($total_party_untaxed, 2) }}</td>
+                <td class="text-right font-bold">₹ {{ number_format($total_party_tax, 2) }}</td> -->
                 <td class="text-right font-bold">₹ {{ number_format($total_party_amount, 2) }}</td>
             </tr>
         </tbody>
@@ -364,13 +364,13 @@
                 <th width="4%">#</th>
                 <th width="26%">Truck / Vehicle Registration</th>
                 <th width="6%">Trips</th>
-                <th width="8%">Batch Size</th>
+                <!-- <th width="8%">Batch Size</th> -->
                 <th width="9%">Delivered Qty</th>
                 <th width="8%">Empty Wt</th>
                 <th width="8%">Loaded Wt</th>
                 <th width="8%">Net Wt</th>
-                <th width="11%">Taxable Amt</th>
-                <th width="8%">Tax Amt</th>
+                <!-- <th width="11%">Taxable Amt</th>
+                <th width="8%">Tax Amt</th> -->
                 <th width="10%">Total Amt</th>
             </tr>
         </thead>
@@ -380,13 +380,13 @@
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td class="font-bold">{{ $row['truck_no'] }}</td>
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
-                    <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> -->
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['loaded_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
-                    <td class="text-right">₹ {{ number_format($row['amount_tax'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">₹ {{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
+                    <td class="text-right">₹ {{ number_format($row['amount_tax'] ?? 0, 2) }}</td> -->
                     <td class="text-right font-bold">₹ {{ number_format($row['amount_total'] ?? 0, 2) }}</td>
                 </tr>
             @endforeach
@@ -395,13 +395,13 @@
             <tr class="total-row">
                 <td colspan="2" class="text-center font-bold">Total Fleet Volume</td>
                 <td class="text-center font-bold">{{ $total_truck_trips ?? collect($truck_summary)->sum('trips_count') }}</td>
-                <td class="text-right font-bold">{{ number_format($total_truck_batch_size ?? collect($truck_summary)->sum('batch_size'), 2) }}</td>
+                <!-- <td class="text-right font-bold">{{ number_format($total_truck_batch_size ?? collect($truck_summary)->sum('batch_size'), 2) }}</td> -->
                 <td class="text-right font-bold">{{ number_format($total_truck_quantity ?? collect($truck_summary)->sum('quantity'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_truck_empty ?? collect($truck_summary)->sum('truck_empty'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_truck_loaded_weight ?? collect($truck_summary)->sum('loaded_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_truck_net_weight ?? collect($truck_summary)->sum('netweight'), 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_truck_untaxed ?? collect($truck_summary)->sum('amount_untaxed'), 2) }}</td>
-                <td class="text-right font-bold">₹ {{ number_format($total_truck_tax ?? collect($truck_summary)->sum('amount_tax'), 2) }}</td>
+                <!-- <td class="text-right font-bold">₹ {{ number_format($total_truck_untaxed ?? collect($truck_summary)->sum('amount_untaxed'), 2) }}</td>
+                <td class="text-right font-bold">₹ {{ number_format($total_truck_tax ?? collect($truck_summary)->sum('amount_tax'), 2) }}</td> -->
                 <td class="text-right font-bold">₹ {{ number_format($total_truck_amount ?? collect($truck_summary)->sum('amount_total'), 2) }}</td>
             </tr>
         </tbody>
@@ -464,11 +464,11 @@
         <thead>
             <tr>
                 <th width="6%">#</th>
-                <th width="38%">Payment Mode</th>
-                <th width="12%">Trips</th>
-                <th width="14%">Batch Size</th>
+                <th width="44%">Payment Mode</th>
+                <th width="15%">Trips</th>
+                <!-- <th width="14%">Batch Size</th> -->
                 <th width="15%">Delivered Qty</th>
-                <th width="15%">Total Amt</th>
+                <th width="20%">Total Amt</th>
             </tr>
         </thead>
         <tbody>
@@ -477,7 +477,7 @@
                     <td class="text-center">{{ $index + 1 }}</td>
                     <td class="font-bold">{{ $row['payment_mode'] }}</td>
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
-                    <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td>
+                    <!-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> -->
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">₹ {{ number_format($row['amount_total'] ?? 0, 2) }}</td>
                 </tr>
@@ -487,7 +487,7 @@
             <tr class="total-row">
                 <td colspan="2" class="text-center font-bold">Total Payment Modes</td>
                 <td class="text-center font-bold">{{ $total_payment_mode_trips ?? collect($payment_mode_summary)->sum('trips_count') }}</td>
-                <td class="text-right font-bold">{{ number_format($total_payment_mode_batch_size ?? collect($payment_mode_summary)->sum('batch_size'), 2) }}</td>
+                <!-- <td class="text-right font-bold">{{ number_format($total_payment_mode_batch_size ?? collect($payment_mode_summary)->sum('batch_size'), 2) }}</td> -->
                 <td class="text-right font-bold">{{ number_format($total_payment_mode_quantity ?? collect($payment_mode_summary)->sum('quantity'), 2) }}</td>
                 <td class="text-right font-bold">₹ {{ number_format($total_payment_mode_amount ?? collect($payment_mode_summary)->sum('amount_total'), 2) }}</td>
             </tr>

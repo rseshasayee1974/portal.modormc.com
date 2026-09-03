@@ -53,7 +53,7 @@ const props = defineProps({
                             <th class="py-3 px-3 text-center" width="12%">Grade</th>
                             <th class="py-3 px-3 text-center" width="6%">UOM</th>
                             <th class="py-3 px-3 text-center" width="6%">Trips</th>
-                            <th class="py-3 px-3 text-right" width="10%">Batch Size</th>
+                            <!-- <th class="py-3 px-3 text-right" width="10%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="10%">Delivered Qty</th>
                             <th class="py-3 px-3 text-right" width="9%">Net Wt</th>
                             <th class="py-3 px-3 text-right" width="9%">Avg Rate</th>
@@ -67,7 +67,7 @@ const props = defineProps({
                             <td class="py-2.5 px-3 text-center font-bold text-indigo-700">{{ row.concrete_grade }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-500 font-medium">{{ row.uom }}</td>
                             <td class="py-2.5 px-3 text-center font-bold text-slate-700">{{ row.trips_count }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
                             <td class="py-2.5 px-3 text-right font-semibold text-slate-800">{{ formatQuantity(row.netweight) }}</td>
                             <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.avg_rate) }}</td>
@@ -79,7 +79,7 @@ const props = defineProps({
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                             <td colspan="4" class="py-3 px-3 text-center text-[#1d2d3e] uppercase">Total Product Summary</td>
                             <td class="py-3 px-3 text-center text-[#1d2d3e] font-black">{{ reportData.total_trips }}</td>
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_batch_size) }}</td>
+                            <!-- <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_batch_size) }}</td> -->
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_quantity) }}</td>
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_net_weight) }}</td>
                             <td></td>
@@ -106,7 +106,7 @@ const props = defineProps({
                             <th class="py-3 px-3" width="20%">Unloading Site</th>
                             <th class="py-3 px-3 text-center" width="6%">UOM</th>
                             <th class="py-3 px-3 text-center" width="6%">Trips</th>
-                            <th class="py-3 px-3 text-right" width="8%">Batch Size</th>
+                            <!-- <th class="py-3 px-3 text-right" width="8%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="8%">Delivered Qty</th>
                             <th class="py-3 px-3 text-right" width="8%">Net Wt</th>
                             <th class="py-3 px-3 text-right" width="8%">Total Amt</th>
@@ -120,7 +120,7 @@ const props = defineProps({
                             <td class="py-2.5 px-3 font-bold text-slate-800">{{ row.site_name }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-500 font-medium">{{ row.uom }}</td>
                             <td class="py-2.5 px-3 text-center font-bold text-slate-700">{{ row.trips_count }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
                             <td class="py-2.5 px-3 text-right font-semibold text-slate-800">{{ formatQuantity(row.netweight) }}</td>
                             <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
@@ -143,7 +143,7 @@ const props = defineProps({
                             <th class="py-3 px-3 text-center" width="5%">#</th>
                             <th class="py-3 px-3" width="40%">Payment Mode</th>
                             <th class="py-3 px-3 text-center" width="13%">Trips</th>
-                            <th class="py-3 px-3 text-right" width="14%">Batch Size</th>
+                            <!-- <th class="py-3 px-3 text-right" width="14%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="14%">Delivered Qty</th>
                             <th class="py-3 px-3 text-right" width="14%">Total Amt</th>
                         </tr>
@@ -153,7 +153,7 @@ const props = defineProps({
                             <td class="py-2.5 px-3 text-center text-slate-400">{{ idx + 1 }}</td>
                             <td class="py-2.5 px-3 font-bold text-slate-800">{{ row.payment_mode }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-700 font-bold">{{ row.trips_count }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
                             <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
                         </tr>

@@ -148,7 +148,7 @@
                 <th width="4%">Trip #</th>
                 <th width="9%">Truck / Mixer</th>
                 <th width="11%">Date & Time</th>
-                <th width="11%">Docket / DSP #</th>
+                <th width="11%">Dispatch / DSP #</th>
                 <th width="14%">Customer Name</th>
                 <th width="12%">Unload Site</th>
                 <th width="8%">Grade</th>
