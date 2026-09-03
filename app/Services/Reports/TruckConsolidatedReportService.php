@@ -49,6 +49,14 @@ class TruckConsolidatedReportService implements ReportServiceInterface
             $query->where('d.truck_id', $truckId);
         }
 
+        $patronId = $params['patron_id'] ?? null;
+        if ($patronId) {
+            $query->where(function ($q) use ($patronId) {
+                $q->where('d.customer_id', $patronId)
+                  ->orWhere('so.customer_id', $patronId);
+            });
+        }
+
         $dispatches = $query->select([
             'd.id as dispatch_id',
             'd.prefix as dispatch_prefix',
@@ -152,8 +160,17 @@ class TruckConsolidatedReportService implements ReportServiceInterface
 
     public function targetName(array $params): string
     {
-        return isset($params['truck_id'])
-            ? (Machine::whereNull('deleted_at')->find($params['truck_id'])?->registration ?? 'Truck Wise Trip Report')
+        $parts = [];
+        if (!empty($params['truck_id'])) {
+            $truck = \App\Models\Machine::whereNull('deleted_at')->find($params['truck_id']);
+            if ($truck) $parts[] = 'Truck: ' . $truck->registration;
+        }
+        if (!empty($params['patron_id'])) {
+            $patron = \App\Models\Patron::find($params['patron_id']);
+            if ($patron) $parts[] = 'Customer: ' . $patron->legal_name;
+        }
+        return !empty($parts)
+            ? implode(' | ', $parts)
             : 'All Trucks - Truck Wise Trip Report';
     }
 }

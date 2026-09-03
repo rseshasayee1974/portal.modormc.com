@@ -43,6 +43,20 @@ class SiteConsolidatedReportService implements ReportServiceInterface
                   });
             });
 
+        $truckId  = $params['truck_id'] ?? null;
+        $patronId = $params['patron_id'] ?? null;
+
+        if ($truckId) {
+            $query->where('d.truck_id', $truckId);
+        }
+
+        if ($patronId) {
+            $query->where(function ($q) use ($patronId) {
+                $q->where('d.customer_id', $patronId)
+                  ->orWhere('so.customer_id', $patronId);
+            });
+        }
+
         $dispatches = $query->select([
             'd.id',
             'd.prefix as dispatch_prefix',
@@ -154,6 +168,17 @@ class SiteConsolidatedReportService implements ReportServiceInterface
 
     public function targetName(array $params): string
     {
-        return 'Unload Site Consolidated Report';
+        $parts = [];
+        if (!empty($params['truck_id'])) {
+            $truck = \App\Models\Machine::whereNull('deleted_at')->find($params['truck_id']);
+            if ($truck) $parts[] = 'Truck: ' . $truck->registration;
+        }
+        if (!empty($params['patron_id'])) {
+            $patron = \App\Models\Patron::find($params['patron_id']);
+            if ($patron) $parts[] = 'Customer: ' . $patron->legal_name;
+        }
+        return !empty($parts)
+            ? implode(' | ', $parts)
+            : 'All Unload & Delivery Sites';
     }
 }

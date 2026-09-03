@@ -44,6 +44,24 @@ class ProductConsolidatedReportService implements ReportServiceInterface
                   });
             });
 
+        $patronId = $params['patron_id'] ?? null;
+        $gradeId  = $params['grade_id'] ?? null;
+
+        if ($patronId) {
+            $query->where(function ($q) use ($patronId) {
+                $q->where('d.customer_id', $patronId)
+                  ->orWhere('so.customer_id', $patronId);
+            });
+        }
+
+        if ($gradeId) {
+            $query->where(function ($q) use ($gradeId) {
+                $q->where('dm.concrete_grade_id', $gradeId)
+                  ->orWhere('m.concrete_grade_id', $gradeId)
+                  ->orWhere('cg.id', $gradeId);
+            });
+        }
+
         $dispatches = $query->select([
             'd.id',
             'd.prefix as dispatch_prefix',
@@ -260,6 +278,17 @@ class ProductConsolidatedReportService implements ReportServiceInterface
 
     public function targetName(array $params): string
     {
-        return 'Product Consolidated Report (Mix Design & Concrete Grade wise)';
+        $parts = [];
+        if (!empty($params['patron_id'])) {
+            $patron = \App\Models\Patron::find($params['patron_id']);
+            if ($patron) $parts[] = 'Customer: ' . $patron->legal_name;
+        }
+        if (!empty($params['grade_id'])) {
+            $grade = \App\Models\ConcreteGrade::find($params['grade_id']);
+            if ($grade) $parts[] = 'Grade: ' . $grade->name;
+        }
+        return !empty($parts) 
+            ? implode(' | ', $parts)
+            : 'All Products & Concrete Grades';
     }
 }

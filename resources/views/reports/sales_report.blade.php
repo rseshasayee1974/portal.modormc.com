@@ -424,7 +424,7 @@
                 <th width="26%">Unload Site Name</th>
                 <th width="23%">Customer / Party</th>
                 <th width="10%">Trips</th>
-                <th width="12%">Batch Size</th>
+                {{-- <th width="12%">Batch Size</th> --}}
                 <th width="12%">Delivered Qty</th>
                 <th width="12%">Total Amt (₹)</th>
             </tr>
@@ -436,7 +436,7 @@
                     <td class="font-bold">{{ $row['site_name'] }}</td>
                     <td>{{ $row['customer_name'] ?? '-' }}</td>
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
-                    <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td>
+                    {{-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> --}}
                     <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
                 </tr>
@@ -446,7 +446,7 @@
             <tr class="total-row">
                 <td colspan="3" class="text-center font-bold">Total Site Volume</td>
                 <td class="text-center font-bold">{{ $total_site_trips ?? collect($site_summary)->sum('trips_count') }}</td>
-                <td class="text-right font-bold">{{ number_format($total_site_batch_size ?? collect($site_summary)->sum('batch_size'), 2) }}</td>
+                {{-- <td class="text-right font-bold">{{ number_format($total_site_batch_size ?? collect($site_summary)->sum('batch_size'), 2) }}</td> --}}
                 <td class="text-right font-bold">{{ number_format($total_site_quantity ?? collect($site_summary)->sum('quantity'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_site_amount ?? collect($site_summary)->sum('amount_total'), 2) }}</td>
             </tr>

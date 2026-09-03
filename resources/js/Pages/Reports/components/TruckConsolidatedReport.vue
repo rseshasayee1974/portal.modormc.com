@@ -392,7 +392,7 @@ const groupTotals = computed(() => {
                             <th class="py-3 px-3 text-center" width="5%">#</th>
                             <th class="py-3 px-3 text-center" width="25%">Truck / Mixer Reg</th>
                             <th class="py-3 px-3 text-center" width="15%">Trips</th>
-                            <th class="py-3 px-3 text-right" width="18%">Batch Size (m³)</th>
+                            <!-- <th class="py-3 px-3 text-right" width="18%">Batch Size (m³)</th> -->
                             <th class="py-3 px-3 text-right" width="18%">Delivered Qty (m³)</th>
                             <th class="py-3 px-3 text-right" width="19%">Total Amt (₹)</th>
                         </tr>
@@ -402,7 +402,7 @@ const groupTotals = computed(() => {
                             <td class="py-2.5 px-3 text-center text-slate-400 font-bold">{{ (sanitizedGroupPage - 1) * groupPerPage + idx + 1 }}</td>
                             <td class="py-2.5 px-3 text-center font-bold text-indigo-700">{{ tg.truck_no }}</td>
                             <td class="py-2.5 px-3 text-center font-bold text-slate-800">{{ tg.trips_count }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(tg.total_batch) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(tg.total_batch) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-black text-slate-900">{{ formatQuantity(tg.total_qty) }}</td>
                             <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(tg.total_amount) }}</td>
                         </tr>
@@ -412,7 +412,7 @@ const groupTotals = computed(() => {
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                             <td colspan="2" class="py-3 px-3 text-center text-[#1d2d3e] uppercase">Grand Fleet Total ({{ groupTotalCount }} Trucks)</td>
                             <td class="py-3 px-3 text-center text-[#1d2d3e] font-black">{{ groupTotals.trips_count }}</td>
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(groupTotals.total_batch) }}</td>
+                            <!-- <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(groupTotals.total_batch) }}</td> -->
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(groupTotals.total_qty) }}</td>
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(groupTotals.total_amount) }}</td>
                         </tr>

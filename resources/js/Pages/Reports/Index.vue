@@ -56,6 +56,7 @@ const props = defineProps({
     machines: Array,
     drivers: Array,
     salesExecutives: Array,
+    concreteGrades: Array,
     filters: Object,
 });
 
@@ -149,6 +150,7 @@ const patronId = ref(null);
 const truckId = ref(null);
 const driverId = ref(null);
 const salesExecutiveId = ref(null);
+const gradeId = ref(null);
 const startDate = ref(props.filters.start_date);
 const endDate = ref(props.filters.end_date);
 
@@ -344,6 +346,7 @@ const generateReport = async () => {
             truck_id: truckId.value,
             driver_id: driverId.value,
             sales_executive_id: salesExecutiveId.value,
+            grade_id: gradeId.value,
             export: 'view'
         };
 
@@ -432,6 +435,7 @@ const exportPdf = () => {
         truck_id: truckId.value,
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
+        grade_id: gradeId.value,
         export: 'pdf'
     });
 
@@ -480,6 +484,7 @@ const exportExcel = () => {
         truck_id: truckId.value,
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
+        grade_id: gradeId.value,
         export: 'excel'
     });
 
@@ -608,6 +613,7 @@ const generateShareLink = async () => {
                 gst_type: gstType.value,
                 payment_status: paymentStatus.value,
                 truck_id: truckId.value,
+                grade_id: gradeId.value,
             }
         });
         
@@ -783,10 +789,10 @@ const shareEmail = () => {
                                     />
                                 </div>
 
-                                <!-- Patron Dropdown -->
-                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated'].includes(reportType)" class="lg:col-span-1">
+                                <!-- Patron / Customer Dropdown -->
+                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">
-                                        {{ reportType === 'sales_register' ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
+                                        {{ ['sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'sales'].includes(reportType) ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
                                     </span>
                                     <BaseSelect 
                                         v-model="patronId"
@@ -795,6 +801,20 @@ const shareEmail = () => {
                                         optionValue="id"
                                         :filterFields="['legal_name', 'email', 'phone', 'contact_person']"
                                         placeholder="All Partners"
+                                        filter
+                                        showClear
+                                    />
+                                </div>
+
+                                <!-- Concrete Grade Dropdown (Product Consolidated only) -->
+                                <div v-if="['product_consolidated'].includes(reportType)" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Concrete Grade</span>
+                                    <BaseSelect 
+                                        v-model="gradeId"
+                                        :options="props.concreteGrades || []"
+                                        optionLabel="name"
+                                        optionValue="id"
+                                        placeholder="All Grades"
                                         filter
                                         showClear
                                     />
@@ -839,7 +859,7 @@ const shareEmail = () => {
                                 </div>
 
                                 <!-- Truck Dropdown -->
-                                <div v-if="['machines_list', 'truck_consolidated', 'driver'].includes(reportType)" class="lg:col-span-1">
+                                <div v-if="['machines_list', 'truck_consolidated', 'driver', 'site_consolidated'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Truck / Vehicle</span>
                                     <BaseSelect 
                                         v-model="truckId"

@@ -35,7 +35,7 @@ const modeOptions = computed(() => {
 });
 
 const filteredTrips = computed(() => {
-    let list = allTrips.value;
+    let list = [...allTrips.value];
     if (selectedModeFilter.value) {
         list = list.filter(t => t.payment_mode === selectedModeFilter.value);
     }
@@ -52,6 +52,11 @@ const filteredTrips = computed(() => {
             (t.mix_name && t.mix_name.toLowerCase().includes(q))
         );
     }
+    list.sort((a, b) => {
+        const timeA = a.dispatch_timestamp ? new Date(a.dispatch_timestamp).getTime() : (a.dispatch_id || 0);
+        const timeB = b.dispatch_timestamp ? new Date(b.dispatch_timestamp).getTime() : (b.dispatch_id || 0);
+        return timeA - timeB;
+    });
     return list;
 });
 
@@ -178,7 +183,7 @@ const tripTotals = computed(() => {
                             <th class="py-3 px-3 text-center" width="5%">#</th>
                             <th class="py-3 px-3" width="40%">Payment Mode</th>
                             <th class="py-3 px-3 text-center" width="13%">Trips</th>
-                            <th class="py-3 px-3 text-right" width="14%">Batch Size</th>
+                            <!-- <th class="py-3 px-3 text-right" width="14%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="14%">Delivered Qty</th>
                             <th class="py-3 px-3 text-right" width="14%">Total Amt</th>
                         </tr>
@@ -188,7 +193,7 @@ const tripTotals = computed(() => {
                             <td class="py-2.5 px-3 text-center text-slate-400 font-bold">{{ idx + 1 }}</td>
                             <td class="py-2.5 px-3 font-bold text-slate-800">{{ row.payment_mode }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-700 font-bold">{{ row.trips_count }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
                             <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
                         </tr>
@@ -198,7 +203,7 @@ const tripTotals = computed(() => {
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                             <td colspan="2" class="py-3 px-3 text-center text-[#1d2d3e] uppercase">Total Payment Modes</td>
                             <td class="py-3 px-3 text-center text-[#1d2d3e] font-black">{{ reportData.total_trips }}</td>
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_batch_size) }}</td>
+                            <!-- <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_batch_size) }}</td> -->
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_quantity) }}</td>
                             <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_amount) }}</td>
                         </tr>

@@ -78,7 +78,7 @@ const customerOptions = computed(() => {
 });
 
 const filteredTrips = computed(() => {
-    let list = allTrips.value;
+    let list = [...allTrips.value];
     if (selectedCustomerFilter.value) {
         list = list.filter(t => t.customer_name === selectedCustomerFilter.value);
     }
@@ -95,7 +95,12 @@ const filteredTrips = computed(() => {
             (t.mix_name && t.mix_name.toLowerCase().includes(q))
         );
     }
-    return list;
+    return list.sort((a, b) => {
+        const timeA = a.dispatch_timestamp ?? (a.dispatch_time ? new Date(a.dispatch_time).getTime() : 0);
+        const timeB = b.dispatch_timestamp ?? (b.dispatch_time ? new Date(b.dispatch_time).getTime() : 0);
+        if (timeA !== timeB) return timeA - timeB;
+        return (a.dispatch_id || 0) - (b.dispatch_id || 0);
+    });
 });
 
 const tripTotalCount = computed(() => filteredTrips.value.length);

@@ -140,8 +140,8 @@ class SalesReportService implements ReportServiceInterface
             'einv_rel.einv_irn',
             'einv_rel.einv_status',
         ])
-        ->orderByDesc('d.dispatch_time')
-        ->orderByDesc('d.id')
+        ->orderByRaw('COALESCE(d.dispatch_time, d.created_at) ASC')
+        ->orderBy('d.id', 'ASC')
         ->get();
 
         // 1. Transaction-level rows (Comprehensive Detailed Dispatch Breakdown)
@@ -180,6 +180,7 @@ class SalesReportService implements ReportServiceInterface
 
             return [
                 'id'                   => $row->dispatch_id,
+                'dispatch_timestamp'   => $dispatchDate->timestamp,
                 'date'                 => $dispatchDate->format('d-M-Y'),
                 'time'                 => $dispatchDate->format('h:i A'),
                 'datetime'             => $dispatchDate->format('d-M-Y h:i A'),

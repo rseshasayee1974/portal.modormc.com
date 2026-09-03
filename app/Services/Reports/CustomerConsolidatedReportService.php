@@ -79,8 +79,8 @@ class CustomerConsolidatedReportService implements ReportServiceInterface
             't.registration as truck_no',
             DB::raw('TRIM(CONCAT(COALESCE(drv.first_name, ""), " ", COALESCE(drv.last_name, ""))) as driver_name'),
         ])
-        ->orderBy('d.dispatch_time', 'asc')
-        ->orderBy('d.id', 'asc')
+        ->orderByRaw('COALESCE(d.dispatch_time, d.load_time, d.created_at) ASC')
+        ->orderBy('d.id', 'ASC')
         ->get();
 
         // 1. Detailed itemized batching / trip list
@@ -92,14 +92,15 @@ class CustomerConsolidatedReportService implements ReportServiceInterface
             $custName = !empty(trim((string)$d->customer_name)) ? trim((string)$d->customer_name) : 'Unknown Customer';
 
             return [
-                'index'          => $idx + 1,
-                'dispatch_id'    => $d->dispatch_id,
-                'dispatch_no'    => $dispatchNumber,
-                'docket_no'      => $dispatchNumber,
-                'batch_id'       => $d->batch_id,
-                'batch_no'       => $d->batch_no ?: ('B-' . $d->batch_id),
-                'dispatch_time'  => $loadTimeFormatted,
-                'load_time'      => $loadTimeFormatted,
+                'index'              => $idx + 1,
+                'dispatch_id'        => $d->dispatch_id,
+                'dispatch_timestamp' => $rawLoadTime ? Carbon::parse($rawLoadTime)->timestamp : 0,
+                'dispatch_no'        => $dispatchNumber,
+                'docket_no'          => $dispatchNumber,
+                'batch_id'           => $d->batch_id,
+                'batch_no'           => $d->batch_no ?: ('B-' . $d->batch_id),
+                'dispatch_time'      => $loadTimeFormatted,
+                'load_time'          => $loadTimeFormatted,
                 'customer_name'  => $custName,
                 'party_name'     => $custName,
                 'customer_id'    => $d->customer_id,

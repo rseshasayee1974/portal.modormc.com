@@ -614,28 +614,24 @@ class ExcelExportService
                     ];
                 }
             } elseif ($type === 'product_consolidated') {
-                $headersList = ['#', 'Mix Design Name', 'Grade', 'UOM', 'Trips', /* 'Batch Size (m³)', */ 'Delivered Qty (m³)', 'Net Wt (T)', /* 'Avg Rate', */ 'Total Amt'];
+                $headersList = ['#', 'Mix Design Name', 'Grade', 'UOM', 'Trips', 'Delivered Qty (m³)', 'Net Wt (T)', 'Total Amt (₹)'];
                 foreach (($data['transactions'] ?? $data['items'] ?? []) as $i => $row) {
                     $rows[] = [
                         $i + 1,
                         $row['mix_name'] ?? $row['product_name'] ?? '',
-                        $row['concrete_grade'] ?? '',
-                        $row['uom'] ?? '',
+                        $row['concrete_grade'] ?? 'N/A',
+                        $row['uom'] ?? 'm³',
                         (int)($row['trips_count'] ?? 1),
-                        // (float)($row['batch_size'] ?? 0),
                         (float)($row['quantity'] ?? 0),
                         (float)($row['netweight'] ?? 0),
-                        // (float)($row['avg_rate'] ?? 0),
                         (float)($row['amount_total'] ?? 0),
                     ];
                 }
                 $totalRow = [
-                    '', 'Total Summary', '', '',
+                    '', 'Total Product Summary', '', '',
                     (int)($data['total_trips'] ?? 0),
-                    // (float)($data['total_batch_size'] ?? 0),
                     (float)($data['total_quantity'] ?? 0),
                     (float)($data['total_net_weight'] ?? 0),
-                    // '',
                     (float)($data['total_amount'] ?? 0),
                 ];
 
@@ -645,19 +641,18 @@ class ExcelExportService
                         $siteRows[] = [
                             $si + 1,
                             $sRow['mix_name'] ?? '',
-                            $sRow['concrete_grade'] ?? '',
+                            $sRow['concrete_grade'] ?? 'N/A',
                             $sRow['site_name'] ?? '',
+                            $sRow['uom'] ?? 'm³',
                             (int)($sRow['trips_count'] ?? 1),
-                            (float)($sRow['batch_size'] ?? 0),
                             (float)($sRow['quantity'] ?? 0),
                             (float)($sRow['netweight'] ?? 0),
-                            (float)($sRow['avg_rate'] ?? 0),
                             (float)($sRow['amount_total'] ?? 0),
                         ];
                     }
                     $extraSections['tables'][] = [
                         'title' => 'UNLOAD SITE BASED PRODUCT CONSOLIDATED SUMMARY',
-                        'headers' => ['#', 'Mix Design', 'Grade', 'Unloading Site', 'Trips', /*'Batch Size (m³)',*/ 'Delivered Qty (m³)', 'Net Wt (T)', 'Avg Rate', 'Total Amt'],
+                        'headers' => ['#', 'Mix Design', 'Grade', 'Unloading Site', 'UOM', 'Trips', 'Delivered Qty (m³)', 'Net Wt (T)', 'Total Amt (₹)'],
                         'rows' => $siteRows,
                     ];
                 }
@@ -669,14 +664,13 @@ class ExcelExportService
                             $pi + 1,
                             $pRow['payment_mode'] ?? '',
                             (int)($pRow['trips_count'] ?? 1),
-                            // (float)($pRow['batch_size'] ?? 0),
                             (float)($pRow['quantity'] ?? 0),
                             (float)($pRow['amount_total'] ?? 0),
                         ];
                     }
                     $extraSections['tables'][] = [
                         'title' => 'PAYMENT MODE CONSOLIDATED SUMMARY',
-                        'headers' => ['#', 'Payment Mode', 'Trips', /* 'Batch Size (m³)', */ 'Delivered Qty (m³)', 'Total Amt'],
+                        'headers' => ['#', 'Payment Mode', 'Trips', 'Delivered Qty (m³)', 'Total Amt (₹)'],
                         'rows' => $pmRows,
                     ];
                 }
@@ -692,16 +686,20 @@ class ExcelExportService
                             $bRow['customer_name'] ?? '',
                             $bRow['site_name'] ?? '',
                             $bRow['truck_no'] ?? '',
-                            (float)($bRow['batch_size'] ?? 0),
-                            (float)($bRow['delivered_qty'] ?? 0),
+                            (float)($bRow['delivered_qty'] ?? $bRow['quantity'] ?? 0),
                             (float)($bRow['amount_total'] ?? 0),
                         ];
                     }
-                    // $extraSections['tables'][] = [
-                    //     'title' => 'PRODUCT BATCHING / TRIP VERIFICATION LIST',
-                    //     'headers' => ['Trip #', 'Date & Time', 'Dispatch No', 'Mix Design / Grade', 'Customer Name', 'Unloading Site', 'Truck / Mixer', 'Batch Size (m³)', 'Delivered Qty (m³)', 'Total Amt'],
-                    //     'rows' => $prodTripRows,
-                    // ];
+                    $extraSections['tables'][] = [
+                        'title' => 'PRODUCT BATCHING / TRIP VERIFICATION LIST',
+                        'headers' => ['Trip #', 'Date & Time', 'Dispatch / DSP #', 'Mix Design / Grade', 'Customer Name', 'Unloading Site', 'Truck / Mixer', 'Deliv (m³)', 'Total Amt (₹)'],
+                        'rows' => $prodTripRows,
+                        'totalRow' => [
+                            '', 'Total Product Dispatches', '', '', '', '', '',
+                            (float)collect($data['batch_dispatches'])->sum(fn($r) => $r['delivered_qty'] ?? $r['quantity'] ?? 0),
+                            (float)collect($data['batch_dispatches'])->sum('amount_total'),
+                        ],
+                    ];
                 }
             } elseif ($type === 'customer_consolidated') {
                 $headersList = ['#', 'Customer / Party Name', 'Trips', /* 'Batch Size (m³)', */ 'Delivered Qty (m³)', /* 'Empty Wt (T)', 'Loaded Wt (T)', 'Net Wt (T)', 'Taxable Amt', 'Tax Amt', */ 'Total Amt'];
@@ -743,23 +741,18 @@ class ExcelExportService
                             $bRow['customer_name'] ?? '',
                             $bRow['site_name'] ?? '',
                             $bRow['truck_no'] ?? '',
-                            $bRow['driver_name'] ?? '',
-                            $bRow['mix_name'] ?? '',
-                            $bRow['concrete_grade'] ?? '',
-                            (float)($bRow['batch_size'] ?? 0),
+                            $bRow['concrete_grade'] ?? $bRow['mix_name'] ?? '',
                             (float)($bRow['delivered_qty'] ?? 0),
                             (float)($bRow['empty_weight'] ?? 0),
                             (float)($bRow['loaded_weight'] ?? 0),
                             (float)($bRow['net_weight'] ?? 0),
-                            (float)($bRow['rate'] ?? 0),
                             (float)($bRow['amount_total'] ?? 0),
                         ];
                     }
                     $extraSections['tables'][] = [
                         'title' => 'CUSTOMER BATCHING / TRIP VERIFICATION LIST',
-                        'headers' => ['Trip #', 'Date & Time', 'Dispatch No', 'Customer Name', 'Unloading Site', 'Truck / Mixer', /*'Driver', 'Mix Design',*/ 'Grade', /*'Batch Size (m³)',*/ 'Delivered Qty (m³)', 'Empty Wt (T)', 'Loaded Wt (T)', 'Net Wt (T)', /*'Rate',*/ 'Total Amt'],
+                        'headers' => ['Trip #', 'Date & Time', 'Dispatch No', 'Customer Name', 'Unloading Site', 'Truck / Mixer', 'Grade / Mix', 'Delivered Qty (m³)', 'Empty Wt (T)', 'Loaded Wt (T)', 'Net Wt (T)', 'Total Amt (₹)'],
                         'rows' => $batchRows,
-
                     ];
                 }
             } elseif ($type === 'truck_consolidated') {
@@ -822,14 +815,13 @@ class ExcelExportService
                 }
             } elseif ($type === 'site_consolidated') {
                 $title = "UNLOAD SITE CONSOLIDATED REPORT";
-                $headersList = ['#', 'Unload Site Name', 'Customer / Party', 'Trips', 'Batch Size (m³)', 'Delivered Qty (m³)', 'Total Amt'];
+                $headersList = ['#', 'Unload Site Name', 'Customer / Party', 'Trips', 'Delivered Qty (m³)', 'Total Amt (₹)'];
                 foreach (($data['transactions'] ?? $data['items'] ?? []) as $i => $row) {
                     $rows[] = [
                         $i + 1,
                         $row['site_name'] ?? '',
                         $row['customer_name'] ?? '-',
                         (int)($row['trips_count'] ?? 1),
-                        (float)($row['batch_size'] ?? 0),
                         (float)($row['quantity'] ?? 0),
                         (float)($row['amount_total'] ?? 0),
                     ];
@@ -837,7 +829,6 @@ class ExcelExportService
                 $totalRow = [
                     '', 'Total Site Volume', '',
                     (int)($data['total_trips'] ?? 0),
-                    (float)($data['total_batch_size'] ?? 0),
                     (float)($data['total_quantity'] ?? 0),
                     (float)($data['total_amount'] ?? 0),
                 ];
@@ -866,13 +857,12 @@ class ExcelExportService
                 }
             } elseif ($type === 'payment_mode_consolidated') {
                 $title = "PAYMENT MODE CONSOLIDATED REPORT";
-                $headersList = ['#', 'Payment Mode', 'Trips', /* 'Batch Size (m³)', */ 'Delivered Qty (m³)', 'Total Amt'];
+                $headersList = ['#', 'Payment Mode', 'Trips', 'Delivered Qty (m³)', 'Total Amt (₹)'];
                 foreach (($data['transactions'] ?? $data['items'] ?? []) as $i => $row) {
                     $rows[] = [
                         $i + 1,
                         $row['payment_mode'] ?? '',
                         (int)($row['trips_count'] ?? 1),
-                        // (float)($row['batch_size'] ?? 0),
                         (float)($row['quantity'] ?? 0),
                         (float)($row['amount_total'] ?? 0),
                     ];
@@ -880,7 +870,6 @@ class ExcelExportService
                 $totalRow = [
                     '', 'Total Payment Modes',
                     (int)($data['total_trips'] ?? 0),
-                    // (float)($data['total_batch_size'] ?? 0),
                     (float)($data['total_quantity'] ?? 0),
                     (float)($data['total_amount'] ?? 0),
                 ];
@@ -897,15 +886,20 @@ class ExcelExportService
                             $pRow['site_name'] ?? '',
                             $pRow['truck_no'] ?? '',
                             $pRow['concrete_grade'] ?? $pRow['mix_name'] ?? '',
-                            (float)($pRow['delivered_qty'] ?? 0),
+                            (float)($pRow['delivered_qty'] ?? $pRow['quantity'] ?? 0),
                             (float)($pRow['amount_total'] ?? 0),
                         ];
                     }
-                    // $extraSections['tables'][] = [
-                    //     'title' => 'PAYMENT MODE BATCHING / TRIP VERIFICATION LIST',
-                    //     'headers' => ['Trip #', 'Date & Time', 'Dispatch No', 'Payment Mode', 'Customer Name', 'Unload Site', 'Truck / Mixer', 'Mix Design / Grade', 'Delivered Qty (m³)', 'Total Amt'],
-                    //     'rows' => $pmTripRows,
-                    // ];
+                    $extraSections['tables'][] = [
+                        'title' => 'PAYMENT MODE BATCHING / TRIP VERIFICATION LIST',
+                        'headers' => ['Trip #', 'Date & Time', 'Dispatch / DSP #', 'Payment Mode', 'Customer Name', 'Unload Site', 'Truck / Mixer', 'Grade / Mix', 'Deliv (m³)', 'Total Amt (₹)'],
+                        'rows' => $pmTripRows,
+                        'totalRow' => [
+                            '', 'Total Batch Dispatches', '', '', '', '', '', '',
+                            (float)collect($data['batch_dispatches'])->sum(fn($r) => $r['delivered_qty'] ?? $r['quantity'] ?? 0),
+                            (float)collect($data['batch_dispatches'])->sum('amount_total'),
+                        ],
+                    ];
                 }
             } elseif ($type === 'sales') {
                 $title = "Sales Dispatch & Invoice wise Breakdown
@@ -969,20 +963,13 @@ class ExcelExportService
                             $pRow['concrete_grade'] ?? '',
                             $pRow['uom'] ?? 'm³',
                             (int)($pRow['trips_count'] ?? 1),
-                            // (float)($pRow['batch_size'] ?? 0),
                             (float)($pRow['quantity'] ?? 0),
-                            // (float)($pRow['truck_empty'] ?? 0),
-                            // (float)($pRow['loaded_weight'] ?? 0),
-                            // (float)($pRow['netweight'] ?? 0),
-                            // (float)($pRow['avg_rate'] ?? 0),
-                            // (float)($pRow['amount_untaxed'] ?? 0),
-                            // (float)($pRow['amount_tax'] ?? 0),
                             (float)($pRow['amount_total'] ?? 0),
                         ];
                     }
                     $extraSections['tables'][] = [
                         'title' => 'PRODUCT CONSOLIDATED SUMMARY (MIX DESIGN & GRADE WISE)',
-                        'headers' => ['#', 'Mix Design Name', 'Grade', 'UOM', 'Trips', /* 'Batch Size (m³)', */ 'Delivered Qty', /* 'Empty Wt (T)', 'Loaded Wt (T)', 'Net Wt (T)', 'Avg Rate', 'Taxable Amt', 'Tax Amt', */ 'Total Amt'],
+                        'headers' => ['#', 'Mix Design Name', 'Grade', 'UOM', 'Trips', 'Delivered Qty (m³)', 'Total Amt (₹)'],
                         'rows' => $prodRows,
                     ];
                 }
@@ -995,19 +982,13 @@ class ExcelExportService
                             $ci + 1,
                             $cRow['party_name'] ?? $cRow['customer_name'] ?? '',
                             (int)($cRow['trips_count'] ?? 1),
-                            // (float)($cRow['batch_size'] ?? 0),
                             (float)($cRow['quantity'] ?? 0),
-                            // (float)($cRow['truck_empty'] ?? 0),
-                            // (float)($cRow['loaded_weight'] ?? 0),
-                            // (float)($cRow['netweight'] ?? 0),
-                            // (float)($cRow['amount_untaxed'] ?? 0),
-                            // (float)($cRow['amount_tax'] ?? 0),
                             (float)($cRow['amount_total'] ?? 0),
                         ];
                     }
                     $extraSections['tables'][] = [
                         'title' => 'CUSTOMER CONSOLIDATED SUMMARY (PARTY WISE)',
-                        'headers' => ['#', 'Customer / Party Name', 'Trips', /* 'Batch Size (m³)', */ 'Delivered Qty', /* 'Empty Wt (T)', 'Loaded Wt (T)', 'Net Wt (T)', 'Taxable Amt', 'Tax Amt', */ 'Total Amt'],
+                        'headers' => ['#', 'Customer / Party Name', 'Trips', 'Delivered Qty (m³)', 'Total Amt (₹)'],
                         'rows' => $custRows,
                     ];
                 }
@@ -1019,19 +1000,16 @@ class ExcelExportService
                             $ti + 1,
                             $tRow['truck_no'] ?? '',
                             (int)($tRow['trips_count'] ?? 1),
-                            // (float)($tRow['batch_size'] ?? 0),
                             (float)($tRow['quantity'] ?? 0),
                             (float)($tRow['truck_empty'] ?? 0),
                             (float)($tRow['loaded_weight'] ?? 0),
                             (float)($tRow['netweight'] ?? 0),
-                            // (float)($tRow['amount_untaxed'] ?? 0),
-                            // (float)($tRow['amount_tax'] ?? 0),
                             (float)($tRow['amount_total'] ?? 0),
                         ];
                     }
                     $extraSections['tables'][] = [
                         'title' => 'TRUCK CONSOLIDATED SUMMARY (FLEET WISE)',
-                        'headers' => ['#', 'Truck / Vehicle Registration', 'Trips', /* 'Batch Size (m³)', */ 'Delivered Qty', 'Empty Wt (T)', 'Loaded Wt (T)', 'Net Wt (T)', /* 'Taxable Amt', 'Tax Amt', */ 'Total Amt'],
+                        'headers' => ['#', 'Truck / Vehicle Registration', 'Trips', 'Delivered Qty (m³)', 'Empty Wt (T)', 'Loaded Wt (T)', 'Net Wt (T)', 'Total Amt (₹)'],
                         'rows' => $truckRows,
                     ];
                 }
@@ -1044,14 +1022,13 @@ class ExcelExportService
                             $sRow['site_name'] ?? '',
                             $sRow['customer_name'] ?? '-',
                             (int)($sRow['trips_count'] ?? 1),
-                            (float)($sRow['batch_size'] ?? 0),
                             (float)($sRow['quantity'] ?? 0),
                             (float)($sRow['amount_total'] ?? 0),
                         ];
                     }
                     $extraSections['tables'][] = [
                         'title' => 'UNLOAD SITE CONSOLIDATED SUMMARY',
-                        'headers' => ['#', 'Unload Site Name', 'Customer / Party', 'Trips', 'Batch Size (m³)', 'Delivered Qty (m³)', 'Total Amt'],
+                        'headers' => ['#', 'Unload Site Name', 'Customer / Party', 'Trips', 'Delivered Qty (m³)', 'Total Amt (₹)'],
                         'rows' => $siteRows,
                     ];
                 }
@@ -1063,14 +1040,13 @@ class ExcelExportService
                             $pi + 1,
                             $pRow['payment_mode'] ?? '',
                             (int)($pRow['trips_count'] ?? 1),
-                            // (float)($pRow['batch_size'] ?? 0),
                             (float)($pRow['quantity'] ?? 0),
                             (float)($pRow['amount_total'] ?? 0),
                         ];
                     }
                     $extraSections['tables'][] = [
                         'title' => 'PAYMENT MODE CONSOLIDATED SUMMARY',
-                        'headers' => ['#', 'Payment Mode', 'Trips', /* 'Batch Size (m³)', */ 'Delivered Qty (m³)', 'Total Amt'],
+                        'headers' => ['#', 'Payment Mode', 'Trips', 'Delivered Qty (m³)', 'Total Amt (₹)'],
                         'rows' => $pmRows,
                     ];
                 }

@@ -118,9 +118,18 @@
         <tr>
             <td style="width: 52%;">
                 <div class="address-box" style="margin-top: 5px;">
-                    <span class="address-title">Report Focus:</span>
-                    <span class="address-name">Payment Mode Consolidated Overview</span>
-                    <span>Consolidated dispatch metrics grouped by settlement and payment terms</span>
+                    @if(!empty($customer))
+                        <span class="address-title">Customer / Account:</span>
+                        <span class="address-name">{{ $customer->legal_name ?? $customer->name ?? '' }}</span>
+                        <span>{{ $customer->phone ?? '' }}</span>
+                    @elseif(!empty($target_name) && $target_name !== 'Payment Mode Consolidated Report')
+                        <span class="address-title">Customer / Account:</span>
+                        <span class="address-name">{{ $target_name }}</span>
+                    @else
+                        <span class="address-title">Report Focus:</span>
+                        <span class="address-name">Payment Mode Consolidated Overview</span>
+                        <span>Consolidated dispatch metrics grouped by settlement and payment terms</span>
+                    @endif
                 </div>
             </td>
             

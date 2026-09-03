@@ -155,15 +155,16 @@
             <tr>
                 <th width="4%">Trip #</th>
                 <th width="12%">Date & Time</th>
-                <th width="13%">Dispatch / DSP No</th>
-                <th width="14%">Customer Name</th>
-                <th width="12%">Unload Site</th>
-                <th width="10%">Truck / Mixer</th>
-                <th width="11%">Grade / Mix</th>
-                <th width="6%">Batch (m³)</th>
+                <th width="11%">Dispatch / DSP No</th>
+                <th width="13%">Customer Name</th>
+                <th width="11%">Unload Site</th>
+                <th width="9%">Truck / Mixer</th>
+                <th width="9%">Grade / Mix</th>
                 <th width="6%">Deliv (m³)</th>
+                <th width="5%">Empty (T)</th>
+                <th width="5%">Load (T)</th>
                 <th width="5%">Net (T)</th>
-                <th width="7%">Total Amt (₹)</th>
+                <th width="10%">Total Amt (₹)</th>
             </tr>
         </thead>
         <tbody>
@@ -176,16 +177,18 @@
                     <td>{{ $trip['site_name'] ?? '-' }}</td>
                     <td class="text-center font-bold" style="color: #0369a1;">{{ $trip['truck_no'] ?? '-' }}</td>
                     <td class="text-center font-bold" style="color: #4338ca;">{{ $trip['concrete_grade'] ?? $trip['mix_name'] ?? '-' }}</td>
-                    <td class="text-right">{{ number_format($trip['batch_size'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($trip['delivered_qty'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($trip['empty_weight'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($trip['loaded_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($trip['net_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($trip['amount_total'] ?? 0, 2) }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
-                <td colspan="7" class="text-center font-bold">Total Batch Dispatches ({{ count($batch_dispatches) }} Trips)</td>
-                <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('batch_size'), 2) }}</td>
+                <td colspan="7" class="text-center font-bold">Total Verified Batch Trips ({{ count($batch_dispatches) }} Trips)</td>
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('delivered_qty'), 2) }}</td>
+                <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('empty_weight'), 2) }}</td>
+                <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('loaded_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('net_weight'), 2) }}</td>
                 <td class="text-right font-bold">{{ number_format(collect($batch_dispatches)->sum('amount_total'), 2) }}</td>
             </tr>
