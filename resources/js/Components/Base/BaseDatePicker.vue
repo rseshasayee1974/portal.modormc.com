@@ -68,6 +68,16 @@ const formatDate = (date: Date): string => {
     return `${year}-${month}-${day}`;
 };
 
+const formatDateTime = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+};
+
 const internalValue = computed({
     get() {
         const parseValue = (val: any): any => {
@@ -79,6 +89,12 @@ const internalValue = computed({
                     const [y, m, d] = val.split('-').map(Number);
                     return new Date(y, m - 1, d);
                 }
+                // If datetime string YYYY-MM-DD HH:mm:ss or YYYY-MM-DD HH:mm
+                const match = val.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+                if (match) {
+                    const [, y, m, d, h, min, s] = match;
+                    return new Date(Number(y), Number(m) - 1, Number(d), Number(h), Number(min), Number(s || 0));
+                }
                 const parsed = new Date(val);
                 return isNaN(parsed.getTime()) ? null : parsed;
             }
@@ -89,7 +105,14 @@ const internalValue = computed({
     },
     set(val) {
         if (props.showTime) {
-            emit('update:modelValue', val);
+            if (val instanceof Date) {
+                emit('update:modelValue', formatDateTime(val));
+            } else if (Array.isArray(val)) {
+                const formatted = val.map(v => (v instanceof Date ? formatDateTime(v) : v));
+                emit('update:modelValue', formatted);
+            } else {
+                emit('update:modelValue', val);
+            }
             return;
         }
 

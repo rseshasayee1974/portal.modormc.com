@@ -24,7 +24,10 @@ class ProductionBatchReportService implements ReportServiceInterface
                 'materials' => fn($q) => $q->whereNull('deleted_at'),
                 'materials.product' => fn($q) => $q->whereNull('deleted_at')
             ])
-            ->whereBetween('start_time', [$start . ' 00:00:00', $end . ' 23:59:59'])
+            ->whereBetween('start_time', [
+                str_contains($start, ':') ? $start : ($start . ' 00:00:00'),
+                str_contains($end, ':') ? $end : ($end . ' 23:59:59')
+            ])
             ->get();
 
         $materialSummary = [];

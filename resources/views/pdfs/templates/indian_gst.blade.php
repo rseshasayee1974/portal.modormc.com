@@ -496,6 +496,8 @@
             </td>
         </tr>
     </table>
+
+    @include('pdfs.partials._footer')
 </div>
 </body>
 </html>

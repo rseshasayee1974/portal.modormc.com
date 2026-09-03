@@ -846,15 +846,24 @@ const shareBatchEmail = () => {
                             </template>
                         </Column>
 
-                        <Column field="mix_design_name" header="Design" sortable>
+                        <Column field="mix_design_name" class="max-w-[220px]" header="Design" sortable>
                             <template #body="slotProps">
-                                <div class="flex flex-col">
-                                    <span class="text-xs font-black text-slate-800">
-                                        {{ slotProps.data.dispatches?.[0]?.mix_design?.design_name || slotProps.data.mix_design_name || slotProps.data.sales_order?.mix_design?.design_name || '-' }}
+                                <div class="flex flex-col min-w-0">
+                                    <span 
+                                        class="text-xs font-bold text-slate-800 truncate leading-snug"
+                                        :title="slotProps.data.dispatches?.[0]?.mix_design?.design_name || slotProps.data.mix_design_name || '-'"
+                                    >
+                                        {{ slotProps.data.dispatches?.[0]?.mix_design?.design_name || slotProps.data.mix_design_name || '-' }}
                                     </span>
-                                    <span class="text-xs font-bold text-slate-700">
-                                        {{ slotProps.data.batch_size }} m³
-                                    </span>
+                                    <div class="flex items-center gap-1.5 mt-0.5">
+                                        <span 
+                                            v-if="slotProps.data.dispatches?.[0]?.mix_design?.design_code"
+                                            class="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100/90 text-slate-600 font-mono text-[10px] font-semibold tracking-wider border border-slate-200/80"
+                                        >
+                                            {{ slotProps.data.dispatches?.[0]?.mix_design?.design_code || '-' }}
+                                        </span>
+                                        <span v-else class="text-[10px] text-slate-400 font-medium">-</span>
+                                    </div>
                                 </div>
                             </template>
                         </Column>
@@ -867,11 +876,18 @@ const shareBatchEmail = () => {
                             </template>
                         </Column>
                         
-                        <!-- <Column header="Sales Exec">
+                        <Column field="batch_size" header="Batch Size" sortable>
                             <template #body="slotProps">
-                                <span class="text-xs font-semibold text-slate-700">{{ slotProps.data.dispatches?.[0]?.sales_executive?.label || '-' }}</span>
+                                <div class="flex items-baseline gap-1">
+                                    <span class="text-xs font-bold text-slate-800">
+                                        {{ slotProps.data.batch_size ?? '-' }}
+                                    </span>
+                                    <span v-if="slotProps.data.batch_size" class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                        CBM
+                                    </span>
+                                </div>
                             </template>
-                        </Column> -->
+                        </Column>
 
                         <Column field="invoice_number" header="Invoice No" sortable>
                             <template #body="slotProps">

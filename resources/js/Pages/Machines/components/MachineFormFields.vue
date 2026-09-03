@@ -159,19 +159,19 @@ defineExpose({ activeTab });
                         <TrashIcon class="w-3.5 h-3.5" />
                     </button>
                     <div class="grid grid-cols-12 gap-5">
-                        <div class="col-span-12 md:col-span-4 field-group">
+                        <div class="col-span-12 md:col-span-2 field-group">
                             <label class="field-label">Doc Type</label>
                             <BaseSelect v-model="doc.type" :options="docTypeOptions" optionLabel="label" optionValue="value" />
                         </div>
-                        <div class="col-span-6 md:col-span-4 field-group">
+                        <div class="col-span-6 md:col-span-2 field-group">
                             <label class="field-label">Amount </label>
                             <BaseInputNumber v-model="doc.amount" class="!w-full h-10" />
                         </div>
-                        <div class="col-span-6 md:col-span-4 field-group">
+                        <div class="col-span-6 md:col-span-2 field-group">
                             <label class="field-label">Issue Date</label>
                             <DatePicker v-model="doc.issue_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
                         </div>
-                        <div class="col-span-6 md:col-span-4 field-group">
+                        <div class="col-span-6 md:col-span-2 field-group">
                             <label class="field-label">Expiry Date</label>
                             <DatePicker v-model="doc.expiry_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
                         </div>
@@ -196,23 +196,23 @@ defineExpose({ activeTab });
                         <TrashIcon class="w-4 h-4" />
                     </button>
                     <div class="grid grid-cols-12 gap-5">
-                        <div class="col-span-12 md:col-span-4 field-group">
+                        <div class="col-span-12 md:col-span-2 field-group">
                             <label class="field-label">Principal Amount</label>
                             <BaseInputNumber v-model="loan.loan_amount" mode="currency" currency="INR" locale="en-IN" class="!w-full h-10" />
                         </div>
-                        <div class="col-span-12 md:col-span-4 field-group">
+                        <div class="col-span-12 md:col-span-2 field-group">
                             <label class="field-label">Monthly EMI</label>
                             <BaseInputNumber v-model="loan.emi_amount" mode="currency" currency="INR" locale="en-IN" class="!w-full h-10" />
                         </div>
-                        <div class="col-span-12 md:col-span-4 field-group">
+                        <div class="col-span-12 md:col-span-2 field-group">
                             <label class="field-label">Tenure (Months)</label>
                             <BaseInputNumber v-model="loan.tenure_months" placeholder="36" class="!w-full h-10" />
                         </div>
-                        <div class="col-span-12 md:col-span-6 field-group">
+                        <div class="col-span-12 md:col-span-2 field-group">
                             <label class="field-label">Start Date</label>
                             <DatePicker v-model="loan.start_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
                         </div>
-                        <div class="col-span-12 md:col-span-6 field-group">
+                        <div class="col-span-12 md:col-span-2 field-group">
                             <label class="field-label">End Date</label>
                             <DatePicker v-model="loan.end_date" dateFormat="yy-mm-dd" class="!w-full h-10" />
                         </div>

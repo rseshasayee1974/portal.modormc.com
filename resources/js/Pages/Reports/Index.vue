@@ -24,6 +24,13 @@ import VehiclePLReport from './components/VehiclePLReport.vue';
 import PayrollPersonnelReport from './components/PayrollPersonnelReport.vue';
 import PurchaseReport from './components/PurchaseReport.vue';
 import SalesReport from './components/SalesReport.vue';
+import ProductConsolidatedReport from './components/ProductConsolidatedReport.vue';
+import CustomerConsolidatedReport from './components/CustomerConsolidatedReport.vue';
+import TruckConsolidatedReport from './components/TruckConsolidatedReport.vue';
+import SiteConsolidatedReport from './components/SiteConsolidatedReport.vue';
+import PaymentModeConsolidatedReport from './components/PaymentModeConsolidatedReport.vue';
+import SalesExecutiveReport from './components/SalesExecutiveReport.vue';
+import DriverReport from './components/DriverReport.vue';
 import Gstr1Report from './components/Gstr1Report.vue';
 import Gstr3bReport from './components/Gstr3bReport.vue';
 import TdsCertificateReport from './components/TdsCertificateReport.vue';
@@ -47,6 +54,8 @@ const props = defineProps({
     ledgers: Array,
     patrons: Array,
     machines: Array,
+    drivers: Array,
+    salesExecutives: Array,
     filters: Object,
 });
 
@@ -90,6 +99,13 @@ const modules = [
         name: 'Production & Dispatch',
         reports: [
             { id: 'sales', name: 'Sales & Dispatches', description: 'Invoice listings, dispatch volumes and concrete grades' },
+            { id: 'product_consolidated', name: 'Product Consolidated Report', description: 'Mix design & concrete grade wise dispatches with batch size, weights, and revenue' },
+            { id: 'customer_consolidated', name: 'Customer Consolidated Report', description: 'Customer wise dispatches consolidated with batch size, weights, and billing totals' },
+            { id: 'truck_consolidated', name: 'Truck Consolidated Report', description: 'Transit mixer & vehicle wise dispatches with batch size, weights, and trip counts' },
+            { id: 'site_consolidated', name: 'Unload Site Consolidated Report', description: 'Delivery & unloading site destination wise consolidated dispatches' },
+            { id: 'payment_mode_consolidated', name: 'Payment Mode Consolidated Report', description: 'Settlement terms & payment mode wise consolidated volumes' },
+            { id: 'sales_executive', name: 'Sales Executive Report', description: 'Sales executive wise consolidated dispatches, volumes, trip counts, and revenue performance' },
+            { id: 'driver', name: 'Driver Report', description: 'Driver wise vehicle trips, delivered volume, batch sizes, and truck weights' },
             { id: 'sales_register', name: 'Sales Register Report', description: 'Itemized sales invoices with GST breakdown, rate, and taxable values' },
             { id: 'production_batch', name: 'Batch Production Sheet', description: 'Batch mix designs, target vs actual aggregate loads' },
         ]
@@ -99,6 +115,7 @@ const modules = [
         name: 'Fleet & Machinery',
         reports: [
             { id: 'machines_list', name: 'Machine Fleet Inventory', description: 'Active fleet list, mixer capacities and vehicle specs' },
+            { id: 'driver', name: 'Driver Trip Report', description: 'Driver transit mixer trips, volume, and vehicle weights' },
             { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
             { id: 'vehicle_pl', name: 'Vehicle Wise Profit & Loss', description: 'Vehicle financial breakdown: revenue, trip costs, fuel/maintenance, total costs, net profit, and profit margin %' },
         ]
@@ -108,6 +125,8 @@ const modules = [
         name: 'Payroll & Personnel',
         reports: [
             { id: 'payroll_personnel', name: 'Personnel Directory', description: 'Employee master data, contact details and designations' },
+            { id: 'sales_executive', name: 'Sales Executive Report', description: 'Sales executive performance, volume, and billing totals' },
+            { id: 'driver', name: 'Driver Trip Report', description: 'Driver trip logs, vehicle dispatches, and delivered quantities' },
         ]
     },
  {/*  {
@@ -128,6 +147,8 @@ const reportType = ref('ledger');
 const selectedId = ref(null); 
 const patronId = ref(null);
 const truckId = ref(null);
+const driverId = ref(null);
+const salesExecutiveId = ref(null);
 const startDate = ref(props.filters.start_date);
 const endDate = ref(props.filters.end_date);
 
@@ -158,6 +179,13 @@ const getReportComponent = (type) => {
         case 'payroll_personnel': return PayrollPersonnelReport;
         case 'purchase': return PurchaseReport;
         case 'sales': return SalesReport;
+        case 'product_consolidated': return ProductConsolidatedReport;
+        case 'customer_consolidated': return CustomerConsolidatedReport;
+        case 'truck_consolidated': return TruckConsolidatedReport;
+        case 'site_consolidated': return SiteConsolidatedReport;
+        case 'payment_mode_consolidated': return PaymentModeConsolidatedReport;
+        case 'sales_executive': return SalesExecutiveReport;
+        case 'driver': return DriverReport;
         case 'gstr1': return Gstr1Report;
         case 'gstr3b': return Gstr3bReport;
         case 'tds_certificate': return TdsCertificateReport;
@@ -173,6 +201,8 @@ const handlePageChange = (newPage) => {
 
 const exportProgress = ref(null);
 const pollingInterval = ref(null);
+const isExporting = ref(false);
+const currentExportType = ref(null);
 
 const gstTypeOptions = [
     { label: 'All GST Types', value: null },
@@ -187,34 +217,63 @@ const paymentStatusOptions = [
     { label: 'Partially Paid', value: 'partial' }
 ];
 
+const triggerDownload = (url, filename) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || 'report';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 const checkExportStatus = (key) => {
-    pollingInterval.value = setInterval(async () => {
+    if (pollingInterval.value) {
+        clearTimeout(pollingInterval.value);
+        pollingInterval.value = null;
+    }
+
+    let isFinished = false;
+
+    const poll = async () => {
+        if (isFinished) return;
         try {
             const response = await axios.get(route('reports.export-status', { key }));
             const data = response.data;
             exportProgress.value = data;
 
             if (data.status === 'completed') {
-                clearInterval(pollingInterval.value);
-                pollingInterval.value = null;
-                // Use a hidden anchor to trigger download (window.open gets popup-blocked from async callbacks)
-                const link = document.createElement('a');
-                link.href = data.url;
-                link.download = data.filename || 'report';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                isFinished = true;
+                if (pollingInterval.value) {
+                    clearTimeout(pollingInterval.value);
+                    pollingInterval.value = null;
+                }
+                triggerDownload(data.url, data.filename);
                 exportProgress.value = null;
+                isExporting.value = false;
+                currentExportType.value = null;
+                return;
             } else if (data.status === 'failed') {
-                clearInterval(pollingInterval.value);
-                pollingInterval.value = null;
-                alert('Export failed: ' + data.error);
+                isFinished = true;
+                if (pollingInterval.value) {
+                    clearTimeout(pollingInterval.value);
+                    pollingInterval.value = null;
+                }
+                alert('Export failed: ' + (data.error || 'Unknown error'));
                 exportProgress.value = null;
+                isExporting.value = false;
+                currentExportType.value = null;
+                return;
             }
         } catch (error) {
             console.error('Error polling export status:', error);
         }
-    }, 500);
+
+        if (!isFinished) {
+            pollingInterval.value = setTimeout(poll, 800);
+        }
+    };
+
+    pollingInterval.value = setTimeout(poll, 300);
 };
 
 const activeModule = computed(() => {
@@ -234,6 +293,8 @@ watch(selectedModuleId, (newModuleId) => {
         selectedId.value = null;
         patronId.value = null;
         truckId.value = null;
+        driverId.value = null;
+        salesExecutiveId.value = null;
         gstType.value = null;
         paymentStatus.value = null;
         currentPage.value = 1;
@@ -250,6 +311,8 @@ watch(reportType, () => {
     gstType.value = null;
     paymentStatus.value = null;
     truckId.value = null;
+    driverId.value = null;
+    salesExecutiveId.value = null;
     currentPage.value = 1;
     if (pollingInterval.value) {
         clearInterval(pollingInterval.value);
@@ -259,7 +322,7 @@ watch(reportType, () => {
     generateReport();
 });
 
-watch([selectedId, patronId, startDate, endDate, gstType, paymentStatus, valuationMethod, truckId], () => {
+watch([selectedId, patronId, startDate, endDate, gstType, paymentStatus, valuationMethod, truckId, driverId, salesExecutiveId], () => {
     generateReport();
 });
 
@@ -279,6 +342,8 @@ const generateReport = async () => {
             end_date: endDate.value,
             valuation_method: valuationMethod.value,
             truck_id: truckId.value,
+            driver_id: driverId.value,
+            sales_executive_id: salesExecutiveId.value,
             export: 'view'
         };
 
@@ -326,25 +391,37 @@ const generateReport = async () => {
     }
 };
 
-const startQueuedExport = async (url) => {
-    loading.value = true;
+const startQueuedExport = async (url, type = 'export') => {
+    if (isExporting.value) return;
+    isExporting.value = true;
+    currentExportType.value = type;
+
     try {
         const response = await axios.get(url);
         if (response.data && response.data.queued) {
-            exportProgress.value = { status: 'queued', progress: 0 };
-            checkExportStatus(response.data.status_key);
+            if (response.data.export && response.data.export.status === 'completed') {
+                triggerDownload(response.data.export.url, response.data.export.filename);
+                isExporting.value = false;
+                currentExportType.value = null;
+            } else {
+                exportProgress.value = { status: 'queued', progress: 0 };
+                checkExportStatus(response.data.status_key);
+            }
         } else {
             alert('Export failed to start.');
+            isExporting.value = false;
+            currentExportType.value = null;
         }
     } catch (error) {
         console.error('Error initiating export:', error);
         alert('Export failed to start.');
-    } finally {
-        loading.value = false;
+        isExporting.value = false;
+        currentExportType.value = null;
     }
 };
 
 const exportPdf = () => {
+    if (isExporting.value) return;
     let url = route('reports.generate', {
         type: reportType.value,
         id: selectedId.value,
@@ -353,6 +430,8 @@ const exportPdf = () => {
         end_date: endDate.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
+        driver_id: driverId.value,
+        sales_executive_id: salesExecutiveId.value,
         export: 'pdf'
     });
 
@@ -386,10 +465,11 @@ const exportPdf = () => {
             export: 'pdf'
         });
     }
-    startQueuedExport(url);
+    startQueuedExport(url, 'pdf');
 };
 
 const exportExcel = () => {
+    if (isExporting.value) return;
     let url = route('reports.generate', {
         type: reportType.value,
         id: selectedId.value,
@@ -398,6 +478,8 @@ const exportExcel = () => {
         end_date: endDate.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
+        driver_id: driverId.value,
+        sales_executive_id: salesExecutiveId.value,
         export: 'excel'
     });
 
@@ -431,7 +513,7 @@ const exportExcel = () => {
             export: 'excel'
         });
     }
-    startQueuedExport(url);
+    startQueuedExport(url, 'excel');
 };
 
 const schedules = ref([]);
@@ -702,7 +784,7 @@ const shareEmail = () => {
                                 </div>
 
                                 <!-- Patron Dropdown -->
-                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate'].includes(reportType)" class="lg:col-span-1">
+                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                         {{ reportType === 'sales_register' ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
                                     </span>
@@ -757,7 +839,7 @@ const shareEmail = () => {
                                 </div>
 
                                 <!-- Truck Dropdown -->
-                                <div v-if="reportType === 'machines_list'" class="lg:col-span-1">
+                                <div v-if="['machines_list', 'truck_consolidated', 'driver'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Truck / Vehicle</span>
                                     <BaseSelect 
                                         v-model="truckId"
@@ -770,15 +852,43 @@ const shareEmail = () => {
                                     />
                                 </div>
 
-                                <!-- Date Range -->
+                                <!-- Driver Dropdown -->
+                                <div v-if="reportType === 'driver'" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Driver</span>
+                                    <BaseSelect 
+                                        v-model="driverId"
+                                        :options="props.drivers || []"
+                                        optionLabel="name"
+                                        optionValue="id"
+                                        placeholder="All Drivers"
+                                        filter
+                                        showClear
+                                    />
+                                </div>
+
+                                <!-- Sales Executive Dropdown -->
+                                <div v-if="reportType === 'sales_executive'" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Sales Executive</span>
+                                    <BaseSelect 
+                                        v-model="salesExecutiveId"
+                                        :options="props.salesExecutives || []"
+                                        optionLabel="name"
+                                        optionValue="id"
+                                        placeholder="All Sales Executives"
+                                        filter
+                                        showClear
+                                    />
+                                </div>
+
+                                <!-- Date & Time Range -->
                                 <div v-if="reportType !== 'payroll_personnel'" class="lg:col-span-2 grid grid-cols-2 gap-4">
                                     <div>
-                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">From Date</span>
-                                        <BaseDatePicker v-model="startDate" fluid />
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">From Date & Time</span>
+                                        <BaseDatePicker v-model="startDate" :showTime="true" hourFormat="12" fluid placeholder="Select start date & time" />
                                     </div>
                                     <div>
-                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">To Date</span>
-                                        <BaseDatePicker v-model="endDate" fluid />
+                                        <span class="text-[11px] font-bold text-slate-500 block mb-1">To Date & Time</span>
+                                        <BaseDatePicker v-model="endDate" :showTime="true" hourFormat="12" fluid placeholder="Select end date & time" />
                                     </div>
                                 </div>
                             </div>
@@ -798,9 +908,16 @@ const shareEmail = () => {
                                     </button> -->
                                     <button 
                                         @click="exportExcel"
-                                        class="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold rounded transition-all flex items-center gap-1.5"
+                                        :disabled="isExporting"
+                                        :class="[
+                                            'px-4 py-2 border text-xs font-bold rounded transition-all flex items-center gap-1.5',
+                                            isExporting 
+                                                ? 'opacity-60 cursor-not-allowed bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 cursor-pointer'
+                                        ]"
                                     >
-                                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <span v-if="isExporting && currentExportType === 'excel'" class="w-3.5 h-3.5 border-2 border-emerald-700 border-t-transparent rounded-full animate-spin"></span>
+                                        <svg v-else class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M11.85 21H18.75C19.99 21 21 19.99 21 18.75V5.25C21 4.01 19.99 3 18.75 3H11.85V21Z" fill="#107C41" />
                                             <rect x="13.5" y="5.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff" fill-opacity="0.3" />
                                             <rect x="17" y="5.5" width="2.5" height="2.5" rx="0.5" fill="#ffffff" fill-opacity="0.3" />
@@ -811,18 +928,25 @@ const shareEmail = () => {
                                             <path d="M12.15 21H5.25C4.01 21 3 19.99 3 18.75V5.25C3 4.01 4.01 3 5.25 3H12.15V21Z" fill="#0E6836" />
                                             <path d="M5.5 7.5L9.5 16.5M9.5 7.5L5.5 16.5" stroke="white" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
                                         </svg>
-                                        Export Excel
+                                        {{ isExporting && currentExportType === 'excel' ? 'Exporting Excel...' : 'Export Excel' }}
                                     </button>
                                     <button 
                                         @click="exportPdf"
-                                        class="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded transition-all flex items-center gap-1.5"
+                                        :disabled="isExporting"
+                                        :class="[
+                                            'px-4 py-2 border text-xs font-bold rounded transition-all flex items-center gap-1.5',
+                                            isExporting 
+                                                ? 'opacity-60 cursor-not-allowed bg-rose-50 text-rose-700 border-rose-200' 
+                                                : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200 cursor-pointer'
+                                        ]"
                                     >
-                                        <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <span v-if="isExporting && currentExportType === 'pdf'" class="w-3.5 h-3.5 border-2 border-rose-700 border-t-transparent rounded-full animate-spin"></span>
+                                        <svg v-else class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                             <path d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3Z" fill="#E21A1A" />
                                             <path fill-rule="evenodd" clip-rule="evenodd" d="M12 6.5C12.5 6.5 13 8.5 12 10.5C11 8.5 11.5 6.5 12 6.5ZM9.5 14C8 14.5 6 15 7.5 16C9 17 10.5 15 9.5 14ZM14.5 14C16 15 17.5 16 16.5 16.8C15.5 17.6 13.5 15.5 14.5 14Z" fill="white" />
                                             <path d="M12.2 11.2C12.8 11.8 14 12.8 13.8 13.5C13.6 14.2 11 15 10.2 13.8C9.4 12.6 11.6 10.6 12.2 11.2Z" fill="white" fill-opacity="0.8" />
                                         </svg>
-                                        Export PDF
+                                        {{ isExporting && currentExportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF' }}
                                     </button>
                                     <!-- <button 
                                         @click="openShareReport"

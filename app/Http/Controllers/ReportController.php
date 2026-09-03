@@ -28,14 +28,35 @@ class ReportController extends Controller
         $ledgers = Ledger::where('plant_id', $plantId)->orderBy('title')->whereNull('deleted_at')->get();
         $patrons = Patron::where('plant_id', $plantId)->orderBy('legal_name')->whereNull('deleted_at')->get();
         $machines = MachinesDropdown();
+        $drivers = \App\Models\Personnel::where(function ($q) use ($plantId) {
+            $q->where('plant_id', $plantId)->orWhereNull('plant_id');
+        })->whereNull('deleted_at')
+          ->orderBy('first_name')
+          ->get(['id', 'first_name', 'last_name', 'employee_code'])
+          ->map(fn($p) => [
+              'id'   => $p->id,
+              'name' => trim($p->first_name . ' ' . $p->last_name) . ($p->employee_code ? " ({$p->employee_code})" : '')
+          ]);
+
+        $salesExecutives = \App\Models\Personnel::where(function ($q) use ($plantId) {
+            $q->where('plant_id', $plantId)->orWhereNull('plant_id');
+        })->whereNull('deleted_at')
+          ->orderBy('first_name')
+          ->get(['id', 'first_name', 'last_name', 'employee_code'])
+          ->map(fn($p) => [
+              'id'   => $p->id,
+              'name' => trim($p->first_name . ' ' . $p->last_name) . ($p->employee_code ? " ({$p->employee_code})" : '')
+          ]);
 
         return Inertia::render('Reports/Index', [
-            'ledgers' => $ledgers,
-            'patrons' => $patrons,
-            'machines' => $machines,
+            'ledgers'          => $ledgers,
+            'patrons'          => $patrons,
+            'machines'         => $machines,
+            'drivers'          => $drivers,
+            'salesExecutives'  => $salesExecutives,
             'filters' => [
-                'start_date' => $request->input('start_date', now()->subDays(30)->toDateString()),
-                'end_date' => $request->input('end_date', now()->toDateString()),
+                'start_date' => $request->input('start_date', now()->subDays(30)->startOfDay()->format('Y-m-d H:i:s')),
+                'end_date'   => $request->input('end_date', now()->endOfDay()->format('Y-m-d H:i:s')),
             ]
         ]);
     }
@@ -56,9 +77,18 @@ class ReportController extends Controller
             return response()->json(['error' => 'Invalid report type'], 400);
         }
 
-        // Parse and format dates to full datetime strings to ensure complete day coverage (up to 23:59:59)
-        $startFormatted = $start ? \Carbon\Carbon::parse($start)->startOfDay()->toDateTimeString() : now()->startOfYear()->startOfDay()->toDateTimeString();
-        $endFormatted   = $end ? \Carbon\Carbon::parse($end)->endOfDay()->toDateTimeString() : now()->endOfDay()->toDateTimeString();
+        // Parse and format dates to full datetime strings (preserve time if provided)
+        $startFormatted = $start 
+            ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($start)) 
+                ? \Carbon\Carbon::parse($start)->startOfDay()->toDateTimeString() 
+                : \Carbon\Carbon::parse($start)->toDateTimeString())
+            : now()->startOfYear()->startOfDay()->toDateTimeString();
+
+        $endFormatted = $end 
+            ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($end)) 
+                ? \Carbon\Carbon::parse($end)->endOfDay()->toDateTimeString() 
+                : \Carbon\Carbon::parse($end)->toDateTimeString())
+            : now()->endOfDay()->toDateTimeString();
 
         $params = [
             'start'            => $startFormatted,
@@ -69,7 +99,9 @@ class ReportController extends Controller
             'valuation_method' => $request->input('valuation_method', 'FIFO'),
             'consolidation'    => $request->input('consolidation', 'po'),
             'plant_id'         => session('active_plant_id'),
-            'truck_id'         => $request->input('truck_id'),
+            'truck_id'           => $request->input('truck_id'),
+            'driver_id'          => $request->input('driver_id'),
+            'sales_executive_id' => $request->input('sales_executive_id'),
         ];
 
         if ($export === 'excel' || $export === 'pdf') {
@@ -86,6 +118,7 @@ class ReportController extends Controller
                 'status'     => true,
                 'queued'     => true,
                 'status_key' => $statusKey,
+                'export'     => Cache::get($statusKey),
                 'message'    => 'Report generation has been queued.',
             ]);
         }
@@ -97,10 +130,17 @@ class ReportController extends Controller
     private function exportPdf($type, $targetName, $start, $end, $data, $ledgerId = null, $patronId = null, $consolidation = 'po')
     {
         $viewMap = [
-            'LEDGER'               => 'reports.ledger_report',
-            'PATRON'               => 'reports.patron_report',
-            'SALES'                => 'reports.sales_report',
-            'PURCHASE'             => 'reports.purchase_report',
+            'LEDGER'                    => 'reports.ledger_report',
+            'PATRON'                    => 'reports.patron_report',
+            'SALES'                     => 'reports.sales_report',
+            'PRODUCT_CONSOLIDATED'      => 'reports.product_consolidated_report',
+            'CUSTOMER_CONSOLIDATED'     => 'reports.customer_consolidated_report',
+            'TRUCK_CONSOLIDATED'        => 'reports.truck_consolidated_report',
+            'SITE_CONSOLIDATED'         => 'reports.site_consolidated_report',
+            'PAYMENT_MODE_CONSOLIDATED' => 'reports.payment_mode_consolidated_report',
+            'SALES_EXECUTIVE'           => 'reports.sales_executive_report',
+            'DRIVER'                    => 'reports.driver_report',
+            'PURCHASE'                  => 'reports.purchase_report',
             'PAYMENT'              => 'reports.payment_report',
             'RECEIPT'              => 'reports.receipt_report',
             'INVENTORY_STOCK'      => 'reports.generic_report',
@@ -175,11 +215,14 @@ class ReportController extends Controller
             ];
         }
 
+        $startLabel = $start ? (str_contains($start, ':') ? \Carbon\Carbon::parse($start)->format('d-m-Y H:i') : \Carbon\Carbon::parse($start)->format('d-m-Y')) : '';
+        $endLabel   = $end ? (str_contains($end, ':') ? \Carbon\Carbon::parse($end)->format('d-m-Y H:i') : \Carbon\Carbon::parse($end)->format('d-m-Y')) : '';
+
         $pdfData = array_merge([
             'type'          => strtoupper($type),
             'target_name'   => $targetName,
-            'start'         => \Carbon\Carbon::parse($start)->format('d-m-Y'),
-            'end'           => \Carbon\Carbon::parse($end)->format('d-m-Y'),
+            'start'         => $startLabel,
+            'end'           => $endLabel,
             'plant'         => $plant,
             'patron'        => $patron,
             'consolidation' => $consolidation
@@ -187,7 +230,8 @@ class ReportController extends Controller
 
         $pdf = Pdf::loadView($view, $pdfData)->setPaper('a4', 'portrait');
 
-        return $pdf->download("Report_{$type}_{$start}.pdf");
+        $cleanStart = str_replace([':', ' '], ['-', '_'], $startLabel);
+        return $pdf->download("Report_{$type}_{$cleanStart}.pdf");
     }
 
     private function exportExcel($type, $start, $end, $data, ExcelExportService $excelService)

@@ -114,7 +114,7 @@ class EInvoiceService
         $auth = $this->authenticate($plant, $userId);
 
         // 2. Resolve credentials
-        $this->getGatewayConfig($plant);
+        $this->getGatewayConfig($plant, true);
         [$username, $password, $gstin] = $this->getPlantCredentials($plant);
 
         // 3. Build E-Way Bill by IRN Payload
@@ -428,9 +428,9 @@ class EInvoiceService
      */
     public function getPlantCredentials(?Plant $plant = null): array
     {
-        $username = $plant?->einvoice_client_id ?: ($plant?->entity?->einv_username ?: '');
-        $password = $plant?->einvoice_secret ?: ($plant?->entity?->einv_password ?: '');
-        $gstin = $plant?->gstin ?: ($plant?->entity?->gstin ?: '');
+        $username = $plant?->einvoice_client_id ?: ($plant?->entity?->einv_username ?: config('services.perione.username', ''));
+        $password = $plant?->einvoice_secret ?: ($plant?->entity?->einv_password ?: config('services.perione.password', ''));
+        $gstin = $plant?->gstin ?: ($plant?->entity?->gstin ?: config('services.perione.gstin', ''));
 
         return [$username, $password, $gstin];
     }
@@ -982,19 +982,27 @@ class EInvoiceService
     /**
      * Resolve Gateway settings for Sandbox vs Production dynamically.
      */
-    public function getGatewayConfig(?Plant $plant = null): array
+    public function getGatewayConfig(?Plant $plant = null, bool $forEway = false): array
     {
         $isProd = $this->isProduction($plant);
 
         if ($isProd) {
             $baseUrl = config('services.perione.prod_base_url') ?: (config('services.perione.base_url') ?: 'https://api.perione.in');
-            $clientId = $plant?->entity?->api_key ?: (config('services.perione.prod_client_id') ?: config('services.perione.client_id'));
-            $clientSecret = config('services.perione.prod_client_secret') ?: config('services.perione.client_secret');
+            $clientId = $forEway
+                ? (config('services.perione.prod_eway_client_id') ?: 'PEWAYPc38f83975b650189fb86e3e5659d30fe')
+                : ($plant?->entity?->api_key ?: (config('services.perione.prod_client_id') ?: config('services.perione.client_id')));
+            $clientSecret = $forEway
+                ? (config('services.perione.prod_eway_client_secret') ?: 'PEWAYP52608f1eabd22d36e310b3c341177f49')
+                : (config('services.perione.prod_client_secret') ?: config('services.perione.client_secret'));
             $email = $plant?->email_address ?: (config('services.perione.prod_email') ?: config('services.perione.email', 'sayee@onemodo.com'));
         } else {
             $baseUrl = config('services.perione.sandbox_base_url') ?: (config('services.perione.base_url') ?: 'https://staging.perione.in');
-            $clientId = config('services.perione.sandbox_client_id') ?: (config('services.perione.client_id') ?: 'PEINVSb3aadf99327e3ca03792510397d3136b');
-            $clientSecret = config('services.perione.sandbox_client_secret') ?: (config('services.perione.client_secret') ?: 'PEINVS21f24a6a2291dd214d0d81bf23ae8ec7');
+            $clientId = $forEway
+                ? (config('services.perione.sandbox_eway_client_id') ?: 'PEWAYS472417d4a8bc74b10d31d4219c6b343c')
+                : (config('services.perione.sandbox_client_id') ?: (config('services.perione.client_id') ?: 'PEINVSb3aadf99327e3ca03792510397d3136b'));
+            $clientSecret = $forEway
+                ? (config('services.perione.sandbox_eway_client_secret') ?: 'PEWAYS5376280bd5bc93b6c6ddf334a88d7a45')
+                : (config('services.perione.sandbox_client_secret') ?: (config('services.perione.client_secret') ?: 'PEINVS21f24a6a2291dd214d0d81bf23ae8ec7'));
             $email = config('services.perione.sandbox_email') ?: (config('services.perione.email') ?: 'sayee@onemodo.com');
         }
 

@@ -70,12 +70,12 @@
     .powered-footer {
         display: table;
         width: 100%;
-        border-top: 1px solid #ccc;
+        border-top: 1px solid #cbd5e1;
         font-size: 9px;
     }
-    .powered-footer .pf-left  { display: table-cell; color: #999; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: middle;}
-    .powered-footer .pf-right { display: table-cell; text-align: right; color: #888; font-size: 10px; vertical-align: middle; padding: 5px 12px; }
-    .powered-footer .pf-brand { font-weight: 700; color: #555; font-size: 10px; }
+    .powered-footer .pf-left  { display: table-cell; color: #64748b; font-size: 9px; letter-spacing: 0.02em; vertical-align: middle; padding: 6px 12px; text-align: left; }
+    .powered-footer .pf-right { display: table-cell; text-align: right; color: #64748b; font-size: 9.5px; vertical-align: middle; padding: 6px 12px; }
+    .powered-footer .pf-brand { font-weight: 700; color: #1e293b; font-size: 10px; }
 
     /* Centered A4 preview styling for browser/screen view */
     @media screen {

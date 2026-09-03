@@ -94,10 +94,10 @@ const printReport = () => {
                                 />
                             </div>
                             <div>
-                                <BaseDatePicker v-model="form.start_date" label="From Date" fluid />
+                                <BaseDatePicker v-model="form.start_date" :showTime="true" hourFormat="12" label="From Date & Time" fluid />
                             </div>
                             <div>
-                                <BaseDatePicker v-model="form.end_date" label="To Date" fluid />
+                                <BaseDatePicker v-model="form.end_date" :showTime="true" hourFormat="12" label="To Date & Time" fluid />
                             </div>
                             <div class="col-span-full flex justify-end gap-3 mt-2 border-t pt-6">
                                 <BaseButton type="submit" variant="filled" severity="warning" :loading="form.processing">

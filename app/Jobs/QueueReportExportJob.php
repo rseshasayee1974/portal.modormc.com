@@ -92,7 +92,9 @@ class QueueReportExportJob implements ShouldQueue
                     'voucher_type'     => strtoupper($this->type),
                     'valuation_method' => $this->filters['valuation_method'] ?? 'FIFO',
                     'consolidation'    => $this->filters['consolidation'] ?? 'po',
-                    'truck_id'         => $this->filters['truck_id'] ?? null,
+                    'truck_id'           => $this->filters['truck_id'] ?? null,
+                    'driver_id'          => $this->filters['driver_id'] ?? null,
+                    'sales_executive_id' => $this->filters['sales_executive_id'] ?? null,
                 ];
 
                 $data = $service->generate($params);
@@ -104,7 +106,7 @@ class QueueReportExportJob implements ShouldQueue
                     $writer->save($filePath);
                     $spreadsheet->disconnectWorksheets();
                 } else {
-                    $targetName = $service->targetName($params);
+                    $targetName = method_exists($service, 'targetName') ? $service->targetName($params) : '';
                     $this->generateAndSaveUnifiedPdf($this->type, $targetName, $params, $data, $filePath);
                 }
             }
@@ -142,9 +144,16 @@ class QueueReportExportJob implements ShouldQueue
     private function generateAndSaveUnifiedPdf(string $type, string $targetName, array $params, array $data, string $filePath): void
     {
         $viewMap = [
-            'LEDGER'               => 'reports.ledger_report',
-            'PATRON'               => 'reports.patron_report',
-            'SALES'                => 'reports.sales_report',
+            'LEDGER'                    => 'reports.ledger_report',
+            'PATRON'                    => 'reports.patron_report',
+            'SALES'                     => 'reports.sales_report',
+            'PRODUCT_CONSOLIDATED'      => 'reports.product_consolidated_report',
+            'CUSTOMER_CONSOLIDATED'     => 'reports.customer_consolidated_report',
+            'TRUCK_CONSOLIDATED'        => 'reports.truck_consolidated_report',
+            'SITE_CONSOLIDATED'         => 'reports.site_consolidated_report',
+            'PAYMENT_MODE_CONSOLIDATED' => 'reports.payment_mode_consolidated_report',
+            'SALES_EXECUTIVE'           => 'reports.sales_executive_report',
+            'DRIVER'                    => 'reports.driver_report',
             'PURCHASE'             => 'reports.purchase_report',
             'PAYMENT'              => 'reports.payment_report',
             'RECEIPT'              => 'reports.receipt_report',
@@ -224,15 +233,18 @@ class QueueReportExportJob implements ShouldQueue
         }
 
         $orientation = 'portrait';
-        if (in_array(strtoupper($type), ['SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B'])) {
+        if (in_array(strtoupper($type), ['SILO_STOCK_VALUATION', 'GSTR1', 'GSTR3B', 'PRODUCT_CONSOLIDATED', 'CUSTOMER_CONSOLIDATED', 'TRUCK_CONSOLIDATED', 'SITE_CONSOLIDATED', 'PAYMENT_MODE_CONSOLIDATED', 'SALES_EXECUTIVE', 'DRIVER'])) {
             $orientation = 'landscape';
         }
+
+        $startLabel = !empty($params['start']) ? (str_contains($params['start'], ':') ? \Carbon\Carbon::parse($params['start'])->format('d-m-Y H:i') : \Carbon\Carbon::parse($params['start'])->format('d-m-Y')) : '';
+        $endLabel   = !empty($params['end']) ? (str_contains($params['end'], ':') ? \Carbon\Carbon::parse($params['end'])->format('d-m-Y H:i') : \Carbon\Carbon::parse($params['end'])->format('d-m-Y')) : '';
 
         $pdfData = array_merge([
             'type'          => strtoupper($type),
             'target_name'   => $targetName,
-            'start'         => \Carbon\Carbon::parse($params['start'])->format('d-m-Y'),
-            'end'           => \Carbon\Carbon::parse($params['end'])->format('d-m-Y'),
+            'start'         => $startLabel,
+            'end'           => $endLabel,
             'plant'         => $plant,
             'patron'        => $patron,
             'consolidation' => $params['consolidation'] ?? 'po',

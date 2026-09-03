@@ -231,6 +231,7 @@ class SalesRegisterService
             'status'     => true,
             'queued'     => true,
             'status_key' => $statusKey,
+            'export'     => Cache::get($statusKey),
             'message'    => 'Report generation has been queued.',
         ];
     }
@@ -251,6 +252,7 @@ class SalesRegisterService
             'status'     => true,
             'queued'     => true,
             'status_key' => $statusKey,
+            'export'     => Cache::get($statusKey),
             'message'    => 'Report generation has been queued.',
         ];
     }

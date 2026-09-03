@@ -286,6 +286,7 @@ class PurchaseRegisterService
             'status'     => true,
             'queued'     => true,
             'status_key' => $statusKey,
+            'export'     => Cache::get($statusKey),
             'message'    => 'Report generation has been queued. You will be notified when the export completes.',
         ];
     }
@@ -310,6 +311,7 @@ class PurchaseRegisterService
             'status'     => true,
             'queued'     => true,
             'status_key' => $statusKey,
+            'export'     => Cache::get($statusKey),
             'message'    => 'Report generation has been queued. You will be notified when the export completes.',
         ];
     }
