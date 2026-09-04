@@ -53,7 +53,7 @@ const emit = defineEmits(['offline-batch-added', 'cancel','created']);
 const form = useForm({
     sales_order_id: null as number | null,
     batch_no: null as number | null,
-    batch_size: 1,
+    batch_size: 0,
     truck_id: null as number | null,
     transport_id: null as number | null,
     driver_id: null as number | null,
@@ -117,6 +117,12 @@ const selectedSalesOrder = computed(() => {
     return props.salesOrders.find(so => Number(so.id) === Number(form.sales_order_id));
 });
 
+const remainingQty = computed(() => {
+    if (!selectedSalesOrder.value) return 20;
+    const rem = Number(selectedSalesOrder.value.total_qty || 0) - Number(selectedSalesOrder.value.produced_qty || 0);
+    return Math.max(0, Number(rem.toFixed(3)));
+});
+
 const nextBatchNoDisplay = computed(() => {
     return props.nextBatchNo;
 });
@@ -145,10 +151,10 @@ const isAutofillingSalesOrder = ref(false);
 watch(() => form.sales_order_id, (newVal) => {
     if (newVal && selectedSalesOrder.value) {
         isAutofillingSalesOrder.value = true;
-
-        // Calculate remaining qty and assign to batch_size (capped at 6)
-        const remaining = Number((Number(selectedSalesOrder.value.total_qty) - Number(selectedSalesOrder.value.produced_qty)).toFixed(3));
-        form.batch_size = remaining > 6 ? 6 : (remaining > 0 ? remaining : 1);
+        
+        if (form.batch_size > remainingQty.value) {
+            form.batch_size = remainingQty.value;
+        }
         
         // References for easy access
         const po = selectedSalesOrder.value.customer_p_o;
@@ -203,7 +209,7 @@ watch(() => form.sales_order_id, (newVal) => {
         form.truck_id = null;
         form.driver_id = null;
         form.transport_id = null;
-        form.batch_size = 1;
+        form.batch_size = 0;
     }
 });
 
@@ -245,8 +251,9 @@ watch(() => props.transporters, (transporters) => {
 
 watch(() => form.batch_size, (newVal) => {
     if (newVal !== null && newVal !== undefined) {
-        if (newVal > 20) {
-            form.batch_size = 20;
+        const maxVal = selectedSalesOrder.value ? remainingQty.value : 20;
+        if (newVal > maxVal) {
+            form.batch_size = maxVal;
         }
     }
 });
@@ -377,17 +384,13 @@ const handleWeightCaptureDialog = () => {
 const submit = () => {
     form.clearErrors();
     
-    const maxAllowed = selectedSalesOrder.value 
-        ? Math.max(0, Number(selectedSalesOrder.value.total_qty) - Number(selectedSalesOrder.value.produced_qty))
-        : 20;
-        const remainingQty = selectedSalesOrder.value
-    ? Number(
-        (
-            Number(selectedSalesOrder.value.total_qty) -
-            Number(selectedSalesOrder.value.produced_qty)
-        ).toFixed(3)
-      )
-    : 20;
+    const currentRemaining = remainingQty.value;
+    
+    // If nothing entered by the user (or 0), default to 1 (or remaining if less than 1) for the form submission
+    if (!form.batch_size || Number(form.batch_size) <= 0) {
+        const defaultQty = selectedSalesOrder.value ? Math.min(1, currentRemaining) : 1;
+        form.batch_size = defaultQty > 0 ? defaultQty : 1;
+    }
 
     const validations = [
         { condition: !form.sales_order_id, field: 'sales_order_id', message: 'Sales Order is required' },
@@ -399,9 +402,9 @@ const submit = () => {
         {
             condition:
                 form.sales_order_id &&
-                Number(form.batch_size.toFixed(3)) > remainingQty,
+                Number(form.batch_size.toFixed(3)) > currentRemaining,
             field: 'batch_size',
-            message: `Batch Quantity cannot exceed remaining order quantity (${remainingQty.toFixed(3)} m³)`
+            message: `Batch Quantity cannot exceed remaining order quantity (${currentRemaining.toFixed(3)} m³)`
         },
         { condition: (form.empty_weight_truck === null || form.empty_weight_truck === undefined || form.empty_weight_truck <= 0.00), field: 'empty_weight_truck', message: 'Empty Weight is required' },
         { condition: !form.empty_time, field: 'empty_time', message: 'Empty Time is required' },
@@ -435,7 +438,7 @@ const submit = () => {
         form.reset();
         form.sales_order_id = null;
         form.batch_no = props.nextBatchNo;
-        form.batch_size = 1;
+        form.batch_size = 0;
         form.truck_id = null;
         form.transport_id = null;
         form.driver_id = null;
@@ -617,7 +620,7 @@ const submit = () => {
                         <BaseSelect v-model="form.concrete_pump" :options="concretePumpOptions" optionLabel="label" optionValue="value" label="Concrete Type" placeholder="Select Concrete Type" :error="form.errors.concrete_pump" />
                     </div> -->
                     <div>
-                        <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :minFractionDigits="1" :maxFractionDigits="1" required :error="form.errors.batch_size" />
+                        <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :max="selectedSalesOrder ? remainingQty : 20" :minFractionDigits="1" :maxFractionDigits="1" required :error="form.errors.batch_size" />
                     </div>
                     <div>
                         <div class="flex items-end gap-2">

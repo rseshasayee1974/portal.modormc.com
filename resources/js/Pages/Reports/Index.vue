@@ -786,10 +786,17 @@ const shareEmail = () => {
                                     />
                                 </div>
 
+<<<<<<< HEAD
                                 <!-- Patron Dropdown -->
                                 <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                         {{ (reportType === 'sales_register' || reportType === 'cancelled_dispatch') ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
+=======
+                                <!-- Patron / Customer Dropdown -->
+                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">
+                                        {{ ['sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'sales', 'cancelled_dispatch'].includes(reportType) ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
+>>>>>>> 69534fb295d47fd9e426ca3907f573b484f81a34
                                     </span>
                                     <BaseSelect 
                                         v-model="patronId"
