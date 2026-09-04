@@ -241,6 +241,8 @@ class QueueReportExportJob implements ShouldQueue
         $startLabel = !empty($params['start']) ? (str_contains($params['start'], ':') ? \Carbon\Carbon::parse($params['start'])->format('d-m-Y H:i') : \Carbon\Carbon::parse($params['start'])->format('d-m-Y')) : '';
         $endLabel   = !empty($params['end']) ? (str_contains($params['end'], ':') ? \Carbon\Carbon::parse($params['end'])->format('d-m-Y H:i') : \Carbon\Carbon::parse($params['end'])->format('d-m-Y')) : '';
 
+        $css = $this->getReportCss($type);
+
         $pdfData = array_merge([
             'type'          => strtoupper($type),
             'target_name'   => $targetName,
@@ -249,11 +251,35 @@ class QueueReportExportJob implements ShouldQueue
             'plant'         => $plant,
             'patron'        => $patron,
             'consolidation' => $params['consolidation'] ?? 'po',
-            'landscape'     => ($orientation === 'landscape')
+            'landscape'     => ($orientation === 'landscape'),
+            'css'           => $css,
+            'report_css'    => $css,
         ], $data, $extraParams);
 
         $pdf = Pdf::loadView($view, $pdfData)->setPaper('a4', $orientation);
         $pdf->save($filePath);
+    }
+
+    /**
+     * Load CSS content for PDF reports from separate CSS file.
+     */
+    private function getReportCss(string $type = 'default'): string
+    {
+        $normalizedType = strtolower($type);
+        $candidates = [
+            public_path("css/reports/{$normalizedType}_report.css"),
+            public_path("css/reports/{$normalizedType}.css"),
+            public_path("css/reports/report_pdf.css"),
+            resource_path("css/reports/report_pdf.css"),
+        ];
+
+        foreach ($candidates as $path) {
+            if (file_exists($path)) {
+                return file_get_contents($path);
+            }
+        }
+
+        return '';
     }
 }
 

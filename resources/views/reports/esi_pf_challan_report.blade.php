@@ -4,24 +4,7 @@
     <meta charset="utf-8">
     <title>ESI & PF Challan Summary Report</title>
     <style>
-        @page { margin: 35px; }
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 8pt; color: #1e293b; line-height: 1.3; }
-        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        .header-table td { padding: 0; vertical-align: top; }
-        .address-box { font-size: 8pt; color: #334155; }
-        .address-title { font-weight: bold; color: #64748b; font-size: 8pt; text-transform: uppercase; }
-        .address-name { font-weight: bold; font-size: 10.5pt; color: #0f172a; display: block; margin-bottom: 2px; }
-        .title-container { border-bottom: 2px solid #1d2d3e; padding-bottom: 5px; margin-bottom: 12px; }
-        .title { font-size: 12pt; font-weight: bold; color: #1d2d3e; margin: 0; text-transform: uppercase; }
-        .table-section-title { background-color: #1d2d3e; color: #ffffff; font-weight: bold; padding: 6px 8px; font-size: 8.5pt; margin-top: 15px; margin-bottom: 0px; border: 1px solid #1d2d3e; }
-        table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #cbd5e1; }
-        table.data-table th { background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 5px 4px; font-size: 7.5pt; font-weight: bold; text-align: center; }
-        table.data-table td { padding: 5px 6px; border: 1px solid #cbd5e1; font-size: 7.5pt; vertical-align: middle; }
-        table.data-table tr.total-row { background-color: #e2e8f0; font-weight: bold; }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        .text-left { text-align: left; }
-        .footer { font-size: 7.5pt; color: #64748b; text-align: center; margin-top: 20px; border-top: 1px solid #cbd5e1; padding-top: 5px; font-style: italic; }
+        {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/esi_pf_challan_report.css')) ? file_get_contents(public_path('css/reports/esi_pf_challan_report.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
     </style>
 </head>
 <body>

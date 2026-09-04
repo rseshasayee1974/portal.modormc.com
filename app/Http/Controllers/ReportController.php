@@ -227,6 +227,8 @@ class ReportController extends Controller
         $startLabel = $start ? (str_contains($start, ':') ? \Carbon\Carbon::parse($start)->format('d-m-Y H:i') : \Carbon\Carbon::parse($start)->format('d-m-Y')) : '';
         $endLabel   = $end ? (str_contains($end, ':') ? \Carbon\Carbon::parse($end)->format('d-m-Y H:i') : \Carbon\Carbon::parse($end)->format('d-m-Y')) : '';
 
+        $css = $this->getReportCss($type);
+
         $pdfData = array_merge([
             'type'          => strtoupper($type),
             'target_name'   => $targetName,
@@ -234,13 +236,37 @@ class ReportController extends Controller
             'end'           => $endLabel,
             'plant'         => $plant,
             'patron'        => $patron,
-            'consolidation' => $consolidation
+            'consolidation' => $consolidation,
+            'css'           => $css,
+            'report_css'    => $css,
         ], $data, $extraParams);
 
         $pdf = Pdf::loadView($view, $pdfData)->setPaper('a4', 'portrait');
 
         $cleanStart = str_replace([':', ' '], ['-', '_'], $startLabel);
         return $pdf->download("Report_{$type}_{$cleanStart}.pdf");
+    }
+
+    /**
+     * Load CSS content for PDF reports from separate CSS file.
+     */
+    private function getReportCss(string $type = 'default'): string
+    {
+        $normalizedType = strtolower($type);
+        $candidates = [
+            public_path("css/reports/{$normalizedType}_report.css"),
+            public_path("css/reports/{$normalizedType}.css"),
+            public_path("css/reports/report_pdf.css"),
+            resource_path("css/reports/report_pdf.css"),
+        ];
+
+        foreach ($candidates as $path) {
+            if (file_exists($path)) {
+                return file_get_contents($path);
+            }
+        }
+
+        return '';
     }
 
     private function exportExcel($type, $start, $end, $data, ExcelExportService $excelService)

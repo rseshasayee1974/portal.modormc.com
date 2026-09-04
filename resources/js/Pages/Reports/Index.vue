@@ -57,7 +57,6 @@ const props = defineProps({
     machines: Array,
     drivers: Array,
     salesExecutives: Array,
-    concreteGrades: Array,
     filters: Object,
 });
 
@@ -101,11 +100,11 @@ const modules = [
         name: 'Production & Dispatch',
         reports: [
             { id: 'sales', name: 'Sales & Dispatches', description: 'Invoice listings, dispatch volumes and concrete grades' },
-            { id: 'product_consolidated', name: 'Product  Report', description: 'Mix design & concrete grade wise dispatches with batch size, weights, and revenue' },
+            { id: 'product_consolidated', name: 'Product Consolidated Report', description: 'Mix design & concrete grade wise dispatches with batch size, weights, and revenue' },
             { id: 'customer_consolidated', name: 'Customer Report', description: 'Customer wise dispatches consolidated with batch size, weights, and billing totals' },
-            { id: 'truck_consolidated', name: 'Truck  Report', description: 'Transit mixer & vehicle wise dispatches with batch size, weights, and trip counts' },
-            { id: 'site_consolidated', name: 'Unload Site  Report', description: 'Delivery & unloading site destination wise consolidated dispatches' },
-            { id: 'payment_mode_consolidated', name: 'Payment Mode  Report', description: 'Settlement terms & payment mode wise consolidated volumes' },
+            { id: 'truck_consolidated', name: 'Truck Consolidated Report', description: 'Transit mixer & vehicle wise dispatches with batch size, weights, and trip counts' },
+            { id: 'site_consolidated', name: 'Unload Site Consolidated Report', description: 'Delivery & unloading site destination wise consolidated dispatches' },
+            { id: 'payment_mode_consolidated', name: 'Payment Mode Consolidated Report', description: 'Settlement terms & payment mode wise consolidated volumes' },
             { id: 'sales_executive', name: 'Sales Executive Report', description: 'Sales executive wise consolidated dispatches, volumes, trip counts, and revenue performance' },
             { id: 'driver', name: 'Driver Report', description: 'Driver wise vehicle trips, delivered volume, batch sizes, and truck weights' },
             { id: 'cancelled_dispatch', name: 'Cancelled Dispatch Report', description: 'Log of cancelled dispatches, batches, reversed orders, and 50+ word notes' },
@@ -119,8 +118,8 @@ const modules = [
         reports: [
             { id: 'machines_list', name: 'Machine Fleet Inventory', description: 'Active fleet list, mixer capacities and vehicle specs' },
             { id: 'driver', name: 'Driver Trip Report', description: 'Driver transit mixer trips, volume, and vehicle weights' },
-            // { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
-            // { id: 'vehicle_pl', name: 'Vehicle Wise Profit & Loss', description: 'Vehicle financial breakdown: revenue, trip costs, fuel/maintenance, total costs, net profit, and profit margin %' },
+            { id: 'machine_summary', name: 'Machine Summary Report', description: 'Overview of fleet metrics: registration, trips, qty, weight, revenue, expenses, and document expiry warnings' },
+            { id: 'vehicle_pl', name: 'Vehicle Wise Profit & Loss', description: 'Vehicle financial breakdown: revenue, trip costs, fuel/maintenance, total costs, net profit, and profit margin %' },
         ]
     },
     {
@@ -152,7 +151,6 @@ const patronId = ref(null);
 const truckId = ref(null);
 const driverId = ref(null);
 const salesExecutiveId = ref(null);
-const gradeId = ref(null);
 const startDate = ref(props.filters.start_date);
 const endDate = ref(props.filters.end_date);
 
@@ -349,7 +347,6 @@ const generateReport = async () => {
             truck_id: truckId.value,
             driver_id: driverId.value,
             sales_executive_id: salesExecutiveId.value,
-            grade_id: gradeId.value,
             export: 'view'
         };
 
@@ -438,7 +435,6 @@ const exportPdf = () => {
         truck_id: truckId.value,
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
-        grade_id: gradeId.value,
         export: 'pdf'
     });
 
@@ -487,7 +483,6 @@ const exportExcel = () => {
         truck_id: truckId.value,
         driver_id: driverId.value,
         sales_executive_id: salesExecutiveId.value,
-        grade_id: gradeId.value,
         export: 'excel'
     });
 
@@ -616,7 +611,6 @@ const generateShareLink = async () => {
                 gst_type: gstType.value,
                 payment_status: paymentStatus.value,
                 truck_id: truckId.value,
-                grade_id: gradeId.value,
             }
         });
         
@@ -792,17 +786,10 @@ const shareEmail = () => {
                                     />
                                 </div>
 
-<<<<<<< HEAD
                                 <!-- Patron Dropdown -->
                                 <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                         {{ (reportType === 'sales_register' || reportType === 'cancelled_dispatch') ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
-=======
-                                <!-- Patron / Customer Dropdown -->
-                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">
-                                        {{ ['sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'sales'].includes(reportType) ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
->>>>>>> 8b71a5ea7281392e0b5777294b8366d2f74e82f2
                                     </span>
                                     <BaseSelect 
                                         v-model="patronId"
@@ -811,20 +798,6 @@ const shareEmail = () => {
                                         optionValue="id"
                                         :filterFields="['legal_name', 'email', 'phone', 'contact_person']"
                                         placeholder="All Partners"
-                                        filter
-                                        showClear
-                                    />
-                                </div>
-
-                                <!-- Concrete Grade Dropdown (Product Consolidated only) -->
-                                <div v-if="['product_consolidated'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Concrete Grade</span>
-                                    <BaseSelect 
-                                        v-model="gradeId"
-                                        :options="props.concreteGrades || []"
-                                        optionLabel="name"
-                                        optionValue="id"
-                                        placeholder="All Grades"
                                         filter
                                         showClear
                                     />
@@ -869,7 +842,7 @@ const shareEmail = () => {
                                 </div>
 
                                 <!-- Truck Dropdown -->
-                                <div v-if="['machines_list', 'truck_consolidated', 'driver', 'site_consolidated'].includes(reportType)" class="lg:col-span-1">
+                                <div v-if="['machines_list', 'truck_consolidated', 'driver'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Truck / Vehicle</span>
                                     <BaseSelect 
                                         v-model="truckId"

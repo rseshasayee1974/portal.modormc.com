@@ -4,16 +4,7 @@
     <meta charset="utf-8">
     <title>Quality Control Summary Report</title>
     <style>
-        body { font-family: sans-serif; font-size: 11px; color: #1e293b; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0284c7; padding-bottom: 10px; }
-        .header h1 { margin: 0; font-size: 18px; color: #0f172a; text-transform: uppercase; }
-        .header p { margin: 4px 0 0; color: #64748b; font-size: 10px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background-color: #f1f5f9; color: #334155; font-size: 10px; text-transform: uppercase; padding: 6px 8px; border: 1px solid #cbd5e1; text-align: left; }
-        td { padding: 6px 8px; border: 1px solid #e2e8f0; }
-        .status-pass { color: #16a34a; font-weight: bold; }
-        .status-fail { color: #dc2626; font-weight: bold; }
-        .footer { margin-top: 30px; text-align: right; font-size: 9px; color: #94a3b8; }
+        {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/qc_summary_pdf.css')) ? file_get_contents(public_path('css/reports/qc_summary_pdf.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
     </style>
 </head>
 <body>

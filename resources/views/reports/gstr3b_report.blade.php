@@ -4,22 +4,7 @@
     <meta charset="utf-8">
     <title>GSTR-3B Summary Report</title>
     <style>
-        @page { margin: 35px; }
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 8.5pt; color: #1e293b; line-height: 1.35; }
-        .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .header-table td { padding: 0; vertical-align: top; }
-        .address-box { font-size: 8.5pt; color: #334155; }
-        .address-title { font-weight: bold; color: #64748b; font-size: 8.5pt; text-transform: uppercase; }
-        .address-name { font-weight: bold; font-size: 11pt; color: #0f172a; display: block; margin-bottom: 2px; }
-        .title-container { border-bottom: 2px solid #0284c7; padding-bottom: 5px; margin-bottom: 15px; }
-        .title { font-size: 13pt; font-weight: bold; color: #0c4a6e; margin: 0; }
-        .table-section-title { background-color: #f1f5f9; color: #0f172a; font-weight: bold; padding: 6px 8px; font-size: 9pt; margin-top: 15px; margin-bottom: 8px; border: 1px solid #cbd5e1; border-bottom: 0; }
-        table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; border: 1px solid #cbd5e1; }
-        table.data-table th { background-color: #f8fafc; color: #0f172a; border: 1px solid #cbd5e1; padding: 6px 5px; font-size: 8pt; font-weight: bold; text-align: center; }
-        table.data-table td { padding: 6px 8px; border: 1px solid #cbd5e1; font-size: 8pt; vertical-align: middle; }
-        .font-bold { font-weight: bold; }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
+        {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/gstr3b_report.css')) ? file_get_contents(public_path('css/reports/gstr3b_report.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
     </style>
 </head>
 <body>

@@ -4,64 +4,7 @@
     <meta charset="utf-8">
     <title>Purchase Register Report</title>
     <style>
-        @page {
-            size: A4 landscape;
-            margin: 18px;
-        }
-        body {
-            font-family: 'DejaVu Sans', sans-serif;
-            font-size: 8.5pt;
-            color: #1e293b;
-            margin: 0;
-            padding: 0;
-            line-height: 1.3;
-        }
-        .title-container {
-            border-bottom: 2px solid #0284c7;
-            padding-bottom: 6px;
-            margin-bottom: 15px;
-        }
-        .report-title {
-            font-size: 13pt;
-            font-weight: bold;
-            color: #0369a1;
-            margin: 0;
-            text-transform: uppercase;
-        }
-        .filter-info {
-            font-size: 8.5pt;
-            color: #64748b;
-            margin-top: 4px;
-        }
-        table.data-table {
-            width: 100%;
-            border-collapse: collapse;
-            border: 1px solid #0284c7;
-        }
-        table.data-table th {
-            background-color: #f0f9ff;
-            color: #0369a1;
-            border: 1px solid #38bdf8;
-            padding: 8px 6px;
-            font-size: 8pt;
-            font-weight: bold;
-            text-align: center;
-            text-transform: uppercase;
-        }
-        table.data-table td {
-            padding: 6px 6px;
-            border: 1px solid #bae6fd;
-            font-size: 8pt;
-            vertical-align: middle;
-        }
-        .total-row {
-            background-color: #f0f9ff;
-            font-weight: bold;
-            border-top: 2px solid #0284c7;
-        }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        .font-bold { font-weight: bold; }
+        {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/purchase_register_pdf.css')) ? file_get_contents(public_path('css/reports/purchase_register_pdf.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
     </style>
 </head>
 <body>

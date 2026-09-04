@@ -490,6 +490,8 @@ class InvoiceShareController extends Controller
             ];
         }
 
+        $css = $this->getReportCss($type);
+
         $pdfData = array_merge([
             'type'          => strtoupper($type),
             'target_name'   => $targetName,
@@ -497,7 +499,9 @@ class InvoiceShareController extends Controller
             'end'           => Carbon::parse($reportParams['end'])->format('d-m-Y'),
             'plant'         => $plant,
             'patron'        => $patron,
-            'consolidation' => $params['consolidation'] ?? 'po'
+            'consolidation' => $params['consolidation'] ?? 'po',
+            'css'           => $css,
+            'report_css'    => $css,
         ], $data, $extraParams);
 
         return [
@@ -506,5 +510,27 @@ class InvoiceShareController extends Controller
             'type' => $type,
             'start' => $reportParams['start'],
         ];
+    }
+
+    /**
+     * Load CSS content for PDF reports from separate CSS file.
+     */
+    private function getReportCss(string $type = 'default'): string
+    {
+        $normalizedType = strtolower($type);
+        $candidates = [
+            public_path("css/reports/{$normalizedType}_report.css"),
+            public_path("css/reports/{$normalizedType}.css"),
+            public_path("css/reports/report_pdf.css"),
+            resource_path("css/reports/report_pdf.css"),
+        ];
+
+        foreach ($candidates as $path) {
+            if (file_exists($path)) {
+                return file_get_contents($path);
+            }
+        }
+
+        return '';
     }
 }

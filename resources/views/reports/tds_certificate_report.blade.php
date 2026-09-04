@@ -4,21 +4,7 @@
     <meta charset="utf-8">
     <title>TDS Certificate Statement</title>
     <style>
-        @page { margin: 40px; }
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 9pt; color: #1e293b; line-height: 1.4; }
-        .header-title { font-size: 14pt; font-weight: bold; text-align: center; color: #1e3a8a; text-transform: uppercase; margin-bottom: 25px; border-bottom: 2px double #1e3a8a; padding-bottom: 10px; }
-        .details-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-        .details-table td { border: 1px solid #cbd5e1; padding: 8px 10px; font-size: 8.5pt; width: 50%; vertical-align: top; }
-        .details-title { font-weight: bold; color: #475569; text-transform: uppercase; font-size: 8pt; margin-bottom: 5px; display: block; }
-        .party-name { font-weight: bold; font-size: 10pt; color: #0f172a; display: block; margin-bottom: 4px; }
-        table.data-table { width: 100%; border-collapse: collapse; margin-top: 10px; border: 1px solid #cbd5e1; }
-        table.data-table th { background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1; padding: 8px; font-size: 8pt; font-weight: bold; text-align: center; }
-        table.data-table td { padding: 8px; border: 1px solid #cbd5e1; font-size: 8pt; vertical-align: middle; }
-        .total-row { background-color: #f8fafc; font-weight: bold; }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        .signature-section { margin-top: 60px; text-align: right; }
-        .signature-line { border-top: 1px solid #94a3b8; display: inline-block; width: 200px; margin-top: 50px; text-align: center; font-size: 8.5pt; font-weight: bold; color: #475569; }
+        {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/tds_certificate_report.css')) ? file_get_contents(public_path('css/reports/tds_certificate_report.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
     </style>
 </head>
 <body>

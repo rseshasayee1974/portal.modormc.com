@@ -4,69 +4,9 @@
     <meta charset="utf-8">
     <title>Vehicle Wise Profit & Loss Report</title>
     <style>
-        @page {
-            margin: 20px;
-        }
-        body {
-            font-family: 'DejaVu Sans', sans-serif;
-            font-size: 8pt;
-            color: #1e293b;
-            margin: 0;
-            padding: 0;
-            line-height: 1.2;
-        }
-        .title-container {
-            border-bottom: 2px solid #1d2d3e;
-            padding-bottom: 5px;
-            margin-bottom: 10px;
-        }
-        .report-title {
-            font-size: 12pt;
-            font-weight: bold;
-            color: #1d2d3e;
-            margin: 0;
-        }
-        .filter-info {
-            font-size: 8pt;
-            color: #475569;
-            margin-top: 3px;
-        }
-        table.data-table {
-            width: 100%;
-            border-collapse: collapse;
-            border: 1px solid #cbd5e1;
-        }
-        table.data-table th {
-            background-color: #f2f4f7;
-            color: #1d2d3e;
-            border: 1px solid #cbd5e1;
-            padding: 5px 3px;
-            font-size: 7pt;
-            font-weight: bold;
-            text-align: center;
-            text-transform: uppercase;
-        }
-        table.data-table td {
-            padding: 4px 5px;
-            border: 1px solid #cbd5e1;
-            font-size: 7.5pt;
-            vertical-align: middle;
-        }
-        .total-row {
-            background-color: #e2e8f0;
-            font-weight: bold;
-        }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        .font-bold { font-weight: bold; }
-        .profit-text {
-            color: #16a34a;
-            font-weight: bold;
-        }
-        .loss-text {
-            color: #dc2626;
-            font-weight: bold;
-        }
+        {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/vehicle_pl_pdf.css')) ? file_get_contents(public_path('css/reports/vehicle_pl_pdf.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
+        .profit-text { color: #15803d; font-weight: bold; }
+        .loss-text { color: #b91c1c; font-weight: bold; }
     </style>
 </head>
 <body>
