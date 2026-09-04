@@ -6,7 +6,7 @@ use App\Models\Batch;
 use App\Models\Dispatch;
 use App\Models\Invoice;
 use App\Models\EwaybillDetail;
-use App\Services\EInvoiceService;
+use App\Services\EwayBillService;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,12 +19,12 @@ class EwayBillController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'batching';
-    protected EInvoiceService $eInvoiceService;
+    protected string $module = 'ewaybill';
+    protected EwayBillService $ewayBillService;
 
-    public function __construct(EInvoiceService $eInvoiceService)
+    public function __construct(EwayBillService $ewayBillService)
     {
-        $this->eInvoiceService = $eInvoiceService;
+        $this->ewayBillService = $ewayBillService;
     }
 
     /**
@@ -67,7 +67,6 @@ class EwayBillController extends Controller
             }
             return redirect()->back()->withErrors(['error' => $msg]);
         }
-
         // Merge fallback transport values from batch dispatch if not supplied in request
         $data = $request->all();
         if (empty($data['veh_no'])) {
@@ -157,12 +156,17 @@ class EwayBillController extends Controller
         $vehType = (string)($params['veh_type'] ?? 'R'); // R = Regular
 
         // 3. Seller, Buyer & Valuation Data
-        $entity = $plant?->entity;
-        [$username, $password, $gstin] = $this->eInvoiceService->getPlantCredentials($plant);
-        $sellerGstin = trim((string)($gstin ?: ($plant?->gstin ?: ($entity?->gstin ?: ''))));
+        $isProd = $this->ewayBillService->isProduction($plant);
+        $username = $plant?->ewaybill_client_id ?: $this->ewayBillService->sandboxUsername;
+        $password = $plant?->ewaybill_secret ?: $this->ewayBillService->sandboxPassword;
+        $gstin = $isProd
+            ? ($plant?->gstin ?: '')
+            : ($plant?->gstin ?: $this->ewayBillService->sandboxGstin);
+        $sellerGstin = trim((string)($gstin ?: ($plant?->gstin ?: '')));
 
         $partner = $invoice->partner;
         $partnerAddress = $partner?->addresses()?->first() ?: $partner?->contacts()?->first()?->addresses()?->first();
+        
         $buyerGstin = trim((string)($partner?->gstin ?: '')) ?: 'URP';
         $buyerStateCode = (strlen($buyerGstin) >= 2 && ctype_digit(substr($buyerGstin, 0, 2)))
             ? (int)substr($buyerGstin, 0, 2)
@@ -173,60 +177,103 @@ class EwayBillController extends Controller
             ? (int)substr($sellerGstin, 0, 2)
             : 33;
 
+        // 1. Determine Interstate vs Intra-state
+        $isInterState = ($sellerStateCode !== $buyerStateCode);
+
+        // Ensure relations are loaded
+        $invoice->loadMissing([
+            'items.mixDesign.concreteGrade',
+            'items.uom',
+            'items.tax',
+            'items.orderTaxes',
+            'orderTaxes',
+        ]);
+
         // Build item list
         $itemList = [];
-        $assVal = 0.0;
+        $assVal  = 0.0;
         $cgstVal = 0.0;
         $sgstVal = 0.0;
         $igstVal = 0.0;
 
         $invoiceItems = $invoice->items;
+       
         if ($invoiceItems && $invoiceItems->count() > 0) {
             $idx = 1;
             foreach ($invoiceItems as $item) {
-                $taxable = (float)($item->taxable_amount ?? ($item->untaxed_amount ?? ($item->quantity * $item->rate)));
-                $cgst = (float)($item->cgst_amount ?? 0);
-                $sgst = (float)($item->sgst_amount ?? 0);
-                $igst = (float)($item->igst_amount ?? 0);
+                // Correct taxable amount from mm_invoice_items (subtotal)
+                $qty       = (float)($item->quantity ?: 1);
+                $unitPrice = (float)($item->price_unit ?: 0);
+                $discount  = (float)($item->discount_amount ?: 0);
+                $taxable   = (float)($item->subtotal ?: round(($qty * $unitPrice) - $discount, 2));
 
-                $assVal += $taxable;
+                // Read tax splits from mm_order_taxes for this line item
+                $itemTaxes = $item->relationLoaded('orderTaxes') && $item->orderTaxes->isNotEmpty()
+                    ? $item->orderTaxes
+                    : $invoice->orderTaxes->where('order_items_id', $item->id);
+
+                $cgstTax = $itemTaxes->first(fn($t) => stripos($t->name, 'cgst') !== false);
+                $sgstTax = $itemTaxes->first(fn($t) => stripos($t->name, 'sgst') !== false);
+                $igstTax = $itemTaxes->first(fn($t) => stripos($t->name, 'igst') !== false);
+
+                $cgstRate = (float)($cgstTax?->rate ?? 0);
+                $sgstRate = (float)($sgstTax?->rate ?? 0);
+                $igstRate = (float)($igstTax?->rate ?? 0);
+
+                $cgst = (float)($cgstTax?->amount ?? 0);
+                $sgst = (float)($sgstTax?->amount ?? 0);
+                $igst = (float)($igstTax?->amount ?? 0);
+
+                // Fallback: If mm_order_taxes not generated yet, derive from item->tax or line_tax_amount
+                if (($cgstRate + $sgstRate + $igstRate) == 0) {
+                    $taxRate = (float)($item->tax?->tax_rate ?? ($item->tax?->rate ?? 0));
+                    if ($taxRate == 0 && $item->line_tax_amount > 0 && $taxable > 0) {
+                        $taxRate = round(($item->line_tax_amount / $taxable) * 100, 2);
+                    }
+
+                    $totalLineTax = (float)($item->line_tax_amount ?: round($taxable * ($taxRate / 100), 2));
+
+                    if ($isInterState) {
+                        $igstRate = $taxRate;
+                        $igst     = $totalLineTax;
+                    } else {
+                        $cgstRate = round($taxRate / 2, 2);
+                        $sgstRate = round($taxRate / 2, 2);
+                        $cgst     = round($totalLineTax / 2, 2);
+                        $sgst     = round($totalLineTax / 2, 2);
+                    }
+                }
+
+                $assVal  += $taxable;
                 $cgstVal += $cgst;
                 $sgstVal += $sgst;
                 $igstVal += $igst;
 
+                // Resolve Concrete Grade name (MixDesign -> ConcreteGrade or item_name)
+                $concreteGradeName = $item->mixDesign?->concreteGrade?->name 
+                    ?: ($item->mixDesign?->grade 
+                    ?: ($item->mixDesign?->design_name 
+                    ?: ($item->item_name ?: 'Ready Mix Concrete')));
+
+                $hsnCode = (int)preg_replace('/[^0-9]/', '', (string)($item->hsn_code ?: 38245010));
+                if (empty($hsnCode)) {
+                    $hsnCode = 38245010;
+                }
+
                 $itemList[] = [
                     'itemNo'        => $idx++,
-                    'productName'   => (string)($item->product?->title ?: ($item->title ?: 'Ready Mix Concrete')),
-                    'productDesc'   => (string)($item->description ?: 'Concrete'),
-                    'hsnCode'       => (int)($item->product?->hsn_code ?: 38245010),
-                    'quantity'      => (float)($item->quantity ?? 1),
-                    'qtyUnit'       => (string)($item->uom?->unit_code ?: 'CUM'),
+                    'productName'   => (string)$concreteGradeName,
+                    'productDesc'   => (string)($item->item_name ?: $concreteGradeName),
+                    'hsnCode'       => $hsnCode,
+                    'quantity'      => $qty,
+                    'qtyUnit'       => (string)($item->uom?->code ?: ($item->uom?->unit_code ?: 'CBM')),
                     'taxableAmount' => round($taxable, 2),
-                    'cgstRate'      => (float)($item->cgst_rate ?? ($cgst > 0 && $taxable > 0 ? round(($cgst / $taxable) * 100, 2) : 0)),
-                    'sgstRate'      => (float)($item->sgst_rate ?? ($sgst > 0 && $taxable > 0 ? round(($sgst / $taxable) * 100, 2) : 0)),
-                    'igstRate'      => (float)($item->igst_rate ?? ($igst > 0 && $taxable > 0 ? round(($igst / $taxable) * 100, 2) : 0)),
+                    'cgstRate'      => $cgstRate,
+                    'sgstRate'      => $sgstRate,
+                    'igstRate'      => $igstRate,
                     'cessRate'      => 0,
                 ];
             }
-        } else {
-            $assVal = (float)($invoice->subtotal ?? $invoice->amount_untaxed ?? 1000);
-            $cgstVal = (float)($invoice->cgst_amount ?? 0);
-            $sgstVal = (float)($invoice->sgst_amount ?? 0);
-            $igstVal = (float)($invoice->igst_amount ?? 0);
-
-            $itemList[] = [
-                'itemNo'        => 1,
-                'productName'   => 'Ready Mix Concrete',
-                'productDesc'   => 'RMC',
-                'hsnCode'       => 38245010,
-                'quantity'      => 1,
-                'qtyUnit'       => 'CUM',
-                'taxableAmount' => round($assVal, 2),
-                'cgstRate'      => 0,
-                'sgstRate'      => 0,
-                'igstRate'      => 0,
-                'cessRate'      => 0,
-            ];
         }
 
         $totInvVal = (float)($invoice->total_amount ?? round($assVal + $cgstVal + $sgstVal + $igstVal, 2));
@@ -261,31 +308,47 @@ class EwayBillController extends Controller
             'cessValue'        => 0,
             'totInvValue'      => round($totInvVal, 2),
             'transMode'        => $transMode,
-            'transDistance'    => (string)$distance,
-            'transporterId'    => $transId,
+            'transactionType'  => '4',
+            'transDistance'    => (string)($distance > 0 ? $distance : 20),
+            'transporterId'    => '29AARFB4347G000',
             'transporterName'  => $transName,
             'transDocNo'       => $transDocNo,
             'transDocDate'     => $transDocDt,
-            'vehicleNo'        => $vehNo,
+            'vehicleNo'        => $vehNo ?: 'TN92AC1234',
             'vehicleType'      => $vehType,
             'itemList'         => $itemList,
         ];
 
-        // 5. Contact Gateway or simulate in Sandbox / Local
+        // 5. Ensure valid authentication token exists in mm_ewaybill_auth (Mandatory prerequisite)
+        try {
+            $auth = $this->ewayBillService->authenticate($plant, $userId);
+           
+        } catch (\Throwable $e) {
+            Log::error('E-Way Bill authentication failed in mm_ewaybill_auth: ' . $e->getMessage());
+            $errorMsg = 'E-Way Bill authentication failed: ' . $e->getMessage() . '. Valid authentication token is required in mm_ewaybill_auth before generating an E-Way Bill.';
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json(['success' => false, 'message' => $errorMsg], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $errorMsg]);
+        }
+
+       
+
+        // 6. Contact Gateway or simulate only after mm_ewaybill_auth is verified
         $ewbNo = null;
         $ewbDt = null;
         $ewbValidTill = null;
 
-        $isProd = $this->eInvoiceService->isProduction($plant);
-        $gatewayConfig = $this->eInvoiceService->getGatewayConfig($plant);
-
-        try {
-            // Authenticate with PeriOne
-            $auth = $this->eInvoiceService->authenticate($plant, $userId);
-            $headers = $this->eInvoiceService->buildGatewayHeaders($auth, $username, $password, $sellerGstin);
-            $url = rtrim($gatewayConfig['base_url'], '/') . '/ewaybill/generate?email=' . urlencode($gatewayConfig['email']);
+        $isProd = $this->ewayBillService->isProduction($plant);
+        $url = $this->ewayBillService->getGenEwayBillUrl($plant);
+dd($ewbPayload);
+        // try {
+            // Authenticate with PeriOne E-Way Bill Gateway
+            $headers = $this->ewayBillService->buildGatewayHeaders($auth, $username, $password, $sellerGstin, $plant);
 
             $response = Http::withHeaders($headers)->timeout(30)->post($url, $ewbPayload);
+            dd( $response->json());
+           
             $body = $response->json() ?? [];
 
             if ($response->successful() && (!isset($body['status_cd']) || ($body['status_cd'] !== 0 && $body['status_cd'] !== '0' && strtolower((string)$body['status_cd']) !== 'error'))) {
@@ -294,19 +357,19 @@ class EwayBillController extends Controller
                 $ewbDt = !empty($data['ewayBillDate'] ?? $data['EwbDt']) ? Carbon::parse($data['ewayBillDate'] ?? $data['EwbDt']) : Carbon::now();
                 $ewbValidTill = !empty($data['validUpto'] ?? $data['EwbValidTill']) ? Carbon::parse($data['validUpto'] ?? $data['EwbValidTill']) : null;
             } elseif ($isProd) {
-                $errorMsg = $this->eInvoiceService->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
+                $errorMsg = $this->ewayBillService->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
                 Log::error('PeriOne Standalone EWB Failed: ' . $errorMsg, ['response' => $body]);
                 throw new \Exception('E-Way Bill Generation Failed: ' . $errorMsg);
             }
-        } catch (\Throwable $e) {
-            Log::warning('Direct E-Way Bill gateway exception: ' . $e->getMessage());
-            if ($isProd) {
-                if ($request->wantsJson() && !$request->header('X-Inertia')) {
-                    return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
-                }
-                return redirect()->back()->withErrors(['error' => $e->getMessage()]);
-            }
-        }
+        // } catch (\Throwable $e) {
+        //     Log::warning('Direct E-Way Bill gateway exception: ' . $e->getMessage());
+        //     if ($isProd) {
+        //         if ($request->wantsJson() && !$request->header('X-Inertia')) {
+        //             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        //         }
+        //         return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+        //     }
+        // }
 
         // In Non-Production / Sandbox, simulate valid E-Way Bill
         if (!$ewbNo) {

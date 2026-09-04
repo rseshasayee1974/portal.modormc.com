@@ -240,6 +240,7 @@ Route::middleware([
         Route::get('dispatches/dropdowns', [\App\Http\Controllers\DispatchController::class, 'dropdowns'])->name('dispatches.dropdowns');
         Route::post('dispatches/{dispatch}/generate-invoice', [\App\Http\Controllers\DispatchController::class, 'generateInvoice'])->name('dispatches.generate-invoice');
         Route::delete('dispatches/{dispatch}/delete-invoice', [\App\Http\Controllers\DispatchController::class, 'deleteInvoice'])->name('dispatches.delete-invoice');
+        Route::post('dispatches/{dispatch}/cancel', [\App\Http\Controllers\DispatchController::class, 'cancel'])->name('dispatches.cancel');
         Route::get('dispatches/{dispatch}/whatsapp-url', [\App\Http\Controllers\DispatchController::class, 'whatsappUrl'])->name('dispatches.whatsapp-url');
         Route::resource('dispatches', \App\Http\Controllers\DispatchController::class);
         
@@ -377,10 +378,21 @@ Route::middleware([
 
     // Bridge Proxy (Bypass CORS for local hardware)
     Route::get('/bridge/weight', function (\Illuminate\Http\Request $request) {
+        $plantId = session('active_plant_id');
+        $customSetting = $plantId ? \App\Models\CustomSetting::where('plant_id', $plantId)->where('module_name', 'batching')->first() : null;
+        $mode = (int)($customSetting?->settings['new_weight'] ?? $customSetting?->settings['newweight'] ?? 1);
+
+        $primaryUrl = $mode === 2 ? 'https://localhost:8074/api/port' : 'http://localhost:8089/api/port';
+        $fallbackUrl = $mode === 2 ? 'http://localhost:8089/api/port' : 'https://localhost:8074/api/port';
+
         try {
-            return \Illuminate\Support\Facades\Http::timeout(3)->get('http://localhost:8089/api/port')->body();
-        } catch (\Exception $e) {
-            return response('Bridge connection failed', 503);
+            return \Illuminate\Support\Facades\Http::withoutVerifying()->timeout(3)->get($primaryUrl)->body();
+        } catch (\Throwable $e) {
+            try {
+                return \Illuminate\Support\Facades\Http::withoutVerifying()->timeout(3)->get($fallbackUrl)->body();
+            } catch (\Throwable $fallbackEx) {
+                return response('Bridge connection failed', 503);
+            }
         }
     })->name('bridge.weight');
 });

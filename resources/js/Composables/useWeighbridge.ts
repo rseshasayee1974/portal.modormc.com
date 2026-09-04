@@ -9,21 +9,37 @@ export function useWeighbridge() {
     const { captureWeightApi } = useWeighbridgeApi();
     const { captureCameraSnap } = useCameraSnapshot();
 
-    const captureWeight = async (callback: (w: number) => void) => {
-        const customSettings: any = page.props.custom_settings || {};
-        const newWeight = customSettings.batching?.newweight || localStorage.getItem('newweight');
+    const getNewWeightMode = (): number => {
+        const customSettings: any = page?.props?.custom_settings || {};
+        const val = customSettings.batching?.new_weight 
+            ?? customSettings.batching?.newweight 
+            ?? customSettings.new_weight 
+            ?? customSettings.newweight 
+            ?? localStorage.getItem('new_weight') 
+            ?? localStorage.getItem('newweight');
+        return Number(val ?? 0);
+    };
 
-        if (newWeight == 1 || newWeight == '1') {
-            await captureWeightApi(callback);
+    const captureWeight = async (callback: (w: number) => void) => {
+        const mode = getNewWeightMode();
+
+        if (mode === 1 || mode === 2) {
+            await captureWeightApi(callback, mode);
         } else {
             await captureWeightSerial(callback);
         }
+    };
+
+    const captureCameraSnapWithMode = async (baseUrl: string): Promise<string> => {
+        const mode = getNewWeightMode();
+        return await captureCameraSnap(baseUrl, mode);
     };
 
     return {
         isScaleConnected,
         captureWeight,
         manualConnect,
-        captureCameraSnap
+        captureCameraSnap: captureCameraSnapWithMode,
+        getNewWeightMode
     };
 }

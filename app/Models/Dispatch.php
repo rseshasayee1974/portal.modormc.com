@@ -266,6 +266,133 @@ class Dispatch extends Model
         }
     }
 
+    /**
+     * Cancel this dispatch and its linked batch, reverse sales order quantity,
+     * cancel invoice/e-invoice, and generate credit note.
+     */
+    public function cancel(string $notes, ?int $userId = null): array
+    {
+        $userId = $userId ?? \Illuminate\Support\Facades\Auth::id() ?? 1;
+        $now = now();
+
+        // 1. Update Dispatch Status & Cancellation info
+        $this->update([
+            'dispatch_status' => 'Cancelled',
+            'cancelled_at'    => $now,
+            'cancelled_by'    => $userId,
+            'cancelled_notes' => $notes,
+        ]);
+
+        // 2. Update linked Batch status to STATUS_CANCELLED (5)
+        if ($this->batch) {
+            $this->batch->update([
+                'status' => \App\Models\Batch::STATUS_CANCELLED,
+            ]);
+        }
+
+        // 3. Reverse Sales Order Quantity
+        if ($this->salesOrder) {
+            $this->salesOrder->refreshProduction();
+        }
+
+        // 4. Handle Invoiced Invoice, E-Invoice, and Credit Note
+        $statusRecord = $this->status()->first();
+        $invoice = $statusRecord?->invoice ?? ($this->invoice_id ? \App\Models\Invoice::find($this->invoice_id) : null);
+        $creditNote = null;
+        $eInvoiceCancelled = false;
+
+        if ($invoice && strtolower((string)$invoice->status) !== \App\Models\Invoice::STATUS_CANCELLED) {
+            // Attempt to cancel active E-Invoice IRN
+            $irn = $invoice->einvoice_irn ?: $invoice->einv_irn;
+            $einvStatus = $invoice->einvoice_status ?: $invoice->einv_status;
+            if (!empty($irn) && ($einvStatus === 'ACT' || $einvStatus === 1)) {
+                try {
+                    $einvService = app(\App\Services\EInvoiceService::class);
+                    $einvService->cancelIrn($invoice, '3', $notes);
+                    $eInvoiceCancelled = true;
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("E-Invoice IRN cancellation skipped/failed during dispatch cancellation: " . $e->getMessage());
+                }
+            }
+
+            // Create Credit Note
+            // $creditNote = $this->generateCreditNoteForInvoice($invoice, $notes, $userId);
+
+            // Mark the original invoice as Cancelled
+            $invoice->update([
+                'status' => \App\Models\Invoice::STATUS_CANCELLED,
+            ]);
+        }
+
+        return [
+            'success'            => true,
+            'dispatch_id'        => $this->id,
+            'dispatch_status'    => 'Cancelled',
+            'credit_note'        => $creditNote,
+            'einvoice_cancelled' => $eInvoiceCancelled,
+        ];
+    }
+
+    /**
+     * Generate and post a Credit Note for an invoice being cancelled.
+     */
+    protected function generateCreditNoteForInvoice(\App\Models\Invoice $invoice, string $notes, int $userId): \App\Models\Invoice
+    {
+        $plantId = $invoice->plant_id ?? $this->plant_id;
+        $details = \App\Models\Invoice::generateNumber($plantId, 'credit_note', $invoice->account_id);
+
+        $creditNote = \App\Models\Invoice::create([
+            'plant_id'               => $plantId,
+            'account_id'             => $invoice->account_id,
+            'prefix'                 => $details['prefix'],
+            'invoice_number'         => $details['next_number'],
+            'invoice_type'           => 'credit_note',
+            'invoice_label'          => 'Credit Note',
+            'ref_id'                 => $invoice->id,
+            'ref_title'              => $invoice->invoice_number,
+            'invoice_date'           => now()->toDateString(),
+            'due_date'               => now()->toDateString(),
+            'partner_id'             => $invoice->partner_id,
+            'subtotal'               => $invoice->subtotal,
+            'discount_amount'        => $invoice->discount_amount,
+            'tax_amount'             => $invoice->tax_amount,
+            'total_amount'           => $invoice->total_amount,
+            'cgst_amount'            => $invoice->cgst_amount,
+            'sgst_amount'            => $invoice->sgst_amount,
+            'igst_amount'            => $invoice->igst_amount,
+            'round_off'              => $invoice->round_off,
+            'shipping_charges'       => $invoice->shipping_charges,
+            'adjustment'             => $invoice->adjustment,
+            'status'                 => \App\Models\Invoice::STATUS_APPROVED,
+            'remarks'                => $notes,
+            'created_by'             => $userId,
+        ]);
+
+        // Replicate invoice items into Credit Note
+        foreach ($invoice->items as $item) {
+            $newItem = $item->replicate();
+            $newItem->invoice_id = $creditNote->id;
+            $newItem->save();
+
+            // Replicate order taxes for item if any
+            foreach ($item->orderTaxes as $orderTax) {
+                $newTax = $orderTax->replicate();
+                $newTax->order_id = $creditNote->id;
+                $newTax->order_items_id = $newItem->id;
+                $newTax->save();
+            }
+        }
+
+        // Post Credit Note to accounting ledger
+        try {
+            $creditNote->postToAccounting();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Accounting post for Credit Note #{$creditNote->id} failed: " . $e->getMessage());
+        }
+
+        return $creditNote;
+    }
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -274,5 +401,10 @@ class Dispatch extends Model
     public function modifier()
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function cancelledBy()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 }

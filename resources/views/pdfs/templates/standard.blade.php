@@ -312,7 +312,7 @@
                 <div class="inv-title">{{ $data['doc_title'] }}</div>
                 <div class="inv-ref">
                     @if ($pdfSettings['invoice_number'] ?? true)
-                        {{ str_contains($data['doc_title'], 'INVOICE') ? 'Invoice#' : ($data['doc_title'] === 'PURCHASE ORDER' ? 'PO # : ' : 'Ref # : ') }}
+                        {{ str_contains($data['doc_title'], 'INVOICE') ? 'Invoice No : ' : ($data['doc_title'] === 'PURCHASE ORDER' ? 'PO No : ' : 'Ref No : ') }}
                         <strong>{{ $data['doc_no'] }}</strong>
                     @endif
                 </div>

@@ -140,6 +140,7 @@ class ReportController extends Controller
             'PAYMENT_MODE_CONSOLIDATED' => 'reports.payment_mode_consolidated_report',
             'SALES_EXECUTIVE'           => 'reports.sales_executive_report',
             'DRIVER'                    => 'reports.driver_report',
+            'CANCELLED_DISPATCH'        => 'reports.cancelled_dispatch_report',
             'PURCHASE'                  => 'reports.purchase_report',
             'PAYMENT'              => 'reports.payment_report',
             'RECEIPT'              => 'reports.receipt_report',

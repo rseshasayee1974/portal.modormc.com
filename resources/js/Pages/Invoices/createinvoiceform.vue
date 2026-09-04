@@ -492,7 +492,7 @@ const invoiceTypeOptions = [
     { label: 'Sales Invoice', value: 'sales' },
     { label: 'Purchase Invoice', value: 'purchase' },
     { label: 'Proforma Invoice', value: 'proforma' },
-    { label: 'Credit Note', value: 'credit_note' },
+    // { label: 'Credit Note', value: 'credit_note' },
     { label: 'Debit Note', value: 'debit_note' },
 ];
 

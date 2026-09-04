@@ -35,6 +35,10 @@ class ProductConsolidatedReportService implements ReportServiceInterface
             })
             ->where('d.plant_id', $plantId)
             ->whereNull('d.deleted_at')
+            ->where(function ($q) {
+                $q->whereNull('d.dispatch_status')
+                  ->orWhere('d.dispatch_status', '!=', 'Cancelled');
+            })
             ->where(function ($q) use ($start, $end) {
                 $q->whereBetween('d.dispatch_time', [$start, $end])
                   ->orWhereBetween('inv.invoice_date', [$start, $end])

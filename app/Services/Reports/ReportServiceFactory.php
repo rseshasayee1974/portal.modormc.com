@@ -26,6 +26,7 @@ class ReportServiceFactory
             'payment_mode_consolidated' => PaymentModeConsolidatedReportService::class,
             'sales_executive'       => SalesExecutiveReportService::class,
             'driver'                => DriverReportService::class,
+            'cancelled_dispatch'    => CancelledDispatchReportService::class,
             'payment', 'receipt'   => VoucherReportService::class,
             'inventory_stock'      => InventoryStockReportService::class,
             'inventory_inward'     => InventoryInwardReportService::class,

@@ -31,6 +31,7 @@ import SiteConsolidatedReport from './components/SiteConsolidatedReport.vue';
 import PaymentModeConsolidatedReport from './components/PaymentModeConsolidatedReport.vue';
 import SalesExecutiveReport from './components/SalesExecutiveReport.vue';
 import DriverReport from './components/DriverReport.vue';
+import CancelledDispatchReport from './components/CancelledDispatchReport.vue';
 import Gstr1Report from './components/Gstr1Report.vue';
 import Gstr3bReport from './components/Gstr3bReport.vue';
 import TdsCertificateReport from './components/TdsCertificateReport.vue';
@@ -106,6 +107,7 @@ const modules = [
             { id: 'payment_mode_consolidated', name: 'Payment Mode Consolidated Report', description: 'Settlement terms & payment mode wise consolidated volumes' },
             { id: 'sales_executive', name: 'Sales Executive Report', description: 'Sales executive wise consolidated dispatches, volumes, trip counts, and revenue performance' },
             { id: 'driver', name: 'Driver Report', description: 'Driver wise vehicle trips, delivered volume, batch sizes, and truck weights' },
+            { id: 'cancelled_dispatch', name: 'Cancelled Dispatch Report', description: 'Log of cancelled dispatches, batches, reversed orders, and 50+ word notes' },
             { id: 'sales_register', name: 'Sales Register Report', description: 'Itemized sales invoices with GST breakdown, rate, and taxable values' },
             { id: 'production_batch', name: 'Batch Production Sheet', description: 'Batch mix designs, target vs actual aggregate loads' },
         ]
@@ -186,6 +188,7 @@ const getReportComponent = (type) => {
         case 'payment_mode_consolidated': return PaymentModeConsolidatedReport;
         case 'sales_executive': return SalesExecutiveReport;
         case 'driver': return DriverReport;
+        case 'cancelled_dispatch': return CancelledDispatchReport;
         case 'gstr1': return Gstr1Report;
         case 'gstr3b': return Gstr3bReport;
         case 'tds_certificate': return TdsCertificateReport;
@@ -784,9 +787,9 @@ const shareEmail = () => {
                                 </div>
 
                                 <!-- Patron Dropdown -->
-                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated'].includes(reportType)" class="lg:col-span-1">
+                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">
-                                        {{ reportType === 'sales_register' ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
+                                        {{ (reportType === 'sales_register' || reportType === 'cancelled_dispatch') ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
                                     </span>
                                     <BaseSelect 
                                         v-model="patronId"

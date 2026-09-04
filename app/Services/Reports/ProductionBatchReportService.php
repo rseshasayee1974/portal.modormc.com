@@ -17,6 +17,7 @@ class ProductionBatchReportService implements ReportServiceInterface
 
         $batches = Batch::where('plant_id', $plantId)
             ->whereNull('deleted_at')
+            ->where('status', '!=', Batch::STATUS_CANCELLED)
             ->with([
                 'operator' => fn($q) => $q->whereNull('deleted_at'),
                 'salesOrder' => fn($q) => $q->whereNull('deleted_at'),

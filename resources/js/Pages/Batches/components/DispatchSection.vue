@@ -66,20 +66,7 @@ const hasDispatchActivity = computed(() => {
 
 // console.log('props.dispatch?.status?.invoice_status',props.dispatch?.status?.invoice_status);
 
-const isReadOnly = computed(() => {
-    if(props.dispatch?.status?.invoice_status === 1) return true;
-});
 
-const showInvoiceSection = computed(() => {
-    if (!props.dispatch || !props.dispatch.id) return false;
-    // Always show if invoice is already linked/generated
-    if (props.dispatch.status?.invoice_status === 1) return true;
-    
-    // Otherwise, show only if pricing and quantities have data and are saved in the db
-    return (Number(props.dispatch.load_rate) > 0) && 
-           (Number(props.dispatch.delivered_qty || props.dispatch.load_units || 0) > 0) &&
-           (props.dispatch.uom_id !== null && props.dispatch.uom_id !== undefined);
-});
 
 
 const emit = defineEmits<{
@@ -137,6 +124,7 @@ console.log(currentBatch,'batch');
             unload_site_id: currentDispatch.unload_site_id ? Number(currentDispatch.unload_site_id) : (currentBatch?.unload_site_id ? Number(currentBatch.unload_site_id) : (currentSO?.site_id ? Number(currentSO.site_id) : null)),
             payment_mode: currentDispatch.payment_mode || 'credit',
             dispatch_status: currentDispatch.dispatch_status || 'Draft',
+            cancelled_notes: currentDispatch.cancelled_notes || '',
             generate_invoice: true,
             ledger_id: currentDispatch.ledger_id || currentDispatch.status?.invoice?.account_id || null,
             invoice_date: currentDispatch.invoice_date ? new Date(currentDispatch.invoice_date) : (currentDispatch.status?.invoice_date ? new Date(currentDispatch.status.invoice_date) : new Date()),
@@ -337,6 +325,27 @@ console.log(currentBatch,'batch');
 };
 
 const form = useForm(getResolvedFormData());
+
+const isCancelled = computed(() => {
+    return form.dispatch_status === 'Cancelled' || props.batch?.status === 5;
+});
+
+const isReadOnly = computed(() => {
+    if (isCancelled.value) return true;
+    if (props.dispatch?.status?.invoice_status === 1) return true;
+    return false;
+});
+
+const showInvoiceSection = computed(() => {
+    if (!props.dispatch || !props.dispatch.id) return false;
+    // Always show if invoice is already linked/generated
+    if (props.dispatch.status?.invoice_status === 1) return true;
+    
+    // Otherwise, show only if pricing and quantities have data and are saved in the db
+    return (Number(props.dispatch.load_rate) > 0) && 
+           (Number(props.dispatch.delivered_qty || props.dispatch.load_units || 0) > 0) &&
+           (props.dispatch.uom_id !== null && props.dispatch.uom_id !== undefined);
+});
 
 onMounted(async () => {
     try {
@@ -727,10 +736,12 @@ const handleGenerateEwayBill = () => {
                 Swal.showValidationMessage('Please enter a vehicle number');
                 return false;
             }
+            
             return { vehNo, distance: Number(distance) || 20 };
         },
     }).then((result) => {
         if (result.isConfirmed && result.value) {
+            console.log(result.value);
             router.post(route('batches.generate-ewaybill', props.batch.id), {
                 veh_no: result.value.vehNo,
                 distance: result.value.distance,
@@ -794,6 +805,23 @@ const handleDeleteInvoice = () => {
 
 <template>
     <div class="grid grid-cols-12 gap-6">
+        <!-- Cancelled Dispatch Banner -->
+        <div v-if="isCancelled" class="col-span-12 p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-3">
+            <i class="pi pi-times-circle text-rose-600 text-xl mt-0.5"></i>
+            <div class="space-y-1">
+                <div class="font-bold text-rose-900 text-sm flex items-center gap-2">
+                    <span>Dispatch & Batch Cancelled</span>
+                    <span class="text-[10px] bg-rose-200 text-rose-800 px-2 py-0.5 rounded font-semibold uppercase">Cancelled</span>
+                </div>
+                <p class="text-xs text-rose-700">
+                    This dispatch was cancelled. Sales order quantities have been reversed and linked invoices credited.
+                </p>
+                <div v-if="form.cancelled_notes" class="text-xs text-slate-600 bg-white/80 p-2.5 rounded border border-rose-200 italic mt-2">
+                    <strong class="text-slate-800">Cancellation Notes:</strong> {{ form.cancelled_notes }}
+                </div>
+            </div>
+        </div>
+
         <!-- Left Side: Forms -->
         <div class="col-span-12 lg:col-span-8 space-y-2">
             <DispatchWeightsForm 
@@ -933,6 +961,7 @@ const handleDeleteInvoice = () => {
                                 /> -->
                                 
                                 <BaseButton 
+                                    v-if="!isCancelled"
                                     label="Save Dispatch" 
                                     variant="filled" 
                                     severity="primary" 

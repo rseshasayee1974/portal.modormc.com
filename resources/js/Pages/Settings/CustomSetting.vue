@@ -39,7 +39,8 @@ const props = defineProps<{
 const form = useForm({
     module: 'batching',
     settings: {
-        newweight:         props.batchingSettings?.newweight == 1,
+        new_weight:        props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
+        newweight:         props.batchingSettings?.new_weight !== undefined ? Number(props.batchingSettings?.new_weight) : (props.batchingSettings?.newweight !== undefined ? Number(props.batchingSettings?.newweight) : 1),
         manual_weight:     props.batchingSettings?.manual_weight == 1,
         with_inventory:        props.batchingSettings?.with_inventory !== undefined ? (props.batchingSettings?.with_inventory == 1 || props.batchingSettings?.with_inventory === true || props.batchingSettings?.with_inventory === "true") : true,
         camera:            props.batchingSettings?.camera == 1,
@@ -82,7 +83,15 @@ const toggle = (key: string) => { expanded.value[key] = !expanded.value[key]; };
 // ─── Summary table ─────────────────────────────────────────────────────────
 const settingRows = computed(() => [
     // Weighbridge
-    { section: 'Weighbridge', key: 'newweight',          label: 'Local API Proxy (V2)',            value: form.settings.newweight,           type: 'bool' },
+    { 
+        section: 'Weighbridge', 
+        key: 'new_weight',          
+        label: 'Local API Proxy Port',            
+        value: Number(form.settings.new_weight) === 2 
+            ? 'Mode 2 (Port 8074 HTTPS)' 
+            : (Number(form.settings.new_weight) === 1 ? 'Mode 1 (Port 8089 HTTP)' : '0 — Disabled (Serial)'),           
+        type: 'text' 
+    },
     { section: 'Weighbridge', key: 'manual_weight',      label: 'Manual Weight Entry',             value: form.settings.manual_weight,        type: 'bool' },
     { section: 'Weighbridge', key: 'with_inventory',         label: 'Stock Deduction',                 value: form.settings.with_inventory,           type: 'bool' },
     // Camera
@@ -120,7 +129,8 @@ const settingRows = computed(() => [
 const submit = () => {
     const payload = {
         ...form.settings,
-        newweight:          form.settings.newweight          ? 1 : 0,
+        new_weight:         Number(form.settings.new_weight ?? 1),
+        newweight:          Number(form.settings.new_weight ?? 1),
         manual_weight:      form.settings.manual_weight      ? 1 : 0,
         with_inventory:         form.settings.with_inventory         ? 1 : 0,
         camera:             form.settings.camera             ? 1 : 0,
@@ -345,7 +355,7 @@ const deleteModule = (id: number) => {
                             <div class="flex items-center gap-2">
                                 <div class="p-1.5 bg-emerald-100 rounded-lg"><ScaleIcon class="w-4 h-4 text-emerald-600" /></div>
                                 <span class="text-sm font-bold text-slate-700">Weighbridge Configuration</span>
-                                <span v-if="form.settings.newweight || form.settings.manual_weight"
+                                <span v-if="Number(form.settings.new_weight) > 0 || form.settings.manual_weight"
                                     class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
                             </div>
                             <ChevronDownIcon v-if="!expanded.weighbridge" class="w-4 h-4 text-slate-400" />
@@ -355,10 +365,18 @@ const deleteModule = (id: number) => {
                         <div v-if="expanded.weighbridge" class="p-6 space-y-4 animate-fade-in">
                             <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                                 <div>
-                                    <h4 class="font-bold text-slate-700 text-sm">Local API Proxy (V2) <code class="text-[9px] text-slate-400 ml-1 font-normal">[newweight]</code></h4>
-                                    <p class="text-xs text-slate-500 mt-0.5">Use localhost:8089 instead of direct Serial Port</p>
+                                    <h4 class="font-bold text-slate-700 text-sm">Weighbridge & Camera API Mode <code class="text-[9px] text-slate-400 ml-1 font-normal">[new_weight]</code></h4>
+                                    <p class="text-xs text-slate-500 mt-0.5">Configure scale and camera proxy port endpoints</p>
                                 </div>
-                                <InputSwitch v-model="form.settings.newweight" />
+                                <select 
+                                    v-model.number="form.settings.new_weight" 
+                                    @change="form.settings.newweight = form.settings.new_weight"
+                                    class="text-xs font-bold rounded-xl border border-slate-200 py-2 px-3 bg-white text-slate-700 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                                >
+                                    <option :value="0">0 — Disabled (Web Serial Port)</option>
+                                    <option :value="1">1 — Port 8089 (http://localhost:8089 & http://127.0.0.1:8089)</option>
+                                    <option :value="2">2 — Port 8074 (https://localhost:8074 & https://127.0.0.1:8074)</option>
+                                </select>
                             </div>
 
                             <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">

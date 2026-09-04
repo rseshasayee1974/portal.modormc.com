@@ -425,6 +425,7 @@ console.log('jkghkjgk', props.modelValue);
                                 </a>
                           
                                 <button 
+                                    v-if="!isReadOnly && modelValue.dispatch_status !== 'Cancelled' && Number(modelValue.status?.batch?.status) !== 5"
                                     type="button"
                                     @click="$emit('deleteInvoice')"
                                     class="inline-flex items-center text-red-500 gap-1.5 px-3.5 py-2 bg-white border border-red-600 text-[11px] font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs"

@@ -1274,6 +1274,10 @@ class BatchController extends Controller
         $batch->load('salesOrder');
         $this->ensurePlantScope($batch->salesOrder);
 
+        if ($batch->status === Batch::STATUS_CANCELLED || $batch->dispatches()->where('dispatch_status', 'Cancelled')->exists()) {
+            return redirect()->back()->withErrors(['error' => 'Cancelled batches cannot be deleted.']);
+        }
+
         $batchId = $batch->id;
         DB::transaction(function () use ($batch) {
             $materials = $batch->materials()->get()->toArray();

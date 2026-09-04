@@ -58,7 +58,7 @@ return [
         'sandbox_base_url' => env('PERIONE_SANDBOX_BASE_URL', 'https://staging.perione.in'),
         'sandbox_client_id' => env('PERIONE_SANDBOX_CLIENT_ID', 'PEINVSb3aadf99327e3ca03792510397d3136b'),
         'sandbox_client_secret' => env('PERIONE_SANDBOX_CLIENT_SECRET', 'PEINVS21f24a6a2291dd214d0d81bf23ae8ec7'),
-        'sandbox_email' => env('PERIONE_SANDBOX_EMAIL', 'sayee@onemodo.com'),
+        'sandbox_email' => env('PERIONE_SANDBOX_EMAIL', env('PERIONE_EMAIL', 'sayee@onemodo.com')),
 
         // Sandbox / Staging E-Way Bill
         'sandbox_eway_client_id' => env('PERIONE_SANDBOX_EWAY_CLIENT_ID', 'PEWAYS472417d4a8bc74b10d31d4219c6b343c'),

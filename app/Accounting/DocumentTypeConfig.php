@@ -64,6 +64,15 @@ class DocumentTypeConfig
             'base_setting'    => 'bank_account',
             'module'          => 'Receipt',
         ],
+        'credit_note' => [
+            'voucher_type'    => 'CREDIT_NOTE',
+            'partner_side'    => 'credit',   // Customer AR reduced/cleared
+            'base_side'       => 'debit',    // Revenue reduced/debited
+            'tax_side'        => 'debit',    // Output GST reduced/debited
+            'partner_setting' => 'debit_ledger',
+            'base_setting'    => 'sales_account',
+            'module'          => 'Invoice',
+        ],
     ];
 
     /**

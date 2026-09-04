@@ -34,7 +34,7 @@ const meta = computed(() => props.dummyData?.meta || {});
             <div class="inv-header-right">
                 <div class="inv-title">{{ labels.invoice_title || dummyData.doc_title || 'DOCUMENT' }}</div>
                 <div v-if="pdfSettings.invoice_number !== false" class="inv-number">
-                    {{ (labels.invoice_title || dummyData.doc_title || '').includes('INVOICE') ? 'Invoice#' : 'Ref#' }} {{ dummyData.doc_no }}
+                    {{ (labels.invoice_title || dummyData.doc_title || '').includes('INVOICE') ? 'Invoice : ' : 'Ref : ' }} {{ dummyData.doc_no }}
                 </div>
             </div>
         </div>

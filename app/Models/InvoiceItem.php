@@ -106,6 +106,18 @@ class InvoiceItem extends Model
         return $this->belongsTo(MixDesign::class, 'item_id');
     }
 
+    public function concreteGrade()
+    {
+        return $this->hasOneThrough(
+            ConcreteGrade::class,
+            MixDesign::class,
+            'id',               // Foreign key on mm_mix_designs table...
+            'id',               // Foreign key on mm_concrete_grades table...
+            'item_id',          // Local key on mm_invoice_items table...
+            'concrete_grade_id' // Local key on mm_mix_designs table...
+        );
+    }
+
     /**
      * Direct relationship to tax splits at line-item level.
      */

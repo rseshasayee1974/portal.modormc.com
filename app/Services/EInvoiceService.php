@@ -60,24 +60,18 @@ class EInvoiceService
         $ackDate = $ackDateStr ? Carbon::parse($ackDateStr) : Carbon::now();
         $signedQrCode = $data['SignedQRCode'] ?? $data['signed_qrcode'] ?? $data['QrCode'] ?? null;
         $signedInvoice = $data['SignedInvoice'] ?? $data['signed_invoice'] ?? '';
-        $ewbNo = $data['EwbNo'] ?? $data['ewb_no'] ?? null;
-        $ewbDt = !empty($data['EwbDt']) ? Carbon::parse($data['EwbDt']) : null;
-        $ewbValidTill = !empty($data['EwbValidTill']) ? Carbon::parse($data['EwbValidTill']) : null;
 
         if (!$irn) {
             throw new \Exception('PeriOne E-Invoice Gateway did not return an IRN.');
         }
 
-        // 5. Persist real gateway results in mm_invoices, mm_einvoice_invoice_rel, and mm_ewaybill_details tables
+        // 5. Persist real gateway results in mm_invoices and mm_einvoice_invoice_rel tables
         $this->persistIrnRecord($invoice, [
             'irn'            => $irn,
             'ack_no'         => $ackNo,
             'ack_date'       => $ackDate,
             'signed_qrcode'  => $signedQrCode,
             'signed_invoice' => $signedInvoice,
-            'ewb_no'         => $ewbNo,
-            'ewb_date'       => $ewbDt,
-            'ewb_valid_till' => $ewbValidTill,
         ], $plant, $userId);
 
         return [
@@ -87,7 +81,6 @@ class EInvoiceService
             'ack_date'       => $ackDate?->toIso8601String(),
             'qr_code'        => $signedQrCode,
             'signed_invoice' => $signedInvoice,
-            'eway_bill_no'   => $ewbNo,
             'payload'        => $payload,
         ];
     }
@@ -424,13 +417,25 @@ class EInvoiceService
     }
 
     /**
-     * Resolve plant and entity credentials.
+     * Resolve plant and entity credentials for E-Invoice.
      */
     public function getPlantCredentials(?Plant $plant = null): array
     {
-        $username = $plant?->einvoice_client_id ?: ($plant?->entity?->einv_username ?: config('services.perione.username', ''));
-        $password = $plant?->einvoice_secret ?: ($plant?->entity?->einv_password ?: config('services.perione.password', ''));
-        $gstin = $plant?->gstin ?: ($plant?->entity?->gstin ?: config('services.perione.gstin', ''));
+        $username = $plant?->einvoice_client_id ?: ($plant?->entity?->einv_username ?: '');
+        $password = $plant?->einvoice_secret ?: ($plant?->entity?->einv_password ?: '');
+        $gstin = $plant?->gstin ?: ($plant?->entity?->gstin ?: '');
+
+        return [$username, $password, $gstin];
+    }
+
+    /**
+     * Resolve plant-specific E-Way Bill credentials.
+     */
+    public function getPlantEwayCredentials(?Plant $plant = null): array
+    {
+        $username = $plant?->ewaybill_client_id ?: '';
+        $password = $plant?->ewaybill_secret ?: '';
+        $gstin = $plant?->gstin ?: ($plant?->entity?->gstin ?: '');
 
         return [$username, $password, $gstin];
     }
@@ -517,27 +522,12 @@ class EInvoiceService
             $qrData = "{$sellerGstin}|{$buyerGstin}|{$docNo}|{$docDate}|{$totVal}|{$itemsCount}|{$irn}|{$ackNo}";
             $signedQr = base64_encode($qrData);
 
-            $ewbNo = null;
-            $ewbDt = null;
-            $ewbValidTill = null;
-
-            if (!empty($payload['EwbDtls']) && (!empty($payload['EwbDtls']['Vehno']) || !empty($payload['EwbDtls']['Distance']))) {
-                $ewbNo = '33' . date('ymd') . str_pad((string)rand(100000, 999999), 6, '0', STR_PAD_LEFT);
-                $ewbDt = Carbon::now();
-                $distance = (int)($payload['EwbDtls']['Distance'] ?? 100);
-                $daysValid = max(1, ceil($distance / 200));
-                $ewbValidTill = Carbon::now()->addDays($daysValid);
-            }
-
             return [
                 'Irn'          => $irn,
                 'AckNo'        => (int)$ackNo,
                 'AckDt'        => $ackDate->toDateTimeString(),
                 'SignedQRCode' => $signedQr,
                 'SignedInvoice'=> base64_encode(json_encode($payload)),
-                'EwbNo'        => $ewbNo,
-                'EwbDt'        => $ewbDt?->toDateTimeString(),
-                'EwbValidTill' => $ewbValidTill?->toDateTimeString(),
                 'Status'       => 'ACT',
             ];
         }
@@ -568,28 +558,6 @@ class EInvoiceService
                 'modified_by'         => $userId,
             ]
         );
-
-        // 3. Persist generated E-Way Bill separately into mm_ewaybill_details table
-        if (!empty($data['ewb_no'])) {
-            EwaybillDetail::updateOrCreate(
-                [
-                    'generation_type' => 'invoice',
-                    'origin_id'       => $invoice->id,
-                ],
-                [
-                    'plant_id'        => $plant?->id ?? 1,
-                    'ewaybill_no'     => (string)$data['ewb_no'],
-                    'ewaybill_date'   => $data['ewb_date'] ? Carbon::parse($data['ewb_date'])->toDateTimeString() : Carbon::now()->toDateTimeString(),
-                    'valid_upto'      => $data['ewb_valid_till'] ? Carbon::parse($data['ewb_valid_till'])->toDateTimeString() : null,
-                    'ewaybill_status' => 'ACT',
-                    'status'          => 1,
-                    'created_at'      => Carbon::now(),
-                    'created_by'      => $userId,
-                    'modified_at'     => Carbon::now(),
-                    'modified_by'     => $userId,
-                ]
-            );
-        }
     }
 
     /**
@@ -664,16 +632,6 @@ class EInvoiceService
                 'TotInvValFc' => $totInvVal,
             ],
         ];
-
-        // Optional E-Way Bill section
-        if (!empty($transportDetails['veh_no']) || !empty($transportDetails['distance'])) {
-            $payload['EwbDtls'] = [
-                'Distance'  => (int)($transportDetails['distance'] ?? 0),
-                'Vehno'     => strtoupper((string)($transportDetails['veh_no'] ?? '')),
-                'Vehtype'   => $transportDetails['veh_type'] ?? 'R',
-                'TransMode' => (string)($transportDetails['trans_mode'] ?? '1'),
-            ];
-        }
 
         return $payload;
     }
@@ -963,17 +921,6 @@ class EInvoiceService
             $errors['total_amount'][] = 'Invoice total amount must be greater than zero.';
         }
 
-        // 6. E-Way Bill validation (if requested)
-        if (!empty($transportDetails['veh_no']) || !empty($transportDetails['distance'])) {
-            $vehNo = trim((string)($transportDetails['veh_no'] ?? ''));
-            if (!empty($vehNo) && strlen($vehNo) < 4) {
-                $errors['veh_no'][] = 'Vehicle Number must be at least 4 characters long (e.g. KA01AB1234).';
-            }
-            if (isset($transportDetails['distance']) && (int)$transportDetails['distance'] < 0) {
-                $errors['distance'][] = 'Distance cannot be negative.';
-            }
-        }
-
         if (!empty($errors)) {
             throw ValidationException::withMessages($errors);
         }
@@ -1027,22 +974,13 @@ class EInvoiceService
      */
     public function isProduction(?Plant $plant = null): bool
     {
-        $forcedEnv = strtolower((string)config('services.perione.environment', env('PERIONE_ENV', '')));
-        if (in_array($forcedEnv, ['production', 'prod', 'live'], true)) {
-            return true;
-        }
-        if (in_array($forcedEnv, ['sandbox', 'staging', 'local', 'dev', 'development'], true)) {
-            return false;
-        }
+        
 
         $host = request()?->getHost() ?? '';
         if ($host) {
             $isLocalOrStaging = str_contains($host, 'localhost') ||
                                 str_contains($host, '127.0.0.1') ||
-                                str_contains($host, '.local') ||
-                                str_contains($host, '.test') ||
-                                str_contains($host, 'staging.') ||
-                                str_contains($host, 'dev.');
+                                str_contains($host, 'curie.modormc.com');
 
             if ($isLocalOrStaging) {
                 return false;

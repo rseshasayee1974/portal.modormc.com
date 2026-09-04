@@ -7,6 +7,7 @@ use App\Http\Requests\DispatchStoreRequest;
 use App\Models\Dispatch;
 use App\Models\Batch;
 use App\Models\DispatchPayment;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Log;
@@ -420,5 +421,59 @@ class DispatchController extends Controller
         }
         
         return response()->json(['url' => $url]);
+    }
+
+    /**
+     * Cancel dispatch and batch, reverse sales order quantity, cancel invoice, and generate credit note.
+     * Enforces a strict 50-word minimum cancellation notes requirement.
+     */
+    public function cancel(Request $request, Dispatch $dispatch)
+    {
+        $this->authorizeModule('update');
+
+        if ($dispatch->dispatch_status === 'Cancelled') {
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json(['error' => 'This dispatch has already been cancelled.'], 422);
+            }
+            return redirect()->back()->withErrors(['error' => 'This dispatch has already been cancelled.']);
+        }
+
+        $request->validate([
+            'notes' => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) {
+                    $cleaned = trim(preg_replace('/\s+/', ' ', (string)$value));
+                    $words = !empty($cleaned) ? explode(' ', $cleaned) : [];
+                    $wordCount = count($words);
+                    if ($wordCount < 5) {
+                        $fail("The cancellation notes must contain at least 5 words. Currently provided: {$wordCount} words.");
+                    }
+                },
+            ],
+        ], [
+            'notes.required' => 'Cancellation notes are required.',
+        ]);
+
+        return DB::transaction(function () use ($dispatch, $request) {
+            $notes = trim((string)$request->input('notes'));
+            $result = $dispatch->cancel($notes, auth()->id());
+
+            $msg = 'Dispatch and Batch cancelled successfully. Sales order quantity reversed';
+            if (!empty($result['credit_note'])) {
+                $msg .= ', and Credit Note #' . ($result['credit_note']->prefix . $result['credit_note']->invoice_number) . ' generated';
+            }
+            $msg .= '.';
+
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $msg,
+                    'data'    => $result,
+                ]);
+            }
+
+            return redirect()->back()->with('success', $msg);
+        });
     }
 }

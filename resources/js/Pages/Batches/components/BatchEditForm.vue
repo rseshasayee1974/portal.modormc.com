@@ -220,9 +220,13 @@ const hasInvoice = computed(() => {
     return false;
 });
 
+const isCancelled = computed(() => {
+    return Number(props.batch?.status) === 5 || props.batch?.dispatches?.[0]?.dispatch_status === 'Cancelled';
+});
+
 const isLocked = computed(() => {
-    // Only lock editability when invoice is already generated
-    return hasInvoice.value;
+    // Lock editability when invoice is already generated or batch is cancelled
+    return hasInvoice.value || isCancelled.value;
 });
 
 const isRestrictedFieldLocked = computed(() => {
@@ -1483,7 +1487,7 @@ console.log('test');
         <div v-else class="border-t border-amber-200 bg-amber-50/70 px-6 py-3.5 flex items-center justify-between gap-3 text-xs text-amber-800 font-semibold">
             <div class="flex items-center gap-2">
                 <LockClosedIcon class="w-4 h-4 text-amber-600 flex-shrink-0" />
-                <span>Invoice has already been generated for this batch. Editing is locked.</span>
+                <span>{{ isCancelled ? 'This batch is cancelled. Editing is locked.' : 'Invoice has already been generated for this batch. Editing is locked.' }}</span>
             </div>
             <Button 
                 label="Close" 

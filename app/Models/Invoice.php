@@ -225,6 +225,12 @@ class Invoice extends Model implements Postable
                    ->orWhereRaw('LOWER(invoice_label) = ?', ['purchase']);
              });
              $defaultPrefix = "Bill/{$fy}/";
+        } elseif ($normalizedLabel === 'credit_note') {
+             $query->where(function($q) {
+                 $q->whereRaw('LOWER(invoice_type) = ?', ['credit_note'])
+                   ->orWhereRaw('LOWER(invoice_label) = ?', ['credit note']);
+             });
+             $defaultPrefix = "CN/{$fy}/";
         } elseif ($normalizedLabel === 'batching' || $normalizedLabel === 'dispatch') {
              $query->whereRaw('LOWER(invoice_label) = ?', ['dispatch']);
              $defaultPrefix = "Inv/{$fy}/";

@@ -285,8 +285,8 @@ const toggleExpand = (data: any, targetTab?: number) => {
 };
 
 const onStatusClick = (data: any) => {
-    // If status is Dispatched (3) or Completed (4), directly open 2. Dispatch & Invoicing (tab 1)
-    if (data.status === 3 || data.status === 4) {
+    // If status is Dispatched (3), Completed (4), or Cancelled (5), directly open 2. Dispatch & Invoicing (tab 1)
+    if (canAccessDispatchTab(data)) {
         toggleExpand(data, 1);
     } else {
         toggleExpand(data, 0);
@@ -366,9 +366,26 @@ onUnmounted(() => {
     cleanupSuccessHook();
 });
 
+const isBatchCancelled = (data: any): boolean => {
+    if (!data) return false;
+    return Number(data.status) === 5 || data.dispatches?.[0]?.dispatch_status === 'Cancelled';
+};
+
+const canAccessDispatchTab = (batch: any, detailedBatch?: any): boolean => {
+    const s1 = Number(batch?.status);
+    const s2 = Number(detailedBatch?.status);
+    if ([3, 4, 5].includes(s1) || [3, 4, 5].includes(s2)) return true;
+    if (isBatchCancelled(batch) || isBatchCancelled(detailedBatch)) return true;
+    if (batch?.dispatches?.length || detailedBatch?.dispatches?.length || batch?.dispatch || detailedBatch?.dispatch) return true;
+    return false;
+};
+
 const getRowClass = (data: any) => {
     if (blinkingBatchId.value === Number(data.id)) {
         return 'batch-row-blink';
+    }
+    if (isBatchCancelled(data)) {
+        return 'batch-row-cancelled';
     }
     return '';
 };
@@ -542,6 +559,64 @@ const {
     sendWhatsAppDirect,
     sendBatchEmailDirect,
 } = useInvoiceActions(props);
+
+// ── Cancel Dispatch & Batch Action ──────────────────────────────────────────
+const showCancelDispatchModal = ref(false);
+const cancellingBatch = ref<any>(null);
+const cancellationNotes = ref('');
+const isSubmittingCancel = ref(false);
+
+const cancellationWordCount = computed(() => {
+    const text = cancellationNotes.value.trim().replace(/\s+/g, ' ');
+    if (!text) return 0;
+    return text.split(' ').filter(Boolean).length;
+});
+
+const isCancellationValid = computed(() => {
+    return cancellationWordCount.value >= 5;
+});
+
+const openCancelDispatchModal = (batch: any) => {
+    cancellingBatch.value = batch;
+    cancellationNotes.value = '';
+    showCancelDispatchModal.value = true;
+};
+
+const submitCancelDispatch = async () => {
+    if (!isCancellationValid.value || isSubmittingCancel.value) return;
+
+    const dispatch = cancellingBatch.value?.dispatches?.[0] || cancellingBatch.value?.dispatch;
+    if (!dispatch?.id) {
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No dispatch found for this batch.' });
+        return;
+    }
+
+    isSubmittingCancel.value = true;
+    try {
+        const response = await axios.post(route('dispatches.cancel', dispatch.id), {
+            notes: cancellationNotes.value
+        });
+
+        showCancelDispatchModal.value = false;
+        Swal.fire({
+            icon: 'success',
+            title: 'Cancelled Successfully',
+            text: response.data.message || 'Dispatch and batch have been cancelled.',
+            timer: 3500,
+            showConfirmButton: false,
+        });
+
+        if (cancellingBatch.value?.id) {
+            await refreshBatchRow(cancellingBatch.value.id);
+        }
+        router.reload({ only: ['batches'] });
+    } catch (error: any) {
+        const msg = error.response?.data?.message || error.response?.data?.error || error.message || 'Failed to cancel dispatch.';
+        Swal.fire({ icon: 'error', title: 'Cancellation Failed', text: msg });
+    } finally {
+        isSubmittingCancel.value = false;
+    }
+};
 
 // ── Page Settings ────────────────────────────────────────────────────────────
 const customSettings = page.props.custom_settings as any;
@@ -817,17 +892,22 @@ const shareBatchEmail = () => {
                         <Column field="batch_no" header="Batch" sortable>
                             <template #body="slotProps">
                                 <div>
-                                    <span v-if="slotProps.data.is_offline_pending" class="text-slate-500 font-inter text-sm font-semibold">
-                                        B{{ slotProps.data.batch_no }}
-                                    </span>
-                                    <button
-                                        v-else
-                                        class="text-indigo-700 font-inter text-sm font-semibold hover:underline"
-                                        type="button"
-                                        @click.stop="toggleExpand(slotProps.data)"
-                                    >
-                                        B{{ slotProps.data.batch_no }}
-                                    </button>
+                                    <div class="flex items-center gap-1.5">
+                                        <span v-if="slotProps.data.is_offline_pending" class="text-slate-500 font-inter text-sm font-semibold">
+                                            B{{ slotProps.data.batch_no }}
+                                        </span>
+                                        <button
+                                            v-else
+                                            class="text-indigo-700 font-inter text-sm font-semibold hover:underline"
+                                            type="button"
+                                            @click.stop="toggleExpand(slotProps.data)"
+                                        >
+                                            B{{ slotProps.data.batch_no }}
+                                        </button>
+                                        <span v-if="isBatchCancelled(slotProps.data)" class="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded shadow-xs">
+                                            <i class="pi pi-times-circle text-[9px]"></i> Cancelled
+                                        </span>
+                                    </div>
                                     <div class="text-[10px] font-black text-indigo-400 uppercase tracking-widest">{{ slotProps.data.sales_order?.full_number || (slotProps.data.sales_order ? (slotProps.data.sales_order.prefix || '') + String(slotProps.data.sales_order.order_no || '').padStart(4,'0') : '-') }}</div>
                                 </div>
                             </template>
@@ -920,6 +1000,7 @@ const shareBatchEmail = () => {
                             <template #body="slotProps">
                                 <div v-if="!slotProps.data.is_offline_pending" class="flex items-center justify-center gap-2">
                                     <button
+                                        v-if="!isBatchCancelled(slotProps.data)"
                                         type="button"
                                         class="inline-flex justify-center items-center w-8 h-8 rounded-full text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-slate-700 focus:outline-none transition-all duration-200 cursor-pointer"
                                         @click.stop="toggleActionMenu($event, slotProps.data)"
@@ -933,6 +1014,16 @@ const shareBatchEmail = () => {
                                         <template v-if="slotProps.data.is_offline_pending">
                                             <Tag value="Offline Pending" severity="warn" rounded />
                                             <i class="pi pi-spinner animate-spin text-amber-500 text-lg" v-tooltip.top="'Pending Network Sync'"></i>
+                                        </template>
+                                        <template v-else-if="isBatchCancelled(slotProps.data)">
+                                            <Tag 
+                                                value="Cancelled" 
+                                                severity="danger" 
+                                                rounded 
+                                                class="!bg-rose-600 !text-white font-black text-[10px] px-2.5 py-0.5 shadow-xs uppercase tracking-wider select-none cursor-pointer" 
+                                                v-tooltip.top="slotProps.data.dispatches?.[0]?.cancelled_notes ? ('Cancelled: ' + slotProps.data.dispatches[0].cancelled_notes) : 'Dispatch & Batch Cancelled'"
+                                                @click.stop="onStatusClick(slotProps.data)"
+                                            />
                                         </template>
                                         <template v-else>
                                             <!-- E-Invoice Generated -->
@@ -969,7 +1060,7 @@ const shareBatchEmail = () => {
                                                 v-if="!slotProps.data.has_invoice && !slotProps.data.invoice_id && !slotProps.data.dispatches?.[0]?.status?.invoice_id && slotProps.data.dispatches?.[0]?.status?.invoice_status !== 1"
                                                 :value="statusLabel(slotProps.data.status, slotProps.data)?.charAt(0)" 
                                                 :severity="statusSeverity(slotProps.data.status, slotProps.data)" 
-                                                rounded
+                                                rounded 
                                                 :class="[
                                                     'cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm font-bold',
                                                     slotProps.data.status === 3 ? '!bg-cyan-600 !text-white' : ''
@@ -989,7 +1080,7 @@ const shareBatchEmail = () => {
                                         leave-to-class="transform opacity-0 scale-95"
                                     >
                                         <div
-                                            v-if="activeMenuId === slotProps.data.id"
+                                            v-if="activeMenuId === slotProps.data.id && !isBatchCancelled(slotProps.data)"
                                             class="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-slate-800 shadow-2xl border border-slate-200/80 dark:border-slate-700/80 z-[1000] focus:outline-none divide-y divide-slate-100 dark:divide-slate-700/50 py-1"
                                             @click.stop
                                         >
@@ -1090,7 +1181,7 @@ const shareBatchEmail = () => {
 
                                             <div v-if="slotProps.data.dispatches?.[0]" class="py-1 text-left">
                                                 <button
-                                                    v-if="slotProps.data.status >= 3 && Number(slotProps.data.dispatches[0].load_rate) > 0 && Number(slotProps.data.dispatches[0].delivered_qty || slotProps.data.dispatches[0].load_units || 0) > 0 && slotProps.data.dispatches[0].uom_id && (!slotProps.data.dispatches[0].status || slotProps.data.dispatches[0].status.invoice_status !== 1)"
+                                                    v-if="slotProps.data.status >= 3 && Number(slotProps.data.dispatches[0].load_rate) > 0 && Number(slotProps.data.dispatches[0].delivered_qty || slotProps.data.dispatches[0].load_units || 0) > 0 && slotProps.data.dispatches[0].uom_id && (!slotProps.data.dispatches[0].status || slotProps.data.dispatches[0].status.invoice_status !== 1) && !isBatchCancelled(slotProps.data)"
                                                     class="flex w-full items-center px-4 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-700 transition-colors"
                                                     @click="generateInvoiceDirect(slotProps.data.dispatches[0]); activeMenuId = null;"
                                                 >
@@ -1114,7 +1205,7 @@ const shareBatchEmail = () => {
                                                         Download Invoice PDF
                                                     </button>
                                                     <button
-                                                        v-if="!slotProps.data.dispatches[0].status.invoice.einvoice_irn && slotProps.data.dispatches[0].status.invoice.einvoice_status !== 'generated'"
+                                                        v-if="!slotProps.data.dispatches[0].status.invoice.einvoice_irn && slotProps.data.dispatches[0].status.invoice.einvoice_status !== 'generated' && !isBatchCancelled(slotProps.data)"
                                                         class="flex w-full items-center px-4 py-2 text-xs font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/20 transition-colors"
                                                         @click="generateEInvoiceDirect(slotProps.data.dispatches[0].status.invoice); activeMenuId = null;"
                                                     >
@@ -1130,6 +1221,7 @@ const shareBatchEmail = () => {
                                                         E-Invoice Print
                                                     </button>
                                                     <button
+                                                        v-if="!isBatchCancelled(slotProps.data)"
                                                         class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
                                                         @click="deleteInvoiceDirect(slotProps.data.dispatches[0]); activeMenuId = null;"
                                                     >
@@ -1148,7 +1240,7 @@ const shareBatchEmail = () => {
                                                 </button>   
                                             </div>
 
-                                            <div v-if="slotProps.data.status < 3" class="py-1 text-left">
+                                            <div v-if="Number(slotProps.data.status) < 3 && !isBatchCancelled(slotProps.data)" class="py-1 text-left">
                                                 <button
                                                     class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
                                                     @click="destroy(slotProps.data); activeMenuId = null;"
@@ -1212,11 +1304,11 @@ const shareBatchEmail = () => {
                                             </div>
                                         </TabPanel>
 
-                                        <TabPanel :disabled="Number(slotProps.data.status) !== 3 && Number(slotProps.data.status) !== 4 && Number(detailedBatches[slotProps.data.id]?.status) !== 3 && Number(detailedBatches[slotProps.data.id]?.status) !== 4">
+                                        <TabPanel :disabled="!canAccessDispatchTab(slotProps.data, detailedBatches[slotProps.data.id])">
                                             <template #header>
                                                 <div :class="[
                                                     'flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 text-xs font-bold uppercase tracking-wider',
-                                                    (Number(slotProps.data.status) !== 3 && Number(slotProps.data.status) !== 4 && Number(detailedBatches[slotProps.data.id]?.status) !== 3 && Number(detailedBatches[slotProps.data.id]?.status) !== 4)
+                                                    !canAccessDispatchTab(slotProps.data, detailedBatches[slotProps.data.id])
                                                         ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400'
                                                         : getBatchActiveTab(slotProps.data.id) === 1
                                                             ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 ring-1 ring-indigo-500'
@@ -1228,7 +1320,7 @@ const shareBatchEmail = () => {
                                             </template>
                                             <div class=" bg-slate-50/20">
                                                 <DispatchSection 
-                                                    v-if="(Number(slotProps.data.status) === 3 || Number(slotProps.data.status) === 4 || Number(detailedBatches[slotProps.data.id]?.status) === 3 || Number(detailedBatches[slotProps.data.id]?.status) === 4) && detailedBatches[slotProps.data.id]"
+                                                    v-if="canAccessDispatchTab(slotProps.data, detailedBatches[slotProps.data.id]) && detailedBatches[slotProps.data.id]"
                                                     :key="'dispatch-' + slotProps.data.id + '-' + (detailedBatches[slotProps.data.id].dispatches?.[0]?.id || detailedBatches[slotProps.data.id].dispatch?.id || 'new')"
                                                     :batch="detailedBatches[slotProps.data.id]" 
                                                     :salesOrder="detailedBatches[slotProps.data.id].sales_order || detailedBatches[slotProps.data.id].salesOrder || slotProps.data.sales_order"
@@ -1307,7 +1399,22 @@ const shareBatchEmail = () => {
             :pt="{ root: { id: 'batch-action-menu' } }"
         >
             <div v-if="activeBatch" class="divide-y divide-slate-100 dark:divide-slate-700/50 py-1 bg-white dark:bg-slate-800 text-left">
-                <!-- Group: Sync Actions -->
+                <!-- Cancelled Notice (No other actions shown) -->
+                <div v-if="isBatchCancelled(activeBatch)" class="p-3.5 space-y-2 text-left bg-rose-50/70">
+                    <div class="flex items-center gap-2 text-rose-700 font-bold text-xs">
+                        <i class="pi pi-times-circle text-rose-600 text-base"></i>
+                        <span>Dispatch &amp; Batch Cancelled</span>
+                    </div>
+                    <p class="text-[11px] text-rose-600 font-medium leading-snug">
+                        This dispatch is cancelled. All other actions are disabled.
+                    </p>
+                    <div v-if="activeBatch.dispatches?.[0]?.cancelled_notes" class="text-[10px] text-slate-700 bg-white/90 p-2.5 rounded border border-rose-200 italic">
+                        <strong class="text-rose-900 not-italic font-semibold">Notes:</strong> {{ activeBatch.dispatches[0].cancelled_notes }}
+                    </div>
+                </div>
+
+                <template v-else>
+                    <!-- Group: Sync Actions -->
                 <div v-if="activeBatch.sync_status" class="py-1 text-left">
                     <button
                         v-if="activeBatch.sync_status === 'success' || activeBatch.sync_status === 1 || activeBatch.sync_status === '1'"
@@ -1457,7 +1564,7 @@ const shareBatchEmail = () => {
                             E-Invoice Print
                         </button>
                         <button
-                            v-if="activeBatch.dispatches?.[0]"
+                            v-if="activeBatch.dispatches?.[0] && !isBatchCancelled(activeBatch)"
                             class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer"
                             @click="deleteInvoiceDirect(activeBatch.dispatches[0]); closeAllMenus();"
                         >
@@ -1469,7 +1576,7 @@ const shareBatchEmail = () => {
                     <!-- Standalone E-Way Bill (Always visible once batch is dispatched, status >= 3) -->
                     <template v-if="activeBatch.status >= 3">
                         <button
-                            v-if="!activeBatch.eway_bill_no && !activeBatch.dispatches?.[0]?.status?.invoice?.eway_bill_no"
+                            v-if="!activeBatch.eway_bill_no && !activeBatch.dispatches?.[0]?.status?.invoice?.eway_bill_no && !isBatchCancelled(slotProps.data)"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/20 transition-colors cursor-pointer"
                             @click="generateEwayBillDirect(activeBatch); closeAllMenus();"
                         >
@@ -1495,10 +1602,27 @@ const shareBatchEmail = () => {
                         <i class="pi pi-whatsapp mr-2 text-emerald-500 font-bold"></i>
                         WhatsApp Send
                     </button>
+
+                    <!-- Cancel Dispatch Action (Temporarily Hidden) -->
+                    <!-- <button
+                        v-if="activeBatch.dispatches?.[0] && activeBatch.dispatches[0].dispatch_status !== 'Cancelled' && activeBatch.status !== 5"
+                        class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors cursor-pointer border-t border-slate-100 dark:border-slate-800"
+                        @click="openCancelDispatchModal(activeBatch); closeAllMenus();"
+                    >
+                        <i class="pi pi-ban mr-2 text-rose-500 font-bold"></i>
+                        Cancel Dispatch
+                    </button> -->
+                    <div
+                        v-if="activeBatch.dispatches?.[0]?.dispatch_status === 'Cancelled' || activeBatch.status === 5"
+                        class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-700 bg-rose-50 dark:bg-rose-950/30 select-none border-t border-slate-100 dark:border-slate-800"
+                    >
+                        <i class="pi pi-times-circle mr-2 text-rose-500 font-bold"></i>
+                        Dispatch Cancelled
+                    </div>
                 </div>
 
                 <!-- Group 4: Delete Batch -->
-                <div v-if="activeBatch.status < 3" class="py-1">
+                <div v-if="Number(activeBatch.status) < 3 && !isBatchCancelled(activeBatch)" class="py-1">
                     <button
                         class="flex w-full items-center px-4 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 transition-colors"
                         @click="destroy(activeBatch); closeAllMenus();"
@@ -1507,6 +1631,7 @@ const shareBatchEmail = () => {
                         Delete Batch
                     </button>
                 </div>
+                </template>
             </div>
         </Popover>
                 <!-- Premium Share Batch Dialog -->
@@ -1596,6 +1721,101 @@ const shareBatchEmail = () => {
                 </div>
             </div>
         </Dialog>
+
+        <!-- Cancel Dispatch & Batch Modal Dialog -->
+        <Dialog v-model:visible="showCancelDispatchModal" modal header="Cancel Dispatch & Batch" :style="{ width: '560px' }" class="premium-dialog">
+            <div class="p-2 space-y-4">
+                <!-- Alert Banner -->
+                <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1">
+                    <div class="flex items-center gap-2 font-bold text-rose-900">
+                        <i class="pi pi-exclamation-triangle text-rose-600"></i>
+                        <span>Reversal Actions on Cancellation</span>
+                    </div>
+                    <ul class="list-disc pl-5 text-[11px] space-y-0.5 text-rose-700">
+                        <li>Dispatch and Batch status will be permanently marked as <strong>Cancelled</strong>.</li>
+                        <li>Sales Order delivered/produced volume will be automatically <strong>reversed</strong>.</li>
+                        <li>If invoiced, the invoice will be marked Cancelled, active E-Invoice (IRN) cancelled, and an accounting <strong>Credit Note</strong> will be generated.</li>
+                    </ul>
+                </div>
+
+                <!-- Trip Details Summary -->
+                <div v-if="cancellingBatch" class="bg-slate-50 p-3 rounded-lg border border-slate-200 text-xs grid grid-cols-2 gap-2">
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Batch Number</span>
+                        <span class="font-bold text-slate-800">B{{ cancellingBatch.batch_no }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Dispatch Number</span>
+                        <span class="font-bold text-slate-800">{{ cancellingBatch.dispatches?.[0]?.dispatch_no || 'N/A' }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Customer</span>
+                        <span class="font-semibold text-slate-700 truncate block">{{ cancellingBatch.dispatches?.[0]?.customer?.legal_name || cancellingBatch.salesOrder?.customer?.legal_name || 'N/A' }}</span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 block text-[10px] uppercase font-bold">Truck Registration</span>
+                        <span class="font-semibold text-slate-700">{{ cancellingBatch.dispatches?.[0]?.truck?.reg_number || 'N/A' }}</span>
+                    </div>
+                </div>
+
+                <!-- Notes Input with 50-Word Validation Counter -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-bold text-slate-700">
+                            Cancellation Reason & Audit Notes <span class="text-rose-500">*</span>
+                        </label>
+                        <span :class="[
+                            'text-[11px] font-bold px-2 py-0.5 rounded-full border',
+                            isCancellationValid 
+                                ? 'text-emerald-700 bg-emerald-50 border-emerald-300' 
+                                : 'text-rose-700 bg-rose-50 border-rose-300'
+                        ]">
+                            Words: {{ cancellationWordCount }} / 50 minimum required
+                        </span>
+                    </div>
+                    <textarea
+                        v-model="cancellationNotes"
+                        rows="5"
+                        placeholder="Provide detailed, comprehensive notes explaining why this dispatch is being cancelled (minimum 5 words required by policy)..."
+                        class="w-full text-xs rounded-xl border border-slate-300 p-3 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none resize-none"
+                    ></textarea>
+                    <p v-if="!isCancellationValid" class="text-[11px] text-rose-500 mt-1 flex items-center gap-1 font-medium">
+                        <i class="pi pi-info-circle text-[10px]"></i>
+                        Please write at least {{ 50 - cancellationWordCount }} more word{{ (50 - cancellationWordCount) === 1 ? '' : 's' }} to enable cancellation.
+                    </p>
+                    <p v-else class="text-[11px] text-emerald-600 mt-1 flex items-center gap-1 font-medium">
+                        <i class="pi pi-check text-[10px]"></i>
+                        Minimum word requirement met. You may proceed.
+                    </p>
+                </div>
+
+                <!-- Footer Buttons -->
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                        type="button"
+                        @click="showCancelDispatchModal = false"
+                        class="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                        Close
+                    </button>
+                    <button
+                        type="button"
+                        :disabled="!isCancellationValid || isSubmittingCancel"
+                        @click="submitCancelDispatch"
+                        :class="[
+                            'flex items-center gap-2 px-5 py-2 text-xs font-bold text-white rounded-lg shadow-sm transition-all',
+                            isCancellationValid && !isSubmittingCancel
+                                ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20 cursor-pointer'
+                                : 'bg-slate-300 cursor-not-allowed text-slate-500'
+                        ]"
+                    >
+                        <i v-if="isSubmittingCancel" class="pi pi-spinner animate-spin"></i>
+                        <i v-else class="pi pi-ban"></i>
+                        <span>Confirm Cancellation</span>
+                    </button>
+                </div>
+            </div>
+        </Dialog>
     </AppLayout>
 </template>
 
@@ -1640,6 +1860,19 @@ const shareBatchEmail = () => {
 :deep(tr.batch-row-blink > td) {
     animation: batch-blink 2.1s ease-in-out forwards !important;
     transition: none !important;
+}
+
+:deep(tr.batch-row-cancelled > td) {
+    background-color: #fff1f2 !important; /* light red (rose-50) */
+    border-color: #ffe4e6 !important;
+}
+
+:deep(tr.batch-row-cancelled:hover > td) {
+    background-color: #ffe4e6 !important; /* rose-100 on hover */
+}
+
+:deep(tr.batch-row-cancelled) {
+    background-color: #fff1f2 !important;
 }
 </style>
 

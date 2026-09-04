@@ -629,6 +629,39 @@ class ExcelExportService
                         'rows' => $prodTripRows,
                     ];
                 }
+            } elseif ($type === 'cancelled_dispatch') {
+                $title = "CANCELLED DISPATCH REPORT";
+                $headersList = ['#', 'Dispatch #', 'Batch #', 'Sales Order', 'Customer Name', 'Site Name', 'Grade', 'Truck #', 'Driver', 'Qty (m³)', 'Taxable (₹)', 'Tax (₹)', 'Total (₹)', 'Invoice #', 'Credit Note #', 'Cancelled Date', 'Cancelled By', 'Cancellation Notes'];
+                foreach (($data['transactions'] ?? $data['items'] ?? []) as $i => $row) {
+                    $rows[] = [
+                        $i + 1,
+                        $row['dispatch_no'] ?? '',
+                        $row['batch_no'] ?? '',
+                        $row['sales_order_no'] ?? '',
+                        $row['customer_name'] ?? '',
+                        $row['site_name'] ?? '',
+                        $row['grade_name'] ?? '',
+                        $row['truck_no'] ?? '',
+                        $row['driver_name'] ?? '',
+                        (float)($row['quantity'] ?? 0),
+                        (float)($row['amount_untaxed'] ?? 0),
+                        (float)($row['amount_tax'] ?? 0),
+                        (float)($row['amount_total'] ?? 0),
+                        $row['invoice_number'] ?? '',
+                        $row['credit_note_number'] ?? '',
+                        $row['cancelled_at'] ?? '',
+                        $row['cancelled_by'] ?? '',
+                        $row['cancelled_notes'] ?? '',
+                    ];
+                }
+                $totalRow = [
+                    '', 'Total Cancelled Trips', '', '', '', '', '', '', '',
+                    (float)($data['total_quantity'] ?? 0),
+                    (float)($data['total_untaxed'] ?? 0),
+                    (float)($data['total_tax'] ?? 0),
+                    (float)($data['total_amount'] ?? 0),
+                    '', '', '', '', ''
+                ];
             } elseif ($type === 'customer_consolidated') {
                 $headersList = ['#', 'Customer / Party Name', 'Trips', 'Batch Size (m³)', 'Delivered Qty (m³)', 'Empty Wt (T)', 'Loaded Wt (T)', 'Net Wt (T)', 'Taxable Amt', 'Tax Amt', 'Total Amt'];
                 foreach (($data['transactions'] ?? $data['items'] ?? []) as $i => $row) {

@@ -48,7 +48,11 @@ class SalesReportService implements ReportServiceInterface
             })
             ->leftJoin('mm_einvoice_invoice_rel as einv_rel', 'einv_rel.invoice_id', '=', 'inv.id')
             ->where('d.plant_id', $plantId)
-            ->whereNull('d.deleted_at');
+            ->whereNull('d.deleted_at')
+            ->where(function ($q) {
+                $q->whereNull('d.dispatch_status')
+                  ->orWhere('d.dispatch_status', '!=', 'Cancelled');
+            });
 
         // Date filter matching dispatch_time or invoice_date or fallback to created_at
         $query->where(function ($q) use ($start, $end) {

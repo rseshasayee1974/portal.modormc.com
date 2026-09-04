@@ -15,6 +15,15 @@ export function useBatchActions(props: { statuses: { label: string; value: numbe
 
     // ── Delete Batch ─────────────────────────────────────────────────────────
     const destroy = (row: any) => {
+        if (Number(row.status) === 5 || row?.dispatches?.[0]?.dispatch_status === 'Cancelled') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Cannot Delete',
+                text: 'Cancelled batches cannot be deleted.',
+            });
+            return;
+        }
+
         Swal.fire({
             title: 'Delete batch?',
             text: `Batch #${row.batch_no} will be deleted.`,
@@ -88,16 +97,17 @@ export function useBatchActions(props: { statuses: { label: string; value: numbe
     };
 
     const statusSeverity = (status: number, row?: any): string => {
+        if (status === 5 || row?.dispatches?.[0]?.dispatch_status === 'Cancelled') return 'danger';
         if (isEInvoiced(row)) return 'help';
         if (isInvoiced(row)) return 'success';
         if (status === 4) return 'success';
         if (status === 3) return 'info';
         if (status === 2) return 'info';
-        if (status === 5) return 'danger';
         return 'warn';
     };
 
     const statusLabel = (status: number, row?: any): string => {
+        if (status === 5 || row?.dispatches?.[0]?.dispatch_status === 'Cancelled') return 'Cancelled';
         if (isEInvoiced(row)) return 'E-Invoiced';
         if (isInvoiced(row)) return 'Invoiced';
         return props.statuses.find((entry) => entry.value === status)?.label ?? 'Unknown';
