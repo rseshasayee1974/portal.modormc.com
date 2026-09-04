@@ -792,17 +792,10 @@ const shareEmail = () => {
                                     />
                                 </div>
 
-<<<<<<< HEAD
-                                <!-- Patron Dropdown -->
-                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">
-                                        {{ (reportType === 'sales_register' || reportType === 'cancelled_dispatch') ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
-=======
                                 <!-- Patron / Customer Dropdown -->
-                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated'].includes(reportType)" class="lg:col-span-1">
+                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">
-                                        {{ ['sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'sales'].includes(reportType) ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
->>>>>>> 8b71a5ea7281392e0b5777294b8366d2f74e82f2
+                                        {{ ['sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'sales', 'cancelled_dispatch'].includes(reportType) ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
                                     </span>
                                     <BaseSelect 
                                         v-model="patronId"

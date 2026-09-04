@@ -1576,7 +1576,7 @@ const shareBatchEmail = () => {
                     <!-- Standalone E-Way Bill (Always visible once batch is dispatched, status >= 3) -->
                     <template v-if="activeBatch.status >= 3">
                         <button
-                            v-if="!activeBatch.eway_bill_no && !activeBatch.dispatches?.[0]?.status?.invoice?.eway_bill_no && !isBatchCancelled(slotProps.data)"
+                            v-if="!activeBatch.eway_bill_no && !activeBatch.dispatches?.[0]?.status?.invoice?.eway_bill_no && !isBatchCancelled(activeBatch)"
                             class="flex w-full items-center px-4 py-2 text-xs font-semibold text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/20 transition-colors cursor-pointer"
                             @click="generateEwayBillDirect(activeBatch); closeAllMenus();"
                         >
