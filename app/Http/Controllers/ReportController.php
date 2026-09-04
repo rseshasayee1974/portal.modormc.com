@@ -48,12 +48,19 @@ class ReportController extends Controller
               'name' => trim($p->first_name . ' ' . $p->last_name) . ($p->employee_code ? " ({$p->employee_code})" : '')
           ]);
 
+        $concreteGrades = \App\Models\ConcreteGrade::where(function ($q) use ($plantId) {
+            $q->where('plant_id', $plantId)->orWhereNull('plant_id');
+        })->whereNull('deleted_at')
+          ->orderBy('name')
+          ->get(['id', 'name', 'concrete_code']);
+
         return Inertia::render('Reports/Index', [
             'ledgers'          => $ledgers,
             'patrons'          => $patrons,
             'machines'         => $machines,
             'drivers'          => $drivers,
             'salesExecutives'  => $salesExecutives,
+            'concreteGrades'   => $concreteGrades,
             'filters' => [
                 'start_date' => $request->input('start_date', now()->subDays(30)->startOfDay()->format('Y-m-d H:i:s')),
                 'end_date'   => $request->input('end_date', now()->endOfDay()->format('Y-m-d H:i:s')),
@@ -91,17 +98,18 @@ class ReportController extends Controller
             : now()->endOfDay()->toDateTimeString();
 
         $params = [
-            'start'            => $startFormatted,
-            'end'              => $endFormatted,
-            'id'               => $id,
-            'patron_id'        => $patronId,
-            'voucher_type'     => strtoupper($type),
-            'valuation_method' => $request->input('valuation_method', 'FIFO'),
-            'consolidation'    => $request->input('consolidation', 'po'),
-            'plant_id'         => session('active_plant_id'),
+            'start'              => $startFormatted,
+            'end'                => $endFormatted,
+            'id'                 => $id,
+            'patron_id'          => $patronId,
+            'voucher_type'       => strtoupper($type),
+            'valuation_method'   => $request->input('valuation_method', 'FIFO'),
+            'consolidation'      => $request->input('consolidation', 'po'),
+            'plant_id'           => session('active_plant_id'),
             'truck_id'           => $request->input('truck_id'),
             'driver_id'          => $request->input('driver_id'),
             'sales_executive_id' => $request->input('sales_executive_id'),
+            'grade_id'           => $request->input('grade_id'),
         ];
 
         if ($export === 'excel' || $export === 'pdf') {
@@ -171,11 +179,11 @@ class ReportController extends Controller
         $extraParams = [];
         if (str_contains(strtolower($type), 'inventory_stock')) {
             $extraParams = [
-                'headers'    => ['Date', 'Product Name', 'UOM', 'Opening Qty', 'Current Stock', 'Status'],
-                'fields'     => ['date', 'product_name', 'uom', 'opening_qty', 'quantity', 'status'],
-                'alignments' => ['center', 'left', 'center', 'right', 'right', 'center'],
+                'headers'    => ['Date', 'Product Name', 'UOM', 'Opening Qty', 'Current Stock'],
+                'fields'     => ['date', 'product_name', 'uom', 'opening_qty', 'quantity'],
+                'alignments' => ['center', 'left', 'center', 'right', 'right'],
                 'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
-            ];
+        ];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {
             $extraParams = [
                 'headers'    => ['Received Date', 'Inward No', 'PO No', 'Supplier Name', 'Product', 'Quantity', 'Truck No'],

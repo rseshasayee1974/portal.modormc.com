@@ -95,6 +95,7 @@ class QueueReportExportJob implements ShouldQueue
                     'truck_id'           => $this->filters['truck_id'] ?? null,
                     'driver_id'          => $this->filters['driver_id'] ?? null,
                     'sales_executive_id' => $this->filters['sales_executive_id'] ?? null,
+                    'grade_id'           => $this->filters['grade_id'] ?? null,
                 ];
 
                 $data = $service->generate($params);
@@ -187,9 +188,9 @@ class QueueReportExportJob implements ShouldQueue
         $extraParams = [];
         if (str_contains(strtolower($type), 'inventory_stock')) {
             $extraParams = [
-                'headers'    => ['Date', 'Product Name', 'UOM', 'Opening Qty', 'Current Stock', 'Status'],
-                'fields'     => ['date', 'product_name', 'uom', 'opening_qty', 'quantity', 'status'],
-                'alignments' => ['center', 'left', 'center', 'right', 'right', 'center'],
+                'headers'    => ['Date', 'Product Name', 'UOM', 'Opening Qty', 'Current Stock'],
+                'fields'     => ['date', 'product_name', 'uom', 'opening_qty', 'quantity'],
+                'alignments' => ['center', 'left', 'center', 'right', 'right'],
                 'totals'     => ['quantity' => $data['total_quantity'] ?? 0]
             ];
         } elseif (str_contains(strtolower($type), 'inventory_inward')) {

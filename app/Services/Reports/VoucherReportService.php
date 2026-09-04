@@ -32,7 +32,15 @@ class VoucherReportService implements ReportServiceInterface
                 ->whereBetween('voucher_date', [$start, $end])
             );
 
-        if ($patronId) $query->where('partner_id', $patronId)->where('partner_type', 'Patron');
+        if ($patronId) {
+            $query->where(function ($q) use ($patronId) {
+                $q->where('partner_id', $patronId)
+                  ->orWhereHas('entry.lines', function ($sq) use ($patronId) {
+                      $sq->where('partner_id', $patronId)
+                         ->whereNull('deleted_at');
+                  });
+            });
+        }
 
         $transactions = $query->with([
             'entry' => fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')),

@@ -50,7 +50,7 @@ const form = useForm({
     journal_id: null,
     invoice_type: 'sales',
     invoice_label: 'Tax Invoice',
-    prefix: 'INV',
+    prefix: props.next_invoice_details?.prefix || '',
     invoice_number: '',
     ref_id: null,
     ref_title: '',

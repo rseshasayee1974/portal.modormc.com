@@ -15,6 +15,8 @@ class PaymentModeConsolidatedReportService implements ReportServiceInterface
         $plantId = $this->ctx->requirePlantId();
         $start   = $params['start'];
         $end     = $params['end'];
+        $customerId = $params['patron_id'] ?? $params['customer_id'] ?? null;
+        $customer = null;
 
         $query = DB::table('mm_dispatches as d')
             ->leftJoin('mm_batches as b', 'b.id', '=', 'd.batch_id')
@@ -46,6 +48,16 @@ class PaymentModeConsolidatedReportService implements ReportServiceInterface
                          ->whereBetween('d.created_at', [$start, $end]);
                   });
             });
+
+        if (!empty($customerId)) {
+            $customer = \App\Models\Patron::withoutGlobalScopes()->find($customerId);
+            $query->where(function ($cq) use ($customerId) {
+                $cq->where('d.customer_id', $customerId)
+                   ->orWhere('so.customer_id', $customerId);
+            });
+        }
+
+        $query->orderByRaw('COALESCE(d.dispatch_time, d.created_at) ASC')->orderBy('d.id', 'ASC');
 
         $dispatches = $query->select([
             'd.id',
@@ -108,40 +120,43 @@ class PaymentModeConsolidatedReportService implements ReportServiceInterface
         // Detailed itemized batching / trip list
         $batchDispatches = $dispatches->map(function ($d, $idx) {
             $dispatchNumber = trim(($d->dispatch_prefix ?? '') . ' ' . ($d->dispatch_no ?? $d->dispatch_reference ?? ('DSP-' . $d->id)));
+            $dispatchTimestamp = $d->dispatch_time ?: $d->created_at;
             $dispatchTime = $d->dispatch_time 
                 ? Carbon::parse($d->dispatch_time)->format('d/m/Y h:i A') 
                 : ($d->created_at ? Carbon::parse($d->created_at)->format('d/m/Y h:i A') : '-');
 
             return [
-                'index'          => $idx + 1,
-                'dispatch_id'    => $d->id,
-                'dispatch_no'    => $dispatchNumber,
-                'docket_no'      => $dispatchNumber,
-                'batch_id'       => $d->batch_id ?? null,
-                'batch_no'       => $d->batch_no ?? ('B-' . $d->id),
-                'dispatch_time'  => $dispatchTime,
-                'payment_mode'   => !empty($d->payment_mode) ? ucfirst($d->payment_mode) : 'Not Specified',
-                'customer_name'  => $d->customer_name ?: 'N/A',
-                'site_name'      => $d->site_name ?: 'N/A',
-                'truck_no'       => $d->truck_no ?: 'N/A',
-                'driver_name'    => $d->driver_name ?: 'N/A',
-                'mix_name'       => $d->mix_name,
-                'concrete_grade' => $d->concrete_grade,
-                'batch_size'     => (float)($d->batch_size ?? 0),
-                'delivered_qty'  => (float)($d->delivered_qty ?? 0),
-                'quantity'       => (float)($d->delivered_qty ?? 0),
-                'empty_weight'   => (float)($d->empty_weight_truck ?? 0),
-                'loaded_weight'  => (float)($d->loaded_weight_truck ?? 0),
-                'net_weight'     => (float)($d->net_weight ?? 0),
-                'rate'           => (float)($d->load_rate ?? 0),
-                'amount_untaxed' => (float)($d->load_untax_amount ?? 0),
-                'amount_tax'     => (float)($d->load_tax_amount ?? 0),
-                'amount_total'   => (float)($d->load_total_amount ?? 0),
+                'index'              => $idx + 1,
+                'dispatch_id'        => $d->id,
+                'dispatch_timestamp' => $dispatchTimestamp,
+                'dispatch_no'        => $dispatchNumber,
+                'docket_no'          => $dispatchNumber,
+                'batch_id'           => $d->batch_id ?? null,
+                'batch_no'           => $d->batch_no ?? ('B-' . $d->id),
+                'dispatch_time'      => $dispatchTime,
+                'payment_mode'       => !empty($d->payment_mode) ? ucfirst($d->payment_mode) : 'Not Specified',
+                'customer_name'      => $d->customer_name ?: 'N/A',
+                'site_name'          => $d->site_name ?: 'N/A',
+                'truck_no'           => $d->truck_no ?: 'N/A',
+                'driver_name'        => $d->driver_name ?: 'N/A',
+                'mix_name'           => $d->mix_name,
+                'concrete_grade'     => $d->concrete_grade,
+                'batch_size'         => (float)($d->batch_size ?? 0),
+                'delivered_qty'      => (float)($d->delivered_qty ?? 0),
+                'quantity'           => (float)($d->delivered_qty ?? 0),
+                'empty_weight'       => (float)($d->empty_weight_truck ?? 0),
+                'loaded_weight'      => (float)($d->loaded_weight_truck ?? 0),
+                'net_weight'         => (float)($d->net_weight ?? 0),
+                'rate'               => (float)($d->load_rate ?? 0),
+                'amount_untaxed'     => (float)($d->load_untax_amount ?? 0),
+                'amount_tax'         => (float)($d->load_tax_amount ?? 0),
+                'amount_total'       => (float)($d->load_total_amount ?? 0),
             ];
         })->values();
 
         return [
             'opening_balance'     => 0,
+            'customer'            => $customer,
             'transactions'        => $consolidated,
             'items'               => $consolidated,
             'batch_dispatches'    => $batchDispatches,
@@ -159,6 +174,13 @@ class PaymentModeConsolidatedReportService implements ReportServiceInterface
 
     public function targetName(array $params): string
     {
+        $customerId = $params['patron_id'] ?? $params['customer_id'] ?? null;
+        if ($customerId) {
+            $patron = \App\Models\Patron::withoutGlobalScopes()->find($customerId);
+            if ($patron) {
+                return $patron->legal_name;
+            }
+        }
         return 'Payment Mode Consolidated Report';
     }
 }

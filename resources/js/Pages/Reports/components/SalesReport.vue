@@ -17,7 +17,15 @@ watch(() => props.reportData?.transactions, () => {
     currentPage.value = 1;
 });
 
-const transactions = computed(() => props.reportData?.transactions || []);
+const transactions = computed(() => {
+    const list = [...(props.reportData?.transactions || [])];
+    return list.sort((a, b) => {
+        const timeA = a.dispatch_timestamp ?? (a.date ? new Date(a.datetime || a.date).getTime() : 0);
+        const timeB = b.dispatch_timestamp ?? (b.date ? new Date(b.datetime || b.date).getTime() : 0);
+        if (timeA !== timeB) return timeA - timeB;
+        return (a.id || 0) - (b.id || 0);
+    });
+});
 const totalTransactions = computed(() => transactions.value.length);
 const totalPages = computed(() => Math.max(1, Math.ceil(totalTransactions.value / perPage.value)));
 
@@ -82,15 +90,15 @@ const visiblePages = computed(() => {
                 </span>
             </div>
             <div class="overflow-x-auto border border-slate-200 border-b-0">
-                <table class="w-full text-left border-collapse min-w-[1000px]">
+                <table class="w-full text-left border-collapse min-w-[1100px]">
                     <thead>
                         <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">
                             <th class="py-3 px-3 text-center" width="3%">#</th>
-                            <th class="py-3 px-3 text-center" width="8%">Date</th>
+                            <th class="py-3 px-3 text-center whitespace-nowrap min-w-[125px]" width="13%">Date</th>
                             <th class="py-3 px-3 text-center" width="10%">Dispatch / Batch</th>
                             <th class="py-3 px-3 text-center" width="10%">Invoice Details</th>
-                            <th class="py-3 px-3 text-center" width="10%">E-Invoice Reference</th>
-                            <th class="py-3 px-3" width="15%">Customer / Site</th>
+                            <!-- <th class="py-3 px-3 text-center" width="10%">E-Invoice Reference</th> -->
+                            <th class="py-3 px-3" width="14%">Customer / Site</th>
                             <th class="py-3 px-3 text-right" width="6%">Delivered Qty</th>
                             <th class="py-3 px-3 text-right" width="6%">Empty Wt</th>
                             <th class="py-3 px-3 text-right" width="6%">Loaded Wt</th>
@@ -103,13 +111,13 @@ const visiblePages = computed(() => {
                     <tbody class="text-[11px] font-semibold text-slate-700">
                         <tr v-for="(row, idx) in paginatedTransactions" :key="idx" class="border-b border-slate-100 hover:bg-slate-50 transition-all">
                             <td class="py-3 px-3 text-center text-slate-400">{{ (sanitizedPage - 1) * perPage + idx + 1 }}</td>
-                            <td class="py-3 px-3 text-center text-slate-500 font-medium">
-                                <span>{{ row.date }}</span>
-                                <span v-if="row.time" class="text-[10px] text-slate-400 block font-normal">{{ row.time }}</span>
+                            <td class="py-3 px-3 text-center text-slate-500 font-medium whitespace-nowrap min-w-[125px]">
+                                <span class="whitespace-nowrap">{{ row.date }}</span>
+                                <span v-if="row.time" class="text-[10px] text-slate-400 block font-normal whitespace-nowrap">{{ row.time }}</span>
                             </td>
                             <td class="py-3 px-3 text-center">
-                                <span class="font-bold text-slate-800">{{ row.dispatch_no ?? '-' }}</span>
-                                <span class="text-[10px] text-slate-400 block font-normal">{{ row.batch_no ?? '-' }}</span>
+                                <!-- <span class="font-bold text-slate-800">{{ row.dispatch_no ?? '-' }}</span> -->
+                                <span class="font-bold text-indigo-600">{{ row.batch_no ?? '-' }}</span>
                             </td>
                             <td class="py-3 px-3 text-center">
                                 <template v-if="row.invoice_number && row.invoice_number !== '-'">
@@ -120,17 +128,8 @@ const visiblePages = computed(() => {
                                     Unbilled
                                 </span>
                             </td>
-                            <td class="py-3 px-3 text-center">
-                                <template v-if="row.einv_ackno">
-                                    <div class="flex flex-col items-center gap-0.5" :title="`Ack Date: ${row.einv_ack_date || '-'}\nIRN: ${row.einv_irn || '-'}`">
-                                        <span class="font-mono text-[10px] text-sky-700 font-bold tracking-tight">{{ row.einv_ackno }}</span>
-                                        <span v-if="row.einv_status" class="px-1.5 py-0.2 text-[9px] rounded font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                                            {{ row.einv_status }}
-                                        </span>
-                                    </div>
-                                </template>
-                                <span v-else class="text-slate-300 font-normal">-</span>
-                            </td>
+                         
+                            
                             <td class="py-3 px-3">
                                 <span class="font-medium text-slate-800">{{ row.customer_name }}</span>
                                 <span v-if="row.site_name && row.site_name !== 'N/A'" class="text-[10px] text-slate-400 block font-normal">{{ row.site_name }}</span>
@@ -144,10 +143,10 @@ const visiblePages = computed(() => {
                             <td class="py-3 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
                         </tr>
                         <tr v-if="!paginatedTransactions?.length">
-                            <td colspan="13" class="py-4 text-center text-slate-400">No dispatches found for selected period</td>
+                            <td colspan="12" class="py-4 text-center text-slate-400">No dispatches found for selected period</td>
                         </tr>
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
-                            <td colspan="6" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Sales</td>
+                            <td colspan="5" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Sales</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_quantity) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_truck_empty) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_loaded_weight) }}</td>
@@ -429,7 +428,7 @@ const visiblePages = computed(() => {
                             <th class="py-3 px-3" width="28%">Unload Site Name</th>
                             <th class="py-3 px-3" width="23%">Customer / Party</th>
                             <th class="py-3 px-3 text-center" width="10%">Trips</th>
-                            <th class="py-3 px-3 text-right" width="11%">Batch Size</th>
+                            <!-- <th class="py-3 px-3 text-right" width="11%">Batch Size</th> -->
                             <th class="py-3 px-3 text-right" width="11%">Delivered Qty</th>
                             <th class="py-3 px-3 text-right" width="12%">Total Amt</th>
                         </tr>
@@ -440,7 +439,7 @@ const visiblePages = computed(() => {
                             <td class="py-2.5 px-3 font-bold text-slate-800">{{ row.site_name }}</td>
                             <td class="py-2.5 px-3 text-slate-600">{{ row.customer_name || '-' }}</td>
                             <td class="py-2.5 px-3 text-center text-slate-700 font-bold">{{ row.trips_count }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td>
+                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
                             <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
                             <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
                         </tr>
@@ -450,7 +449,7 @@ const visiblePages = computed(() => {
                         <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
                             <td colspan="3" class="py-3.5 px-4 text-center text-[#1d2d3e] uppercase">Total Site Volume</td>
                             <td class="py-3.5 px-3 text-center text-[#1d2d3e] font-black">{{ reportData.total_site_trips || reportData.site_summary?.reduce((acc, r) => acc + (r.trips_count || 0), 0) }}</td>
-                            <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_site_batch_size) }}</td>
+                            <!-- <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_site_batch_size) }}</td> -->
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_site_quantity) }}</td>
                             <td class="py-3.5 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_site_amount) }}</td>
                         </tr>

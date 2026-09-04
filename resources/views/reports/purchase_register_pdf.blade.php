@@ -5,57 +5,59 @@
     <title>Purchase Register Report</title>
     <style>
         @page {
-            margin: 15px;
+            size: A4 landscape;
+            margin: 18px;
         }
         body {
             font-family: 'DejaVu Sans', sans-serif;
-            font-size: 7.5pt;
+            font-size: 8.5pt;
             color: #1e293b;
             margin: 0;
             padding: 0;
-            line-height: 1.1;
+            line-height: 1.3;
         }
         .title-container {
-            border-bottom: 2px solid #1d2d3e;
-            padding-bottom: 5px;
-            margin-bottom: 10px;
+            border-bottom: 2px solid #0284c7;
+            padding-bottom: 6px;
+            margin-bottom: 15px;
         }
         .report-title {
-            font-size: 11pt;
+            font-size: 13pt;
             font-weight: bold;
-            color: #1d2d3e;
+            color: #0369a1;
             margin: 0;
+            text-transform: uppercase;
         }
         .filter-info {
-            font-size: 7.5pt;
-            color: #475569;
-            margin-top: 3px;
+            font-size: 8.5pt;
+            color: #64748b;
+            margin-top: 4px;
         }
         table.data-table {
             width: 100%;
             border-collapse: collapse;
-            border: 1px solid #cbd5e1;
+            border: 1px solid #0284c7;
         }
         table.data-table th {
-            background-color: #f2f4f7;
-            color: #1d2d3e;
-            border: 1px solid #cbd5e1;
-            padding: 4px 2px;
-            font-size: 5.5pt;
+            background-color: #f0f9ff;
+            color: #0369a1;
+            border: 1px solid #38bdf8;
+            padding: 8px 6px;
+            font-size: 8pt;
             font-weight: bold;
             text-align: center;
             text-transform: uppercase;
         }
         table.data-table td {
-            padding: 3px 2px;
-            border: 1px solid #cbd5e1;
-            font-size: 6pt;
+            padding: 6px 6px;
+            border: 1px solid #bae6fd;
+            font-size: 8pt;
             vertical-align: middle;
-            word-wrap: break-word;
         }
         .total-row {
-            background-color: #e2e8f0;
+            background-color: #f0f9ff;
             font-weight: bold;
+            border-top: 2px solid #0284c7;
         }
         .text-right { text-align: right; }
         .text-center { text-align: center; }
@@ -76,80 +78,77 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th>Bill No</th>
-                <th>Bill Date</th>
-                <th>Supplier Name</th>
-                <th>GSTIN</th>
-                <th>Product Name</th>
-                <th>Qty</th>
-                <th>Rate</th>
-                <th>Taxable Amt</th>
-                <th>CGST</th>
-                <th>SGST</th>
-                <th>IGST</th>
-                @foreach($tax_columns as $col)
-                    <th>{{ $col['label'] }}</th>
-                @endforeach
-                <th>Net Amount</th>
+                <th style="width: 4%;">#</th>
+                <th style="width: 10%;">Bill No</th>
+                <th style="width: 9%;">Bill Date</th>
+                <th style="width: 23%;">Supplier Name</th>
+                <th style="width: 12%;">GSTIN</th>
+                <th style="width: 16%;">Product</th>
+                <th style="width: 7%;">Qty</th>
+                <!-- <th style="width: 6%;">Rate (₹)</th> -->
+                <th style="width: 9%;">Taxable Amt (₹)</th>
+                <!-- <th style="width: 6%;">CGST (₹)</th>
+                <th style="width: 6%;">SGST (₹)</th>
+                <th style="width: 6%;">IGST (₹)</th> -->
+                <!-- Dynamic tax rate columns -->
+                <!-- @foreach($tax_columns ?? [] as $col)
+                    <th>{{ $col['label'] }} (₹)</th>
+                @endforeach -->
+                <th style="width: 10%;">Net Amt (₹)</th>
             </tr>
         </thead>
         <tbody>
             @php
                 $sumQty = 0;
                 $sumTaxable = 0;
-                $sumCgst = 0;
-                $sumSgst = 0;
-                $sumIgst = 0;
                 $sumNet = 0;
             @endphp
-            @forelse($items as $item)
+            @forelse($items as $idx => $item)
                 @php
                     $sumQty += $item['qty'];
                     $sumTaxable += $item['taxable_amount'];
-                    $sumCgst += $item['cgst'];
-                    $sumSgst += $item['sgst'];
-                    $sumIgst += $item['igst'];
                     $sumNet += $item['net_amount'];
                 @endphp
                 <tr>
-                    <td class="text-center font-bold" style="white-space: nowrap;">{{ $item['bill_no'] }}</td>
-                    <td class="text-center" style="white-space: nowrap;">{{ \Carbon\Carbon::parse($item['bill_date'])->format('d-m-Y') }}</td>
-                    <td>{{ $item['supplier_name'] }}</td>
-                    <td class="text-center" style="white-space: nowrap;">{{ $item['gst_number'] ?: 'N/A' }}</td>
+                    <td class="text-center">{{ $idx + 1 }}</td>
+                    <td class="font-bold">{{ $item['bill_no'] }}</td>
+                    <td class="text-center">{{ \Carbon\Carbon::parse($item['bill_date'])->format('d-m-Y') }}</td>
+                    <td class="font-bold">{{ $item['supplier_name'] }}</td>
+                    <td class="text-center">{{ $item['gst_number'] ?: 'N/A' }}</td>
                     <td>{{ $item['product_name'] }}</td>
-                    <td class="text-right">{{ number_format($item['qty'], 2) }}</td>
-                    <td class="text-right">{{ number_format($item['purchase_rate'], 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($item['qty'], 2) }}</td>
+                    <!-- <td class="text-right">{{ number_format($item['purchase_rate'], 2) }}</td> -->
                     <td class="text-right">{{ number_format($item['taxable_amount'], 2) }}</td>
-                    <td class="text-right">{{ number_format($item['cgst'], 2) }}</td>
+                    <!-- <td class="text-right">{{ number_format($item['cgst'], 2) }}</td>
                     <td class="text-right">{{ number_format($item['sgst'], 2) }}</td>
-                    <td class="text-right">{{ number_format($item['igst'], 2) }}</td>
-                    @foreach($tax_columns as $col)
+                    <td class="text-right">{{ number_format($item['igst'], 2) }}</td> -->
+                    <!-- @foreach($tax_columns ?? [] as $col)
                         <td class="text-right">{{ number_format($item['taxes'][$col['key']] ?? 0, 2) }}</td>
-                    @endforeach
+                    @endforeach -->
                     <td class="text-right font-bold">{{ number_format($item['net_amount'], 2) }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ 12 + count($tax_columns) }}" class="text-center" style="padding: 15px;">No records found for the selected period.</td>
+                    <td colspan="9" class="text-center" style="padding: 15px;">No records found for the selected period.</td>
                 </tr>
             @endforelse
 
             @if(!empty($items))
                 <tr class="total-row">
-                    <td colspan="5" class="text-center font-bold">TOTAL</td>
-                    <td class="text-right font-bold">{{ number_format($sumQty, 2) }}</td>
-                    <td></td>
-                    <td class="text-right font-bold">{{ number_format($sumTaxable, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($sumCgst, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($sumSgst, 2) }}</td>
-                    <td class="text-right font-bold">{{ number_format($sumIgst, 2) }}</td>
-                    @foreach($tax_columns as $col)
+                    <td colspan="6" class="text-center font-bold">TOTAL PURCHASES</td>
+                    <td class="text-right font-bold">{{ number_format($totals['qty'] ?? $sumQty, 2) }}</td>
+                    <!-- <td></td> -->
+                    <td class="text-right font-bold">{{ number_format($totals['taxable'] ?? $sumTaxable, 2) }}</td>
+                    <!-- <td class="text-right font-bold">{{ number_format($totals['cgst'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($totals['sgst'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($totals['igst'] ?? 0, 2) }}</td> -->
+                    <!-- @foreach($tax_columns ?? [] as $col)
                         @php
                             $colSum = collect($items)->sum(fn($it) => $it['taxes'][$col['key']] ?? 0);
                         @endphp
                         <td class="text-right font-bold">{{ number_format($colSum, 2) }}</td>
-                    @endforeach
-                    <td class="text-right font-bold">{{ number_format($sumNet, 2) }}</td>
+                    @endforeach -->
+                    <td class="text-right font-bold">{{ number_format($totals['grand_total'] ?? $sumNet, 2) }}</td>
                 </tr>
             @endif
         </tbody>

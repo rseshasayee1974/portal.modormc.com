@@ -104,6 +104,7 @@ class SalesReportService implements ReportServiceInterface
             'd.unload_site_id',
             'd.mixdesign_id',
             'd.created_at as dispatch_created_at',
+            'd.updated_at as dispatch_updated_at',
             'b.id as batch_id',
             'b.batch_no',
             'b.batch_size',
@@ -143,8 +144,8 @@ class SalesReportService implements ReportServiceInterface
             'einv_rel.einv_irn',
             'einv_rel.einv_status',
         ])
-        ->orderByDesc('d.dispatch_time')
-        ->orderByDesc('d.id')
+        ->orderByRaw('COALESCE(d.dispatch_time, d.created_at) ASC')
+        ->orderBy('d.id', 'ASC')
         ->get();
 
         // 1. Transaction-level rows (Comprehensive Detailed Dispatch Breakdown)
@@ -158,7 +159,7 @@ class SalesReportService implements ReportServiceInterface
 
             $dispatchDate = $row->dispatch_time 
                 ? Carbon::parse($row->dispatch_time) 
-                : ($row->dispatch_created_at ? Carbon::parse($row->dispatch_created_at) : now());
+                : ($row->dispatch_updated_at ? Carbon::parse($row->dispatch_updated_at) : now());
 
             $createdAt = $row->dispatch_created_at ? Carbon::parse($row->dispatch_created_at)->format('d-M-Y H:i') : '';
 
@@ -183,6 +184,7 @@ class SalesReportService implements ReportServiceInterface
 
             return [
                 'id'                   => $row->dispatch_id,
+                'dispatch_timestamp'   => $dispatchDate->timestamp,
                 'date'                 => $dispatchDate->format('d-M-Y'),
                 'time'                 => $dispatchDate->format('h:i A'),
                 'datetime'             => $dispatchDate->format('d-M-Y h:i A'),

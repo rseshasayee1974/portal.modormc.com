@@ -62,6 +62,7 @@ class CustomerConsolidatedReportService implements ReportServiceInterface
             'd.dispatch_no',
             'd.dispatch_reference',
             'd.dispatch_time',
+            'd.load_time',
             'd.created_at',
             'd.delivered_qty',
             'd.load_rate',
@@ -75,33 +76,37 @@ class CustomerConsolidatedReportService implements ReportServiceInterface
             'b.id as batch_id',
             'b.batch_no',
             'b.batch_size',
-            DB::raw('COALESCE(dp.legal_name, p.legal_name, "Unknown Customer") as customer_name'),
-            DB::raw('COALESCE(ds_site.name, s.name, "Plant Site") as site_name'),
-            DB::raw('COALESCE(dm.design_name, m.design_name, "Standard Mix") as mix_name'),
-            DB::raw('COALESCE(cg.name, dm.design_type, m.design_type, "Standard Grade") as concrete_grade'),
+            DB::raw('COALESCE(NULLIF(TRIM(dp.legal_name), ""), NULLIF(TRIM(p.legal_name), ""), "Unknown Customer") as customer_name'),
+            DB::raw('COALESCE(NULLIF(TRIM(ds_site.name), ""), NULLIF(TRIM(s.name), ""), "Plant Site") as site_name'),
+            DB::raw('COALESCE(NULLIF(TRIM(dm.design_name), ""), NULLIF(TRIM(m.design_name), ""), "Standard Mix") as mix_name'),
+            DB::raw('COALESCE(NULLIF(TRIM(cg.name), ""), NULLIF(TRIM(dm.design_type), ""), NULLIF(TRIM(m.design_type), ""), "Standard Grade") as concrete_grade'),
             't.registration as truck_no',
             DB::raw('TRIM(CONCAT(COALESCE(drv.first_name, ""), " ", COALESCE(drv.last_name, ""))) as driver_name'),
         ])
-        ->orderBy('d.dispatch_time', 'asc')
-        ->orderBy('d.id', 'asc')
+        ->orderByRaw('COALESCE(d.dispatch_time, d.load_time, d.created_at) ASC')
+        ->orderBy('d.id', 'ASC')
         ->get();
 
         // 1. Detailed itemized batching / trip list
         $batchDispatches = $dispatches->map(function ($d, $idx) {
-            $dispatchNumber = trim(($d->dispatch_prefix ?? '') . ' ' . ($d->dispatch_no ?? $d->dispatch_reference ?? ('DSP-' . $d->dispatch_id)));
-            $dispatchTime = $d->dispatch_time 
-                ? Carbon::parse($d->dispatch_time)->format('d/m/Y h:i A') 
-                : ($d->created_at ? Carbon::parse($d->created_at)->format('d/m/Y h:i A') : '-');
+            $dispatchNumber = trim(($d->dispatch_prefix ?? '') . ' ' . ($d->dispatch_no ?? $d->dispatch_reference ?? ('DSP-' . ($d->dispatch_id ?? ''))));
+            $rawLoadTime = $d->load_time ?? $d->dispatch_time ?? $d->created_at ?? null;
+            $loadTimeFormatted = $rawLoadTime ? Carbon::parse($rawLoadTime)->format('d/m/Y h:i A') : '-';
+
+            $custName = !empty(trim((string)$d->customer_name)) ? trim((string)$d->customer_name) : 'Unknown Customer';
 
             return [
-                'index'          => $idx + 1,
-                'dispatch_id'    => $d->dispatch_id,
-                'dispatch_no'    => $dispatchNumber,
-                'docket_no'      => $dispatchNumber,
-                'batch_id'       => $d->batch_id,
-                'batch_no'       => $d->batch_no ?: ('B-' . $d->batch_id),
-                'dispatch_time'  => $dispatchTime,
-                'customer_name'  => $d->customer_name,
+                'index'              => $idx + 1,
+                'dispatch_id'        => $d->dispatch_id,
+                'dispatch_timestamp' => $rawLoadTime ? Carbon::parse($rawLoadTime)->timestamp : 0,
+                'dispatch_no'        => $dispatchNumber,
+                'docket_no'          => $dispatchNumber,
+                'batch_id'           => $d->batch_id,
+                'batch_no'           => $d->batch_no ?: ('B-' . $d->batch_id),
+                'dispatch_time'      => $loadTimeFormatted,
+                'load_time'          => $loadTimeFormatted,
+                'customer_name'  => $custName,
+                'party_name'     => $custName,
                 'customer_id'    => $d->customer_id,
                 'site_name'      => $d->site_name,
                 'truck_no'       => $d->truck_no ?: 'N/A',
@@ -126,8 +131,22 @@ class CustomerConsolidatedReportService implements ReportServiceInterface
             return $d['customer_id'] ?: $d['customer_name'];
         })->map(function ($trips) {
             $first = $trips->first();
+            $name = trim((string)($first['customer_name'] ?? ''));
+            if ($name === '' || $name === 'Unknown Customer') {
+                foreach ($trips as $t) {
+                    if (!empty(trim((string)($t['customer_name'] ?? ''))) && $t['customer_name'] !== 'Unknown Customer') {
+                        $name = trim((string)$t['customer_name']);
+                        break;
+                    }
+                }
+            }
+            if ($name === '') {
+                $name = 'Unknown Customer';
+            }
+
             return [
-                'customer_name'  => $first['customer_name'],
+                'customer_name'  => $name,
+                'party_name'     => $name,
                 'customer_id'    => $first['customer_id'],
                 'trips_count'    => $trips->count(),
                 'total_batch'    => (float)$trips->sum('batch_size'),
@@ -144,21 +163,29 @@ class CustomerConsolidatedReportService implements ReportServiceInterface
 
         // 3. Consolidated customer summary table
         $consolidated = $customerBatches->map(function ($c) {
+            $name = !empty(trim((string)($c['party_name'] ?? $c['customer_name'] ?? ''))) 
+                ? trim((string)($c['party_name'] ?? $c['customer_name'])) 
+                : 'Unknown Customer';
+
             return [
-                'party_name'     => $c['customer_name'],
-                'customer_name'  => $c['customer_name'],
+                'party_name'     => $name,
+                'customer_name'  => $name,
                 'customer_id'    => $c['customer_id'],
                 'trips_count'    => $c['trips_count'],
                 'batch_size'     => $c['total_batch'],
                 'quantity'       => $c['total_qty'],
+                'delivered_qty'  => $c['total_qty'],
                 'truck_empty'    => $c['total_empty'],
                 'empty_weight'   => $c['total_empty'],
                 'loaded_weight'  => $c['total_loaded'],
                 'netweight'      => $c['total_net'],
                 'net_weight'     => $c['total_net'],
                 'amount_untaxed' => $c['total_untaxed'],
+                'taxable_amount' => $c['total_untaxed'],
                 'amount_tax'     => $c['total_tax'],
+                'tax_amount'     => $c['total_tax'],
                 'amount_total'   => $c['total_amount'],
+                'total_amount'   => $c['total_amount'],
             ];
         })->values();
 

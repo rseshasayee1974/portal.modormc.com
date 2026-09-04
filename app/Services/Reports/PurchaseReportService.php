@@ -19,21 +19,30 @@ class PurchaseReportService implements ReportServiceInterface
         $end      = $params['end'];
 
         // 1. PO-wise transactions
-        $poQuery = PurchaseOrder::with(['vendor'])
+        $basePoQuery = PurchaseOrder::with(['vendor'])
             ->where('plant_id', $plantId)
-            ->whereNull('deleted_at')
-            ->where(function ($q) use ($start, $end) {
-                $q->whereBetween('date_order', [$start, $end])
-                  ->orWhereBetween('created_at', [$start, $end]);
-            });
-        if ($patronId) $poQuery->where('vendor_id', $patronId);
+            ->whereNull('deleted_at');
+        if ($patronId) {
+            $basePoQuery->where('vendor_id', $patronId);
+        }
+
+        $poQuery = (clone $basePoQuery)->where(function ($q) use ($start, $end) {
+            $q->whereBetween('date_order', [$start, $end])
+              ->orWhereBetween('billed_date', [$start, $end])
+              ->orWhereBetween('created_at', [$start, $end]);
+        });
 
         $orders = $poQuery->orderBy('date_order', 'desc')->orderBy('po_number', 'desc')->get();
 
+        // Fallback: If date range has no matches, load all active POs for the plant (similar to stock status)
+        if ($orders->isEmpty()) {
+            $orders = (clone $basePoQuery)->orderBy('date_order', 'desc')->orderBy('po_number', 'desc')->get();
+        }
+
         $bills = $orders->map(fn($po) => [
-            'date'           => $po->date_order ? \Carbon\Carbon::parse($po->date_order)->toDateString() : ($po->created_at ? $po->created_at->toDateString() : now()->toDateString()),
+            'date'           => $po->billed_date ? \Carbon\Carbon::parse($po->billed_date)->toDateString() : ($po->date_order ? \Carbon\Carbon::parse($po->date_order)->toDateString() : ($po->created_at ? $po->created_at->toDateString() : now()->toDateString())),
             'voucher_type'   => 'PURCHASE',
-            'voucher_no'     => $po->po_number,
+            'voucher_no'     => $po->bill_number ?: $po->po_number,
             'po_number'      => $po->po_number,
             'vendor_name'    => $po->vendor?->legal_name ?? 'N/A',
             'narration'      => '[' . ($po->vendor?->legal_name ?? 'Vendor') . '] Purchase Bill',
@@ -47,16 +56,10 @@ class PurchaseReportService implements ReportServiceInterface
         ]);
 
         // 2. Product-wise consolidated
+        $orderIds = $orders->pluck('id')->all();
         $itemQuery = PurchaseOrderItem::whereNull('deleted_at')
-            ->whereHas('order', function ($q) use ($plantId, $start, $end, $patronId) {
-                $q->where('plant_id', $plantId)
-                  ->whereNull('deleted_at')
-                  ->where(function ($sq) use ($start, $end) {
-                      $sq->whereBetween('date_order', [$start, $end])
-                         ->orWhereBetween('created_at', [$start, $end]);
-                  });
-                if ($patronId) $q->where('vendor_id', $patronId);
-            })->with(['product', 'uom']);
+            ->whereIn('order_id', $orderIds)
+            ->with(['product', 'uom']);
 
         $items = $itemQuery->get();
 

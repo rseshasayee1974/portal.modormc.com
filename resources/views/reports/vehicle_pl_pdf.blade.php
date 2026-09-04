@@ -84,13 +84,13 @@
             <tr>
                 <th>Registration</th>
                 <th>Model</th>
-                <th>Trip Revenue</th>
-                <th>Trip Cost</th>
-                <th>Fuel Expenses</th>
-                <th>Maintenance</th>
-                <th>Other Expenses</th>
-                <th>Total Cost</th>
-                <th>Net Profit</th>
+                <th>Trip Revenue (₹)</th>
+                <th>Trip Cost (₹)</th>
+                <th>Fuel Expenses (₹)</th>
+                <th>Maintenance (₹)</th>
+                <th>Other Expenses (₹)</th>
+                <th>Total Cost (₹)</th>
+                <th>Net Profit (₹)</th>
                 <th>Margin %</th>
             </tr>
         </thead>
@@ -117,14 +117,14 @@
                 <tr>
                     <td class="text-center font-bold">{{ $item['registration'] }}</td>
                     <td>{{ $item['vehicle_model'] }}</td>
-                    <td class="text-right">₹{{ number_format($item['trip_revenue'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($item['trip_cost'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($item['fuel_expenses'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($item['maintenance_expenses'], 2) }}</td>
-                    <td class="text-right">₹{{ number_format($item['other_expenses'], 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($item['total_cost'], 2) }}</td>
+                    <td class="text-right">{{ number_format($item['trip_revenue'], 2) }}</td>
+                    <td class="text-right">{{ number_format($item['trip_cost'], 2) }}</td>
+                    <td class="text-right">{{ number_format($item['fuel_expenses'], 2) }}</td>
+                    <td class="text-right">{{ number_format($item['maintenance_expenses'], 2) }}</td>
+                    <td class="text-right">{{ number_format($item['other_expenses'], 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($item['total_cost'], 2) }}</td>
                     <td class="text-right @if($item['net_profit'] >= 0) profit-text @else loss-text @endif">
-                        ₹{{ number_format($item['net_profit'], 2) }}
+                        {{ number_format($item['net_profit'], 2) }}
                     </td>
                     <td class="text-right font-bold @if($item['margin_pct'] >= 0) profit-text @else loss-text @endif">
                         {{ number_format($item['margin_pct'], 2) }}%
@@ -142,14 +142,14 @@
                 @endphp
                 <tr class="total-row">
                     <td colspan="2" class="text-center font-bold">TOTAL</td>
-                    <td class="text-right font-bold">₹{{ number_format($sumRevenue, 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($sumTripCost, 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($sumFuel, 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($sumMaint, 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($sumOther, 2) }}</td>
-                    <td class="text-right font-bold">₹{{ number_format($sumTotalCost, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($sumRevenue, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($sumTripCost, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($sumFuel, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($sumMaint, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($sumOther, 2) }}</td>
+                    <td class="text-right font-bold">{{ number_format($sumTotalCost, 2) }}</td>
                     <td class="text-right font-bold @if($sumNetProfit >= 0) profit-text @else loss-text @endif">
-                        ₹{{ number_format($sumNetProfit, 2) }}
+                        {{ number_format($sumNetProfit, 2) }}
                     </td>
                     <td class="text-right font-bold @if($overallMargin >= 0) profit-text @else loss-text @endif">
                         {{ number_format($overallMargin, 2) }}%

@@ -239,8 +239,10 @@ class PurchaseRegisterService
     {
         $seen = [];
         foreach ($rows as $row) {
-            foreach (array_keys($row['taxes'] ?? []) as $colKey) {
-                $seen[$colKey] = true;
+            foreach ($row['taxes'] ?? [] as $colKey => $amount) {
+                if ((float)$amount > 0.001) {
+                    $seen[$colKey] = true;
+                }
             }
         }
 
@@ -324,8 +326,11 @@ class PurchaseRegisterService
         $query = $this->repository->getPurchaseRegisterQuery($filters);
         
         if ($format === 'excel') {
+            $start = $filters['start_date'] ?? $filters['start'] ?? '';
+            $end = $filters['end_date'] ?? $filters['end'] ?? '';
+            $period = ($start && $end) ? "Period: $start to $end" : ($start ?: $end ?: 'All Dates');
             $exporter = new PurchaseRegisterExport($query);
-            $exporter->export($filePath);
+            $exporter->export($filePath, $period);
         } elseif ($format === 'pdf') {
             $rows = $query->get()->map(fn ($item) => $this->mapPurchaseRow($item))->values()->all();
             $taxColumns = $this->collectTaxColumns($rows);

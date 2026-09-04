@@ -2,14 +2,14 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Ledger Statement</title>
+    <title>General Ledger Statement</title>
     <style>
         @page {
             margin: 35px;
         }
         body {
             font-family: 'DejaVu Sans', sans-serif;
-            font-size: 9.5pt;
+            font-size: 9pt;
             color: #1e293b;
             margin: 0;
             padding: 0;
@@ -36,17 +36,12 @@
             width: 100%;
             border-collapse: collapse;
             border: 0;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
         .header-table td {
             border: 0;
             padding: 0;
             vertical-align: top;
-        }
-        
-        /* Logo design */
-        .logo-container {
-            margin-bottom: 12px;
         }
         
         /* Address styling */
@@ -82,6 +77,13 @@
             font-weight: bold;
             color: #1e3a8a;
             margin: 0;
+            text-transform: uppercase;
+        }
+        .statement-period {
+            font-size: 9pt;
+            color: #64748b;
+            margin-top: 3px;
+            display: block;
         }
 
         /* Data Table */
@@ -89,36 +91,67 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
-            border: 1px solid #94a3b8;
+            border: 1px solid #cbd5e1;
         }
         table.data-table th {
-            background-color: #b9d1ea;
-            color: #0f172a;
-            border: 1px solid #94a3b8;
-            padding: 9px 6px;
-            font-size: 8.5pt;
+            background-color: #f2f4f7;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+            padding: 9px 8px;
+            font-size: 8pt;
             font-weight: bold;
-            text-align: center;
+            text-align: left;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         table.data-table td {
-            padding: 8px 10px;
-            border: 1px solid #cbd5e1;
-            font-size: 9pt;
+            padding: 8px 8px;
+            border: 1px solid #e2e8f0;
+            font-size: 8.5pt;
             vertical-align: middle;
         }
         
+        /* Badges */
+        .badge-dr {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 7.5pt;
+            font-weight: bold;
+            background-color: #e2f0d9;
+            color: #385723;
+            border: 1px solid #c5e0b4;
+        }
+        .badge-cr {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 7.5pt;
+            font-weight: bold;
+            background-color: #fce4d6;
+            color: #c65911;
+            border: 1px solid #f8cbad;
+        }
+        .badge-voucher {
+            display: inline-block;
+            font-size: 7pt;
+            background-color: #f1f5f9;
+            color: #64748b;
+            padding: 1px 4px;
+            border-radius: 2px;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
         /* Rows styling */
         .opening-row {
-            background-color: #dbeafe;
-            font-weight: bold;
-        }
-        .total-row {
-            background-color: #f1f5f9;
-            font-weight: bold;
-        }
-        .balance-row {
             background-color: #f8fafc;
+            font-weight: bold;
+        }
+        .closing-row {
+            background-color: #1d2d3e;
+            color: #ffffff;
             font-weight: bold;
         }
         
@@ -137,21 +170,17 @@
     <table class="header-table">
         <tr>
             <td style="width: 52%;">
-
-                
-                <!-- Client 'To' details -->
-                <div class="address-box" style="margin-top: 15px;">
-                    <span class="address-title">To:</span>
-                    <span class="address-name">{{ $patron?->legal_name ?? $target_name }}</span>
-                    @if($patron && $patron->addresses->isNotEmpty())
-                        @php $pAddr = $patron->addresses->first(); @endphp
-                        {{ $pAddr->line_1 ?? '' }}@if($pAddr->line_2), {{ $pAddr->line_2 }}@endif<br>
-                        {{ $pAddr->city ?? '' }} - {{ $pAddr->zipcode ?? '' }}<br>
-                    @else
-                        , -<br>
+                <div class="address-box" style="margin-top: 5px;">
+                    <span class="address-title">Scope / Target:</span>
+                    <span class="address-name">{{ $target_name }}</span>
+                    @if(isset($patron) && $patron)
+                        @if($patron->addresses->isNotEmpty())
+                            @php $pAddr = $patron->addresses->first(); @endphp
+                            {{ $pAddr->line_1 ?? '' }}@if($pAddr->line_2), {{ $pAddr->line_2 }}@endif<br>
+                            {{ $pAddr->city ?? '' }} - {{ $pAddr->zipcode ?? '' }}<br>
+                        @endif
+                        <strong>GSTIN/UIN # :</strong> {{ $patron->gstin ?? 'N/A' }}<br>
                     @endif
-                    <strong>GSTIN/UIN # :</strong> {{ $patron?->gstin ?? '' }}<br>
-                    <strong>Contact #:</strong> {{ $patron ? ($patron->mobile_number ?? ($patron->contacts?->first()?->mobile ?? '0')) : '0' }}
                 </div>
             </td>
             
@@ -166,124 +195,90 @@
                         @if($plAddr->line_2){{ $plAddr->line_2 }}<br>@endif
                         {{ $plAddr->city ?? '' }}, {{ $plAddr->state->state_name ?? $plAddr->state_code ?? '' }} - {{ $plAddr->zipcode ?? '' }}<br>
                     @else
-                       {{ $plant->address ?? '' }}
+                        3/150, Akkiyampatti (Po),<br>
+                        Sendamangalam (Tk),<br>
+                        Namakkal (Dt), Tamil Nadu - 637409<br>
                     @endif
-                    <strong>GSTIN/UIN #:</strong> {{ $plant->gstin ?? '' }}<br>
-                    {{-- <strong>MSME - UDYAM-</strong> {{ $plant->msme_no ?? '' }} --}}
+                    <strong>GSTIN/UIN :</strong> {{ $plant->gstin ?? '' }}<br>
                 </div>
             </td>
         </tr>
     </table>
 
-    <!-- Ledger Statement Title Bar -->
+    <!-- Statement Title Bar -->
     <div class="statement-title-container">
-        <h2 class="statement-title">Ledger Statement (Period : {{ $start }} - {{ $end }})</h2>
+        <h2 class="statement-title">General Ledger Statement</h2>
+        <span class="statement-period">Period: {{ \Carbon\Carbon::parse($start)->format('d-m-Y') }} to {{ \Carbon\Carbon::parse($end)->format('d-m-Y') }}</span>
     </div>
 
-    <!-- Statement Table -->
+    <!-- Statement Table matching StandardLedgerReport.vue -->
     <table class="data-table">
         <thead>
             <tr>
-                <th width="4%">#</th>
-                <th width="12%">Date</th>
-                <th width="12%">Type</th>
-                <th width="42%">Ref</th>
-                <th width="10%">Inv/Bill No</th>
-                <th width="10%">Debit</th>
-                <th width="10%">Credit</th>
+                <th style="width: 12%;">Date</th>
+                <th style="width: 40%;">Particulars</th>
+                <th style="width: 16%;">Reference</th>
+                <th style="width: 12%; text-align: right;">Amount</th>
+                <th style="width: 8%; text-align: center;">Type</th>
+                <th style="width: 12%; text-align: right;">Balance</th>
             </tr>
         </thead>
         <tbody>
-            <!-- Calculate opening balance column positioning -->
             @php
-                $op_debit = $opening_balance > 0 ? $opening_balance : 0;
-                $op_credit = $opening_balance < 0 ? abs($opening_balance) : 0;
-
-                $total_debit = $op_debit;
-                $total_credit = $op_credit;
+                $balance = (float)($opening_balance ?? 0);
             @endphp
-            
+
             <!-- Opening Balance Row -->
             <tr class="opening-row">
-                <td colspan="4" style="background-color: #b9d1ea; border: 1px solid #94a3b8; text-align: center; font-weight: bold; font-size: 9.5pt;">Opening Balance</td>
-                <td style="background-color: #b9d1ea; border: 1px solid #94a3b8; text-align: center;">---</td>
-                <td class="text-right" style="background-color: #b9d1ea; border: 1px solid #94a3b8;">
-                    {{ $op_debit > 0 ? 'Rs.₹ ' . number_format($op_debit, 2) : 'Rs.0.00' }}
+                <td style="color: #94a3b8; font-style: italic; font-size: 8pt;">{{ \Carbon\Carbon::parse($start)->format('d-m-Y') }}</td>
+                <td class="font-bold" style="color: #1d2d3e; text-transform: uppercase;">Opening Balance</td>
+                <td>---</td>
+                <td class="text-right font-bold">₹ {{ number_format(abs($balance), 2) }}</td>
+                <td class="text-center">
+                    <span class="badge-dr">{{ $balance >= 0 ? 'DR' : 'CR' }}</span>
                 </td>
-                <td class="text-right" style="background-color: #b9d1ea; border: 1px solid #94a3b8;">
-                    {{ $op_credit > 0 ? 'Rs.₹ ' . number_format($op_credit, 2) : 'Rs.0.00' }}
+                <td class="text-right font-bold" style="color: #1d2d3e;">
+                    ₹ {{ number_format(abs($balance), 2) }}
+                    <small style="font-size: 7.5pt; color: #94a3b8; text-transform: uppercase;">{{ $balance >= 0 ? 'Dr' : 'Cr' }}</small>
                 </td>
             </tr>
 
             <!-- Transactions Rows -->
-            @foreach($transactions as $index => $trx)
+            @forelse($transactions as $trx)
                 @php
-                    $total_debit += $trx['debit'];
-                    $total_credit += $trx['credit'];
+                    $balance += (($trx['debit'] ?? 0) - ($trx['credit'] ?? 0));
+                    $isDr = ($trx['type'] ?? 'Dr') === 'Dr';
                 @endphp
                 <tr>
-                    <td class="text-center">{{ $index + 1 }}</td>
-                    <td class="text-center">{{ \Carbon\Carbon::parse($trx['date'])->format('d-m-Y') }}</td>
-                    <td class="text-center">{{ ucfirst(strtolower($trx['voucher_type'])) }}</td>
+                    <td style="color: #64748b;">{{ \Carbon\Carbon::parse($trx['date'])->format('d-m-Y') }}</td>
                     <td>
-                        @if($trx['voucher_type'] == 'PURCHASE')
-                            <strong>Bill#: {{ $trx['voucher_no'] }}</strong><br>
-                        @elseif($trx['voucher_type'] == 'SALES')
-                            <strong>Inv#: {{ $trx['voucher_no'] }}</strong><br>
-                        @else
-                            <strong>Ref: {{ $trx['voucher_no'] }}</strong><br>
-                        @endif
-                        <span style="font-size: 8pt; color: #475569;">{{ $trx['narration'] }}</span>
+                        <div class="font-bold" style="color: #1e293b;">{{ $trx['narration'] ?? '-' }}</div>
+                        <span class="badge-voucher">{{ $trx['voucher_type'] ?? 'JOURNAL' }}</span>
                     </td>
-                    <td class="text-center">{{ $trx['voucher_no'] }}</td>
-                    <td class="text-right">
-                        @if($trx['debit'] > 0)
-                            ₹ {{ number_format($trx['debit'], 2) }}
-                        @else
-                            -
-                        @endif
+                    <td class="font-bold" style="color: #1e293b;">{{ $trx['voucher_no'] ?? '-' }}</td>
+                    <td class="text-right font-bold" style="color: #0f172a;">₹ {{ number_format($trx['amount'] ?? 0, 2) }}</td>
+                    <td class="text-center">
+                        <span class="{{ $isDr ? 'badge-dr' : 'badge-cr' }}">{{ strtoupper($trx['type'] ?? 'Dr') }}</span>
                     </td>
-                    <td class="text-right">
-                        @if($trx['credit'] > 0)
-                            ₹ {{ number_format($trx['credit'], 2) }}
-                        @else
-                            -
-                        @endif
+                    <td class="text-right font-bold" style="color: #0f172a; background-color: #f8fafc;">
+                        ₹ {{ number_format(abs($balance), 2) }}
+                        <small style="font-size: 7.5pt; color: #94a3b8; text-transform: uppercase;">{{ $balance >= 0 ? 'Dr' : 'Cr' }}</small>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr>
+                    <td colspan="6" class="text-center" style="padding: 15px; color: #94a3b8; font-style: italic;">No ledger entries recorded for this period.</td>
+                </tr>
+            @endforelse
 
-            <!-- Total Amount Row -->
-            <tr class="total-row">
-                <td colspan="5" class="text-center font-bold" style="font-size: 10pt;">Total Amount</td>
-                <td class="text-right font-bold">
-                    {{ $total_debit > 0 ? '₹ ' . number_format($total_debit, 2) : '0' }}
+            <!-- Net Closing Balance Row -->
+            <tr class="closing-row">
+                <td colspan="3" class="text-right font-bold" style="padding: 10px 14px; text-transform: uppercase; font-size: 8.5pt; color: #cbd5e1;">
+                    Net Closing Balance
                 </td>
-                <td class="text-right font-bold">
-                    {{ $total_credit > 0 ? '₹ ' . number_format($total_credit, 2) : '0' }}
-                </td>
-            </tr>
-
-            <!-- Balance Amount Row -->
-            @php
-                $balance_amount = abs($total_debit - $total_credit);
-                $balance_side = $total_debit >= $total_credit ? 'debit' : 'credit';
-            @endphp
-            <tr class="balance-row">
-                <td colspan="5" class="text-center font-bold" style="font-size: 10pt;">Balance Amount</td>
-                <td class="text-right font-bold">
-                    @if($balance_side == 'debit')
-                        ₹ {{ number_format($balance_amount, 2) }}
-                    @else
-                        -
-                    @endif
-                </td>
-                <td class="text-right font-bold">
-                    @if($balance_side == 'credit')
-                        ₹ {{ number_format($balance_amount, 2) }}
-                    @else
-                        -
-                    @endif
+                <td colspan="3" class="text-right font-bold" style="padding: 10px 14px; font-size: 11pt; color: #ffffff;">
+                    ₹ {{ number_format(abs($balance), 2) }}
+                    <span style="font-size: 8.5pt; text-transform: uppercase; opacity: 0.8; margin-left: 4px;">{{ $balance >= 0 ? 'Debit' : 'Credit' }}</span>
                 </td>
             </tr>
         </tbody>
