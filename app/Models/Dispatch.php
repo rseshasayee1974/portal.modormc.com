@@ -91,6 +91,12 @@ class Dispatch extends Model
             ?? $this->salesOrder?->mixDesign?->design_type 
             ?? 'Ready-Mix Concrete';
 
+        $gradeHsn = $this->mixDesign?->concreteGrade?->hsn_code
+            ?? (!empty($this->mixDesign?->concrete_grade_id) ? \App\Models\ConcreteGrade::find($this->mixDesign->concrete_grade_id)?->hsn_code : null)
+            ?? $this->salesOrder?->mixDesign?->concreteGrade?->hsn_code
+            ?? (!empty($this->salesOrder?->mixDesign?->concrete_grade_id) ? \App\Models\ConcreteGrade::find($this->salesOrder->mixDesign->concrete_grade_id)?->hsn_code : null)
+            ?? '38245010';
+
         return collect([(object)[
             'mix_design_id' => $this->mixdesign_id ?? $this->salesOrder?->mix_design_id,
             'product_id' => null, 
@@ -105,7 +111,7 @@ class Dispatch extends Model
             'price_tax' => (float) $this->load_tax_amount,
             'price_total' => (float) ($this->load_untax_amount + $this->load_tax_amount),
             'tax_id' => $this->load_tax_id,
-            'product' => (object)['title' => $gradeName, 'hsn_code' => '38245010'],
+            'product' => (object)['title' => $gradeName, 'hsn_code' => $gradeHsn],
         ]]);
     }
 

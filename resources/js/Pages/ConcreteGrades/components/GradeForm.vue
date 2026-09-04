@@ -139,6 +139,11 @@ const calcResults = computed(() => {
                         <BaseInput v-model="form.concrete_code" placeholder="GRD-V4-25" class="w-full rounded-xl" :class="{'p-invalid': form.errors.concrete_code}" />
                         <small v-if="form.errors.concrete_code" class="p-error">{{ form.errors.concrete_code }}</small>
                     </div>
+                    <div class="md:col-span-3 flex flex-col gap-1.5">
+                        <label class="text-[9px] font-black uppercase tracking-widest text-gray-400">HSN Code</label>
+                        <BaseInput v-model="form.hsn_code" placeholder="e.g. 38245010" class="w-full rounded-xl" :class="{'p-invalid': form.errors.hsn_code}" />
+                        <small v-if="form.errors.hsn_code" class="p-error">{{ form.errors.hsn_code }}</small>
+                    </div>
                     <!-- <div class="md:col-span-6 flex flex-col gap-1.5">
                         <label class="text-[9px] font-black uppercase tracking-widest text-gray-400">Status</label>
                         <div class="flex items-center h-10 gap-3">

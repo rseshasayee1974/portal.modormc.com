@@ -45,7 +45,7 @@ const onSaved = () => {
             :rowsPerPageOptions="[30, 50, 100, 200]"
             class="grade-datatable"
             showSearch
-            :globalFilterFields="['name', 'concrete_code']"
+            :globalFilterFields="['name', 'concrete_code', 'hsn_code']"
             showSerial
             heading="Mix Specifications Registry"
             headingIcon="ClipboardDocumentListIcon"
@@ -67,6 +67,15 @@ const onSaved = () => {
                             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ slotProps.data.concrete_code || '---' }}</span>
                         </div>
                     </div>
+                </template>
+            </Column>
+
+            <Column header="HSN Code" style="width: 130px" sortable field="hsn_code">
+                <template #body="slotProps">
+                    <span v-if="slotProps.data.hsn_code" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700">
+                        {{ slotProps.data.hsn_code }}
+                    </span>
+                    <span v-else class="text-xs text-slate-400 font-medium">---</span>
                 </template>
             </Column>
 

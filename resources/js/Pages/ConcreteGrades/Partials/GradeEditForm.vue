@@ -26,6 +26,7 @@ const emit = defineEmits(['saved', 'cancel']);
 const form = useForm({
     name: props.grade.name,
     concrete_code: props.grade.concrete_code || '',
+    hsn_code: props.grade.hsn_code || '',
     concrete_ratio: props.grade.concrete_ratio || '',
     cement_ratio: props.grade.cement_ratio,
     sand_ratio: props.grade.sand_ratio,
@@ -168,7 +169,7 @@ const submit = () => {
                     <span>Identification</span>
                 </div>
                 <BaseInput v-model="form.name" label="Grade Name" placeholder="Mix Name" :error="form.errors.name" />
-                <!-- <BaseInput v-model="form.concrete_code" label="HSN Code" placeholder="HSN Code" :error="form.errors.concrete_code" /> -->
+                <BaseInput v-model="form.hsn_code" label="HSN Code" placeholder="e.g. 38245010" :error="form.errors.hsn_code" />
 
                 <div class="ratio-calc-compact">
                     <div class="flex items-center justify-between mb-3">

@@ -45,6 +45,7 @@ class ConcreteGradeController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100|unique:mm_concrete_grades,name,NULL,id,plant_id,' . $plantId,
             'concrete_code' => 'nullable|string|max:50|unique:mm_concrete_grades,concrete_code,NULL,id ,plant_id,' . $plantId,
+            'hsn_code' => 'nullable|string|max:50',
             'concrete_ratio' => 'nullable|string|max:50',
             'cement_ratio' => 'nullable|numeric',
             'sand_ratio' => 'nullable|numeric',
@@ -60,6 +61,7 @@ class ConcreteGradeController extends Controller
                 'plant_id' => $plantId,
                 'name' => $validated['name'],
                 'concrete_code' => $validated['concrete_code'],
+                'hsn_code' => $validated['hsn_code'] ?? null,
                 'concrete_ratio' => $validated['concrete_ratio'],
                 'cement_ratio' => $validated['cement_ratio'],
                 'sand_ratio' => $validated['sand_ratio'],
@@ -90,6 +92,7 @@ class ConcreteGradeController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:100|unique:mm_concrete_grades,name,' . $concretegrade->id . ',id,plant_id,' . $plantId,
             'concrete_code' => 'nullable|string|max:50',
+            'hsn_code' => 'nullable|string|max:50',
             'concrete_ratio' => 'nullable|string|max:50',
             'cement_ratio' => 'nullable|numeric',
             'sand_ratio' => 'nullable|numeric',
@@ -104,6 +107,7 @@ class ConcreteGradeController extends Controller
             $concretegrade->update([
                 'name' => $validated['name'],
                 'concrete_code' => $validated['concrete_code'],
+                'hsn_code' => $validated['hsn_code'] ?? null,
                 'concrete_ratio' => $validated['concrete_ratio'],
                 'cement_ratio' => $validated['cement_ratio'],
                 'sand_ratio' => $validated['sand_ratio'],

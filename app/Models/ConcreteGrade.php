@@ -16,6 +16,7 @@ class ConcreteGrade extends Model
         'plant_id',
         'name',
         'concrete_code',
+        'hsn_code',
         'concrete_ratio',
         'cement_ratio',
         

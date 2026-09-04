@@ -17,6 +17,7 @@ interface Grade {
     id: number;
     name: string;
     concrete_code: string | null;
+    hsn_code: string | null;
     concrete_ratio: string | null;
     cement_ratio: number | null;
     sand_ratio: number | null;

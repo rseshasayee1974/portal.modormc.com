@@ -24,6 +24,7 @@ const isOpen = ref(true);
 const form = useForm({
     name: '',
     concrete_code: '',
+    hsn_code: '',
     concrete_ratio: '',
     cement_ratio: null as number | null,
     sand_ratio: null as number | null,
@@ -181,7 +182,7 @@ const submit = () => {
                             <span>Base Specification</span>
                         </div>
                         <BaseInput v-model="form.name" label="Grade Name (Mix Identifier)" placeholder="e.g. M25" :error="form.errors.name" />
-                        <!-- <BaseInput v-model="form.concrete_code" label="HSN Code" placeholder="HSN code" :error="form.errors.concrete_code" /> -->
+                        <BaseInput v-model="form.hsn_code" label="HSN Code" placeholder="e.g. 38245010" :error="form.errors.hsn_code" />
                         
                         <div class="ratio-input-card mt-6">
                             <label class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 block">Ratio Estimator (Cement : Sand : Agg)</label>
