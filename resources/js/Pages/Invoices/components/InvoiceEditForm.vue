@@ -8,7 +8,8 @@ import {
     DocumentTextIcon,
     ArrowPathIcon,
     ExclamationCircleIcon,
-    XCircleIcon
+    XCircleIcon,
+    PrinterIcon
 } from '@heroicons/vue/24/outline';
 
 // Components
@@ -591,7 +592,19 @@ const setupDemoCompliance = () => {
                     <!-- E-Way Bill Section -->
                     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 space-y-4">
                         <div class="flex justify-between items-center">
-                            <h4 class="text-xs font-black uppercase text-indigo-600 tracking-wider">E-Way Bill Status</h4>
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-xs font-black uppercase text-indigo-600 tracking-wider">E-Way Bill Status</h4>
+                                <a 
+                                    v-if="invoice.eway_bill_no"
+                                    :href="route('invoices.print-ewaybill', invoice.id)"
+                                    target="_blank"
+                                    class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200 transition-all shadow-xs"
+                                    title="Print Official Form GST EWB-01"
+                                >
+                                    <PrinterIcon class="w-3 h-3" />
+                                    <span>Print E-Way Bill</span>
+                                </a>
+                            </div>
                             <Tag v-if="invoice.eway_bill_no" value="ACTIVE" severity="info" class="!text-[8px] !font-black !px-2 !py-0.5" />
                             <Tag v-else value="NOT GENERATED" severity="secondary" class="!text-[8px] !font-black !px-2 !py-0.5" />
                         </div>

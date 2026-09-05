@@ -391,14 +391,16 @@ console.log('jkghkjgk', props.modelValue);
                                     <PaperAirplaneIcon class="h-4 w-4 text-teal-200" />
                                     <span>Generate E-Way Bill</span>
                                 </button>
-                                <div 
+                                <a 
                                     v-else
-                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 border border-teal-200/80 text-[11px] font-bold rounded-xl"
-                                    :title="'E-Way Bill: ' + modelValue.status.invoice.eway_bill_no"
+                                    :href="route('invoices.print-ewaybill', modelValue.status.invoice.encrypted_id || modelValue.status.invoice.id)"
+                                    target="_blank"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 active:scale-[0.98] text-teal-700 border border-teal-200/80 text-[11px] font-bold rounded-xl transition-all shadow-xs cursor-pointer"
+                                    :title="'Print Official E-Way Bill: ' + modelValue.status.invoice.eway_bill_no"
                                 >
-                                    <CheckCircleIcon class="h-4 w-4 text-teal-600" />
+                                    <PrinterIcon class="h-4 w-4 text-teal-600" />
                                     <span>EWB #{{ modelValue.status.invoice.eway_bill_no }}</span>
-                                </div>
+                                </a>
                             </template>
 
                             <!-- Print E-Invoice Button (When E-Invoice IRN is generated) -->

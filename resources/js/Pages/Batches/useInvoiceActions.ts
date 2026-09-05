@@ -379,6 +379,19 @@ export function useInvoiceActions(
         });
     };
 
+    const printEwayBillDirect = (batchOrInvoice: any) => {
+        if (!batchOrInvoice) return;
+        const isBatch = !!batchOrInvoice.batch_no || !batchOrInvoice.invoice_date;
+        const batchId = isBatch ? (batchOrInvoice.id || batchOrInvoice.batch_id) : (batchOrInvoice.dispatch?.batch_id || null);
+        const invoiceId = !isBatch ? (batchOrInvoice.encrypted_id || batchOrInvoice.id) : (batchOrInvoice.dispatches?.[0]?.status?.invoice_id || batchOrInvoice.invoice_id);
+
+        if (invoiceId) {
+            window.open(route('invoices.print-ewaybill', invoiceId), '_blank');
+        } else if (batchId) {
+            window.open(route('batches.print-ewaybill', batchId), '_blank');
+        }
+    };
+
     // ── Public API ───────────────────────────────────────────────────────────
     return {
         generateInvoiceDirect,
@@ -389,6 +402,7 @@ export function useInvoiceActions(
         printDuplicateInvoiceDirect,
         downloadInvoiceDirect,
         printEInvoiceDirect,
+        printEwayBillDirect,
         deleteInvoiceDirect,
         sendWhatsAppDirect,
         sendBatchEmailDirect,
