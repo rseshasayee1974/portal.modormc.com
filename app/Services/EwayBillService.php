@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\EwaybillAuth;
 use App\Models\Plant;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -67,109 +66,61 @@ class EwayBillService
     }
 
     /**
+     * Get base URL based on environment.
+     */
+    public function getBaseUrl(?Plant $plant = null): string
+    {
+        return $this->isProduction($plant) ? $this->prodBaseUrl : $this->sandboxBaseUrl;
+    }
+
+    /**
+     * Get email based on environment.
+     */
+    public function getEmail(?Plant $plant = null): string
+    {
+        return $this->isProduction($plant) ? ($plant?->email_address ?: $this->prodEmail) : $this->sandboxEmail;
+    }
+
+    /**
+     * Resolve plant credentials for PeriOne E-Way Bill gateway.
+     */
+    public function getCredentials(?Plant $plant = null): array
+    {
+        $isProd = $this->isProduction($plant);
+        return [
+            'baseUrl'      => $this->getBaseUrl($plant),
+            'clientId'     => $isProd ? $this->prodClientId : $this->sandboxClientId,
+            'clientSecret' => $isProd ? $this->prodClientSecret : $this->sandboxClientSecret,
+            'email'        => $this->getEmail($plant),
+            'username'     => $plant?->ewaybill_client_id ?: $this->sandboxUsername,
+            'password'     => $plant?->ewaybill_secret ?: $this->sandboxPassword,
+            'gstin'        => $isProd ? ($plant?->gstin ?: ($plant?->entity?->gstin ?: '')) : ($plant?->gstin ?: $this->sandboxGstin),
+            'ip'           => request()?->ip() ?: $this->defaultIp,
+        ];
+    }
+
+    /**
      * Get the generate E-Way Bill endpoint URL.
      */
     public function getGenEwayBillUrl(?Plant $plant = null): string
     {
-        $isProd  = $this->isProduction($plant);
-        $baseUrl = $isProd ? $this->prodBaseUrl : $this->sandboxBaseUrl;
-        $email   = $isProd ? ($plant?->email_address ?: $this->prodEmail) : $this->sandboxEmail;
+        $baseUrl = $this->getBaseUrl($plant);
+        $email   = $this->getEmail($plant);
 
         return rtrim($baseUrl, '/') . '/ewaybillapi/v1.03/ewayapi/genewaybill?email=' . urlencode($email);
     }
 
     /**
-     * Authenticate with PeriOne E-Way Bill gateway and return active auth record.
+     * Build HTTP headers for E-Way Bill requests.
      */
-    public function authenticate(?Plant $plant = null, ?int $userId = null): EwaybillAuth
-    {
-        $userId  = $userId ?? Auth::id() ?? 1;
-        $plantId = $plant?->id ?? 1;
-
-        // 1. Check existing unexpired token from database
-        $existingAuth = EwaybillAuth::where('plant_id', $plantId)
-            ->where('user_id', $userId)
-            ->latest('token_generated_at')
-            ->first();
-
-        if ($existingAuth && $existingAuth->token_expiry_at && Carbon::now()->addMinutes(120)->lt($existingAuth->token_expiry_at)) {
-            return $existingAuth;
-        }
-
-        // 2. Resolve Gateway settings & plant-specific E-Way credentials directly from class properties
-        $isProd       = $this->isProduction($plant);
-        $baseUrl      = $isProd ? $this->prodBaseUrl : $this->sandboxBaseUrl;
-        $clientId     = $isProd ? $this->prodClientId : $this->sandboxClientId;
-        $clientSecret = $isProd ? $this->prodClientSecret : $this->sandboxClientSecret;
-        $email        = $isProd ? ($plant?->email_address ?: $this->prodEmail) : $this->sandboxEmail;
-
-        $username = $plant?->ewaybill_client_id ?: $this->sandboxUsername;
-        $password = $plant?->ewaybill_secret ?: $this->sandboxPassword;
-        $gstin    = $isProd 
-            ? ($plant?->gstin ?: ($plant?->entity?->gstin ?: ''))
-            : ($plant?->gstin ?: $this->sandboxGstin);
-
-        if (empty($username) || empty($password)) {
-            $plantName = $plant?->name ?? "Plant #{$plantId}";
-            throw new \Exception("E-Way Bill credentials (ewaybill_client_id / ewaybill_secret) are not configured for [{$plantName}].");
-        }
-
-        // 3. Request auth token directly from PeriOne E-Way Bill endpoint
-        $url       = rtrim($baseUrl, '/') . '/ewaybillapi/v1.03/authenticate?email=' . urlencode($email) . '&username=' . urlencode($username) . '&password=' . urlencode($password);
-        $ipAddress = request()?->ip() ?: $this->defaultIp;
-
-        $response = Http::withHeaders([
-            'accept'        => '*/*',
-            'ip_address'    => $ipAddress,
-            'client_id'     => $gatewayConfig['client_id'],
-            'client_secret' => $gatewayConfig['client_secret'],
-            'gstin'         => $gstin,
-        ])->timeout(20)->get($url);
-
-        $body = $response->json() ?? [];
-        $statusCd = (string)($body['status_cd'] ?? '');
-        if (!$response->successful() || ($statusCd !== '1' && $statusCd !== 'success' && $statusCd !== 'true')) {
-            $errorMsg = $this->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
-            Log::error('PeriOne E-Way Bill Auth Error: ' . $errorMsg, ['response' => $body]);
-            throw new \Exception('PeriOne E-Way Bill Auth Failed: ' . $errorMsg);
-        }
-
-        $tokenExpiry = !empty($body['data']['TokenExpiry']) ? Carbon::parse($body['data']['TokenExpiry']) : Carbon::now()->addHours(6);
-
-        // 4. Save and return session in mm_ewaybill_auth table
-        $authRecord = EwaybillAuth::firstOrNew([
-            'plant_id' => $plantId,
-            'user_id'  => $userId,
-        ]);
-
-        if (!$authRecord->exists) {
-            $authRecord->created_by = $userId;
-            $authRecord->created_at = Carbon::now();
-        }
-
-        $authRecord->username           = $username;
-        $authRecord->password           = $password;
-        $authRecord->gstin              = $gstin;
-        $authRecord->token_generated_at = Carbon::now();
-        $authRecord->token_expiry_at    = $tokenExpiry;
-        $authRecord->modified_by        = $userId;
-        $authRecord->modified_at        = Carbon::now();
-        $authRecord->save();
-
-        return $authRecord;
-    }
-
-    /**
-     * Build HTTP headers for E-Way Bill generation requests.
-     */
-    public function buildGatewayHeaders(EwaybillAuth $auth, string $username, string $password, string $gstin, ?Plant $plant = null): array
+    public function buildGatewayHeaders(string $username, string $password, string $gstin, ?Plant $plant = null): array
     {
         $isProd       = $this->isProduction($plant);
         $clientId     = $isProd ? $this->prodClientId : $this->sandboxClientId;
         $clientSecret = $isProd ? $this->prodClientSecret : $this->sandboxClientSecret;
         $ipAddress    = request()?->ip() ?: $this->defaultIp;
         
-        $headers = [
+        return [
             'accept'        => 'application/json',
             'content-type'  => 'application/json',
             'username'      => $username,
@@ -179,10 +130,45 @@ class EwayBillService
             'client_secret' => $clientSecret,
             'gstin'         => $gstin,
         ];
+    }
 
-       
+    /**
+     * Authenticate with PeriOne E-Way Bill Gateway.
+     */
+    public function authenticatePortel(?Plant $plant = null): array
+    {
+        $c = $this->getCredentials($plant);
+        $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/authenticate?email=' . urlencode($c['email']) . '&username=' . urlencode($c['username']) . '&password=' . urlencode($c['password']);
+        $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
 
-        return $headers;
+        $response = Http::withHeaders($headers)->timeout(20)->get($url);
+        return $response->json() ?? [];
+    }
+
+    /**
+     * Fetch E-Way Bills list for transporter/taxpayer by date (format: d/m/Y).
+     */
+    public function fetchEWBList(string $date, ?Plant $plant = null): array
+    {
+        $c = $this->getCredentials($plant);
+        $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/ewayapi/getewaybillsfortransporter?email=' . urlencode($c['email']) . '&date=' . urlencode($date);
+        $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
+
+        $response = Http::withHeaders($headers)->timeout(30)->get($url);
+        return $response->json() ?? [];
+    }
+
+    /**
+     * Fetch full E-Way Bill details by EWB number from PeriOne.
+     */
+    public function fetchEWBDetails(string $ewbNo, ?Plant $plant = null): array
+    {
+        $c = $this->getCredentials($plant);
+        $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/ewayapi/getewaybill?email=' . urlencode($c['email']) . '&ewbNo=' . urlencode($ewbNo);
+        $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
+
+        $response = Http::withHeaders($headers)->timeout(30)->get($url);
+        return $response->json() ?? [];
     }
 
     /**

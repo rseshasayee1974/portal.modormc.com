@@ -54,7 +54,7 @@ class BatchController extends Controller
             ->leftJoin('mm_einvoice_invoice_rel as einv_rel', 'einv_rel.invoice_id', '=', 'inv.id')
             ->leftJoin('mm_ewaybill_details as ewb', function ($join) {
                 $join->on('ewb.origin_id', '=', 'inv.id')
-                     ->where('ewb.generation_type', '=', 'invoice');
+                     ->whereIn('ewb.generation_type', ['invoice', 'batch', 'Invoice', 'Batch']);
             })
             ->where('so.plant_id', $activePlantId)
             ->whereNull('b.deleted_at')
@@ -793,7 +793,7 @@ class BatchController extends Controller
             ->leftJoin('mm_einvoice_invoice_rel as einv_rel', 'einv_rel.invoice_id', '=', 'inv.id')
             ->leftJoin('mm_ewaybill_details as ewb', function ($join) {
                 $join->on('ewb.origin_id', '=', 'inv.id')
-                     ->where('ewb.generation_type', '=', 'invoice');
+                     ->whereIn('ewb.generation_type', ['invoice', 'batch', 'Invoice', 'Batch']);
             })
             ->leftJoin('mm_users as inv_user', 'inv_user.id', '=', 'inv.created_by')
             ->where('d.batch_id', $batchId)

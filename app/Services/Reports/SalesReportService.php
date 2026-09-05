@@ -47,6 +47,10 @@ class SalesReportService implements ReportServiceInterface
                      ->whereNull('inv.deleted_at');
             })
             ->leftJoin('mm_einvoice_invoice_rel as einv_rel', 'einv_rel.invoice_id', '=', 'inv.id')
+            ->leftJoin('mm_ewaybill_details as ewb_rel', function ($join) {
+                $join->on('ewb_rel.origin_id', '=', 'inv.id')
+                     ->where('ewb_rel.status', 1);
+            })
             ->where('d.plant_id', $plantId)
             ->whereNull('d.deleted_at')
             ->where(function ($q) {
@@ -133,12 +137,12 @@ class SalesReportService implements ReportServiceInterface
             'inv.prefix as invoice_prefix',
             'inv.invoice_number',
             'inv.invoice_date',
-            'inv.eway_bill_no',
-            'inv.eway_bill_date',
-            'inv.einvoice_status as inv_einvoice_status',
-            'inv.einvoice_irn as inv_einvoice_irn',
-            'inv.einvoice_ack_no as inv_einvoice_ack_no',
-            'inv.einvoice_ack_date as inv_einvoice_ack_date',
+            'ewb_rel.ewaybill_no as eway_bill_no',
+            'ewb_rel.ewaybill_date as eway_bill_date',
+            'einv_rel.einv_status as inv_einvoice_status',
+            'einv_rel.einv_irn as inv_einvoice_irn',
+            'einv_rel.einv_ackno as inv_einvoice_ack_no',
+            'einv_rel.einv_ack_date as inv_einvoice_ack_date',
             'einv_rel.einv_ackno',
             'einv_rel.einv_ack_date',
             'einv_rel.einv_irn',

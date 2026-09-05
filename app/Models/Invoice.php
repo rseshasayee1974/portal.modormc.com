@@ -377,7 +377,8 @@ class Invoice extends Model implements Postable
 
     public function ewaybillDetail()
     {
-        return $this->hasOne(EwaybillDetail::class, 'origin_id')->where('generation_type', 'invoice');
+        return $this->hasOne(EwaybillDetail::class, 'origin_id')
+            ->whereIn('generation_type', ['invoice', 'batch', 'Invoice', 'Batch']);
     }
 
     public function plant()

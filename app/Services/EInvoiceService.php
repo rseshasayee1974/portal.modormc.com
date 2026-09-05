@@ -288,7 +288,7 @@ class EInvoiceService
         ]);
 
         EwaybillDetail::where('origin_id', $invoice->id)
-            ->where('generation_type', 'invoice')
+            ->whereIn('generation_type', ['invoice', 'batch', 'Invoice', 'Batch'])
             ->update([
                 'ewaybill_status'    => 'CNL',
                 'ewaybill_cancel_at' => $cancelDate,

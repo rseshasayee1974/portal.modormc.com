@@ -26,6 +26,10 @@ class PrintController extends Controller
         $realId = $id;
         try { $realId = decrypt($id); } catch (\Exception $e) { }
 
+        if ($module === 'ewaybills' || $module === 'ewaybill') {
+            return app(\App\Http\Controllers\EwayBillController::class)->print($request, $realId);
+        }
+
         // 1. Set module for authorization check
         $this->module = $module === 'delivery_challans' ? 'sales_orders' : $module;
         // Authorization is governed by plant scoping and role-based invoice duplication rules in resolveData()

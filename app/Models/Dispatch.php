@@ -89,7 +89,7 @@ class Dispatch extends Model
             ?? $this->salesOrder?->mixDesign?->grade 
             ?? $this->mixDesign?->design_type 
             ?? $this->salesOrder?->mixDesign?->design_type 
-            ?? 'Ready-Mix Concrete';
+           ;
 
         $gradeHsn = $this->mixDesign?->concreteGrade?->hsn_code
             ?? (!empty($this->mixDesign?->concrete_grade_id) ? \App\Models\ConcreteGrade::find($this->mixDesign->concrete_grade_id)?->hsn_code : null)
