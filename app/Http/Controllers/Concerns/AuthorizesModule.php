@@ -65,14 +65,15 @@ trait AuthorizesModule
 
         $mappedAction = $actionMap[$action] ?? strtoupper($action);
         
-        // Ensure module name is singular and uppercase (e.g., 'users' -> 'USER', 'Role' -> 'ROLE')
-        $module = strtoupper(\Illuminate\Support\Str::singular($this->module));
+        // Check both singular and plural forms (e.g. EWAYBILL.VIEW and EWAYBILLS.VIEW)
+        $singular = strtoupper(\Illuminate\Support\Str::singular($this->module));
+        $plural   = strtoupper(\Illuminate\Support\Str::plural($this->module));
         
-        $permission = "{$module}.{$mappedAction}";
+        $permissionSingular = "{$singular}.{$mappedAction}";
+        $permissionPlural   = "{$plural}.{$mappedAction}";
 
-        if (\Illuminate\Support\Facades\Gate::denies($permission)) {
-            abort(403, "Access Denied: You do not have the required permission ({$permission}) for the {$module} module.");
-            // abort(403, "Access Denied: You do not have the required permission for the {$module} module.");
+        if (\Illuminate\Support\Facades\Gate::denies($permissionSingular) && \Illuminate\Support\Facades\Gate::denies($permissionPlural)) {
+            abort(403, "Access Denied: You do not have the required permission ({$permissionPlural}) for the {$this->module} module.");
         }
     }
 }

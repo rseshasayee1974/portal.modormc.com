@@ -1099,6 +1099,8 @@ class EwayBillController extends Controller
      */
     public function list(Request $request)
     {
+        $this->authorizeModule('view');
+
         $plantId = session('active_plant_id');
 
         $query = EwaybillDetail::query()->with('invoice');
