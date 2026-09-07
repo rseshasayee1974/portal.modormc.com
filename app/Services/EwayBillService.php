@@ -143,7 +143,7 @@ class EwayBillService
         $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/authenticate?email=' . urlencode($c['email']) . '&username=' . urlencode($c['username']) . '&password=' . urlencode($c['password']);
         $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
 
-        $response = Http::withHeaders($headers)->timeout(20)->get($url);
+        $response = Http::withoutVerifying()->withHeaders($headers)->timeout(20)->get($url);
        
         return $response->json() ?? [];
     }
@@ -157,7 +157,7 @@ class EwayBillService
         $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/ewayapi/getewaybillsfortransporter?email=' . urlencode($c['email']) . '&date=' . urlencode($date);
         $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
 
-        $response = Http::withHeaders($headers)->timeout(30)->get($url);
+        $response = Http::withoutVerifying()->withHeaders($headers)->timeout(30)->get($url);
         return $response->json() ?? [];
     }
 
@@ -170,7 +170,7 @@ class EwayBillService
         $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/ewayapi/getewaybill?email=' . urlencode($c['email']) . '&ewbNo=' . urlencode($ewbNo);
         $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
 
-        $response = Http::withHeaders($headers)->timeout(30)->get($url);
+        $response = Http::withoutVerifying()->withHeaders($headers)->timeout(30)->get($url);
         return $response->json() ?? [];
     }
 

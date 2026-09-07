@@ -548,7 +548,7 @@ class BatchController extends Controller
             ];
 
             $token = $this->getSchedulerToken($salesOrder->plant);
-            $request = Http::withHeaders(['Accept' => 'application/json']);
+            $request = Http::withoutVerifying()->withHeaders(['Accept' => 'application/json']);
 
             if ($token) {
                 $request = $request->withToken($token);
@@ -604,7 +604,7 @@ class BatchController extends Controller
             if (!$authUrl) return '';
 
             try {
-                $response = Http::asForm()->post($authUrl, [
+                $response = Http::withoutVerifying()->asForm()->post($authUrl, [
                     'grant_type'    => 'client_credentials',
                     'client_id'     => $plant->scheduler_client_id,
                     'client_secret' => $plant->scheduler_client_secret,
