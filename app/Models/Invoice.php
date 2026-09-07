@@ -506,7 +506,7 @@ class Invoice extends Model implements Postable
     public function syncTaxSplits(string $invoice_type = 'Invoice'): void
     {
         $normalizedType = in_array(strtolower($invoice_type), ['bill', 'purchase']) ? 'Purchase' : 'Invoice';
-        $this->orderTaxes()->delete();
+        $keptTaxIds = [];
         
         // 1. Process line items individually to capture specific item IDs and accounts
         foreach ($this->items()->with('tax')->get() as $item) {
@@ -516,33 +516,22 @@ class Invoice extends Model implements Postable
             $fullRate = $tax ? $tax->tax_rate : 0;
             if ($fullRate <= 0) continue;
             $tax_group = $tax->tax_group;
-            $plantAddr   = $this->plant?->addresses()?->first();
-            $partnerAddr = $this->partner?->addresses()?->first();
-           
-            $plantState   = $plantAddr?->state?->state_code ?? $plantAddr?->state_code;
-            $partnerState = $partnerAddr?->state?->state_code ?? $partnerAddr?->state_code;
 
             if ($tax_group == 'GST') {
-                OrderTax::createIntraStateSplit($this, $normalizedType, $item->subtotal, $fullRate, $item->tax_id,   $item->id);
+                $savedIds = OrderTax::createIntraStateSplit($this, $normalizedType, $item->subtotal, $fullRate, $item->tax_id, $item->id);
             } else {
-                OrderTax::createInterStateSplit($this, $normalizedType, $item->subtotal, $fullRate, $item->tax_id,    $item->id);
+                $savedIds = OrderTax::createInterStateSplit($this, $normalizedType, $item->subtotal, $fullRate, $item->tax_id, $item->id);
             }
+
+            $keptTaxIds = array_merge($keptTaxIds, $savedIds);
         }
 
-        // // 2. Handle shipping tax split if applicable
-        // if ($this->shipping_charges > 0 && $this->shipping_tax_id) {
-        //     $shippingTax = Tax::find($this->shipping_tax_id);
-        //     if ($shippingTax && $shippingTax->tax_rate > 0) {
-        //         $plantState   = $this->plant?->addresses()?->first()?->state?->state_code;
-        //         $partnerState = $this->partner?->addresses()?->first()?->state?->state_code;
-
-        //         if ($plantState && $partnerState && $plantState === $partnerState) {
-        //             OrderTax::createIntraStateSplit($this, $this->shipping_charges, $shippingTax->tax_rate, $this->shipping_tax_id, $shippingTax->account_id);
-        //         } else {
-        //             OrderTax::createInterStateSplit($this, $this->shipping_charges, $shippingTax->tax_rate, $this->shipping_tax_id, $shippingTax->account_id);
-        //         }
-        //     }
-        // }
+        // 2. Only prune obsolete records if line items were removed or taxes changed
+        if (!empty($keptTaxIds)) {
+            $this->orderTaxes()->whereNotIn('id', $keptTaxIds)->forceDelete();
+        } else {
+            $this->orderTaxes()->forceDelete();
+        }
     }
 
     /**
@@ -708,16 +697,12 @@ class Invoice extends Model implements Postable
             // Refresh the invoice model to load the recalculated totals from DB
             $invoice->refresh();
 
-            // 3. Sync Tax Splits (Generates mm_order_taxes records)
-            $invoice->syncTaxSplits();
-
-            // 4. Automated Accounting Posting
+            // 3. Tax Splits and Automated Accounting Posting
             if ($invoice->status === self::STATUS_APPROVED || $invoice->status === self::STATUS_PAID) {
                 $invoice->postToAccounting();
+            } else {
+                $invoice->syncTaxSplits($type);
             }
-
-           
-
             return $invoice;
         });
     }

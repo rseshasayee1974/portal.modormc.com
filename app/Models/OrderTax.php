@@ -81,10 +81,11 @@ class OrderTax extends Model
      * @param  int|null $accountId
      * @param  int|null $orderItemsId
      */
-    public static function createIntraStateSplit(Invoice $invoice, string $invoice_type, float $taxableAmount, float $fullRate, ?int $taxId = null, $orderItemsId = null): void
+    public static function createIntraStateSplit(Invoice $invoice, string $invoice_type, float $taxableAmount, float $fullRate, ?int $taxId = null, $orderItemsId = null): array
     {
         $tax = Tax::with('children')->find($taxId);
         $children = $tax ? $tax->children : collect();
+        $savedIds = [];
 
         if ($children->isNotEmpty()) {
             foreach ($children as $child) {
@@ -93,18 +94,25 @@ class OrderTax extends Model
                     $accountId = self::getDefaultTaxAccountId($invoice, $invoice_type, $child);
                 }
 
-                self::create([
-                    'order_type'     => $invoice_type,
-                    'order_id'       => $invoice->id,
-                    'plant_id'       => $invoice->plant_id,
-                    'order_items_id' => $orderItemsId,
-                    'account_id'     => $accountId,
-                    'tax_id'         => $child->id,
-                    'name'           => $child->tax_name,
-                    'rate'           => $child->tax_rate,
-                    'amount'         => round($taxableAmount * ($child->tax_rate / 100), 2),
-                    'status'         => 1,
-                ]);
+                $record = self::withTrashed()->updateOrCreate(
+                    [
+                        'order_type'     => $invoice_type,
+                        'order_id'       => $invoice->id,
+                        'order_items_id' => $orderItemsId,
+                        'tax_id'         => $child->id,
+                    ],
+                    [
+                        'plant_id'   => $invoice->plant_id,
+                        'account_id' => $accountId,
+                        'name'       => $child->tax_name,
+                        'rate'       => $child->tax_rate,
+                        'amount'     => round($taxableAmount * ($child->tax_rate / 100), 2),
+                        'status'     => 1,
+                        'deleted_at' => null,
+                        'deleted_by' => null,
+                    ]
+                );
+                $savedIds[] = $record->id;
             }
         } elseif ($tax) {
             // Fallback: Create a single split for the parent tax if no children exist
@@ -113,28 +121,38 @@ class OrderTax extends Model
                 $accountId = self::getDefaultTaxAccountId($invoice, $invoice_type, $tax);
             }
 
-            self::create([
-                'order_type'     => $invoice_type,
-                'order_id'       => $invoice->id,
-                'plant_id'       => $invoice->plant_id,
-                'order_items_id' => $orderItemsId,
-                'account_id'     => $accountId,
-                'tax_id'         => $tax->id,
-                'name'           => $tax->tax_name,
-                'rate'           => $tax->tax_rate,
-                'amount'         => round($taxableAmount * ($tax->tax_rate / 100), 2),
-                'status'         => 1,
-            ]);
+            $record = self::withTrashed()->updateOrCreate(
+                [
+                    'order_type'     => $invoice_type,
+                    'order_id'       => $invoice->id,
+                    'order_items_id' => $orderItemsId,
+                    'tax_id'         => $tax->id,
+                ],
+                [
+                    'plant_id'   => $invoice->plant_id,
+                    'account_id' => $accountId,
+                    'name'       => $tax->tax_name,
+                    'rate'       => $tax->tax_rate,
+                    'amount'     => round($taxableAmount * ($tax->tax_rate / 100), 2),
+                    'status'     => 1,
+                    'deleted_at' => null,
+                    'deleted_by' => null,
+                ]
+            );
+            $savedIds[] = $record->id;
         }
+
+        return $savedIds;
     }
 
     /**
      * Create IGST split (inter-state) for an invoice.
      */
-    public static function createInterStateSplit(Invoice $invoice, string $invoice_type, float $taxableAmount, float $fullRate, ?int $taxId = null, $orderItemsId = null): void
+    public static function createInterStateSplit(Invoice $invoice, string $invoice_type, float $taxableAmount, float $fullRate, ?int $taxId = null, $orderItemsId = null): array
     {
         $tax = Tax::with('children')->find($taxId);
         $children = $tax ? $tax->children : collect();
+        $savedIds = [];
 
         if ($children->isNotEmpty()) {
             foreach ($children as $child) {
@@ -143,18 +161,25 @@ class OrderTax extends Model
                     $accountId = self::getDefaultTaxAccountId($invoice, $invoice_type, $child);
                 }
 
-                self::create([
-                    'order_type'     => $invoice_type,
-                    'order_id'       => $invoice->id,
-                    'plant_id'       => $invoice->plant_id,
-                    'order_items_id' => $orderItemsId,
-                    'account_id'     => $accountId,
-                    'tax_id'         => $child->id,
-                    'name'           => $child->tax_name,
-                    'rate'           => $child->tax_rate,
-                    'amount'         => round($taxableAmount * ($child->tax_rate / 100), 2),
-                    'status'         => 1,
-                ]);
+                $record = self::withTrashed()->updateOrCreate(
+                    [
+                        'order_type'     => $invoice_type,
+                        'order_id'       => $invoice->id,
+                        'order_items_id' => $orderItemsId,
+                        'tax_id'         => $child->id,
+                    ],
+                    [
+                        'plant_id'   => $invoice->plant_id,
+                        'account_id' => $accountId,
+                        'name'       => $child->tax_name,
+                        'rate'       => $child->tax_rate,
+                        'amount'     => round($taxableAmount * ($child->tax_rate / 100), 2),
+                        'status'     => 1,
+                        'deleted_at' => null,
+                        'deleted_by' => null,
+                    ]
+                );
+                $savedIds[] = $record->id;
             }
         } elseif ($tax) {
             // Fallback: Create a single split for the parent tax if no children exist
@@ -163,19 +188,28 @@ class OrderTax extends Model
                 $accountId = self::getDefaultTaxAccountId($invoice, $invoice_type, $tax);
             }
 
-            self::create([
-                'order_type'     => $invoice_type,
-                'order_id'       => $invoice->id,
-                'plant_id'       => $invoice->plant_id,
-                'order_items_id' => $orderItemsId,
-                'account_id'     => $accountId,
-                'tax_id'         => $tax->id,
-                'name'           => $tax->tax_name,
-                'rate'           => $tax->tax_rate,
-                'amount'         => round($taxableAmount * ($tax->tax_rate / 100), 2),
-                'status'         => 1,
-            ]);
+            $record = self::withTrashed()->updateOrCreate(
+                [
+                    'order_type'     => $invoice_type,
+                    'order_id'       => $invoice->id,
+                    'order_items_id' => $orderItemsId,
+                    'tax_id'         => $tax->id,
+                ],
+                [
+                    'plant_id'   => $invoice->plant_id,
+                    'account_id' => $accountId,
+                    'name'       => $tax->tax_name,
+                    'rate'       => $tax->tax_rate,
+                    'amount'     => round($taxableAmount * ($tax->tax_rate / 100), 2),
+                    'status'     => 1,
+                    'deleted_at' => null,
+                    'deleted_by' => null,
+                ]
+            );
+            $savedIds[] = $record->id;
         }
+
+        return $savedIds;
     }
 
     /**

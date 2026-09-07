@@ -404,7 +404,7 @@ class EwayBillController extends Controller
 
             $response = Http::withoutVerifying()->withHeaders($headers)->timeout(30)->post($url, $ewbPayload);
             $body = $response->json() ?? [];
-            // dd($response, $body, $ewbPayload); // Uncomment if inspecting raw gateway response
+            // dd($headers,$response, $body, $ewbPayload); // Uncomment if inspecting raw gateway response
 
             if ($response->successful() && (!isset($body['status_cd']) || ($body['status_cd'] !== 0 && $body['status_cd'] !== '0' && strtolower((string)$body['status_cd']) !== 'error'))) {
                 $data = $body['data'] ?? $body['Data'] ?? $body ?? [];
@@ -560,8 +560,9 @@ class EwayBillController extends Controller
             } elseif ($genType === 'batch') {
                 $dispatch = Dispatch::with(['customer.addresses.state', 'customer.contacts.addresses.state', 'truck', 'transport', 'mixDesign.concreteGrade'])->where('batch_id', $ewb->origin_id)->first();
                 $patron = $dispatch?->customer;
-                if ($dispatch?->status?->invoice_id) {
-                    $invoice = Invoice::with(['items.mixDesign.concreteGrade'])->find($dispatch->status->invoice_id);
+                $dispatchStatus = $dispatch ? $dispatch->status()->first() : null;
+                if ($dispatchStatus && !empty($dispatchStatus->invoice_id)) {
+                    $invoice = Invoice::with(['items.mixDesign.concreteGrade'])->find($dispatchStatus->invoice_id);
                 }
             }
 
@@ -1307,6 +1308,7 @@ class EwayBillController extends Controller
         $plant = $plant ?? Plant::plantdetails();
         $isProd = $this->isProduction($plant);
         $resolvedGstin = session('gstin') ?: ($plant?->gstin ?: ($plant?->entity?->gstin ?: ''));
+        
         return [
             'baseUrl'      => $this->getBaseUrl($plant),
             'clientId'     => $isProd ? $this->prodClientId : $this->sandboxClientId,
