@@ -40,8 +40,8 @@ class DatabaseSeeder extends Seeder
         $this->call(\Database\Seeders\AccountTypeSeeder::class);
         $this->call(\Database\Seeders\LedgerSeeder::class);
         // $this->call(\Database\Seeders\PurchaseOrderSeeder::class);
-        // $this->call(\Database\Seeders\InvoiceSeeder::class);
         $this->call(\Database\Seeders\ConcreteQualityTestSeeder::class);
+        $this->call(\Database\Seeders\QCDefaultConfigSeeder::class);
         $this->call(\Database\Seeders\RagDocumentSeeder::class);
     }
 }

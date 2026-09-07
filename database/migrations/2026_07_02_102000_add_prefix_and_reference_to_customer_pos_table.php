@@ -13,8 +13,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('mm_customer_pos', function (Blueprint $table) {
-            $table->string('prefix')->nullable()->after('plant_id');
-            $table->string('reference')->nullable()->after('prefix');
+            if (!Schema::hasColumn('mm_customer_pos', 'prefix')) {
+                $table->string('prefix')->nullable()->after('plant_id');
+            }
+            if (!Schema::hasColumn('mm_customer_pos', 'reference')) {
+                $table->string('reference')->nullable()->after('prefix');
+            }
         });
 
         // Backfill existing customer POs

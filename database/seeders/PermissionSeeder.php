@@ -102,6 +102,13 @@ class PermissionSeeder extends Seeder
             'CONCRETE_QUALITY_TEST' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'PDF'],
             'DISPATCH' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'INVENTORY_AUDIT_LOG' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+
+            // Quality Control (QC Module & Testing)
+            'QC' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'APPROVE'],
+            'QC_TEST' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
+            'QC_CONFIG' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'QC_SAMPLE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'QC_REPORT' => ['VIEW', 'EXPORT', 'PDF'],
             
             // Master Data / Settings
             'ADDRESS_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
@@ -248,6 +255,26 @@ class PermissionSeeder extends Seeder
                        || Str::endsWith($p, '.VIEW');
             });
             $financeManagerRole->syncPermissions($financePermissions);
+        }
+
+        // QUALITY_MANAGER - Full Quality Control access + View Masters
+        $qcManagerRole = Role::where('code', 'QUALITY_MANAGER')->first();
+        if ($qcManagerRole) {
+            $qcManagerPermissions = array_filter($allPermissionNames, function($p) {
+                return Str::startsWith($p, ['QC', 'PRODUCT', 'MIX_DESIGN', 'CONCRETE_GRADE', 'CONCRETE_QUALITY_TEST', 'INWARD', 'BATCH'])
+                       || Str::endsWith($p, '.VIEW');
+            });
+            $qcManagerRole->syncPermissions($qcManagerPermissions);
+        }
+
+        // LAB_TECHNICIAN - Execution & Logging focus
+        $labTechRole = Role::where('code', 'LAB_TECHNICIAN')->first();
+        if ($labTechRole) {
+            $labTechPermissions = array_filter($allPermissionNames, function($p) {
+                return Str::startsWith($p, ['QC_TEST', 'QC_SAMPLE', 'CONCRETE_QUALITY_TEST'])
+                       || in_array($p, ['QC.VIEW', 'QC_CONFIG.VIEW', 'QC_REPORT.VIEW', 'PRODUCT.VIEW', 'MIX_DESIGN.VIEW', 'CONCRETE_GRADE.VIEW']);
+            });
+            $labTechRole->syncPermissions($labTechPermissions);
         }
 
         // RE-FLUSH

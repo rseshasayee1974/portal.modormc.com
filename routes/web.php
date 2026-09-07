@@ -275,6 +275,45 @@ Route::middleware([
         Route::resource('concrete-quality-tests', \App\Http\Controllers\ConcreteQualityTestController::class);
     });
 
+    // 7b. Quality Control (QC Engine & Operational System)
+    Route::prefix('quality')->group(function () {
+        Route::get('dashboard', [\App\Http\Controllers\QC\QCDashboardController::class, 'index'])->name('quality.dashboard');
+
+        // Configuration
+        Route::prefix('configuration')->group(function () {
+            Route::resource('units', \App\Http\Controllers\QC\QCUnitController::class)->names('quality.config.units');
+            Route::resource('test-types', \App\Http\Controllers\QC\QCTestTypeController::class)->names('quality.config.test-types');
+            Route::post('test-types/{testType}/toggle', [\App\Http\Controllers\QC\QCTestTypeController::class, 'toggleActive'])->name('quality.config.test-types.toggle');
+
+            Route::resource('test-parameters', \App\Http\Controllers\QC\QCTestParameterController::class)->names('quality.config.test-parameters');
+
+            Route::get('material-mapping', [\App\Http\Controllers\QC\QCMaterialTestMappingController::class, 'index'])->name('quality.config.material-mapping.index');
+            Route::post('material-mapping', [\App\Http\Controllers\QC\QCMaterialTestMappingController::class, 'save'])->name('quality.config.material-mapping.save');
+
+            Route::resource('test-schedules', \App\Http\Controllers\QC\QCTestScheduleController::class)->names('quality.config.test-schedules');
+        });
+
+        // Operations
+        Route::resource('samples', \App\Http\Controllers\QC\QCSampleController::class)->names('quality.samples');
+
+        Route::prefix('tests')->group(function () {
+            Route::get('/', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'index'])->name('quality.tests.index');
+            Route::get('pending', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'pending'])->name('quality.tests.pending');
+            Route::get('completed', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'completed'])->name('quality.tests.completed');
+            Route::get('failed', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'failed'])->name('quality.tests.failed');
+
+            Route::get('{test}/execute', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'executeForm'])->name('quality.tests.execute');
+            Route::post('{test}/execute', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'submitExecution'])->name('quality.tests.submit');
+
+            Route::post('{test}/approve', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'approve'])->name('quality.tests.approve');
+            Route::post('{test}/retest', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'markRetest'])->name('quality.tests.retest');
+        });
+
+        // Reports
+        Route::get('reports', [\App\Http\Controllers\QC\QCReportController::class, 'index'])->name('quality.reports.index');
+        Route::get('reports/pdf', [\App\Http\Controllers\QC\QCReportController::class, 'downloadPdf'])->name('quality.reports.pdf');
+    });
+
     // 8. Fleet & Personnel Logistics
     Route::prefix('fleet')->group(function () {
         Route::resource('machines', \App\Http\Controllers\MachineController::class);

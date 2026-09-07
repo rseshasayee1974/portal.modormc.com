@@ -494,7 +494,7 @@ if (!function_exists('ProductTypesDropdown')) {
      */
     function ProductTypesDropdown()
     {
-        return ['Inventory', 'Service', 'Purchase', 'Sales'];
+        return ['Inventory', 'Service', 'Purchase', 'Sales','Quality Test'];
     }
 }
 

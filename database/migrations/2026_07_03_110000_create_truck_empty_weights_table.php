@@ -11,15 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('mm_truck_empty_weights', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('truck_id')->constrained('mm_machines')->cascadeOnDelete();
-            $table->decimal('empty_weight', 15, 3);
-            $table->foreignId('plant_id')->constrained('mm_plants')->cascadeOnDelete();
-            $table->timestamps();
-            
-            $table->index(['truck_id', 'plant_id']);
-        });
+        if (!Schema::hasTable('mm_truck_empty_weights')) {
+            Schema::create('mm_truck_empty_weights', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('truck_id')->constrained('mm_machines')->cascadeOnDelete();
+                $table->decimal('empty_weight', 15, 3);
+                $table->foreignId('plant_id')->constrained('mm_plants')->cascadeOnDelete();
+                $table->timestamps();
+                
+                $table->index(['truck_id', 'plant_id']);
+            });
+        }
     }
 
     /**

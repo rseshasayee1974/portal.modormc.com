@@ -720,7 +720,7 @@ const mobileMenuOpen = ref(false);
             </main>
 
             <!-- Global Footer -->
-            <footer class="bg-[#1d2d3e] text-slate-300 border-t border-[#2a3c50] mt-auto py-8 px-4 sm:px-6 lg:px-8">
+            <footer class="bg-[#1d2d3e] text-slate-300 border-t border-[#2a3c50] mt-auto py-4 px-4 sm:px-6 lg:px-4">
                 <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <!-- Logo & Project Tagline -->
                     <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 max-w-xl">

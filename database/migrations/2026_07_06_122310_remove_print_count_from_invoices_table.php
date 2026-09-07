@@ -12,7 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('mm_invoices', function (Blueprint $table) {
-            $table->dropColumn(['print_count', 'first_printed_at']);
+            if (Schema::hasColumn('mm_invoices', 'print_count')) {
+                $table->dropColumn('print_count');
+            }
+            if (Schema::hasColumn('mm_invoices', 'first_printed_at')) {
+                $table->dropColumn('first_printed_at');
+            }
         });
     }
 

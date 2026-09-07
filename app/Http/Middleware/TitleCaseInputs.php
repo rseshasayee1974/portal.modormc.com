@@ -118,6 +118,13 @@ class TitleCaseInputs
         'type',
         'guard_name',
         'concrete_pump',
+        'formula',
+        'standard_reference',
+        'layout_type',
+        'calculation_type',
+        'rule_type',
+        'comparison_operator',
+        'formula',
         'tax_type',
         'tax_number',
 

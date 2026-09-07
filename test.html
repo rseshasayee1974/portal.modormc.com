@@ -1,322 +1,425 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>DISPATCH - Inv/2627/13</title>
-    <style>
-    /* ═══ RESET & BASE ═══ */
-    @page { 
-        margin: 15mm; 
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-        --font-base: 'DejaVu Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        --font-serif: Georgia, 'Times New Roman', serif;
-        --color-ink: #1e293b;
-        --color-muted: #64748b;
-        --color-light: #94a3b8;
-        --color-accent: #4f46e5;
-        --color-accent-light: #f5f3ff;
-        --color-border: #cbd5e1;
-        --color-border-light: #e2e8f0;
-        --color-header-bg: #1e293b;
-        --color-alt-bg: #f8fafc;
-        --color-balance-bg: #f1f5f9;
-        --color-red: #ef4444;
-        --color-green: #10b981;
-        --color-amber: #f59e0b;
-        --size-base: 11px;
-        --size-small: 10px;
-        --size-xsmall: 9px;
-        --size-title: 24px;
-    }
-
-    body {
-        font-family: 'DejaVu Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        font-size: 11px;
-        color: #1e293b;
-        background: #fff;
-        line-height: 1.5;
-    }
-
-    .inv-root {
-        border: 1px solid #cbd5e1;
-        background: #fff;
-    }
-
-    /* ═══ UTILITY CLASSES (all templates) ═══ */
-    .text-left   { text-align: left !important; }
-    .text-right  { text-align: right !important; }
-    .text-center { text-align: center !important; }
-    .bold        { font-weight: 700; }
-    .italic      { font-style: italic; }
-    .red         { color: #ef4444; }
-    .muted       { color: #64748b; }
-    .small       { font-size: 10px; }
-    .underline   { text-decoration: underline; }
-
-    /* ═══ ITEMS TABLE SHARED ═══ */
-    .item-name { font-weight: 700; color: #1e293b; }
-    .item-sub  { font-size: 9px; color: #888; margin-top: 1px; white-space: pre-wrap; }
-
-    .badge-done    { color: #10b981; font-weight: 700; }
-    .badge-pending { color: #f59e0b; font-weight: 700; }
-
-    /* ═══ FOOTER SHARED ═══ */
-    .powered-footer {
-        display: table;
-        width: 100%;
-        padding: 5px 12px;
-        border-top: 1px solid #ccc;
-        font-size: 9px;
-    }
-    .powered-footer .pf-left  { display: table-cell; color: #999; text-transform: uppercase; letter-spacing: 0.04em; vertical-align: middle; }
-    .powered-footer .pf-right { display: table-cell; text-align: right; color: #888; font-size: 10px; vertical-align: middle; }
-    .powered-footer .pf-brand { font-weight: 700; color: #555; font-size: 10px; }
-
-    /* Centered A4 preview styling for browser/screen view */
-    @media screen {
-        body {
-            background-color: #f8fafc !important;
-            padding: 40px 15px !important;
-        }
-        .inv-root {
-            max-width: 800px;
-            margin: 0 auto !important;
-            background: #fff !important;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
-            border-radius: 8px !important;
-            border: 1px solid #cbd5e1 !important;
-        }
-    }
-    
-    </style>
-    <style>
-        .inv-root { border: 1px solid #cbd5e1; width: 100%; }
-        @media screen {
-            .inv-root { min-height: 297mm; }
-        }
-
-        .inv-header { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; padding: 10px 14px; }
-        .header-left  { display: table-cell; vertical-align: top; }
-        .header-right { display: table-cell; vertical-align: top; text-align: right; }
-        .co-name   { font-size: 15px; font-weight: 700; }
-        .co-detail { font-size: 10px; color: #64748b; line-height: 1.45; }
-        .inv-title { font-size: 24px; font-weight: 900; line-height: 1.1; }
-        .inv-ref   { font-size: 10.5px; color: #64748b; margin-top: 2px; }
-
-        /* 2-col details bar */
-        .details-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid #cbd5e1; }
-        .details-cell  { padding: 7px 12px; vertical-align: top; border-right: 1px solid #cbd5e1; width: 50%; }
-        .no-right { border-right: none; }
-        .kv-table { border-collapse: collapse; width: 100%; }
-        .kv-key   { color: #64748b; white-space: nowrap; padding: 1px 0; min-width: 100px; }
-        .kv-sep   { padding: 1px 6px; color: #64748b; }
-        .kv-val   { color: #1e293b; }
-
-        /* Bill To / Ship To */
-        .addr-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid #cbd5e1; }
-        .addr-th { background: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 5px 12px; font-weight: 700; font-size: 11px; text-align: left; width: 50%; }
-        .addr-th-left { border-right: 1px solid #cbd5e1; }
-        .addr-cell { padding: 7px 12px; vertical-align: top; font-size: 11px; }
-        .addr-left { border-right: 1px solid #cbd5e1; }
-        .addr-name { font-weight: 700; }
-        .addr-line { color: #94a3b8; line-height: 1.5; }
-
-        /* Subject */
-        .subject-row { padding: 4px 12px; border-bottom: 1px solid #cbd5e1; font-size: 11px; background: #fafafa; }
-
-        /* Items — dark header */
-        .items-table { width: 100%; border-collapse: collapse; border-bottom: 1px solid #cbd5e1; }
-        .items-table thead tr { background: #1e293b; color: #fff; }
-        .items-table th { padding: 6px 8px; font-weight: 700; font-size: 10px; border: none; }
-        .items-table td { padding: 5px 8px; vertical-align: top; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
-        .items-table tbody tr:last-child td { border-bottom: 1px solid #ccc; }
-
-        /* Totals */
-        .totals-split { display: table; width: 100%; border-bottom: 1px solid #cbd5e1; }
-        .totals-left  { display: table-cell; vertical-align: top; padding: 8px 12px; border-right: 1px solid #cbd5e1; width: 55%; }
-        .totals-right { display: table-cell; vertical-align: top; }
-        .breakdown-table { width: 100%; border-collapse: collapse; }
-        .breakdown-table td { padding: 3px 10px; }
-        .bt-label { text-align: right; color: #64748b; padding-right: 14px !important; width: 58%; }
-        .bt-val   { text-align: right; white-space: nowrap; }
-        .bt-total-row   { border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
-        .bt-balance-row { background: #f1f5f9; }
-        .bt-total-row td, .bt-balance-row td { padding-top: 5px !important; padding-bottom: 5px !important; }
-
-        .tow-label { color: #64748b; font-size: 10px; margin-bottom: 2px; }
-        .tow-value { font-style: italic; font-weight: 700; font-size: 11px; line-height: 1.5; }
-    </style>
-</head>
-<body>
-<div class="print-actions no-print">
-    <button onclick="window.print()" class="btn-print-trigger">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="width:1.2rem;height:1.2rem;">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.618 0-1.113-.491-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.658" />
-        </svg>
-        <span>Print Document</span>
-    </button>
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}@media print{header,footer,.no-print{display:none!important;}main{padding:0!important;background:white!important;min-height:auto!important;}.paper-certificate{border:none!important;box-shadow:none!important;max-width:100%!important;padding:15mm!important;margin:0!important;}}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-primary-fixed": "#130067", "on-primary": "#ffffff", "on-secondary-fixed": "#001c3b", "error": "#ba1a1a", "outline-variant": "#c8c4d6", "tertiary-fixed-dim": "#efc10e", "surface-container-low": "#eff4ff", "surface-bright": "#f8f9ff", "secondary-container": "#b5d0fd", "surface": "#f8f9ff", "on-error-container": "#93000a", "surface-variant": "#d2e4ff", "tertiary": "#735c00", "on-secondary": "#ffffff", "on-tertiary-fixed": "#231a00", "surface-dim": "#cadbf6", "primary": "#4a3dc2", "surface-container-lowest": "#ffffff", "surface-container-high": "#dce9ff", "on-secondary-container": "#3e5980", "inverse-surface": "#203146", "on-surface": "#0a1c30", "secondary": "#455f87", "on-primary-container": "#efebff", "tertiary-fixed": "#ffe087", "on-primary-fixed-variant": "#3d2db5", "on-tertiary-container": "#4e3d00", "on-tertiary": "#ffffff", "background": "#f8f9ff", "surface-container-highest": "#d2e4ff", "on-secondary-fixed-variant": "#2d486d", "inverse-on-surface": "#eaf1ff", "error-container": "#ffdad6", "primary-container": "#6358dc", "secondary-fixed": "#d5e3ff", "primary-fixed": "#e3dfff", "on-tertiary-fixed-variant": "#574500", "tertiary-container": "#cfa700", "surface-tint": "#564ace", "on-background": "#0a1c30", "secondary-fixed-dim": "#adc8f5", "on-error": "#ffffff", "inverse-primary": "#c5c0ff", "outline": "#787585", "surface-container": "#e5eeff", "primary-fixed-dim": "#c5c0ff", "on-surface-variant": "#474554" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-2xs": "0.25rem", "table-cell-px": "1rem", "space-2xl": "3rem", "space-md": "1rem", "card-gutter": "1.5rem", "space-lg": "1.5rem", "space-sm": "0.75rem", "space-xs": "0.5rem", "table-cell-py": "0.85rem", "space-xl": "2rem" }, "fontFamily": { "caption": [ "Inter" ], "headline-xl": [ "Inter" ], "headline-md": [ "Inter" ], "subnav-item": [ "Inter" ], "nav-item": [ "Inter" ], "code-sm": [ "JetBrains Mono" ], "code-xs": [ "JetBrains Mono" ], "headline-lg": [ "Inter" ], "body-sm": [ "Inter" ], "body-md": [ "Inter" ] }, "fontSize": { "caption": [ "11px", { "lineHeight": "14px", "fontWeight": "500" } ], "headline-xl": [ "28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "800" } ], "headline-md": [ "16px", { "lineHeight": "24px", "fontWeight": "700" } ], "subnav-item": [ "11.5px", { "lineHeight": "16px", "letterSpacing": "0.03em", "fontWeight": "600" } ], "nav-item": [ "10.5px", { "lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "700" } ], "code-sm": [ "12px", { "lineHeight": "16px", "fontWeight": "600" } ], "code-xs": [ "10.5px", { "lineHeight": "14px", "fontWeight": "400" } ], "headline-lg": [ "22px", { "lineHeight": "30px", "letterSpacing": "-0.015em", "fontWeight": "700" } ], "body-sm": [ "12px", { "lineHeight": "16px", "fontWeight": "400" } ], "body-md": [ "13px", { "lineHeight": "18px", "fontWeight": "600" } ] } } } };</script></head><body class="bg-surface font-body-md text-body-md text-on-surface"><header class="fixed top-0 w-full z-50 shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-28 w-full"><div class="h-[68px] bg-[#1a365d] w-full px-card-gutter flex items-center justify-between"><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-xs"><div class="w-9 h-9 rounded bg-primary-container flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[22px]">precision_manufacturing</span></div><div class="flex flex-col"><span class="text-white font-headline-md text-headline-md tracking-tight uppercase leading-tight">CONCRETEX</span><span class="text-secondary-container font-caption text-caption uppercase tracking-wider">RMC QA/QC OS</span></div></div><nav class="hidden xl:flex items-center gap-space-xs h-[68px]" data-active-classes="text-tertiary-fixed font-bold border-b-2 border-tertiary-fixed"><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="dashboard" href="#">Dashboard</a><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="master" href="#">Master</a><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="order" href="#">Order</a><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="machines" href="#">Machines</a><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="inventory" href="#">Inventory</a><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="batching" href="#">Batching</a><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="tenant" href="#">Tenant</a><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="personnel" href="#">Personnel</a><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="finance" href="#">Finance</a><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="report" href="#">Report</a><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="setting" href="#">Setting</a><a class="text-secondary-fixed hover:text-white px-space-xs py-space-xs flex items-center transition-colors font-nav-item text-nav-item tracking-wider uppercase" data-path="gps-tracking" href="#">GPS Tracking</a><a aria-current="page" class="px-space-xs py-space-xs flex items-center transition-colors tracking-wider uppercase text-tertiary-fixed font-bold border-b-2 border-tertiary-fixed" data-path="laboratory-tests" href="#">Quality Control</a></nav></div><div class="flex items-center gap-space-md"><div class="hidden md:flex flex-col text-right"><span class="text-white font-caption text-caption uppercase">Metro Central RMC Batching 04</span><span class="text-secondary-container font-caption text-caption">Er. Sharma (NABL Level-II)</span></div><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div><div class="h-11 bg-surface-container-lowest w-full px-card-gutter flex items-center justify-between border-b border-surface-container"><nav class="flex items-center gap-space-xs overflow-x-auto py-space-2xs" data-active-classes="bg-tertiary-fixed text-on-tertiary-fixed font-bold rounded-full"><a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high px-space-sm py-space-2xs rounded-full font-subnav-item text-subnav-item uppercase transition-all whitespace-nowrap" data-path="dashboard" href="#">Dashboard</a><a aria-current="page" class="px-space-sm py-space-2xs uppercase transition-all whitespace-nowrap bg-tertiary-fixed text-on-tertiary-fixed font-bold rounded-full" data-path="laboratory-tests" href="#">Laboratory Tests</a><a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high px-space-sm py-space-2xs rounded-full font-subnav-item text-subnav-item uppercase transition-all whitespace-nowrap" data-path="test-types" href="#">Test Types</a><a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high px-space-sm py-space-2xs rounded-full font-subnav-item text-subnav-item uppercase transition-all whitespace-nowrap" data-path="test-parameters" href="#">Test Parameters</a><a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high px-space-sm py-space-2xs rounded-full font-subnav-item text-subnav-item uppercase transition-all whitespace-nowrap" data-path="units-master" href="#">Units Master</a><a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high px-space-sm py-space-2xs rounded-full font-subnav-item text-subnav-item uppercase transition-all whitespace-nowrap" data-path="acceptance-criteria" href="#">Acceptance Criteria</a><a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high px-space-sm py-space-2xs rounded-full font-subnav-item text-subnav-item uppercase transition-all whitespace-nowrap" data-path="material-mapping" href="#">Material Mapping</a><a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high px-space-sm py-space-2xs rounded-full font-subnav-item text-subnav-item uppercase transition-all whitespace-nowrap" data-path="test-schedules" href="#">Test Schedules</a><a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high px-space-sm py-space-2xs rounded-full font-subnav-item text-subnav-item uppercase transition-all whitespace-nowrap" data-path="samples" href="#">Samples</a><a class="text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high px-space-sm py-space-2xs rounded-full font-subnav-item text-subnav-item uppercase transition-all whitespace-nowrap" data-path="qc-reports" href="#">QC Reports</a></nav><div class="hidden lg:flex items-center gap-space-xs font-caption text-caption text-on-surface-variant"><span class="inline-block w-2 h-2 rounded-full bg-tertiary-container"></span><span class="font-code-xs text-code-xs">ACTIVE BATCH: M30-P4-0982</span></div></div></div></header><main class="w-full pt-28 bg-surface-container-low min-h-[calc(100vh-80px)] px-card-gutter py-card-gutter"><div class="max-w-[1720px] mx-auto w-full"><div class="flex flex-col w-full">
+<!-- Breadcrumbs & Meta Bar -->
+<div class="no-print flex flex-col md:flex-row md:items-center justify-between gap-space-sm mb-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-space-2xs text-on-surface-variant font-caption text-caption uppercase tracking-wider mb-space-2xs">
+<a class="hover:text-primary transition-colors" href="#">QUALITY CONTROL</a>
+<span class="material-symbols-outlined text-[13px]">chevron_right</span>
+<a class="hover:text-primary transition-colors" href="#">LABORATORY TESTS REGISTRY</a>
+<span class="material-symbols-outlined text-[13px]">chevron_right</span>
+<span class="text-primary font-code-xs text-code-xs font-semibold">TST-20260904-001</span>
+<span class="material-symbols-outlined text-[13px]">chevron_right</span>
+<span class="text-on-surface font-semibold">OFFICIAL CERTIFICATE</span>
 </div>
-
-<style>
-    @media print {
-        .no-print { display: none !important; }
-    }
-    .print-actions {
-        position: fixed;
-        bottom: 30px;
-        right: 30px;
-        z-index: 9999;
-    }
-    .btn-print-trigger {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        background: #4f46e5;
-        color: white;
-        border: none;
-        padding: 10px 18px;
-        border-radius: 99px;
-        font-family: 'Inter', sans-serif;
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-        box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.4);
-        transition: all 0.2s;
-    }
-    .btn-print-trigger:hover {
-        background: #4338ca;
-        transform: translateY(-2px);
-        box-shadow: 0 20px 25px -5px rgba(79, 70, 229, 0.4);
-    }
-</style>
-
-<div class="inv-root">
-    
-    <div class="inv-header">
-        <div class="header-left">
-                                        <div class="co-detail">Sdgrdfgfdgvfdgfdd</div>
-                <div class="co-detail">Asdasd, Tamil Nadu 541658</div>
-                         <div class="co-detail">GSTIN: 06migcmun25332</div>         </div>
-        <div class="header-right">
-            <div class="inv-title">DISPATCH</div>
-            <div class="inv-ref">Ref# <strong>Inv/2627/13</strong></div>
-        </div>
-    </div>
-
-    
-    <table class="details-table">
-        <tr>
-            <td class="details-cell">
-                <table class="kv-table">
-                                                                 <tr><td class="kv-key">Date</td><td class="kv-sep">:</td><td class="kv-val bold">08/07/2026</td></tr>                                              <tr><td class="kv-key">Due Date</td><td class="kv-sep">:</td><td class="kv-val bold">N/A</td></tr>                                                                                          <tr><td class="kv-key">PO#</td><td class="kv-sep">:</td><td class="kv-val bold">37</td></tr>                                     </table>
-            </td>
-            <td class="details-cell no-right">
-                <table class="kv-table">
-                                        <tr><td class="kv-key">Status</td><td class="kv-sep">:</td><td class="kv-val bold">APPROVED</td></tr>
-                </table>
-            </td>
-        </tr>
-    </table>
-
-    
-    <table class="addr-table">
-        <thead>
-            <tr>
-                <th class="addr-th addr-th-left">Bill To</th>
-                <th class="addr-th">Ship To</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td class="addr-cell addr-left">
-                                            <div class="addr-name">L&amp;T Constructions (chennai)</div>
-                        <div class="addr-line"></div>
-                        <div class="addr-line">,  </div>
-                                                            </td>
-                <td class="addr-cell">
-                                            <div class="addr-name">Thyrehgrdgh</div>
-                        <div class="addr-line"></div>
-                        <div class="addr-line">,  </div>
-                                    </td>
-            </tr>
-        </tbody>
-    </table>
-
-    
-    <div class="subject-row">&nbsp;&nbsp;Subject : </div>
-
-    
-    <table class="items-table">
-        <thead>
-            <tr>
-                <th class="text-center" style="width:28px">#</th>
-                <th class="text-left">Item &amp; Description</th>
-                                <th class="text-right" style="width:55px">Qty</th>
-                 <th class="text-center" style="width:45px">Unit</th>                 <th class="text-right" style="width:80px">Rate</th>
-                 <th class="text-center" style="width:80px">Tax</th>                 <th class="text-right" style="width:85px">Total</th>
-            </tr>
-        </thead>
-        <tbody>
-                        <tr>
-                <td class="text-center">1</td>
-                <td>
-                    <div class="item-name">Prestige Estates</div>
-                                    </td>
-                                <td class="text-right bold">6.00</td>
-                 <td class="text-center">CBM</td>                 <td class="text-right">745,874.00</td>
-                                <td class="text-center small">
-                                            6% CGST<br>6% SGST
-                                    </td>
-                                <td class="text-right bold">₹5,012,538.28</td>
-            </tr>
-                    </tbody>
-    </table>
-
-    
-    <div class="totals-split">
-        <div class="totals-left">
-                            <div class="tow-label">Total in Words</div>
-                <div class="tow-value">Rupees Fifty  Lakhs Twelve Thousands Four Hundred  and Eighty Two    Only</div>
-                                </div>
-        <div class="totals-right">
-            <table class="breakdown-table">
-                <tr><td class="bt-label">Sub Total</td><td class="bt-val">₹4,475,244.00</td></tr>
-                 <tr><td class="bt-label red">Discount (-)</td><td class="bt-val red">546.00</td></tr>                  
-                                         <tr><td class="bt-label">CGST 6%</td><td class="bt-val">268,514.64</td></tr>                  
-                                         <tr><td class="bt-label">SGST 6%</td><td class="bt-val">268,514.64</td></tr>                                  <tr><td class="bt-label">Freight (+)</td><td class="bt-val">654.00</td></tr>                 <tr class="bt-total-row"><td class="bt-label bold">Total (INR)</td><td class="bt-val bold">₹5,012,482.00</td></tr>
-                <tr class="bt-balance-row"><td class="bt-label bold">Net Payable</td><td class="bt-val bold">₹5,012,482.00</td></tr>
-            </table>
-        </div>
-    </div>
-
-    
-        <div style="padding:7px 12px;border-bottom:1px solid #cbd5e1;">
-        <div class="small muted">Terms &amp; Conditions</div>
-        <div style="font-size:10px;color:#94a3b8;margin-top:2px">1. Goods once sold will not be taken back.<br />
-2. Interest @ 18% will be charged if not paid within due date.<br />
-3. All disputes are subject to local jurisdiction.</div>
-    </div>
-    
-    
-        <div style="min-height:90px;padding:10px 12px;border-bottom:1px solid #cbd5e1;position:relative;text-align:right;">
-        <div style="margin-top:60px;">
-            <span style="display:inline-block;width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10.5px;color:#64748b">
-                Authorized Signatory<br><span style="font-size:9px">For Parker LLC Plant</span>
-            </span>
-        </div>
-    </div>
-    
-    <div class="powered-footer">
-    <div class="pf-left">
-        Generated on 08 Jul 2026, 12:40 PM
-    </div>
-    <div class="pf-right">
-        Powered by <span class="pf-brand">onemodo.com</span>
-    </div>
+<div class="flex flex-wrap items-baseline gap-space-sm">
+<h1 class="font-headline-lg text-headline-lg text-on-surface font-extrabold tracking-tight">Official BIS / NABL Test Certificate &amp; Compliance Dossier</h1>
+<span class="px-space-xs py-space-2xs bg-surface-container-highest text-primary rounded-full font-caption text-caption font-bold uppercase tracking-wider inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+          NABL ACCREDITED LAB / BIS VERIFIED
+        </span>
+</div>
+<p class="text-on-surface-variant font-caption text-caption mt-0.5">
+        Certificate Ref: <span class="font-code-xs text-code-xs text-primary font-bold">NABL-CRX-2026-CUB-0982</span> | 
+        Accreditation Standard: <span class="font-semibold text-on-surface">ISO/IEC 17025:2017</span> | 
+        Governing Codes: <span class="text-primary-container font-semibold">IS 516 (Part 1/Sec 1): 2021 &amp; IS 456:2000 Cl. 15.4</span> | 
+        Status: <span class="font-bold text-emerald-700">COMPLIANT &amp; AUTHORIZED</span>
+</p>
+</div>
+<!-- Right Action Controls -->
+<div class="flex flex-wrap items-center gap-space-xs shrink-0 self-start md:self-auto">
+<button class="bg-surface-container-lowest hover:bg-surface-container text-on-surface px-space-md py-space-xs rounded-full font-body-md text-body-md inline-flex items-center gap-space-2xs transition-all shadow-sm border border-surface-container" onclick="downloadPdfSim()" type="button">
+<span class="material-symbols-outlined text-[18px] text-primary">picture_as_pdf</span>
+<span>Download PDF (A4)</span>
+</button>
+<button class="bg-primary hover:bg-primary-container text-on-primary px-space-md py-space-xs rounded-full font-body-md text-body-md inline-flex items-center gap-space-2xs transition-all shadow-sm" onclick="window.print()" type="button">
+<span class="material-symbols-outlined text-[18px]">print</span>
+<span>Print Certificate</span>
+</button>
+<button class="bg-surface-container-lowest hover:bg-surface-container text-on-surface px-space-md py-space-xs rounded-full font-body-md text-body-md inline-flex items-center gap-space-2xs transition-all shadow-sm border border-surface-container" onclick="emailCertificate()" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">mail</span>
+<span>Email Client / Site Incharge</span>
+</button>
+<button class="bg-emerald-700 hover:bg-emerald-800 text-white px-space-md py-space-xs rounded-full font-body-md text-body-md inline-flex items-center gap-space-2xs transition-all shadow-sm" onclick="digitalSignCert()" type="button">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+<span>Digitally Sign &amp; Lock (e-Sign)</span>
+</button>
 </div>
 </div>
-</body>
-</html>
+<!-- Mode Switcher Bar -->
+<div class="no-print bg-surface-container-lowest rounded-xl shadow-sm p-space-xs mb-space-md flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm border border-surface-container">
+<div class="inline-flex p-1 bg-surface-container rounded-lg shrink-0" role="tablist">
+<a class="px-space-md py-1.5 rounded font-subnav-item text-subnav-item uppercase transition-all text-on-surface-variant hover:text-on-surface inline-flex items-center gap-1.5" href="#">
+<span class="material-symbols-outlined text-[16px]">tune</span>
+        Interactive Calculation Engine
+      </a>
+<button class="px-space-md py-1.5 rounded font-subnav-item text-subnav-item uppercase transition-all bg-[#6358dc] text-white font-bold shadow-sm inline-flex items-center gap-1.5" type="button">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+        Official BIS/NABL Certificate View
+      </button>
+</div>
+<div class="flex items-center gap-space-sm text-on-surface-variant font-caption text-caption px-space-xs">
+<span class="inline-flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+<span>Cryptographic Integrity: Verified</span>
+</span>
+<span class="text-slate-300">|</span>
+<span>Watermark: <strong class="text-on-surface">ENABLED (NABL TC-8492)</strong></span>
+</div>
+</div>
+<!-- DOCUMENT PAPER CANVAS CONTAINER -->
+<div class="paper-certificate bg-white rounded-lg shadow-lg border border-slate-200 max-w-5xl mx-auto p-10 font-sans relative overflow-hidden text-slate-800">
+<!-- Watermark Background Emblem -->
+<div class="absolute inset-0 pointer-events-none flex items-center justify-center opacity-[0.035] select-none">
+<div class="flex flex-col items-center justify-center rotate-[-30deg]">
+<span class="material-symbols-outlined text-[340px] text-[#1a365d]">verified</span>
+<span class="font-black text-6xl tracking-widest uppercase text-[#1a365d]">NABL ACCREDITED</span>
+<span class="text-3xl font-mono tracking-widest text-[#1a365d]">TC-8492 • ISO/IEC 17025</span>
+</div>
+</div>
+<!-- Certificate Top Header Banner -->
+<div class="relative border-b-2 border-[#1a365d] pb-6 mb-6">
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 rounded bg-[#1a365d] flex items-center justify-center text-white shrink-0 shadow-md">
+<span class="material-symbols-outlined text-[38px]">precision_manufacturing</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<h2 class="text-xl md:text-2xl font-black text-[#1a365d] tracking-tight uppercase">CONCRETEX READY MIX CONCRETE LTD</h2>
+<span class="bg-[#1a365d] text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">LIMS CERTIFIED</span>
+</div>
+<span class="text-xs font-bold text-slate-700 tracking-wide uppercase mt-0.5">CENTRAL QA/QC TESTING LABORATORY &amp; ADVANCED MATERIALS RESEARCH</span>
+<span class="text-[11px] font-medium text-slate-600 mt-0.5">
+ISO/IEC 17025:2017 Accredited Laboratory • <strong>NABL Certificate No: TC-8492</strong> • Government of India Approved
+</span>
+<span class="text-[10px] text-slate-500 mt-0.5 font-mono">
+Testing Facility: Plot 42-B, Industrial Area, Metro Sector 14 | Tel: +91 11 4982 7700 | Email: qc.central@concretex-rmc.in
+</span>
+</div>
+</div>
+<!-- Right: Dynamic QR Code & Certificate Identifiers -->
+<div class="flex md:flex-col items-end justify-between self-stretch md:self-auto gap-3 shrink-0 pt-2 md:pt-0">
+<div class="flex items-center gap-3">
+<div class="text-right">
+<div class="bg-slate-100 border border-slate-300 rounded px-2 py-1 text-right">
+<span class="text-[10px] text-slate-500 font-bold uppercase block leading-tight">Certificate No.</span>
+<span class="font-mono text-xs font-bold text-[#1a365d]">NABL-CRX-2026-CUB-0982</span>
+</div>
+<div class="text-[10px] text-slate-500 mt-1 font-mono">Date of Issue: <strong class="text-slate-700">04 Sep 2026</strong></div>
+<div class="text-[10px] text-slate-500 font-mono">ULR No: <strong class="text-slate-700">TC849226000004921F</strong></div>
+</div>
+<!-- QR Code Visual -->
+<div class="w-16 h-16 bg-slate-50 border border-slate-300 rounded p-1 flex flex-col items-center justify-center text-slate-800 shrink-0">
+<span class="material-symbols-outlined text-[44px] leading-none">qr_code_2</span>
+<span class="text-[8px] font-mono tracking-tighter text-slate-500 leading-none">NABL VERIFY</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Official Certificate Document Title -->
+<div class="mt-4 pt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between text-center sm:text-left gap-1">
+<div>
+<h3 class="text-sm font-extrabold text-[#1a365d] uppercase tracking-wider">TEST CERTIFICATE: COMPRESSIVE STRENGTH OF CONCRETE CUBES</h3>
+<p class="text-[11px] text-slate-600 font-medium">Issued in accordance with Bureau of Indian Standards specifications <strong>IS 516 (Part 1/Sec 1): 2021 &amp; IS 456:2000</strong></p>
+</div>
+<div class="self-center sm:self-auto">
+<span class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+<span class="w-2 h-2 rounded-full bg-emerald-600"></span>
+FINAL APPROVED CERTIFICATE
+</span>
+</div>
+</div>
+</div>
+<!-- Meta Details Grid (2x4 Structured Grid) -->
+<div class="mb-6">
+<div class="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[16px]">fact_check</span>
+PART A: TEST SPECIMEN &amp; PROJECT IDENTIFICATION
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 bg-slate-50/90 border border-slate-200 rounded-lg p-3 text-xs">
+<!-- Cell 1 -->
+<div class="p-2 bg-white rounded border border-slate-100 flex flex-col justify-between">
+<span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Client Name:</span>
+<span class="font-bold text-slate-900 mt-1">L&amp;T Infra Engineering Ltd</span>
+<span class="text-[10px] text-slate-500 mt-0.5">Heavy Civil Infrastructure IC</span>
+</div>
+<!-- Cell 2 -->
+<div class="p-2 bg-white rounded border border-slate-100 flex flex-col justify-between">
+<span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Project:</span>
+<span class="font-bold text-slate-900 mt-1">Metro Line Elevated Viaduct Pkg-4</span>
+<span class="text-[10px] text-slate-500 mt-0.5">Pier Cap &amp; Deck Slab Segment</span>
+</div>
+<!-- Cell 3 -->
+<div class="p-2 bg-white rounded border border-slate-100 flex flex-col justify-between">
+<span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Batch ID / Challan:</span>
+<span class="font-bold font-mono text-primary mt-1">BATCH-M30-P4-0982</span>
+<span class="text-[10px] text-slate-500 mt-0.5">RMC Truck #KA-04-E-8821</span>
+</div>
+<!-- Cell 4 -->
+<div class="p-2 bg-white rounded border border-slate-100 flex flex-col justify-between">
+<span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Mix Design Grade:</span>
+<span class="font-bold font-mono text-slate-900 mt-1">M30 Pumpable Concrete</span>
+<span class="text-[10px] text-slate-500 mt-0.5">IS 10262:2019 (Target: 38.25 N/mm²)</span>
+</div>
+<!-- Cell 5 -->
+<div class="p-2 bg-white rounded border border-slate-100 flex flex-col justify-between">
+<span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Date of Casting | Crushing:</span>
+<span class="font-medium font-mono text-slate-900 mt-1">07 Aug 2026 | 04 Sep 2026</span>
+<span class="text-[10px] text-emerald-700 font-bold mt-0.5">Age at Test: 28 Days</span>
+</div>
+<!-- Cell 6 -->
+<div class="p-2 bg-white rounded border border-slate-100 flex flex-col justify-between">
+<span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Sampling Location:</span>
+<span class="font-medium text-slate-900 mt-1">Transit Mixer Discharge at Site</span>
+<span class="text-[10px] text-slate-500 mt-0.5">Sample Ref: SMP-20260904-001</span>
+</div>
+<!-- Cell 7 -->
+<div class="p-2 bg-white rounded border border-slate-100 flex flex-col justify-between">
+<span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Ambient / Curing Temp:</span>
+<span class="font-medium text-slate-900 mt-1">27.2°C / 27.0°C ± 1°C</span>
+<span class="text-[10px] text-slate-500 mt-0.5">Accelerated Curing Tank 02</span>
+</div>
+<!-- Cell 8 -->
+<div class="p-2 bg-white rounded border border-slate-100 flex flex-col justify-between">
+<span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Standard Test Method:</span>
+<span class="font-bold text-[#1a365d] mt-1">IS 516 (Pt 1/Sec 1): 2021</span>
+<span class="text-[10px] text-slate-500 mt-0.5">&amp; IS 456:2000 Cl. 15.4 Acceptance</span>
+</div>
+</div>
+</div>
+<!-- BIS Certified Test Observations Table -->
+<div class="mb-6">
+<div class="flex items-center justify-between mb-2">
+<div class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[16px]">science</span>
+PART B: BIS CERTIFIED TEST OBSERVATIONS &amp; STRENGTH MEASUREMENTS
+</div>
+<span class="text-[11px] text-slate-500 font-mono">CTM Servo Channel #02 (Calibrated: 18-05-2026)</span>
+</div>
+<div class="border border-slate-300 rounded-lg overflow-hidden shadow-sm">
+<table class="w-full text-left text-xs">
+<thead>
+<tr class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-300 uppercase text-[11px]">
+<th class="px-3 py-2.5">Specimen ID</th>
+<th class="px-2 py-2.5">Date of Testing</th>
+<th class="px-2 py-2.5 text-center">Age (Days)</th>
+<th class="px-2 py-2.5 text-right">Mass (kg)</th>
+<th class="px-2 py-2.5 text-right">Area (sq.mm)</th>
+<th class="px-3 py-2.5 text-right">Crushing Failure Load (kN)</th>
+<th class="px-3 py-2.5 text-right font-bold text-[#1a365d]">Compressive Strength (N/mm²)</th>
+<th class="px-3 py-2.5">Type of Fracture</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-200 text-slate-800">
+<!-- Specimen 1 -->
+<tr class="hover:bg-slate-50/70">
+<td class="px-3 py-2.5 font-mono font-bold text-primary">CUB-20260904-01</td>
+<td class="px-2 py-2.5 font-mono">04-09-2026</td>
+<td class="px-2 py-2.5 text-center font-mono">28</td>
+<td class="px-2 py-2.5 text-right font-mono">8.245</td>
+<td class="px-2 py-2.5 text-right font-mono">22,500</td>
+<td class="px-3 py-2.5 text-right font-mono font-bold">915.0</td>
+<td class="px-3 py-2.5 text-right font-mono font-extrabold text-base text-slate-900">40.67</td>
+<td class="px-3 py-2.5">
+<span class="inline-flex items-center gap-1 font-medium text-slate-700">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+Normal Semi-Pyramid
+</span>
+</td>
+</tr>
+<!-- Specimen 2 -->
+<tr class="hover:bg-slate-50/70 bg-slate-50/30">
+<td class="px-3 py-2.5 font-mono font-bold text-primary">CUB-20260904-02</td>
+<td class="px-2 py-2.5 font-mono">04-09-2026</td>
+<td class="px-2 py-2.5 text-center font-mono">28</td>
+<td class="px-2 py-2.5 text-right font-mono">8.260</td>
+<td class="px-2 py-2.5 text-right font-mono">22,500</td>
+<td class="px-3 py-2.5 text-right font-mono font-bold">895.0</td>
+<td class="px-3 py-2.5 text-right font-mono font-extrabold text-base text-slate-900">39.78</td>
+<td class="px-3 py-2.5">
+<span class="inline-flex items-center gap-1 font-medium text-slate-700">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+Normal Full Pyramid
+</span>
+</td>
+</tr>
+<!-- Specimen 3 -->
+<tr class="hover:bg-slate-50/70">
+<td class="px-3 py-2.5 font-mono font-bold text-primary">CUB-20260904-03</td>
+<td class="px-2 py-2.5 font-mono">04-09-2026</td>
+<td class="px-2 py-2.5 text-center font-mono">28</td>
+<td class="px-2 py-2.5 text-right font-mono">8.220</td>
+<td class="px-2 py-2.5 text-right font-mono">22,500</td>
+<td class="px-3 py-2.5 text-right font-mono font-bold">908.0</td>
+<td class="px-3 py-2.5 text-right font-mono font-extrabold text-base text-slate-900">40.36</td>
+<td class="px-3 py-2.5">
+<span class="inline-flex items-center gap-1 font-medium text-slate-700">
+<span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+Normal Full Pyramid
+</span>
+</td>
+</tr>
+</tbody>
+<tfoot>
+<!-- Statistical Summary Row -->
+<tr class="bg-indigo-50/80 border-t-2 border-indigo-200 font-semibold text-slate-900">
+<td class="px-3 py-2.5 uppercase tracking-wide text-[11px]" colspan="3">
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-[16px]">analytics</span>
+<span>STATISTICAL MEAN (28-DAY):</span>
+</div>
+</td>
+<td class="px-2 py-2.5 text-right font-mono text-slate-700">8.242 kg</td>
+<td class="px-2 py-2.5 text-right font-mono text-slate-500">150×150 mm</td>
+<td class="px-3 py-2.5 text-right font-mono font-bold text-primary">906.0 kN</td>
+<td class="px-3 py-2.5 text-right font-mono font-black text-lg text-primary">40.27 N/mm²</td>
+<td class="px-3 py-2.5">
+<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">check_circle</span>
+VERIFIED
+</span>
+</td>
+</tr>
+<!-- Statistical Tolerances Strip -->
+<tr class="bg-slate-100 text-[11px] text-slate-700">
+<td class="px-3 py-2" colspan="8">
+<div class="flex flex-wrap items-center justify-between gap-3 font-mono">
+<span>Specified Characteristic f<sub>ck</sub>: <strong class="text-slate-900">30.00 N/mm²</strong></span>
+<span>Target Mean Strength (f<sub>ck</sub> + 1.65σ): <strong class="text-slate-900">38.25 N/mm²</strong></span>
+<span>Std. Deviation (σ): <strong class="text-slate-900">0.45 N/mm²</strong></span>
+<span>Max Individual Deviation: <strong class="text-emerald-700 font-bold">+1.0% / -1.2%</strong> (Permitted: ±15.0%)</span>
+</div>
+</td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+<!-- Conformity Declaration & BIS Acceptance Remarks Box -->
+<div class="mb-6 bg-slate-50 border border-slate-300 rounded-lg p-4">
+<div class="flex items-center justify-between mb-2">
+<div class="text-xs font-bold text-[#1a365d] uppercase tracking-wider flex items-center gap-1.5">
+<span class="material-symbols-outlined text-emerald-700 text-[18px]">gavel</span>
+PART C: BIS / NABL CONFORMITY DECLARATION &amp; ACCEPTANCE VERDICT
+</div>
+<span class="px-2.5 py-0.5 rounded text-[11px] font-extrabold bg-emerald-600 text-white tracking-wider">PASS / CONFORMANT</span>
+</div>
+<div class="p-3 bg-white rounded border border-slate-200 mb-3">
+<p class="text-xs text-slate-800 leading-relaxed font-medium">
+<strong>Formal Regulatory Statement:</strong> The observed 28-day average compressive strength of <strong class="text-primary font-mono font-bold">40.27 N/mm²</strong> satisfies the minimum criteria of <strong class="text-slate-900">IS 456:2000 Cl. 15.4</strong> (f<sub>ck</sub> + 0.825 × σ = 30.0 + 3.30 = <strong class="text-slate-900">33.30 N/mm²</strong>). Furthermore, individual cube strength values (<strong class="font-mono">39.78 N/mm²</strong> min) exceed f<sub>ck</sub> - 3.0 N/mm² (<strong class="font-mono">27.00 N/mm²</strong>), and internal specimen variation does not exceed ±15.0%. <strong>The concrete batch represented by this test sample conforms to the specified grade M30 in all respects.</strong>
+</p>
+</div>
+<!-- Test Conditions & Calibration Ledger -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-600">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-slate-400">speed</span>
+<span>Rate of Loading: <strong>14.0 N/mm²/min</strong> (Per IS 516)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-slate-400">check_box</span>
+<span>Bearing Platen Planeness: <strong>0.02 mm</strong> (&lt;0.05 mm)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[15px] text-slate-400">water_drop</span>
+<span>Curing Tank Water pH: <strong>7.4</strong> @ 27.0°C</span>
+</div>
+</div>
+</div>
+<!-- Official Stamp & Signatory Blocks -->
+<div class="border-t-2 border-slate-300 pt-6 mb-4">
+<div class="grid grid-cols-1 md:grid-cols-3 items-end gap-6">
+<!-- Signatory 1: Prepared & Tested By -->
+<div class="flex flex-col">
+<div class="h-14 flex items-end justify-start mb-1">
+<div class="font-serif italic text-primary text-xl tracking-tight select-none border-b border-slate-300 pb-1 w-48">
+Ankit Sharma
+</div>
+</div>
+<span class="text-xs font-bold text-slate-900 uppercase">Er. Ankit Sharma</span>
+<span class="text-[11px] text-slate-600 font-medium">Quality Engineer (NABL Lab Analyst)</span>
+<span class="text-[10px] text-slate-500 font-mono">Employee ID: CRX-QE-8192 | Level-II</span>
+<span class="text-[10px] text-slate-400 font-mono mt-0.5">Signed: 04-Sep-2026 15:42 IST</span>
+</div>
+<!-- Center: Official Holographic / LIMS Seal Badge -->
+<div class="flex flex-col items-center justify-center text-center">
+<div class="relative w-28 h-28 rounded-full border-2 border-dashed border-[#1a365d]/40 flex flex-col items-center justify-center p-2 bg-slate-50/50">
+<div class="w-24 h-24 rounded-full border border-[#1a365d] flex flex-col items-center justify-center bg-white shadow-inner">
+<span class="material-symbols-outlined text-[24px] text-[#1a365d]">verified</span>
+<span class="text-[8px] font-extrabold uppercase text-[#1a365d] leading-tight mt-0.5">CONCRETEX LABS</span>
+<span class="text-[7px] font-mono text-slate-600">NABL TC-8492</span>
+<span class="text-[7px] font-bold text-emerald-700 uppercase">QA CERTIFIED</span>
+<span class="text-[6px] font-mono text-slate-400 leading-none mt-0.5">METRO CENTRAL</span>
+</div>
+</div>
+<span class="text-[10px] font-semibold text-slate-600 mt-1 uppercase tracking-wider">Official NABL LIMS Seal</span>
+</div>
+<!-- Signatory 2: Verified & Approved By -->
+<div class="flex flex-col items-start md:items-end text-left md:text-right">
+<div class="h-14 flex items-end justify-start md:justify-end mb-1">
+<div class="font-serif italic text-emerald-800 text-xl tracking-tight select-none border-b border-slate-300 pb-1 w-48 text-left md:text-right">
+Dr. S. Ramanathan
+</div>
+</div>
+<span class="text-xs font-bold text-slate-900 uppercase">Dr. S. Ramanathan</span>
+<span class="text-[11px] text-slate-600 font-medium">Principal Materials Specialist &amp; Authorized Signatory</span>
+<span class="text-[10px] text-slate-500 font-mono">NABL Auth Code: NABL-SIGN-2024-91</span>
+<span class="text-[10px] text-emerald-700 font-mono font-medium mt-0.5 inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">lock</span>
+e-Verified: SHA-256 (b87f...90a1)
+</span>
+</div>
+</div>
+</div>
+<!-- Accreditation Disclaimers & Legal Notes -->
+<div class="border-t border-slate-200 pt-3 mt-4 text-[9.5px] text-slate-500 space-y-1 font-sans">
+<p class="leading-tight">
+<strong>Disclaimer &amp; Notes:</strong> 1. The test results reported relate exclusively to the specimen cubes sampled and tested at ConcreteX Central Testing Laboratories under controlled conditions specified in IS 516:2021. 2. This certificate shall not be reproduced except in full without written approval from ConcreteX QA Directorate. 3. Authenticity can be verified at https://lims.concretex.in/verify with Certificate ID <span class="font-mono font-semibold text-slate-700">NABL-CRX-2026-CUB-0982</span> or via QR code.
+</p>
+<div class="flex flex-wrap items-center justify-between text-[9px] text-slate-400 font-mono pt-1">
+<span>End of Test Report • Page 1 of 1 • Doc Version 2.1</span>
+<span>Certified ISO/IEC 17025 Quality Documentation System</span>
+</div>
+</div>
+</div>
+<!-- /END DOCUMENT PAPER CANVAS CONTAINER -->
+</div>
+</div>
+<!-- Toast Notification -->
+<div class="fixed bottom-6 right-6 hidden bg-inverse-surface text-inverse-on-surface px-space-md py-space-sm rounded-lg shadow-xl font-body-md text-body-md items-center gap-space-xs z-50 transition-opacity duration-300" id="toast">
+<span class="material-symbols-outlined text-[20px] text-tertiary-fixed">check_circle</span>
+<span id="toast-message">Action executed.</span>
+</div>
+</main>
+<footer class="no-print w-full bg-surface-container-lowest border-t border-surface-container py-space-md"><div class="max-w-[1720px] mx-auto px-card-gutter flex flex-col md:flex-row items-center justify-between gap-space-md"><div class="flex flex-wrap items-center gap-space-md"><div class="flex items-center gap-space-xs bg-surface-container px-space-sm py-space-2xs rounded-full"><span class="font-caption text-caption font-bold text-primary">NABL ACCREDITED</span><span class="font-code-xs text-code-xs text-on-surface-variant">ISO/IEC 17025:2017</span></div><div class="flex items-center gap-space-xs text-on-surface-variant font-caption text-caption"><span>MANDATED STANDARDS:</span><span class="font-code-xs text-code-xs bg-surface-container-high px-space-xs py-space-2xs rounded">IS 516</span><span class="font-code-xs text-code-xs bg-surface-container-high px-space-xs py-space-2xs rounded">IS 383</span><span class="font-code-xs text-code-xs bg-surface-container-high px-space-xs py-space-2xs rounded">IS 456</span><span class="font-code-xs text-code-xs bg-surface-container-high px-space-xs py-space-2xs rounded">IS 10262</span></div></div><div class="flex items-center gap-space-lg text-on-surface-variant font-caption text-caption"><div class="flex items-center gap-space-2xs"><span class="inline-block w-2 h-2 rounded-full bg-primary"></span><span>LIMS TELEMETRY ONLINE</span></div><span>© 2026 ConcreteX RMC QA/QC Systems</span></div></div></footer>
+<script>
+  function downloadPdfSim() {
+    showToast('Generating official A4 PDF certificate with security watermark...');
+    setTimeout(() => {
+      window.print();
+    }, 800);
+  }
+
+  function emailCertificate() {
+    showToast('Dispatching certificate copy to L&T Infra Engineering QC Incharge');
+  }
+
+  function digitalSignCert() {
+    showToast('Certificate digitally counter-signed with HSM token and locked against edits');
+  }
+
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toast-message');
+    toastMsg.textContent = msg;
+    toast.classList.remove('hidden');
+    toast.classList.add('flex');
+    setTimeout(() => {
+      toast.classList.add('hidden');
+      toast.classList.remove('flex');
+    }, 3200);
+  }
+</script>
+</body></html>
