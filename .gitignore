@@ -58,3 +58,6 @@ package-lock.json
 
 #python 
 ~/
+
+#ssl certificate
+perione.in.pem

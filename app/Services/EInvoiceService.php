@@ -145,7 +145,7 @@ class EInvoiceService
         $ewbValidTill = null;
 
         try {
-            $response = Http::withHeaders($headers)->timeout(30)->post($url, $payload);
+            $response = Http::withoutVerifying()->withHeaders($headers)->timeout(30)->post($url, $payload);
             $body = $response->json() ?? [];
 
             if ($response->successful() && (!isset($body['status_cd']) || ($body['status_cd'] !== 0 && $body['status_cd'] !== '0' && strtolower((string)$body['status_cd']) !== 'error'))) {

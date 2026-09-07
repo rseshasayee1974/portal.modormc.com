@@ -402,9 +402,9 @@ class EwayBillController extends Controller
             // 2. Build Gateway headers directly with plant credentials
             $headers = $this->buildGatewayHeaders($username, $password, $sellerGstin, $plant);
 
-            $response = Http::withHeaders($headers)->timeout(30)->post($url, $ewbPayload);
+            $response = Http::withoutVerifying()->withHeaders($headers)->timeout(30)->post($url, $ewbPayload);
             $body = $response->json() ?? [];
-            // dd($response, $body, $ewbPayload); // Uncomment if inspecting raw gateway response
+            // dd($headers,$response, $body, $ewbPayload); // Uncomment if inspecting raw gateway response
 
             if ($response->successful() && (!isset($body['status_cd']) || ($body['status_cd'] !== 0 && $body['status_cd'] !== '0' && strtolower((string)$body['status_cd']) !== 'error'))) {
                 $data = $body['data'] ?? $body['Data'] ?? $body ?? [];
@@ -560,8 +560,9 @@ class EwayBillController extends Controller
             } elseif ($genType === 'batch') {
                 $dispatch = Dispatch::with(['customer.addresses.state', 'customer.contacts.addresses.state', 'truck', 'transport', 'mixDesign.concreteGrade'])->where('batch_id', $ewb->origin_id)->first();
                 $patron = $dispatch?->customer;
-                if ($dispatch?->status?->invoice_id) {
-                    $invoice = Invoice::with(['items.mixDesign.concreteGrade'])->find($dispatch->status->invoice_id);
+                $dispatchStatus = $dispatch ? $dispatch->status()->first() : null;
+                if ($dispatchStatus && !empty($dispatchStatus->invoice_id)) {
+                    $invoice = Invoice::with(['items.mixDesign.concreteGrade'])->find($dispatchStatus->invoice_id);
                 }
             }
 
@@ -1307,6 +1308,7 @@ class EwayBillController extends Controller
         $plant = $plant ?? Plant::plantdetails();
         $isProd = $this->isProduction($plant);
         $resolvedGstin = session('gstin') ?: ($plant?->gstin ?: ($plant?->entity?->gstin ?: ''));
+        
         return [
             'baseUrl'      => $this->getBaseUrl($plant),
             'clientId'     => $isProd ? $this->prodClientId : $this->sandboxClientId,
@@ -1361,7 +1363,7 @@ class EwayBillController extends Controller
         $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/authenticate?email=' . urlencode($c['email']) . '&username=' . urlencode($c['username']) . '&password=' . urlencode($c['password']);
         $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
 
-        $response = Http::withHeaders($headers)->timeout(20)->get($url);
+        $response = Http::withoutVerifying()->withHeaders($headers)->timeout(20)->get($url);
        
         return $response->json() ?? [];
     }
@@ -1375,7 +1377,7 @@ class EwayBillController extends Controller
         $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/ewayapi/getewaybillsfortransporter?email=' . urlencode($c['email']) . '&date=' . urlencode($date);
         $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
 
-        $response = Http::withHeaders($headers)->timeout(30)->get($url);
+        $response = Http::withoutVerifying()->withHeaders($headers)->timeout(30)->get($url);
         return $response->json() ?? [];
     }
 
@@ -1388,7 +1390,7 @@ class EwayBillController extends Controller
         $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/ewayapi/getewaybill?email=' . urlencode($c['email']) . '&ewbNo=' . urlencode($ewbNo);
         $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
 
-        $response = Http::withHeaders($headers)->timeout(30)->get($url);
+        $response = Http::withoutVerifying()->withHeaders($headers)->timeout(30)->get($url);
         return $response->json() ?? [];
     }
 
