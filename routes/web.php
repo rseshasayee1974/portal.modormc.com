@@ -283,7 +283,7 @@ Route::middleware([
         Route::prefix('configuration')->group(function () {
             Route::resource('units', \App\Http\Controllers\QC\QCUnitController::class)->names('quality.config.units');
             Route::resource('test-types', \App\Http\Controllers\QC\QCTestTypeController::class)->names('quality.config.test-types');
-            Route::post('test-types/{testType}/toggle', [\App\Http\Controllers\QC\QCTestTypeController::class, 'toggleActive'])->name('quality.config.test-types.toggle');
+            Route::post('test-types/{test_type}/toggle', [\App\Http\Controllers\QC\QCTestTypeController::class, 'toggleActive'])->name('quality.config.test-types.toggle');
 
             Route::resource('test-parameters', \App\Http\Controllers\QC\QCTestParameterController::class)->names('quality.config.test-parameters');
 
