@@ -394,8 +394,8 @@ class PlantController extends Controller
             Storage::disk('public')->delete($plant->upi_qr_path);
         }
 
-        $plant->forceDelete();
+        $plant->delete();
 
-        return redirect()->back()->with('success', 'Plant permanently deleted.');
+        return redirect()->back()->with('success', 'Plant deleted successfully.');
     }
 }

@@ -43,11 +43,11 @@
 </style>
 
 <script>
-    window.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-            window.print();
-        }, 300);
-    });
+    // window.addEventListener('DOMContentLoaded', () => {
+    //     setTimeout(() => {
+    //         window.print();
+    //     }, 300);
+    // });
 </script>
 @endif
 

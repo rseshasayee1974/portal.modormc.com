@@ -201,14 +201,14 @@ class EntityController extends Controller
             Storage::disk('public')->delete($entity->logo_file);
         }
 
-        // Cascade delete relations permanently
-        $entity->addresses()->forceDelete();
-        $entity->contacts()->forceDelete();
-        $entity->bankAccounts()->forceDelete();
-        $entity->taxes()->forceDelete();
+        // Cascade soft delete relations
+        $entity->addresses()->delete();
+        $entity->contacts()->delete();
+        $entity->bankAccounts()->delete();
+        $entity->taxes()->delete();
 
-        $entity->forceDelete();
+        $entity->delete();
 
-        return redirect()->back()->with('success', 'Entity permanently deleted.');
+        return redirect()->back()->with('success', 'Entity deleted successfully.');
     }
 }

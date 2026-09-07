@@ -193,10 +193,10 @@
             <td class="td-lbl">Valid Until:</td>
             <td class="td-val">{{ $data['valid_until'] ?? '' }}</td>
         </tr>
-        <tr>
+        {{-- <tr>
             <td class="td-lbl">Portal:</td>
             <td class="td-val">{{ $data['portal'] ?? '1' }}</td>
-        </tr>
+        </tr> --}}
     </table>
 
     <!-- Part - A -->
@@ -260,7 +260,7 @@
                 <th style="width: 18%;">Entered By</th>
                 <th style="width: 11%;">CEWB No.<br>(If any)</th>
                 <th style="width: 11%;">Multi Veh.Info<br>(If any)</th>
-                <th style="width: 6%;">Portal</th>
+                {{-- <th style="width: 6%;">Portal</th> --}}
             </tr>
         </thead>
         <tbody>
@@ -272,7 +272,7 @@
                 <td>{{ $data['part_b']['entered_by'] ?? '-' }}</td>
                 <td>{{ $data['part_b']['cewb_no'] ?? '-' }}</td>
                 <td>{{ $data['part_b']['multi_veh_info'] ?? '-' }}</td>
-                <td>{{ $data['part_b']['portal'] ?? '1' }}</td>
+                {{-- <td>{{ $data['part_b']['portal'] ?? '1' }}</td> --}}
             </tr>
         </tbody>
     </table>

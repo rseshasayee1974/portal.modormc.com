@@ -228,7 +228,7 @@ class User extends Authenticatable implements MustVerifyEmail
 			$this->update($data);
 
 			if (isset($data['entity_users']) && is_array($data['entity_users'])) {
-				$this->entityUsers()->forceDelete(); // Fully replace existing roles
+				$this->entityUsers()->delete(); // Fully replace existing roles
 
 				foreach ($data['entity_users'] as $eu) {
 					$this->entityUsers()->create([

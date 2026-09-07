@@ -702,9 +702,9 @@ const handleGenerateEwayBill = () => {
         return;
     }
 
-    const defaultVehNo = props.batch?.truck_registration 
-        || form.truck_id 
-        || '';
+    const defaultVehNo = (props.batch?.truck_registration).trim()
+        .toUpperCase()
+        .replace(/[\s-]+/g, '');
     const defaultDistance = form.status?.transport_km || 20;
 
     Swal.fire({
@@ -746,6 +746,7 @@ const handleGenerateEwayBill = () => {
                 veh_no: result.value.vehNo,
                 distance: result.value.distance,
                 invoice_id: invoiceId,
+                origin : 'batch'
             }, {
                 preserveScroll: true,
                 onSuccess: () => {

@@ -91,6 +91,16 @@ class Plant extends Model
         ];
     }
 
+    public function getEwaybillUsernameAttribute(): ?string
+    {
+        return $this->attributes['ewaybill_client_id'] ?? null;
+    }
+
+    public function getEwaybillPasswordAttribute(): ?string
+    {
+        return $this->attributes['ewaybill_secret'] ?? null;
+    }
+
     protected static function booted()
     {
         static::saved(function ($plant) {
@@ -100,5 +110,11 @@ class Plant extends Model
         static::deleted(function ($plant) {
             \Illuminate\Support\Facades\Cache::forget("plants");
         });
+    }
+    
+    public static function plantdetails()
+    {
+        $plant = Plant::where('is_active', 1)->whereNull('deleted_at')->where('id', session('active_plant_id'))->first();
+        return $plant;
     }
 }

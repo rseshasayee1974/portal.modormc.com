@@ -115,9 +115,11 @@ class EntityContextController extends Controller
 
         // 1. Auto-redirect if user has defaults set (only if session is currently empty)
         if (!session('active_entity_id') && $user->default_entity_id && $user->default_plant_id) {
+            $defaultPlant = Plant::find($user->default_plant_id);
             session([
                 'active_entity_id' => $user->default_entity_id,
-                'active_plant_id'  => $user->default_plant_id
+                'active_plant_id'  => $user->default_plant_id,
+                'gstin'            => $defaultPlant?->gstin,
             ]);
             return redirect()->route('dashboard');
         }
@@ -126,9 +128,11 @@ class EntityContextController extends Controller
         if ($plants->count() === 1 && $plants->first()['is_active'] === 1) {
             $p = $plants->first();
             if (session('active_entity_id') != $p['entity_id'] || session('active_plant_id') != $p['id']) {
+                $pModel = Plant::find($p['id']);
                 session([
                     'active_entity_id' => $p['entity_id'],
-                    'active_plant_id'  => $p['id']
+                    'active_plant_id'  => $p['id'],
+                    'gstin'            => $pModel?->gstin,
                 ]);
                 return redirect()->route('dashboard');
             }
@@ -206,6 +210,7 @@ class EntityContextController extends Controller
             'active_entity_id' => $entityId,
             'active_plant_id'  => $plantId,
             'mixer_capacity'   => $mixerCapacity,
+            'gstin'            => $plant?->gstin,
         ]);
 
         // Always save selected entity and plant as the user's default / last login context
@@ -218,6 +223,7 @@ class EntityContextController extends Controller
             'status'         => 'plant_set',
             'plant_id'       => $plantId,
             'mixer_capacity' => $mixerCapacity,
+            'gstin'          => $plant?->gstin,
         ]);
     }
 

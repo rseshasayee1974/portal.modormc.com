@@ -315,14 +315,14 @@ class UserController extends Controller
             \Illuminate\Support\Facades\Storage::disk('public')->delete($targetUser->profile_photo_path);
         }
 
-        $targetUser->entityUsers()->forceDelete(); // Clean relationships permanently
-        $targetUser->forceDelete();
+        $targetUser->entityUsers()->delete(); // Soft delete relationships
+        $targetUser->delete(); // Soft delete user
 
         if (request()->wantsJson() || request()->is('api/*')) {
-            return response()->json(['success' => true, 'message' => 'User permanently deleted.']);
+            return response()->json(['success' => true, 'message' => 'User deleted successfully.']);
         }
 
-        return redirect()->back()->with('success', 'User permanently deleted.');
+        return redirect()->back()->with('success', 'User deleted successfully.');
     }
 
     protected function ensureUserAccess(User $targetUser, ?User $currentUser): void

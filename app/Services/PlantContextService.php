@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Plant;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 
@@ -23,6 +24,7 @@ use Illuminate\Support\Facades\Session;
  * Usage:
  *   app(PlantContextService::class)->plantId()     — returns int|null
  *   app(PlantContextService::class)->entityId()    — returns int|null
+ *   app(PlantContextService::class)->gstin()       — returns string|null
  *   app(PlantContextService::class)->requirePlantId() — returns int or aborts 403
  *   PlantContextService::current()                 — static alias (facade-style)
  */
@@ -44,7 +46,34 @@ class PlantContextService
         if ($user && $user->default_plant_id) {
             // Re-hydrate the session so downstream code using raw session() still works
             Session::put('active_plant_id', $user->default_plant_id);
+            $gstin = Plant::where('id', $user->default_plant_id)->value('gstin');
+            if ($gstin) {
+                Session::put('gstin', $gstin);
+            }
             return (int) $user->default_plant_id;
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve the active plant GSTIN.
+     * Session > plant model > null.
+     */
+    public function gstin(): ?string
+    {
+        $fromSession = Session::get('gstin') ?: Session::get('gst');
+        if ($fromSession) {
+            return $fromSession;
+        }
+
+        $plantId = $this->plantId();
+        if ($plantId) {
+            $gstin = Plant::where('id', $plantId)->value('gstin');
+            if ($gstin) {
+                Session::put('gstin', $gstin);
+                return $gstin;
+            }
         }
 
         return null;

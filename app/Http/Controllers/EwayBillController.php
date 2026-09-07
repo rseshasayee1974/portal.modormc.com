@@ -6,7 +6,7 @@ use App\Models\Batch;
 use App\Models\Dispatch;
 use App\Models\Invoice;
 use App\Models\EwaybillDetail;
-use App\Services\EwayBillService;
+use App\Models\Plant;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,11 +21,61 @@ class EwayBillController extends Controller
     use AuthorizesModule;
 
     protected string $module = 'ewaybill';
-    protected EwayBillService $ewayBillService;
+    protected $ip_address;
+    protected $gst_portal_client_id;
+    protected $gst_portal_client_secret;
+    protected $gst_portal_gstin;
+    protected $gst_portal_email;
+    protected $gst_portal_username;
+    protected $gst_portal_password;
+    protected $gst_supervisor_id;
+    /**
+     * Sandbox / Staging default credentials and endpoints.
+     */
+    public string $sandboxBaseUrl      = 'https://staging.perione.in';
+    public string $sandboxClientId     = 'PEWAYS472417d4a8bc74b10d31d4219c6b343c';
+    public string $sandboxClientSecret = 'PEWAYS5376280bd5bc93b6c6ddf334a88d7a45';
+    public string $sandboxEmail        = 'sayee@onemodo.com';
+    public string $sandboxUsername     = 'Bluefox';
+    public string $sandboxPassword     = 'Bluefox@123';
+    public string $sandboxGstin        = '29AARFB4347G000';
 
-    public function __construct(EwayBillService $ewayBillService)
+    /**
+     * Production default credentials and endpoints.
+     */
+    public string $prodBaseUrl         = 'https://api.perione.in';
+    public string $prodClientId        = 'PEWAYPc38f83975b650189fb86e3e5659d30fe';
+    public string $prodClientSecret    = 'PEWAYP52608f1eabd22d36e310b3c341177f49';
+    public string $prodEmail           = 'sayee@onemodo.com';
+    
+
+    /**
+     * Default network IP address.
+     */
+    public string $defaultIp           = '192.168.1.98';
+
+    public function __construct()
     {
-        $this->ewayBillService = $ewayBillService;
+    }
+    protected function setEWBCredential($plant = null)
+    {
+        $plant = $plant ?? \App\Models\Plant::plantdetails();
+        $isProd = $this->isProduction($plant);
+        if ($isProd) {
+            $this->gst_portal_client_id = 'PEWAYPc38f83975b650189fb86e3e5659d30fe';
+            $this->gst_portal_client_secret = 'PEWAYP52608f1eabd22d36e310b3c341177f49';
+            $this->gst_portal_gstin = session('gstin');
+            $this->gst_portal_email = 'sayee@onemodo.com';
+            $this->gst_portal_username = $plant?->ewaybill_client_id;
+            $this->gst_portal_password = $plant?->ewaybill_secret;
+        } else {
+            $this->gst_portal_client_id = 'PEWAYS472417d4a8bc74b10d31d4219c6b343c';
+            $this->gst_portal_client_secret = 'PEWAYS5376280bd5bc93b6c6ddf334a88d7a45';
+            $this->gst_portal_gstin = '29AARFB4347G000';
+            $this->gst_portal_email = 'sayee@onemodo.com';
+            $this->gst_portal_username = 'Bluefox';
+            $this->gst_portal_password = 'Bluefox@123';
+        }
     }
 
     /**
@@ -177,13 +227,11 @@ class EwayBillController extends Controller
         $vehType = (string)($params['veh_type'] ?? 'R'); // R = Regular
 
         // 3. Seller, Buyer & Valuation Data
-        $isProd = $this->ewayBillService->isProduction($plant);
-        $username = $plant?->ewaybill_client_id ?: $this->ewayBillService->sandboxUsername;
-        $password = $plant?->ewaybill_secret ?: $this->ewayBillService->sandboxPassword;
-        $gstin = $isProd
-            ? ($plant?->gstin ?: '')
-            : ($plant?->gstin ?: $this->ewayBillService->sandboxGstin);
-        $sellerGstin = trim((string)($gstin ?: ($plant?->gstin ?: '')));
+        $this->setEWBCredential($plant);
+        $isProd = $this->isProduction($plant);
+        $username = $this->gst_portal_username;
+        $password = $this->gst_portal_password;
+        $sellerGstin = $this->gst_portal_gstin;
 
         $partner = $invoice->partner;
         $partnerAddress = $partner?->addresses()?->first() ?: $partner?->contacts()?->first()?->addresses()?->first();
@@ -330,7 +378,7 @@ class EwayBillController extends Controller
             'transMode'        => $transMode,
             'transactionType'  => '4',
             'transDistance'    => (string)($distance > 0 ? $distance : 20),
-            'transporterId'    => $buyerGstin,
+            'transporterId'    => $sellerGstin,
             'transporterName'  => $transName,
             'transDocNo'       => $transDocNo,
             'transDocDate'     => $transDocDt,
@@ -344,15 +392,15 @@ class EwayBillController extends Controller
         $ewbDt = null;
         $ewbValidTill = null;
         
-        $isProd = $this->ewayBillService->isProduction($plant);
-        $url = $this->ewayBillService->getGenEwayBillUrl($plant);
+        $isProd = $this->isProduction($plant);
+        $url = $this->getGenEwayBillUrl($plant);
 // dd($ewbPayload);
         try {
             // 1. First authenticate with PeriOne Portal
-            $this->ewayBillService->authenticatePortel($plant);
+            $this->authenticatePortel($plant);
 
             // 2. Build Gateway headers directly with plant credentials
-            $headers = $this->ewayBillService->buildGatewayHeaders($username, $password, $sellerGstin, $plant);
+            $headers = $this->buildGatewayHeaders($username, $password, $sellerGstin, $plant);
 
             $response = Http::withHeaders($headers)->timeout(30)->post($url, $ewbPayload);
             $body = $response->json() ?? [];
@@ -363,36 +411,33 @@ class EwayBillController extends Controller
                 $ewbNo = $data['ewayBillNo'] ?? $data['EwbNo'] ?? $data['ewb_no'] ?? null;
                 $ewbDt = !empty($data['ewayBillDate'] ?? $data['EwbDt']) ? Carbon::parse($data['ewayBillDate'] ?? $data['EwbDt']) : Carbon::now();
                 $ewbValidTill = !empty($data['validUpto'] ?? $data['EwbValidTill']) ? Carbon::parse($data['validUpto'] ?? $data['EwbValidTill']) : null;
-            } elseif ($isProd) {
-                $errorMsg = $this->ewayBillService->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
+            } else {
+                $errorMsg = $this->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
                 Log::error('PeriOne Standalone EWB Failed: ' . $errorMsg, ['response' => $body]);
                 throw new \Exception('E-Way Bill Generation Failed: ' . $errorMsg);
             }
         } catch (\Throwable $e) {
             Log::warning('Direct E-Way Bill gateway exception: ' . $e->getMessage());
-            if ($isProd) {
-                if ($request->wantsJson() && !$request->header('X-Inertia')) {
-                    return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
-                }
-                return redirect()->back()->withErrors(['error' => $e->getMessage()]);
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
             }
+            return redirect()->back()->withErrors(['error' => $e->getMessage()]);
         }
 
-        // In Non-Production / Sandbox, simulate valid E-Way Bill
-        if (!$ewbNo) {
-            $ewbNo = '33' . date('ymd') . str_pad((string)rand(100000, 999999), 6, '0', STR_PAD_LEFT);
-            $ewbDt = Carbon::now();
-            $daysValid = max(1, (int)ceil($distance / 200));
-            $ewbValidTill = Carbon::now()->addDays($daysValid);
+        // Ensure E-Way Bill was successfully obtained
+        if (empty($ewbNo) || !$ewbDt) {
+            $msg = 'Failed to generate E-Way Bill: No E-Way Bill number received from gateway.';
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+                return response()->json(['success' => false, 'message' => $msg], 422);
+            }
+            return redirect()->back()->withErrors(['error' => $msg]);
         }
 
         // 6. Persist E-Way Bill into mm_ewaybill_details table
-        EwaybillDetail::updateOrCreate(
+        EwaybillDetail::create(
             [
                 'generation_type' => $generationType,
                 'origin_id'       => $invoice->id,
-            ],
-            [
                 'plant_id'        => $plant?->id ?? 1,
                 'ewaybill_no'     => (string)$ewbNo,
                 'ewaybill_date'   => $ewbDt->toDateTimeString(),
@@ -402,7 +447,7 @@ class EwayBillController extends Controller
                 'created_at'      => Carbon::now(),
                 'created_by'      => $userId,
                 'modified_at'     => Carbon::now(),
-                'modified_by'     => $userId,
+                'modified_by'     => $userId
             ]
         );
 
@@ -487,61 +532,91 @@ class EwayBillController extends Controller
         try { $realId = decrypt($id); } catch (\Throwable $e) {}
 
         $ewb = EwaybillDetail::where('id', $realId)
-            ->orWhere('ewaybill_no', (string)$id)
+            ->orWhere('ewaybill_no', (string)$realId)
             ->first();
 
-        if (!$ewb) {
+        $ewbNo = $ewb?->ewaybill_no ?: (is_numeric($realId) && strlen((string)$realId) >= 10 ? (string)$realId : null);
+
+        if (!$ewb && empty($ewbNo)) {
             abort(404, 'E-Way Bill record not found.');
         }
 
-        $plant = $ewb->plant ?? \App\Models\Plant::find($ewb->plant_id) ?? \App\Models\Plant::find(session('active_plant_id'));
+        $plant = $ewb?->plant
+            ?? \App\Models\Plant::find(session('active_plant_id'));
 
         $invoice = null;
         $dispatch = null;
         $patron = null;
 
-        $genType = strtolower((string)$ewb->generation_type);
+        if ($ewb) {
+            $genType = strtolower((string)$ewb->generation_type);
 
-        if ($genType === 'invoice') {
-            $invoice = Invoice::with(['partner.addresses.state', 'partner.contacts.addresses.state', 'items.mixDesign.concreteGrade'])->find($ewb->origin_id);
-            $patron = $invoice?->partner;
-            $dispatch = Dispatch::with(['truck', 'transport'])->whereHas('status', function($q) use ($invoice) {
-                $q->where('invoice_id', $invoice?->id);
-            })->first();
-        } elseif ($genType === 'batch') {
-            $dispatch = Dispatch::with(['customer.addresses.state', 'customer.contacts.addresses.state', 'truck', 'transport', 'mixDesign.concreteGrade'])->where('batch_id', $ewb->origin_id)->first();
-            $patron = $dispatch?->customer;
-            if ($dispatch?->status?->invoice_id) {
-                $invoice = Invoice::with(['items.mixDesign.concreteGrade'])->find($dispatch->status->invoice_id);
-            }
-        }
-
-        // Cross-check origin_id if not resolved
-        if (!$invoice && $ewb->origin_id) {
-            $invoice = Invoice::with(['partner.addresses.state', 'partner.contacts.addresses.state', 'items.mixDesign.concreteGrade'])->find($ewb->origin_id);
-            if ($invoice) {
-                $patron = $patron ?? $invoice->partner;
-                if (!$dispatch) {
-                    $dispatch = Dispatch::with(['truck', 'transport'])->whereHas('status', function($q) use ($invoice) {
-                        $q->where('invoice_id', $invoice->id);
-                    })->first();
+            if ($genType === 'invoice') {
+                $invoice = Invoice::with(['partner.addresses.state', 'partner.contacts.addresses.state', 'items.mixDesign.concreteGrade'])->find($ewb->origin_id);
+                $patron = $invoice?->partner;
+                $dispatch = Dispatch::with(['truck', 'transport'])->whereHas('status', function($q) use ($invoice) {
+                    $q->where('invoice_id', $invoice?->id);
+                })->first();
+            } elseif ($genType === 'batch') {
+                $dispatch = Dispatch::with(['customer.addresses.state', 'customer.contacts.addresses.state', 'truck', 'transport', 'mixDesign.concreteGrade'])->where('batch_id', $ewb->origin_id)->first();
+                $patron = $dispatch?->customer;
+                if ($dispatch?->status?->invoice_id) {
+                    $invoice = Invoice::with(['items.mixDesign.concreteGrade'])->find($dispatch->status->invoice_id);
                 }
             }
-        }
 
-        if (!$dispatch && $ewb->origin_id) {
-            $dispatch = Dispatch::with(['customer.addresses.state', 'customer.contacts.addresses.state', 'truck', 'transport', 'mixDesign.concreteGrade'])->where('batch_id', $ewb->origin_id)->first();
-            if ($dispatch) {
-                $patron = $patron ?? $dispatch->customer;
+            // Cross-check origin_id if not resolved
+            if (!$invoice && $ewb->origin_id) {
+                $invoice = Invoice::with(['partner.addresses.state', 'partner.contacts.addresses.state', 'items.mixDesign.concreteGrade'])->find($ewb->origin_id);
+                if ($invoice) {
+                    $patron = $patron ?? $invoice->partner;
+                    if (!$dispatch) {
+                        $dispatch = Dispatch::with(['truck', 'transport'])->whereHas('status', function($q) use ($invoice) {
+                            $q->where('invoice_id', $invoice->id);
+                        })->first();
+                    }
+                }
+            }
+
+            if (!$dispatch && $ewb->origin_id) {
+                $dispatch = Dispatch::with(['customer.addresses.state', 'customer.contacts.addresses.state', 'truck', 'transport', 'mixDesign.concreteGrade'])->where('batch_id', $ewb->origin_id)->first();
+                if ($dispatch) {
+                    $patron = $patron ?? $dispatch->customer;
+                }
+            }
+
+            if (!$patron && $invoice) {
+                $patron = $invoice->partner;
             }
         }
 
-        if (!$patron && $invoice) {
-            $patron = $invoice->partner;
+        // 1. Fetch official e-Way Bill data live from PeriOne gateway
+        $apiData = null;
+        if (!empty($ewbNo)) {
+            try {
+                $apiRes = $this->fetchEWBDetails($ewbNo, $plant);
+                if (!empty($apiRes)) {
+                    if (isset($apiRes['status_cd']) && ($apiRes['status_cd'] == 1 || $apiRes['status_cd'] === '1' || $apiRes['status_cd'] === 'Success')) {
+                        $apiData = $apiRes['data'] ?? $apiRes['Data'] ?? $apiRes;
+                    } elseif (!empty($apiRes['data']) || !empty($apiRes['Data'])) {
+                        $apiData = $apiRes['data'] ?? $apiRes['Data'];
+                    } elseif (isset($apiRes['ewbNo']) || isset($apiRes['ewayBillNo'])) {
+                        $apiData = $apiRes;
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning("PeriOne getewaybill fetch exception for EWB #{$ewbNo}: " . $e->getMessage());
+            }
         }
 
-        // Format data strictly matching the uploaded sample photo
-        $data = $this->formatEwayBillDataFromModel($ewb, $plant, $patron, $invoice, $dispatch);
+        // 2. Format print view: prefer live gateway data, fallback to local model
+        if (!empty($apiData) && is_array($apiData)) {
+            $data = $this->formatEwayBillDataFromApi($apiData, (string)$ewbNo, $ewb, $plant, $patron, $invoice, $dispatch);
+        } elseif ($ewb) {
+            $data = $this->formatEwayBillDataFromModel($ewb, $plant, $patron, $invoice, $dispatch);
+        } else {
+            abort(404, 'E-Way Bill details could not be retrieved from gateway.');
+        }
 
         return $this->renderPrintView($data, $request->query('action', 'view'));
     }
@@ -776,24 +851,142 @@ class EwayBillController extends Controller
     }
 
     /**
-     * Format data strictly mapping to the sample e-Way Bill image from API (if used).
+     * Format data strictly mapping to the sample e-Way Bill image from PeriOne API getewaybill.
      */
-    protected function formatEwayBillDataFromApi(array $api, string $fallbackEwbNo, ?EwaybillDetail $ewb = null): array
-    {
-        if ($ewb) {
-            $plant = $ewb->plant ?? \App\Models\Plant::find($ewb->plant_id);
-            $invoice = Invoice::find($ewb->origin_id);
-            $patron = $invoice?->partner;
-            return $this->formatEwayBillDataFromModel($ewb, $plant, $patron, $invoice);
+    protected function formatEwayBillDataFromApi(
+        array $apiData,
+        string $ewbNo,
+        ?EwaybillDetail $ewb = null,
+        ?\App\Models\Plant $plant = null,
+        ?\App\Models\Patron $patron = null,
+        ?\App\Models\Invoice $invoice = null,
+        ?\App\Models\Dispatch $dispatch = null
+    ): array {
+        $rawEwbNo = (string)($apiData['ewbNo'] ?? $apiData['ewayBillNo'] ?? $ewbNo);
+        $ewbNoFormatted = trim(chunk_split($rawEwbNo, 4, ' '));
+
+        $rawDate = $apiData['ewayBillDate'] ?? ($ewb?->ewaybill_date ?? now());
+        try {
+            $ewbDate = Carbon::parse($rawDate)->format('d/m/Y h:i A');
+        } catch (\Throwable $e) {
+            $ewbDate = (string)$rawDate;
         }
 
-        return $this->formatEwayBillDataFromModel(
-            new EwaybillDetail(['ewaybill_no' => $fallbackEwbNo]),
-            null,
-            null,
-            null,
-            null
-        );
+        $distance = $apiData['transDistance'] ?? ($apiData['actualDist'] ?? 33);
+        $validFrom = $ewbDate . ' [' . $distance . 'Kms]';
+
+        $rawValidUpto = $apiData['validUpto'] ?? ($ewb?->valid_upto ?? now()->addDay());
+        // try {
+        //     $validUntil = Carbon::parse($rawValidUpto)->format('d/m/Y');
+        // } catch (\Throwable $e) {
+            $validUntil = (string)$rawValidUpto;
+        // }
+
+        // Supplier (FROM)
+        $fromGstin = (string)($apiData['fromGstin'] ?? ($plant?->gstin ?? ($plant?->entity?->gstin ?? '')));
+        $fromTrdName = (string)($apiData['fromTrdName'] ?? ($plant?->name ?? ($plant?->entity?->legal_name ?? '')));
+        $generatedBy = trim($this->formatGstinWithSpaces($fromGstin) . ($fromTrdName ? ' - ' . $fromTrdName : ''));
+        $gstinSupplier = trim($fromGstin . ($fromTrdName ? ',' . $fromTrdName : ''));
+
+        $fromPlace = (string)($apiData['fromPlace'] ?? ($plant?->addresses()?->first()?->city ?? ''));
+        $fromStateCode = $apiData['actualFromStateCode'] ?? ($apiData['fromStateCode'] ?? ($plant?->addresses()?->first()?->state_code ?? null));
+        $fromStateName = $this->getStateNameByCode($fromStateCode);
+        $fromPincode = (string)($apiData['fromPincode'] ?? ($plant?->addresses()?->first()?->zipcode ?? ''));
+        $placeOfDispatch = trim($fromPlace . ($fromStateName ? ',' . $fromStateName : '') . ($fromPincode ? '-' . $fromPincode : ''), ',- ');
+
+        // Recipient (TO)
+        $toGstin = (string)($apiData['toGstin'] ?? ($patron?->gstin ?? ''));
+        $toTrdName = (string)($apiData['toTrdName'] ?? ($patron?->legal_name ?: ($patron?->name ?? '')));
+        $gstinRecipient = trim($this->formatGstinWithSpaces($toGstin) . ($toTrdName ? ' ,' . $toTrdName : ''));
+
+        $toPlace = (string)($apiData['toPlace'] ?? ($patron?->addresses()?->first()?->city ?? ''));
+        $toStateCode = $apiData['actualToStateCode'] ?? ($apiData['toStateCode'] ?? ($patron?->addresses()?->first()?->state_code ?? null));
+        $toStateName = $this->getStateNameByCode($toStateCode);
+        $toPincode = (string)($apiData['toPincode'] ?? ($patron?->addresses()?->first()?->zipcode ?? ''));
+        $placeOfDelivery = trim($toPlace . ($toStateName ? ',' . $toStateName : '') . ($toPincode ? '-' . $toPincode : ''), ',- ');
+
+        // Document Details
+        $docNo = (string)($apiData['docNo'] ?? ($invoice?->full_number ?: ($invoice?->invoice_number ?: ($dispatch ? ('DP-' . $dispatch->dispatch_no) : ''))));
+        $rawDocDate = $apiData['docDate'] ?? ($invoice?->invoice_date ?: ($ewb?->ewaybill_date ?: now()));
+        try {
+            $docDate = Carbon::parse($rawDocDate)->format('d/m/Y');
+        } catch (\Throwable $e) {
+            $docDate = (string)$rawDocDate;
+        }
+
+        $transactionType = 'Regular';
+        $valOfGoods = (string)($apiData['totInvValue'] ?? ($apiData['totalValue'] ?? ($invoice?->total_amount ?? ($dispatch?->load_total_amount ?? ''))));
+        if (is_numeric($valOfGoods) && $valOfGoods !== '') {
+            $valOfGoods = (string)round((float)$valOfGoods);
+        }
+
+        // HSN & Product
+        $itemList = $apiData['itemList'] ?? [];
+        $firstApiItem = !empty($itemList) ? reset($itemList) : null;
+        $hsn = (string)($firstApiItem['hsnCode'] ?? ($firstApiItem['hsn_code'] ?? '38245010'));
+        $prodName = (string)($firstApiItem['productName'] ?? ($firstApiItem['item_name'] ?? 'CONCRETE READY MIX'));
+        $hsnFull = trim($hsn . ($prodName ? ' - ' . $prodName : ''));
+
+        $reasonForTransport = 'Outward - Supply';
+        $transporter = (string)($apiData['transporterName'] .' ('.$apiData['transporterId'] .')' ?? ($dispatch?->transport?->legal_name ?: ($dispatch?->transport?->name ?: '')));
+
+        // Part B - Vehicle Details
+        $vehList = $apiData['VehiclListDetails'] ?? ($apiData['vehiclListDetails'] ?? []);
+        $firstVeh = !empty($vehList) ? reset($vehList) : null;
+
+        $modeNum = $firstVeh['transMode'] ?? ($apiData['transMode'] ?? '1');
+        $modeMap = ['1' => 'Road', '2' => 'Rail', '3' => 'Air', '4' => 'Ship'];
+        $mode = $modeMap[(string)$modeNum] ?? 'Road';
+
+        $vehicleNo = (string)($firstVeh['vehicleNo'] ?? ($apiData['vehNo'] ?? ($dispatch?->truck?->registration ?: '')));
+        $fromVeh = (string)($firstVeh['fromPlace'] ?? ($fromPlace ?: ''));
+        $enteredDateRaw = $firstVeh['enteredDate'] ?? $rawDate;
+        try {
+            $enteredDate = Carbon::parse($enteredDateRaw)->format('d/m/Y h:i A');
+        } catch (\Throwable $e) {
+            $enteredDate = (string)$enteredDateRaw;
+        }
+        $enteredBy = (string)($firstVeh['userGSTINTransin'] ?? ($fromGstin ?: ''));
+        $cewbNo = (string)($firstVeh['tripshtNo'] ?? '-');
+        if (empty($cewbNo) || $cewbNo === '0') $cewbNo = '-';
+        $multiVehInfo = '-';
+        $portal = '1';
+
+        $barcodeSvg = self::generateBarcodeSvg($rawEwbNo);
+        $qrText = "EWB:{$rawEwbNo}|From:{$fromGstin}|To:{$toGstin}|Doc:{$docNo}|Date:{$docDate}";
+
+        return [
+            'ewb_no'                  => $rawEwbNo,
+            'ewb_no_formatted'        => $ewbNoFormatted,
+            'ewb_date'                => $ewbDate,
+            'generated_by'            => $generatedBy,
+            'valid_from'              => $validFrom,
+            'valid_until'             => $validUntil,
+            'portal'                  => $portal,
+            'gstin_supplier'          => $gstinSupplier,
+            'place_of_dispatch'       => $placeOfDispatch,
+            'gstin_recipient'         => $gstinRecipient,
+            'place_of_delivery'       => $placeOfDelivery,
+            'doc_no'                  => $docNo,
+            'doc_date'                => $docDate,
+            'transaction_type'        => $transactionType,
+            'value_of_goods'          => $valOfGoods,
+            'hsn_code'                => $hsnFull,
+            'reason_for_transport'    => $reasonForTransport,
+            'transporter'             => $transporter,
+            'part_b' => [
+                'mode'                => $mode,
+                'vehicle_no'          => $vehicleNo,
+                'from'                => $fromVeh,
+                'entered_date'        => $enteredDate,
+                'entered_by'          => $enteredBy,
+                'cewb_no'             => $cewbNo,
+                'multi_veh_info'      => $multiVehInfo,
+                'portal'              => $portal,
+            ],
+            'barcode_svg'             => $barcodeSvg,
+            'qr_data'                 => $qrText,
+        ];
     }
 
     /**
@@ -968,12 +1161,12 @@ class EwayBillController extends Controller
     protected function processEWBListData(array $dates = [], ?\App\Models\Plant $plant = null): array
     {
         // 1. Authenticate with PeriOne Portal
-        $this->ewayBillService->authenticatePortel($plant);
+        $this->authenticatePortel($plant);
 
         // 2. Fetch all EWB numbers across selected dates
         $ewb_list = [];
         foreach ($dates as $date) {
-            $responseData = $this->ewayBillService->fetchEWBList($date, $plant);
+            $responseData = $this->fetchEWBList($date, $plant);
 
             if (isset($responseData['data']) && is_array($responseData['data'])) {
                 foreach ($responseData['data'] as $v) {
@@ -1002,7 +1195,7 @@ class EwayBillController extends Controller
         $insertCount = 0;
 
         foreach ($new_ewb_list as $ewbNo) {
-            $all_ewb_details = $this->ewayBillService->fetchEWBDetails($ewbNo, $plant);
+            $all_ewb_details = $this->fetchEWBDetails($ewbNo, $plant);
             $data = $all_ewb_details['data'] ?? null;
 
             if (!$data) {
@@ -1055,5 +1248,203 @@ class EwayBillController extends Controller
             $current = strtotime($step, $current);
         }
         return $dates;
+    }
+
+    /**
+     * Determine if plant or system is in Production mode based on domain or config.
+     * 
+     * Sandbox: 127.0.0.1 or curie.modormc.com
+     * Production: modormc.com
+     */
+    public function isProduction(?Plant $plant = null): bool
+    {
+        $host = request()?->getHost() ?? '';
+
+        if (!empty($host)) {
+            // Explicit sandbox / test hosts
+            if (
+                str_contains($host, '127.0.0.1') ||
+                str_contains($host, 'localhost') ||
+                str_contains($host, 'curie.modormc.com') ||
+                str_contains($host, '.test') ||
+                str_contains($host, '.local')
+            ) {
+                return false;
+            }
+
+            // Production domain
+            if ($host === 'modormc.com' || str_ends_with($host, 'modormc.com')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get base URL based on environment.
+     */
+    public function getBaseUrl(?Plant $plant = null): string
+    {
+        return $this->isProduction($plant) ? $this->prodBaseUrl : $this->sandboxBaseUrl;
+    }
+
+    /**
+     * Get email based on environment.
+     */
+    public function getEmail(?Plant $plant = null): string
+    {
+        return $this->isProduction($plant) ? ($plant?->email_address ?: $this->prodEmail) : $this->sandboxEmail;
+    }
+
+    /**
+     * Resolve plant credentials for PeriOne E-Way Bill gateway.
+     */
+    public function getCredentials(?Plant $plant = null): array
+    {
+        $plant = $plant ?? Plant::plantdetails();
+        $isProd = $this->isProduction($plant);
+        $resolvedGstin = session('gstin') ?: ($plant?->gstin ?: ($plant?->entity?->gstin ?: ''));
+        return [
+            'baseUrl'      => $this->getBaseUrl($plant),
+            'clientId'     => $isProd ? $this->prodClientId : $this->sandboxClientId,
+            'clientSecret' => $isProd ? $this->prodClientSecret : $this->sandboxClientSecret,
+            'email'        => $this->getEmail($plant),
+            'username'     => $plant?->ewaybill_client_id ?: $this->sandboxUsername,
+            'password'     => $plant?->ewaybill_secret ?: $this->sandboxPassword,
+            'gstin'        => $isProd ? $resolvedGstin : ($resolvedGstin ?: $this->sandboxGstin),
+            'ip'           => request()?->ip() ?: $this->defaultIp,
+        ];
+    }
+
+    /**
+     * Get the generate E-Way Bill endpoint URL.
+     */
+    public function getGenEwayBillUrl(?Plant $plant = null): string
+    {
+        $baseUrl = $this->getBaseUrl($plant);
+        $email   = $this->getEmail($plant);
+
+        return rtrim($baseUrl, '/') . '/ewaybillapi/v1.03/ewayapi/genewaybill?email=' . urlencode($email);
+    }
+
+    /**
+     * Build HTTP headers for E-Way Bill requests.
+     */
+    public function buildGatewayHeaders(string $username, string $password, string $gstin, ?Plant $plant = null): array
+    {
+        $isProd       = $this->isProduction($plant);
+        $clientId     = $isProd ? $this->prodClientId : $this->sandboxClientId;
+        $clientSecret = $isProd ? $this->prodClientSecret : $this->sandboxClientSecret;
+        $ipAddress    = request()?->ip() ?: $this->defaultIp;
+        
+        return [
+            'accept'        => 'application/json',
+            'content-type'  => 'application/json',
+            'username'      => $username,
+            'password'      => $password,
+            'ip_address'    => $ipAddress,
+            'client_id'     => $clientId,
+            'client_secret' => $clientSecret,
+            'gstin'         => $gstin,
+        ];
+    }
+
+    /**
+     * Authenticate with PeriOne E-Way Bill Gateway.
+     */
+    public function authenticatePortel(?Plant $plant = null): array
+    {
+        $c = $this->getCredentials($plant);
+        $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/authenticate?email=' . urlencode($c['email']) . '&username=' . urlencode($c['username']) . '&password=' . urlencode($c['password']);
+        $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
+
+        $response = Http::withHeaders($headers)->timeout(20)->get($url);
+       
+        return $response->json() ?? [];
+    }
+
+    /**
+     * Fetch E-Way Bills list for transporter/taxpayer by date (format: d/m/Y).
+     */
+    public function fetchEWBList(string $date, ?Plant $plant = null): array
+    {
+        $c = $this->getCredentials($plant);
+        $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/ewayapi/getewaybillsfortransporter?email=' . urlencode($c['email']) . '&date=' . urlencode($date);
+        $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
+
+        $response = Http::withHeaders($headers)->timeout(30)->get($url);
+        return $response->json() ?? [];
+    }
+
+    /**
+     * Fetch full E-Way Bill details by EWB number from PeriOne.
+     */
+    public function fetchEWBDetails(string $ewbNo, ?Plant $plant = null): array
+    {
+        $c = $this->getCredentials($plant);
+        $url = rtrim($c['baseUrl'], '/') . '/ewaybillapi/v1.03/ewayapi/getewaybill?email=' . urlencode($c['email']) . '&ewbNo=' . urlencode($ewbNo);
+        $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
+
+        $response = Http::withHeaders($headers)->timeout(30)->get($url);
+        return $response->json() ?? [];
+    }
+
+    /**
+     * Extract human-readable error message from Gateway JSON.
+     */
+    public function extractGatewayErrorMessage(array $body, string $default): string
+    {
+        $rawMsg = $body['error_desc'] 
+            ?? $body['message'] 
+            ?? ($body['error']['message'] ?? null) 
+            ?? ($body['error']['error_cd'] ?? null) 
+            ?? ($body['status_desc'] ?? null) 
+            ?? null;
+
+        if (!empty($rawMsg)) {
+            // Check if base64 encoded JSON
+            $decoded = base64_decode($rawMsg, true);
+            if ($decoded && ($json = json_decode($decoded, true))) {
+                if (isset($json['errorCodes'])) {
+                    $codes = array_filter(explode(',', trim($json['errorCodes'], ',')));
+                    $errorMap = [
+                        '108' => 'Invalid Username or Password for the given GSTIN',
+                        '212' => 'Total amount with tax mismatch',
+                        '217' => 'Pincode does not belong to state code',
+                        '371' => 'Invalid Transport distance KM',
+                        '372' => 'Invalid Transporter ID / Vehicle Number',
+                    ];
+                    $explanations = array_map(fn($c) => $errorMap[$c] ?? "Code {$c}", $codes);
+                    return implode(', ', $explanations) . " [NIC Error: {$json['errorCodes']}]";
+                }
+                return $decoded;
+            }
+
+            // Check if raw JSON string
+            if ($json = json_decode($rawMsg, true)) {
+                if (isset($json['errorCodes'])) {
+                    $codes = array_filter(explode(',', trim($json['errorCodes'], ',')));
+                    $errorMap = [
+                        '108' => 'Invalid Username or Password for the given GSTIN',
+                        '212' => 'Total amount with tax mismatch',
+                        '217' => 'Pincode does not belong to state code',
+                        '371' => 'Invalid Transport distance KM',
+                        '372' => 'Invalid Transporter ID / Vehicle Number',
+                    ];
+                    $explanations = array_map(fn($c) => $errorMap[$c] ?? "Code {$c}", $codes);
+                    return implode(', ', $explanations) . " [NIC Error: {$json['errorCodes']}]";
+                }
+            }
+
+            return $rawMsg;
+        }
+
+        if (!empty($body['errors']) && is_array($body['errors'])) {
+            $first = reset($body['errors']);
+            return is_string($first) ? $first : json_encode($first);
+        }
+
+        return $default;
     }
 }

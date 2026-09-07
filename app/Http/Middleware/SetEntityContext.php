@@ -48,9 +48,11 @@ class SetEntityContext
             [$activeEntityId, $activePlantId] = $this->resolveDefaultContext($user, $isSuperAdmin);
 
             if ($activeEntityId && $activePlantId) {
+                $plant = Plant::find($activePlantId);
                 session([
                     'active_entity_id' => $activeEntityId,
                     'active_plant_id'  => $activePlantId,
+                    'gstin'            => $plant?->gstin,
                 ]);
             }
         }
@@ -64,7 +66,7 @@ class SetEntityContext
                     ->exists();
 
                 if ($isSuspended) {
-                    session()->forget(['active_entity_id', 'active_plant_id']);
+                    session()->forget(['active_entity_id', 'active_plant_id', 'gstin']);
                     return redirect()->route('entity-context.index');
                 }
             }
@@ -76,7 +78,7 @@ class SetEntityContext
                     ->exists();
 
                 if ($isInactive) {
-                    session()->forget('active_plant_id');
+                    session()->forget(['active_plant_id', 'gstin']);
                     return redirect()->route('entity-context.index');
                 }
             }

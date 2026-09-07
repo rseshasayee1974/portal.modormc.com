@@ -86,7 +86,9 @@ class EwayBillService
      */
     public function getCredentials(?Plant $plant = null): array
     {
+        $plant = $plant ?? \App\Models\Plant::plantdetails();
         $isProd = $this->isProduction($plant);
+        $resolvedGstin = session('gstin') ?: ($plant?->gstin ?: ($plant?->entity?->gstin ?: ''));
         return [
             'baseUrl'      => $this->getBaseUrl($plant),
             'clientId'     => $isProd ? $this->prodClientId : $this->sandboxClientId,
@@ -94,7 +96,7 @@ class EwayBillService
             'email'        => $this->getEmail($plant),
             'username'     => $plant?->ewaybill_client_id ?: $this->sandboxUsername,
             'password'     => $plant?->ewaybill_secret ?: $this->sandboxPassword,
-            'gstin'        => $isProd ? ($plant?->gstin ?: ($plant?->entity?->gstin ?: '')) : ($plant?->gstin ?: $this->sandboxGstin),
+            'gstin'        => $isProd ? $resolvedGstin : ($resolvedGstin ?: $this->sandboxGstin),
             'ip'           => request()?->ip() ?: $this->defaultIp,
         ];
     }
@@ -142,6 +144,7 @@ class EwayBillService
         $headers = $this->buildGatewayHeaders($c['username'], $c['password'], $c['gstin'], $plant);
 
         $response = Http::withHeaders($headers)->timeout(20)->get($url);
+       
         return $response->json() ?? [];
     }
 

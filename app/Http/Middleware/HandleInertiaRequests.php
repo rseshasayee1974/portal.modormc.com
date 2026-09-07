@@ -52,14 +52,21 @@ class HandleInertiaRequests extends Middleware
                 if ($firstEntityUser) {
                     session(['active_entity_id' => $firstEntityUser->entity_id]);
                     if ($firstEntityUser->plant_id && !session('active_plant_id')) {
-                        session(['active_plant_id' => $firstEntityUser->plant_id]);
+                        $p = Plant::find($firstEntityUser->plant_id);
+                        session([
+                            'active_plant_id' => $firstEntityUser->plant_id,
+                            'gstin'           => $p?->gstin,
+                        ]);
                     }
                 } else {
                     // Fallback for admins with no specific EntityUser record
                     $defaultPlant = Plant::first();
                     if ($defaultPlant) {
-                        session(['active_entity_id' => $defaultPlant->entity_id]);
-                        session(['active_plant_id'  => $defaultPlant->id]);
+                        session([
+                            'active_entity_id' => $defaultPlant->entity_id,
+                            'active_plant_id'  => $defaultPlant->id,
+                            'gstin'            => $defaultPlant->gstin,
+                        ]);
                     }
                 }
                 // Refresh local variable after seeding
@@ -121,10 +128,14 @@ class HandleInertiaRequests extends Middleware
                     'plant_code'     => $plant->code,
                     'plant_logo'     => $plant->logo_path ? "/storage/{$plant->logo_path}" : null,
                     'mixer_capacity' => $mixerCapacity,
+                    'gstin'          => $plant->gstin,
                 ];
-                session(['mixer_capacity' => $mixerCapacity]);
+                session([
+                    'mixer_capacity' => $mixerCapacity,
+                    'gstin'          => $plant->gstin,
+                ]);
             } else {
-                session()->forget(['active_plant_id', 'mixer_capacity']);
+                session()->forget(['active_plant_id', 'mixer_capacity', 'gstin']);
                 $activePlantId = null;
             }
             $customSettings['batching'] = \App\Models\CustomSetting::getForModule($activePlantId, 'batching');
@@ -289,6 +300,7 @@ class HandleInertiaRequests extends Middleware
             'active_entity'    => $activeEntity,
             'active_plant'     => $activePlant,
             'active_plant_id'  => $activePlantId,
+            'gstin'            => fn () => session('gstin', $activePlant['gstin'] ?? null),
             'mixer_capacity'   => fn () => session('mixer_capacity', $activePlant['mixer_capacity'] ?? 1.25),
             'user_entities'    => $userEntities,
             'user_role'        => $tenantRoleName,
