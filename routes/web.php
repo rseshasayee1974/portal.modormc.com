@@ -47,6 +47,30 @@ Route::middleware([
     Route::get('dashboard/data/feeds', [\App\Http\Controllers\ERPDashboardController::class, 'getFeedsData'])->name('dashboard.data.feeds');
    Route::get('/production/dashboard', [\App\Http\Controllers\BatchingDashboardController::class, 'index'])->name('production.dashboard');
    Route::get('/production/dashboard/data', [\App\Http\Controllers\BatchingDashboardController::class, 'getData'])->name('production.dashboard.data');
+
+    // Concrete Batching & Dispatch Scheduling
+    Route::prefix('production/batching-schedules')->name('production.batching-schedules.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\ConcreteBatchingScheduleController::class, 'index'])->name('index');
+        Route::get('/data', [\App\Http\Controllers\ConcreteBatchingScheduleController::class, 'getData'])->name('data');
+        Route::get('/dropdowns', [\App\Http\Controllers\ConcreteBatchingScheduleController::class, 'dropdowns'])->name('dropdowns');
+        Route::post('/', [\App\Http\Controllers\ConcreteBatchingScheduleController::class, 'store'])->name('store');
+        Route::put('/{schedule}', [\App\Http\Controllers\ConcreteBatchingScheduleController::class, 'update'])->name('update');
+        Route::patch('/{schedule}/status', [\App\Http\Controllers\ConcreteBatchingScheduleController::class, 'updateStatus'])->name('update-status');
+        Route::post('/{schedule}/create-dispatch', [\App\Http\Controllers\ConcreteBatchingScheduleController::class, 'createDispatchTicket'])->name('create-dispatch');
+        Route::delete('/{schedule}', [\App\Http\Controllers\ConcreteBatchingScheduleController::class, 'destroy'])->name('destroy');
+    });
+
+    // Pump & Boom Deployment Scheduling
+    Route::prefix('production/pump-deployments')->name('production.pump-deployments.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PumpBoomDeploymentController::class, 'index'])->name('index');
+        Route::get('/data', [\App\Http\Controllers\PumpBoomDeploymentController::class, 'getData'])->name('data');
+        Route::get('/dropdowns', [\App\Http\Controllers\PumpBoomDeploymentController::class, 'dropdowns'])->name('dropdowns');
+        Route::post('/', [\App\Http\Controllers\PumpBoomDeploymentController::class, 'store'])->name('store');
+        Route::put('/{deployment}', [\App\Http\Controllers\PumpBoomDeploymentController::class, 'update'])->name('update');
+        Route::patch('/{deployment}/status', [\App\Http\Controllers\PumpBoomDeploymentController::class, 'updateStatus'])->name('update-status');
+        Route::delete('/{deployment}', [\App\Http\Controllers\PumpBoomDeploymentController::class, 'destroy'])->name('destroy');
+    });
+
     Route::prefix('saas')->group(function () {
         Route::get('/dashboard', [SaasDashboardController::class, 'dashboard'])->name('saas.dashboard');
         Route::get('/billing', [SaasDashboardController::class, 'billing'])->name('saas.billing');

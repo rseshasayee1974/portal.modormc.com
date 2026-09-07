@@ -110,6 +110,7 @@ class ReportController extends Controller
             'driver_id'          => $request->input('driver_id'),
             'sales_executive_id' => $request->input('sales_executive_id'),
             'grade_id'           => $request->input('grade_id'),
+            'voucher_type_filter' => $request->input('voucher_type_filter'),
         ];
 
         if ($export === 'excel' || $export === 'pdf') {

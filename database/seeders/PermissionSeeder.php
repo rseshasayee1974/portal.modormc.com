@@ -103,6 +103,10 @@ class PermissionSeeder extends Seeder
             'DISPATCH' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'INVENTORY_AUDIT_LOG' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
 
+            // Production & Concrete Placement
+            'PUMP_DEPLOYMENT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
+            'BATCHING_SCHEDULE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT'],
+
             // Quality Control (QC Module & Testing)
             'QC' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'APPROVE'],
             'QC_TEST' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
@@ -192,7 +196,7 @@ class PermissionSeeder extends Seeder
         $transportRole = Role::where('code', 'TRANSPORT_OPERATOR')->first();
         if ($transportRole) {
             $transportPermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['TRIP', 'MACHINE', 'PERSONNEL', 'DRIVER', 'FUEL_LOG', 'SITE'])
+                return Str::startsWith($p, ['TRIP', 'MACHINE', 'PERSONNEL', 'DRIVER', 'FUEL_LOG', 'SITE', 'PUMP_DEPLOYMENT', 'BATCHING_SCHEDULE'])
                        || Str::contains($p, 'DASHBOARD.VIEW');
             });
             $transportRole->syncPermissions($transportPermissions);
@@ -202,7 +206,7 @@ class PermissionSeeder extends Seeder
         $tripOperatorRole = Role::where('code', 'TRIP_OPERATOR')->first();
         if ($tripOperatorRole) {
             $tripOperatorPermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['TRIP', 'CUSTOMER_PO','SALES_ORDER', 'MACHINE', 'PERSONNEL', 'SITE', 'PATRON'])
+                return Str::startsWith($p, ['TRIP', 'CUSTOMER_PO','SALES_ORDER', 'MACHINE', 'PERSONNEL', 'SITE', 'PATRON', 'PUMP_DEPLOYMENT', 'BATCHING_SCHEDULE'])
                        || Str::contains($p, 'DASHBOARD.VIEW');
             });
             $tripOperatorRole->syncPermissions($tripOperatorPermissions);
@@ -212,7 +216,7 @@ class PermissionSeeder extends Seeder
         $fleetManagerRole = Role::where('code', 'FLEET_MANAGER')->first();
         if ($fleetManagerRole) {
             $fleetPermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['TRIP', 'MACHINE', 'MACHINE_TYPE', 'PERSONNEL', 'DRIVER', 'FUEL_LOG', 'SITE'])
+                return Str::startsWith($p, ['TRIP', 'MACHINE', 'MACHINE_TYPE', 'PERSONNEL', 'DRIVER', 'FUEL_LOG', 'SITE', 'PUMP_DEPLOYMENT', 'BATCHING_SCHEDULE'])
                        || Str::endsWith($p, '.VIEW');
             });
             $fleetManagerRole->syncPermissions($fleetPermissions);

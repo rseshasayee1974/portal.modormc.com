@@ -57,17 +57,20 @@ const filteredPayments = computed(() => {
 
 const deleteTransaction = (id: number) => {
     Swal.fire({
-        title: 'Void this record?',
-        text: 'This action cannot be undone.',
+        title: 'Delete this record?',
+        text: 'This action will reverse invoice allocations and delete the transaction.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
-        confirmButtonText: 'Yes, Void'
+        confirmButtonText: 'Yes, Delete'
     }).then(res => {
         if (res.isConfirmed) {
             router.delete(route('payments.destroy', id), {
                 onSuccess: () => {
-                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Transaction voided', showConfirmButton: false, timer: 1500 });
+                    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Transaction deleted', showConfirmButton: false, timer: 1500 });
+                },
+                onError: (errors: any) => {
+                    Swal.fire({ icon: 'error', title: 'Error', text: errors?.error || Object.values(errors)[0] as string || 'Failed to delete transaction' });
                 }
             });
         }
@@ -194,7 +197,7 @@ import { router } from '@inertiajs/vue3';
                             </template>
                         </Column>
 
-                        <Column field="status" header="Status" sortable>
+                        <!-- <Column field="status" header="Status" sortable>
                             <template #body="slotProps">
                                 <Tag 
                                     :severity="slotProps.data.status === 'paid' ? 'info' : 'warn'"
@@ -203,7 +206,7 @@ import { router } from '@inertiajs/vue3';
                                     class="text-[9px] px-2"
                                 />
                             </template>
-                        </Column>
+                        </Column> -->
 
                         <Column header="Actions" textAlign="right">
                             <template #body="slotProps">
@@ -214,10 +217,10 @@ import { router } from '@inertiajs/vue3';
                                         text 
                                         rounded 
                                         @click.stop="toggleEdit(slotProps.data)"
-                                        :title="slotProps.data.status === 'paid' ? 'View Details' : 'Edit Record'"
+                                        title="View / Edit Details"
                                     >
                                         <template #icon>
-                                            <PencilSquareIcon :class="`w-4 h-4 ${slotProps.data.status === 'paid' ? 'text-slate-400' : 'text-emerald-600'}`" />
+                                            <PencilSquareIcon class="w-4 h-4 text-emerald-600" />
                                         </template>
                                     </Button>
                                     <Button 
@@ -226,8 +229,7 @@ import { router } from '@inertiajs/vue3';
                                         text 
                                         rounded 
                                         @click.stop="deleteTransaction(slotProps.data.id)"
-                                        :disabled="slotProps.data.status === 'paid'"
-                                        title="Void"
+                                        title="Delete"
                                     >
                                         <template #icon>
                                             <TrashIcon class="w-4 h-4" />

@@ -84,6 +84,15 @@ class PaymentController extends Controller
         $validated['plant_id'] = $plantId;
         $validated['created_by'] = auth()->id();
 
+        if (empty($validated['reference'])) {
+            $validated['reference'] = Payment::generateReferenceNumber(
+                $plantId ?? 1,
+                $validated['ledger_id'],
+                $validated['transaction_type'],
+                $validated['transaction_date'] ?? null
+            );
+        }
+
         try {
             $payment = DB::transaction(function () use ($validated, $plantId) {
                 $totalAllocated = 0;
@@ -435,10 +444,6 @@ class PaymentController extends Controller
     public function destroy(Payment $payment)
     {
         $this->authorizeModule('delete');
-        
-        if ($payment->status === 'paid') {
-            return redirect()->back()->withErrors(['error' => 'paid transactions cannot be deleted. Void or reverse instead.']);
-        }
 
         try {
             DB::transaction(function () use ($payment) {
@@ -446,46 +451,78 @@ class PaymentController extends Controller
                 foreach ($payment->allocations as $allocation) {
                     $invoice = $allocation->invoice;
                     if ($invoice) {
-                        $invoice->paid_amount -= $allocation->amount;
-                        $invoice->balance_amount = $invoice->total_amount - $invoice->paid_amount;
+                        $invoice->paid_amount = max(0.00, round((float)$invoice->paid_amount - (float)$allocation->amount, 2));
+                        $invoice->balance_amount = max(0.00, round((float)$invoice->total_amount - (float)$invoice->paid_amount, 2));
                         
                         // If it was paid, move it back to approved
-                        if ($invoice->balance_amount > 0 && $invoice->status === Invoice::STATUS_PAID) {
+                        if ($invoice->balance_amount > 0 && (strcasecmp($invoice->status, 'paid') === 0 || $invoice->status === Invoice::STATUS_PAID)) {
                             $invoice->status = Invoice::STATUS_APPROVED;
                         }
                         $invoice->save();
                     }
+                    $allocation->deleted_by = auth()->id();
+                    $allocation->save();
                     $allocation->delete();
                 }
 
                 // 2. Log to Audit Tables
-                PaymentAudit::create([
-                    'payment_id' => $payment->id,
-                    'data'       => $payment->toArray(),
-                    'action'     => 'deleted',
-                    'action_by'  => auth()->id(),
-                ]);
-
-                $transactions = PaymentTransaction::where('payment_id', $payment->id)->get();
-                foreach ($transactions as $transaction) {
-                    PaymentTransactionAudit::create([
-                        'payment_transaction_id' => $transaction->id,
-                        'payment_id'             => $payment->id,
-                        'data'                   => $transaction->toArray(),
-                        'action'                 => 'deleted',
-                        'action_by'              => auth()->id(),
+                if (\Illuminate\Support\Facades\Schema::hasTable('mm_payment_audit')) {
+                    PaymentAudit::create([
+                        'payment_id' => $payment->id,
+                        'data'       => $payment->toArray(),
+                        'action'     => 'deleted',
+                        'action_by'  => auth()->id(),
                     ]);
                 }
 
-                // 3. Actual Deletion
+                $transactions = PaymentTransaction::where('payment_id', $payment->id)->get();
+                foreach ($transactions as $transaction) {
+                    if (\Illuminate\Support\Facades\Schema::hasTable('mm_payment_transaction_audit')) {
+                        PaymentTransactionAudit::create([
+                            'payment_transaction_id' => $transaction->id,
+                            'payment_id'             => $payment->id,
+                            'data'                   => $transaction->toArray(),
+                            'action'                 => 'deleted',
+                            'action_by'              => auth()->id(),
+                        ]);
+                    }
+                }
+
+                // 3. Soft-delete Payment Transactions
+                PaymentTransaction::where('payment_id', $payment->id)->update(['deleted_by' => auth()->id()]);
                 PaymentTransaction::where('payment_id', $payment->id)->delete();
+
+                // 4. Soft-delete associated Journal Entries & Lines
+                if (class_exists(\App\Models\JournalEntry::class)) {
+                    \App\Models\JournalEntry::where('ref_module', 'payment')
+                        ->where('ref_id', $payment->id)
+                        ->get()
+                        ->each(function ($entry) {
+                            if (class_exists(\App\Models\JournalEntryLine::class)) {
+                                \App\Models\JournalEntryLine::where('journal_entry_id', $entry->id)->update([
+                                    'is_deleted' => 1,
+                                    'deleted_by' => auth()->id(),
+                                    'deleted_at' => now(),
+                                ]);
+                            }
+                            $entry->update([
+                                'is_deleted' => 1,
+                                'deleted_by' => auth()->id(),
+                                'deleted_at' => now(),
+                            ]);
+                        });
+                }
+
+                // 5. Soft-delete Payment
+                $payment->deleted_by = auth()->id();
+                $payment->save();
                 $payment->delete();
             });
         } catch (\Exception $e) {
             return redirect()->back()->withErrors(['error' => 'Deletion failed: ' . $e->getMessage()]);
         }
         
-        return redirect()->back()->with('success', 'Transaction deleted and archived.');
+        return redirect()->back()->with('success', 'Transaction deleted and reversed successfully.');
     }
 
     public function getNextReferenceNumber(Request $request)

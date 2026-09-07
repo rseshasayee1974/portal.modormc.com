@@ -96,6 +96,7 @@ class QueueReportExportJob implements ShouldQueue
                     'driver_id'          => $this->filters['driver_id'] ?? null,
                     'sales_executive_id' => $this->filters['sales_executive_id'] ?? null,
                     'grade_id'           => $this->filters['grade_id'] ?? null,
+                    'voucher_type_filter' => $this->filters['voucher_type_filter'] ?? null,
                 ];
 
                 $data = $service->generate($params);

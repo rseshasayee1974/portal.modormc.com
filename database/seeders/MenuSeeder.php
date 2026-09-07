@@ -107,6 +107,16 @@ class MenuSeeder extends Seeder
             ['id' => 60, 'menutype' => 2, 'title' => 'Party Rate',      'alias' => 'partyrates',    'link' => 'orders/partyrates',      'icon' => 'CurrencyRupeeIcon',         'published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 4, 'permission_name' => 'PARTY_RATE.VIEW'],
             ['id' => 78, 'menutype' => 2, 'title' => 'Batching',        'alias' => 'Batching',      'link' => 'orders/batches',         'icon' => 'ClipboardDocumentListIcon', 'published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 5, 'permission_name' => 'BATCH.VIEW'], // ID updated from 61 to 78
             ['id' => 90, 'menutype' => 2, 'title' => 'Pump Rate',       'alias' => 'pumprates',     'link' => 'orders/pumprates',      'icon' => 'CurrencyRupeeIcon',         'published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 6, 'permission_name' => 'PUMP_RATE.VIEW'],
+            ['id' => 95, 'menutype' => 2, 'title' => 'Pump Deployment', 'alias' => 'order-pump-deployments', 'link' => 'production/pump-deployments', 'icon' => 'WrenchScrewdriverIcon', 'published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 7, 'permission_name' => 'PUMP_DEPLOYMENT.VIEW'],
+            ['id' => 96, 'menutype' => 2, 'title' => 'Batching Schedules', 'alias' => 'order-batch-schedules', 'link' => 'production/batching-schedules', 'icon' => 'CalendarIcon', 'published' => 1, 'parent_id' => 3, 'level' => 1, 'ordering' => 8, 'permission_name' => 'BATCHING_SCHEDULE.VIEW'],
+
+            // Sidebar: Batching & Production (parent_id = 6)
+            ['id' => 91, 'menutype' => 2, 'title' => 'Batching Orders',      'alias' => 'batch-orders',        'link' => 'orders/batches',               'icon' => 'ClipboardDocumentListIcon', 'published' => 1, 'parent_id' => 6, 'level' => 1, 'ordering' => 1, 'permission_name' => 'BATCH.VIEW'],
+            ['id' => 92, 'menutype' => 2, 'title' => 'Batching Schedules',   'alias' => 'batching-schedules',  'link' => 'production/batching-schedules','icon' => 'CalendarIcon',              'published' => 1, 'parent_id' => 6, 'level' => 1, 'ordering' => 2, 'permission_name' => 'BATCHING_SCHEDULE.VIEW'],
+            ['id' => 93, 'menutype' => 2, 'title' => 'Pump & Boom Deployment','alias' => 'pump-deployments',   'link' => 'production/pump-deployments',  'icon' => 'WrenchScrewdriverIcon',     'published' => 1, 'parent_id' => 6, 'level' => 1, 'ordering' => 3, 'permission_name' => 'PUMP_DEPLOYMENT.VIEW'],
+
+            // Sidebar: Fleet additional (parent_id = 4)
+            ['id' => 94, 'menutype' => 2, 'title' => 'Pump & Boom Schedules','alias' => 'fleet-pump-deployments','link' => 'production/pump-deployments',  'icon' => 'WrenchScrewdriverIcon',     'published' => 1, 'parent_id' => 4, 'level' => 1, 'ordering' => 8, 'permission_name' => 'PUMP_DEPLOYMENT.VIEW'],
 
             // Sidebar: Inventory (parent_id = 5)
             ['id' => 62, 'menutype' => 2, 'title' => 'Product',         'alias' => 'products',         'link' => 'inventory/products',       'icon' => 'ArchiveBoxIcon',    'published' => 1, 'parent_id' => 5, 'level' => 1, 'ordering' => 1, 'permission_name' => 'PRODUCT.VIEW'],

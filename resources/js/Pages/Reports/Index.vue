@@ -36,6 +36,7 @@ import Gstr1Report from './components/Gstr1Report.vue';
 import Gstr3bReport from './components/Gstr3bReport.vue';
 import TdsCertificateReport from './components/TdsCertificateReport.vue';
 import EsiPfChallanReport from './components/EsiPfChallanReport.vue';
+import VoucherReport from './components/VoucherReport.vue';
 
 import { 
     ChartBarIcon,
@@ -167,6 +168,16 @@ const valuationMethodOptions = [
     { label: 'Weighted Average', value: 'AVERAGE' }
 ];
 
+const ledgerVoucherFilter = ref('ALL');
+const ledgerVoucherFilterOptions = [
+    { label: 'All Vouchers', value: 'ALL' },
+    { label: 'Payments & Receipts', value: 'PAYMENT_RECEIPT' },
+    { label: 'Payments Only', value: 'PAYMENT' },
+    { label: 'Receipts Only', value: 'RECEIPT' },
+    { label: 'Sales Invoices Only', value: 'SALES' },
+    { label: 'Purchase Bills Only', value: 'PURCHASE' },
+];
+
 const getReportComponent = (type) => {
     switch (type) {
         case 'sales_register': return SalesRegisterReport;
@@ -193,6 +204,8 @@ const getReportComponent = (type) => {
         case 'gstr3b': return Gstr3bReport;
         case 'tds_certificate': return TdsCertificateReport;
         case 'esi_pf_challan': return EsiPfChallanReport;
+        case 'payment':
+        case 'receipt': return VoucherReport;
         default: return StandardLedgerReport;
     }
 };
@@ -311,6 +324,9 @@ watch(selectedModuleId, (newModuleId) => {
 
 watch(reportType, () => {
     reportData.value = null;
+    selectedId.value = null;
+    patronId.value = null;
+    ledgerVoucherFilter.value = 'ALL';
     gstType.value = null;
     paymentStatus.value = null;
     truckId.value = null;
@@ -325,7 +341,7 @@ watch(reportType, () => {
     generateReport();
 });
 
-watch([selectedId, patronId, startDate, endDate, gstType, paymentStatus, valuationMethod, truckId, driverId, salesExecutiveId], () => {
+watch([selectedId, patronId, startDate, endDate, gstType, paymentStatus, valuationMethod, truckId, driverId, salesExecutiveId, ledgerVoucherFilter], () => {
     generateReport();
 });
 
@@ -347,6 +363,7 @@ const generateReport = async () => {
             truck_id: truckId.value,
             driver_id: driverId.value,
             sales_executive_id: salesExecutiveId.value,
+            voucher_type_filter: ledgerVoucherFilter.value,
             export: 'view'
         };
 
@@ -431,6 +448,7 @@ const exportPdf = () => {
         patron_id: patronId.value,
         start_date: startDate.value,
         end_date: endDate.value,
+        voucher_type_filter: ledgerVoucherFilter.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
         driver_id: driverId.value,
@@ -479,6 +497,7 @@ const exportExcel = () => {
         patron_id: patronId.value,
         start_date: startDate.value,
         end_date: endDate.value,
+        voucher_type_filter: ledgerVoucherFilter.value,
         valuation_method: valuationMethod.value,
         truck_id: truckId.value,
         driver_id: driverId.value,
@@ -569,6 +588,7 @@ const currentReportParams = computed(() => {
     return {
         id: selectedId.value,
         patron_id: patronId.value,
+        voucher_type_filter: ledgerVoucherFilter.value,
         gst_type: gstType.value,
         payment_status: paymentStatus.value,
         valuation_method: valuationMethod.value,
@@ -607,6 +627,7 @@ const generateShareLink = async () => {
                 patron_id: patronId.value,
                 start_date: startDate.value,
                 end_date: endDate.value,
+                voucher_type_filter: ledgerVoucherFilter.value,
                 valuation_method: valuationMethod.value,
                 gst_type: gstType.value,
                 payment_status: paymentStatus.value,
@@ -773,21 +794,36 @@ const shareEmail = () => {
                         
                         <div class="p-5">
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
-                                <!-- Target Dropdown (Ledger) -->
-                                <div v-if="reportType === 'ledger'" class="lg:col-span-1">
-                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Account Ledger</span>
+                                <!-- Target Dropdown (Ledger / Bank & Cash Account) -->
+                                <div v-if="['ledger', 'payment', 'receipt'].includes(reportType)" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">
+                                        {{ ['payment', 'receipt'].includes(reportType) ? 'Bank / Cash Account' : 'Account Ledger' }}
+                                    </span>
                                     <BaseSelect 
                                         v-model="selectedId"
                                         :options="ledgers"
                                         optionLabel="title"
                                         optionValue="id"
-                                        placeholder="Choose Account..."
+                                        :placeholder="['payment', 'receipt'].includes(reportType) ? 'All Accounts' : 'Choose Account...'"
                                         filter
+                                        showClear
+                                    />
+                                </div>
+
+                                <!-- Voucher Type Filter (General Ledger) -->
+                                <div v-if="reportType === 'ledger'" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Voucher Type</span>
+                                    <BaseSelect 
+                                        v-model="ledgerVoucherFilter"
+                                        :options="ledgerVoucherFilterOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        placeholder="All Vouchers"
                                     />
                                 </div>
 
                                 <!-- Patron / Customer Dropdown -->
-                                <div v-if="['patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
+                                <div v-if="['ledger', 'patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">
                                         {{ ['sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'sales', 'cancelled_dispatch'].includes(reportType) ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
                                     </span>

@@ -1203,12 +1203,38 @@ class ExcelExportService
                     //     'rows' => $drvTripRows,
                     // ];
                 }
-            } elseif (in_array($type, ['ledger', 'patron', 'payment', 'receipt'])) {
+            } elseif (in_array($type, ['payment', 'receipt'])) {
+                $isPayment = $type === 'payment';
+                $title = $isPayment ? 'PAYMENT LOG STATEMENT' : 'RECEIPT LOG STATEMENT';
+                $headersList = ['#', 'Date', 'Voucher / Ref No', $isPayment ? 'Paid To (Party)' : 'Received From (Party)', $isPayment ? 'Paid From (Account)' : 'Received Into (Account)', 'Payment Mode', 'Narration / Remarks', 'Status', 'Amount (₹)'];
+
+                $totalAmt = 0;
+                foreach (($data['transactions'] ?? []) as $i => $row) {
+                    $amt = (float)($row['amount'] ?? 0);
+                    $totalAmt += $amt;
+                    $rowDate = !empty($row['date']) ? \Carbon\Carbon::parse($row['date'])->format('d-m-Y') : '';
+
+                    $rows[] = [
+                        $i + 1,
+                        $rowDate,
+                        $row['voucher_no'] ?? '',
+                        $row['party_name'] ?? 'N/A',
+                        $row['account_name'] ?? 'N/A',
+                        $row['payment_mode'] ?? 'Cash',
+                        $row['narration'] ?? '',
+                        $row['status'] ?? 'Paid',
+                        $amt
+                    ];
+                }
+
+                $totalRow = [
+                    '', 'Total ' . ($isPayment ? 'Payments' : 'Receipts'), '', '', '', '', '', count($rows) . ' Vouchers',
+                    $totalAmt
+                ];
+            } elseif (in_array($type, ['ledger', 'patron'])) {
                 $titles = [
                     'ledger'  => 'GENERAL LEDGER STATEMENT',
                     'patron'  => 'PATRON STATEMENT OF ACCOUNTS',
-                    'payment' => 'PAYMENT LOG STATEMENT',
-                    'receipt' => 'RECEIPT LOG STATEMENT',
                 ];
                 $title = $titles[$type] ?? 'STATEMENT OF ACCOUNTS';
                 $headersList = ['Date', 'Particulars', 'Reference', 'Amount', 'Type', 'Balance'];

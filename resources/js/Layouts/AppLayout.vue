@@ -42,7 +42,9 @@ import {
     CpuChipIcon,
     ChatBubbleOvalLeftIcon,
     PaperAirplaneIcon,
-    SparklesIcon
+    SparklesIcon,
+    WrenchScrewdriverIcon,
+    CalendarIcon
 } from '@heroicons/vue/24/outline';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
@@ -84,7 +86,9 @@ const IconMap = {
     ArrowPathIcon,
     CpuChipIcon,
     ChatBubbleOvalLeftIcon,
-    SparklesIcon
+    SparklesIcon,
+    WrenchScrewdriverIcon,
+    CalendarIcon
 };
 
 const page = usePage();

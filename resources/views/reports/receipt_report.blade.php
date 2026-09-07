@@ -18,7 +18,7 @@
             <td style="width: 52%;">
                 <div class="address-box" style="margin-top: 5px;">
                     <span class="address-title">Scope / Target:</span>
-                    <span class="address-name">{{ $target_name }}</span>
+                    <span class="address-name">{{ $target_name ?? 'All Receipt Vouchers' }}</span>
                     @if(isset($patron) && $patron)
                         @if($patron->addresses->isNotEmpty())
                             @php $pAddr = $patron->addresses->first(); @endphp
@@ -54,77 +54,72 @@
     <!-- Statement Title Bar -->
     <div class="statement-title-container">
         <h2 class="statement-title">Receipt Log Statement</h2>
-        <span class="statement-period">Period: {{ \Carbon\Carbon::parse($start)->format('d-m-Y') }} to {{ \Carbon\Carbon::parse($end)->format('d-m-Y') }}</span>
+        <span class="statement-period">Period: {{ !empty($start) ? \Carbon\Carbon::parse($start)->format('d-m-Y') : '-' }} to {{ !empty($end) ? \Carbon\Carbon::parse($end)->format('d-m-Y') : '-' }}</span>
     </div>
 
-    <!-- Statement Table matching StandardLedgerReport.vue -->
+    <!-- Statement Table -->
     <table class="data-table">
         <thead>
             <tr>
-                <th style="width: 12%;">Date</th>
-                <th style="width: 40%;">Particulars</th>
-                <th style="width: 16%;">Reference</th>
-                <th style="width: 12%; text-align: right;">Amount</th>
-                <th style="width: 8%; text-align: center;">Type</th>
-                <th style="width: 12%; text-align: right;">Balance</th>
+                <th style="width: 5%; text-align: center;">#</th>
+                <th style="width: 10%; text-align: center;">Date</th>
+                <th style="width: 15%;">Voucher / Ref #</th>
+                <th style="width: 22%;">Received From (Party)</th>
+                <th style="width: 18%;">Received Into (Account)</th>
+                <th style="width: 10%; text-align: center;">Mode</th>
+                <th style="width: 8%; text-align: center;">Status</th>
+                <th style="width: 12%; text-align: right;">Amount (₹)</th>
             </tr>
         </thead>
         <tbody>
             @php
-                $balance = (float)($opening_balance ?? 0);
+                $grandTotal = 0;
+                $rows = $transactions ?? ($data['transactions'] ?? []);
             @endphp
 
-            <!-- Opening Balance Row -->
-            <tr class="opening-row">
-                <td style="color: #94a3b8; font-style: italic; font-size: 8pt;">{{ \Carbon\Carbon::parse($start)->format('d-m-Y') }}</td>
-                <td class="font-bold" style="color: #1d2d3e; text-transform: uppercase;">Opening Balance</td>
-                <td>---</td>
-                <td class="text-right font-bold">₹ {{ number_format(abs($balance), 2) }}</td>
-                <td class="text-center">
-                    <span class="badge-dr">{{ $balance >= 0 ? 'DR' : 'CR' }}</span>
-                </td>
-                <td class="text-right font-bold" style="color: #1d2d3e;">
-                    ₹ {{ number_format(abs($balance), 2) }}
-                    <small style="font-size: 7.5pt; color: #94a3b8; text-transform: uppercase;">{{ $balance >= 0 ? 'Dr' : 'Cr' }}</small>
-                </td>
-            </tr>
-
             <!-- Transactions Rows -->
-            @forelse($transactions as $trx)
+            @forelse($rows as $idx => $trx)
                 @php
-                    $balance += (($trx['debit'] ?? 0) - ($trx['credit'] ?? 0));
-                    $isDr = ($trx['type'] ?? 'Dr') === 'Dr';
+                    $amt = (float)($trx['amount'] ?? 0);
+                    $grandTotal += $amt;
                 @endphp
                 <tr>
-                    <td style="color: #64748b;">{{ \Carbon\Carbon::parse($trx['date'])->format('d-m-Y') }}</td>
+                    <td style="text-align: center; color: #64748b;">{{ $idx + 1 }}</td>
+                    <td style="text-align: center; color: #64748b;">{{ !empty($trx['date']) ? \Carbon\Carbon::parse($trx['date'])->format('d-m-Y') : '-' }}</td>
                     <td>
-                        <div class="font-bold" style="color: #1e293b;">{{ $trx['narration'] ?? '-' }}</div>
-                        <span class="badge-voucher">{{ $trx['voucher_type'] ?? 'RECEIPT' }}</span>
+                        <strong style="color: #1e293b;">{{ $trx['voucher_no'] ?? '-' }}</strong>
                     </td>
-                    <td class="font-bold" style="color: #1e293b;">{{ $trx['voucher_no'] ?? '-' }}</td>
-                    <td class="text-right font-bold" style="color: #0f172a;">₹ {{ number_format($trx['amount'] ?? 0, 2) }}</td>
-                    <td class="text-center">
-                        <span class="{{ $isDr ? 'badge-dr' : 'badge-cr' }}">{{ strtoupper($trx['type'] ?? 'Dr') }}</span>
+                    <td>
+                        <div style="font-weight: bold; color: #1e293b;">{{ $trx['party_name'] ?? 'Direct / Unspecified' }}</div>
+                    </td>
+                    <td style="color: #475569;">
+                        {{ $trx['account_name'] ?? 'Bank / Cash' }}
+                    </td>
+                    <td style="text-align: center;">
+                        <span style="font-size: 8pt; background-color: #f1f5f9; padding: 2px 6px; border-radius: 3px; color: #475569;">
+                            {{ $trx['payment_mode'] ?? 'Cash' }}
+                        </span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="badge-cr" style="font-size: 7.5pt;">{{ $trx['status'] ?? 'Received' }}</span>
                     </td>
                     <td class="text-right font-bold" style="color: #0f172a; background-color: #f8fafc;">
-                        ₹ {{ number_format(abs($balance), 2) }}
-                        <small style="font-size: 7.5pt; color: #94a3b8; text-transform: uppercase;">{{ $balance >= 0 ? 'Dr' : 'Cr' }}</small>
+                        ₹ {{ number_format($amt, 2) }}
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="text-center" style="padding: 15px; color: #94a3b8; font-style: italic;">No receipt vouchers recorded for this period.</td>
+                    <td colspan="8" class="text-center" style="padding: 15px; color: #94a3b8; font-style: italic;">No receipt vouchers recorded for this period.</td>
                 </tr>
             @endforelse
 
-            <!-- Net Closing Balance Row -->
+            <!-- Total Summary Row -->
             <tr class="closing-row">
-                <td colspan="3" class="text-right font-bold" style="padding: 10px 14px; text-transform: uppercase; font-size: 8.5pt; color: #cbd5e1;">
-                    Net Closing Balance
+                <td colspan="7" class="text-right font-bold" style="padding: 10px 14px; text-transform: uppercase; font-size: 8.5pt; color: #cbd5e1;">
+                    Total Receipts ({{ count($rows) }} Vouchers)
                 </td>
-                <td colspan="3" class="text-right font-bold" style="padding: 10px 14px; font-size: 11pt; color: #ffffff;">
-                    ₹ {{ number_format(abs($balance), 2) }}
-                    <span style="font-size: 8.5pt; text-transform: uppercase; opacity: 0.8; margin-left: 4px;">{{ $balance >= 0 ? 'Debit' : 'Credit' }}</span>
+                <td class="text-right font-bold" style="padding: 10px 14px; font-size: 11pt; color: #ffffff;">
+                    ₹ {{ number_format($grandTotal, 2) }}
                 </td>
             </tr>
         </tbody>

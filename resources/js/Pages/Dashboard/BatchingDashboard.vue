@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { Link } from '@inertiajs/vue3';
 import { ref, computed, onMounted, defineAsyncComponent } from 'vue';
 const VueApexCharts = defineAsyncComponent(() => import('vue3-apexcharts'));
 import axios from 'axios';
@@ -15,7 +16,8 @@ import {
     BeakerIcon,
     DocumentDuplicateIcon,
     CreditCardIcon,
-    TicketIcon
+    TicketIcon,
+    CalendarIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -341,6 +343,15 @@ const donutChartOptions = computed(() => ({
                                 <ArrowPathIcon class="size-4 text-slate-600" :class="loading ? 'animate-spin' : ''" />
                             </button>
                         </div>
+
+                        <!-- Link to Batching & Dispatch Scheduling Dashboard -->
+                        <Link 
+                            :href="route('production.batching-schedules.index')" 
+                            class="px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-2 shadow-sm transition-all"
+                        >
+                            <CalendarIcon class="w-4 h-4 text-sky-400" />
+                            <span>Dispatch & Pour Schedules</span>
+                        </Link>
                     </div>
                 </header>
 

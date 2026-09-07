@@ -79,39 +79,54 @@ class Payment extends Model
 
     public static function generateReferenceNumber($plantId, $ledgerId, $transactionType, $transactionDate = null): string
     {
+        $isReceipt = strtolower((string)$transactionType) === 'receipt';
+        $typeShort = $isReceipt ? 'REC' : 'PAY';
         $finYearString = self::getFinancialYearString($transactionDate);
         $ledger = Ledger::find($ledgerId);
         
-        $ledgerCode = 'LEDG';
-        if ($ledger) {
-            if (!empty($ledger->description)) {
-                $ledgerCode = $ledger->description;
-            } else {
-                $words = explode(' ', preg_replace('/[^A-Za-z0-9\s]/', '', $ledger->title));
-                if (count($words) >= 2) {
-                    $ledgerCode = strtoupper(substr($words[0], 0, 1) . substr($words[1], 0, 1) . (isset($words[2]) ? substr($words[2], 0, 1) : ''));
+        $prefix = '';
+        if ($ledger && !empty(trim((string)$ledger->description))) {
+            $desc = trim((string)$ledger->description);
+            
+            // 1. If description contains template tags like {type} or {fy}
+            if (stripos($desc, '{type}') !== false || stripos($desc, '{fy}') !== false) {
+                $prefix = str_ireplace(['{type}', '{fy}'], [$typeShort, $finYearString], $desc);
+            }
+            // 2. If description already explicitly contains the type (PAY or REC)
+            elseif (stripos($desc, $typeShort) !== false) {
+                if (str_ends_with($desc, '-')) {
+                    $prefix = $desc;
+                } elseif (str_ends_with($desc, '/')) {
+                    $prefix = preg_match('/\d{4}/', $desc) ? $desc : rtrim($desc, '/') . "/{$finYearString}/";
                 } else {
-                    $ledgerCode = strtoupper(substr($words[0], 0, 3));
+                    $prefix = "{$desc}/{$finYearString}/";
                 }
             }
+            // 3. If description is hyphenated (e.g. 'PC-')
+            elseif (str_ends_with($desc, '-')) {
+                $cleanDesc = rtrim($desc, '-');
+                $prefix = "{$cleanDesc}-{$typeShort}-";
+            }
+            // 4. Standard ledger code (e.g. 'SBI', 'CASH', 'HDFC/')
+            else {
+                $cleanDesc = rtrim($desc, '/');
+                $prefix = "{$cleanDesc}/{$typeShort}/{$finYearString}/";
+            }
+        } else {
+            // Default fallback when ledger description is empty:
+            // Separate Payment (PAY/2627/...) and Receipt (REC/2627/...)
+            $prefix = "{$typeShort}/{$finYearString}/";
         }
-        
-        $typeShort = ($transactionType === 'receipt') ? 'REC' : 'PAY';
-        $prefix = "{$ledgerCode}/{$finYearString}/";
 
         $lastPayment = self::where('plant_id', $plantId)
-            ->where('ledger_id', $ledgerId)
             ->where('transaction_type', $transactionType)
             ->where('reference', 'like', $prefix . '%')
-            ->orderBy('created_at', 'desc')
             ->orderBy('id', 'desc')
             ->first();
 
+        $nextNumber = 1;
         if ($lastPayment && preg_match('/' . preg_quote($prefix, '/') . '(\d+)/i', $lastPayment->reference, $matches)) {
-            $lastNumber = (int) $matches[1];
-            $nextNumber = $lastNumber + 1;
-        } else {
-            $nextNumber = 1;
+            $nextNumber = (int) $matches[1] + 1;
         }
 
         return $prefix . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
