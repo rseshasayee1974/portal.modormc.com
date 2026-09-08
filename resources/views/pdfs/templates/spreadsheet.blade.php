@@ -452,7 +452,7 @@
                 @endforeach
             </tbody>
         </table>
-        @if ($pdfSettings['amount'] ?? true)
+        @if ($pdfSettings['show_totals'] ?? ($pdfSettings['amount'] ?? true))
         <div style="padding:8px 12px;">
             <table class="bt-table">
                 @if(!empty($data['totals']['sub_total']) && $data['totals']['sub_total'] > 0)

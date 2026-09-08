@@ -512,7 +512,7 @@
             </tbody>
         </table>
 
-        @if ($pdfSettings['amount'] ?? true)
+        @if ($pdfSettings['show_totals'] ?? ($pdfSettings['amount'] ?? true))
         <div style="display: table; width: 100%;">
             <table class="totals-compact">
                 @if(!empty($data['totals']['sub_total']) && $data['totals']['sub_total'] > 0)

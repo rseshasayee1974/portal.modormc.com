@@ -592,7 +592,7 @@
         </table>
 
         {{-- Totals — right only --}}
-        @if ($pdfSettings['amount'] ?? true)
+        @if ($pdfSettings['show_totals'] ?? ($pdfSettings['amount'] ?? true))
         <div class="totals-block">
             <table class="breakdown-table">
                 @if(!empty($data['totals']['sub_total']) && $data['totals']['sub_total'] > 0)

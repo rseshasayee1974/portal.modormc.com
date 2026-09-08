@@ -311,7 +311,7 @@
     </table>
 
     {{-- AMOUNT IN WORDS & GRAND TOTAL SUMMARY --}}
-    @if ($pdfSettings['amount'] ?? true)
+    @if ($pdfSettings['show_totals'] ?? ($pdfSettings['amount'] ?? true))
     <table class="totals-table">
         <tr>
             <td style="width: 60%; border-right: 1px solid #000;">

@@ -451,7 +451,7 @@
         $rawGrandWords = !empty($data['meta']['total_words']) ? $data['meta']['total_words'] : \App\Services\PrintDataFormatter::numberToWords($data['totals']['grand_total'], 'INR');
         $cleanGrandWords = preg_replace('/^(Rupees|Rs\.?)\s*/i', '', $rawGrandWords);
     @endphp
-    @if ($pdfSettings['amount'] ?? true)
+    @if ($pdfSettings['show_totals'] ?? ($pdfSettings['amount'] ?? true))
     <table class="totals-table">
         <tr>
             <td class="totals-words">

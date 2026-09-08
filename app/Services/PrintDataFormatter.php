@@ -1076,7 +1076,8 @@ class PrintDataFormatter
 
         if ($isPriceList) {
             $data['doc_title'] = 'PRICE LIST';
-            $data['settings']['pdf']['amount'] = false;
+            $data['settings']['pdf']['amount'] = true;
+            $data['settings']['pdf']['show_totals'] = false;
         } else {
             $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? $defaultTitle;
         }

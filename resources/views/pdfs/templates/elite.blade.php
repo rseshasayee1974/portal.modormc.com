@@ -609,7 +609,7 @@
         </table>
 
         {{-- TOTALS --}}
-        @if ($pdfSettings['amount'] ?? true)
+        @if ($pdfSettings['show_totals'] ?? ($pdfSettings['amount'] ?? true))
         <div class="totals-split">
             <div class="totals-left">
                 @if ($pdfSettings['total_words'] ?? true)
