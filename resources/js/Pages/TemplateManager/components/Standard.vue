@@ -111,7 +111,7 @@ const meta = computed(() => props.dummyData?.meta || {});
                     <th class="col-qty text-right">Qty</th>
                     <th v-if="pdfSettings.unit !== false" class="col-unit text-right">Unit</th>
                     <th class="col-rate text-right">{{ labels.rate || 'Rate' }}</th>
-                    <th class="col-amt text-right">{{ labels.amount || 'Amount' }}</th>
+                    <th v-if="pdfSettings.amount !== false" class="col-amt text-right">{{ labels.amount || 'Amount' }}</th>
                 </tr>
             </thead>
             <tbody>
@@ -125,7 +125,7 @@ const meta = computed(() => props.dummyData?.meta || {});
                     <td class="col-qty text-right">{{ Number(item.qty || 0).toFixed(2) }}</td>
                     <td v-if="pdfSettings.unit !== false" class="col-unit text-right">{{ item.unit || 'm³' }}</td>
                     <td class="col-rate text-right">₹{{ Number(item.unit_price || item.rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
-                    <td class="col-amt text-right">₹{{ Number(item.total || item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
+                    <td v-if="pdfSettings.amount !== false" class="col-amt text-right">₹{{ Number(item.total || item.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</td>
                 </tr>
             </tbody>
         </table>

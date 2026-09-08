@@ -222,7 +222,7 @@
             </td>
             <td class="block-td">
                 @if(($pdfSettings['invoice_number'] ?? true) && $hasValue($data['doc_no'] ?? null))
-                    <div class="kv-line">Invoice No : <strong>{{ $data['doc_no'] }}</strong></div>
+                    <div class="kv-line">Invoice No : <strong>{{ strtoupper($data['doc_no']) }}</strong></div>
                 @endif
                 @if(($pdfSettings['date'] ?? true) && $hasValue($data['doc_date'] ?? null))
                     <div class="kv-line">Date : <strong>{{ $data['doc_date'] }}</strong></div>
@@ -451,6 +451,7 @@
         $rawGrandWords = !empty($data['meta']['total_words']) ? $data['meta']['total_words'] : \App\Services\PrintDataFormatter::numberToWords($data['totals']['grand_total'], 'INR');
         $cleanGrandWords = preg_replace('/^(Rupees|Rs\.?)\s*/i', '', $rawGrandWords);
     @endphp
+    @if ($pdfSettings['amount'] ?? true)
     <table class="totals-table">
         <tr>
             <td class="totals-words">
@@ -547,6 +548,7 @@
             </td>
         </tr>
     </table>
+    @endif
 
     {{-- TERMS & CONDITIONS + BANK INFORMATION --}}
     <table style="width: 100%; border-collapse: collapse;">

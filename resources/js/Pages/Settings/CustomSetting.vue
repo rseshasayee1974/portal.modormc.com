@@ -54,13 +54,16 @@ const form = useForm({
         cpo_prefix:        props.batchingSettings?.cpo_prefix    || 'CPO',
         so_prefix:         props.batchingSettings?.so_prefix    || 'SO',
         quote_prefix:      props.batchingSettings?.quote_prefix || 'QT',
-        target_to_actual:  props.batchingSettings?.target_to_actual == 1,
+        target_to_actual:  props.batchingSettings?.target_to_actual == 1,   
         auto_carry_pump:   props.batchingSettings?.auto_carry_pump == 1,
         default_transport: props.batchingSettings?.default_transport || '',
         quote_validity:    props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
         print_delivery_ingredients: props.batchingSettings?.print_delivery_ingredients !== undefined 
             ? (props.batchingSettings?.print_delivery_ingredients == 1 || props.batchingSettings?.print_delivery_ingredients === true || props.batchingSettings?.print_delivery_ingredients === "true") 
             : true,
+        quotation_price_list: props.batchingSettings?.quotation_price_list !== undefined
+            ? (props.batchingSettings?.quotation_price_list == 1 || props.batchingSettings?.quotation_price_list === true || props.batchingSettings?.quotation_price_list === "true")
+            : false,
 
         custom_params:     props.batchingSettings?.custom_params || [],
     }
@@ -108,6 +111,7 @@ const settingRows = computed(() => [
     { section: 'Defaults',    key: 'quote_validity',     label: 'Quotation Validity (Days)',       value: form.settings.quote_validity,      type: 'text' },
     // Print
     { section: 'Print',       key: 'print_delivery_ingredients', label: 'Delivery Token Ingredients', value: form.settings.print_delivery_ingredients, type: 'bool' },
+    { section: 'Print',       key: 'quotation_price_list',        label: 'Quotation as Price List (Title & Hide Totals)', value: form.settings.quotation_price_list, type: 'bool' },
     // Appearance
     { section: 'Appearance',  key: 'loader_gif',         label: 'Custom Global Loader (GIF URL)', value: form.settings.loader_gif,          type: 'text' },
     // Document Prefixes
@@ -140,6 +144,7 @@ const submit = () => {
         auto_carry_pump:    form.settings.auto_carry_pump    ? 1 : 0,
         quote_validity:     form.settings.quote_validity     ? parseInt(form.settings.quote_validity as any, 10) : 15,
         print_delivery_ingredients: form.settings.print_delivery_ingredients ? 1 : 0,
+        quotation_price_list: form.settings.quotation_price_list ? 1 : 0,
         material_print_mode: form.settings.material_print_mode || 'run',
     };
 
@@ -624,7 +629,7 @@ const deleteModule = (id: number) => {
                             <div class="flex items-center gap-2">
                                 <div class="p-1.5 bg-purple-100 rounded-lg"><PrinterIcon class="w-4 h-4 text-purple-600" /></div>
                                 <span class="text-sm font-bold text-slate-700">Print Configuration</span>
-                                <span v-if="form.settings.print_delivery_ingredients" 
+                                <span v-if="form.settings.print_delivery_ingredients || form.settings.quotation_price_list" 
                                     class="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-bold uppercase">Active</span>
                             </div>
                             <ChevronDownIcon v-if="!expanded.print" class="w-4 h-4 text-slate-400" />
@@ -642,6 +647,18 @@ const deleteModule = (id: number) => {
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.print_delivery_ingredients" />
+                            </div>
+
+                            <!-- quotation_price_list -->
+                            <div class="flex items-center justify-between p-4 bg-purple-50 rounded-xl border border-purple-100">
+                                <div>
+                                    <h4 class="font-bold text-purple-700 text-sm">Quotation as Price List <code class="text-[9px] text-purple-400 ml-1 font-normal">[quotation_price_list]</code></h4>
+                                    <p class="text-xs text-purple-500 mt-0.5">When enabled, quotation prints will set the document name to "PRICE LIST" and hide the total amount column in the items table.</p>
+                                    <div v-if="form.settings.quotation_price_list" class="mt-2">
+                                        <span class="text-[9px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Quotation Print Name: PRICE LIST &bull; Totals Column Hidden</span>
+                                    </div>
+                                </div>
+                                <InputSwitch v-model="form.settings.quotation_price_list" />
                             </div>
                         </div>
                     </div>

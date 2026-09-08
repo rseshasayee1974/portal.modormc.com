@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import InputNumber from 'primevue/inputnumber';
 import BaseField from './BaseField.vue';
 
@@ -32,12 +33,27 @@ const props = withDefaults(
         required: false,
         disabled: false,
         readonly: false,
-        minFractionDigits: 2,
-        maxFractionDigits: 3,
         size: 'small',
         fluid: true,
     }
 );
+
+const effectiveMinFractionDigits = computed(() => {
+    if (props.minFractionDigits !== undefined && props.maxFractionDigits !== undefined) {
+        return Math.min(props.minFractionDigits, props.maxFractionDigits);
+    }
+    if (props.minFractionDigits !== undefined) {
+        return props.minFractionDigits;
+    }
+    return undefined;
+});
+
+const effectiveMaxFractionDigits = computed(() => {
+    if (props.maxFractionDigits !== undefined) {
+        return props.maxFractionDigits;
+    }
+    return undefined;
+});
 
 const emit = defineEmits<{
     (e: 'update:modelValue', v: number | null): void;
@@ -61,8 +77,8 @@ const emit = defineEmits<{
                 :placeholder="placeholder"
                 :disabled="disabled"
                 :readonly="readonly"
-                :minFractionDigits="minFractionDigits"
-                :maxFractionDigits="maxFractionDigits"
+                :minFractionDigits="effectiveMinFractionDigits"
+                :maxFractionDigits="effectiveMaxFractionDigits"
                 :min="min"
                 :max="max"
                 :prefix="prefix"

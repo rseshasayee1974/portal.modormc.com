@@ -32,10 +32,21 @@ class MixDesign extends Model
         'deleted_by',
     ];
 
-    // protected $appends = [
-    //     'is_used_in_quotations',
-    //     'is_used_in_batching',
-    // ];
+    protected $appends = [
+        'name',
+        'code',
+    ];
+
+    public function getNameAttribute()
+    {
+        return $this->design_name;
+    }
+
+    public function getCodeAttribute()
+    {
+        return $this->design_code;
+    }
+
     protected $casts = [
         'rate_per_qty' => 'decimal:4',
         'is_active' => 'boolean',

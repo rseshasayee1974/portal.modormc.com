@@ -338,7 +338,7 @@ const downloadSample = () => {
 
                                 <div class="pt-2">
                                     <label class="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5 block">Custom Document Title ({{ selectedTemplateKey.toUpperCase() }})</label>
-                                    <InputText v-model="activeSettings.pdf.labels.invoice_title" class="w-full" placeholder="e.g. TAX INVOICE, QUOTATION" />
+                                    <InputText v-model="activeSettings.pdf.labels.invoice_title" class="w-full" :placeholder="moduleKey === 'quotations' ? 'e.g. PRICE LIST, QUOTATION' : 'e.g. TAX INVOICE, QUOTATION'" />
                                 </div>
                             </div>
                         </div>
@@ -397,6 +397,14 @@ const downloadSample = () => {
                                         <p class="setting-desc">Show item-level discount column</p>
                                     </div>
                                     <InputSwitch v-model="activeSettings.pdf.discount" />
+                                </div>
+
+                                <div class="setting-row">
+                                    <div>
+                                        <label class="setting-title">Item Total / Amount Column</label>
+                                        <p class="setting-desc">Display line item total amount column in items table</p>
+                                    </div>
+                                    <InputSwitch v-model="activeSettings.pdf.amount" />
                                 </div>
 
                                 <!-- <div class="setting-row">

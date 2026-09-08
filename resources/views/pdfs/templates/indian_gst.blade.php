@@ -125,7 +125,7 @@
                 <div>{{ $data['company']['state'] }}</div>
             </td>
             <td class="block-td">
-                <div class="kv-line">Invoice No : <strong>{{ $data['doc_no'] }}</strong></div>
+                <div class="kv-line">Invoice No : <strong>{{ strtoupper($data['doc_no']) }}</strong></div>
                 <div class="kv-line">Date : <strong>{{ $data['doc_date'] }}</strong></div>
                 @if(!empty($data['meta']['so_no'])) <div class="kv-line">SO No : <strong>{{ $data['meta']['so_no'] }}</strong></div> @endif
                 @if(!empty($data['meta']['eway_bill_no'])) <div class="kv-line">EWayBillNo : <strong>{{ $data['meta']['eway_bill_no'] }}</strong></div> @endif
@@ -311,6 +311,7 @@
     </table>
 
     {{-- AMOUNT IN WORDS & GRAND TOTAL SUMMARY --}}
+    @if ($pdfSettings['amount'] ?? true)
     <table class="totals-table">
         <tr>
             <td style="width: 60%; border-right: 1px solid #000;">
@@ -419,6 +420,7 @@
             </td>
         </tr>
     </table>
+    @endif
 
     {{-- TERMS & CONDITIONS + BANK INFORMATION --}}
     <table style="width: 100%; border-collapse: collapse;">

@@ -14,6 +14,14 @@ class ConcreteBatchingSchedule extends Model
 {
     use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
+    public const PUMP_TYPES = [
+        'boom_pump',
+        'line_pump',
+        'crane_bucket',
+        'direct_pour',
+        'stationary_pump',
+    ];
+
     protected $table = 'mm_concrete_batching_schedules';
 
     protected $guarded = [];
@@ -98,6 +106,11 @@ class ConcreteBatchingSchedule extends Model
     public function salesOrder(): BelongsTo
     {
         return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class, 'batch_id');
     }
 
     public function dispatch(): BelongsTo

@@ -68,10 +68,10 @@ class PumpBoomDeploymentController extends Controller
 
         $query = PumpBoomDeploymentSchedule::where('plant_id', $plantId)
             ->with([
-                'site:id,name,address',
-                'mixDesign:id,name,code',
+                'site:id,name,site_address_1',
+                'mixDesign:id,design_name,design_code',
                 'pumpMachine:id,registration,vehicle_model,capacity',
-                'operator:id,first_name,last_name,employee_code,phone',
+                'operator:id,first_name,last_name,employee_code,mobile',
             ]);
 
         // Filter 1: Schedule date
@@ -156,11 +156,11 @@ class PumpBoomDeploymentController extends Controller
 
         $sites = Site::where('plant_id', $plantId)
             ->whereNull('deleted_at')
-            ->get(['id', 'name', 'address']);
+            ->get(['id', 'name', 'site_address_1']);
 
         $mixDesigns = MixDesign::where('plant_id', $plantId)
             ->whereNull('deleted_at')
-            ->get(['id', 'name', 'code']);
+            ->get(['id', 'design_name', 'design_code']);
 
         $machines = Machine::where('plant_id', $plantId)
             ->whereNull('deleted_at')
@@ -168,7 +168,8 @@ class PumpBoomDeploymentController extends Controller
 
         $operators = Personnel::where('plant_id', $plantId)
             ->whereNull('deleted_at')
-            ->get(['id', 'first_name', 'last_name', 'employee_code', 'phone']);
+            ->whereRelation('designation', 'name', 'like', '%Operator%')
+            ->get(['id', 'first_name', 'last_name', 'employee_code', 'mobile']);
 
         return response()->json([
             'sites'      => $sites,
