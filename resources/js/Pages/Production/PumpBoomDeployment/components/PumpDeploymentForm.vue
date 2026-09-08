@@ -302,64 +302,62 @@ const submitForm = async () => {
 </script>
 
 <template>
-    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden text-xs">
-        <!-- Header -->
-        <div class="px-6 py-4 bg-gray-50/80 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
-                    <WrenchScrewdriverIcon class="w-5 h-5 text-white" />
-                </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xs border border-gray-200 dark:border-gray-700 overflow-hidden text-xs">
+        <!-- Compact Header -->
+        <div class="px-5 py-3 bg-gray-50/70 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <!-- <div class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                    <WrenchScrewdriverIcon class="w-4 h-4 text-white" />
+                </div> -->
                 <div>
-                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100">
+                    <h2 class="text-xs font-bold text-gray-900 dark:text-gray-100">
                         {{ isEditing ? `Edit Deployment #${initialData?.id}` : 'New Pump Deployment' }}
                     </h2>
-                    <p v-if="form.pour_reference" class="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
-                        {{ form.pour_reference }}
-                    </p>
                 </div>
             </div>
 
             <button
                 type="button"
                 @click="emit('cancel')"
-                class="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                class="px-2.5 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
             >
                 <ArrowLeftIcon class="w-3.5 h-3.5" />
                 <span>Back</span>
             </button>
         </div>
 
-        <form @submit.prevent="submitForm" class="p-6 space-y-5">
+        <form @submit.prevent="submitForm" class="p-4 space-y-3.5">
             
             <!-- Real-Time Time Validation Warnings / Advisories -->
             <div v-if="form.setup_start_time && form.setup_end_time && new Date(form.setup_start_time) > new Date(form.setup_end_time)" 
-                 class="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
-                <ExclamationTriangleIcon class="w-4 h-4 text-rose-600 shrink-0" />
+                 class="p-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-1.5">
+                <ExclamationTriangleIcon class="w-3.5 h-3.5 text-rose-600 shrink-0" />
                 <span>Setup Start Time cannot be later than Setup End Time.</span>
             </div>
 
             <div v-if="form.actual_start_time && form.actual_end_time && new Date(form.actual_start_time) > new Date(form.actual_end_time)" 
-                 class="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
-                <ExclamationTriangleIcon class="w-4 h-4 text-rose-600 shrink-0" />
+                 class="p-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-1.5">
+                <ExclamationTriangleIcon class="w-3.5 h-3.5 text-rose-600 shrink-0" />
                 <span>Actual Start Time cannot be later than Actual End Time.</span>
             </div>
 
             <div v-if="form.pump_arrival_time && form.setup_start_time && new Date(form.pump_arrival_time) > new Date(form.setup_start_time)" 
-                 class="p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-800 dark:text-amber-300 text-[11px] font-medium flex items-center gap-2">
-                <InformationCircleIcon class="w-4 h-4 text-amber-600 shrink-0" />
+                 class="p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-800 dark:text-amber-300 text-[11px] font-medium flex items-center gap-1.5">
+                <InformationCircleIcon class="w-3.5 h-3.5 text-amber-600 shrink-0" />
                 <span>Pump arrival on site is usually prior to setup start.</span>
             </div>
 
-            <!-- SECTION 1: Pour & Location Details -->
-            <div class="space-y-3">
-                <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
-                    <MapPinIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        Pour & Location
-                    </span>
+            <!-- SECTION 1: Job & Pour Specifications (What & Where) -->
+            <div class="p-3.5 bg-slate-50/80 dark:bg-gray-900/60 border border-slate-200 dark:border-gray-700 rounded-xl space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider">
+                        <span class="w-5 h-5 rounded-md bg-indigo-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">1</span>
+                        <span>Job & Pour Specifications</span>
+                    </div>
+                    <!-- <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Site, Location, Grade & Volume</span> -->
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                     <div>
                         <BaseDatePicker
                             v-model="form.schedule_date"
@@ -373,7 +371,7 @@ const submitForm = async () => {
                             v-model="form.pour_reference"
                             type="text"
                             label="Pour Reference"
-                            placeholder="e.g. SLAB-L3, RAFT-01"
+                            placeholder="e.g. SLAB-L3"
                             required
                         />
                     </div>
@@ -396,20 +394,18 @@ const submitForm = async () => {
                             v-model="form.pour_location"
                             type="text"
                             label="Pour Location"
-                            placeholder="e.g. Raft Grid A-D, 3rd Floor"
+                            placeholder="e.g. Grid A-D, 3rd Flr"
                             required
                         />
                     </div>
-                </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                     <div>
                         <BaseSelect
                             v-model="form.mix_design_id"
                             :options="mixOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Mix Design"
+                            label="Mix Design Grade"
                             placeholder="Select Grade"
                             @change="onMixSelect"
                         />
@@ -430,16 +426,17 @@ const submitForm = async () => {
                 </div>
             </div>
 
-            <!-- SECTION 2: Pump Rig & Operator -->
-            <div class="space-y-3 pt-1">
-                <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
-                    <WrenchScrewdriverIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        Pump Rig & Operator
-                    </span>
+            <!-- SECTION 2: Pump Rig & Operator Allocation (Who & How) -->
+            <div class="p-3.5 bg-slate-50/80 dark:bg-gray-900/60 border border-slate-200 dark:border-gray-700 rounded-xl space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider">
+                        <span class="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">2</span>
+                        <span>Pump Rig & Operator Allocation</span>
+                    </div>
+                    <!-- <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Equipment, Boom Length & Operator</span> -->
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                     <div>
                         <BaseSelect
                             v-model="form.pump_type"
@@ -457,7 +454,7 @@ const submitForm = async () => {
                             :options="machineOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Assigned Pump"
+                            label="Assigned Pump Rig"
                             placeholder="Select Pump Rig"
                             required
                             @change="onPumpSelect"
@@ -471,7 +468,7 @@ const submitForm = async () => {
                             :step="1"
                             :minFractionDigits="0"
                             :maxFractionDigits="1"
-                            :label="form.pump_type === 'boom_pump' ? 'Boom Length (m)' : 'Line Length (m)'"
+                            :label="form.pump_type === 'boom_pump' ? 'Boom Reach (m)' : 'Line Length (m)'"
                             :placeholder="form.pump_type === 'boom_pump' ? '36' : '100'"
                             :required="form.pump_type === 'boom_pump'"
                         />
@@ -483,7 +480,7 @@ const submitForm = async () => {
                             :options="operatorOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Operator"
+                            label="Rig Operator"
                             placeholder="Assign Operator"
                             @change="onOperatorSelect"
                         />
@@ -501,22 +498,24 @@ const submitForm = async () => {
                 </div>
             </div>
 
-            <!-- SECTION 3: Timelines -->
-            <div class="space-y-3 pt-1">
-                <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
-                    <ClockIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        Timelines & Execution
-                    </span>
+            <!-- SECTION 3: Execution Timelines (When) -->
+            <div class="p-3.5 bg-slate-50/80 dark:bg-gray-900/60 border border-slate-200 dark:border-gray-700 rounded-xl space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2 text-slate-800 dark:text-slate-200 text-xs font-bold uppercase tracking-wider">
+                        <span class="w-5 h-5 rounded-md bg-emerald-600 text-white flex items-center justify-center text-[10px] font-black shadow-xs">3</span>
+                        <span>Execution Timelines</span>
+                    </div>
+                    <!-- <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Arrival, Setup & Pour Actuals</span> -->
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <!-- Planned & Rigging Timeline (5 inputs max) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                     <div>
                         <BaseDatePicker
                             v-model="form.pump_arrival_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Arrival Time"
+                            label="1. Site Arrival"
                             placeholder="Select Time"
                         />
                     </div>
@@ -525,7 +524,7 @@ const submitForm = async () => {
                             v-model="form.setup_start_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Setup Start"
+                            label="2. Setup Start"
                             placeholder="Select Time"
                         />
                     </div>
@@ -534,19 +533,16 @@ const submitForm = async () => {
                             v-model="form.setup_end_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Setup End"
+                            label="3. Setup Ready"
                             placeholder="Select Time"
                         />
                     </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <BaseDatePicker
                             v-model="form.pour_start_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Target Pour Start"
+                            label="4. Target Pour Start"
                             placeholder="Select Time"
                         />
                     </div>
@@ -555,19 +551,20 @@ const submitForm = async () => {
                             v-model="form.planned_end_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Planned Finish"
+                            label="5. Planned Finish"
                             placeholder="Select Time"
                         />
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Actual Execution Sub-row -->
+                <div class="pt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                     <div>
                         <BaseDatePicker
                             v-model="form.actual_start_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Actual Start"
+                            label="Actual Pour Start"
                             placeholder="Select Time"
                             @update:modelValue="onActualStartInput"
                         />
@@ -578,7 +575,7 @@ const submitForm = async () => {
                             v-model="form.actual_end_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Actual End"
+                            label="Actual Pour Finish"
                             placeholder="Select Time"
                             @update:modelValue="onActualEndInput"
                         />
@@ -586,35 +583,33 @@ const submitForm = async () => {
                 </div>
             </div>
 
-            <!-- SECTION 4: Notes -->
-            <div class="pt-1">
-                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
-                    Notes
-                </label>
-                <textarea
-                    v-model="form.notes"
-                    rows="2"
-                    placeholder="Add any rigging, site access, or pour notes..."
-                    class="w-full text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                ></textarea>
-            </div>
+            <!-- SECTION 4: Notes & Bottom Actions -->
+            <div class="pt-2  flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="w-full sm:w-2/3">
+                    <BaseInput
+                    label="Remarks/Notes"
+                        v-model="form.notes"
+                        type="text"
+                        placeholder="Add any rigging, site access, or pour notes..."
+                    />
+                </div>
 
-            <!-- Form Actions -->
-            <div class="pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
-                <BaseButton
-                    label="Cancel"
-                    severity="secondary"
-                    variant="outlined"
-                    @click="emit('cancel')"
-                />
-                <BaseButton
-                    :label="isEditing ? 'Save Changes' : 'Create Deployment'"
-                    severity="primary"
-                    variant="filled"
-                    type="submit"
-                    :loading="saving"
-                    class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !border-transparent font-semibold"
-                />
+                <div class="flex items-center justify-end gap-2 shrink-0 ml-auto">
+                    <BaseButton
+                        label="Cancel"
+                        severity="secondary"
+                        variant="outlined"
+                        @click="emit('cancel')"
+                    />
+                    <BaseButton
+                        :label="isEditing ? 'Save Changes' : 'Create Deployment'"
+                        severity="primary"
+                        variant="filled"
+                        type="submit"
+                        :loading="saving"
+                        class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !border-transparent font-semibold"
+                    />
+                </div>
             </div>
         </form>
     </div>

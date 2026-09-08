@@ -230,7 +230,18 @@ class ConcreteBatchingSchedule extends Model
             return;
         }
 
-        $orderVolume = (float) ($schedules->first()->order_volume_m3 ?? 0);
+        $salesOrderId = $schedules->first(fn($s) => !empty($s->sales_order_id))?->sales_order_id;
+        $orderVolume = 0.0;
+        if ($salesOrderId) {
+            $salesOrder = SalesOrder::find($salesOrderId);
+            if ($salesOrder && (float)$salesOrder->total_qty > 0) {
+                $orderVolume = (float) $salesOrder->total_qty;
+            }
+        }
+        if ($orderVolume <= 0) {
+            $orderVolume = (float) ($schedules->first()->order_volume_m3 ?? 0);
+        }
+
         $cumulative = 0.0;
 
         foreach ($schedules as $item) {

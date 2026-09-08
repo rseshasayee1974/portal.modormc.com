@@ -148,11 +148,13 @@ const filteredSchedules = computed(() => {
 
 // Open dedicated Form Component (No Modals)
 const openCreateForm = () => {
+    fetchDropdowns();
     selectedSchedule.value = null;
     activeView.value = 'create';
 };
 
 const openEditForm = (item) => {
+    fetchDropdowns();
     selectedSchedule.value = item;
     activeView.value = 'edit';
 };
