@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ConcreteBatchingSchedule;
 use App\Models\Machine;
 use App\Models\MixDesign;
 use App\Models\Personnel;
@@ -11,6 +12,7 @@ use App\Models\Site;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use Inertia\Inertia;
@@ -195,6 +197,12 @@ class PumpBoomDeploymentController extends Controller
 
         $plantId = session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1;
 
+        if ($request->has('pump_type')) {
+            $request->merge([
+                'pump_type' => strtolower(trim(str_replace(' ', '_', (string)$request->input('pump_type')))),
+            ]);
+        }
+
         $validated = $request->validate([
             // Rule 1: Every pour must have a schedule date and pour reference.
             'schedule_date'      => 'required|date',
@@ -209,7 +217,7 @@ class PumpBoomDeploymentController extends Controller
             'planned_qty_m3'     => 'required|numeric|min:0.1',
 
             // Rule 2: Every scheduled pour must have a pump type and assigned pump.
-            'pump_type'          => 'required|in:boom_pump,line_pump,stationary_pump,crane_bucket,direct_pour',
+            'pump_type'          => ['required', Rule::in(ConcreteBatchingSchedule::PUMP_TYPES)],
             'pump_vehicle_id'    => 'required_without:pump_no|nullable|exists:mm_machines,id',
             'pump_no'            => 'required_without:pump_vehicle_id|nullable|string|max:100',
 
@@ -258,25 +266,29 @@ class PumpBoomDeploymentController extends Controller
             }
         }
 
-        // 3. actual_end_time may be later than planned_end_time; this should not block completion.
-        // (Intentionally no blocking validation on actual_end_time vs planned_end_time)
+        // Normalize all datetime strings to MySQL Y-m-d H:i:s format
+        foreach (['pump_arrival_time', 'setup_start_time', 'setup_end_time', 'pour_start_time', 'planned_end_time', 'actual_start_time', 'actual_end_time'] as $dtField) {
+            if (!empty($validated[$dtField])) {
+                try {
+                    $validated[$dtField] = Carbon::parse($validated[$dtField])->format('Y-m-d H:i:s');
+                } catch (\Exception $e) {
+                    $validated[$dtField] = null;
+                }
+            }
+        }
 
         $validated['plant_id'] = $plantId;
 
-        // STATUS AUTOMATION:
-        // - New records default to Scheduled.
-        // - Recording an actual start changes status to In Progress.
-        // - Recording an actual end changes status to Completed.
-        // - Delayed and cancelled pours require the user to explicitly change status.
-        $rawStatus = $validated['status'] ?? null;
-        if (in_array($rawStatus, ['delayed', 'cancelled'])) {
-            $validated['status'] = $rawStatus;
+        // STATUS RESOLUTION:
+        // Respect explicitly selected status from the request if provided
+        if (!empty($validated['status'])) {
+            $validated['status'] = $validated['status'];
         } elseif (!empty($validated['actual_end_time'])) {
             $validated['status'] = 'completed';
         } elseif (!empty($validated['actual_start_time'])) {
             $validated['status'] = 'in_progress';
         } else {
-            $validated['status'] = $rawStatus ?: 'scheduled';
+            $validated['status'] = 'scheduled';
         }
 
         // Auto-resolve pump_no if vehicle chosen
@@ -308,6 +320,12 @@ class PumpBoomDeploymentController extends Controller
 
         $plantId = $deployment->plant_id ?? (session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1);
 
+        if ($request->has('pump_type')) {
+            $request->merge([
+                'pump_type' => strtolower(trim(str_replace(' ', '_', (string)$request->input('pump_type')))),
+            ]);
+        }
+
         $validated = $request->validate([
             // Rule 1: Every pour must have a schedule date and pour reference.
             'schedule_date'      => 'required|date',
@@ -322,7 +340,7 @@ class PumpBoomDeploymentController extends Controller
             'planned_qty_m3'     => 'required|numeric|min:0.1',
 
             // Rule 2: Every scheduled pour must have a pump type and assigned pump.
-            'pump_type'          => 'required|in:boom_pump,line_pump,stationary_pump,crane_bucket,direct_pour',
+            'pump_type'          => ['required', Rule::in(ConcreteBatchingSchedule::PUMP_TYPES)],
             'pump_vehicle_id'    => 'required_without:pump_no|nullable|exists:mm_machines,id',
             'pump_no'            => 'required_without:pump_vehicle_id|nullable|string|max:100',
 
@@ -371,22 +389,27 @@ class PumpBoomDeploymentController extends Controller
             }
         }
 
-        // 3. actual_end_time may be later than planned_end_time; this should not block completion.
-        // (Intentionally no blocking validation on actual_end_time vs planned_end_time)
+        // Normalize all datetime strings to MySQL Y-m-d H:i:s format
+        foreach (['pump_arrival_time', 'setup_start_time', 'setup_end_time', 'pour_start_time', 'planned_end_time', 'actual_start_time', 'actual_end_time'] as $dtField) {
+            if (!empty($validated[$dtField])) {
+                try {
+                    $validated[$dtField] = Carbon::parse($validated[$dtField])->format('Y-m-d H:i:s');
+                } catch (\Exception $e) {
+                    $validated[$dtField] = null;
+                }
+            }
+        }
 
-        // STATUS AUTOMATION:
-        // - Delayed and cancelled pours require the user to explicitly change status.
-        // - Recording an actual start changes status to In Progress.
-        // - Recording an actual end changes status to Completed.
-        $rawStatus = $validated['status'] ?? $deployment->status;
-        if (in_array($rawStatus, ['delayed', 'cancelled'])) {
-            $validated['status'] = $rawStatus;
+        // STATUS RESOLUTION:
+        // Respect explicitly selected status from the request if provided
+        if (!empty($validated['status'])) {
+            $validated['status'] = $validated['status'];
         } elseif (!empty($validated['actual_end_time'])) {
             $validated['status'] = 'completed';
-        } elseif (!empty($validated['actual_start_time']) && !in_array($rawStatus, ['completed'])) {
+        } elseif (!empty($validated['actual_start_time'])) {
             $validated['status'] = 'in_progress';
         } else {
-            $validated['status'] = $rawStatus ?: 'scheduled';
+            $validated['status'] = $deployment->status ?: 'scheduled';
         }
 
         if (!empty($validated['pump_vehicle_id']) && empty($validated['pump_no'])) {
@@ -545,10 +568,14 @@ class PumpBoomDeploymentController extends Controller
 
         $validated = $request->validate([
             'status' => 'required|in:scheduled,in_progress,en_route,setup,ready,pumping,washout,completed,delayed,breakdown,cancelled',
+            'notes'  => 'nullable|string',
         ]);
 
         $newStatus = $validated['status'];
         $updates   = ['status' => $newStatus];
+        if ($request->has('notes')) {
+            $updates['notes'] = $validated['notes'];
+        }
         $now       = now();
 
         switch ($newStatus) {

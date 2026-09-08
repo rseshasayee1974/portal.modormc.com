@@ -9,14 +9,9 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import {
     WrenchScrewdriverIcon,
-    CalendarIcon,
     MapPinIcon,
-    BeakerIcon,
     ClockIcon,
-    UserIcon,
-    DocumentTextIcon,
     ArrowLeftIcon,
-    CheckIcon,
     ExclamationTriangleIcon,
     InformationCircleIcon
 } from '@heroicons/vue/24/outline';
@@ -83,24 +78,35 @@ const machineOptions = computed(() => props.dropdowns.machines?.map(m => ({ labe
 const operatorOptions = computed(() => props.dropdowns.operators?.map(o => ({ label: `${o.first_name} ${o.last_name || ''} (${o.phone || o.employee_code || 'Staff'})`, value: o.id })) || []);
 
 const pumpTypeOptions = [
-    { label: 'Boom Pump (Truck-Mounted Articulated)', value: 'boom_pump' },
-    { label: 'Line Pump (Ground Pipeline)', value: 'line_pump' },
-    { label: 'Stationary High-Rise Pump', value: 'stationary_pump' },
-    { label: 'Crane & Bucket Pour', value: 'crane_bucket' },
-    { label: 'Direct Chute Discharge', value: 'direct_pour' },
+    { label: 'Boom Pump', value: 'boom_pump' },
+    { label: 'Line Pump', value: 'line_pump' },
+    { label: 'Stationary Pump', value: 'stationary_pump' },
+    { label: 'Crane & Bucket', value: 'crane_bucket' },
+    { label: 'Direct Chute', value: 'direct_pour' },
 ];
 
 const statusOptions = [
-    { label: 'Scheduled (Default for new records)', value: 'scheduled' },
-    { label: 'En Route (Traveling to Site)', value: 'en_route' },
-    { label: 'Setup (Rigging / Outriggers deployed)', value: 'setup' },
-    { label: 'Ready (Primed with Slurry & Prepared)', value: 'ready' },
-    { label: 'In Progress (Active Pumping)', value: 'in_progress' },
-    { label: 'Line Washout (Hopper / Pipe Clean)', value: 'washout' },
-    { label: 'Completed (Pour Finalized)', value: 'completed' },
-    { label: 'Delayed (Site Access / Slump Delay)', value: 'delayed' },
+    { label: 'Scheduled', value: 'scheduled' },
+    { label: 'En Route', value: 'en_route' },
+    { label: 'Setup', value: 'setup' },
+    { label: 'Ready', value: 'ready' },
+    { label: 'In Progress', value: 'in_progress' },
+    { label: 'Line Washout', value: 'washout' },
+    { label: 'Completed', value: 'completed' },
+    { label: 'Delayed', value: 'delayed' },
     { label: 'Cancelled', value: 'cancelled' },
 ];
+
+const normalizePumpType = (raw) => {
+    if (!raw) return 'boom_pump';
+    const s = String(raw).trim().toLowerCase().replace(/\s+/g, '_');
+    if (s.includes('boom')) return 'boom_pump';
+    if (s.includes('line')) return 'line_pump';
+    if (s.includes('stationary') || s.includes('static')) return 'stationary_pump';
+    if (s.includes('crane') || s.includes('bucket')) return 'crane_bucket';
+    if (s.includes('direct') || s.includes('chute')) return 'direct_pour';
+    return s;
+};
 
 const initForm = () => {
     if (props.isEditing && props.initialData) {
@@ -114,7 +120,7 @@ const initForm = () => {
             mix_design_id: item.mix_design_id ? Number(item.mix_design_id) : null,
             grade: item.grade || '',
             planned_qty_m3: parseFloat(item.planned_qty_m3) || 45.0,
-            pump_type: item.pump_type || 'boom_pump',
+            pump_type: normalizePumpType(item.pump_type),
             pump_vehicle_id: item.pump_vehicle_id ? Number(item.pump_vehicle_id) : null,
             pump_no: item.pump_no || '',
             boom_length_m: parseFloat(item.boom_length_m) || 36.0,
@@ -199,32 +205,26 @@ const onActualEndInput = () => {
     }
 };
 
-const estimatedDurationHours = computed(() => {
-    const qty = parseFloat(form.value.planned_qty_m3);
-    if (isNaN(qty) || qty <= 0) return 0;
-    return (qty / 30).toFixed(1);
-});
-
 const submitForm = async () => {
     if (!form.value.schedule_date || !form.value.pour_reference?.trim()) {
-        Swal.fire('Required Field', 'Every pour must have a schedule date and pour reference.', 'warning');
+        Swal.fire('Required Field', 'Please provide Schedule Date and Pour Reference.', 'warning');
         return;
     }
 
     if (!form.value.pour_location?.trim() || !form.value.planned_qty_m3) {
-        Swal.fire('Required Fields', 'Please specify Pour Location and Planned Pour Volume.', 'warning');
+        Swal.fire('Required Fields', 'Please specify Pour Location and Planned Volume.', 'warning');
         return;
     }
 
     if (!form.value.pump_type || (!form.value.pump_vehicle_id && !form.value.pump_no?.trim())) {
-        Swal.fire('Assigned Pump Required', 'Every scheduled pour must have a pump type and assigned pump machine.', 'warning');
+        Swal.fire('Assigned Pump Required', 'Please assign a pump machine.', 'warning');
         return;
     }
 
     if (form.value.pump_type === 'boom_pump') {
         const boomLen = parseFloat(form.value.boom_length_m);
         if (isNaN(boomLen) || boomLen <= 0) {
-            Swal.fire('Boom Length Required', 'A boom pump must have a boom length in meters (e.g. 36m, 42m).', 'warning');
+            Swal.fire('Boom Length Required', 'Please specify boom length in meters.', 'warning');
             return;
         }
     }
@@ -257,23 +257,27 @@ const submitForm = async () => {
 
     saving.value = true;
     try {
+        const payload = {
+            ...form.value,
+            pump_type: normalizePumpType(form.value.pump_type),
+        };
         if (props.isEditing && props.initialData?.id) {
-            await axios.put(route('production.pump-deployments.update', props.initialData.id), form.value);
+            await axios.put(route('production.pump-deployments.update', props.initialData.id), payload);
             Swal.fire({
                 toast: true,
                 position: 'top-end',
                 icon: 'success',
-                title: 'Pump deployment updated successfully',
+                title: 'Deployment updated successfully',
                 timer: 2000,
                 showConfirmButton: false
             });
         } else {
-            await axios.post(route('production.pump-deployments.store'), form.value);
+            await axios.post(route('production.pump-deployments.store'), payload);
             Swal.fire({
                 toast: true,
                 position: 'top-end',
                 icon: 'success',
-                title: 'Pump deployment scheduled successfully',
+                title: 'Deployment scheduled successfully',
                 timer: 2000,
                 showConfirmButton: false
             });
@@ -299,18 +303,18 @@ const submitForm = async () => {
 
 <template>
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden text-xs">
-        <!-- Form Header Bar in Indigo Theme -->
-        <div class="px-6 py-4 bg-indigo-50/50 dark:bg-gray-900/60 border-b border-indigo-100 dark:border-gray-700 flex items-center justify-between">
+        <!-- Header -->
+        <div class="px-6 py-4 bg-gray-50/80 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+                <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
                     <WrenchScrewdriverIcon class="w-5 h-5 text-white" />
                 </div>
                 <div>
                     <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100">
-                        {{ isEditing ? `Edit Deployment #${initialData?.id} — ${form.pour_reference}` : 'Schedule New Pour & Pump Deployment' }}
+                        {{ isEditing ? `Edit Deployment #${initialData?.id}` : 'New Pump Deployment' }}
                     </h2>
-                    <p class="text-[11px] text-gray-500 dark:text-gray-400">
-                        Assign concrete boom pumps, line pumps, operators, and milestone schedules
+                    <p v-if="form.pour_reference" class="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                        {{ form.pour_reference }}
                     </p>
                 </div>
             </div>
@@ -318,32 +322,32 @@ const submitForm = async () => {
             <button
                 type="button"
                 @click="emit('cancel')"
-                class="px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                class="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
             >
                 <ArrowLeftIcon class="w-3.5 h-3.5" />
-                <span>Back to Schedule</span>
+                <span>Back</span>
             </button>
         </div>
 
-        <form @submit.prevent="submitForm" class="p-6 space-y-6">
+        <form @submit.prevent="submitForm" class="p-6 space-y-5">
             
             <!-- Real-Time Time Validation Warnings / Advisories -->
             <div v-if="form.setup_start_time && form.setup_end_time && new Date(form.setup_start_time) > new Date(form.setup_end_time)" 
-                 class="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 font-bold flex items-center gap-2">
+                 class="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
                 <ExclamationTriangleIcon class="w-4 h-4 text-rose-600 shrink-0" />
-                <span>Validation Error: Setup Start Time cannot be later than Setup End Time.</span>
+                <span>Setup Start Time cannot be later than Setup End Time.</span>
             </div>
 
             <div v-if="form.actual_start_time && form.actual_end_time && new Date(form.actual_start_time) > new Date(form.actual_end_time)" 
-                 class="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 font-bold flex items-center gap-2">
+                 class="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
                 <ExclamationTriangleIcon class="w-4 h-4 text-rose-600 shrink-0" />
-                <span>Validation Error: Actual Start Time cannot be later than Actual End Time.</span>
+                <span>Actual Start Time cannot be later than Actual End Time.</span>
             </div>
 
             <div v-if="form.pump_arrival_time && form.setup_start_time && new Date(form.pump_arrival_time) > new Date(form.setup_start_time)" 
-                 class="p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-800 dark:text-amber-300 font-medium flex items-center gap-2">
+                 class="p-2 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-800 dark:text-amber-300 text-[11px] font-medium flex items-center gap-2">
                 <InformationCircleIcon class="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Operational Advisory: Pump arrival on site is usually prior to setup start.</span>
+                <span>Pump arrival on site is usually prior to setup start.</span>
             </div>
 
             <!-- SECTION 1: Pour & Location Details -->
@@ -351,7 +355,7 @@ const submitForm = async () => {
                 <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
                     <MapPinIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        1. Pour Identification & Destination Location
+                        Pour & Location
                     </span>
                 </div>
 
@@ -368,8 +372,8 @@ const submitForm = async () => {
                         <BaseInput
                             v-model="form.pour_reference"
                             type="text"
-                            label="Pour Reference / Code"
-                            placeholder="e.g. POUR-2026-0908-01"
+                            label="Pour Reference"
+                            placeholder="e.g. SLAB-L3, RAFT-01"
                             required
                         />
                     </div>
@@ -380,7 +384,7 @@ const submitForm = async () => {
                             :options="siteOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Delivery Destination Site"
+                            label="Destination Site"
                             placeholder="Select Site"
                             required
                             @change="onSiteSelect"
@@ -391,31 +395,21 @@ const submitForm = async () => {
                         <BaseInput
                             v-model="form.pour_location"
                             type="text"
-                            label="Pour Location / Element"
+                            label="Pour Location"
                             placeholder="e.g. Raft Grid A-D, 3rd Floor"
                             required
                         />
                     </div>
                 </div>
-            </div>
 
-            <!-- SECTION 2: Concrete Recipe & Quantity -->
-            <div class="space-y-3">
-                <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
-                    <BeakerIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        2. Concrete Mix & Pour Volume
-                    </span>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                     <div>
                         <BaseSelect
                             v-model="form.mix_design_id"
                             :options="mixOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Concrete Grade / Recipe"
+                            label="Mix Design"
                             placeholder="Select Grade"
                             @change="onMixSelect"
                         />
@@ -428,34 +422,24 @@ const submitForm = async () => {
                             :step="0.5"
                             :minFractionDigits="1"
                             :maxFractionDigits="2"
-                            label="Planned Pour Volume (m³)"
+                            label="Planned Volume (m³)"
                             placeholder="45.0"
                             required
                         />
                     </div>
-
-                    <div>
-                        <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">
-                            Estimated Pumping Duration
-                        </label>
-                        <div class="px-3 py-2 bg-indigo-50/40 dark:bg-gray-900/50 border border-indigo-100 dark:border-gray-700 rounded-lg text-xs font-semibold text-indigo-900 dark:text-indigo-300 flex items-center justify-between h-[38px]">
-                            <span>Approx. {{ estimatedDurationHours }} hrs</span>
-                            <span class="text-[10px] text-gray-400">@ 30 m³/h baseline</span>
-                        </div>
-                    </div>
                 </div>
             </div>
 
-            <!-- SECTION 3: Pump Rig & Reach -->
-            <div class="space-y-3 bg-indigo-50/50 dark:bg-indigo-950/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-900/40">
-                <div class="flex items-center gap-2 pb-1">
+            <!-- SECTION 2: Pump Rig & Operator -->
+            <div class="space-y-3 pt-1">
+                <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
                     <WrenchScrewdriverIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span class="text-xs font-bold text-indigo-900 dark:text-indigo-200 uppercase tracking-wider">
-                        3. Pump Machine & Reach Configuration
+                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
+                        Pump Rig & Operator
                     </span>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                     <div>
                         <BaseSelect
                             v-model="form.pump_type"
@@ -473,7 +457,7 @@ const submitForm = async () => {
                             :options="machineOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Assigned Pump Machine / Rig"
+                            label="Assigned Pump"
                             placeholder="Select Pump Rig"
                             required
                             @change="onPumpSelect"
@@ -487,32 +471,20 @@ const submitForm = async () => {
                             :step="1"
                             :minFractionDigits="0"
                             :maxFractionDigits="1"
-                            :label="form.pump_type === 'boom_pump' ? 'Boom Vertical/Horizontal Reach (m) *' : 'Pipeline Line Length (m)'"
-                            :placeholder="form.pump_type === 'boom_pump' ? 'e.g. 36 (Required)' : 'e.g. 100'"
+                            :label="form.pump_type === 'boom_pump' ? 'Boom Length (m)' : 'Line Length (m)'"
+                            :placeholder="form.pump_type === 'boom_pump' ? '36' : '100'"
                             :required="form.pump_type === 'boom_pump'"
                         />
                     </div>
-                </div>
-            </div>
 
-            <!-- SECTION 4: Operator & Current Status -->
-            <div class="space-y-3">
-                <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
-                    <UserIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        4. Pump Operator & Deployment Status
-                    </span>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <BaseSelect
                             v-model="form.operator_id"
                             :options="operatorOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Pump Operator / Crew Lead"
-                            placeholder="Assign Operator Later"
+                            label="Operator"
+                            placeholder="Assign Operator"
                             @change="onOperatorSelect"
                         />
                     </div>
@@ -523,29 +495,29 @@ const submitForm = async () => {
                             :options="statusOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Deployment Status"
+                            label="Status"
                         />
                     </div>
                 </div>
             </div>
 
-            <!-- SECTION 5: Operational Milestone Timelines -->
-            <div class="space-y-3 bg-gray-50 dark:bg-gray-900/40 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                <div class="flex items-center gap-2 pb-1">
+            <!-- SECTION 3: Timelines -->
+            <div class="space-y-3 pt-1">
+                <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
                     <ClockIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        5. Operational Milestones & Placement Timelines
+                        Timelines & Execution
                     </span>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <BaseDatePicker
                             v-model="form.pump_arrival_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Pump Arrival at Site"
-                            placeholder="Select Arrival Time"
+                            label="Arrival Time"
+                            placeholder="Select Time"
                         />
                     </div>
                     <div>
@@ -553,8 +525,8 @@ const submitForm = async () => {
                             v-model="form.setup_start_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Setup / Rigging Start"
-                            placeholder="Select Setup Start"
+                            label="Setup Start"
+                            placeholder="Select Time"
                         />
                     </div>
                     <div>
@@ -562,20 +534,20 @@ const submitForm = async () => {
                             v-model="form.setup_end_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Setup Finish & Ready"
-                            placeholder="Select Ready Time"
+                            label="Setup End"
+                            placeholder="Select Time"
                         />
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <BaseDatePicker
                             v-model="form.pour_start_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Target Pour Start Time"
-                            placeholder="Select Pour Start"
+                            label="Target Pour Start"
+                            placeholder="Select Time"
                         />
                     </div>
                     <div>
@@ -583,59 +555,52 @@ const submitForm = async () => {
                             v-model="form.planned_end_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Planned Completion Time"
-                            placeholder="Select Target Finish"
+                            label="Planned Finish"
+                            placeholder="Select Time"
                         />
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    <div class="p-3 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-lg border border-indigo-200 dark:border-indigo-900">
-                        <label class="block text-[10px] font-bold text-indigo-900 dark:text-indigo-300 uppercase mb-1">
-                            Actual Pour Start <span class="text-[9px] font-normal text-indigo-600 dark:text-indigo-400">(Sets status to In Progress)</span>
-                        </label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
                         <BaseDatePicker
                             v-model="form.actual_start_time"
                             :showTime="true"
                             hourFormat="12"
-                            placeholder="Select Actual Start"
+                            label="Actual Start"
+                            placeholder="Select Time"
                             @update:modelValue="onActualStartInput"
                         />
                     </div>
 
-                    <div class="p-3 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-900">
-                        <label class="block text-[10px] font-bold text-emerald-900 dark:text-emerald-300 uppercase mb-1">
-                            Actual Pour Finish <span class="text-[9px] font-normal text-emerald-600 dark:text-emerald-400">(Sets status to Completed)</span>
-                        </label>
+                    <div>
                         <BaseDatePicker
                             v-model="form.actual_end_time"
                             :showTime="true"
                             hourFormat="12"
-                            placeholder="Select Actual Finish"
+                            label="Actual End"
+                            placeholder="Select Time"
                             @update:modelValue="onActualEndInput"
                         />
                     </div>
                 </div>
             </div>
 
-            <!-- SECTION 6: Site Access & Outrigger Notes -->
-            <div class="space-y-2">
-                <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
-                    <DocumentTextIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        6. Site Rigging, Overhead Clearance & Priming Notes
-                    </span>
-                </div>
+            <!-- SECTION 4: Notes -->
+            <div class="pt-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Notes
+                </label>
                 <textarea
                     v-model="form.notes"
                     rows="2"
-                    placeholder="e.g. 8m outrigger footprint clear, overhead high-tension wire 15m away, priming with 2 bags cement slurry..."
-                    class="w-full text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Add any rigging, site access, or pour notes..."
+                    class="w-full text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 ></textarea>
             </div>
 
             <!-- Form Actions -->
-            <div class="pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
+            <div class="pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
                 <BaseButton
                     label="Cancel"
                     severity="secondary"
@@ -643,12 +608,12 @@ const submitForm = async () => {
                     @click="emit('cancel')"
                 />
                 <BaseButton
-                    :label="isEditing ? 'Save Deployment Changes' : 'Confirm & Schedule Deployment'"
+                    :label="isEditing ? 'Save Changes' : 'Create Deployment'"
                     severity="primary"
                     variant="filled"
                     type="submit"
                     :loading="saving"
-                    class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !border-transparent"
+                    class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !border-transparent font-semibold"
                 />
             </div>
         </form>

@@ -13,11 +13,8 @@ import {
     MapPinIcon,
     BeakerIcon,
     ClockIcon,
-    UserIcon,
-    DocumentTextIcon,
     ArrowLeftIcon,
-    CheckIcon,
-    WrenchScrewdriverIcon
+    ExclamationTriangleIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -63,7 +60,11 @@ const form = ref({
     pump_vehicle_id: null,
     sales_order_id: null,
     batching_time: '',
+    dispatch_time: '',
     eta_site: '',
+    unloading_start: '',
+    unloading_end: '',
+    status: 'scheduled',
     notes: '',
 });
 
@@ -75,12 +76,52 @@ const driverOptions = computed(() => props.dropdowns.drivers?.map(d => ({ label:
 const pumpVehicleOptions = computed(() => props.dropdowns.vehicles?.map(v => ({ label: `${v.registration} (${v.vehicle_model || 'Pump'})`, value: v.id })) || []);
 
 const pumpTypeOptions = [
-    { label: 'Boom Pump (Articulated Mobile Boom)', value: 'boom_pump' },
-    { label: 'Line Pump (Ground Pipeline)', value: 'line_pump' },
-    { label: 'Stationary High-Rise Pump', value: 'stationary_pump' },
-    { label: 'Crane & Bucket Pour', value: 'crane_bucket' },
-    { label: 'Direct Chute Discharge', value: 'direct_pour' },
+    { label: 'Boom Pump', value: 'boom_pump' },
+    { label: 'Line Pump', value: 'line_pump' },
+    { label: 'Stationary Pump', value: 'stationary_pump' },
+    { label: 'Crane & Bucket', value: 'crane_bucket' },
+    { label: 'Direct Chute', value: 'direct_pour' },
 ];
+
+const statusOptions = [
+    { label: 'Scheduled', value: 'scheduled' },
+    { label: 'Batching', value: 'batching' },
+    { label: 'In Transit', value: 'in_transit' },
+    { label: 'On Site', value: 'on_site' },
+    { label: 'Pouring', value: 'pouring' },
+    { label: 'Completed', value: 'completed' },
+    { label: 'Cancelled', value: 'cancelled' },
+];
+
+const normalizePumpType = (raw) => {
+    if (!raw) return 'boom_pump';
+    const s = String(raw).trim().toLowerCase().replace(/\s+/g, '_');
+    if (s.includes('boom')) return 'boom_pump';
+    if (s.includes('line')) return 'line_pump';
+    if (s.includes('stationary') || s.includes('static')) return 'stationary_pump';
+    if (s.includes('crane') || s.includes('bucket')) return 'crane_bucket';
+    if (s.includes('direct') || s.includes('chute')) return 'direct_pour';
+    return s;
+};
+
+const onStatusChange = () => {
+    const nowStr = new Date().toISOString().substring(0, 16);
+    if (form.value.status === 'batching' && !form.value.batching_time) {
+        form.value.batching_time = nowStr;
+    } else if (form.value.status === 'in_transit') {
+        if (!form.value.dispatch_time) form.value.dispatch_time = nowStr;
+        if (!form.value.eta_site) {
+            const eta = new Date(Date.now() + 35 * 60000);
+            form.value.eta_site = eta.toISOString().substring(0, 16);
+        }
+    } else if (form.value.status === 'on_site') {
+        if (!form.value.eta_site) form.value.eta_site = nowStr;
+    } else if (form.value.status === 'pouring' && !form.value.unloading_start) {
+        form.value.unloading_start = nowStr;
+    } else if (form.value.status === 'completed' && !form.value.unloading_end) {
+        form.value.unloading_end = nowStr;
+    }
+};
 
 const initForm = () => {
     if (props.isEditing && props.initialData) {
@@ -94,11 +135,15 @@ const initForm = () => {
             order_volume_m3: parseFloat(item.order_volume_m3) || 30.0,
             vehicle_id: item.vehicle_id ? Number(item.vehicle_id) : null,
             driver_id: item.driver_id ? Number(item.driver_id) : null,
-            pump_type: item.pump_type || 'boom_pump',
+            pump_type: normalizePumpType(item.pump_type),
             pump_vehicle_id: item.pump_vehicle_id ? Number(item.pump_vehicle_id) : null,
             sales_order_id: item.sales_order_id ? Number(item.sales_order_id) : null,
             batching_time: item.batching_time ? item.batching_time.substring(0, 16) : '',
+            dispatch_time: item.dispatch_time ? item.dispatch_time.substring(0, 16) : '',
             eta_site: item.eta_site ? item.eta_site.substring(0, 16) : '',
+            unloading_start: item.unloading_start ? item.unloading_start.substring(0, 16) : '',
+            unloading_end: item.unloading_end ? item.unloading_end.substring(0, 16) : '',
+            status: item.status || 'scheduled',
             notes: item.notes || '',
         };
     } else {
@@ -115,7 +160,11 @@ const initForm = () => {
             pump_vehicle_id: null,
             sales_order_id: null,
             batching_time: '',
+            dispatch_time: '',
             eta_site: '',
+            unloading_start: '',
+            unloading_end: '',
+            status: 'scheduled',
             notes: '',
         };
     }
@@ -129,10 +178,54 @@ const submitForm = async () => {
         return;
     }
 
+    if (form.value.batching_time && form.value.dispatch_time && new Date(form.value.batching_time) > new Date(form.value.dispatch_time)) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Time Validation Error',
+            text: 'Batching Time cannot be later than Dispatch Time.',
+            confirmButtonColor: '#ef4444'
+        });
+        return;
+    }
+
+    if (form.value.dispatch_time && form.value.eta_site && new Date(form.value.dispatch_time) > new Date(form.value.eta_site)) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Time Validation Error',
+            text: 'Dispatch Time cannot be later than ETA Site.',
+            confirmButtonColor: '#ef4444'
+        });
+        return;
+    }
+
+    if (form.value.batching_time && form.value.eta_site && !form.value.dispatch_time && new Date(form.value.batching_time) > new Date(form.value.eta_site)) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Time Validation Error',
+            text: 'Batching Time cannot be later than ETA Site.',
+            confirmButtonColor: '#ef4444'
+        });
+        return;
+    }
+
+    if (form.value.unloading_start && form.value.unloading_end && new Date(form.value.unloading_start) > new Date(form.value.unloading_end)) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Time Validation Error',
+            text: 'Unloading Start Time cannot be later than Unloading End Time.',
+            confirmButtonColor: '#ef4444'
+        });
+        return;
+    }
+
     saving.value = true;
     try {
+        const payload = {
+            ...form.value,
+            pump_type: normalizePumpType(form.value.pump_type),
+        };
         if (props.isEditing && props.initialData?.id) {
-            await axios.put(route('production.batching-schedules.update', props.initialData.id), form.value);
+            await axios.put(route('production.batching-schedules.update', props.initialData.id), payload);
             Swal.fire({
                 toast: true,
                 position: 'top-end',
@@ -142,7 +235,7 @@ const submitForm = async () => {
                 showConfirmButton: false
             });
         } else {
-            await axios.post(route('production.batching-schedules.store'), form.value);
+            await axios.post(route('production.batching-schedules.store'), payload);
             Swal.fire({
                 toast: true,
                 position: 'top-end',
@@ -156,12 +249,12 @@ const submitForm = async () => {
     } catch (err) {
         console.error('Error saving batch schedule:', err);
         const errMsg = err.response?.data?.errors
-            ? Object.values(err.response.data.errors).flat().join('<br>')
+            ? Object.values(err.response.data.errors).flat().join('<br><br>')
             : (err.response?.data?.message || 'Failed to save schedule.');
 
         Swal.fire({
             icon: 'error',
-            title: 'Failed to Save',
+            title: 'Validation / Overlap Conflict',
             html: `<div class="text-left text-xs leading-relaxed">${errMsg}</div>`,
             confirmButtonColor: '#4f46e5'
         });
@@ -173,18 +266,18 @@ const submitForm = async () => {
 
 <template>
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden text-xs">
-        <!-- Form Header in Indigo Theme -->
-        <div class="px-6 py-4 bg-indigo-50/50 dark:bg-gray-900/60 border-b border-indigo-100 dark:border-gray-700 flex items-center justify-between">
+        <!-- Header -->
+        <div class="px-6 py-4 bg-gray-50/80 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+                <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
                     <TruckIcon class="w-5 h-5 text-white" />
                 </div>
                 <div>
                     <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100">
-                        {{ isEditing ? `Edit Concrete Batching Trip #${initialData?.id} — ${form.pour_reference}` : 'Schedule Concrete Batching & Transit Mixer Dispatch' }}
+                        {{ isEditing ? `Edit Trip #${initialData?.id}` : 'New Batching Schedule' }}
                     </h2>
-                    <p class="text-[11px] text-gray-500 dark:text-gray-400">
-                        Plan batching production, load volume, fleet assignment, and delivery times
+                    <p v-if="form.pour_reference" class="text-[11px] text-gray-500 dark:text-gray-400 font-medium">
+                        {{ form.pour_reference }}
                     </p>
                 </div>
             </div>
@@ -192,21 +285,46 @@ const submitForm = async () => {
             <button
                 type="button"
                 @click="emit('cancel')"
-                class="px-3.5 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+                class="px-3 py-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
             >
                 <ArrowLeftIcon class="w-3.5 h-3.5" />
-                <span>Back to Schedule</span>
+                <span>Back</span>
             </button>
         </div>
 
-        <form @submit.prevent="submitForm" class="p-6 space-y-6">
+        <form @submit.prevent="submitForm" class="p-6 space-y-5">
             
-            <!-- SECTION 1: Pour & Destination -->
+            <!-- Real-Time Time Validation Warnings -->
+            <div v-if="form.batching_time && form.dispatch_time && new Date(form.batching_time) > new Date(form.dispatch_time)" 
+                 class="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
+                <ExclamationTriangleIcon class="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Batching Time cannot be later than Dispatch Time.</span>
+            </div>
+
+            <div v-if="form.dispatch_time && form.eta_site && new Date(form.dispatch_time) > new Date(form.eta_site)" 
+                 class="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
+                <ExclamationTriangleIcon class="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Dispatch Time cannot be later than ETA Site.</span>
+            </div>
+
+            <div v-if="form.batching_time && form.eta_site && !form.dispatch_time && new Date(form.batching_time) > new Date(form.eta_site)" 
+                 class="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
+                <ExclamationTriangleIcon class="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Batching Time cannot be later than ETA Site.</span>
+            </div>
+
+            <div v-if="form.unloading_start && form.unloading_end && new Date(form.unloading_start) > new Date(form.unloading_end)" 
+                 class="p-2.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg text-rose-800 dark:text-rose-300 text-xs font-medium flex items-center gap-2">
+                <ExclamationTriangleIcon class="w-4 h-4 text-rose-600 shrink-0" />
+                <span>Unloading Start cannot be later than Unloading End.</span>
+            </div>
+            
+            <!-- SECTION 1: Pour & Volume Details -->
             <div class="space-y-3">
                 <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
                     <MapPinIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        1. Schedule Date & Destination Site
+                        Pour & Volume
                     </span>
                 </div>
 
@@ -223,8 +341,8 @@ const submitForm = async () => {
                         <BaseInput
                             v-model="form.pour_reference"
                             type="text"
-                            label="Pour Reference / Tag"
-                            placeholder="e.g. SLAB-L3-POUR-A, RAFT-01"
+                            label="Pour Reference"
+                            placeholder="e.g. SLAB-L3, RAFT-01"
                             required
                         />
                     </div>
@@ -235,7 +353,7 @@ const submitForm = async () => {
                             :options="siteOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Delivery Destination Site"
+                            label="Destination Site"
                             placeholder="Select Site"
                             required
                         />
@@ -247,24 +365,14 @@ const submitForm = async () => {
                             :options="mixOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Mix Design / Concrete Grade"
+                            label="Mix Design"
                             placeholder="Select Grade"
                             required
                         />
                     </div>
                 </div>
-            </div>
 
-            <!-- SECTION 2: Production Volume Specifications -->
-            <div class="space-y-3 bg-indigo-50/40 dark:bg-gray-900/40 p-4 rounded-xl border border-indigo-100 dark:border-gray-700">
-                <div class="flex items-center gap-2 pb-1">
-                    <BeakerIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        2. Volume Specifications
-                    </span>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                     <div>
                         <BaseInputNumber
                             v-model="form.qty_m3"
@@ -272,11 +380,10 @@ const submitForm = async () => {
                             :step="0.5"
                             :minFractionDigits="1"
                             :maxFractionDigits="2"
-                            label="Trip / Load Volume (m³)"
+                            label="Trip Volume (m³)"
                             placeholder="6.0"
                             required
                         />
-                        <span class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 block">Quantity for this specific Transit Mixer batch trip.</span>
                     </div>
 
                     <div>
@@ -286,33 +393,32 @@ const submitForm = async () => {
                             :step="0.5"
                             :minFractionDigits="1"
                             :maxFractionDigits="2"
-                            label="Total Order / Pour Volume (m³)"
-                            placeholder="45.0"
+                            label="Total Order Volume (m³)"
+                            placeholder="30.0"
                             required
                         />
-                        <span class="text-[10px] text-gray-500 dark:text-gray-400 mt-1 block">Total quantity required for the full structural pour.</span>
                     </div>
                 </div>
             </div>
 
-            <!-- SECTION 3: Transit Mixer & Driver Logistics -->
-            <div class="space-y-3">
+            <!-- SECTION 2: Fleet & Placement -->
+            <div class="space-y-3 pt-1">
                 <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
                     <TruckIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        3. Fleet & Placement Method
+                        Fleet & Logistics
                     </span>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div>
                         <BaseSelect
                             v-model="form.vehicle_id"
                             :options="vehicleOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Assigned Transit Mixer (TM)"
-                            placeholder="Assign Later"
+                            label="Transit Mixer"
+                            placeholder="Select Mixer"
                         />
                     </div>
 
@@ -322,8 +428,8 @@ const submitForm = async () => {
                             :options="driverOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Assigned TM Driver"
-                            placeholder="Assign Later"
+                            label="Driver"
+                            placeholder="Select Driver"
                         />
                     </div>
 
@@ -333,7 +439,7 @@ const submitForm = async () => {
                             :options="pumpTypeOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Placement / Pump Method"
+                            label="Placement Method"
                             required
                         />
                     </div>
@@ -344,30 +450,51 @@ const submitForm = async () => {
                             :options="pumpVehicleOptions"
                             optionLabel="label"
                             optionValue="value"
-                            label="Deployed Pump Rig / Machine"
-                            placeholder="None / External"
+                            label="Pump Machine"
+                            placeholder="None / Direct"
+                        />
+                    </div>
+
+                    <div>
+                        <BaseSelect
+                            v-model="form.status"
+                            :options="statusOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            label="Status"
+                            @change="onStatusChange"
                         />
                     </div>
                 </div>
             </div>
 
-            <!-- SECTION 4: Timelines & Special Notes -->
-            <div class="space-y-3">
+            <!-- SECTION 3: Timelines -->
+            <div class="space-y-3 pt-1">
                 <div class="flex items-center gap-2 pb-1 border-b border-gray-100 dark:border-gray-700">
                     <ClockIcon class="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
-                        4. Production Timelines & Pour Instructions
+                        Timelines & Execution
                     </span>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                         <BaseDatePicker
                             v-model="form.batching_time"
                             :showTime="true"
                             hourFormat="12"
-                            label="Target Batching Time"
-                            placeholder="Select Batching Time"
+                            label="Batching Time"
+                            placeholder="Select Time"
+                        />
+                    </div>
+
+                    <div>
+                        <BaseDatePicker
+                            v-model="form.dispatch_time"
+                            :showTime="true"
+                            hourFormat="12"
+                            label="Dispatch Time"
+                            placeholder="Select Time"
                         />
                     </div>
 
@@ -376,27 +503,50 @@ const submitForm = async () => {
                             v-model="form.eta_site"
                             :showTime="true"
                             hourFormat="12"
-                            label="Estimated Site Arrival (ETA)"
-                            placeholder="Select Estimated Arrival"
+                            label="ETA Site"
+                            placeholder="Select Time"
                         />
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-[11px] font-bold text-gray-700 dark:text-gray-300 mb-1">
-                        Slump, Admixture & Site Pour Instructions
-                    </label>
-                    <textarea
-                        v-model="form.notes"
-                        rows="2"
-                        placeholder="e.g. Slump 120±25mm, add retarder dosage for 30km lead distance, 4th floor line pump..."
-                        class="w-full text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    ></textarea>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <BaseDatePicker
+                            v-model="form.unloading_start"
+                            :showTime="true"
+                            hourFormat="12"
+                            label="Unloading Start"
+                            placeholder="Select Time"
+                        />
+                    </div>
+
+                    <div>
+                        <BaseDatePicker
+                            v-model="form.unloading_end"
+                            :showTime="true"
+                            hourFormat="12"
+                            label="Unloading End"
+                            placeholder="Select Time"
+                        />
+                    </div>
                 </div>
             </div>
 
+            <!-- SECTION 4: Notes -->
+            <div class="pt-1">
+                <label class="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">
+                    Notes
+                </label>
+                <textarea
+                    v-model="form.notes"
+                    rows="2"
+                    placeholder="Add any instructions or notes..."
+                    class="w-full text-xs bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2.5 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                ></textarea>
+            </div>
+
             <!-- Form Actions -->
-            <div class="pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
+            <div class="pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-3">
                 <BaseButton
                     label="Cancel"
                     severity="secondary"
@@ -404,12 +554,12 @@ const submitForm = async () => {
                     @click="emit('cancel')"
                 />
                 <BaseButton
-                    :label="isEditing ? 'Save Changes' : 'Confirm & Create Schedule'"
+                    :label="isEditing ? 'Save Changes' : 'Create Schedule'"
                     severity="primary"
                     variant="filled"
                     type="submit"
                     :loading="saving"
-                    class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !border-transparent"
+                    class="!bg-indigo-600 hover:!bg-indigo-700 !text-white !border-transparent font-semibold"
                 />
             </div>
         </form>

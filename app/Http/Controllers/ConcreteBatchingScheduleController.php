@@ -9,6 +9,7 @@ use App\Models\Machine;
 use App\Models\MixDesign;
 use App\Models\Personnel;
 use App\Models\Plant;
+use App\Models\PumpBoomDeploymentSchedule;
 use App\Models\SalesOrder;
 use App\Models\Site;
 use Carbon\Carbon;
@@ -17,6 +18,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -79,6 +81,8 @@ class ConcreteBatchingScheduleController extends Controller
      */
     public function getData(Request $request): JsonResponse
     {
+        $this->authorizeModule('view');
+
         $plantId = session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1;
 
         $scheduleDate  = $request->input('schedule_date', now()->toDateString());
@@ -143,6 +147,8 @@ class ConcreteBatchingScheduleController extends Controller
      */
     public function dropdowns(Request $request): JsonResponse
     {
+        $this->authorizeModule('view');
+
         $plantId = session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1;
 
         $sites = Site::where('plant_id', $plantId)
@@ -177,9 +183,10 @@ class ConcreteBatchingScheduleController extends Controller
             'drivers'     => $drivers,
             'salesOrders' => $salesOrders,
             'pumpTypes'   => [
-                ['value' => 'boom_pump', 'label' => 'Boom Pump (Mobile Articulated)'],
-                ['value' => 'line_pump', 'label' => 'Line Pump (Ground / Stationary Pipeline)'],
-                ['value' => 'crane_bucket', 'label' => 'Crane & Bucket'],
+                ['value' => 'boom_pump', 'label' => 'Boom Pump (Truck-Mounted Articulated)'],
+                ['value' => 'line_pump', 'label' => 'Line Pump (Ground Pipeline)'],
+                ['value' => 'stationary_pump', 'label' => 'Stationary High-Rise Pump'],
+                ['value' => 'crane_bucket', 'label' => 'Crane & Bucket Pour'],
                 ['value' => 'direct_pour', 'label' => 'Direct Chute Discharge'],
             ]
         ]);
@@ -190,7 +197,15 @@ class ConcreteBatchingScheduleController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $this->authorizeModule('create');
+
         $plantId = session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1;
+
+        if ($request->has('pump_type')) {
+            $request->merge([
+                'pump_type' => strtolower(trim(str_replace(' ', '_', (string)$request->input('pump_type')))),
+            ]);
+        }
 
         $validated = $request->validate([
             'schedule_date'    => 'required|date',
@@ -207,26 +222,86 @@ class ConcreteBatchingScheduleController extends Controller
             'batching_time'    => 'nullable|date',
             'dispatch_time'    => 'nullable|date',
             'eta_site'         => 'nullable|date',
+            'unloading_start'  => 'nullable|date',
+            'unloading_end'    => 'nullable|date',
+            'status'           => 'nullable|in:scheduled,batching,in_transit,on_site,pouring,completed,cancelled',
             'notes'            => 'nullable|string',
         ]);
-dd($request->all());
+
+        // Chronological Time Validations
+        if (!empty($validated['batching_time']) && !empty($validated['dispatch_time'])) {
+            if (Carbon::parse($validated['batching_time'])->gt(Carbon::parse($validated['dispatch_time']))) {
+                throw ValidationException::withMessages([
+                    'dispatch_time' => ['Dispatch time cannot be earlier than batching time.']
+                ]);
+            }
+        }
+        if (!empty($validated['dispatch_time']) && !empty($validated['eta_site'])) {
+            if (Carbon::parse($validated['dispatch_time'])->gt(Carbon::parse($validated['eta_site']))) {
+                throw ValidationException::withMessages([
+                    'eta_site' => ['Estimated site arrival (ETA) cannot be earlier than dispatch time.']
+                ]);
+            }
+        }
+        if (!empty($validated['batching_time']) && !empty($validated['eta_site']) && empty($validated['dispatch_time'])) {
+            if (Carbon::parse($validated['batching_time'])->gt(Carbon::parse($validated['eta_site']))) {
+                throw ValidationException::withMessages([
+                    'eta_site' => ['Estimated site arrival (ETA) cannot be earlier than batching time.']
+                ]);
+            }
+        }
+        if (!empty($validated['unloading_start']) && !empty($validated['unloading_end'])) {
+            if (Carbon::parse($validated['unloading_start'])->gt(Carbon::parse($validated['unloading_end']))) {
+                throw ValidationException::withMessages([
+                    'unloading_end' => ['Unloading end time cannot be earlier than unloading start time.']
+                ]);
+            }
+        }
+
+        // Normalize all datetime strings to MySQL Y-m-d H:i:s format
+        foreach (['batching_time', 'dispatch_time', 'eta_site', 'unloading_start', 'unloading_end'] as $dtField) {
+            if (!empty($validated[$dtField])) {
+                try {
+                    $validated[$dtField] = Carbon::parse($validated[$dtField])->format('Y-m-d H:i:s');
+                } catch (\Exception $e) {
+                    $validated[$dtField] = null;
+                }
+            }
+        }
+
+        // Fleet Availability & Overlap Validations
+        $this->validateTransitMixerOverlap($plantId, $validated);
+        $this->validateDriverOverlap($plantId, $validated);
+        $this->validatePumpConflict($plantId, $validated);
+
         return DB::transaction(function () use ($validated, $plantId) {
             $salesOrder = null;
             if (!empty($validated['sales_order_id'])) {
                 $salesOrder = SalesOrder::find($validated['sales_order_id']);
             }
 
+            $chosenStatus = $validated['status'] ?? 'scheduled';
+
             // 1. Create Real Batch (App\Models\Batch)
             $nextBatchNo = (Batch::where('plant_id', $plantId)->max('batch_no') ?? 0) + 1;
+            $batchStatus = match ($chosenStatus) {
+                'batching'  => Batch::STATUS_LOADING,
+                'in_transit', 'on_site', 'pouring' => Batch::STATUS_DISPATCHED,
+                'completed' => Batch::STATUS_COMPLETED,
+                'cancelled' => Batch::STATUS_CANCELLED,
+                default     => Batch::STATUS_PLANNED,
+            };
+
             $batch = Batch::create([
                 'plant_id'       => $plantId,
                 'sales_order_id' => $validated['sales_order_id'] ?? null,
                 'batch_no'       => $nextBatchNo,
                 'batch_size'     => $validated['qty_m3'],
-                'start_time'     => $validated['batching_time'] ?? now(),
+                'start_time'     => !empty($validated['batching_time']) ? $validated['batching_time'] : now()->format('Y-m-d H:i:s'),
+                'end_time'       => $chosenStatus === 'completed' ? (!empty($validated['unloading_end']) ? $validated['unloading_end'] : now()->format('Y-m-d H:i:s')) : null,
                 'operator_id'    => $validated['driver_id'] ?? auth()->id(),
                 'shift'          => 'A',
-                'status'         => Batch::STATUS_PLANNED,
+                'status'         => $batchStatus,
             ]);
 
             // 2. Create Linked Dispatch (App\Models\Dispatch) if vehicle assigned
@@ -235,6 +310,16 @@ dd($request->all());
                 $dispatchDetails = $this->getNextDispatchDetails($plantId);
                 $loadRate = (float) ($salesOrder?->rate ?? 0);
                 $untaxAmount = round($loadRate * (float)$validated['qty_m3'], 2);
+
+                $dispatchStatus = match ($chosenStatus) {
+                    'batching'   => 'Loading',
+                    'in_transit' => 'In Transit',
+                    'on_site'    => 'On Site',
+                    'pouring'    => 'Pouring',
+                    'completed'  => 'Delivered',
+                    'cancelled'  => 'Cancelled',
+                    default      => 'Draft',
+                };
 
                 $dispatch = Dispatch::create([
                     'plant_id'          => $plantId,
@@ -248,8 +333,9 @@ dd($request->all());
                     'driver_id'         => $validated['driver_id'] ?? null,
                     'concrete_pump'     => $validated['pump_vehicle_id'] ?? null,
                     'delivered_qty'     => $validated['qty_m3'],
-                    'dispatch_time'     => $validated['dispatch_time'] ?? $validated['batching_time'] ?? now(),
-                    'dispatch_status'   => 'Draft',
+                    'dispatch_time'     => !empty($validated['dispatch_time']) ? $validated['dispatch_time'] : (!empty($validated['batching_time']) ? $validated['batching_time'] : now()->format('Y-m-d H:i:s')),
+                    'delivery_time'     => $chosenStatus === 'completed' ? (!empty($validated['unloading_end']) ? $validated['unloading_end'] : now()->format('Y-m-d H:i:s')) : null,
+                    'dispatch_status'   => $dispatchStatus,
                     'payment_mode'      => 'credit',
                     'prefix'            => $dispatchDetails['prefix'],
                     'dispatch_no'       => $dispatchDetails['nextNumber'],
@@ -264,7 +350,7 @@ dd($request->all());
             $validated['plant_id']    = $plantId;
             $validated['batch_id']    = $batch->id;
             $validated['dispatch_id'] = $dispatch?->id;
-            $validated['status']      = 'scheduled';
+            $validated['status']      = $chosenStatus;
 
             $existingDelivered = ConcreteBatchingSchedule::where('plant_id', $plantId)
                 ->where('pour_reference', $validated['pour_reference'])
@@ -288,6 +374,14 @@ dd($request->all());
      */
     public function update(Request $request, ConcreteBatchingSchedule $schedule): JsonResponse
     {
+        $this->authorizeModule('update');
+
+        if ($request->has('pump_type')) {
+            $request->merge([
+                'pump_type' => strtolower(trim(str_replace(' ', '_', (string)$request->input('pump_type')))),
+            ]);
+        }
+
         $validated = $request->validate([
             'schedule_date'    => 'required|date',
             'pour_reference'   => 'required|string|max:100',
@@ -305,32 +399,116 @@ dd($request->all());
             'eta_site'         => 'nullable|date',
             'unloading_start'  => 'nullable|date',
             'unloading_end'    => 'nullable|date',
-            'status'           => 'required|in:scheduled,batching,in_transit,on_site,pouring,completed,cancelled',
+            'status'           => 'nullable|in:scheduled,batching,in_transit,on_site,pouring,completed,cancelled',
             'notes'            => 'nullable|string',
         ]);
 
-        return DB::transaction(function () use ($request, $schedule, $validated) {
+        $plantId = $schedule->plant_id ?? (session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1);
+
+        // Chronological Time Validations
+        if (!empty($validated['batching_time']) && !empty($validated['dispatch_time'])) {
+            if (Carbon::parse($validated['batching_time'])->gt(Carbon::parse($validated['dispatch_time']))) {
+                throw ValidationException::withMessages([
+                    'dispatch_time' => ['Dispatch time cannot be earlier than batching time.']
+                ]);
+            }
+        }
+        if (!empty($validated['dispatch_time']) && !empty($validated['eta_site'])) {
+            if (Carbon::parse($validated['dispatch_time'])->gt(Carbon::parse($validated['eta_site']))) {
+                throw ValidationException::withMessages([
+                    'eta_site' => ['Estimated site arrival (ETA) cannot be earlier than dispatch time.']
+                ]);
+            }
+        }
+        if (!empty($validated['batching_time']) && !empty($validated['eta_site']) && empty($validated['dispatch_time'])) {
+            if (Carbon::parse($validated['batching_time'])->gt(Carbon::parse($validated['eta_site']))) {
+                throw ValidationException::withMessages([
+                    'eta_site' => ['Estimated site arrival (ETA) cannot be earlier than batching time.']
+                ]);
+            }
+        }
+        if (!empty($validated['unloading_start']) && !empty($validated['unloading_end'])) {
+            if (Carbon::parse($validated['unloading_start'])->gt(Carbon::parse($validated['unloading_end']))) {
+                throw ValidationException::withMessages([
+                    'unloading_end' => ['Unloading end time cannot be earlier than unloading start time.']
+                ]);
+            }
+        }
+
+        // Normalize all datetime strings to MySQL Y-m-d H:i:s format
+        foreach (['batching_time', 'dispatch_time', 'eta_site', 'unloading_start', 'unloading_end'] as $dtField) {
+            if (!empty($validated[$dtField])) {
+                try {
+                    $validated[$dtField] = Carbon::parse($validated[$dtField])->format('Y-m-d H:i:s');
+                } catch (\Exception $e) {
+                    $validated[$dtField] = null;
+                }
+            }
+        }
+
+        // Fleet Availability & Overlap Validations
+        $this->validateTransitMixerOverlap($plantId, $validated, $schedule->id);
+        $this->validateDriverOverlap($plantId, $validated, $schedule->id);
+        $this->validatePumpConflict($plantId, $validated, $schedule->id);
+
+        $newStatus = $validated['status'] ?? $schedule->status ?? 'scheduled';
+        $validated['status'] = $newStatus;
+
+        return DB::transaction(function () use ($request, $schedule, $validated, $newStatus) {
             $schedule->update($validated);
 
             // Sync Batch
             if ($schedule->batch_id) {
-                Batch::where('id', $schedule->batch_id)->update([
+                $batchStatus = match ($newStatus) {
+                    'scheduled' => Batch::STATUS_PLANNED,
+                    'batching'  => Batch::STATUS_LOADING,
+                    'in_transit', 'on_site', 'pouring' => Batch::STATUS_DISPATCHED,
+                    'completed' => Batch::STATUS_COMPLETED,
+                    'cancelled' => Batch::STATUS_CANCELLED,
+                    default     => Batch::STATUS_PLANNED,
+                };
+
+                $batchUpdates = [
                     'batch_size'     => $validated['qty_m3'],
-                    'start_time'     => $validated['batching_time'] ?? now(),
+                    'start_time'     => !empty($validated['batching_time']) ? $validated['batching_time'] : now()->format('Y-m-d H:i:s'),
                     'sales_order_id' => $validated['sales_order_id'] ?? null,
-                ]);
+                    'status'         => $batchStatus,
+                ];
+                if ($newStatus === 'completed') {
+                    $batchUpdates['end_time'] = !empty($validated['unloading_end']) ? $validated['unloading_end'] : now()->format('Y-m-d H:i:s');
+                }
+                Batch::where('id', $schedule->batch_id)->update($batchUpdates);
             }
 
             // Sync Dispatch
             if ($schedule->dispatch_id) {
-                Dispatch::where('id', $schedule->dispatch_id)->update([
-                    'truck_id'       => $validated['vehicle_id'] ?? null,
-                    'driver_id'      => $validated['driver_id'] ?? null,
-                    'unload_site_id' => $validated['site_id'],
-                    'mixdesign_id'   => $validated['mix_design_id'],
-                    'concrete_pump'  => $validated['pump_vehicle_id'] ?? null,
-                    'delivered_qty'  => $validated['qty_m3'],
-                ]);
+                $dispatchStatus = match ($newStatus) {
+                    'scheduled'  => 'Draft',
+                    'batching'   => 'Loading',
+                    'in_transit' => 'In Transit',
+                    'on_site'    => 'On Site',
+                    'pouring'    => 'Pouring',
+                    'completed'  => 'Delivered',
+                    'cancelled'  => 'Cancelled',
+                    default      => 'Draft',
+                };
+
+                $dispatchUpdates = [
+                    'truck_id'        => $validated['vehicle_id'] ?? null,
+                    'driver_id'       => $validated['driver_id'] ?? null,
+                    'unload_site_id'  => $validated['site_id'],
+                    'mixdesign_id'    => $validated['mix_design_id'],
+                    'concrete_pump'   => $validated['pump_vehicle_id'] ?? null,
+                    'delivered_qty'   => $validated['qty_m3'],
+                    'dispatch_status' => $dispatchStatus,
+                ];
+                if (!empty($validated['dispatch_time'])) {
+                    $dispatchUpdates['dispatch_time'] = $validated['dispatch_time'];
+                }
+                if ($newStatus === 'completed') {
+                    $dispatchUpdates['delivery_time'] = !empty($validated['unloading_end']) ? $validated['unloading_end'] : now()->format('Y-m-d H:i:s');
+                }
+                Dispatch::where('id', $schedule->dispatch_id)->update($dispatchUpdates);
             }
 
             return response()->json([
@@ -346,6 +524,8 @@ dd($request->all());
      */
     public function updateStatus(Request $request, ConcreteBatchingSchedule $schedule): JsonResponse
     {
+        $this->authorizeModule('update');
+
         $validated = $request->validate([
             'status' => 'required|in:scheduled,batching,in_transit,on_site,pouring,completed,cancelled',
         ]);
@@ -440,6 +620,8 @@ dd($request->all());
      */
     public function createDispatchTicket(Request $request, ConcreteBatchingSchedule $schedule): JsonResponse
     {
+        $this->authorizeModule('create');
+
         if ($schedule->dispatch_id) {
             return response()->json([
                 'success' => false,
@@ -504,6 +686,8 @@ dd($request->all());
      */
     public function destroy(ConcreteBatchingSchedule $schedule): JsonResponse
     {
+        $this->authorizeModule('delete');
+
         $pourRef = $schedule->pour_reference;
         $plantId = $schedule->plant_id;
 
@@ -562,5 +746,154 @@ dd($request->all());
         }
 
         return $pours;
+    }
+
+    /**
+     * Resolve the operational time-window for a Transit Mixer delivery trip cycle.
+     */
+    private function resolveTripWindow(array $data): array
+    {
+        $scheduleDate = $data['schedule_date'] ?? now()->toDateString();
+
+        if (!empty($data['batching_time'])) {
+            $start = Carbon::parse($data['batching_time']);
+        } elseif (!empty($data['dispatch_time'])) {
+            $start = Carbon::parse($data['dispatch_time']);
+        } else {
+            $start = Carbon::parse($scheduleDate . ' 08:00:00');
+        }
+
+        if (!empty($data['unloading_end'])) {
+            // Unloading finished + 30 min return haulage to plant
+            $end = Carbon::parse($data['unloading_end'])->addMinutes(30);
+        } elseif (!empty($data['unloading_start'])) {
+            // Unloading start + 30 min discharge + 30 min return haulage
+            $end = Carbon::parse($data['unloading_start'])->addMinutes(60);
+        } elseif (!empty($data['eta_site'])) {
+            // ETA site + 30 min discharge + 30 min return haulage
+            $end = Carbon::parse($data['eta_site'])->addMinutes(60);
+        } else {
+            // Standard trip cycle turnaround: 90 minutes
+            $end = (clone $start)->addMinutes(90);
+        }
+
+        return [$start, $end];
+    }
+
+    /**
+     * Validate that a Transit Mixer truck is not allocated to overlapping trip cycles.
+     */
+    private function validateTransitMixerOverlap(int $plantId, array $data, ?int $ignoreId = null): void
+    {
+        $vehicleId = $data['vehicle_id'] ?? null;
+        if (!$vehicleId) {
+            return;
+        }
+
+        [$newStart, $newEnd] = $this->resolveTripWindow($data);
+
+        $query = ConcreteBatchingSchedule::where('plant_id', $plantId)
+            ->where('vehicle_id', $vehicleId)
+            ->whereNotIn('status', ['completed', 'cancelled']);
+
+        if ($ignoreId) {
+            $query->where('id', '!=', $ignoreId);
+        }
+
+        $candidates = $query->with('site')->get();
+
+        foreach ($candidates as $existing) {
+            [$exStart, $exEnd] = $this->resolveTripWindow($existing->toArray());
+
+            if ($newStart->lt($exEnd) && $newEnd->gt($exStart)) {
+                $vehicle  = Machine::find($vehicleId);
+                $reg      = $vehicle?->registration ?? 'Selected TM Truck';
+                $siteName = $existing->site?->name ?? 'Site';
+                $timeSpan = $exStart->format('d-m-Y H:i') . ' to ' . $exEnd->format('H:i');
+                throw ValidationException::withMessages([
+                    'vehicle_id' => [
+                        "Transit Mixer {$reg} is already allocated to trip #{$existing->id} (Pour: '{$existing->pour_reference}' at '{$siteName}') from {$timeSpan}. A transit mixer cannot be assigned to overlapping delivery trips."
+                    ]
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Validate that a driver is not allocated to overlapping trips.
+     */
+    private function validateDriverOverlap(int $plantId, array $data, ?int $ignoreId = null): void
+    {
+        $driverId = $data['driver_id'] ?? null;
+        if (!$driverId) {
+            return;
+        }
+
+        [$newStart, $newEnd] = $this->resolveTripWindow($data);
+
+        $query = ConcreteBatchingSchedule::where('plant_id', $plantId)
+            ->where('driver_id', $driverId)
+            ->whereNotIn('status', ['completed', 'cancelled']);
+
+        if ($ignoreId) {
+            $query->where('id', '!=', $ignoreId);
+        }
+
+        $candidates = $query->with('site')->get();
+
+        foreach ($candidates as $existing) {
+            [$exStart, $exEnd] = $this->resolveTripWindow($existing->toArray());
+
+            if ($newStart->lt($exEnd) && $newEnd->gt($exStart)) {
+                $driver     = Personnel::find($driverId);
+                $driverName = $driver ? $driver->first_name . ' ' . ($driver->last_name ?? '') : 'Selected Driver';
+                $siteName   = $existing->site?->name ?? 'Site';
+                $timeSpan   = $exStart->format('d-m-Y H:i') . ' to ' . $exEnd->format('H:i');
+                throw ValidationException::withMessages([
+                    'driver_id' => [
+                        "Driver {$driverName} is already assigned to trip #{$existing->id} (Pour: '{$existing->pour_reference}' at '{$siteName}') from {$timeSpan}. A driver cannot be assigned to overlapping delivery trips."
+                    ]
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Validate that a concrete pump is not committed to a conflicting pour deployment.
+     */
+    private function validatePumpConflict(int $plantId, array $data, ?int $ignoreId = null): void
+    {
+        $pumpVehicleId = $data['pump_vehicle_id'] ?? null;
+        if (!$pumpVehicleId) {
+            return;
+        }
+
+        [$newStart, $newEnd] = $this->resolveTripWindow($data);
+
+        $deployments = PumpBoomDeploymentSchedule::where('plant_id', $plantId)
+            ->where('pump_vehicle_id', $pumpVehicleId)
+            ->whereNotIn('status', ['completed', 'cancelled'])
+            ->get();
+
+        foreach ($deployments as $existing) {
+            if ($existing->pour_reference === ($data['pour_reference'] ?? '')) {
+                // Pour references match; valid deployment at same pour site
+                continue;
+            }
+
+            $depStart = $existing->setup_start_time ?? $existing->pump_arrival_time ?? Carbon::parse($existing->schedule_date->format('Y-m-d') . ' 07:00:00');
+            $depEnd   = $existing->actual_end_time ?? $existing->planned_end_time ?? (clone $depStart)->addHours(4);
+
+            if ($newStart->lt($depEnd) && $newEnd->gt($depStart)) {
+                $pump     = Machine::find($pumpVehicleId);
+                $reg      = $pump?->registration ?? 'Selected Pump';
+                $timeSpan = $depStart->format('d-m-Y H:i') . ' to ' . $depEnd->format('H:i');
+                throw ValidationException::withMessages([
+                    'pump_vehicle_id' => [
+                        "Pump {$reg} is deployed to a conflicting pour ('{$existing->pour_reference}' at '{$existing->site_name}') from {$timeSpan}. A pump cannot be allocated to conflicting jobs."
+                    ]
+                ]);
+            }
+        }
     }
 }

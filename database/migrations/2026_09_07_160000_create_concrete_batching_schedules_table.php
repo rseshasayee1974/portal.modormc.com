@@ -14,6 +14,7 @@ return new class extends Migration
 
                 $table->foreignId('plant_id')->nullable()->constrained('mm_plants')->nullOnDelete();
                 $table->foreignId('sales_order_id')->nullable()->constrained('mm_sales_orders')->nullOnDelete();
+                $table->foreignId('batch_id')->nullable()->constrained('mm_batches')->nullOnDelete();
                 $table->foreignId('dispatch_id')->nullable()->constrained('mm_dispatches')->nullOnDelete();
 
                 $table->date('schedule_date')->index();
@@ -32,7 +33,7 @@ return new class extends Migration
                 $table->foreignId('driver_id')->nullable()->constrained('mm_personnels')->nullOnDelete();
 
                 // Pump / Placement Deployment
-                $table->enum('pump_type', ['boom_pump', 'line_pump', 'crane_bucket', 'direct_pour'])->default('boom_pump');
+                $table->string('pump_type', 50)->default('boom_pump');
                 $table->foreignId('pump_vehicle_id')->nullable()->constrained('mm_machines')->nullOnDelete();
 
                 // Timestamps & Milestones
