@@ -30,6 +30,7 @@ const props = defineProps<{
     salesExecutives: any[];
     pumpTypeOptions?: any[];
     pumpRates?: any[];
+    quotation_price_list?: boolean;
 }>();
 
 // console.log('quotations', props.quotations);
@@ -95,9 +96,12 @@ const getStatusSeverity = (status: number) => {
     }
 };
 
-const printQuotation = (quotation: any, action: string = 'report') => {
+const printQuotation = (quotation: any, action: string = 'report', isPriceList: boolean = false) => {
     const routeName = action === 'report' ? 'quotations.report' : 'quotations.download';
-    window.open(route(routeName, quotation.id), '_blank');
+    const url = isPriceList
+        ? route(routeName, quotation.id) + '?type=price_list'
+        : route(routeName, quotation.id);
+    window.open(url, '_blank');
 };
 
 const isConvertedToCustomerPO = (quotation: any) => {
@@ -175,6 +179,20 @@ const downloadQuotePDF = () => {
     const row = activeActionRow.value;
     if (!row) return;
     printQuotation(row, 'download');
+    actionPopover.value?.hide();
+};
+
+const printPriceList = () => {
+    const row = activeActionRow.value;
+    if (!row) return;
+    printQuotation(row, 'report', true);
+    actionPopover.value?.hide();
+};
+
+const downloadPriceListPDF = () => {
+    const row = activeActionRow.value;
+    if (!row) return;
+    printQuotation(row, 'download', true);
     actionPopover.value?.hide();
 };
 
@@ -407,6 +425,25 @@ const updateConversion = (quotation: any) => {
                                 <i class="pi pi-file-pdf text-emerald-500"></i>
                                 Download PDF
                             </button>
+
+                            <!-- Price List Options (if quotation_price_list is enabled) -->
+                            <template v-if="props.quotation_price_list">
+                                <hr class="border-slate-100 my-1" />
+                                <button
+                                    @click="printPriceList"
+                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-purple-700 hover:bg-purple-50 hover:text-purple-800 transition-colors w-full text-left"
+                                >
+                                    <i class="pi pi-print text-purple-500"></i>
+                                    View / Print Price List
+                                </button>
+                                <button
+                                    @click="downloadPriceListPDF"
+                                    class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-purple-700 hover:bg-purple-50 hover:text-purple-800 transition-colors w-full text-left"
+                                >
+                                    <i class="pi pi-file-pdf text-purple-500"></i>
+                                    Download Price List PDF
+                                </button>
+                            </template>
 
                             <!-- Conversion Options (only if Approved/Accepted: status = 2) -->
                             <template v-if="Number(activeActionRow?.status) === 2">

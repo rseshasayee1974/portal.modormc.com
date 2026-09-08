@@ -38,6 +38,7 @@ class QuotationController extends Controller
             'pumpTypeOptions' => PumpTypeDropdown(),
             'pumpRates' => \App\Models\PumpRate::where('status', true)->where('plant_id', $plantId)->get(),
             'instant_customer' => CustomSetting::getForModule(session('active_entity_id'), 'quotation')['instant_customer'] ?? 0,
+            'quotation_price_list' => (bool)(CustomSetting::getForModule($plantId, 'batching')['quotation_price_list'] ?? false),
         ]);
     }
 
@@ -85,22 +86,32 @@ class QuotationController extends Controller
         return redirect()->back()->with('success', 'Quotation deleted successfully.');
     }
 
-    public function downloadPdf(Quotation $quotation)
+    public function downloadPdf(Request $request, Quotation $quotation)
     {
-        return redirect()->route('print.document', [
+        $params = [
             'module' => 'quotations',
             'id'     => encrypt($quotation->id),
             'action' => 'download'
-        ]);
+        ];
+        if ($request->query('type')) {
+            $params['type'] = $request->query('type');
+        }
+
+        return redirect()->route('print.document', $params);
     }
 
-    public function report(Quotation $quotation)
+    public function report(Request $request, Quotation $quotation)
     {
-        return redirect()->route('print.document', [
+        $params = [
             'module' => 'quotations',
             'id'     => encrypt($quotation->id),
             'action' => 'view'
-        ]);
+        ];
+        if ($request->query('type')) {
+            $params['type'] = $request->query('type');
+        }
+
+        return redirect()->route('print.document', $params);
     }
 
     public function updateConversionStatus(Request $request, Quotation $quotation)

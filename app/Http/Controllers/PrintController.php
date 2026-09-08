@@ -185,7 +185,8 @@ class PrintController extends Controller
                 $model = \App\Models\Quotation::where('id', $realId)
                     ->where('plant_id', $activePlantId)
                     ->first();
-                $data = $model ? PrintDataFormatter::fromQuotation($model) : null;
+                $isPriceList = request()->query('type') === 'price_list' || request()->query('price_list') == 1;
+                $data = $model ? PrintDataFormatter::fromQuotation($model, null, $isPriceList) : null;
                 break;
 
             case 'customer_pos':

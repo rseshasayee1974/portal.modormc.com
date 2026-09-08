@@ -126,13 +126,7 @@ class PrintDataFormatter
         // 2. If no record for that category exists, build dynamic payload from real DB models (Plant, Partner, Product)
         $data = self::base();
         $data['settings']  = self::getCustomSettings($plantId, $category);
-        $batchingSettings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
-        if ($category === 'quotations' && !empty($batchingSettings['quotation_price_list'])) {
-            $data['doc_title'] = 'PRICE LIST';
-            $data['settings']['pdf']['amount'] = false;
-        } else {
-            $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? (strtoupper($category) . ' DOCUMENT');
-        }
+        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? (strtoupper($category) . ' DOCUMENT');
         $data['doc_no']    = 'REF-' . now()->format('Y') . '-001';
         $data['doc_date']  = now()->format('d/m/Y');
         $data['due_date']  = now()->addDays(15)->format('d/m/Y');
@@ -521,7 +515,12 @@ class PrintDataFormatter
         }
 
         return $name 
+            ?? $mixDesign->design_name 
+            ?? $mixDesign->name 
+            ?? $mixDesign->title 
             ?? $mixDesign->grade 
+            ?? $mixDesign->design_code 
+            ?? $mixDesign->code 
             ?? $mixDesign->design_type 
             ?? '-';
     }
@@ -1002,7 +1001,7 @@ class PrintDataFormatter
         return $data;
     }
 
-    public static function fromQuotation($quotation, ?array $customSettings = null): array
+    public static function fromQuotation($quotation, ?array $customSettings = null, bool $isPriceList = false): array
     {
         $statusLabels = [
             0 => 'DRAFT',
@@ -1020,7 +1019,8 @@ class PrintDataFormatter
             $quotation->quote_date?->format('d/m/Y'),
             $quotation->validity_date?->format('d/m/Y'),
             $state,
-            $customSettings
+            $customSettings,
+            $isPriceList
         );
     }
 
@@ -1041,11 +1041,12 @@ class PrintDataFormatter
             $customerPO->order_date?->format('d/m/Y'),
             $customerPO->due_date?->format('d/m/Y'),
             $state,
-            $customSettings
+            $customSettings,
+            false
         );
     }
 
-    private static function fromQuotationOrCustomerPO($model, string $module, string $defaultTitle, string $docNo, ?string $docDate, ?string $dueDate, string $state, ?array $customSettings = null): array
+    private static function fromQuotationOrCustomerPO($model, string $module, string $defaultTitle, string $docNo, ?string $docDate, ?string $dueDate, string $state, ?array $customSettings = null, bool $isPriceList = false): array
     {
         $model->loadMissing([
             'items.mixDesign',
@@ -1073,10 +1074,6 @@ class PrintDataFormatter
             $data['settings'] = self::getCustomSettings($model->plant_id, 'quotations');
         }
 
-        $settings = \App\Models\CustomSetting::getForModule($model->plant_id, 'batching');
-
-        // Check if quotation_price_list is enabled in batching custom settings
-        $isPriceList = ($module === 'quotations') && !empty($settings['quotation_price_list']);
         if ($isPriceList) {
             $data['doc_title'] = 'PRICE LIST';
             $data['settings']['pdf']['amount'] = false;

@@ -547,6 +547,7 @@
                     </tr>
                     @if ($hasSubRow)
                         <tr>
+                            <td style="border-top: none; padding-top: 0;"></td>
                             <td colspan="{{ $recipeColspan }}" style="border-top: none; padding-top: 0; padding-bottom: 8px;">
                                 @if ($hasRecipe)
                                     <div style="font-size: 9.5px; font-weight: 700; color: #2563eb; margin-top: 2px; margin-bottom: 3px;">{{ !empty($pdfSettings['labels']['recipe_title']) ? $pdfSettings['labels']['recipe_title'] : 'Recipe Details:' }}</div>
