@@ -21,6 +21,8 @@ class ReportServiceFactory
             'sales'                 => SalesReportService::class,
             'product_consolidated'  => ProductConsolidatedReportService::class,
             'customer_consolidated' => CustomerConsolidatedReportService::class,
+            'customer_outstanding'  => CustomerOutstandingReportService::class,
+            'overall'               => OverallReportService::class,
             'truck_consolidated'    => TruckConsolidatedReportService::class,
             'site_consolidated'     => SiteConsolidatedReportService::class,
             'payment_mode_consolidated' => PaymentModeConsolidatedReportService::class,

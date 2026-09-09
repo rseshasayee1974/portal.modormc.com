@@ -51,10 +51,19 @@ class ProductConsolidatedReportService implements ReportServiceInterface
         $patronId = $params['patron_id'] ?? null;
         $gradeId  = $params['grade_id'] ?? null;
 
+        $mixDesignId = $params['mix_design_id'] ?? null;
+
         if ($patronId) {
             $query->where(function ($q) use ($patronId) {
                 $q->where('d.customer_id', $patronId)
                   ->orWhere('so.customer_id', $patronId);
+            });
+        }
+
+        if ($mixDesignId) {
+            $query->where(function ($q) use ($mixDesignId) {
+                $q->where('d.mixdesign_id', $mixDesignId)
+                  ->orWhere('so.mix_design_id', $mixDesignId);
             });
         }
 

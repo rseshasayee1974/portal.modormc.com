@@ -118,6 +118,7 @@ const handleShow = () => {
                 :filterFields="effectiveFilterFields"
                 :autoFilterFocus="autoFilterFocus"
                 :checkmark="true"
+                :showClear="showClear"
                 :size="size"
                 :fluid="fluid"
                 :panelClass="effectiveOverlayClass"

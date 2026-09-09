@@ -52,7 +52,7 @@ class SearchCustomers implements Tool
 
         $dbQuery = Patron::query()
             ->select(['id', 'name', 'code', 'patron_type'])
-            ->with(['contacts:id,patron_id,phone,mobile,email'])
+            ->with(['contacts:id,patron_id,mobile,alt_mobile,email'])
             ->where(function ($q) use ($query) {
                 $q->where('name', 'LIKE', "%{$query}%")
                   ->orWhere('code', 'LIKE', "%{$query}%");

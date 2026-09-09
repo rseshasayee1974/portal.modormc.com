@@ -37,6 +37,8 @@ import Gstr3bReport from './components/Gstr3bReport.vue';
 import TdsCertificateReport from './components/TdsCertificateReport.vue';
 import EsiPfChallanReport from './components/EsiPfChallanReport.vue';
 import VoucherReport from './components/VoucherReport.vue';
+import CustomerOutstandingReport from './components/CustomerOutstandingReport.vue';
+import OverallReport from './components/OverallReport.vue';
 
 import { 
     ChartBarIcon,
@@ -58,6 +60,8 @@ const props = defineProps({
     machines: Array,
     drivers: Array,
     salesExecutives: Array,
+    concreteGrades: Array,
+    mixDesigns: Array,
     filters: Object,
 });
 
@@ -79,7 +83,9 @@ const modules = [
         id: 'accounting',
         name: 'Accounting & Finance',
         reports: [
+            { id: 'overall', name: 'Overall Daily Report', description: 'Complete day book: production, dispatch, pump, invoices, billing, e-invoice, e-way bill, collections & taxes' },
             { id: 'ledger', name: 'General Ledger', description: 'Account balances, running ledgers and transaction history' },
+            { id: 'customer_outstanding', name: 'Customer Outstanding Report', description: 'Customer receivables, billed vs received, outstanding balance and aging analysis' },
             { id: 'patron', name: 'Patron Statement', description: 'Partner transactions, invoice status and balances' },
             { id: 'payment', name: 'Payment Log', description: 'Cash outflow logs, paid vouchers and reference numbers' },
             { id: 'receipt', name: 'Receipt Log', description: 'Cash inflow logs, receipt vouchers and reference numbers' },
@@ -100,6 +106,7 @@ const modules = [
         id: 'production',
         name: 'Production & Dispatch',
         reports: [
+            { id: 'overall', name: 'Overall Daily Report', description: 'Complete day book: production, dispatch, pump, invoices, billing, e-invoice, e-way bill, collections & taxes' },
             { id: 'sales', name: 'Sales & Dispatches', description: 'Invoice listings, dispatch volumes and concrete grades' },
             { id: 'product_consolidated', name: 'Product Consolidated Report', description: 'Mix design & concrete grade wise dispatches with batch size, weights, and revenue' },
             { id: 'customer_consolidated', name: 'Customer Report', description: 'Customer wise dispatches consolidated with batch size, weights, and billing totals' },
@@ -145,13 +152,33 @@ const modules = [
          */} 
 ];
 
-const selectedModuleId = ref('accounting');
-const reportType = ref('ledger'); 
+// Determine initial report type and module from props or URL
+const getInitialSelection = () => {
+    const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+    const initialType = props.filters?.type || (urlParams ? urlParams.get('type') : null) || 'ledger';
+    const initialModule = props.filters?.module || (urlParams ? urlParams.get('module') : null);
+
+    let resolvedModule = initialModule;
+    if (!resolvedModule && initialType) {
+        const foundMod = modules.find(m => m.reports.some(r => r.id === initialType));
+        if (foundMod) resolvedModule = foundMod.id;
+    }
+
+    return {
+        module: resolvedModule || 'accounting',
+        type: initialType
+    };
+};
+
+const initialSelection = getInitialSelection();
+const selectedModuleId = ref(initialSelection.module);
+const reportType = ref(initialSelection.type); 
 const selectedId = ref(null); 
 const patronId = ref(null);
 const truckId = ref(null);
 const driverId = ref(null);
 const salesExecutiveId = ref(null);
+const mixDesignId = ref(null);
 const startDate = ref(props.filters.start_date);
 const endDate = ref(props.filters.end_date);
 
@@ -194,6 +221,8 @@ const getReportComponent = (type) => {
         case 'sales': return SalesReport;
         case 'product_consolidated': return ProductConsolidatedReport;
         case 'customer_consolidated': return CustomerConsolidatedReport;
+        case 'customer_outstanding': return CustomerOutstandingReport;
+        case 'overall': return OverallReport;
         case 'truck_consolidated': return TruckConsolidatedReport;
         case 'site_consolidated': return SiteConsolidatedReport;
         case 'payment_mode_consolidated': return PaymentModeConsolidatedReport;
@@ -300,6 +329,93 @@ const activeReport = computed(() => {
     return activeModule.value.reports.find(r => r.id === reportType.value);
 });
 
+const isCustomerReport = computed(() => {
+    return ['sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'customer_outstanding', 'sales', 'cancelled_dispatch'].includes(reportType.value);
+});
+
+const isSupplierReport = computed(() => {
+    return ['purchase_register', 'purchase'].includes(reportType.value);
+});
+
+const patronLabel = computed(() => {
+    if (isCustomerReport.value) return 'Select Customer';
+    if (isSupplierReport.value) return 'Select Supplier';
+    return 'Select Partner';
+});
+
+const patronPlaceholder = computed(() => {
+    if (isCustomerReport.value) return 'All Customers';
+    if (isSupplierReport.value) return 'All Suppliers';
+    return 'All Partners';
+});
+
+const patronOptions = computed(() => {
+    const list = props.patrons || [];
+    const allLabel = patronPlaceholder.value;
+    return [
+        {
+            id: null,
+            legal_name: allLabel,
+            code: 'ALL',
+            contact_person: '',
+            email: '',
+            phone: '',
+        },
+        ...list
+    ];
+});
+
+const ledgerPlaceholder = computed(() => {
+    return ['payment', 'receipt'].includes(reportType.value) ? 'All Accounts' : 'All Ledgers';
+});
+
+const ledgerOptions = computed(() => {
+    const list = props.ledgers || [];
+    return [
+        { id: null, title: ledgerPlaceholder.value, name: ledgerPlaceholder.value, code: 'ALL' },
+        ...list
+    ];
+});
+
+const mixDesignOptions = computed(() => {
+    const list = props.mixDesigns || [];
+    return [
+        {
+            id: null,
+            design_name: 'All Mix Designs',
+            name: 'All Mix Designs',
+            title: 'All Mix Designs',
+            design_code: 'ALL',
+            code: 'ALL'
+        },
+        ...list
+    ];
+});
+
+const truckOptions = computed(() => {
+    const list = props.machines || [];
+    return [
+        { id: null, registration: 'All Trucks / Vehicles' },
+        ...list
+    ];
+});
+
+const driverOptions = computed(() => {
+    const list = props.drivers || [];
+    return [
+        { id: null, name: 'All Drivers' },
+        ...list
+    ];
+});
+
+const salesExecutiveOptions = computed(() => {
+    const list = props.salesExecutives || [];
+    return [
+        { id: null, name: 'All Sales Executives' },
+        ...list
+    ];
+});
+
 // Watch module change to select first report automatically
 watch(selectedModuleId, (newModuleId) => {
     const mod = modules.find(m => m.id === newModuleId);
@@ -308,6 +424,7 @@ watch(selectedModuleId, (newModuleId) => {
         reportData.value = null;
         selectedId.value = null;
         patronId.value = null;
+        mixDesignId.value = null;
         truckId.value = null;
         driverId.value = null;
         salesExecutiveId.value = null;
@@ -326,6 +443,7 @@ watch(reportType, () => {
     reportData.value = null;
     selectedId.value = null;
     patronId.value = null;
+    mixDesignId.value = null;
     ledgerVoucherFilter.value = 'ALL';
     gstType.value = null;
     paymentStatus.value = null;
@@ -341,7 +459,7 @@ watch(reportType, () => {
     generateReport();
 });
 
-watch([selectedId, patronId, startDate, endDate, gstType, paymentStatus, valuationMethod, truckId, driverId, salesExecutiveId, ledgerVoucherFilter], () => {
+watch([selectedId, patronId, mixDesignId, startDate, endDate, gstType, paymentStatus, valuationMethod, truckId, driverId, salesExecutiveId, ledgerVoucherFilter], () => {
     generateReport();
 });
 
@@ -357,6 +475,7 @@ const generateReport = async () => {
             type: reportType.value,
             id: selectedId.value,
             patron_id: patronId.value,
+            mix_design_id: mixDesignId.value,
             start_date: startDate.value,
             end_date: endDate.value,
             valuation_method: valuationMethod.value,
@@ -405,7 +524,14 @@ const generateReport = async () => {
         const response = await axios.get(url, { params });
         reportData.value = response.data;
     } catch (error) {
-        console.error(error);
+        console.error('Report Generation Error:', error.response?.data || error);
+        const errorDetail = error.response?.data?.error || error.response?.data?.message || error.message;
+        Swal.fire({
+            icon: 'error',
+            title: 'Report Generation Failed',
+            text: errorDetail + (error.response?.data?.file ? ' (' + error.response.data.file + ')' : ''),
+            confirmButtonColor: '#3B82F6',
+        });
     } finally {
         loading.value = false;
     }
@@ -446,6 +572,7 @@ const exportPdf = () => {
         type: reportType.value,
         id: selectedId.value,
         patron_id: patronId.value,
+        mix_design_id: mixDesignId.value,
         start_date: startDate.value,
         end_date: endDate.value,
         voucher_type_filter: ledgerVoucherFilter.value,
@@ -495,6 +622,7 @@ const exportExcel = () => {
         type: reportType.value,
         id: selectedId.value,
         patron_id: patronId.value,
+        mix_design_id: mixDesignId.value,
         start_date: startDate.value,
         end_date: endDate.value,
         voucher_type_filter: ledgerVoucherFilter.value,
@@ -801,10 +929,10 @@ const shareEmail = () => {
                                     </span>
                                     <BaseSelect 
                                         v-model="selectedId"
-                                        :options="ledgers"
+                                        :options="ledgerOptions"
                                         optionLabel="title"
                                         optionValue="id"
-                                        :placeholder="['payment', 'receipt'].includes(reportType) ? 'All Accounts' : 'Choose Account...'"
+                                        :placeholder="ledgerPlaceholder"
                                         filter
                                         showClear
                                     />
@@ -823,17 +951,17 @@ const shareEmail = () => {
                                 </div>
 
                                 <!-- Patron / Customer Dropdown -->
-                                <div v-if="['ledger', 'patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
+                                <div v-if="['ledger', 'patron', 'sales', 'purchase', 'payment', 'receipt', 'sales_register', 'purchase_register', 'tds_certificate', 'customer_consolidated', 'customer_outstanding', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">
-                                        {{ ['sales_register', 'product_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'customer_consolidated', 'sales', 'cancelled_dispatch'].includes(reportType) ? 'Select Customer' : (reportType === 'purchase_register' ? 'Select Supplier' : 'Select Partner') }}
+                                        {{ patronLabel }}
                                     </span>
                                     <BaseSelect 
                                         v-model="patronId"
-                                        :options="patrons"
+                                        :options="patronOptions"
                                         optionLabel="legal_name"
                                         optionValue="id"
                                         :filterFields="['legal_name', 'email', 'phone', 'contact_person']"
-                                        placeholder="All Partners"
+                                        :placeholder="patronPlaceholder"
                                         filter
                                         showClear
                                     />
@@ -882,7 +1010,7 @@ const shareEmail = () => {
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Truck / Vehicle</span>
                                     <BaseSelect 
                                         v-model="truckId"
-                                        :options="props.machines"
+                                        :options="truckOptions"
                                         optionLabel="registration"
                                         optionValue="id"
                                         placeholder="All Trucks"
@@ -896,7 +1024,7 @@ const shareEmail = () => {
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Driver</span>
                                     <BaseSelect 
                                         v-model="driverId"
-                                        :options="props.drivers || []"
+                                        :options="driverOptions"
                                         optionLabel="name"
                                         optionValue="id"
                                         placeholder="All Drivers"
@@ -910,10 +1038,25 @@ const shareEmail = () => {
                                     <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Sales Executive</span>
                                     <BaseSelect 
                                         v-model="salesExecutiveId"
-                                        :options="props.salesExecutives || []"
+                                        :options="salesExecutiveOptions"
                                         optionLabel="name"
                                         optionValue="id"
                                         placeholder="All Sales Executives"
+                                        filter
+                                        showClear
+                                    />
+                                </div>
+
+                                <!-- Mix Design Dropdown -->
+                                <div v-if="['sales', 'product_consolidated', 'production_batch', 'customer_consolidated', 'truck_consolidated', 'site_consolidated', 'payment_mode_consolidated', 'sales_executive', 'driver', 'cancelled_dispatch'].includes(reportType)" class="lg:col-span-1">
+                                    <span class="text-[11px] font-bold text-slate-500 block mb-1">Select Mix Design</span>
+                                    <BaseSelect 
+                                        v-model="mixDesignId"
+                                        :options="mixDesignOptions"
+                                        optionLabel="design_name"
+                                        optionValue="id"
+                                        :filterFields="['design_name', 'design_code']"
+                                        placeholder="All Mix Designs"
                                         filter
                                         showClear
                                     />

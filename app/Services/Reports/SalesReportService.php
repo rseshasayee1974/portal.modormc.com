@@ -14,9 +14,10 @@ class SalesReportService implements ReportServiceInterface
     public function generate(array $params): array
     {
         $plantId  = $this->ctx->requirePlantId();
-        $patronId = $params['patron_id'] ?? null;
-        $truckId  = $params['truck_id'] ?? null;
-        $start    = $params['start'];
+        $patronId    = $params['patron_id'] ?? null;
+        $truckId     = $params['truck_id'] ?? null;
+        $mixDesignId = $params['mix_design_id'] ?? null;
+        $start       = $params['start'];
         $end      = $params['end'];
 
         // Query sales dispatches linked to batches, invoices, personnel, machines, taxes, and e-invoices
@@ -79,6 +80,14 @@ class SalesReportService implements ReportServiceInterface
         // Filter by vehicle/truck if requested
         if ($truckId) {
             $query->where('d.truck_id', $truckId);
+        }
+
+        // Filter by mix design if requested
+        if ($mixDesignId) {
+            $query->where(function ($q) use ($mixDesignId) {
+                $q->where('d.mixdesign_id', $mixDesignId)
+                  ->orWhere('so.mix_design_id', $mixDesignId);
+            });
         }
 
         $dispatches = $query->select([

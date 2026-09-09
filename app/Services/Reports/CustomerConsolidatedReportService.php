@@ -56,6 +56,14 @@ class CustomerConsolidatedReportService implements ReportServiceInterface
             });
         }
 
+        $mixDesignId = $params['mix_design_id'] ?? null;
+        if ($mixDesignId) {
+            $query->where(function ($q) use ($mixDesignId) {
+                $q->where('d.mixdesign_id', $mixDesignId)
+                  ->orWhere('so.mix_design_id', $mixDesignId);
+            });
+        }
+
         $dispatches = $query->select([
             'd.id as dispatch_id',
             'd.prefix as dispatch_prefix',

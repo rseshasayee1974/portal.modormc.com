@@ -53,4 +53,9 @@ class Contact extends Model
     {
         return $this->hasMany(Address::class);
     }
+
+    public function getPhoneAttribute(): ?string
+    {
+        return $this->mobile ?: ($this->alt_mobile ?: $this->landline);
+    }
 }

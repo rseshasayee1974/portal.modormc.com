@@ -12,10 +12,11 @@ class ProductionBatchReportService implements ReportServiceInterface
     public function generate(array $params): array
     {
         $plantId = $this->ctx->requirePlantId();
-        $start   = $params['start'];
-        $end     = $params['end'];
+        $start       = $params['start'];
+        $end         = $params['end'];
+        $mixDesignId = $params['mix_design_id'] ?? null;
 
-        $batches = Batch::where('plant_id', $plantId)
+        $batchQuery = Batch::where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->where('status', '!=', Batch::STATUS_CANCELLED)
             ->with([
@@ -28,8 +29,13 @@ class ProductionBatchReportService implements ReportServiceInterface
             ->whereBetween('start_time', [
                 str_contains($start, ':') ? $start : ($start . ' 00:00:00'),
                 str_contains($end, ':') ? $end : ($end . ' 23:59:59')
-            ])
-            ->get();
+            ]);
+
+        if ($mixDesignId) {
+            $batchQuery->whereHas('salesOrder', fn($soq) => $soq->where('mix_design_id', $mixDesignId));
+        }
+
+        $batches = $batchQuery->get();
 
         $materialSummary = [];
         foreach ($batches as $batch) {

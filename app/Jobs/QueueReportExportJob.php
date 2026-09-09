@@ -151,6 +151,8 @@ class QueueReportExportJob implements ShouldQueue
             'SALES'                     => 'reports.sales_report',
             'PRODUCT_CONSOLIDATED'      => 'reports.product_consolidated_report',
             'CUSTOMER_CONSOLIDATED'     => 'reports.customer_consolidated_report',
+            'CUSTOMER_OUTSTANDING'      => 'reports.customer_outstanding_report',
+            'OVERALL'                   => 'reports.overall_report',
             'TRUCK_CONSOLIDATED'        => 'reports.truck_consolidated_report',
             'SITE_CONSOLIDATED'         => 'reports.site_consolidated_report',
             'PAYMENT_MODE_CONSOLIDATED' => 'reports.payment_mode_consolidated_report',

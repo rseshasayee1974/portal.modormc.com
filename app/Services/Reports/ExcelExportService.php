@@ -788,6 +788,187 @@ class ExcelExportService
                         'rows' => $batchRows,
                     ];
                 }
+            } elseif ($type === 'customer_outstanding') {
+                $title = "CUSTOMER OUTSTANDING & AGING REPORT";
+                $headersList = [
+                    '#',
+                    'Customer Code',
+                    'Customer',
+                    'GSTIN',
+                    'Contact Phone',
+                    'Total Invoiced (₹)',
+                    'Total Paid (₹)',
+                    'Outstanding Balance (₹)',
+                    '0-30 Days (₹)',
+                    '31-60 Days (₹)',
+                    '61-90 Days (₹)',
+                    '90+ Days (₹)',
+                    'Open Invoices'
+                ];
+                foreach (($data['transactions'] ?? $data['customer_summary'] ?? []) as $i => $row) {
+                    $rows[] = [
+                        $i + 1,
+                        $row['customer_code'] ?? '-',
+                        $row['customer_name'] ?? '',
+                        $row['gstin'] ?? '-',
+                        $row['phone'] ?? '-',
+                        (float)($row['total_invoiced'] ?? 0),
+                        (float)($row['total_paid'] ?? 0),
+                        (float)($row['total_outstanding'] ?? 0),
+                        (float)($row['aging_0_30'] ?? 0),
+                        (float)($row['aging_31_60'] ?? 0),
+                        (float)($row['aging_61_90'] ?? 0),
+                        (float)($row['aging_90_plus'] ?? 0),
+                        (int)($row['open_invoices_count'] ?? 0),
+                    ];
+                }
+                $totalRow = [
+                    '', 'Total Outstanding Receivables', '', '', '',
+                    (float)($data['total_invoiced_amount'] ?? 0),
+                    (float)($data['total_paid_amount'] ?? 0),
+                    (float)($data['total_outstanding_amount'] ?? 0),
+                    (float)($data['aging_0_30'] ?? 0),
+                    (float)($data['aging_31_60'] ?? 0),
+                    (float)($data['aging_61_90'] ?? 0),
+                    (float)($data['aging_90_plus'] ?? 0),
+                    (int)($data['total_open_invoices'] ?? 0),
+                ];
+
+                if (!empty($data['open_invoices'])) {
+                    $invRows = [];
+                    foreach ($data['open_invoices'] as $oi => $inv) {
+                        $invRows[] = [
+                            $oi + 1,
+                            $inv['customer_name'] ?? '',
+                            $inv['full_number'] ?? '',
+                            $inv['invoice_date'] ?? '',
+                            $inv['due_date'] ?? '',
+                            (int)($inv['days_overdue'] ?? 0),
+                            str_replace('_', ' ', strtoupper($inv['aging_bucket'] ?? '0_30')),
+                            (float)($inv['total_amount'] ?? 0),
+                            (float)($inv['paid_amount'] ?? 0),
+                            (float)($inv['balance_amount'] ?? 0),
+                            $inv['status'] ?? 'Unpaid',
+                        ];
+                    }
+
+                    $extraSections['tables'] = [
+                        [
+                            'title' => 'ITEMIZED OPEN INVOICES BREAKDOWN (' . count($data['open_invoices']) . ' INVOICES)',
+                            'headers' => ['#', 'Customer Name', 'Invoice #', 'Invoice Date', 'Due Date', 'Overdue Days', 'Aging Bracket', 'Total Amt (₹)', 'Paid Amt (₹)', 'Balance Due (₹)', 'Status'],
+                            'rows' => $invRows,
+                        ]
+                    ];
+                }
+            } elseif ($type === 'overall') {
+                $title = "DAILY OVERALL BUSINESS & OPERATIONAL MIS REPORT";
+                $headersList = ['#', 'Business Category / Metric', 'Unit / Details', 'Quantity / Count', 'Volume (m³ / T)', 'Total Value (₹)'];
+                $summary = $data['executive_summary'] ?? [];
+                $rows = [
+                    [1, 'Gross Sales Revenue', 'Billed Invoices', (int)($summary['sales_invoices_count'] ?? count($data['invoicing']['list'] ?? [])), '-', (float)($summary['sales_revenue'] ?? 0)],
+                    [2, 'Total Dispatch Volume', 'Transit Mixer Loads', (int)($summary['total_dispatches_count'] ?? 0), ($summary['total_dispatched_volume'] ?? 0) . ' m³', (float)($summary['sales_revenue'] ?? 0)],
+                    [3, 'Total Batches Produced', 'Plant Batch Production', (int)($summary['total_batches_count'] ?? 0), ($summary['total_batches_produced'] ?? 0) . ' m³', '-'],
+                    [4, 'Pump & Boom Operations', 'Scheduled & Deployed', (int)($summary['pump_deployments_count'] ?? 0), ($summary['total_pump_volume'] ?? 0) . ' m³', (float)($summary['pump_charges_billed'] ?? 0)],
+                    [5, 'Total Collections / Receipts', 'Cash & Bank Inflow', (int)count($data['cash_flow']['receipts_list'] ?? []), '-', (float)($summary['total_receipts_collected'] ?? 0)],
+                    [6, 'Cash Collections Only', 'Liquid Cash Received', '-', '-', (float)($summary['cash_receipts'] ?? 0)],
+                    [7, 'Bank / Online Collections', 'NEFT/RTGS/Cheque Received', '-', '-', (float)($summary['bank_receipts'] ?? 0)],
+                    [8, 'Total Payments / Outflows', 'Vendor Settlements & Expense', (int)count($data['cash_flow']['payments_list'] ?? []), '-', (float)($summary['total_payments_made'] ?? 0)],
+                    [9, 'Net Daily Cash Flow', 'Receipts - Payments', '-', '-', (float)($summary['net_cash_flow'] ?? 0)],
+                    [10, 'Pending Credit Receivables', 'Unpaid Sales Balance', '-', '-', (float)($summary['credit_sales_balance'] ?? 0)],
+                    [11, 'Hire Charges / Freight Billed', 'Shipping & Transport', '-', '-', (float)($summary['hire_charges_billed'] ?? 0)],
+                    [12, 'Pump Charges Billed', 'Pumping Service Rate', '-', '-', (float)($summary['pump_charges_billed'] ?? 0)],
+                    [13, 'Output GST Tax Payable', 'Sales Tax (CGST+SGST+IGST)', '-', '-', (float)($summary['output_tax_payable'] ?? 0)],
+                    [14, 'Input Tax Credit (ITC)', 'Purchase Tax (CGST+SGST+IGST)', '-', '-', (float)($summary['input_tax_credit'] ?? 0)],
+                    [15, 'Net GST Liability', 'Output Tax - Input Tax', '-', '-', (float)($summary['net_tax_liability'] ?? 0)],
+                ];
+
+                $extraSections['tables'] = [];
+
+                // Table 2: Dispatches Log
+                if (!empty($data['dispatches']['list'])) {
+                    $dRows = [];
+                    foreach ($data['dispatches']['list'] as $di => $d) {
+                        $dRows[] = [
+                            $di + 1,
+                            $d['docket_no'] ?? '',
+                            $d['customer_name'] ?? '',
+                            $d['site_name'] ?? '',
+                            $d['truck_no'] ?? '',
+                            $d['driver_name'] ?? '',
+                            (float)($d['delivered_qty'] ?? 0),
+                            (float)($d['net_weight'] ?? 0),
+                            (float)($d['pump_charges'] ?? 0),
+                            (float)($d['total_amount'] ?? 0),
+                            $d['dispatch_time'] ?? '',
+                        ];
+                    }
+                    $extraSections['tables'][] = [
+                        'title' => 'DISPATCHES & LOGISTICS LOG (' . count($dRows) . ' DELIVERIES)',
+                        'headers' => ['#', 'DSP', 'Customer Name', 'Unload Site', 'Truck No', 'Driver', 'Qty (m³)', 'Net Wt (T)', 'Pump Chg (₹)', 'Total Value (₹)', 'Time'],
+                        'rows' => $dRows,
+                    ];
+                }
+
+                // Table 3: Sales Invoices & Compliance
+                if (!empty($data['invoicing']['list'])) {
+                    $invRows = [];
+                    foreach ($data['invoicing']['list'] as $ii => $inv) {
+                        $invRows[] = [
+                            $ii + 1,
+                            $inv['invoice_no'] ?? '',
+                            $inv['customer_name'] ?? '',
+                            $inv['invoice_date'] ?? '',
+                            (float)($inv['subtotal'] ?? 0),
+                            (float)($inv['tax_amount'] ?? 0),
+                            (float)($inv['shipping_charges'] ?? 0),
+                            (float)($inv['total_amount'] ?? 0),
+                            (float)($inv['paid_amount'] ?? 0),
+                            (float)($inv['balance_amount'] ?? 0),
+                            $inv['einvoice_irn'] ?? '-',
+                            $inv['eway_bill_no'] ?? '-',
+                            $inv['status'] ?? '',
+                        ];
+                    }
+                    $extraSections['tables'][] = [
+                        'title' => 'SALES INVOICES & STATUTORY COMPLIANCE (' . count($invRows) . ' INVOICES)',
+                        'headers' => ['#', 'Invoice No', 'Customer Name', 'Date', 'Subtotal (₹)', 'Tax (₹)', 'Hire/Ship (₹)', 'Total (₹)', 'Paid (₹)', 'Balance Due (₹)', 'E-Invoice IRN', 'E-Way Bill', 'Status'],
+                        'rows' => $invRows,
+                    ];
+                }
+
+                // Table 4: Cash Collections & Payments
+                if (!empty($data['cash_flow']['receipts_list']) || !empty($data['cash_flow']['payments_list'])) {
+                    $voucherRows = [];
+                    foreach (($data['cash_flow']['receipts_list'] ?? []) as $vi => $v) {
+                        $voucherRows[] = [
+                            'RECEIPT',
+                            $v['voucher_no'] ?? '',
+                            $v['customer'] ?? '',
+                            $v['account'] ?? '',
+                            $v['mode'] ?? '',
+                            (float)($v['amount'] ?? 0),
+                            0.0,
+                            $v['date'] ?? '',
+                        ];
+                    }
+                    foreach (($data['cash_flow']['payments_list'] ?? []) as $vi => $v) {
+                        $voucherRows[] = [
+                            'PAYMENT',
+                            $v['voucher_no'] ?? '',
+                            $v['beneficiary'] ?? '',
+                            $v['account'] ?? '',
+                            $v['mode'] ?? '',
+                            0.0,
+                            (float)($v['amount'] ?? 0),
+                            $v['date'] ?? '',
+                        ];
+                    }
+                    $extraSections['tables'][] = [
+                        'title' => 'COLLECTIONS & PAYMENTS DAY BOOK (' . count($voucherRows) . ' VOUCHERS)',
+                        'headers' => ['Voucher Type', 'Reference No', 'Party / Entity', 'Ledger Account', 'Mode', 'Received (₹)', 'Paid Out (₹)', 'Date'],
+                        'rows' => $voucherRows,
+                    ];
+                }
             } elseif ($type === 'truck_consolidated') {
                 $title = "TRUCK WISE TRIP REPORT";
                 $headersList = ['Trip #', 'Truck / Mixer', 'Date & Time', 'DSP No', 'Customer Name', 'Unloading Site', 'Grade', 'Delivered Qty (m³)', 'Empty Wt (T)', 'Loaded Wt (T)', 'Net Wt (T)', 'Taxable Amt', 'Tax Amt', 'Total Amt'];
@@ -1383,4 +1564,3 @@ class ExcelExportService
         return null;
     }
 }
-

@@ -54,6 +54,12 @@ class ReportController extends Controller
           ->orderBy('name')
           ->get(['id', 'name', 'concrete_code']);
 
+        $mixDesigns = \App\Models\MixDesign::where(function ($q) use ($plantId) {
+            $q->where('plant_id', $plantId)->orWhereNull('plant_id');
+        })->whereNull('deleted_at')
+          ->orderBy('design_name')
+          ->get(['id', 'design_name', 'design_code']);
+
         return Inertia::render('Reports/Index', [
             'ledgers'          => $ledgers,
             'patrons'          => $patrons,
@@ -61,7 +67,10 @@ class ReportController extends Controller
             'drivers'          => $drivers,
             'salesExecutives'  => $salesExecutives,
             'concreteGrades'   => $concreteGrades,
+            'mixDesigns'       => $mixDesigns,
             'filters' => [
+                'type'       => $request->input('type'),
+                'module'     => $request->input('module'),
                 'start_date' => $request->input('start_date', now()->subDays(30)->startOfDay()->format('Y-m-d H:i:s')),
                 'end_date'   => $request->input('end_date', now()->endOfDay()->format('Y-m-d H:i:s')),
             ]
@@ -70,70 +79,89 @@ class ReportController extends Controller
 
     public function generate(Request $request, ReportServiceFactory $factory, ExcelExportService $excelService)
     {
-        $this->authorizeModule($request->input('export') ? 'export' : 'view');
-        $type     = $request->input('type');
-        $id       = $request->input('id');
-        $patronId = $request->input('patron_id');
-        $start    = $request->input('start_date');
-        $end      = $request->input('end_date');
-        $export   = $request->input('export');
-
         try {
-            $service = $factory->make($type);
-        } catch (\InvalidArgumentException $e) {
-            return response()->json(['error' => 'Invalid report type'], 400);
-        }
-
-        // Parse and format dates to full datetime strings (preserve time if provided)
-        $startFormatted = $start 
-            ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($start)) 
-                ? \Carbon\Carbon::parse($start)->startOfDay()->toDateTimeString() 
-                : \Carbon\Carbon::parse($start)->toDateTimeString())
-            : now()->startOfYear()->startOfDay()->toDateTimeString();
-
-        $endFormatted = $end 
-            ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($end)) 
-                ? \Carbon\Carbon::parse($end)->endOfDay()->toDateTimeString() 
-                : \Carbon\Carbon::parse($end)->toDateTimeString())
-            : now()->endOfDay()->toDateTimeString();
-
-        $params = [
-            'start'              => $startFormatted,
-            'end'                => $endFormatted,
-            'id'                 => $id,
-            'patron_id'          => $patronId,
-            'voucher_type'       => strtoupper($type),
-            'valuation_method'   => $request->input('valuation_method', 'FIFO'),
-            'consolidation'      => $request->input('consolidation', 'po'),
-            'plant_id'           => session('active_plant_id'),
-            'truck_id'           => $request->input('truck_id'),
-            'driver_id'          => $request->input('driver_id'),
-            'sales_executive_id' => $request->input('sales_executive_id'),
-            'grade_id'           => $request->input('grade_id'),
-            'voucher_type_filter' => $request->input('voucher_type_filter'),
-        ];
-
-        if ($export === 'excel' || $export === 'pdf') {
-            $statusKey = 'report_export_' . \Illuminate\Support\Str::uuid();
-            Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
+            $export   = $request->input('export');
+            $isExportAction = ($export === 'excel' || $export === 'pdf' || $export === 'csv');
+            $this->authorizeModule($isExportAction ? 'export' : 'view');
+            $type     = $request->input('type');
+            $id       = $request->input('id');
+            $patronId = $request->input('patron_id');
+            $start    = $request->input('start_date');
+            $end      = $request->input('end_date');
 
             try {
-                \App\Jobs\QueueReportExportJob::dispatchSync($type, $params, $statusKey, $export);
-            } catch (\Exception $e) {
-                // Job already updated cache with 'failed' status; return the status_key so frontend can poll and see the error
+                $service = $factory->make($type);
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['error' => 'Invalid report type: ' . $type], 400);
             }
 
-            return response()->json([
-                'status'     => true,
-                'queued'     => true,
-                'status_key' => $statusKey,
-                'export'     => Cache::get($statusKey),
-                'message'    => 'Report generation has been queued.',
-            ]);
-        }
+            // Parse and format dates to full datetime strings (preserve time if provided)
+            $startFormatted = $start 
+                ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($start)) 
+                    ? \Carbon\Carbon::parse($start)->startOfDay()->toDateTimeString() 
+                    : \Carbon\Carbon::parse($start)->toDateTimeString())
+                : now()->startOfYear()->startOfDay()->toDateTimeString();
 
-        $data       = $service->generate($params);
-        return response()->json($data);
+            $endFormatted = $end 
+                ? (preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($end)) 
+                    ? \Carbon\Carbon::parse($end)->endOfDay()->toDateTimeString() 
+                    : \Carbon\Carbon::parse($end)->toDateTimeString())
+                : now()->endOfDay()->toDateTimeString();
+
+            $params = [
+                'start'              => $startFormatted,
+                'end'                => $endFormatted,
+                'id'                 => $id,
+                'patron_id'          => $patronId,
+                'voucher_type'       => strtoupper($type),
+                'valuation_method'   => $request->input('valuation_method', 'FIFO'),
+                'consolidation'      => $request->input('consolidation', 'po'),
+                'plant_id'           => session('active_plant_id'),
+                'truck_id'           => $request->input('truck_id'),
+                'driver_id'          => $request->input('driver_id'),
+                'sales_executive_id' => $request->input('sales_executive_id'),
+                'grade_id'           => $request->input('grade_id'),
+                'mix_design_id'      => $request->input('mix_design_id'),
+                'voucher_type_filter' => $request->input('voucher_type_filter'),
+            ];
+
+            if ($export === 'excel' || $export === 'pdf') {
+                $statusKey = 'report_export_' . \Illuminate\Support\Str::uuid();
+                Cache::put($statusKey, ['status' => 'queued', 'progress' => 0], now()->addHour());
+
+                try {
+                    \App\Jobs\QueueReportExportJob::dispatchSync($type, $params, $statusKey, $export);
+                } catch (\Exception $e) {
+                    // Job already updated cache with 'failed' status; return the status_key so frontend can poll and see the error
+                }
+
+                return response()->json([
+                    'status'     => true,
+                    'queued'     => true,
+                    'status_key' => $statusKey,
+                    'export'     => Cache::get($statusKey),
+                    'message'    => 'Report generation has been queued.',
+                ]);
+            }
+
+            $data = $service->generate($params);
+            return response()->json($data);
+        } catch (\Throwable $e) {
+            $logMsg = date('Y-m-d H:i:s') . " Report Error [{$request->input('type')}]: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine() . "\n" . $e->getTraceAsString() . "\n\n";
+            @file_put_contents(storage_path('logs/report_error.log'), $logMsg, FILE_APPEND);
+            \Illuminate\Support\Facades\Log::error("Report generation failed: " . $e->getMessage(), [
+                'type'   => $request->input('type'),
+                'file'   => $e->getFile(),
+                'line'   => $e->getLine(),
+                'trace'  => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'error'   => $e->getMessage(),
+                'message' => $e->getMessage(),
+                'file'    => basename($e->getFile()) . ':' . $e->getLine(),
+            ], 500);
+        }
     }
 
     private function exportPdf($type, $targetName, $start, $end, $data, $ledgerId = null, $patronId = null, $consolidation = 'po')
@@ -144,6 +172,8 @@ class ReportController extends Controller
             'SALES'                     => 'reports.sales_report',
             'PRODUCT_CONSOLIDATED'      => 'reports.product_consolidated_report',
             'CUSTOMER_CONSOLIDATED'     => 'reports.customer_consolidated_report',
+            'CUSTOMER_OUTSTANDING'      => 'reports.customer_outstanding_report',
+            'OVERALL'                   => 'reports.overall_report',
             'TRUCK_CONSOLIDATED'        => 'reports.truck_consolidated_report',
             'SITE_CONSOLIDATED'         => 'reports.site_consolidated_report',
             'PAYMENT_MODE_CONSOLIDATED' => 'reports.payment_mode_consolidated_report',
