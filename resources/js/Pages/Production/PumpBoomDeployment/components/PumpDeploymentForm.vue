@@ -371,9 +371,9 @@ const submitForm = async () => {
         <!-- Compact Header -->
         <div class="px-5 py-3 bg-gray-50/70 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
-                <!-- <div class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                <div class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
                     <WrenchScrewdriverIcon class="w-4 h-4 text-white" />
-                </div> -->
+                </div>
                 <div>
                     <h2 class="text-xs font-bold text-gray-900 dark:text-gray-100">
                         {{ isEditing ? `Edit Deployment #${initialData?.id}` : 'New Pump Deployment' }}
@@ -381,14 +381,14 @@ const submitForm = async () => {
                 </div>
             </div>
 
-            <button
+            <!-- <button
                 type="button"
                 @click="emit('cancel')"
                 class="px-2.5 py-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
             >
                 <ArrowLeftIcon class="w-3.5 h-3.5" />
-                <span>Back</span>
-            </button>
+                <span>{{ isEditing ? 'Cancel Edit' : 'Clear Form' }}</span>
+            </button> -->
         </div>
 
         <form @submit.prevent="submitForm" class="p-4 space-y-3.5">
@@ -663,12 +663,12 @@ const submitForm = async () => {
                 </div>
 
                 <div class="flex items-center justify-end gap-2 shrink-0 ml-auto">
-                    <BaseButton
-                        label="Cancel"
+                    <!-- <BaseButton
+                        :label="isEditing ? 'Cancel Edit' : 'Clear Form'"
                         severity="secondary"
                         variant="outlined"
                         @click="emit('cancel')"
-                    />
+                    /> -->
                     <BaseButton
                         :label="isEditing ? 'Save Changes' : 'Create Deployment'"
                         severity="primary"

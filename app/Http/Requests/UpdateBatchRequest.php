@@ -15,9 +15,10 @@ class UpdateBatchRequest extends FormRequest
     public function rules(): array
     {
         $batchId = $this->route('batch')?->id ?? $this->route('batch');
-        $salesOrderId = (int) ($this->input('sales_order_id') ?? $this->route('batch')?->sales_order_id);
+        $batch = \App\Models\Batch::withoutGlobalScope('plant_id')->find($batchId);
+        $plantId = session('active_plant_id', $batch?->plant_id);
+        $salesOrderId = (int) ($this->input('sales_order_id') ?? $batch?->sales_order_id);
         
-        $plantId = session('active_plant_id');
         $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
 
         return [
@@ -27,7 +28,7 @@ class UpdateBatchRequest extends FormRequest
                 'integer',
                 'min:1',
                 Rule::unique('mm_batches', 'batch_no')
-                    ->where(fn ($q) => $q->where('sales_order_id', $salesOrderId))->where('deleted_at',null)
+                    ->where(fn ($q) => $q->where('plant_id', $plantId)->whereNull('deleted_at'))
                     ->ignore($batchId),
             ],
             'batch_size' => ['required', 'numeric', 'gt:0'],
@@ -81,23 +82,50 @@ class UpdateBatchRequest extends FormRequest
                     // So remaining without this batch is: total_qty - (produced_qty - oldBatchSize)
                    $remainingForThisBatch = $totalQty - ($producedQty - $oldBatchSize);
 
-$MAX_ERROR_Margin = 0.0001;
+                    $MAX_ERROR_Margin = 0.0001;
 
-if (($newBatchSize - $remainingForThisBatch) > $MAX_ERROR_Margin) {
-    $remaining = max(0, $remainingForThisBatch);
+                    if (($newBatchSize - $remainingForThisBatch) > $MAX_ERROR_Margin) {
+                        $remaining = max(0, $remainingForThisBatch);
 
-    $validator->errors()->add(
-        'batch_size',
-        sprintf(
-            'Batch size (%.3f m³) exceeds remaining work order quantity (%.3f m³).',
-            $newBatchSize,
-            $remaining
-        )
-    );
-}
+                        $validator->errors()->add(
+                            'batch_size',
+                            sprintf(
+                                'Batch size (%.3f m³) exceeds remaining work order quantity (%.3f m³).',
+                                $newBatchSize,
+                                $remaining
+                            )
+                        );
+                    }
+                }
+            }
+
+            // Verify that only admin can change batch_no
+            $user = $this->user() ?? auth()->user();
+            $isAdmin = $user && method_exists($user, 'hasRole') && (
+                $user->hasRole('Saas Owner') || 
+                $user->hasRole('Platform Admin') || 
+                $user->hasRole('Super Admin') || 
+                $user->hasRole('Admin') || 
+                $user->hasRole('Super Administrator') ||
+                $user->hasRole('Administrator')
+            );
+
+            if (!$isAdmin && $this->filled('batch_no')) {
+                $currentBatch = \App\Models\Batch::withoutGlobalScope('plant_id')->find($batchId);
+                if ($currentBatch && (int)$this->input('batch_no') !== (int)$currentBatch->batch_no) {
+                    $validator->errors()->add('batch_no', 'Only administrators are permitted to modify the batch number.');
                 }
             }
         });
+    }
+
+    public function messages(): array
+    {
+        return [
+            'batch_no.unique' => 'Batch number #:input already exists for this plant. Duplicate batch numbers are restricted.',
+            'batch_no.min' => 'Batch number must be at least 1.',
+            'batch_no.integer' => 'Batch number must be a valid integer.',
+        ];
     }
 
     protected function failedValidation(\Illuminate\Contracts\Validation\Validator $validator)

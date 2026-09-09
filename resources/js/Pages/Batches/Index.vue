@@ -802,6 +802,7 @@ const shareBatchEmail = () => {
                     :statuses="statuses"
                     :nextBatchNo="nextBatchNo"
                     :concretePumpOptions="concretePumpOptions"
+                    :existingBatches="batches"
                     @created="handleBatchCreated"
                     @offline-batch-added="handleOfflineBatchAdded"
                 />
@@ -1298,6 +1299,7 @@ const shareBatchEmail = () => {
                                                     :statuses="statuses"
                                                     :loading_sites="loading_sites"
                                                     :concretePumpOptions="concretePumpOptions"
+                                                    :existingBatches="batches"
                                                     @saved="handleBatchSaved"
                                                     @cancel="collapseExpandedRows()"
                                                 />

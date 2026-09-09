@@ -51,6 +51,7 @@ const props = withDefaults(defineProps<{
     uoms?: any[];
     statuses?: { label: string; value: number }[];
     concretePumpOptions?: any[];
+    existingBatches?: any[];
     onSaved?: (payload?: { batchId: number, type: 'batching' | 'dispatch' }) => void;
 }>(), {
     batch: () => ({}),
@@ -63,6 +64,7 @@ const props = withDefaults(defineProps<{
     uoms: () => [],
     statuses: () => [],
     concretePumpOptions: () => [],
+    existingBatches: () => [],
 }); 
 const emit = defineEmits<{
     (e: 'saved', payload?: { batchId: number, type: 'batching' | 'dispatch' }): void;
@@ -211,7 +213,22 @@ const isUploadFetchEnabled = computed(() => {
     return !!customSettings?.batching?.sheet_upload;
 });
 
-const { isAdmin, isSuperAdmin } = usePermissions();
+const { isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
+const canEditBatchNo = computed(() => Boolean(isAdmin.value || isSuperAdmin.value || isSassOwner.value) && !isLocked.value);
+
+const duplicateBatchWarning = computed(() => {
+    if (!canEditBatchNo.value || !form.batch_no) return null;
+    const num = Number(form.batch_no);
+    if (!num || num <= 0) return null;
+    if (num === Number(props.batch?.batch_no)) return null;
+
+    const list = (props.existingBatches?.length ? props.existingBatches : (page.props.batches as any[])) || [];
+    const exists = list.some((b: any) => Number(b.id) !== Number(props.batch?.id) && Number(b.batch_no) === num);
+    if (exists) {
+        return `Batch #${num} already exists in this plant. Duplicate batch numbers are restricted.`;
+    }
+    return null;
+});
 
 const hasInvoice = computed(() => {
     if (props.batch?.invoice_id) return true;
@@ -868,6 +885,15 @@ const submit = (onSuccessCallback?: () => void) => {
             form.setError('load_time', 'Load Time is required');
             hasErrors = true;
         }
+    if (canEditBatchNo.value) {
+        if (!form.batch_no || Number(form.batch_no) <= 0) {
+            form.setError('batch_no', 'Batch Number is required');
+            hasErrors = true;
+        } else if (duplicateBatchWarning.value) {
+            form.setError('batch_no', duplicateBatchWarning.value);
+            hasErrors = true;
+        }
+    }
     if (hasErrors) {
         Swal.fire({
             icon: 'error',
@@ -892,6 +918,7 @@ const submit = (onSuccessCallback?: () => void) => {
     }; 
     form.transform((data) => ({
         ...data,
+        batch_no: canEditBatchNo.value ? Number(data.batch_no) : (props.batch?.batch_no ?? null),
         start_time: formatDateTime(data.start_time),
         end_time: formatDateTime(data.end_time),
         empty_time: formatDateTime(data.empty_time),
@@ -1024,7 +1051,28 @@ console.log('test');
                                 </span>
                             </div>
                         </h3>
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                            <!-- Batch Number Card -->
+                            <div class="flex flex-col">
+                                <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">Batch Number</span>
+                                <div v-if="canEditBatchNo" class="mt-0.5">
+                                    <div class="flex items-center gap-1">
+                                        <span class="text-xs font-bold text-slate-400">#</span>
+                                        <input 
+                                            type="number" 
+                                            v-model.number="form.batch_no" 
+                                            min="1"
+                                            class="w-24 px-2 py-0.5 text-xs font-bold border rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 bg-white"
+                                            :class="duplicateBatchWarning || form.errors.batch_no ? '!border-rose-500 !text-rose-600 bg-rose-50/30' : 'border-slate-300 text-slate-800'"
+                                        />
+                                    </div>
+                                    <p v-if="duplicateBatchWarning || form.errors.batch_no" class="text-[10px] font-semibold text-rose-600 mt-0.5">
+                                        {{ duplicateBatchWarning || form.errors.batch_no }}
+                                    </p>
+                                </div>
+                                <span v-else class="text-xs font-bold text-slate-800 mt-0.5 leading-tight">#{{ form.batch_no }}</span>
+                            </div>
+
                             <div v-for="detail in salesOrderDetails" :key="detail.label" class="flex flex-col">
                                 <span class="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{{ detail.label }}</span>
                                 <span class="text-xs font-bold text-slate-800 mt-0.5 leading-tight">{{ detail.value }}</span>

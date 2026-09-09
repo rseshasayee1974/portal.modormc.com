@@ -8,10 +8,13 @@ import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import Button from 'primevue/button';
 import axios from 'axios';
 import Swal from 'sweetalert2';
-import { PlusCircleIcon, InformationCircleIcon, BeakerIcon, ListBulletIcon, ClockIcon, ArrowDownTrayIcon, ScaleIcon, TruckIcon } from '@heroicons/vue/24/outline';
+import { PlusCircleIcon, InformationCircleIcon, BeakerIcon, ListBulletIcon, ClockIcon, ArrowDownTrayIcon, ScaleIcon, TruckIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 import Dialog from 'primevue/dialog';
+import { usePermissions } from '@/Composables/usePermissions';
 
 const page = usePage();
+const { isAdmin, isSuperAdmin, isSassOwner } = usePermissions();
+const canEditBatchNo = computed(() => Boolean(isAdmin.value || isSuperAdmin.value || isSassOwner.value));
 
 
 const props = withDefaults(defineProps<{
@@ -28,6 +31,7 @@ const props = withDefaults(defineProps<{
     statuses?: { label: string; value: number }[];
     nextBatchNo?: number;
     concretePumpOptions?: any[];
+    existingBatches?: any[];
 }>(), {
     salesOrders: () => [],
     trucks: () => [],
@@ -42,6 +46,7 @@ const props = withDefaults(defineProps<{
     loading_sites: () => [],
     unloading_sites: () => [],
     concretePumpOptions: () => [],
+    existingBatches: () => [],
 });
 
 const emit = defineEmits(['offline-batch-added', 'cancel','created']);
@@ -123,6 +128,33 @@ const remainingQty = computed(() => {
     return Math.max(0, Number(rem.toFixed(3)));
 });
 
+const isManualBatchNo = ref(false);
+
+const duplicateBatchWarning = computed(() => {
+    if (!canEditBatchNo.value || !isManualBatchNo.value || !form.batch_no) return null;
+    const num = Number(form.batch_no);
+    if (!num || num <= 0) return null;
+
+    const list = (props.existingBatches?.length ? props.existingBatches : (page.props.batches as any[])) || [];
+    const exists = list.some((b: any) => Number(b.batch_no) === num);
+    if (exists) {
+        return `Batch #${num} already exists in this plant. Duplicate batch numbers are restricted.`;
+    }
+    return null;
+});
+
+watch(() => props.nextBatchNo, (newVal) => {
+    if (!isManualBatchNo.value && newVal) {
+        form.batch_no = newVal;
+    }
+}, { immediate: true });
+
+watch(isManualBatchNo, (isManual) => {
+    if (!isManual) {
+        form.batch_no = props.nextBatchNo;
+    }
+});
+
 const nextBatchNoDisplay = computed(() => {
     return props.nextBatchNo;
 });
@@ -196,14 +228,18 @@ watch(() => form.sales_order_id, (newVal) => {
             }
         }
 
-        form.batch_no = props.nextBatchNo;
+        if (!isManualBatchNo.value) {
+            form.batch_no = props.nextBatchNo;
+        }
 
         // Reset flag after a microtask so that driver_id watcher triggered by the assignment above won't override it
         setTimeout(() => {
             isAutofillingSalesOrder.value = false;
         }, 0);
     } else {
-        form.batch_no = props.nextBatchNo;
+        if (!isManualBatchNo.value) {
+            form.batch_no = props.nextBatchNo;
+        }
         form.concrete_pump = null;
         form.sales_executive_id = null;
         form.truck_id = null;
@@ -411,6 +447,14 @@ const submit = () => {
         // { condition: form.sales_order_id && form.batch_size > maxAllowed, field: 'batch_size', message: `Batch Quantity cannot exceed remaining order quantity (${maxAllowed.toFixed(3)} m³)` }
     ];
 
+    if (canEditBatchNo.value && isManualBatchNo.value) {
+        if (!form.batch_no || Number(form.batch_no) <= 0) {
+            validations.push({ condition: true, field: 'batch_no', message: 'Batch Number is required when manual mode is active' });
+        } else if (duplicateBatchWarning.value) {
+            validations.push({ condition: true, field: 'batch_no', message: duplicateBatchWarning.value });
+        }
+    }
+
     let hasErrors = false;
     validations.forEach(v => {
         if (v.condition) {
@@ -437,6 +481,7 @@ const submit = () => {
     const resetForm = () => {
         form.reset();
         form.sales_order_id = null;
+        isManualBatchNo.value = false;
         form.batch_no = props.nextBatchNo;
         form.batch_size = 0;
         form.truck_id = null;
@@ -462,7 +507,7 @@ const submit = () => {
     if (!navigator.onLine) {
         const formattedBatch = {
             id: -Date.now(), // Temporary negative ID
-            batch_no: form.batch_no || props.nextBatchNo,
+            batch_no: (canEditBatchNo.value && isManualBatchNo.value && form.batch_no) ? Number(form.batch_no) : props.nextBatchNo,
             sales_order_id: form.sales_order_id,
             sales_order: selectedSalesOrder.value,
             batch_size: form.batch_size,
@@ -488,6 +533,7 @@ const submit = () => {
 
     form.transform((data) => ({
         ...data,
+        batch_no: (canEditBatchNo.value && isManualBatchNo.value) ? Number(data.batch_no) : null,
         start_time: formatDateTime(data.start_time),
         end_time: formatDateTime(data.end_time),
         empty_time: formatDateTime(data.empty_time),
@@ -534,9 +580,48 @@ const submit = () => {
                     </div>
                 </div>
 
-                <div v-if="nextBatchNoDisplay" class="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-2 backdrop-blur-md border border-white/10 self-start sm:self-center">
-                    <span class="text-[10px] font-bold uppercase tracking-widest text-slate-900">Batch Number</span>
-                    <span class="text-base font-black text-gray-900">#{{ nextBatchNoDisplay }}</span>
+                <div class="flex flex-col items-end gap-1.5 self-start sm:self-center">
+                    <div class="flex items-center gap-3">
+                        <!-- Admin Option: Manual Batch No -->
+                        <div v-if="canEditBatchNo" class="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 border border-slate-200 shadow-xs">
+                            <label class="flex items-center gap-1.5 cursor-pointer select-none">
+                                <input 
+                                    type="checkbox" 
+                                    v-model="isManualBatchNo" 
+                                    class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer" 
+                                />
+                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-600">Manual Batch #</span>
+                            </label>
+                            
+                            <div v-if="isManualBatchNo" class="flex items-center gap-1 pl-2 border-l border-slate-200">
+                                <span class="text-xs font-bold text-slate-400">#</span>
+                                <input 
+                                    type="number" 
+                                    v-model.number="form.batch_no" 
+                                    min="1"
+                                    placeholder="Batch #"
+                                    class="w-24 px-2 py-1 text-xs font-bold border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+                                    :class="duplicateBatchWarning || form.errors.batch_no ? '!border-rose-500 !text-rose-600 bg-rose-50/30' : 'border-indigo-200 text-slate-900'"
+                                />
+                            </div>
+                            <span v-else class="text-sm font-black text-indigo-700 pl-2 border-l border-slate-200">
+                                #{{ nextBatchNoDisplay }} <span class="text-[9px] font-semibold text-slate-400 font-normal uppercase">(Auto)</span>
+                            </span>
+                        </div>
+
+                        <!-- Non-Admin Display: Auto Generated Only -->
+                        <div v-else-if="nextBatchNoDisplay" class="flex items-center gap-2 rounded-xl bg-slate-50 px-3.5 py-2 border border-slate-200 shadow-xs">
+                            <span class="text-[10px] font-bold uppercase tracking-widest text-slate-500">Batch Number</span>
+                            <span class="text-base font-black text-indigo-700">#{{ nextBatchNoDisplay }}</span>
+                            <span class="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700">Auto</span>
+                        </div>
+                    </div>
+
+                    <!-- Live duplicate restriction warning / error -->
+                    <div v-if="canEditBatchNo && isManualBatchNo && (duplicateBatchWarning || form.errors.batch_no)" class="flex items-center gap-1 text-[11px] font-semibold text-rose-600">
+                        <ExclamationTriangleIcon class="w-3.5 h-3.5 shrink-0" />
+                        <span>{{ duplicateBatchWarning || form.errors.batch_no }}</span>
+                    </div>
                 </div>
             </div>
         </div>        

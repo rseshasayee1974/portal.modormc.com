@@ -929,19 +929,45 @@ class PrintDataFormatter
         $adjVal = (float)($invoice->adjustment ?? 0);
         $roundVal = (float)(($invoice->round_off != 0 ? $invoice->round_off : ($dispatch?->round_off ?? 0)));
 
-        $grandTotalVal = (float)($dispatch?->load_total_amount ?? $invoice->total_amount ?? 0);
-        if ($grandTotalVal <= 0) {
-            $grandTotalVal = self::calculateGrandTotal(
-                $subtotalVal,
-                $pumpVal,
-                $discVal,
-                $hireVal,
-                $passVal,
-                $taxVal,
-                $shippingVal,
-                $adjVal,
-                $roundVal
-            );
+        if ($subtotalVal <= 0 && !empty($data['items'])) {
+            $subtotalVal = (float) array_sum(array_column($data['items'], 'taxable_amount'));
+        }
+
+        if ($taxVal <= 0 && !empty($taxLines)) {
+            $taxVal = (float) array_sum(array_column($taxLines, 'amount'));
+        } elseif ($taxVal <= 0 && !empty($data['items'])) {
+            $taxVal = (float) array_sum(array_column($data['items'], 'tax_amount'));
+        }
+
+        $itemsTotalSum = !empty($data['items']) ? (float) array_sum(array_column($data['items'], 'total')) : 0.0;
+
+        $calcTotal = self::calculateGrandTotal(
+            $subtotalVal,
+            $pumpVal,
+            $discVal,
+            $hireVal,
+            $passVal,
+            $taxVal,
+            $shippingVal,
+            $adjVal,
+            $roundVal
+        );
+
+        $invTotal = (float)($invoice->total_amount ?? 0);
+
+        // Resolve Grand Total:
+        // Prioritize the invoice's own total_amount or calculated breakdown total.
+        // Never truncate to a single dispatch's load_total_amount when multiple items exist.
+        if ($invTotal > 0 && ($itemsTotalSum <= 0 || $invTotal >= ($itemsTotalSum - 1.0))) {
+            $grandTotalVal = $invTotal;
+        } elseif ($calcTotal > 0) {
+            $grandTotalVal = $calcTotal;
+        } elseif ($itemsTotalSum > 0) {
+            $grandTotalVal = $itemsTotalSum;
+        } elseif ($invTotal > 0) {
+            $grandTotalVal = $invTotal;
+        } else {
+            $grandTotalVal = (float)($dispatch?->load_total_amount ?? 0);
         }
 
         $data['totals'] = [

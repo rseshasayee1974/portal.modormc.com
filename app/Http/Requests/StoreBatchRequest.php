@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 
+use Illuminate\Validation\Rule;
+
 class StoreBatchRequest extends FormRequest
 {
     public function authorize(): bool
@@ -16,9 +18,25 @@ class StoreBatchRequest extends FormRequest
         $plantId = session('active_plant_id');
         $settings = \App\Models\CustomSetting::getForModule($plantId, 'batching');
 
+        $user = $this->user() ?? auth()->user();
+        $isAdmin = $user && method_exists($user, 'hasRole') && (
+            $user->hasRole('Saas Owner') || 
+            $user->hasRole('Platform Admin') || 
+            $user->hasRole('Super Admin') || 
+            $user->hasRole('Admin') || 
+            $user->hasRole('Super Administrator') ||
+            $user->hasRole('Administrator')
+        );
+
+        $batchNoRules = ['nullable', 'integer', 'min:1'];
+        if ($isAdmin) {
+            $batchNoRules[] = Rule::unique('mm_batches', 'batch_no')
+                ->where(fn ($q) => $q->where('plant_id', $plantId)->whereNull('deleted_at'));
+        }
+
         return [
             'sales_order_id' => ['required', 'integer', 'exists:mm_sales_orders,id'],
-            'batch_no' => ['nullable', 'integer', 'min:1'],
+            'batch_no' => $batchNoRules,
             'batch_size' => ['required', 'numeric', 'min:0.1', 'max:20'],
             'start_time' => ['nullable', 'date'],
             'end_time' => ['nullable', 'date', 'after_or_equal:start_time'],
@@ -69,5 +87,14 @@ class StoreBatchRequest extends FormRequest
                 }
             }
         });
+    }
+
+    public function messages(): array
+    {
+        return [
+            'batch_no.unique' => 'Batch number #:input already exists for this plant. Duplicate batch numbers are restricted.',
+            'batch_no.min' => 'Batch number must be at least 1.',
+            'batch_no.integer' => 'Batch number must be a valid integer.',
+        ];
     }
 }

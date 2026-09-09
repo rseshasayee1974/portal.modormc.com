@@ -282,10 +282,10 @@ class BatchController extends Controller
         $startYear = $now->month >= 4 ? $now->year : $now->year - 1;
         $fyStart = Carbon::create($startYear, 4, 1, 0, 0, 0);
 
-        $nextBatchNo = Batch::query()
-            ->whereHas('salesOrder', fn ($q) => $q->where('plant_id', $activePlantId))
-            ->where('created_at', '>=', $fyStart)
-            ->max('batch_no') + 1;
+        $nextBatchNo = (Batch::withoutGlobalScope('plant_id')
+            ->where('plant_id', $activePlantId)
+            ->whereNull('deleted_at')
+            ->max('batch_no') ?? 0) + 1;
 
             // return response()->json([
             //     'batches' => $batches,
@@ -335,9 +335,36 @@ class BatchController extends Controller
     $materialsData = $payload['materials'] ?? [];
     $activePlantId = session('active_plant_id', $salesOrder->plant_id);
 
+    $user = auth()->user();
+    $isAdmin = $user && method_exists($user, 'hasRole') && (
+        $user->hasRole('Saas Owner') || 
+        $user->hasRole('Platform Admin') || 
+        $user->hasRole('Super Admin') || 
+        $user->hasRole('Admin') || 
+        $user->hasRole('Super Administrator') ||
+        $user->hasRole('Administrator')
+    );
+
     try {
-        $batch = DB::transaction(function () use ($payload, $salesOrder, $emptyPhoto, $loadedPhoto, $materialsData, $activePlantId) {
-            $payload['batch_no'] = $payload['batch_no'] ?? ($salesOrder->batches()->max('batch_no') + 1);
+        $batch = DB::transaction(function () use ($payload, $salesOrder, $emptyPhoto, $loadedPhoto, $materialsData, $activePlantId, $isAdmin) {
+            if (!$isAdmin || empty($payload['batch_no'])) {
+                $payload['batch_no'] = (Batch::withoutGlobalScope('plant_id')
+                    ->where('plant_id', $activePlantId)
+                    ->whereNull('deleted_at')
+                    ->lockForUpdate()
+                    ->max('batch_no') ?? 0) + 1;
+            } else {
+                $exists = Batch::withoutGlobalScope('plant_id')
+                    ->where('plant_id', $activePlantId)
+                    ->where('batch_no', $payload['batch_no'])
+                    ->whereNull('deleted_at')
+                    ->exists();
+                if ($exists) {
+                    throw ValidationException::withMessages([
+                        'batch_no' => ["Batch number #{$payload['batch_no']} already exists for this plant. Duplicate batch numbers are restricted."]
+                    ]);
+                }
+            }
             $payload['status'] = $payload['status'] ?? Batch::STATUS_PLANNED;
             $payload['plant_id'] = $activePlantId; // ensure plant_id is set
 
@@ -1151,28 +1178,31 @@ class BatchController extends Controller
         $this->authorizeModule('edit');
 
         $user = auth()->user();
-        // $isAdmin = $user && method_exists($user, 'hasRole') && (
-        //     $user->hasRole('Saas Owner') || 
-        //     $user->hasRole('Platform Admin') || 
-        //     $user->hasRole('Super Admin') || 
-        //     $user->hasRole('Admin') || 
-        //     $user->hasRole('Super Administrator') ||
-        //     $user->hasRole('Administrator')
-        // );
-
-        // if (!$isAdmin) {
-        //     $dispatch = $batch->dispatches()->first();
-        //     $dispatchPump = $dispatch ? ($dispatch->concrete_pump ?? $dispatch->concrete_pump) : null;
-        //     if (
-        //         ($request->has('batch_size') && (float)$request->batch_size !== (float)$batch->batch_size) ||
-        //         ($request->has('sales_order_id') && (int)$request->sales_order_id !== (int)$batch->sales_order_id) ||
-        //         (($request->has('concrete_pump') || $request->has('concrete_pump')) && ($request->get('concrete_pump') ?? $request->get('concrete_pump')) !== $dispatchPump)
-        //     ) {
-        //         return redirect()->back()->withErrors(['error' => 'Only administrators are authorized to modify Sales Order, Batch Size, or Concrete Pump.']);
-        //     }
-        // }
+        $isAdmin = $user && method_exists($user, 'hasRole') && (
+            $user->hasRole('Saas Owner') || 
+            $user->hasRole('Platform Admin') || 
+            $user->hasRole('Super Admin') || 
+            $user->hasRole('Admin') || 
+            $user->hasRole('Super Administrator') ||
+            $user->hasRole('Administrator')
+        );
 
         $payload = $request->validated();
+        if (!$isAdmin) {
+            $payload['batch_no'] = $batch->batch_no;
+        } elseif (isset($payload['batch_no']) && (int)$payload['batch_no'] !== (int)$batch->batch_no) {
+            $exists = Batch::withoutGlobalScope('plant_id')
+                ->where('plant_id', $batch->plant_id)
+                ->where('batch_no', $payload['batch_no'])
+                ->where('id', '!=', $batch->id)
+                ->whereNull('deleted_at')
+                ->exists();
+            if ($exists) {
+                throw ValidationException::withMessages([
+                    'batch_no' => ["Batch number #{$payload['batch_no']} already exists for this plant. Duplicate batch numbers are restricted."]
+                ]);
+            }
+        }
         
         $emptyPhoto = $payload['empty_weight_photo'] ?? null;
         $loadedPhoto = $payload['loaded_weight_photo'] ?? null;
