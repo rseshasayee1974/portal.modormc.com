@@ -84,7 +84,7 @@ const siteFilterOptions = computed(() => [
 
 const machineFilterOptions = computed(() => [
     { label: 'All Machines', value: 'all' },
-    ...(props.dropdowns?.machines || dropdowns.value.machines || []).map(m => ({ label: `${m.registration} (${m.vehicle_model || 'Rig'})`, value: m.registration }))
+    ...(props.dropdowns?.machines || dropdowns.value.machines || []).map(m => ({ label: `${m.registration}`, value: m.registration }))
 ]);
 
 const operatorFilterOptions = computed(() => [
