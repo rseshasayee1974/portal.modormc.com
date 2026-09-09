@@ -91,7 +91,7 @@ class QCTestParameterController extends Controller
         }
 
         $validated = $request->validate([
-            'test_type_id' => 'required|exists:qc_test_types,id',
+            'test_type_id' => 'required|exists:mm_qc_test_types,id',
             'code' => 'required|string|max:50',
             'name' => 'required|string|max:150',
             'data_type' => 'nullable|string|max:50',

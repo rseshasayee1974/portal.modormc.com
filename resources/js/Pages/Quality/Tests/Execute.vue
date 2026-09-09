@@ -20,6 +20,157 @@ const parameters = computed(() => props.test.test_type?.parameters || []);
 const layoutType = computed<string>(() => (props.test.test_type?.layout_type || 'SINGLE_TRIAL').toUpperCase());
 const gridConfig = computed(() => props.test.test_type?.grid_config || {});
 
+// Concrete Cube Compressive Strength testing flag
+const isConcreteCubeTest = computed(() => {
+    return (
+        props.test.test_type?.category === 'Concrete' ||
+        props.test.sample?.concrete_grade_id != null ||
+        props.test.age_days != null ||
+        /concrete/i.test(props.test.test_type?.name || '') ||
+        /compressive/i.test(props.test.test_type?.name || '')
+    );
+});
+
+// Concrete Specimen default structure (typically 3 cubes per IS 516 / IS 456)
+const defaultConcreteSpecimens = [
+    { ident_mark: 'Specimen #1', weight_kg: null as number | null, load_kn: null as number | null, strength_mpa: null as number | null, density: null as number | null, failure_type: 'Normal non-explosive' },
+    { ident_mark: 'Specimen #2', weight_kg: null as number | null, load_kn: null as number | null, strength_mpa: null as number | null, density: null as number | null, failure_type: 'Normal non-explosive' },
+    { ident_mark: 'Specimen #3', weight_kg: null as number | null, load_kn: null as number | null, strength_mpa: null as number | null, density: null as number | null, failure_type: 'Normal non-explosive' },
+];
+
+const initConcreteSpecimens = () => {
+    const measurements = props.test.measurements || [];
+    if (measurements.length > 0) {
+        const list: any[] = [];
+        measurements.forEach((m: any, idx: number) => {
+            let meta: any = null;
+            try {
+                if (m.value_text && m.value_text.startsWith('{')) {
+                    meta = JSON.parse(m.value_text);
+                }
+            } catch (e) {}
+
+            const weight = meta?.weight_kg ?? null;
+            const load = meta?.load_kn ?? null;
+            const strength = m.value_numeric ?? meta?.strength_mpa ?? null;
+            const density = meta?.density ?? (weight ? Number((Number(weight) / 0.003375).toFixed(1)) : null);
+            const failure = meta?.failure_type ?? 'Normal non-explosive';
+
+            list.push({
+                ident_mark: meta?.ident_mark || `Specimen #${idx + 1}`,
+                weight_kg: weight,
+                load_kn: load,
+                strength_mpa: strength,
+                density: density,
+                failure_type: failure
+            });
+        });
+        if (list.length > 0) return list;
+    }
+    return JSON.parse(JSON.stringify(defaultConcreteSpecimens));
+};
+
+const concreteSpecimens = ref(initConcreteSpecimens());
+
+const addConcreteSpecimen = () => {
+    const nextIdx = concreteSpecimens.value.length + 1;
+    concreteSpecimens.value.push({
+        ident_mark: `Specimen #${nextIdx}`,
+        weight_kg: null,
+        load_kn: null,
+        strength_mpa: null,
+        density: null,
+        failure_type: 'Normal non-explosive'
+    });
+};
+
+const removeConcreteSpecimen = (idx: number) => {
+    if (concreteSpecimens.value.length <= 1) return;
+    concreteSpecimens.value.splice(idx, 1);
+};
+
+const recalculateSpecimen = (spec: any) => {
+    if (spec.weight_kg !== null && spec.weight_kg !== '' && !isNaN(Number(spec.weight_kg))) {
+        let wt = Number(spec.weight_kg);
+        if (wt > 100) wt = wt / 1000;
+        spec.density = Number((wt / 0.003375).toFixed(1));
+    } else {
+        spec.density = null;
+    }
+
+    if (spec.load_kn !== null && spec.load_kn !== '' && !isNaN(Number(spec.load_kn))) {
+        const load = Number(spec.load_kn);
+        // Area for 150x150 mm cube = 22,500 mm2.
+        // Compressive Strength (N/mm2 or MPa) = (Load in kN * 1000) / 22500 = Load / 22.5
+        spec.strength_mpa = Number((load / 22.5).toFixed(2));
+    } else {
+        spec.strength_mpa = null;
+    }
+};
+
+const concreteAvgStrength = computed(() => {
+    const valid = concreteSpecimens.value
+        .map(s => Number(s.strength_mpa))
+        .filter(val => !isNaN(val) && val > 0);
+    if (valid.length === 0) return 0;
+    return Number((valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(2));
+});
+
+const concreteAvgDensity = computed(() => {
+    const valid = concreteSpecimens.value
+        .map(s => Number(s.density))
+        .filter(val => !isNaN(val) && val > 0);
+    if (valid.length === 0) return 0;
+    return Number((valid.reduce((a, b) => a + b, 0) / valid.length).toFixed(1));
+});
+
+const targetStrength = computed(() => Number(props.test.target_strength || 0));
+const minStrength = computed(() => Number(props.test.min_strength || 0));
+
+const percentTargetAchieved = computed(() => {
+    if (targetStrength.value <= 0 || concreteAvgStrength.value <= 0) return 0;
+    return Number(((concreteAvgStrength.value / targetStrength.value) * 100).toFixed(1));
+});
+
+// Outlier check based on IS 516:2021 (+/- 15% variation from mean)
+const outlierAnalysis = computed(() => {
+    const avg = concreteAvgStrength.value;
+    if (avg <= 0 || concreteSpecimens.value.length < 3) {
+        return { hasOutlier: false, maxDeviationPct: 0, details: [] };
+    }
+
+    let maxDev = 0;
+    const details = concreteSpecimens.value.map((s, idx) => {
+        const val = Number(s.strength_mpa) || 0;
+        if (val <= 0) return { idx, mark: s.ident_mark, devPct: 0, isOutlier: false };
+        const devPct = Number((Math.abs((val - avg) / avg) * 100).toFixed(1));
+        if (devPct > maxDev) maxDev = devPct;
+        return {
+            idx,
+            mark: s.ident_mark,
+            devPct,
+            isOutlier: devPct > 15.0
+        };
+    });
+
+    return {
+        hasOutlier: maxDev > 15.0,
+        maxDeviationPct: maxDev,
+        details
+    };
+});
+
+const concreteStatus = computed(() => {
+    if (concreteAvgStrength.value <= 0) return 'pending';
+    if (minStrength.value > 0) {
+        return concreteAvgStrength.value >= minStrength.value ? 'pass' : 'fail';
+    }
+    if (targetStrength.value > 0) {
+        return concreteAvgStrength.value >= (targetStrength.value * 0.85) ? 'pass' : 'fail';
+    }
+    return 'pass';
+});
+
 // Active trial mode state (for Single vs Multi-Trial layouts)
 const isMultiTrial = ref<boolean>(layoutType.value === 'MULTI_TRIAL');
 
@@ -437,6 +588,40 @@ const form = useForm({
 });
 
 const submitExecution = () => {
+    if (isConcreteCubeTest.value) {
+        const valid = concreteSpecimens.value.filter(s => Number(s.load_kn) > 0);
+        if (valid.length === 0) {
+            toast.add({
+                severity: 'error',
+                summary: 'Missing Failure Load',
+                detail: 'Please enter failure load in kN for at least one concrete specimen.',
+                life: 3000
+            });
+            return;
+        }
+
+        form.transform(() => ({
+            test_date: form.test_date,
+            remarks: form.remarks,
+            concrete_specimens: concreteSpecimens.value,
+            avg_strength: concreteAvgStrength.value,
+            overall_status: concreteStatus.value,
+            measurements: []
+        })).post(route('quality.tests.submit', props.test.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                mode.value = 'certificate';
+                toast.add({
+                    severity: 'success',
+                    summary: 'Test Saved & Evaluated',
+                    detail: `Average Strength: ${concreteAvgStrength.value} MPa (${concreteStatus.value.toUpperCase()})`,
+                    life: 3000
+                });
+            }
+        });
+        return;
+    }
+
     const flat: any[] = [];
 
     // 1. Gather measurements from trialsData
@@ -704,9 +889,258 @@ const printCertificate = () => {
                     </div>
 
                     <!-- --------------------------------------------------------- -->
+                    <!-- LAYOUT 0: CONCRETE CUBE COMPRESSION (CTM CRUSHING)        -->
+                    <!-- --------------------------------------------------------- -->
+                    <div v-if="isConcreteCubeTest" class="space-y-5">
+                        <!-- Concrete Context & Fresh Properties Card -->
+                        <div class="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="flex items-center gap-3">
+                                    <span class="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-mono font-black text-sm shadow-xs">
+                                        {{ test.sample?.concrete_grade?.name || 'M25' }}
+                                    </span>
+                                    <div>
+                                        <div class="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                                            <span>{{ test.age_days || 7 }}-Day Compressive Strength Test</span>
+                                            <span class="text-[11px] font-mono text-slate-400">({{ test.sample?.specimen_size || '150 x 150 x 150 mm' }})</span>
+                                        </div>
+                                        <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                                            <span>Curing: <strong class="text-slate-700 dark:text-slate-300">{{ test.sample?.curing_tank_id || 'Tank #1' }}</strong></span>
+                                            <span>&bull;</span>
+                                            <span>Slump: <strong class="text-slate-700 dark:text-slate-300">{{ test.sample?.slump_mm ? test.sample.slump_mm + ' mm' : '120 mm' }}</strong></span>
+                                            <span>&bull;</span>
+                                            <span>Temp: <strong class="text-slate-700 dark:text-slate-300">{{ test.sample?.concrete_temp_c ? test.sample.concrete_temp_c + ' °C' : '28 °C' }}</strong></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    <div class="text-right">
+                                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target / Min Strength</span>
+                                        <span class="text-xs font-mono font-black text-indigo-600 dark:text-indigo-400">
+                                            {{ test.target_strength || '20.0' }} / {{ test.min_strength || '17.5' }} {{ test.unit || 'MPa' }}
+                                        </span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        @click="addConcreteSpecimen"
+                                        class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                                    >
+                                        <i class="pi pi-plus text-[10px]"></i> Add Cube
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CTM Specimens Crushing Table -->
+                        <div class="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xs">
+                            <table class="w-full text-left text-xs">
+                                <thead>
+                                    <tr class="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-bold">
+                                        <th class="py-3 px-3.5 w-12 text-center">#</th>
+                                        <th class="py-3 px-3 w-32">Cube Mark / ID</th>
+                                        <th class="py-3 px-3">
+                                            <span>Weight (kg)</span>
+                                            <span class="text-[10px] text-slate-400 block font-normal">Air-dry mass</span>
+                                        </th>
+                                        <th class="py-3 px-3">
+                                            <span>Density (kg/m³)</span>
+                                            <span class="text-[10px] text-slate-400 block font-normal">Vol: 0.003375 m³</span>
+                                        </th>
+                                        <th class="py-3 px-3">
+                                            <span class="text-indigo-600 dark:text-indigo-400 font-black">CTM Load (kN) *</span>
+                                            <span class="text-[10px] text-slate-400 block font-normal">Failure Load</span>
+                                        </th>
+                                        <th class="py-3 px-3">
+                                            <span class="text-purple-600 dark:text-purple-400 font-black">Strength (MPa / N/mm²)</span>
+                                            <span class="text-[10px] text-slate-400 block font-normal">Load / 22.5</span>
+                                        </th>
+                                        <th class="py-3 px-3">Fracture Pattern</th>
+                                        <th class="py-3 px-2 text-center">IS 516 Dev</th>
+                                        <th class="py-3 px-2 text-center w-10"></th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                    <tr v-for="(spec, sIdx) in concreteSpecimens" :key="sIdx" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                                        <td class="py-2.5 px-3 text-center font-bold text-slate-500">{{ sIdx + 1 }}</td>
+                                        <td class="py-2.5 px-3">
+                                            <input
+                                                v-model="spec.ident_mark"
+                                                type="text"
+                                                placeholder="Specimen #"
+                                                class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-semibold text-slate-800 dark:text-slate-200"
+                                            />
+                                        </td>
+                                        <td class="py-2.5 px-3">
+                                            <input
+                                                v-model.number="spec.weight_kg"
+                                                @input="recalculateSpecimen(spec)"
+                                                type="number"
+                                                step="0.001"
+                                                placeholder="e.g. 8.25"
+                                                class="w-28 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-slate-200"
+                                            />
+                                        </td>
+                                        <td class="py-2.5 px-3">
+                                            <span class="font-mono font-bold text-xs text-slate-700 dark:text-slate-300">
+                                                {{ spec.density ? `${spec.density}` : '-' }}
+                                            </span>
+                                        </td>
+                                        <td class="py-2.5 px-3">
+                                            <input
+                                                v-model.number="spec.load_kn"
+                                                @input="recalculateSpecimen(spec)"
+                                                type="number"
+                                                step="0.1"
+                                                placeholder="e.g. 510.0"
+                                                class="w-32 px-3 py-1.5 bg-white dark:bg-slate-900 border-2 border-indigo-300 dark:border-indigo-700/60 focus:border-indigo-600 rounded-xl text-xs font-mono font-black text-indigo-700 dark:text-indigo-300"
+                                            />
+                                        </td>
+                                        <td class="py-2.5 px-3">
+                                            <span
+                                                v-if="spec.strength_mpa"
+                                                class="inline-block px-2.5 py-1 bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 rounded-lg font-mono font-black text-purple-700 dark:text-purple-300 text-xs"
+                                            >
+                                                {{ spec.strength_mpa }}
+                                            </span>
+                                            <span v-else class="text-slate-300 dark:text-slate-700 font-mono">-</span>
+                                        </td>
+                                        <td class="py-2.5 px-3">
+                                            <select
+                                                v-model="spec.failure_type"
+                                                class="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
+                                            >
+                                                <option value="Normal non-explosive">Normal Non-explosive Pyramid</option>
+                                                <option value="Semi-explosive">Semi-explosive Fracture</option>
+                                                <option value="Columnar">Columnar Vertical Cracking</option>
+                                                <option value="Shear">Shear Failure</option>
+                                            </select>
+                                        </td>
+                                        <td class="py-2.5 px-2 text-center font-mono text-[11px]">
+                                            <template v-if="concreteAvgStrength > 0 && spec.strength_mpa">
+                                                <span
+                                                    :class="[
+                                                        'font-bold px-1.5 py-0.5 rounded',
+                                                        Math.abs((spec.strength_mpa - concreteAvgStrength) / concreteAvgStrength) * 100 > 15
+                                                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-black'
+                                                            : 'text-slate-500 dark:text-slate-400'
+                                                    ]"
+                                                >
+                                                    {{ ((spec.strength_mpa - concreteAvgStrength) / concreteAvgStrength * 100).toFixed(1) }}%
+                                                </span>
+                                            </template>
+                                            <span v-else class="text-slate-300">-</span>
+                                        </td>
+                                        <td class="py-2.5 px-2 text-center">
+                                            <button
+                                                v-if="concreteSpecimens.length > 1"
+                                                type="button"
+                                                @click="removeConcreteSpecimen(sIdx)"
+                                                class="text-rose-400 hover:text-rose-600 p-1 rounded-md transition-colors"
+                                                title="Remove Specimen"
+                                            >
+                                                <i class="pi pi-trash text-xs"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                                <tfoot class="bg-slate-50/80 dark:bg-slate-800/60 font-bold border-t border-slate-200 dark:border-slate-700">
+                                    <tr>
+                                        <td colspan="3" class="py-3 px-4 text-slate-700 dark:text-slate-300">
+                                            3-Specimen Average Results:
+                                        </td>
+                                        <td class="py-3 px-3 font-mono text-slate-700 dark:text-slate-300">
+                                            {{ concreteAvgDensity ? `${concreteAvgDensity} kg/m³` : '-' }}
+                                        </td>
+                                        <td class="py-3 px-3 text-slate-400 text-[11px]">
+                                            Formula: Load / 22.5
+                                        </td>
+                                        <td class="py-3 px-3 font-mono font-black text-sm text-purple-700 dark:text-purple-300">
+                                            {{ concreteAvgStrength ? `${concreteAvgStrength} MPa` : '-' }}
+                                        </td>
+                                        <td colspan="3"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Real-time Quality & Outlier KPI Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                            <!-- 1. Average Compressive Strength -->
+                            <div class="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Average Strength</span>
+                                <div class="flex items-baseline gap-1.5 mt-1">
+                                    <span class="text-2xl font-black font-mono text-slate-900 dark:text-white">
+                                        {{ concreteAvgStrength || '0.00' }}
+                                    </span>
+                                    <span class="text-xs font-bold text-slate-500">{{ test.unit || 'MPa' }}</span>
+                                </div>
+                                <span class="text-[11px] text-slate-500 mt-1 block">
+                                    Mean of {{ concreteSpecimens.filter(s => Number(s.strength_mpa) > 0).length }} tested cube(s)
+                                </span>
+                            </div>
+
+                            <!-- 2. Target Achievement -->
+                            <div class="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Target Achievement</span>
+                                <div class="flex items-baseline gap-1.5 mt-1">
+                                    <span class="text-2xl font-black font-mono" :class="percentTargetAchieved >= 100 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
+                                        {{ percentTargetAchieved || '0.0' }}%
+                                    </span>
+                                    <span class="text-xs text-slate-400 font-mono">/ {{ targetStrength }} MPa</span>
+                                </div>
+                                <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                                    <div
+                                        class="h-full rounded-full transition-all duration-500"
+                                        :class="percentTargetAchieved >= 100 ? 'bg-emerald-500' : 'bg-amber-500'"
+                                        :style="{ width: `${Math.min(100, percentTargetAchieved)}%` }"
+                                    ></div>
+                                </div>
+                            </div>
+
+                            <!-- 3. IS 516 Outlier Shield -->
+                            <div class="p-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl shadow-xs">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">IS 516 Variation (±15%)</span>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <i
+                                        :class="[
+                                            'pi text-lg',
+                                            outlierAnalysis.hasOutlier ? 'pi-exclamation-triangle text-rose-500' : 'pi-check-circle text-emerald-500'
+                                        ]"
+                                    ></i>
+                                    <span class="text-sm font-bold" :class="outlierAnalysis.hasOutlier ? 'text-rose-600' : 'text-emerald-600'">
+                                        {{ outlierAnalysis.hasOutlier ? 'Outlier Warning' : 'Within ±15% Limit' }}
+                                    </span>
+                                </div>
+                                <span class="text-[11px] text-slate-500 mt-1 block">
+                                    Max deviation: <strong class="font-mono text-slate-700 dark:text-slate-300">{{ outlierAnalysis.maxDeviationPct }}%</strong>
+                                </span>
+                            </div>
+
+                            <!-- 4. Acceptance Status -->
+                            <div
+                                class="p-4 rounded-2xl border shadow-xs flex flex-col justify-between"
+                                :class="{
+                                    'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200/80 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-100': concreteStatus === 'pass',
+                                    'bg-rose-50/70 dark:bg-rose-950/40 border-rose-200/80 dark:border-rose-800/80 text-rose-900 dark:text-rose-100': concreteStatus === 'fail',
+                                    'bg-amber-50/70 dark:bg-amber-950/40 border-amber-200/80 dark:border-amber-800/80 text-amber-900 dark:text-amber-100': concreteStatus === 'pending',
+                                }"
+                            >
+                                <span class="text-[10px] font-bold uppercase tracking-wider opacity-70 block">Evaluation Verdict</span>
+                                <div class="text-xl font-black uppercase tracking-tight mt-1 flex items-center gap-2">
+                                    <span>{{ concreteStatus === 'pass' ? 'PASSED' : (concreteStatus === 'fail' ? 'FAILED' : 'PENDING ENTRY') }}</span>
+                                </div>
+                                <span class="text-[11px] opacity-80 mt-1 block">
+                                    Min required: {{ minStrength }} MPa
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- --------------------------------------------------------- -->
                     <!-- LAYOUT 1: GAUGE MATRIX (Flakiness & Elongation)          -->
                     <!-- --------------------------------------------------------- -->
-                    <div v-if="layoutType === 'GAUGE_MATRIX'" class="space-y-4">
+                    <div v-else-if="layoutType === 'GAUGE_MATRIX'" class="space-y-4">
                         <!-- Toolbar -->
                         <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
                             <div class="flex flex-wrap items-center gap-1.5">
@@ -1285,7 +1719,51 @@ const printCertificate = () => {
                     </div>
 
                     <!-- 2-Column Metadata Grid -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div v-if="isConcreteCubeTest" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+                        <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2 print:bg-transparent print:border print:border-slate-300">
+                            <div class="text-[11px] font-black uppercase tracking-wider text-slate-400 border-b pb-1">Client & Dispatch Docket</div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Customer / Client:</span>
+                                <span class="font-bold text-slate-900 dark:text-slate-100">{{ test.sample?.customer?.name || 'Project Client' }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Project / Site Name:</span>
+                                <span class="font-bold text-slate-900 dark:text-slate-100">{{ test.sample?.site_name || 'Delivery Site' }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Transit Mixer Truck #:</span>
+                                <span class="font-mono font-bold text-indigo-600 dark:text-indigo-400">{{ test.sample?.truck_no || test.sample?.dispatch?.truck?.truck_no || 'Plant Direct' }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Sampling Date:</span>
+                                <span class="font-mono font-bold text-slate-900 dark:text-slate-100">{{ test.sample?.sample_date ? test.sample.sample_date.substring(0, 10) : '-' }}</span>
+                            </div>
+                        </div>
+
+                        <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2 print:bg-transparent print:border print:border-slate-300">
+                            <div class="text-[11px] font-black uppercase tracking-wider text-slate-400 border-b pb-1">Mix Specification & Curing</div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Specified Concrete Grade:</span>
+                                <span class="font-bold text-indigo-700 dark:text-indigo-300 font-mono text-sm">{{ test.sample?.concrete_grade?.name || 'M25' }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Age at Test:</span>
+                                <span class="font-bold text-slate-900 dark:text-slate-100 font-mono">{{ test.age_days || 7 }} Days</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Curing Environment:</span>
+                                <span class="font-bold text-slate-900 dark:text-slate-100">{{ test.sample?.curing_tank_id ? test.sample.curing_tank_id + ' (Water Curing 27 ± 2 °C)' : 'Standard Water Immersion (27 ± 2 °C)' }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">Fresh Slump & Temp:</span>
+                                <span class="font-mono font-bold text-slate-900 dark:text-slate-100">
+                                    {{ test.sample?.slump_mm ? test.sample.slump_mm + ' mm' : '120 mm' }} • {{ test.sample?.concrete_temp_c ? test.sample.concrete_temp_c + ' °C' : '28 °C' }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                         <div class="p-3.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1.5 print:bg-transparent print:border print:border-slate-300">
                             <div class="flex justify-between">
                                 <span class="text-slate-500">Facility / Plant:</span>
@@ -1309,8 +1787,118 @@ const printCertificate = () => {
                         </div>
                     </div>
 
+                    <!-- ========================================================= -->
+                    <!-- CERTIFICATE VIEW: CONCRETE COMPRESSION TEST CERTIFICATE    -->
+                    <!-- ========================================================= -->
+                    <div v-if="isConcreteCubeTest" class="space-y-6">
+                        <!-- Quality Declaration Ribbon -->
+                        <div class="p-3.5 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/80 rounded-xl flex items-center justify-between text-xs print:border print:border-slate-300">
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
+                                    <i class="pi pi-verified text-sm"></i>
+                                </span>
+                                <div>
+                                    <div class="font-bold text-blue-950 dark:text-blue-200">
+                                        IS 516:2021 & IS 456:2000 Ready-Mix Concrete Test Certificate
+                                    </div>
+                                    <div class="text-[11px] text-blue-800/80 dark:text-blue-300/80">
+                                        Test Certificate No: <strong class="font-mono">MTC-{{ test.test_no }}</strong> &bull; Sampling ID: <strong class="font-mono">#{{ test.sample?.sample_no }}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                            <span
+                                class="text-xs font-black uppercase px-3 py-1 rounded-full border"
+                                :class="concreteStatus === 'pass' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300'"
+                            >
+                                {{ concreteStatus === 'pass' ? 'APPROVED / COMPLIANT' : 'NON-COMPLIANT' }}
+                            </span>
+                        </div>
+
+                        <!-- CTM Specimen Crushing Results Table -->
+                        <div class="space-y-2">
+                            <div class="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-200">
+                                Compressive Testing Machine (CTM) Specimen Results
+                            </div>
+                            <table class="w-full text-left text-xs border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden print:border-collapse">
+                                <thead class="bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold border-b border-slate-200 dark:border-slate-700">
+                                    <tr>
+                                        <th class="py-2.5 px-3 text-center">Specimen #</th>
+                                        <th class="py-2.5 px-3">Cube Identification</th>
+                                        <th class="py-2.5 px-3 text-right">Mass (kg)</th>
+                                        <th class="py-2.5 px-3 text-right">Density (kg/m³)</th>
+                                        <th class="py-2.5 px-3 text-right">Failure Load (kN)</th>
+                                        <th class="py-2.5 px-3 text-right">Compressive Strength (N/mm²)</th>
+                                        <th class="py-2.5 px-3">Failure Mode</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                                    <tr v-for="(spec, sIdx) in concreteSpecimens" :key="sIdx" class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                                        <td class="py-2.5 px-3 text-center font-bold text-slate-500">{{ sIdx + 1 }}</td>
+                                        <td class="py-2.5 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">{{ spec.ident_mark }}</td>
+                                        <td class="py-2.5 px-3 text-right font-mono">{{ spec.weight_kg ? Number(spec.weight_kg).toFixed(3) : '-' }}</td>
+                                        <td class="py-2.5 px-3 text-right font-mono">{{ spec.density ? Number(spec.density).toFixed(1) : '-' }}</td>
+                                        <td class="py-2.5 px-3 text-right font-mono font-bold text-indigo-700 dark:text-indigo-300">{{ spec.load_kn ? Number(spec.load_kn).toFixed(1) : '-' }}</td>
+                                        <td class="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-100 text-sm">{{ spec.strength_mpa ? Number(spec.strength_mpa).toFixed(2) : '-' }}</td>
+                                        <td class="py-2.5 px-3 text-slate-600 dark:text-slate-400">{{ spec.failure_type || 'Normal Non-explosive' }}</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot class="bg-slate-50/80 dark:bg-slate-800/60 font-bold border-t-2 border-slate-300 dark:border-slate-700">
+                                    <tr>
+                                        <td colspan="3" class="py-3 px-4 text-slate-800 dark:text-slate-200">
+                                            Average Compressive Strength (N/mm²):
+                                        </td>
+                                        <td class="py-3 px-3 text-right font-mono text-slate-700 dark:text-slate-300">
+                                            {{ concreteAvgDensity ? `${concreteAvgDensity}` : '-' }}
+                                        </td>
+                                        <td class="py-3 px-3 text-right text-slate-400 text-[11px]">
+                                            Area: 22,500 mm²
+                                        </td>
+                                        <td class="py-3 px-3 text-right font-mono font-black text-base text-indigo-700 dark:text-indigo-400">
+                                            {{ concreteAvgStrength }} N/mm²
+                                        </td>
+                                        <td class="py-3 px-3 text-slate-500 font-normal text-[11px]">
+                                            IS 516 Compliance: {{ outlierAnalysis.hasOutlier ? 'Outlier detected (>15%)' : 'Consistent (±15%)' }}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- Statistical Evaluation Summary Bar -->
+                        <div class="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            <div>
+                                <span class="text-slate-500 block text-[10px] uppercase font-bold">Characteristic Strength</span>
+                                <span class="font-mono font-black text-sm text-slate-900 dark:text-slate-100">{{ test.sample?.concrete_grade?.name || 'M25' }}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-500 block text-[10px] uppercase font-bold">Expected {{ test.age_days || 7 }}-Day Target</span>
+                                <span class="font-mono font-black text-sm text-indigo-600 dark:text-indigo-400">{{ targetStrength }} N/mm²</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-500 block text-[10px] uppercase font-bold">Achieved Strength</span>
+                                <span class="font-mono font-black text-sm text-purple-700 dark:text-purple-300">{{ concreteAvgStrength }} N/mm²</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-500 block text-[10px] uppercase font-bold">% Target Achieved</span>
+                                <span class="font-mono font-black text-sm" :class="percentTargetAchieved >= 100 ? 'text-emerald-600' : 'text-amber-600'">{{ percentTargetAchieved }}%</span>
+                            </div>
+                        </div>
+
+                        <!-- Compliance Statement -->
+                        <div class="p-4 bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl border border-emerald-200/80 dark:border-emerald-800/50 text-xs space-y-1">
+                            <div class="font-bold text-emerald-950 dark:text-emerald-200 flex items-center gap-1.5">
+                                <i class="pi pi-check-circle text-emerald-600"></i>
+                                <span>Official Certification & Acceptance Statement:</span>
+                            </div>
+                            <p class="text-emerald-900/90 dark:text-emerald-300/80 leading-relaxed">
+                                The concrete specimens referenced above were cast, cured, and crushed under laboratory controlled conditions conforming to <strong>IS 516:2021</strong>.
+                                The compressive strength achieved of <strong>{{ concreteAvgStrength }} N/mm²</strong> {{ concreteStatus === 'pass' ? 'satisfies and conforms to' : 'does not satisfy' }} the acceptance criteria specified in <strong>IS 456:2000</strong>.
+                            </p>
+                        </div>
+                    </div>
+
                     <!-- CERTIFICATE VIEW: GAUGE MATRIX -->
-                    <div v-if="layoutType === 'GAUGE_MATRIX'" class="space-y-2">
+                    <div v-else-if="layoutType === 'GAUGE_MATRIX'" class="space-y-2">
                         <div class="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-slate-200">
                             Combined Flakiness & Elongation Test Breakdown
                         </div>

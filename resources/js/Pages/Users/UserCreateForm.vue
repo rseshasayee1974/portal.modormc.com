@@ -98,6 +98,23 @@ const validate = () => {
         return false;
     }
 
+    const seen = new Set();
+    for (const eu of assignments) {
+        if (eu.entity_id && eu.plant_id) {
+            const key = `${eu.entity_id}-${eu.plant_id}`;
+            if (seen.has(key)) {
+                toast.add({
+                    severity: 'warn',
+                    summary: 'Duplicate Assignment',
+                    detail: 'Each entity and plant can only be assigned once.',
+                    life: 3000
+                });
+                return false;
+            }
+            seen.add(key);
+        }
+    }
+
     form.value.errors = errors;
     return Object.keys(errors).length === 0;
 };

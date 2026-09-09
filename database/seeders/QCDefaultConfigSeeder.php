@@ -37,7 +37,9 @@ class QCDefaultConfigSeeder extends Seeder
         QcSample::truncate();
         QcTestSchedule::truncate();
         QcMaterialTest::truncate();
-        if (Schema::hasTable('qc_test_rules')) {
+        if (Schema::hasTable('mm_qc_test_rules')) {
+            DB::table('mm_qc_test_rules')->truncate();
+        } elseif (Schema::hasTable('qc_test_rules')) {
             DB::table('qc_test_rules')->truncate();
         }
         QcTestParameter::truncate();

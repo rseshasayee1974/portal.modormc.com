@@ -57,7 +57,7 @@ class QcTestParameter extends Model
         ];
     }
 
-    protected $table = 'qc_test_parameters';
+    protected $table = 'mm_qc_test_parameters';
 
     protected $fillable = [
         'test_type_id',

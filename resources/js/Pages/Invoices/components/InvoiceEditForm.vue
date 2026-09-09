@@ -48,6 +48,7 @@ const form = useForm({
     invoice_date: props.invoice.invoice_date ? new Date(props.invoice.invoice_date) : null,
     due_date: props.invoice.due_date ? new Date(props.invoice.due_date) : null,
     period: props.invoice.period,
+    is_tax_inclusive: Boolean(props.invoice.is_tax_inclusive),
     global_discount_type: props.invoice.global_discount_type || '₹',
     global_discount: Number(props.invoice.global_discount) || 0,
     adjustment: Number(props.invoice.adjustment) || 0,
@@ -104,6 +105,7 @@ const removeItem = (index: number) => {
 const calculateTotals = () => {
     let untaxed = 0;
     let taxTotal = 0;
+    const isInclusive = Boolean(form.is_tax_inclusive);
 
     form.items.forEach(item => {
         const gross = (Number(item.quantity) || 0) * (Number(item.price_unit) || 0);
@@ -111,19 +113,29 @@ const calculateTotals = () => {
             ? (Number(item.discount) || 0) 
             : gross * ((Number(item.discount) || 0) / 100);
         
-        item.subtotal = gross - discount;
+        const net = gross - discount;
         
         // Calculate tax for this line
         const tax = props.taxes.find(t => t.value === item.tax_id);
         const rate = tax ? Number(tax.rate) : 0;
-        item.tax_amount = item.subtotal * (rate / 100);
+        
+        if (isInclusive && rate > 0) {
+            const taxable = Number((net / (1 + (rate / 100))).toFixed(2));
+            item.tax_amount = Number((net - taxable).toFixed(2));
+            item.subtotal = taxable;
+            item.total = Number(net.toFixed(2));
+        } else {
+            item.tax_amount = Number((net * (rate / 100)).toFixed(2));
+            item.subtotal = Number(net.toFixed(2));
+            item.total = Number((net + item.tax_amount).toFixed(2));
+        }
         
         untaxed += item.subtotal;
         taxTotal += item.tax_amount;
     });
 
-    form.amount_untaxed = untaxed;
-    form.amount_tax = taxTotal;
+    form.amount_untaxed = Number(untaxed.toFixed(2));
+    form.amount_tax = Number(taxTotal.toFixed(2));
     
     // Calculate global discount
     const globalDiscount = form.global_discount_type === '₹' 
@@ -134,12 +146,26 @@ const calculateTotals = () => {
     if (form.shipping_charges > 0 && form.shipping_tax_id) {
         const sTax = props.taxes.find(t => t.value === form.shipping_tax_id);
         if (sTax) {
-            form.amount_tax += form.shipping_charges * (Number(sTax.rate) / 100);
+            form.amount_tax += Number((form.shipping_charges * (Number(sTax.rate) / 100)).toFixed(2));
         }
     }
 
-    form.amount_total = untaxed + form.amount_tax - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0);
+    form.amount_total = Number((untaxed + form.amount_tax - globalDiscount + (Number(form.adjustment) || 0) + (Number(form.shipping_charges) || 0)).toFixed(2));
 };
+
+watch(
+    () => [
+        form.items, 
+        form.adjustment, 
+        form.shipping_charges, 
+        form.global_discount, 
+        form.global_discount_type, 
+        form.shipping_tax_id,
+        form.is_tax_inclusive
+    ], 
+    calculateTotals, 
+    { deep: true, immediate: true }
+);
 
 const onMixDesignChange = (index: number) => {
     const item = form.items[index];
@@ -302,7 +328,26 @@ const setupDemoCompliance = () => {
                     <BaseSelect v-model="form.partner_id" label="Partner / Customer" :options="patrons" optionLabel="label" optionValue="value" filter :error="form.errors.partner_id" required />
                     <BaseSelect v-model="form.account_id" label="Ledger Account" :options="accounts" optionLabel="label" optionValue="value" filter :error="form.errors.account_id" />
                     <BaseDatePicker v-model="form.invoice_date" label="Invoice Date" required />
-                    <!-- <BaseDatePicker v-model="form.due_date" label="Due Date" /> -->
+                    <div class="flex flex-col justify-end pb-1.5">
+                        <div class="flex items-center gap-3 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 h-10">
+                            <input 
+                                type="checkbox" 
+                                v-model="form.is_tax_inclusive" 
+                                id="is_tax_inclusive_edit" 
+                                class="peer hidden" 
+                            />
+                            <label 
+                                for="is_tax_inclusive_edit" 
+                                class="relative w-9 h-5 bg-slate-200 dark:bg-slate-700 peer-checked:bg-emerald-600 rounded-full cursor-pointer transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-[16px]"
+                            ></label>
+                            <label for="is_tax_inclusive_edit" class="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer select-none">
+                                Tax Inclusive
+                            </label>
+                            <span v-if="form.is_tax_inclusive" class="text-[9px] text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-100/70 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-300/60">
+                                Rates Include GST
+                            </span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Items Table Area -->
@@ -379,7 +424,10 @@ const setupDemoCompliance = () => {
                                         </div>
                                     </td>
                                     <td class="p-2 text-sm text-right font-black text-slate-700">
-                                        {{ item.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                        <div>{{ (form.is_tax_inclusive ? item.total : item.subtotal).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</div>
+                                        <div v-if="form.is_tax_inclusive && item.tax_amount > 0" class="text-[9px] font-normal text-slate-400">
+                                            Taxable: {{ item.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }} | Tax: {{ item.tax_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}
+                                        </div>
                                     </td>
                                     <td class="p-2 text-center text-red-400">
                                         <button v-if="form.items.length > 1" type="button" @click="removeItem(index)" class="hover:text-rose-500 transition-colors">
@@ -420,12 +468,16 @@ const setupDemoCompliance = () => {
 
                     <div class="bg-indigo-50/30 rounded-2xl p-8 border border-indigo-100 shadow-inner">
                         <div class="space-y-4">
+                            <div v-if="form.is_tax_inclusive" class="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-[11px] font-semibold flex items-center justify-between">
+                                <span>Pricing Mode:</span>
+                                <span class="font-black uppercase tracking-wider">Tax Inclusive</span>
+                            </div>
                             <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
-                                <span>Subtotal (Untaxed)</span>
+                                <span>Subtotal (Untaxed Base)</span>
                                 <span class="text-slate-900">{{ form.amount_untaxed.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                             </div>
                             <div class="flex justify-between items-center text-[11px] font-bold text-slate-600 uppercase tracking-widest">
-                                <span>Tax Amount (+)</span>
+                                <span>Tax Amount ({{ form.is_tax_inclusive ? 'Extracted' : '+' }})</span>
                                 <span class="text-slate-900">{{ form.amount_tax.toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
                             </div>
                             <div class="flex justify-between items-center gap-4">

@@ -29,7 +29,20 @@ class QCTestExecutionController extends Controller
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
-        $query = QcTest::with(['plant', 'sample.material', 'sample.supplier', 'sample.customer', 'testType.parameters', 'measurements', 'tester', 'reviewer', 'results.parameter', 'photos']);
+        $query = QcTest::with([
+            'plant',
+            'sample.material',
+            'sample.supplier',
+            'sample.customer',
+            'sample.concreteGrade',
+            'sample.dispatch.truck',
+            'testType.parameters',
+            'measurements',
+            'tester',
+            'reviewer',
+            'results.parameter',
+            'photos'
+        ]);
 
         if ($plantId) {
             $query->where('plant_id', $plantId);
@@ -53,6 +66,7 @@ class QCTestExecutionController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('test_no', 'like', "%{$search}%")
                   ->orWhereHas('sample', fn($s) => $s->where('sample_no', 'like', "%{$search}%"))
+                  ->orWhereHas('sample.concreteGrade', fn($g) => $g->where('name', 'like', "%{$search}%"))
                   ->orWhereHas('testType', fn($t) => $t->where('name', 'like', "%{$search}%"));
             });
         }
@@ -107,32 +121,40 @@ class QCTestExecutionController extends Controller
     public function executeForm(QcTest $test)
     {
         $test->load([
+            'plant',
             'sample.material',
             'sample.supplier',
             'sample.customer',
+            'sample.concreteGrade',
+            'sample.dispatch.truck',
+            'sample.dispatch.salesOrder.customer',
             'testType.parameters',
             'measurements',
             'results.parameter',
-            'photos'
+            'photos',
+            'tester',
+            'reviewer'
         ]);
 
         $mergedRules = [];
-        foreach ($test->testType->parameters as $param) {
-            if ($param->hasAcceptanceRule()) {
-                $mergedRules[] = [
-                    'id' => $param->id,
-                    'test_type_id' => $test->test_type_id,
-                    'parameter_id' => $param->id,
-                    'material_id' => null,
-                    'rule_type' => $param->rule_type,
-                    'min_value' => $param->min_value,
-                    'max_value' => $param->max_value,
-                    'target_value' => $param->target_value,
-                    'tolerance' => $param->tolerance,
-                    'unit' => $param->unit,
-                    'standard_reference' => $param->standard_reference,
-                    'is_active' => true,
-                ];
+        if ($test->testType && $test->testType->parameters) {
+            foreach ($test->testType->parameters as $param) {
+                if ($param->hasAcceptanceRule()) {
+                    $mergedRules[] = [
+                        'id' => $param->id,
+                        'test_type_id' => $test->test_type_id,
+                        'parameter_id' => $param->id,
+                        'material_id' => null,
+                        'rule_type' => $param->rule_type,
+                        'min_value' => $param->min_value,
+                        'max_value' => $param->max_value,
+                        'target_value' => $param->target_value,
+                        'tolerance' => $param->tolerance,
+                        'unit' => $param->unit,
+                        'standard_reference' => $param->standard_reference,
+                        'is_active' => true,
+                    ];
+                }
             }
         }
 
@@ -146,17 +168,171 @@ class QCTestExecutionController extends Controller
     {
         $validated = $request->validate([
             'test_date' => 'required|date',
-            'measurements' => 'required|array',
-            'measurements.*.parameter_id' => 'required|exists:qc_test_parameters,id',
+            'measurements' => 'nullable|array',
+            'measurements.*.parameter_id' => 'nullable|exists:mm_qc_test_parameters,id',
             'measurements.*.value_numeric' => 'nullable|numeric',
             'measurements.*.row_index' => 'nullable|integer',
             'measurements.*.value_text' => 'nullable|string|max:255',
             'remarks' => 'nullable|string',
             'photos.*' => 'nullable|image|max:10240',
+            'concrete_specimens' => 'nullable|array',
+            'avg_strength' => 'nullable|numeric',
+            'overall_status' => 'nullable|in:pass,fail,pending,hold,retest',
         ]);
 
         return DB::transaction(function () use ($validated, $test, $request) {
             $test->test_date = $validated['test_date'];
+            $test->remarks = $validated['remarks'] ?? null;
+            $test->tested_by = auth()->id() ?: 1;
+            $test->overall_status = 'pending';
+
+            // Delete old measurements and results for recalculation
+            QcTestMeasurement::where('qc_test_id', $test->id)->delete();
+            QcTestResult::where('qc_test_id', $test->id)->delete();
+
+            // Check if this is a concrete specimen test
+            if (!empty($validated['concrete_specimens'])) {
+                $specimens = $validated['concrete_specimens'];
+                
+                // Locate or create the concrete test parameter
+                $ageLabel = $test->age_days ? "{$test->age_days} Days Compressive Strength" : "Compressive Strength";
+                $param = null;
+                if ($test->testType) {
+                    $param = $test->testType->parameters()
+                        ->where(function ($q) use ($test) {
+                            if ($test->age_days) {
+                                $q->where('default_value', $test->age_days)
+                                  ->orWhere('name', 'like', "%{$test->age_days}%");
+                            }
+                        })
+                        ->first();
+
+                    if (!$param) {
+                        $param = $test->testType->parameters()->first();
+                    }
+
+                    if (!$param) {
+                        $param = $test->testType->parameters()->create([
+                            'name' => $ageLabel,
+                            'code' => strtoupper(\Illuminate\Support\Str::slug($test->testType->code . '_' . $ageLabel, '_')),
+                            'data_type' => 'numeric',
+                            'unit' => $test->unit ?: 'MPa',
+                            'default_value' => $test->age_days,
+                            'target_value' => $test->target_strength,
+                            'min_value' => $test->min_strength,
+                            'rule_type' => QcTestParameter::RULE_TYPE_GREATER_THAN_OR_EQUAL,
+                            'display_order' => 1,
+                            'is_required' => true,
+                            'is_active' => true,
+                            'created_by' => auth()->id(),
+                        ]);
+                    }
+                }
+
+                $strengthValues = [];
+                foreach ($specimens as $idx => $spec) {
+                    $strength = isset($spec['strength_mpa']) && $spec['strength_mpa'] !== '' ? (float)$spec['strength_mpa'] : null;
+                    if ($strength !== null) {
+                        $strengthValues[] = $strength;
+                    }
+                    
+                    $meta = [
+                        'ident_mark' => $spec['ident_mark'] ?? ('Specimen #' . ($idx + 1)),
+                        'weight_kg' => isset($spec['weight_kg']) && $spec['weight_kg'] !== '' ? (float)$spec['weight_kg'] : null,
+                        'load_kn' => isset($spec['load_kn']) && $spec['load_kn'] !== '' ? (float)$spec['load_kn'] : null,
+                        'density' => isset($spec['density']) && $spec['density'] !== '' ? (float)$spec['density'] : null,
+                        'failure_type' => $spec['failure_type'] ?? 'Normal',
+                        'strength_mpa' => $strength,
+                    ];
+
+                    QcTestMeasurement::create([
+                        'qc_test_id' => $test->id,
+                        'parameter_id' => $param ? $param->id : null,
+                        'value_numeric' => $strength,
+                        'value_text' => json_encode($meta),
+                        'is_calculated' => false,
+                        'row_index' => $idx,
+                    ]);
+                }
+
+                $avgStrength = !empty($strengthValues) ? (array_sum($strengthValues) / count($strengthValues)) : (float)($validated['avg_strength'] ?? 0);
+
+                // Evaluation against target / minimum strength
+                $isPass = true;
+                if ($test->min_strength !== null && $test->min_strength > 0) {
+                    $isPass = ($avgStrength >= (float)$test->min_strength);
+                } elseif ($test->target_strength !== null && $test->target_strength > 0) {
+                    $isPass = ($avgStrength >= ((float)$test->target_strength * 0.85));
+                }
+
+                // Check IS 516 variation limit (+/- 15%)
+                $hasOutlier = false;
+                if (count($strengthValues) >= 3 && $avgStrength > 0) {
+                    foreach ($strengthValues as $sv) {
+                        $diffPct = abs(($sv - $avgStrength) / $avgStrength) * 100;
+                        if ($diffPct > 15.0) {
+                            $hasOutlier = true;
+                            break;
+                        }
+                    }
+                }
+
+                $status = $isPass ? 'PASS' : 'FAIL';
+                $overallStatus = $isPass ? 'pass' : 'fail';
+                if ($request->filled('overall_status')) {
+                    $overallStatus = $request->overall_status;
+                }
+
+                if ($param) {
+                    QcTestResult::create([
+                        'qc_test_id' => $test->id,
+                        'parameter_id' => $param->id,
+                        'final_value' => round($avgStrength, 2),
+                        'final_text' => round($avgStrength, 2) . ' ' . ($test->unit ?: 'MPa'),
+                        'status' => $status,
+                        'criteria_snapshot' => [
+                            'age_days' => $test->age_days,
+                            'target_strength' => $test->target_strength,
+                            'min_strength' => $test->min_strength,
+                            'unit' => $test->unit ?: 'MPa',
+                            'specimens_count' => count($specimens),
+                            'avg_strength' => round($avgStrength, 2),
+                            'has_outlier' => $hasOutlier,
+                            'standard_reference' => $test->testType?->standard_reference ?: 'IS 516 / IS 456',
+                        ],
+                    ]);
+                }
+
+                $test->overall_status = $overallStatus;
+                $test->evaluated_at = now();
+                $test->save();
+
+                // Save photos
+                if ($request->hasFile('photos')) {
+                    foreach ($request->file('photos') as $photo) {
+                        $path = $photo->store('qc_tests', 'public');
+                        Image::create([
+                            'category' => 'QC_TEST',
+                            'ref_no' => $test->id,
+                            'image_path' => $path,
+                            'image_name' => $photo->getClientOriginalName(),
+                            'plant_id' => $test->plant_id,
+                            'created_by' => auth()->id(),
+                        ]);
+                    }
+                }
+
+                // Update sample status
+                $pendingRemaining = QcTest::where('sample_id', $test->sample_id)
+                    ->where('id', '!=', $test->id)
+                    ->where('overall_status', 'pending')
+                    ->count();
+
+                $test->sample->status = $pendingRemaining === 0 ? 'completed' : 'in_progress';
+                $test->sample->save();
+
+                return redirect()->route('quality.tests.index', ['status' => 'all'])->with('success', "Concrete Test {$test->test_no} executed: Avg {$avgStrength} MPa (" . strtoupper($overallStatus) . ")");
+            }
             $test->remarks = $validated['remarks'] ?? null;
             $test->tested_by = auth()->id() ?: 1;
             $test->overall_status = 'pending';

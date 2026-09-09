@@ -152,7 +152,7 @@ class QCTestScheduleController extends Controller
 
         $validated = $request->validate([
             'material_id' => 'required|exists:mm_products,id',
-            'test_type_id' => 'required|exists:qc_test_types,id',
+            'test_type_id' => 'required|exists:mm_qc_test_types,id',
             'frequency_type' => 'required|string|in:' . implode(',', $allowedTypes),
             'frequency_value' => 'nullable|integer|min:1',
             'is_active' => 'boolean',
@@ -178,7 +178,7 @@ class QCTestScheduleController extends Controller
 
         $validated = $request->validate([
             'material_id' => 'required|exists:mm_products,id',
-            'test_type_id' => 'required|exists:qc_test_types,id',
+            'test_type_id' => 'required|exists:mm_qc_test_types,id',
             'frequency_type' => 'required|string|in:' . implode(',', $allowedTypes),
             'frequency_value' => 'nullable|integer|min:1',
             'is_active' => 'boolean',

@@ -17,19 +17,28 @@ class QcSample extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'qc_samples';
+    protected $table = 'mm_qc_samples';
 
     protected $fillable = [
         'plant_id',
         'sample_no',
         'sample_date',
         'material_id',
+        'concrete_grade_id',
         'supplier_id',
         'customer_id',
         'inward_id',
         'batch_id',
         'dispatch_id',
+        'truck_no',
+        'site_name',
         'source_location',
+        'slump_mm',
+        'concrete_temp_c',
+        'ambient_temp_c',
+        'specimen_size',
+        'specimen_count',
+        'curing_tank_id',
         'sample_quantity',
         'sampled_by',
         'status',
@@ -41,11 +50,20 @@ class QcSample extends Model
 
     protected $casts = [
         'sample_date' => 'datetime',
+        'slump_mm' => 'float',
+        'concrete_temp_c' => 'float',
+        'ambient_temp_c' => 'float',
+        'specimen_count' => 'integer',
     ];
 
     public function plant()
     {
         return $this->belongsTo(Plant::class, 'plant_id');
+    }
+
+    public function concreteGrade()
+    {
+        return $this->belongsTo(\App\Models\ConcreteGrade::class, 'concrete_grade_id');
     }
 
     public function material()

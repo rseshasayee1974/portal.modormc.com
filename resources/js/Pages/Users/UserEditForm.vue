@@ -98,9 +98,23 @@ const validate = () => {
         errors.email = ['Please enter a valid email address'];
     }
 
-    // if (!/^\d{10}$/.test(form.value.mobile)) {
-    //     errors.mobile = ['Mobile number must be exactly 10 digits'];
-    // }
+    // Check for duplicate entity & plant assignments
+    const seen = new Set();
+    for (const eu of form.value.entity_users) {
+        if (eu.entity_id && eu.plant_id) {
+            const key = `${eu.entity_id}-${eu.plant_id}`;
+            if (seen.has(key)) {
+                toast.add({
+                    severity: 'warn',
+                    summary: 'Duplicate Assignment',
+                    detail: 'Each entity and plant can only be assigned once.',
+                    life: 3000
+                });
+                return false;
+            }
+            seen.add(key);
+        }
+    }
 
     form.value.errors = errors;
     return Object.keys(errors).length === 0;

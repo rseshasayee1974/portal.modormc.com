@@ -21,7 +21,7 @@ class QCReportController extends Controller
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
-        $query = QcTest::with(['sample.material', 'sample.supplier', 'testType', 'results.parameter']);
+        $query = QcTest::with(['sample.material', 'sample.supplier', 'sample.customer', 'sample.concreteGrade', 'testType', 'results.parameter']);
 
         if ($plantId) {
             $query->where('plant_id', $plantId);
@@ -77,7 +77,7 @@ class QCReportController extends Controller
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
-        $query = QcTest::with(['sample.material', 'sample.supplier', 'testType', 'results.parameter']);
+        $query = QcTest::with(['sample.material', 'sample.supplier', 'sample.customer', 'sample.concreteGrade', 'testType', 'results.parameter']);
 
         if ($plantId) {
             $query->where('plant_id', $plantId);

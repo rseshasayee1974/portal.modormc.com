@@ -67,8 +67,12 @@ class InvoiceItem extends Model
     /**
      * Compute all derived fields for a line item given a tax rate %.
      */
-    public function compute(float $taxRate = 0): void
+    public function compute(float $taxRate = 0, ?bool $isTaxInclusive = null): void
     {
+        if ($isTaxInclusive === null) {
+            $isTaxInclusive = (bool)($this->invoice?->is_tax_inclusive ?? false);
+        }
+
         $gross = (float)$this->quantity * (float)$this->price_unit;
 
         // Discount
@@ -76,13 +80,22 @@ class InvoiceItem extends Model
             ? ($gross * ((float)$this->discount / 100))
             : (float)$this->discount;
 
-        $subtotal        = $gross - $discountAmount;
-        $lineTaxAmount   = $subtotal * ($taxRate / 100);
+        $net = $gross - $discountAmount;
 
-        $this->discount_amount = $discountAmount;
+        if ($isTaxInclusive && $taxRate > 0) {
+            $subtotal      = round($net / (1 + ($taxRate / 100)), 2);
+            $lineTaxAmount = round($net - $subtotal, 2);
+            $lineTotal     = round($net, 2);
+        } else {
+            $subtotal      = round($net, 2);
+            $lineTaxAmount = round($subtotal * ($taxRate / 100), 2);
+            $lineTotal     = round($subtotal + $lineTaxAmount, 2);
+        }
+
+        $this->discount_amount = round($discountAmount, 2);
         $this->subtotal        = $subtotal;
         $this->line_tax_amount = $lineTaxAmount;
-        $this->line_total      = $subtotal + $lineTaxAmount;
+        $this->line_total      = $lineTotal;
     }
 
     // ------------------------------------------------------------------ relations

@@ -12,7 +12,7 @@ class QcUnit extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'qc_units';
+    protected $table = 'mm_qc_units';
 
     protected $fillable = [
         'plant_id',

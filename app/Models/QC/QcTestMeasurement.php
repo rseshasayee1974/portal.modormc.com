@@ -9,7 +9,7 @@ class QcTestMeasurement extends Model
 {
     use HasFactory;
 
-    protected $table = 'qc_test_measurements';
+    protected $table = 'mm_qc_test_measurements';
 
     protected $fillable = [
         'qc_test_id',

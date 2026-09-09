@@ -10,7 +10,7 @@ class NotificationEmail extends Model
 {
         use HasFactory, SoftDeletes, TracksModelChanges;
 
-    protected $table = 'notification_emails';
+    protected $table = 'mm_notification_emails';
 
     protected $fillable = [
         'plant_id',

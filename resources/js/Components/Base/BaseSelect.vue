@@ -25,6 +25,14 @@ const props = withDefaults(
         showClear?: boolean;
         dark?: boolean;
         autoFilterFocus?: boolean;
+        panelClass?: any;
+        panelStyle?: any;
+        panelWidth?: string | number;
+        optionWidth?: string | number;
+        overlayClass?: any;
+        overlayStyle?: any;
+        overlayWidth?: string | number;
+        appendTo?: string;
     }>(),
     {
         options: () => [],
@@ -51,6 +59,25 @@ const effectiveFilterFields = computed(() => {
     if (props.filterFields) return props.filterFields;
     if (typeof props.optionLabel === 'string') return [props.optionLabel];
     return [];
+});
+
+const effectiveOverlayStyle = computed(() => {
+    const widthVal = props.panelWidth || props.optionWidth || props.overlayWidth;
+    const styleObj: Record<string, any> = {};
+    if (widthVal !== undefined && widthVal !== null && widthVal !== '') {
+        const formatted = typeof widthVal === 'number' ? `${widthVal}px` : widthVal;
+        styleObj.width = formatted;
+        styleObj.minWidth = formatted;
+    }
+    const userStyle = props.overlayStyle || props.panelStyle;
+    if (typeof userStyle === 'object' && userStyle !== null) {
+        return { ...styleObj, ...userStyle };
+    }
+    return Object.keys(styleObj).length > 0 ? styleObj : undefined;
+});
+
+const effectiveOverlayClass = computed(() => {
+    return props.overlayClass || props.panelClass;
 });
 
 const handleShow = () => {
@@ -93,6 +120,11 @@ const handleShow = () => {
                 :checkmark="true"
                 :size="size"
                 :fluid="fluid"
+                :panelClass="effectiveOverlayClass"
+                :overlayClass="effectiveOverlayClass"
+                :panelStyle="effectiveOverlayStyle"
+                :overlayStyle="effectiveOverlayStyle"
+                :appendTo="appendTo"
                 :resetFilterOnHide="true"
                 @show="handleShow"
                 :class="[
@@ -101,7 +133,20 @@ const handleShow = () => {
                 ]"
                 @update:modelValue="emit('update:modelValue', $event)"
                 @change="emit('change', $event)"
-            />
+            >
+                <template v-if="$slots.option" #option="slotProps">
+                    <slot name="option" v-bind="slotProps" />
+                </template>
+                <template v-if="$slots.value" #value="slotProps">
+                    <slot name="value" v-bind="slotProps" />
+                </template>
+                <template v-if="$slots.header" #header="slotProps">
+                    <slot name="header" v-bind="slotProps" />
+                </template>
+                <template v-if="$slots.footer" #footer="slotProps">
+                    <slot name="footer" v-bind="slotProps" />
+                </template>
+            </Select>
         </template>
     </BaseField>
 </template>

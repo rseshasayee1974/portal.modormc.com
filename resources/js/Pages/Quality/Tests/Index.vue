@@ -151,22 +151,60 @@ watch(search, () => {
                         </template>
                     </Column>
 
-                    <Column field="material" header="Material / Plant">
+                    <Column field="material" header="Grade / Sample Context">
                         <template #body="{ data }">
-                            <div class="font-bold text-gray-900 dark:text-gray-100">
+                            <div v-if="data.sample?.concrete_grade" class="space-y-0.5">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-mono font-bold text-xs border border-blue-200/60 dark:border-blue-800/60">
+                                        {{ data.sample.concrete_grade.name }}
+                                    </span>
+                                    <span v-if="data.age_days" class="text-[10px] font-bold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
+                                        {{ data.age_days }}D
+                                    </span>
+                                </div>
+                                <div class="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                                    <span v-if="data.sample.truck_no || data.sample.dispatch?.truck?.truck_no" class="font-mono text-gray-700 dark:text-gray-300">
+                                        <i class="pi pi-truck text-[9px]"></i> {{ data.sample.truck_no || data.sample.dispatch?.truck?.truck_no }}
+                                    </span>
+                                    <span v-if="data.sample.site_name">&bull; {{ data.sample.site_name }}</span>
+                                </div>
+                            </div>
+                            <div v-else class="font-bold text-gray-900 dark:text-gray-100">
                                 {{ data.sample?.material?.title || 'Raw Material' }}
                             </div>
                         </template>
                     </Column>
 
-                    <Column field="test_procedure" header="Test Procedure">
+                    <Column field="test_procedure" header="Test & Schedule">
                         <template #body="{ data }">
-                            <div class="font-bold text-gray-800 dark:text-gray-200">
+                            <div class="font-bold text-gray-800 dark:text-gray-200 text-xs">
                                 {{ data.test_type?.name }}
                             </div>
-                            <div class="text-[10px] font-mono text-purple-600">
-                                {{ data.test_type?.standard_reference || '' }}
+                            <div class="flex flex-wrap items-center gap-1 mt-0.5">
+                                <span class="text-[10px] font-mono text-purple-600 dark:text-purple-400">
+                                    {{ data.test_type?.standard_reference || 'IS 516' }}
+                                </span>
+                                <template v-if="data.scheduled_date">
+                                    <span class="text-gray-300 dark:text-gray-700">&bull;</span>
+                                    <span class="text-[10px] font-mono text-amber-700 dark:text-amber-400 font-bold">
+                                        Due: {{ data.scheduled_date.substring(0, 10) }}
+                                    </span>
+                                </template>
                             </div>
+                        </template>
+                    </Column>
+
+                    <Column field="target_strength" header="Target / Result">
+                        <template #body="{ data }">
+                            <div v-if="data.target_strength || data.results?.length > 0" class="text-xs font-mono">
+                                <div v-if="data.results && data.results.length > 0" class="font-black text-gray-900 dark:text-gray-100">
+                                    {{ data.results[0]?.final_value }} {{ data.unit || 'MPa' }}
+                                </div>
+                                <div class="text-[10px] text-gray-400">
+                                    Target: <span class="font-bold text-indigo-600 dark:text-indigo-400">{{ data.target_strength || '-' }}</span> {{ data.unit || 'MPa' }}
+                                </div>
+                            </div>
+                            <span v-else class="text-xs text-gray-400 font-mono">-</span>
                         </template>
                     </Column>
 

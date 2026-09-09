@@ -13,13 +13,18 @@ class QcTest extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'qc_tests';
+    protected $table = 'mm_qc_tests';
 
     protected $fillable = [
         'plant_id',
         'sample_id',
         'test_type_id',
         'test_no',
+        'scheduled_date',
+        'age_days',
+        'target_strength',
+        'min_strength',
+        'unit',
         'test_date',
         'tested_by',
         'overall_status',
@@ -35,6 +40,10 @@ class QcTest extends Model
     ];
 
     protected $casts = [
+        'scheduled_date' => 'date',
+        'age_days' => 'integer',
+        'target_strength' => 'float',
+        'min_strength' => 'float',
         'test_date' => 'datetime',
         'evaluated_at' => 'datetime',
         'reviewed_at' => 'datetime',

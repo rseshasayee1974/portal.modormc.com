@@ -56,7 +56,7 @@ class QCMaterialTestMappingController extends Controller
         $validated = $request->validate([
             'material_id' => 'required|exists:mm_products,id',
             'test_type_ids' => 'array',
-            'test_type_ids.*' => 'exists:qc_test_types,id',
+            'test_type_ids.*' => 'exists:mm_qc_test_types,id',
         ]);
 
         $materialId = $validated['material_id'];

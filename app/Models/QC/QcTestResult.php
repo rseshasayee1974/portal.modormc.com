@@ -9,7 +9,7 @@ class QcTestResult extends Model
 {
     use HasFactory;
 
-    protected $table = 'qc_test_results';
+    protected $table = 'mm_qc_test_results';
 
     protected $fillable = [
         'qc_test_id',

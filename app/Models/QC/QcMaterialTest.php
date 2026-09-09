@@ -13,7 +13,7 @@ class QcMaterialTest extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'qc_material_tests';
+    protected $table = 'mm_qc_material_tests';
 
     protected $fillable = [
         'plant_id',

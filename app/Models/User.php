@@ -157,18 +157,30 @@ class User extends Authenticatable implements MustVerifyEmail
             event(new \Illuminate\Auth\Events\Registered($user));
 
 			if (isset($data['entity_users']) && is_array($data['entity_users']) && count($data['entity_users']) > 0) {
-				foreach ($data['entity_users'] as $eu) {
+				$incoming = collect($data['entity_users'])
+					->filter(fn($eu) => !empty($eu['entity_id']) && !empty($eu['role_id']))
+					->unique(fn($eu) => ($eu['entity_id'] ?? '') . '-' . ($eu['plant_id'] ?? ''))
+					->values();
+
+				$user->entityUsers()->withTrashed()->forceDelete();
+
+				foreach ($incoming as $eu) {
 					$user->entityUsers()->create([
 						'entity_id' => $eu['entity_id'],
 						'plant_id'  => $eu['plant_id'] ?? null,
 						'role_id'   => $eu['role_id'],
+						'created_by' => auth()->id() ?: 1,
+						'updated_by' => auth()->id() ?: 1,
 					]);
 				}
             } elseif (isset($data['role_id']) && !empty($data['role_id'])) {
+                $user->entityUsers()->withTrashed()->delete();
                 $user->entityUsers()->create([
                     'entity_id' => session('active_entity_id'),
                     'plant_id'  => session('active_plant_id'),
                     'role_id'   => $data['role_id'],
+					'created_by' => auth()->id() ?: 1,
+					'updated_by' => auth()->id() ?: 1,
                 ]);
             }
 
@@ -228,13 +240,21 @@ class User extends Authenticatable implements MustVerifyEmail
 			$this->update($data);
 
 			if (isset($data['entity_users']) && is_array($data['entity_users'])) {
-				$this->entityUsers()->delete(); // Fully replace existing roles
+				$incoming = collect($data['entity_users'])
+					->filter(fn($eu) => !empty($eu['entity_id']) && !empty($eu['role_id']))
+					->unique(fn($eu) => ($eu['entity_id'] ?? '') . '-' . ($eu['plant_id'] ?? ''))
+					->values();
 
-				foreach ($data['entity_users'] as $eu) {
+				// Fully replace existing roles: permanently purge any existing mappings (including soft-deleted)
+				$this->entityUsers()->withTrashed()->forceDelete();
+
+				foreach ($incoming as $eu) {
 					$this->entityUsers()->create([
 						'entity_id' => $eu['entity_id'],
 						'plant_id'  => $eu['plant_id'] ?? null,
 						'role_id'   => $eu['role_id'],
+						'created_by' => auth()->id() ?: 1,
+						'updated_by' => auth()->id() ?: 1,
 					]);
 				}
 			}

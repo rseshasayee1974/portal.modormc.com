@@ -73,6 +73,16 @@ class InvoiceController extends Controller
                 }
             }
 
+            // Detect tax inclusive setting
+            $isTaxInclusive = (bool)($validated['is_tax_inclusive'] ?? false);
+            if (!$isTaxInclusive && $request->has('dispatch_ids') && is_array($request->dispatch_ids)) {
+                $dispatches = \App\Models\Dispatch::whereIn('id', $request->dispatch_ids)->get();
+                if ($dispatches->contains(fn($d) => (bool)$d->is_tax_inclusive)) {
+                    $isTaxInclusive = true;
+                }
+            }
+            $validated['is_tax_inclusive'] = $isTaxInclusive;
+
             // Ensure mandatory fields and defaults
             $invoice = Invoice::createWithItems(array_merge($validated, [
                 'plant_id'        => $plantId,
@@ -109,11 +119,13 @@ class InvoiceController extends Controller
         $startDate = \Illuminate\Support\Carbon::parse($validated['start_date'])->startOfDay();
         $endDate   = \Illuminate\Support\Carbon::parse($validated['end_date'])->endOfDay();
 
-        $dispatches = \App\Models\Dispatch::with(['mixDesign', 'truck', 'status', 'batch', 'uom'])
+        $dispatches = \App\Models\Dispatch::with(['mixDesign.concreteGrade', 'mixDesign.unit', 'truck', 'status', 'batch', 'uom'])
             ->where('customer_id', $validated['partner_id'])
             ->where(function($q) use ($startDate, $endDate) {
                 $q->whereBetween('dispatch_time', [$startDate, $endDate])
                   ->orWhereBetween('created_at', [$startDate, $endDate]);
+            })->whereHas('batch',function($q){
+                $q->where('status',3);
             })
             ->whereHas('status', function($q) {
                 $q->whereNull('invoice_id');

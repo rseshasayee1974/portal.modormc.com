@@ -1,369 +1,461 @@
 <script setup lang="ts">
 import { useForm, Link } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
-import BaseButton from '@/Components/Base/BaseButton.vue';
-import BaseCard from '@/Components/Base/BaseCard.vue';
-import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 
 const props = defineProps<{
     sample?: any;
     isEditing?: boolean;
-    materials: any[];
-    suppliers: any[];
-    customers: any[];
-    inwards: any[];
-    batches: any[];
-    dispatches: any[];
+    concreteGrades?: any[];
+    materials?: any[];
+    customers?: any[];
+    dispatches?: any[];
+    batches?: any[];
     testTypes?: any[];
+}>();
+
+const emit = defineEmits<{
+    (e: 'saved'): void;
+    (e: 'cancel'): void;
 }>();
 
 const form = useForm({
     sample_date: props.sample?.sample_date ? props.sample.sample_date.substring(0, 10) : new Date().toISOString().substring(0, 10),
+    concrete_grade_id: props.sample?.concrete_grade_id || null,
     material_id: props.sample?.material_id || null,
-    supplier_id: props.sample?.supplier_id || null,
-    customer_id: props.sample?.customer_id || null,
-    inward_id: props.sample?.inward_id || null,
-    batch_id: props.sample?.batch_id || null,
     dispatch_id: props.sample?.dispatch_id || null,
-    source_location: props.sample?.source_location || '',
-    sample_quantity: props.sample?.sample_quantity || '',
-    test_type_ids: props.sample?.tests ? props.sample.tests.map((t: any) => t.test_type_id) : (props.testTypes || []).map(t => t.id),
+    batch_id: props.sample?.batch_id || null,
+    customer_id: props.sample?.customer_id || null,
+    truck_no: props.sample?.truck_no || '',
+    site_name: props.sample?.site_name || '',
+    source_location: props.sample?.source_location || 'Batching Plant Discharge',
+    slump_mm: props.sample?.slump_mm || 120,
+    concrete_temp_c: props.sample?.concrete_temp_c || 28.0,
+    ambient_temp_c: props.sample?.ambient_temp_c || 32.0,
+    specimen_size: props.sample?.specimen_size || '150x150x150 mm',
+    specimen_count: props.sample?.specimen_count || 6,
+    curing_tank_id: props.sample?.curing_tank_id || 'Tank-1 (27±2°C)',
+    sample_quantity: props.sample?.sample_quantity || '6 Cubes',
+    test_type_ids: props.sample?.tests ? props.sample.tests.map((t: any) => t.test_type_id) : [],
     status: props.sample?.status || 'pending_test',
     remarks: props.sample?.remarks || '',
 });
 
-const materialOptions = computed(() => {
-    return (props.materials || []).map(m => ({
-        label: `${m.title} (${m.code || m.material_code || 'N/A'})`,
-        value: m.id
+// Dropdown options
+const concreteGradeOptions = computed(() => {
+    return (props.concreteGrades || []).map(g => ({
+        label: g.name ? `${g.name} (${g.design_type || g.code || 'Standard'})` : g.name,
+        value: g.id,
     }));
 });
 
-const supplierOptions = computed(() => {
-    return (props.suppliers || []).map(s => ({
-        label: s.legal_name || s.code || `Supplier #${s.id}`,
-        value: s.id
+const customerOptions = computed(() => {
+    return (props.customers || []).map(c => ({
+        label: c.legal_name || c.code || `Customer #${c.id}`,
+        value: c.id,
     }));
 });
 
-const inwardOptions = computed(() => {
-    return (props.inwards || []).map(i => ({
-        label: i.inward_no || `Inward #${i.id}`,
-        value: i.id
-    }));
+const dispatchOptions = computed(() => {
+    return (props.dispatches || []).map(d => {
+        const truck = d.truck?.reg_number || d.truck?.machine_name || '';
+        const grade = d.mix_design?.concrete_grade?.name || '';
+        const client = d.customer?.legal_name ? ` - ${d.customer.legal_name}` : '';
+        return {
+            label: `${d.dispatch_no || 'Dispatch #' + d.id} ${truck ? '[' + truck + ']' : ''} ${grade ? '(' + grade + ')' : ''}${client}`,
+            value: d.id,
+            raw: d,
+        };
+    });
 });
 
 const batchOptions = computed(() => {
     return (props.batches || []).map(b => ({
         label: b.batch_no || `Batch #${b.id}`,
-        value: b.id
+        value: b.id,
     }));
 });
 
-const statusOptions = [
-    { label: 'Pending Test', value: 'pending_test' },
-    { label: 'Completed', value: 'completed' },
-    { label: 'Rejected', value: 'rejected' }
-];
+// Auto-fill from selected dispatch
+const onDispatchChange = (dispatchId: number) => {
+    if (!dispatchId) return;
+    const found = (props.dispatches || []).find(d => d.id === dispatchId);
+    if (!found) return;
 
-const testSearchQuery = ref('');
-const selectedCategory = ref('All');
+    if (found.truck) {
+        form.truck_no = found.truck.reg_number || found.truck.machine_name || form.truck_no;
+    }
+    if (found.customer_id) {
+        form.customer_id = found.customer_id;
+    }
+    if (found.unload_site?.name) {
+        form.site_name = found.unload_site.name;
+    }
+    if (found.batch_id) {
+        form.batch_id = found.batch_id;
+    }
+    const mixGradeId = found.mix_design?.concrete_grade?.id;
+    if (mixGradeId) {
+        form.concrete_grade_id = mixGradeId;
+    }
+};
 
-const availableCategories = computed(() => {
-    const cats = new Set<string>();
-    (props.testTypes || []).forEach((t: any) => {
-        if (t.category) cats.add(t.category);
-    });
-    return ['All', ...Array.from(cats)];
+// Auto-scheduled test dates preview
+const testSchedulePreview = computed(() => {
+    if (!form.sample_date) return [];
+    const base = new Date(form.sample_date);
+    if (isNaN(base.getTime())) return [];
+
+    const addDays = (d: Date, days: number) => {
+        const res = new Date(d);
+        res.setDate(res.getDate() + days);
+        return res.toISOString().substring(0, 10);
+    };
+
+    return [
+        { age: '7-Day', date: addDays(base, 7), specimens: '3 Cubes', targetPct: '65-75%' },
+        { age: '28-Day', date: addDays(base, 28), specimens: '3 Cubes', targetPct: '100%' },
+    ];
 });
-
-const filteredTestTypes = computed(() => {
-    return (props.testTypes || []).filter((tt: any) => {
-        const matchesCategory = selectedCategory.value === 'All' || tt.category === selectedCategory.value;
-        const matchesSearch = !testSearchQuery.value || 
-            tt.name.toLowerCase().includes(testSearchQuery.value.toLowerCase()) || 
-            tt.code.toLowerCase().includes(testSearchQuery.value.toLowerCase());
-        return matchesCategory && matchesSearch;
-    });
-});
-
-const toggleTestTypeSelection = (id: number) => {
-    const idx = form.test_type_ids.indexOf(id);
-    if (idx > -1) {
-        form.test_type_ids.splice(idx, 1);
-    } else {
-        form.test_type_ids.push(id);
-    }
-};
-
-const selectAllTestTypes = () => {
-    const idsToAdd = filteredTestTypes.value.map((t: any) => t.id);
-    const newIds = new Set([...form.test_type_ids, ...idsToAdd]);
-    form.test_type_ids = Array.from(newIds);
-};
-
-const deselectAllTestTypes = () => {
-    if (selectedCategory.value === 'All' && !testSearchQuery.value) {
-        form.test_type_ids = [];
-    } else {
-        const idsToRemove = new Set(filteredTestTypes.value.map((t: any) => t.id));
-        form.test_type_ids = form.test_type_ids.filter(id => !idsToRemove.has(id));
-    }
-};
-
-const getCategoryColor = (cat: string) => {
-    switch (cat) {
-        case 'Concrete': return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800';
-        case 'Aggregate': return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800';
-        case 'Cement': return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800';
-        case 'Water': return 'bg-cyan-50 text-cyan-700 border-cyan-200 dark:bg-cyan-950/50 dark:text-cyan-300 dark:border-cyan-800';
-        case 'Admixture': return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800';
-        default: return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
-    }
-};
 
 const submit = () => {
     if (props.isEditing && props.sample?.id) {
-        form.put(route('quality.samples.update', props.sample.id));
+        form.put(route('quality.samples.update', props.sample.id), {
+            onSuccess: () => emit('saved'),
+        });
     } else {
-        form.post(route('quality.samples.store'));
+        form.post(route('quality.samples.store'), {
+            onSuccess: () => emit('saved'),
+        });
     }
 };
 </script>
 
 <template>
     <form @submit.prevent="submit" class="space-y-6">
-        <BaseCard>
-            <div class="space-y-6">
-                <div class="border-b border-gray-100 dark:border-gray-800 pb-4">
-                    <h3 class="text-base font-bold text-gray-900 dark:text-gray-100">
-                        {{ isEditing ? `Edit Sample: ${sample?.sample_no || ''}` : 'Log New Quality Sample' }}
-                    </h3>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Capture sampling point details, traceability references, and laboratory test assignments.
-                    </p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <BaseInput
-                        v-model="form.sample_date"
-                        type="date"
-                        label="Sample Date"
-                        required
-                        :error="form.errors.sample_date"
-                    />
-                    <BaseSelect
-                        v-model="form.material_id"
-                        label="Material"
-                        :options="materialOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        required
-                        :error="form.errors.material_id"
-                        placeholder="Select Material..."
-                    />
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <BaseSelect
-                        v-model="form.supplier_id"
-                        label="Supplier / Vendor"
-                        :options="supplierOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="N/A (Internal)"
-                        :error="form.errors.supplier_id"
-                    />
-                    <BaseSelect
-                        v-model="form.inward_id"
-                        label="Inward Receipt"
-                        :options="inwardOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="N/A"
-                        :error="form.errors.inward_id"
-                    />
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <BaseSelect
-                        v-model="form.batch_id"
-                        label="Batch Code"
-                        :options="batchOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        placeholder="N/A"
-                        :error="form.errors.batch_id"
-                    />
-                    <BaseInput
-                        v-model="form.sample_quantity"
-                        label="Sample Quantity"
-                        placeholder="e.g. 5 kg / 3 Cubes"
-                        :error="form.errors.sample_quantity"
-                    />
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <BaseInput
-                        v-model="form.source_location"
-                        label="Source Location / Stockpile"
-                        placeholder="e.g. Quarry / Silo 2 / Plant Hopper"
-                        :error="form.errors.source_location"
-                    />
-                    <BaseSelect
-                        v-model="form.status"
-                        label="Sample Status"
-                        :options="statusOptions"
-                        optionLabel="label"
-                        optionValue="value"
-                        :error="form.errors.status"
-                    />
-                </div>
-
-                <!-- Assigned Tests (Only during create or when configuring) -->
-                <div v-if="!isEditing" class="space-y-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-800 dark:text-gray-200">
-                                Assigned Laboratory Tests
-                            </label>
-                            <span class="text-[11px] text-gray-500 dark:text-gray-400">
-                                Select tests to automatically generate when logging this sample
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                                {{ form.test_type_ids.length }} of {{ (props.testTypes || []).length }} selected
-                            </span>
-                            <button
-                                type="button"
-                                @click="selectAllTestTypes"
-                                class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/50 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 transition shadow-sm cursor-pointer"
-                            >
-                                <i class="pi pi-check text-[10px]"></i>
-                                Select All
-                            </button>
-                            <button
-                                type="button"
-                                @click="deselectAllTestTypes"
-                                class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 transition shadow-sm cursor-pointer"
-                            >
-                                <i class="pi pi-times text-[10px]"></i>
-                                Clear
-                            </button>
-                        </div>
+        <!-- Main Form Card -->
+        <div class="bg-white dark:bg-gray-900 rounded-3xl border border-gray-200/80 dark:border-gray-800 shadow-xs overflow-hidden">
+            <!-- Header -->
+            <div class="px-6 py-5 border-b border-gray-100 dark:border-gray-800 bg-gradient-to-r from-gray-50/90 via-white to-gray-50/50 dark:from-gray-800/60 dark:via-gray-900 dark:to-gray-800/40 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
+                        <i class="pi pi-box text-lg"></i>
                     </div>
-
-                    <!-- Search & Category Filter Pills -->
-                    <div class="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
-                        <div class="relative flex-1">
-                            <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400"></i>
-                            <input
-                                v-model="testSearchQuery"
-                                type="text"
-                                placeholder="Search test name or code..."
-                                class="w-full pl-8 pr-8 py-1.5 text-xs rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-inner"
-                            />
-                            <button
-                                v-if="testSearchQuery"
-                                type="button"
-                                @click="testSearchQuery = ''"
-                                class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
-                            >
-                                <i class="pi pi-times-circle"></i>
-                            </button>
-                        </div>
-
-                        <div class="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
-                            <button
-                                v-for="cat in availableCategories"
-                                :key="cat"
-                                type="button"
-                                @click="selectedCategory = cat"
-                                class="px-2.5 py-1 text-[11px] font-bold rounded-lg transition whitespace-nowrap cursor-pointer"
-                                :class="selectedCategory === cat 
-                                    ? 'bg-indigo-600 text-white shadow-sm' 
-                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'"
-                            >
-                                {{ cat }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Interactive Grid Tiles -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-64 overflow-y-auto p-2 bg-gray-50/70 dark:bg-gray-950/40 rounded-xl border border-gray-200/80 dark:border-gray-800">
-                        <div
-                            v-for="tt in filteredTestTypes"
-                            :key="tt.id"
-                            @click="toggleTestTypeSelection(tt.id)"
-                            class="group relative flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer select-none transition-all duration-150 shadow-sm"
-                            :class="form.test_type_ids.includes(tt.id)
-                                ? 'bg-indigo-50/70 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-400 dark:ring-indigo-600'
-                                : 'bg-white dark:bg-gray-800/90 border-gray-200 dark:border-gray-700/80 hover:border-indigo-200 hover:bg-gray-50/80 dark:hover:bg-gray-800'"
-                        >
-                            <div class="pt-0.5 flex items-center justify-center">
-                                <input
-                                    type="checkbox"
-                                    :value="tt.id"
-                                    :checked="form.test_type_ids.includes(tt.id)"
-                                    @click.stop="toggleTestTypeSelection(tt.id)"
-                                    class="h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                                />
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center justify-between gap-1.5">
-                                    <span class="text-xs font-bold text-gray-900 dark:text-gray-100 truncate" :title="tt.name">
-                                        {{ tt.name }}
-                                    </span>
-                                    <span
-                                        v-if="tt.category"
-                                        class="text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase shrink-0"
-                                        :class="getCategoryColor(tt.category)"
-                                    >
-                                        {{ tt.category }}
-                                    </span>
-                                </div>
-                                <div class="flex items-center gap-1.5 mt-1">
-                                    <span class="text-[10px] font-mono font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200/50 dark:border-indigo-800/50">
-                                        {{ tt.code }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div v-if="filteredTestTypes.length === 0" class="col-span-full py-6 text-center">
-                            <i class="pi pi-filter-slash text-xl text-gray-400 dark:text-gray-500 mb-1"></i>
-                            <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                                No laboratory test types match your search or filter
-                            </p>
-                        </div>
+                    <div>
+                        <h3 class="text-base font-black text-gray-900 dark:text-gray-100 tracking-tight">
+                            {{ isEditing ? 'Edit Concrete Cube Sample' : 'Concrete Grade Sampling & Cube Casting' }}
+                        </h3>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                            Log concrete cube casting from batching/transit mixer with fresh concrete slump and curing setup (IS 516 / IS 1199).
+                        </p>
                     </div>
                 </div>
 
-                <BaseInput
-                    v-model="form.remarks"
-                    label="Remarks & Notes"
-                    placeholder="Sampling field observations..."
-                    :error="form.errors.remarks"
-                />
-
-                <div class="pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <div class="flex items-center justify-between">
-                        <Link :href="route('quality.samples.index')">
-                            <BaseButton type="button" variant="secondary" size="small">
-                                <i class="pi pi-arrow-left mr-1.5 text-xs"></i> Back to Samples
-                            </BaseButton>
-                        </Link>
-                        <BaseFormActions
-                            :processing="form.processing"
-                            :cancelHref="route('quality.samples.index')"
-                            :submitText="isEditing ? 'Update Sample' : 'Log Sample & Assign Tests'"
-                        />
-                    </div>
+                <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                        <i class="pi pi-calendar text-[11px]"></i>
+                        <span>Casting Date: {{ form.sample_date }}</span>
+                    </span>
                 </div>
             </div>
-        </BaseCard>
+
+            <div class="p-6 space-y-6">
+                <!-- SECTION 1: BATCH & DISPATCH IDENTIFICATION -->
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                            1. Batch & Transit Mixer Details
+                        </span>
+                        <div class="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Dispatch Docket / TM -->
+                        <div>
+                            <BaseSelect
+                                v-model="form.dispatch_id"
+                                label="Dispatch Docket / Transit Mixer"
+                                :options="dispatchOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Select Dispatch Docket"
+                                filter
+                                @change="onDispatchChange"
+                                :error="form.errors.dispatch_id"
+                                panelWidth="22rem"
+                                hint="Auto-fills client, site, truck, and grade"
+                            />
+                        </div>
+
+                        <!-- Concrete Grade * -->
+                        <div>
+                            <BaseSelect
+                                v-model="form.concrete_grade_id"
+                                label="Concrete Grade *"
+                                required
+                                :options="concreteGradeOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Select Grade (e.g. M30)"
+                                filter
+                                :error="form.errors.concrete_grade_id"
+                                panelWidth="16rem"
+                            />
+                        </div>
+
+                        <!-- Casting Date -->
+                        <div>
+                            <BaseInput
+                                v-model="form.sample_date"
+                                type="date"
+                                label="Casting Date *"
+                                required
+                                :error="form.errors.sample_date"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                        <!-- Customer -->
+                        <div>
+                            <BaseSelect
+                                v-model="form.customer_id"
+                                label="Customer / Client"
+                                :options="customerOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Select Client"
+                                filter
+                                :error="form.errors.customer_id"
+                                panelWidth="18rem"
+                            />
+                        </div>
+
+                        <!-- Site Name -->
+                        <div>
+                            <BaseInput
+                                v-model="form.site_name"
+                                label="Project / Site Location"
+                                placeholder="e.g. Metro Pillar P-42"
+                                :error="form.errors.site_name"
+                            />
+                        </div>
+
+                        <!-- Truck Reg No -->
+                        <div>
+                            <BaseInput
+                                v-model="form.truck_no"
+                                label="Transit Mixer (TM No)"
+                                placeholder="e.g. KA-04-AB-1234"
+                                :error="form.errors.truck_no"
+                            />
+                        </div>
+
+                        <!-- Batch No -->
+                        <div>
+                            <BaseSelect
+                                v-model="form.batch_id"
+                                label="Batch Number"
+                                :options="batchOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                                placeholder="Select Batch No"
+                                filter
+                                :error="form.errors.batch_id"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: FRESH CONCRETE ON-SITE CHECKS -->
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-xs font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                            2. Fresh Concrete Quality Checks (At Casting)
+                        </span>
+                        <div class="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <!-- Slump (mm) -->
+                        <div>
+                            <BaseInput
+                                v-model="form.slump_mm"
+                                type="number"
+                                label="Slump (mm) *"
+                                required
+                                placeholder="120"
+                                hint="Standard slump cone test (IS 1199)"
+                                :error="form.errors.slump_mm"
+                            />
+                        </div>
+
+                        <!-- Concrete Temp -->
+                        <div>
+                            <BaseInput
+                                v-model="form.concrete_temp_c"
+                                type="number"
+                                step="0.5"
+                                label="Concrete Temp (°C)"
+                                placeholder="28.0"
+                                hint="Temperature at discharge (≤ 35°C)"
+                                :error="form.errors.concrete_temp_c"
+                            />
+                        </div>
+
+                        <!-- Ambient Temp -->
+                        <div>
+                            <BaseInput
+                                v-model="form.ambient_temp_c"
+                                type="number"
+                                step="0.5"
+                                label="Ambient Temp (°C)"
+                                placeholder="32.0"
+                                hint="Site / Plant air temperature"
+                                :error="form.errors.ambient_temp_c"
+                            />
+                        </div>
+
+                        <!-- Sampling Location -->
+                        <div>
+                            <BaseInput
+                                v-model="form.source_location"
+                                label="Sampling Point"
+                                placeholder="e.g. TM Chute Discharge"
+                                :error="form.errors.source_location"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 3: SPECIMEN CASTING & CURING -->
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-xs font-extrabold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                            3. Specimen Casting & Curing Tank Setup
+                        </span>
+                        <div class="h-px flex-1 bg-gray-100 dark:bg-gray-800"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Mould Size -->
+                        <div>
+                            <BaseSelect
+                                v-model="form.specimen_size"
+                                label="Cube Mould Dimension"
+                                :options="[
+                                    { label: '150 x 150 x 150 mm (Standard)', value: '150x150x150 mm' },
+                                    { label: '100 x 100 x 100 mm (Small Aggregate)', value: '100x100x100 mm' },
+                                    { label: '150 mm dia x 300 mm (Cylinder)', value: '150x300 mm Cylinder' }
+                                ]"
+                                optionLabel="label"
+                                optionValue="value"
+                            />
+                        </div>
+
+                        <!-- Number of specimens -->
+                        <div>
+                            <BaseInput
+                                v-model="form.specimen_count"
+                                type="number"
+                                label="Specimens Cast (Quantity) *"
+                                required
+                                placeholder="6"
+                                hint="Typically 6 cubes (3 for 7-Day, 3 for 28-Day)"
+                                :error="form.errors.specimen_count"
+                            />
+                        </div>
+
+                        <!-- Curing Tank -->
+                        <div>
+                            <BaseInput
+                                v-model="form.curing_tank_id"
+                                label="Curing Tank / Method"
+                                placeholder="Tank-1 (Water 27±2°C)"
+                                hint="Standard curing tank as per IS 516"
+                                :error="form.errors.curing_tank_id"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AUTOMATED TESTING SCHEDULE PREVIEW CARD -->
+                <div class="rounded-2xl border border-indigo-200/80 dark:border-indigo-800/80 bg-gradient-to-r from-indigo-50/60 via-purple-50/40 to-white dark:from-indigo-950/40 dark:via-purple-950/20 dark:to-gray-900 p-4.5">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-extrabold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                            <i class="pi pi-clock text-xs"></i>
+                            Automated Lab Crushing Schedule (Auto-Generated on Save)
+                        </span>
+                        <span class="text-[11px] font-bold text-gray-500 dark:text-gray-400">
+                            Based on Product Grade QC Master
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div
+                            v-for="sched in testSchedulePreview"
+                            :key="sched.age"
+                            class="bg-white/80 dark:bg-gray-800/80 rounded-xl p-3.5 border border-indigo-100 dark:border-indigo-900/60 shadow-2xs flex items-center justify-between"
+                        >
+                            <div class="space-y-0.5">
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 rounded-md font-mono font-black text-xs bg-indigo-600 text-white">
+                                        {{ sched.age }}
+                                    </span>
+                                    <span class="text-xs font-bold text-gray-900 dark:text-gray-100">
+                                        Due Date: {{ sched.date }}
+                                    </span>
+                                </div>
+                                <div class="text-[11px] text-gray-500 dark:text-gray-400">
+                                    Specimens to test: <strong class="text-gray-700 dark:text-gray-200">{{ sched.specimens }}</strong>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-[10px] uppercase font-bold text-gray-400">Target Level</div>
+                                <div class="text-xs font-mono font-extrabold text-indigo-600 dark:text-indigo-400">{{ sched.targetPct }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 4: REMARKS -->
+                <div>
+                    <BaseInput
+                        v-model="form.remarks"
+                        label="Sampling Notes / Remarks"
+                        placeholder="e.g. Normal workability, good cohesiveness, pumpable mix."
+                        :error="form.errors.remarks"
+                    />
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="px-6 py-4 bg-gray-50/80 dark:bg-gray-800/60 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                <Link
+                    :href="route('quality.samples.index')"
+                    class="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/60 dark:hover:bg-gray-700 transition-colors inline-block"
+                >
+                    <i class="pi pi-arrow-left text-[10px] mr-1"></i> Back to Samples
+                </Link>
+
+                <div class="flex items-center gap-2.5">
+                    <button
+                        type="submit"
+                        :disabled="form.processing"
+                        :class="[
+                            'px-6 py-2.5 text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 text-white',
+                            isEditing
+                                ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 shadow-amber-500/20'
+                                : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-indigo-600/20'
+                        ]"
+                    >
+                        <i v-if="form.processing" class="pi pi-spin pi-spinner text-xs"></i>
+                        <i v-else :class="isEditing ? 'pi pi-check' : 'pi pi-save'" class="text-xs"></i>
+                        <span>{{ isEditing ? 'Update Sample' : 'Log Sample & Generate Schedule' }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </form>
 </template>

@@ -13,7 +13,7 @@ class QcTestSchedule extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'qc_test_schedules';
+    protected $table = 'mm_qc_test_schedules';
 
     protected $fillable = [
         'plant_id',

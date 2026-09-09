@@ -12,7 +12,7 @@ class QcTestType extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'qc_test_types';
+    protected $table = 'mm_qc_test_types';
 
     protected $fillable = [
         'plant_id',

@@ -33,12 +33,12 @@ class QCUnitController extends Controller
             });
         }
 
-        $units = $query->orderBy('name')->paginate(15)->withQueryString();
+        $units = $query->orderBy('name')->get();
 
         return Inertia::render('Quality/Configuration/Units/Index', [
             'units' => $units,
             'filters' => $request->only(['search']),
-            'dimensions' => ['mass', 'length', 'volume', 'pressure', 'force', 'ratio', 'temperature', 'density', 'time', 'other'],
+            'dimensions' => ['pressure', 'force', 'mass', 'length', 'volume', 'density', 'temperature', 'time', 'ratio', 'area', 'other'],
         ]);
     }
 
@@ -65,7 +65,15 @@ class QCUnitController extends Controller
         $validated['plant_id'] = $plantId;
         $validated['created_by'] = auth()->id() ?: 1;
 
-        QcUnit::create($validated);
+        $unit = QcUnit::create($validated);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'unit' => $unit,
+                'message' => 'QC Unit created successfully.'
+            ]);
+        }
 
         return redirect()->route('quality.config.units.index')->with('success', 'QC Unit created successfully.');
     }
@@ -103,4 +111,15 @@ class QCUnitController extends Controller
 
         return redirect()->back()->with('success', 'QC Unit removed.');
     }
+
+    public function toggleActive(QcUnit $unit)
+    {
+        $unit->update([
+            'is_active' => !$unit->is_active,
+            'updated_by' => auth()->id() ?: 1,
+        ]);
+
+        return redirect()->back()->with('success', "Unit '{$unit->name}' status updated.");
+    }
 }
+

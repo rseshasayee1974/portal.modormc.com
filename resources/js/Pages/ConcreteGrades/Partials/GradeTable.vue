@@ -62,10 +62,7 @@ const onSaved = () => {
                 <template #body="slotProps">
                     <div class="flex flex-col">
                         <span class="text-sm font-black text-slate-800 uppercase tracking-tight">{{ slotProps.data.name }}</span>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <DocumentTextIcon class="w-3 h-3 text-slate-300" />
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ slotProps.data.concrete_code || '---' }}</span>
-                        </div>
+                        
                     </div>
                 </template>
             </Column>

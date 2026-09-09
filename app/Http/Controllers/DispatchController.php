@@ -345,9 +345,10 @@ class DispatchController extends Controller
                     'invoice_date'   => $validated['invoice_date'],
                     'invoice_number' => $manualNumber,
                     'notes'          => $validated['notes'] ?? null,
-                    'partner_id'     => $partnerId,
-                    'plant_id'       => $dispatch->plant_id,
-                    'invoice_label'  => 'Dispatch'
+                    'partner_id'       => $partnerId,
+                    'plant_id'         => $dispatch->plant_id,
+                    'invoice_label'    => 'Dispatch',
+                    'is_tax_inclusive' => (bool)$dispatch->is_tax_inclusive,
                 ]);
                 $dispatch->invoice($invoice);
 

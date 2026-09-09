@@ -33,7 +33,7 @@ class Invoice extends Model implements Postable
         'shipping_charges', 'shipping_tax_id',
         'total_amount', 'round_off', 'tds_amount', 'tds_tax_id',
         'paid_amount', 'balance_amount',
-        'status', 'is_duplicate', 'is_sent', 'is_reconciled',
+        'status', 'is_tax_inclusive', 'is_duplicate', 'is_sent', 'is_reconciled',
         'is_active', 'notes',
         'created_by', 'updated_by',
     ];
@@ -91,9 +91,23 @@ class Invoice extends Model implements Postable
     }
 
     protected $casts = [
-        'invoice_date' => 'date',
-        'due_date'     => 'date',
+        'invoice_date'     => 'date',
+        'due_date'         => 'date',
+        'is_tax_inclusive' => 'boolean',
+        'tax_inclusive'    => 'boolean',
     ];
+
+    public function setIsTaxInclusiveAttribute($value): void
+    {
+        $val = (bool) $value;
+        $this->attributes['is_tax_inclusive'] = $val;
+    }
+
+    public function setTaxInclusiveAttribute($value): void
+    {
+        $val = (bool) $value;
+        $this->attributes['is_tax_inclusive'] = $val;
+    }
 
     // ------------------------------------------------------------------ constants
     const STATUS_DRAFT     = 'Draft';
@@ -425,6 +439,9 @@ class Invoice extends Model implements Postable
             $itemsData = $data['items'] ?? [];
             unset($data['items']);
 
+            $isTaxInclusive = (bool)($data['is_tax_inclusive'] ?? false);
+            $data['is_tax_inclusive'] = $isTaxInclusive;
+
             $invoice = self::create($data);
 
             foreach ($itemsData as $itemData) {
@@ -440,7 +457,7 @@ class Invoice extends Model implements Postable
 
                 $item = new InvoiceItem($itemData);
                 $item->invoice_id = $invoice->id;
-                $item->compute($itemTaxRate);
+                $item->compute($itemTaxRate, $isTaxInclusive);
                 $item->save();
             }
 
@@ -463,6 +480,11 @@ class Invoice extends Model implements Postable
         return DB::transaction(function () use ($data) {
             $itemsData = $data['items'] ?? [];
             unset($data['items']);
+
+            $isTaxInclusive = isset($data['is_tax_inclusive']) 
+                ? (bool)$data['is_tax_inclusive'] 
+                : (bool)($this->is_tax_inclusive ?? false);
+            $data['is_tax_inclusive'] = $isTaxInclusive;
 
             $this->update($data);
 
@@ -488,7 +510,7 @@ class Invoice extends Model implements Postable
                     $item = new InvoiceItem($itemData);
                     $item->invoice_id = $this->id;
                 }
-                $item->compute($itemTaxRate);
+                $item->compute($itemTaxRate, $isTaxInclusive);
                 $item->save();
             }
 
@@ -646,6 +668,8 @@ class Invoice extends Model implements Postable
                 }
             }
 
+            $isTaxInclusive = (bool)($params['is_tax_inclusive'] ?? $source->is_tax_inclusive ?? false);
+
             // 1. Create the Invoice Header
             $invoiceHeaderData = [
                 'plant_id'         => $plantId,
@@ -653,6 +677,7 @@ class Invoice extends Model implements Postable
                 'account_id'       => $params['account_id'] ?? null,
                 'invoice_type'     => $type,
                 'invoice_label'    => $params['invoice_label'] ?? null,
+                'is_tax_inclusive' => $isTaxInclusive,
                 'ref_id'           => $source->id,
                 'ref_title'        => null,
                 'invoice_date'     => $params['invoice_date'] ?? now(),
