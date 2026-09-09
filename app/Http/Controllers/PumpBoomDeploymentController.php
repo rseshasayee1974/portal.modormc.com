@@ -283,14 +283,7 @@ class PumpBoomDeploymentController extends Controller
 
         $sites = Site::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'name', 'site_address_1']);
         $mixDesigns = MixDesign::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'design_name', 'design_code']);
-<<<<<<< HEAD
-        $machines = Machine::where('plant_id', $plantId)->whereNull('deleted_at')->whereHas('machineType',function ($q) {
-                $q->where('name', 'LIKE', '%Pump%')
-                  ->orWhere('name', 'LIKE', '%Boom%');
-            })->get(['id', 'registration', 'vehicle_model', 'vehicle_type', 'capacity']);
-=======
         $machines = MachinesDropdown('Pump');
->>>>>>> f4b8814b0a78a8e81f997ada05048f2081d8073a
         $operators = Personnel::where('plant_id', $plantId)->whereNull('deleted_at')->whereRelation('designation', 'name', 'like', '%Operator%')->get(['id', 'first_name', 'last_name', 'employee_code', 'mobile']);
 
         $salesOrders = SalesOrder::where('plant_id', $plantId)
