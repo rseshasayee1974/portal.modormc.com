@@ -41,9 +41,13 @@ const props = defineProps({
     initialFilters: Object,
 });
 
-// View management: 'list' | 'create' | 'edit'
-const activeView = ref('list');
+// Keep the form and schedule list visible together.
+const activeView = ref('create');
 const selectedDeployment = ref(null);
+const formVersion = ref(0);
+const deploymentForm = ref(null);
+const scheduleList = ref(null);
+const dropdownsLoaded = ref(false);
 
 // 7 Operational Filters: Schedule date, Site, Pour location, Pump type, Pump number, Operator, Status
 const filters = ref({
@@ -122,6 +126,8 @@ const fetchDropdowns = async () => {
         dropdowns.value = res.data;
     } catch (err) {
         console.error('Failed to load dropdowns:', err);
+    } finally {
+        dropdownsLoaded.value = true;
     }
 };
 
@@ -210,26 +216,33 @@ const filteredDeployments = computed(() => {
     });
 });
 
-// View Navigation Actions (No Modals)
+const scrollToForm = () => deploymentForm.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+const scrollToSchedules = () => scheduleList.value?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+// Reset the mounted form after saving, clearing, or starting another deployment.
 const openCreateForm = () => {
     selectedDeployment.value = null;
     activeView.value = 'create';
+    formVersion.value++;
+    scrollToForm();
 };
 
 const openEditForm = (item) => {
     selectedDeployment.value = item;
     activeView.value = 'edit';
+    formVersion.value++;
+    scrollToForm();
 };
 
 const handleFormSaved = () => {
-    activeView.value = 'list';
+    activeView.value = 'create';
     selectedDeployment.value = null;
+    formVersion.value++;
     fetchData();
 };
 
 const handleFormCancel = () => {
-    activeView.value = 'list';
-    selectedDeployment.value = null;
+    openCreateForm();
 };
 
 const getRowClass = (data) => {
@@ -410,7 +423,7 @@ const getStatusBadge = (status) => {
             <div class="w-full mt-3 space-y-3">
                 
                 <!-- Main Header Card in Indigo Theme -->
-                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xs border border-gray-200 dark:border-gray-700 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <!-- <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xs border border-gray-200 dark:border-gray-700 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div class="flex items-center gap-3">
                         <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
                             <WrenchScrewdriverIcon class="w-5 h-5 text-white" />
@@ -430,7 +443,6 @@ const getStatusBadge = (status) => {
                         </div>
                     </div>
 
-                    <!-- Actions -->
                     <div class="flex items-center gap-2 flex-wrap">
                         <Link 
                             :href="route('production.batching-schedules.index')" 
@@ -450,28 +462,28 @@ const getStatusBadge = (status) => {
                         </button>
 
                         <button 
-                            v-if="activeView === 'list'"
                             @click="openCreateForm"
                             class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
                         >
                             <PlusIcon class="w-3.5 h-3.5 stroke-[2.5]" />
-                            <span>Deploy Pump / Boom</span>
+                            <span>New Deployment</span>
                         </button>
 
                         <button 
-                            v-else
-                            @click="activeView = 'list'"
+                            @click="scrollToSchedules"
                             class="px-3.5 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
                         >
                             <ListBulletIcon class="w-3.5 h-3.5" />
                             <span>View All Schedules</span>
                         </button>
                     </div>
-                </div>
+                </div> -->
 
-                <!-- VIEW 1: CREATE / EDIT FORM (COMPLETELY REPLACING MODAL) -->
-                <div v-if="activeView !== 'list'">
+                <!-- Always-visible create / edit form above the schedules. -->
+                <div ref="deploymentForm" class="scroll-mt-24">
                     <PumpDeploymentForm
+                        v-if="dropdownsLoaded"
+                        :key="formVersion"
                         :isEditing="activeView === 'edit'"
                         :initialData="selectedDeployment"
                         :dropdowns="dropdowns"
@@ -479,10 +491,14 @@ const getStatusBadge = (status) => {
                         @saved="handleFormSaved"
                         @cancel="handleFormCancel"
                     />
+                    <div v-else role="status" class="p-5 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 text-xs text-gray-500">
+                        Loading deployment form…
+                    </div>
                 </div>
 
-                <!-- VIEW 2: LIST DASHBOARD WITH KPI METRICS & FILTERS -->
-                <div v-else class="space-y-3">
+                <!-- Schedule list remains visible while creating or editing. -->
+                <div ref="scheduleList" class="space-y-3 scroll-mt-24">
+                    <h2 class="text-sm font-bold text-gray-900 dark:text-gray-100">Deployment Schedule List</h2>
 
                     <!-- 1. Operational KPI Cards -->
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
@@ -857,7 +873,7 @@ const getStatusBadge = (status) => {
                                 <template #empty>
                                     <div class="py-10 flex flex-col items-center justify-center text-gray-400">
                                         <WrenchScrewdriverIcon class="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2" />
-                                        <span class="font-medium text-xs">No pour deployments matching the selected filters. Click "Deploy Pump / Boom" to create one.</span>
+                                        <span class="font-medium text-xs">No pour deployments matching the selected filters. Use the form above to create one.</span>
                                     </div>
                                 </template>
                             </BaseDataTable>
