@@ -77,7 +77,8 @@ const dropdowns = ref({
     mixDesigns: [],
     machines: [],
     operators: [],
-    pumpTypes: []
+    pumpTypes: [],
+    salesOrders: []
 });
 
 // Dropdown option maps for filter dropdowns
@@ -250,6 +251,15 @@ const getRowClass = (data) => {
     if (data.status === 'delayed') return 'bg-orange-50/30 dark:bg-orange-950/20';
     if (data.status === 'cancelled') return 'opacity-60 bg-gray-50/40 dark:bg-gray-800/40';
     return '';
+};
+
+const getPourReferenceLabel = (refVal) => {
+    if (!refVal) return '-';
+    const found = dropdowns.value?.salesOrders?.find(so => so.id == refVal);
+    if (found) {
+        return found.order_number || `${found.prefix || ''}${found.order_no || ''}`;
+    }
+    return refVal;
 };
 
 // Floating Action Menu Popover (Teleported to avoid overflow clipping)
@@ -699,7 +709,7 @@ const getStatusBadge = (status) => {
                                 <Column field="pour_reference" header="Pour Reference" :sortable="true">
                                     <template #body="{ data }">
                                         <div class="font-semibold text-gray-900 dark:text-gray-100 text-xs">
-                                            {{ data.pour_reference }}
+                                            {{ getPourReferenceLabel(data.pour_reference) }}
                                         </div>
                                         <div class="mt-0.5">
                                             <span class="inline-block px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900">

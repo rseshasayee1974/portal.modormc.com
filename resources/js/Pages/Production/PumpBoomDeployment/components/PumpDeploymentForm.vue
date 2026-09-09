@@ -32,7 +32,8 @@ const props = defineProps({
             mixDesigns: [],
             machines: [],
             operators: [],
-            pumpTypes: []
+            pumpTypes: [],
+            salesOrders: []
         }),
     },
     defaultScheduleDate: {
@@ -72,8 +73,38 @@ const form = ref({
 });
 
 // Dropdown option maps
+const salesOrderOptions = computed(() => {
+    const orders = props.dropdowns?.salesOrders || [];
+    const options = orders.map((so) => {
+        const id = so.id;
+        const orderNo = so.order_number || `${so.prefix || ''}${so.order_no || ''}`;
+        const cust = so.customer_name ? ` — ${so.customer_name}` : '';
+        const site = so.site_name ? ` (${so.site_name}` : '';
+        const grade = so.mix_name ? ` | ${so.mix_name}` : '';
+        const rem = so.remaining_qty !== undefined ? ` | ${so.remaining_qty} m³ rem` : '';
+        const suffix = (site || grade || rem) ? `${site}${grade}${rem})` : '';
+
+        return {
+            label: `${orderNo}`,
+            value: id,
+            raw: so,
+        };
+    });
+
+    const currentVal = form.value.pour_reference;
+    if (currentVal && !options.some(opt => opt.value == currentVal)) {
+        options.unshift({
+            label: `${currentVal} (Current Reference)`,
+            value: currentVal,
+            raw: null,
+        });
+    }
+
+    return options;
+});
+
 const siteOptions = computed(() => props.dropdowns.sites?.map(s => ({ label: s.name, value: s.id })) || []);
-const mixOptions = computed(() => props.dropdowns.mixDesigns?.map(m => ({ label: `${m.name} (${m.code || '-'})`, value: m.id })) || []);
+const mixOptions = computed(() => props.dropdowns.mixDesigns?.map(m => ({ label: `${m.name} `, value: m.id })) || []);
 const machineOptions = computed(() => props.dropdowns.machines?.map(m => ({ label: `${m.registration} (${m.vehicle_model || 'Rig'})`, value: m.id })) || []);
 const operatorOptions = computed(() => props.dropdowns.operators?.map(o => ({ label: `${o.first_name} ${o.last_name || ''} (${o.phone || o.employee_code || 'Staff'})`, value: o.id })) || []);
 
@@ -111,9 +142,14 @@ const normalizePumpType = (raw) => {
 const initForm = () => {
     if (props.isEditing && props.initialData) {
         const item = props.initialData;
+        const foundSO = props.dropdowns?.salesOrders?.find(so => {
+            const num = so.order_number || `${so.prefix || ''}${so.order_no || ''}`;
+            return so.id == item.pour_reference || num == item.pour_reference;
+        });
+
         form.value = {
             schedule_date: item.schedule_date || props.defaultScheduleDate,
-            pour_reference: item.pour_reference || '',
+            pour_reference: foundSO ? foundSO.id : (item.pour_reference || ''),
             site_id: item.site_id ? Number(item.site_id) : null,
             site_name: item.site_name || '',
             pour_location: item.pour_location || '',
@@ -167,6 +203,33 @@ const initForm = () => {
 
 watch(() => props.initialData, initForm, { immediate: true });
 
+const onSalesOrderSelect = () => {
+    const val = form.value.pour_reference;
+    const selected = props.dropdowns?.salesOrders?.find(so => {
+        const num = so.order_number || `${so.prefix || ''}${so.order_no || ''}`;
+        return so.id == val || num == val;
+    });
+
+    if (selected) {
+        if (selected.site_id) {
+            form.value.site_id = Number(selected.site_id);
+            form.value.site_name = selected.site_name || '';
+        }
+        if (selected.mix_design_id) {
+            form.value.mix_design_id = Number(selected.mix_design_id);
+            form.value.grade = selected.mix_name || selected.mix_code || '';
+        }
+        if (selected.remaining_qty !== undefined && Number(selected.remaining_qty) > 0) {
+            form.value.planned_qty_m3 = parseFloat(selected.remaining_qty);
+        } else if (selected.total_qty && Number(selected.total_qty) > 0) {
+            form.value.planned_qty_m3 = parseFloat(selected.total_qty);
+        }
+        if (!form.value.pour_location && (selected.site_address || selected.site_name)) {
+            form.value.pour_location = selected.site_address || selected.site_name;
+        }
+    }
+};
+
 const onSiteSelect = () => {
     const s = props.dropdowns.sites?.find(item => item.id == form.value.site_id);
     if (s) form.value.site_name = s.name;
@@ -206,17 +269,18 @@ const onActualEndInput = () => {
 };
 
 const submitForm = async () => {
-    if (!form.value.schedule_date || !form.value.pour_reference?.trim()) {
+    const pourRefStr = String(form.value.pour_reference ?? '').trim();
+    if (!form.value.schedule_date || !pourRefStr) {
         Swal.fire('Required Field', 'Please provide Schedule Date and Pour Reference.', 'warning');
         return;
     }
 
-    if (!form.value.pour_location?.trim() || !form.value.planned_qty_m3) {
-        Swal.fire('Required Fields', 'Please specify Pour Location and Planned Volume.', 'warning');
+    if (!form.value.planned_qty_m3) {
+        Swal.fire('Required Fields', 'Please specify Planned Volume.', 'warning');
         return;
     }
 
-    if (!form.value.pump_type || (!form.value.pump_vehicle_id && !form.value.pump_no?.trim())) {
+    if (!form.value.pump_type || (!form.value.pump_vehicle_id && !String(form.value.pump_no || '').trim())) {
         Swal.fire('Assigned Pump Required', 'Please assign a pump machine.', 'warning');
         return;
     }
@@ -259,6 +323,7 @@ const submitForm = async () => {
     try {
         const payload = {
             ...form.value,
+            pour_reference: form.value.pour_reference,
             pump_type: normalizePumpType(form.value.pump_type),
         };
         if (props.isEditing && props.initialData?.id) {
@@ -367,12 +432,16 @@ const submitForm = async () => {
                     </div>
 
                     <div>
-                        <BaseInput
+                        <BaseSelect
                             v-model="form.pour_reference"
-                            type="text"
-                            label="Pour Reference"
-                            placeholder="e.g. SLAB-L3"
+                            :options="salesOrderOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            label="Pour Reference (Sales Order)"
+                            placeholder="Select In-Progress Order"
+                            :filter="true"
                             required
+                            @change="onSalesOrderSelect"
                         />
                     </div>
 
@@ -395,7 +464,6 @@ const submitForm = async () => {
                             type="text"
                             label="Pour Location"
                             placeholder="e.g. Grid A-D, 3rd Flr"
-                            required
                         />
                     </div>
 
