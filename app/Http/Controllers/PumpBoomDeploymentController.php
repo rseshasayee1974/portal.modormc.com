@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\ConcreteBatchingSchedule;
+use App\Models\Dispatch;
 use App\Models\Machine;
 use App\Models\MixDesign;
 use App\Models\Personnel;
 use App\Models\Plant;
 use App\Models\PumpBoomDeploymentSchedule;
+use App\Models\SalesOrder;
 use App\Models\Site;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -72,10 +74,10 @@ class PumpBoomDeploymentController extends Controller
     {
         return [
             'schedule_date'      => 'required|date',
-            'pour_reference'     => 'required|string|max:100',
+            'pour_reference'     => 'required',
             'site_id'            => 'nullable|exists:mm_sites,id',
             'site_name'          => 'nullable|string|max:200',
-            'pour_location'      => 'required|string|max:255',
+            'pour_location'      => 'nullable|string|max:255',
             'mix_design_id'      => 'nullable|exists:mm_mix_designs,id',
             'grade'              => 'nullable|string|max:100',
             'planned_qty_m3'     => 'required|numeric|min:0.1',
@@ -281,15 +283,54 @@ class PumpBoomDeploymentController extends Controller
 
         $sites = Site::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'name', 'site_address_1']);
         $mixDesigns = MixDesign::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'design_name', 'design_code']);
-        $machines = Machine::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'registration', 'vehicle_model', 'vehicle_type', 'capacity']);
+        $machines = Machine::where('plant_id', $plantId)->whereNull('deleted_at')->whereHas('machineType',function ($q) {
+                $q->where('name', 'LIKE', '%Pump%')
+                  ->orWhere('name', 'LIKE', '%Boom%');
+            })->get(['id', 'registration', 'vehicle_model', 'vehicle_type', 'capacity']);
         $operators = Personnel::where('plant_id', $plantId)->whereNull('deleted_at')->whereRelation('designation', 'name', 'like', '%Operator%')->get(['id', 'first_name', 'last_name', 'employee_code', 'mobile']);
 
+        $salesOrders = SalesOrder::where('plant_id', $plantId)
+            ->whereNull('deleted_at')
+            ->where('status', SalesOrder::STATUS_IN_PROGRESS)
+            ->with([
+                'site:id,name,site_address_1',
+                'mixDesign:id,design_name,design_code',
+                'customer:id,legal_name'
+            ])
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(function ($so) {
+                $dispatched = (float) Dispatch::where('sales_order_id', $so->id)
+                    ->whereNotIn('dispatch_status', ['Cancelled'])
+                    ->sum('delivered_qty');
+                $totalQty = (float) $so->total_qty;
+
+                return [
+                    'id'             => $so->id,
+                    'order_no'       => $so->order_no,
+                    'prefix'         => $so->prefix,
+                    'order_number'   => ($so->prefix ?? '') . $so->order_no,
+                    'total_qty'      => $totalQty,
+                    'dispatched_qty' => $dispatched,
+                    'remaining_qty'  => max(0, $totalQty - $dispatched),
+                    'site_id'        => $so->site_id,
+                    'site_name'      => $so->site?->name,
+                    'site_address'   => $so->site?->site_address_1,
+                    'mix_design_id'  => $so->mix_design_id,
+                    'mix_name'       => $so->mixDesign?->design_name,
+                    'mix_code'       => $so->mixDesign?->design_code,
+                    'customer_id'    => $so->customer_id,
+                    'customer_name'  => $so->customer?->legal_name,
+                ];
+            });
+
         return response()->json([
-            'sites'      => $sites,
-            'mixDesigns' => $mixDesigns,
-            'machines'   => $machines,
-            'operators'  => $operators,
-            'pumpTypes'  => self::PUMP_TYPE_OPTIONS,
+            'sites'       => $sites,
+            'mixDesigns'  => $mixDesigns,
+            'machines'    => $machines,
+            'operators'   => $operators,
+            'pumpTypes'   => self::PUMP_TYPE_OPTIONS,
+            'salesOrders' => $salesOrders,
         ]);
     }
 
