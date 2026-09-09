@@ -243,7 +243,7 @@
             </div>
             <div class="lh-right">
                 <div class="doc-badge">{{ $data['doc_title'] }}</div>
-                <div class="doc-no">{{ $data['doc_no'] }}</div>
+                <div class="doc-no">{{ strtoupper($data['doc_no']) }}</div>
             </div>
         </div>
 
@@ -324,12 +324,15 @@
                         <th class="text-right" style="width:60px">Discount</th>
                     @endif
                     <th class="text-center" style="width:65px">Tax</th>
-                    <th class="text-right" style="width:80px">Net Total</th>
+                    @if ($pdfSettings['amount'] ?? true)
+                        <th class="text-right" style="width:80px">{{ $labels['amount'] ?? 'Net Total' }}</th>
+                    @endif
                 </tr>
             </thead>
             <tbody>
                 @php
-                    $totalCols = 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1; // # + Name + HSN + Qty + Unit + Rate + Tax + Total
+                    $totalCols = 1 + 1 + 1 + 1 + 1 + 1 + 1; // # + Name + HSN + Qty + Unit + Rate + Tax
+                    if ($pdfSettings['amount'] ?? true) $totalCols++;
                     if ($pdfSettings['show_pump_charges'] ?? true) $totalCols += 2;
                     if ($pdfSettings['discount'] ?? false) $totalCols++;
                     $recipeColspan = min(7, $totalCols - 1);
@@ -370,9 +373,11 @@
                                 {{ $item['tax_name'] }}
                             @endif
                         </td>
-                        <td class="text-right" style="vertical-align: middle; font-weight: 800; font-size: 12.5px; color: #2563eb; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
-                            {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($item['total'], 2) }}
-                        </td>
+                        @if ($pdfSettings['amount'] ?? true)
+                            <td class="text-right" style="vertical-align: middle; font-weight: 800; font-size: 12.5px; color: #2563eb; {{ $hasSubRow ? 'border-bottom: none;' : '' }}">
+                                {{ $data['meta']['currency_symbol'] ?? '₹' }}{{ number_format($item['total'], 2) }}
+                            </td>
+                        @endif
                     </tr>
                     @if ($hasSubRow)
                         <tr>
@@ -423,6 +428,7 @@
             </tbody>
         </table>
 
+        @if ($pdfSettings['show_totals'] ?? ($pdfSettings['amount'] ?? true))
         <div class="totals-ledger">
             @if(!empty($data['totals']['sub_total']) && $data['totals']['sub_total'] > 0)
                 <div class="tl-row">
@@ -497,6 +503,7 @@
                 </div>
             </div>
         </div>
+        @endif
 
         @php
             $termsText = trim(

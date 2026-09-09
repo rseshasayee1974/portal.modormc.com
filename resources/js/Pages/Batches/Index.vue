@@ -1033,7 +1033,7 @@ const shareBatchEmail = () => {
                                                 severity="help" 
                                                 rounded
                                                 class="cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm !bg-purple-600 !text-white font-black"
-                                                v-tooltip.top="slotProps.data.invoice_number ? ('E-Invoiced (#' + slotProps.data.invoice_number + ') - Click to open') : 'E-Invoiced - Click to open'"
+                                                v-tooltip.top="slotProps.data.invoice_number ? ('E-Invoiced (#' + slotProps.data.invoice_number.toUpperCase() + ') - Click to open') : 'E-Invoiced - Click to open'"
                                                 @click.stop="onStatusClick(slotProps.data)"
                                             />
                                             <!-- Standard Invoice Generated -->
@@ -1043,7 +1043,7 @@ const shareBatchEmail = () => {
                                                 severity="success" 
                                                 rounded
                                                 class="cursor-pointer transition-all hover:scale-105 active:scale-95 select-none hover:shadow-sm !bg-emerald-600 !text-white font-black"
-                                                v-tooltip.top="slotProps.data.invoice_number ? ('Invoiced (#' + slotProps.data.invoice_number + ') - Click to open') : 'Invoiced - Click to open Dispatch & Invoicing'"
+                                                v-tooltip.top="slotProps.data.invoice_number ? ('Invoiced (#' + slotProps.data.invoice_number.toUpperCase() + ') - Click to open') : 'Invoiced - Click to open Dispatch & Invoicing'"
                                                 @click.stop="onStatusClick(slotProps.data)"
                                             />
                                             <!-- E-Way Bill Generated Tag -->

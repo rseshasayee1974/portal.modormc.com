@@ -14,12 +14,29 @@ class Dispatch extends Model
 {
         use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
+    protected static function booted()
+    {
+        static::saved(function (self $dispatch) {
+            $dispatch->syncWithBatchingSchedule();
+            if ($dispatch->sales_order_id) {
+                SalesOrder::find($dispatch->sales_order_id)?->refreshProduction();
+            }
+        });
+
+        static::deleted(function (self $dispatch) {
+            if ($dispatch->sales_order_id) {
+                SalesOrder::find($dispatch->sales_order_id)?->refreshProduction();
+            }
+        });
+    }
+
     protected $table = 'mm_dispatches';
 
     protected $guarded = [];
 
     protected $casts = [
         'dispatch_time' => 'datetime',
+        'delivery_time' => 'datetime',
         'empty_time' => 'datetime',
         'load_time' => 'datetime',
         'delivered_qty' => 'decimal:3',
@@ -211,6 +228,54 @@ class Dispatch extends Model
     public function payments()
     {
         return $this->hasMany(DispatchPayment::class, 'dispatch_id');
+    }
+
+    public function batchingSchedule(): HasOne
+    {
+        return $this->hasOne(ConcreteBatchingSchedule::class, 'dispatch_id');
+    }
+
+    /**
+     * Synchronize linked ConcreteBatchingSchedule when dispatch state changes.
+     */
+    public function syncWithBatchingSchedule(): void
+    {
+        $schedule = ConcreteBatchingSchedule::where('dispatch_id', $this->id)->first();
+        if (!$schedule) {
+            return;
+        }
+
+        $scheduleStatus = match ($this->dispatch_status) {
+            'Draft'                 => 'scheduled',
+            'Loading'               => 'batching',
+            'In Transit'            => 'in_transit',
+            'On Site'               => 'on_site',
+            'Pouring'               => 'pouring',
+            'Delivered', 'Invoiced' => 'completed',
+            'Cancelled'             => 'cancelled',
+            default                 => $schedule->status,
+        };
+
+        $updates = [];
+        if ($schedule->status !== $scheduleStatus) {
+            $updates['status'] = $scheduleStatus;
+        }
+        if ($this->dispatch_time && (!$schedule->dispatch_time || $schedule->dispatch_time->ne($this->dispatch_time))) {
+            $updates['dispatch_time'] = $this->dispatch_time;
+        }
+        if ($this->delivery_time && (!$schedule->unloading_end || $schedule->unloading_end->ne($this->delivery_time))) {
+            $updates['unloading_end'] = $this->delivery_time;
+        }
+        if ($this->delivered_qty && abs((float)$schedule->qty_m3 - (float)$this->delivered_qty) > 0.001) {
+            $updates['qty_m3'] = $this->delivered_qty;
+        }
+
+        if (!empty($updates)) {
+            $schedule->updateQuietly($updates);
+            if ($schedule->pour_reference) {
+                ConcreteBatchingSchedule::recalculatePourBalances($schedule->pour_reference, $schedule->plant_id);
+            }
+        }
     }
 
     /**

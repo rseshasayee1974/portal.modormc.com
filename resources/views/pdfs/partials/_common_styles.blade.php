@@ -102,7 +102,6 @@
         .inv-root {
             min-height: 0 !important;
             height: auto !important;
-            border: none !important;
             display: block !important;
             width: auto !important;
             margin: 0 !important;
@@ -120,7 +119,6 @@
     .inv-root {
         min-height: 0 !important;
         height: auto !important;
-        border: none !important;
         display: block !important;
         width: auto !important;
         margin: 0 !important;

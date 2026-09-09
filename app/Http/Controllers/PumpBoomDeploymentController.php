@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ConcreteBatchingSchedule;
 use App\Models\Machine;
 use App\Models\MixDesign;
 use App\Models\Personnel;
@@ -11,6 +12,7 @@ use App\Models\Site;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 use Inertia\Inertia;
@@ -22,6 +24,147 @@ class PumpBoomDeploymentController extends Controller
 
     protected string $module = 'pump_deployments';
 
+    public const PUMP_TYPE_OPTIONS = [
+        ['value' => 'boom_pump', 'label' => 'Boom Pump (Mobile Articulated Boom)'],
+        ['value' => 'line_pump', 'label' => 'Line Pump (Ground / Pipeline)'],
+        ['value' => 'stationary_pump', 'label' => 'Stationary High-Rise Pump'],
+        ['value' => 'crane_bucket', 'label' => 'Crane & Concrete Bucket'],
+        ['value' => 'direct_pour', 'label' => 'Direct Chute Discharge'],
+    ];
+
+    /**
+     * Resolve active plant ID from session or user default.
+     */
+    protected function getActivePlantId(): int
+    {
+        return (int) (session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1);
+    }
+
+    /**
+     * Default eager-loaded relations for deployment queries.
+     */
+    protected function getDeploymentRelations(): array
+    {
+        return [
+            'site:id,name,site_address_1',
+            'mixDesign:id,design_name,design_code',
+            'pumpMachine:id,registration,vehicle_model,capacity',
+            'operator:id,first_name,last_name,employee_code,mobile',
+        ];
+    }
+
+    /**
+     * Normalize pump_type string.
+     */
+    protected function normalizePumpTypeInput(Request $request): void
+    {
+        if ($request->has('pump_type')) {
+            $request->merge([
+                'pump_type' => strtolower(trim(str_replace(' ', '_', (string) $request->input('pump_type')))),
+            ]);
+        }
+    }
+
+    /**
+     * Common validation rules for pump deployments.
+     */
+    protected function getValidationRules(): array
+    {
+        return [
+            'schedule_date'      => 'required|date',
+            'pour_reference'     => 'required|string|max:100',
+            'site_id'            => 'nullable|exists:mm_sites,id',
+            'site_name'          => 'nullable|string|max:200',
+            'pour_location'      => 'required|string|max:255',
+            'mix_design_id'      => 'nullable|exists:mm_mix_designs,id',
+            'grade'              => 'nullable|string|max:100',
+            'planned_qty_m3'     => 'required|numeric|min:0.1',
+            'pump_type'          => ['required', Rule::in(ConcreteBatchingSchedule::PUMP_TYPES)],
+            'pump_vehicle_id'    => 'required_without:pump_no|nullable|exists:mm_machines,id',
+            'pump_no'            => 'required_without:pump_vehicle_id|nullable|string|max:100',
+            'boom_length_m'      => 'required_if:pump_type,boom_pump|nullable|numeric|min:1',
+            'operator_id'        => 'nullable|exists:mm_personnels,id',
+            'operator_name'      => 'nullable|string|max:150',
+            'pump_arrival_time'  => 'nullable|date',
+            'setup_start_time'   => 'nullable|date',
+            'setup_end_time'     => 'nullable|date',
+            'pour_start_time'    => 'nullable|date',
+            'planned_end_time'   => 'nullable|date',
+            'actual_start_time'  => 'nullable|date',
+            'actual_end_time'    => 'nullable|date',
+            'status'             => 'nullable|in:scheduled,in_progress,en_route,setup,ready,pumping,washout,completed,delayed,breakdown,cancelled',
+            'notes'              => 'nullable|string',
+        ];
+    }
+
+    /**
+     * Custom validation error messages.
+     */
+    protected function getValidationMessages(): array
+    {
+        return [
+            'schedule_date.required'           => 'Every pour must have a schedule date.',
+            'pour_reference.required'          => 'Every pour must have a pour reference.',
+            'pump_type.required'               => 'Every scheduled pour must have a pump type.',
+            'pump_vehicle_id.required_without' => 'Every scheduled pour must have an assigned pump.',
+            'pump_no.required_without'         => 'Every scheduled pour must have an assigned pump.',
+            'boom_length_m.required_if'        => 'A boom pump must have a boom length specified.',
+        ];
+    }
+
+    /**
+     * Validate chronological time order and normalize timestamps to Y-m-d H:i:s.
+     */
+    protected function validateAndNormalizeTimes(array &$validated): void
+    {
+        if (!empty($validated['setup_start_time']) && !empty($validated['setup_end_time'])) {
+            if (Carbon::parse($validated['setup_start_time'])->gt(Carbon::parse($validated['setup_end_time']))) {
+                throw ValidationException::withMessages([
+                    'setup_start_time' => ['setup_start_time cannot be later than setup_end_time.']
+                ]);
+            }
+        }
+
+        if (!empty($validated['actual_start_time']) && !empty($validated['actual_end_time'])) {
+            if (Carbon::parse($validated['actual_start_time'])->gt(Carbon::parse($validated['actual_end_time']))) {
+                throw ValidationException::withMessages([
+                    'actual_start_time' => ['actual_start_time cannot be later than actual_end_time.']
+                ]);
+            }
+        }
+
+        $timeFields = ['pump_arrival_time', 'setup_start_time', 'setup_end_time', 'pour_start_time', 'planned_end_time', 'actual_start_time', 'actual_end_time'];
+        foreach ($timeFields as $dtField) {
+            if (!empty($validated[$dtField])) {
+                try {
+                    $validated[$dtField] = Carbon::parse($validated[$dtField])->format('Y-m-d H:i:s');
+                } catch (\Exception $e) {
+                    $validated[$dtField] = null;
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolve deployment status based on provided inputs or lifecycle timestamps.
+     */
+    protected function resolveDeploymentStatus(array &$validated, string $default = 'scheduled'): void
+    {
+        if (!empty($validated['status'])) {
+            $validated['status'] = $validated['status'];
+        } elseif (!empty($validated['actual_end_time'])) {
+            $validated['status'] = 'completed';
+        } elseif (!empty($validated['actual_start_time'])) {
+            $validated['status'] = 'in_progress';
+        } else {
+            $validated['status'] = $default;
+        }
+
+        if (!empty($validated['pump_vehicle_id']) && empty($validated['pump_no'])) {
+            $validated['pump_no'] = Machine::find($validated['pump_vehicle_id'])?->registration;
+        }
+    }
+
     /**
      * Render the Pump & Boom Deployment Scheduling Dashboard.
      */
@@ -29,14 +172,12 @@ class PumpBoomDeploymentController extends Controller
     {
         $this->authorizeModule('view');
 
-        $plantId = session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1;
-        $plants  = Plant::all(['id', 'name']);
-
+        $plantId = $this->getActivePlantId();
         $scheduleDate = $request->input('schedule_date', now()->toDateString());
 
         return Inertia::render('Production/PumpBoomDeployment/Index', [
-            'plants'         => $plants,
-            'activePlantId'  => (int) $plantId,
+            'plants'         => Plant::all(['id', 'name']),
+            'activePlantId'  => $plantId,
             'initialDate'    => $scheduleDate,
             'initialFilters' => [
                 'schedule_date'  => $scheduleDate,
@@ -54,9 +195,7 @@ class PumpBoomDeploymentController extends Controller
     {
         $this->authorizeModule('view');
 
-        $plantId = session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1;
-
-        // 7 Operational Filters: Schedule date, Site, Pour location, Pump type, Pump number, Operator, Status
+        $plantId = $this->getActivePlantId();
         $scheduleDate  = $request->input('schedule_date');
         $siteId        = $request->input('site_id');
         $pourLocation  = $request->input('pour_location');
@@ -67,34 +206,24 @@ class PumpBoomDeploymentController extends Controller
         $pourReference = $request->input('pour_reference');
 
         $query = PumpBoomDeploymentSchedule::where('plant_id', $plantId)
-            ->with([
-                'site:id,name,address',
-                'mixDesign:id,name,code',
-                'pumpMachine:id,registration,vehicle_model,capacity',
-                'operator:id,first_name,last_name,employee_code,phone',
-            ]);
+            ->with($this->getDeploymentRelations());
 
-        // Filter 1: Schedule date
         if (!empty($scheduleDate) && $scheduleDate !== 'all') {
             $query->whereDate('schedule_date', $scheduleDate);
         }
 
-        // Filter 2: Site
         if (!empty($siteId) && $siteId !== 'all') {
             $query->where('site_id', $siteId);
         }
 
-        // Filter 3: Pour location
         if (!empty($pourLocation)) {
             $query->where('pour_location', 'like', "%{$pourLocation}%");
         }
 
-        // Filter 4: Pump type
         if (!empty($pumpType) && $pumpType !== 'all') {
             $query->where('pump_type', $pumpType);
         }
 
-        // Filter 5: Pump number / Rig Machine
         if (!empty($pumpNo) && $pumpNo !== 'all') {
             $query->where(function ($q) use ($pumpNo) {
                 $q->where('pump_no', 'like', "%{$pumpNo}%")
@@ -102,12 +231,10 @@ class PumpBoomDeploymentController extends Controller
             });
         }
 
-        // Filter 6: Operator
         if (!empty($operatorId) && $operatorId !== 'all') {
             $query->where('operator_id', $operatorId);
         }
 
-        // Filter 7: Status
         if (!empty($status) && $status !== 'all') {
             if ($status === 'in_progress') {
                 $query->whereIn('status', ['in_progress', 'pumping']);
@@ -116,7 +243,6 @@ class PumpBoomDeploymentController extends Controller
             }
         }
 
-        // Additional quick text search for reference
         if (!empty($pourReference)) {
             $query->where(function ($q) use ($pourReference) {
                 $q->where('pour_reference', 'like', "%{$pourReference}%")
@@ -129,7 +255,6 @@ class PumpBoomDeploymentController extends Controller
             ->orderBy('id', 'asc')
             ->get();
 
-        // Operational Metrics
         $metrics = [
             'total_deployments'      => $deployments->count(),
             'total_planned_m3'       => round((float) $deployments->sum('planned_qty_m3'), 2),
@@ -152,36 +277,19 @@ class PumpBoomDeploymentController extends Controller
     {
         $this->authorizeModule('view');
 
-        $plantId = session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1;
+        $plantId = $this->getActivePlantId();
 
-        $sites = Site::where('plant_id', $plantId)
-            ->whereNull('deleted_at')
-            ->get(['id', 'name', 'address']);
-
-        $mixDesigns = MixDesign::where('plant_id', $plantId)
-            ->whereNull('deleted_at')
-            ->get(['id', 'name', 'code']);
-
-        $machines = Machine::where('plant_id', $plantId)
-            ->whereNull('deleted_at')
-            ->get(['id', 'registration', 'vehicle_model', 'vehicle_type', 'capacity']);
-
-        $operators = Personnel::where('plant_id', $plantId)
-            ->whereNull('deleted_at')
-            ->get(['id', 'first_name', 'last_name', 'employee_code', 'phone']);
+        $sites = Site::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'name', 'site_address_1']);
+        $mixDesigns = MixDesign::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'design_name', 'design_code']);
+        $machines = Machine::where('plant_id', $plantId)->whereNull('deleted_at')->get(['id', 'registration', 'vehicle_model', 'vehicle_type', 'capacity']);
+        $operators = Personnel::where('plant_id', $plantId)->whereNull('deleted_at')->whereRelation('designation', 'name', 'like', '%Operator%')->get(['id', 'first_name', 'last_name', 'employee_code', 'mobile']);
 
         return response()->json([
             'sites'      => $sites,
             'mixDesigns' => $mixDesigns,
             'machines'   => $machines,
             'operators'  => $operators,
-            'pumpTypes'  => [
-                ['value' => 'boom_pump', 'label' => 'Boom Pump (Mobile Articulated Boom)'],
-                ['value' => 'line_pump', 'label' => 'Line Pump (Ground / Pipeline)'],
-                ['value' => 'stationary_pump', 'label' => 'Stationary High-Rise Pump'],
-                ['value' => 'crane_bucket', 'label' => 'Crane & Concrete Bucket'],
-                ['value' => 'direct_pour', 'label' => 'Direct Chute Discharge'],
-            ]
+            'pumpTypes'  => self::PUMP_TYPE_OPTIONS,
         ]);
     }
 
@@ -192,101 +300,16 @@ class PumpBoomDeploymentController extends Controller
     {
         $this->authorizeModule('create');
 
-        $plantId = session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1;
+        $plantId = $this->getActivePlantId();
+        $this->normalizePumpTypeInput($request);
 
-        $validated = $request->validate([
-            // Rule 1: Every pour must have a schedule date and pour reference.
-            'schedule_date'      => 'required|date',
-            'pour_reference'     => 'required|string|max:100',
-
-            // Site & Location
-            'site_id'            => 'nullable|exists:mm_sites,id',
-            'site_name'          => 'nullable|string|max:200',
-            'pour_location'      => 'required|string|max:255',
-            'mix_design_id'      => 'nullable|exists:mm_mix_designs,id',
-            'grade'              => 'nullable|string|max:100',
-            'planned_qty_m3'     => 'required|numeric|min:0.1',
-
-            // Rule 2: Every scheduled pour must have a pump type and assigned pump.
-            'pump_type'          => 'required|in:boom_pump,line_pump,stationary_pump,crane_bucket,direct_pour',
-            'pump_vehicle_id'    => 'required_without:pump_no|nullable|exists:mm_machines,id',
-            'pump_no'            => 'required_without:pump_vehicle_id|nullable|string|max:100',
-
-            // Rule 3 & 4: A boom pump must have a boom length. Stationary pump does not require boom length.
-            'boom_length_m'      => 'required_if:pump_type,boom_pump|nullable|numeric|min:1',
-
-            // Operator
-            'operator_id'        => 'nullable|exists:mm_personnels,id',
-            'operator_name'      => 'nullable|string|max:150',
-
-            // Timelines
-            'pump_arrival_time'  => 'nullable|date',
-            'setup_start_time'   => 'nullable|date',
-            'setup_end_time'     => 'nullable|date',
-            'pour_start_time'    => 'nullable|date',
-            'planned_end_time'   => 'nullable|date',
-            'actual_start_time'  => 'nullable|date',
-            'actual_end_time'    => 'nullable|date',
-            'status'             => 'nullable|in:scheduled,in_progress,en_route,setup,ready,pumping,washout,completed,delayed,breakdown,cancelled',
-            'notes'              => 'nullable|string',
-        ], [
-            'schedule_date.required'     => 'Every pour must have a schedule date.',
-            'pour_reference.required'    => 'Every pour must have a pour reference.',
-            'pump_type.required'         => 'Every scheduled pour must have a pump type.',
-            'pump_vehicle_id.required_without' => 'Every scheduled pour must have an assigned pump.',
-            'pump_no.required_without'   => 'Every scheduled pour must have an assigned pump.',
-            'boom_length_m.required_if'  => 'A boom pump must have a boom length specified.',
-        ]);
-
-        // TIME VALIDATIONS:
-        // 1. setup_start_time cannot be later than setup_end_time.
-        if (!empty($validated['setup_start_time']) && !empty($validated['setup_end_time'])) {
-            if (Carbon::parse($validated['setup_start_time'])->gt(Carbon::parse($validated['setup_end_time']))) {
-                throw ValidationException::withMessages([
-                    'setup_start_time' => ['setup_start_time cannot be later than setup_end_time.']
-                ]);
-            }
-        }
-
-        // 2. actual_start_time cannot be later than actual_end_time.
-        if (!empty($validated['actual_start_time']) && !empty($validated['actual_end_time'])) {
-            if (Carbon::parse($validated['actual_start_time'])->gt(Carbon::parse($validated['actual_end_time']))) {
-                throw ValidationException::withMessages([
-                    'actual_start_time' => ['actual_start_time cannot be later than actual_end_time.']
-                ]);
-            }
-        }
-
-        // 3. actual_end_time may be later than planned_end_time; this should not block completion.
-        // (Intentionally no blocking validation on actual_end_time vs planned_end_time)
+        $validated = $request->validate($this->getValidationRules(), $this->getValidationMessages());
+        $this->validateAndNormalizeTimes($validated);
 
         $validated['plant_id'] = $plantId;
+        $this->resolveDeploymentStatus($validated, 'scheduled');
 
-        // STATUS AUTOMATION:
-        // - New records default to Scheduled.
-        // - Recording an actual start changes status to In Progress.
-        // - Recording an actual end changes status to Completed.
-        // - Delayed and cancelled pours require the user to explicitly change status.
-        $rawStatus = $validated['status'] ?? null;
-        if (in_array($rawStatus, ['delayed', 'cancelled'])) {
-            $validated['status'] = $rawStatus;
-        } elseif (!empty($validated['actual_end_time'])) {
-            $validated['status'] = 'completed';
-        } elseif (!empty($validated['actual_start_time'])) {
-            $validated['status'] = 'in_progress';
-        } else {
-            $validated['status'] = $rawStatus ?: 'scheduled';
-        }
-
-        // Auto-resolve pump_no if vehicle chosen
-        if (!empty($validated['pump_vehicle_id']) && empty($validated['pump_no'])) {
-            $validated['pump_no'] = Machine::find($validated['pump_vehicle_id'])?->registration;
-        }
-
-        // Rule 5: A pump cannot be allocated to two overlapping pours.
         $this->validatePumpOverlap($plantId, $validated);
-
-        // Rule 6: An operator should not be assigned to overlapping pump operations.
         $this->validateOperatorOverlap($plantId, $validated);
 
         $deployment = PumpBoomDeploymentSchedule::create($validated);
@@ -294,7 +317,7 @@ class PumpBoomDeploymentController extends Controller
         return response()->json([
             'success'    => true,
             'message'    => "Pump deployment #{$deployment->id} scheduled successfully.",
-            'deployment' => $deployment->fresh(['site', 'mixDesign', 'pumpMachine', 'operator']),
+            'deployment' => $deployment->fresh($this->getDeploymentRelations()),
         ]);
     }
 
@@ -305,97 +328,15 @@ class PumpBoomDeploymentController extends Controller
     {
         $this->authorizeModule('update');
 
-        $plantId = $deployment->plant_id ?? (session('active_plant_id') ?? auth()->user()->default_plant_id ?? 1);
+        $plantId = $deployment->plant_id ?? $this->getActivePlantId();
+        $this->normalizePumpTypeInput($request);
 
-        $validated = $request->validate([
-            // Rule 1: Every pour must have a schedule date and pour reference.
-            'schedule_date'      => 'required|date',
-            'pour_reference'     => 'required|string|max:100',
+        $validated = $request->validate($this->getValidationRules(), $this->getValidationMessages());
+        $this->validateAndNormalizeTimes($validated);
 
-            // Site & Location
-            'site_id'            => 'nullable|exists:mm_sites,id',
-            'site_name'          => 'nullable|string|max:200',
-            'pour_location'      => 'required|string|max:255',
-            'mix_design_id'      => 'nullable|exists:mm_mix_designs,id',
-            'grade'              => 'nullable|string|max:100',
-            'planned_qty_m3'     => 'required|numeric|min:0.1',
+        $this->resolveDeploymentStatus($validated, $deployment->status ?: 'scheduled');
 
-            // Rule 2: Every scheduled pour must have a pump type and assigned pump.
-            'pump_type'          => 'required|in:boom_pump,line_pump,stationary_pump,crane_bucket,direct_pour',
-            'pump_vehicle_id'    => 'required_without:pump_no|nullable|exists:mm_machines,id',
-            'pump_no'            => 'required_without:pump_vehicle_id|nullable|string|max:100',
-
-            // Rule 3 & 4: A boom pump must have a boom length. Stationary pump does not require boom length.
-            'boom_length_m'      => 'required_if:pump_type,boom_pump|nullable|numeric|min:1',
-
-            // Operator
-            'operator_id'        => 'nullable|exists:mm_personnels,id',
-            'operator_name'      => 'nullable|string|max:150',
-
-            // Timelines
-            'pump_arrival_time'  => 'nullable|date',
-            'setup_start_time'   => 'nullable|date',
-            'setup_end_time'     => 'nullable|date',
-            'pour_start_time'    => 'nullable|date',
-            'planned_end_time'   => 'nullable|date',
-            'actual_start_time'  => 'nullable|date',
-            'actual_end_time'    => 'nullable|date',
-            'status'             => 'nullable|in:scheduled,in_progress,en_route,setup,ready,pumping,washout,completed,delayed,breakdown,cancelled',
-            'notes'              => 'nullable|string',
-        ], [
-            'schedule_date.required'     => 'Every pour must have a schedule date.',
-            'pour_reference.required'    => 'Every pour must have a pour reference.',
-            'pump_type.required'         => 'Every scheduled pour must have a pump type.',
-            'pump_vehicle_id.required_without' => 'Every scheduled pour must have an assigned pump.',
-            'pump_no.required_without'   => 'Every scheduled pour must have an assigned pump.',
-            'boom_length_m.required_if'  => 'A boom pump must have a boom length specified.',
-        ]);
-
-        // TIME VALIDATIONS:
-        // 1. setup_start_time cannot be later than setup_end_time.
-        if (!empty($validated['setup_start_time']) && !empty($validated['setup_end_time'])) {
-            if (Carbon::parse($validated['setup_start_time'])->gt(Carbon::parse($validated['setup_end_time']))) {
-                throw ValidationException::withMessages([
-                    'setup_start_time' => ['setup_start_time cannot be later than setup_end_time.']
-                ]);
-            }
-        }
-
-        // 2. actual_start_time cannot be later than actual_end_time.
-        if (!empty($validated['actual_start_time']) && !empty($validated['actual_end_time'])) {
-            if (Carbon::parse($validated['actual_start_time'])->gt(Carbon::parse($validated['actual_end_time']))) {
-                throw ValidationException::withMessages([
-                    'actual_start_time' => ['actual_start_time cannot be later than actual_end_time.']
-                ]);
-            }
-        }
-
-        // 3. actual_end_time may be later than planned_end_time; this should not block completion.
-        // (Intentionally no blocking validation on actual_end_time vs planned_end_time)
-
-        // STATUS AUTOMATION:
-        // - Delayed and cancelled pours require the user to explicitly change status.
-        // - Recording an actual start changes status to In Progress.
-        // - Recording an actual end changes status to Completed.
-        $rawStatus = $validated['status'] ?? $deployment->status;
-        if (in_array($rawStatus, ['delayed', 'cancelled'])) {
-            $validated['status'] = $rawStatus;
-        } elseif (!empty($validated['actual_end_time'])) {
-            $validated['status'] = 'completed';
-        } elseif (!empty($validated['actual_start_time']) && !in_array($rawStatus, ['completed'])) {
-            $validated['status'] = 'in_progress';
-        } else {
-            $validated['status'] = $rawStatus ?: 'scheduled';
-        }
-
-        if (!empty($validated['pump_vehicle_id']) && empty($validated['pump_no'])) {
-            $validated['pump_no'] = Machine::find($validated['pump_vehicle_id'])?->registration;
-        }
-
-        // Rule 5: A pump cannot be allocated to two overlapping pours.
         $this->validatePumpOverlap($plantId, $validated, $deployment->id);
-
-        // Rule 6: An operator should not be assigned to overlapping pump operations.
         $this->validateOperatorOverlap($plantId, $validated, $deployment->id);
 
         $deployment->update($validated);
@@ -403,7 +344,7 @@ class PumpBoomDeploymentController extends Controller
         return response()->json([
             'success'    => true,
             'message'    => "Pump deployment #{$deployment->id} updated successfully.",
-            'deployment' => $deployment->fresh(['site', 'mixDesign', 'pumpMachine', 'operator']),
+            'deployment' => $deployment->fresh($this->getDeploymentRelations()),
         ]);
     }
 
@@ -438,7 +379,7 @@ class PumpBoomDeploymentController extends Controller
     }
 
     /**
-     * Rule 5: A pump cannot be allocated to two overlapping pours.
+     * Rule: A pump cannot be allocated to two overlapping pours.
      */
     private function validatePumpOverlap(int $plantId, array $data, ?int $ignoreId = null): void
     {
@@ -474,7 +415,6 @@ class PumpBoomDeploymentController extends Controller
         foreach ($candidates as $existing) {
             [$exStart, $exEnd] = $this->resolveDeploymentWindow($existing->toArray());
 
-            // Overlap condition: max(start1, start2) < min(end1, end2)
             if ($newStart->lt($exEnd) && $newEnd->gt($exStart)) {
                 $pumpName = $existing->pump_no ?? ($existing->pumpMachine?->registration ?? 'Selected Pump');
                 $timeSpan = $exStart->format('d-m-Y H:i') . ' to ' . $exEnd->format('H:i');
@@ -488,7 +428,7 @@ class PumpBoomDeploymentController extends Controller
     }
 
     /**
-     * Rule 6: An operator should not be assigned to overlapping pump operations.
+     * Rule: An operator should not be assigned to overlapping pump operations.
      */
     private function validateOperatorOverlap(int $plantId, array $data, ?int $ignoreId = null): void
     {
@@ -522,7 +462,6 @@ class PumpBoomDeploymentController extends Controller
         foreach ($candidates as $existing) {
             [$exStart, $exEnd] = $this->resolveDeploymentWindow($existing->toArray());
 
-            // Overlap condition: max(start1, start2) < min(end1, end2)
             if ($newStart->lt($exEnd) && $newEnd->gt($exStart)) {
                 $opLabel  = $existing->operator_name ?? ($existing->operator ? $existing->operator->first_name . ' ' . ($existing->operator->last_name ?? '') : 'Selected Operator');
                 $timeSpan = $exStart->format('d-m-Y H:i') . ' to ' . $exEnd->format('H:i');
@@ -544,47 +483,34 @@ class PumpBoomDeploymentController extends Controller
 
         $validated = $request->validate([
             'status' => 'required|in:scheduled,in_progress,en_route,setup,ready,pumping,washout,completed,delayed,breakdown,cancelled',
+            'notes'  => 'nullable|string',
         ]);
 
         $newStatus = $validated['status'];
         $updates   = ['status' => $newStatus];
+        if ($request->has('notes')) {
+            $updates['notes'] = $validated['notes'];
+        }
         $now       = now();
 
         switch ($newStatus) {
             case 'setup':
-                if (!$deployment->pump_arrival_time) {
-                    $updates['pump_arrival_time'] = $now;
-                }
-                if (!$deployment->setup_start_time) {
-                    $updates['setup_start_time'] = $now;
-                }
+                if (!$deployment->pump_arrival_time) $updates['pump_arrival_time'] = $now;
+                if (!$deployment->setup_start_time) $updates['setup_start_time'] = $now;
                 break;
-
             case 'ready':
-                if (!$deployment->setup_end_time) {
-                    $updates['setup_end_time'] = $now;
-                }
+                if (!$deployment->setup_end_time) $updates['setup_end_time'] = $now;
                 break;
-
             case 'in_progress':
             case 'pumping':
-                // Recording an actual start changes status to In Progress
-                if (!$deployment->actual_start_time) {
-                    $updates['actual_start_time'] = $now;
-                }
+                if (!$deployment->actual_start_time) $updates['actual_start_time'] = $now;
                 break;
-
             case 'washout':
             case 'completed':
-                // Recording an actual end changes status to Completed
-                if (!$deployment->actual_end_time) {
-                    $updates['actual_end_time'] = $now;
-                }
+                if (!$deployment->actual_end_time) $updates['actual_end_time'] = $now;
                 break;
-
             case 'delayed':
             case 'cancelled':
-                // Delayed and cancelled pours require the user to explicitly change status
                 break;
         }
 
@@ -593,7 +519,7 @@ class PumpBoomDeploymentController extends Controller
         return response()->json([
             'success'    => true,
             'message'    => "Pump status updated to " . ucfirst(str_replace('_', ' ', $newStatus)),
-            'deployment' => $deployment->fresh(['site', 'mixDesign', 'pumpMachine', 'operator']),
+            'deployment' => $deployment->fresh($this->getDeploymentRelations()),
         ]);
     }
 

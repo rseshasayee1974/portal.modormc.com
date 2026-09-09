@@ -515,7 +515,12 @@ class PrintDataFormatter
         }
 
         return $name 
+            ?? $mixDesign->design_name 
+            ?? $mixDesign->name 
+            ?? $mixDesign->title 
             ?? $mixDesign->grade 
+            ?? $mixDesign->design_code 
+            ?? $mixDesign->code 
             ?? $mixDesign->design_type 
             ?? '-';
     }
@@ -651,7 +656,7 @@ class PrintDataFormatter
         $templateKey = self::resolveTemplateKey('purchase_orders', $order->plant_id);
         $data['settings'] = self::getCustomSettings($order->plant_id, 'purchase_orders', $templateKey);
         $data['doc_title']     = $data['settings']['pdf']['labels']['invoice_title'] ?? 'PURCHASE ORDER';
-        $data['doc_no']        = $order->ref_no;
+        $data['doc_no']        = strtoupper((string)($order->ref_no ?? ''));
         $data['doc_date']      = $order->date_order?->format('d/m/Y') ?? 'N/A';
         $data['due_date']      = $order->due_date?->format('d/m/Y') ?? 'N/A';
         $data['delivery_date'] = $order->date_planned?->format('d/m/Y') ?? 'N/A';
@@ -723,7 +728,7 @@ class PrintDataFormatter
             else $docTitle = strtoupper($invoice->invoice_label);
         }
         $data['doc_title'] = $docTitle;
-        $data['doc_no']    =  $invoice->prefix . $invoice->invoice_number;
+        $data['doc_no']    = strtoupper((string)($invoice->prefix . $invoice->invoice_number));
         $data['doc_date']  = $invoice->invoice_date?->format('d/m/Y') ?? now()->format('d/m/Y');
         $data['due_date']  = $invoice->due_date?->format('d/m/Y') ?? 'N/A';
         $data['state']     = strtoupper($invoice->status ?? 'DRAFT');
@@ -996,7 +1001,7 @@ class PrintDataFormatter
         return $data;
     }
 
-    public static function fromQuotation($quotation, ?array $customSettings = null): array
+    public static function fromQuotation($quotation, ?array $customSettings = null, bool $isPriceList = false): array
     {
         $statusLabels = [
             0 => 'DRAFT',
@@ -1014,7 +1019,8 @@ class PrintDataFormatter
             $quotation->quote_date?->format('d/m/Y'),
             $quotation->validity_date?->format('d/m/Y'),
             $state,
-            $customSettings
+            $customSettings,
+            $isPriceList
         );
     }
 
@@ -1035,11 +1041,12 @@ class PrintDataFormatter
             $customerPO->order_date?->format('d/m/Y'),
             $customerPO->due_date?->format('d/m/Y'),
             $state,
-            $customSettings
+            $customSettings,
+            false
         );
     }
 
-    private static function fromQuotationOrCustomerPO($model, string $module, string $defaultTitle, string $docNo, ?string $docDate, ?string $dueDate, string $state, ?array $customSettings = null): array
+    private static function fromQuotationOrCustomerPO($model, string $module, string $defaultTitle, string $docNo, ?string $docDate, ?string $dueDate, string $state, ?array $customSettings = null, bool $isPriceList = false): array
     {
         $model->loadMissing([
             'items.mixDesign',
@@ -1067,8 +1074,15 @@ class PrintDataFormatter
             $data['settings'] = self::getCustomSettings($model->plant_id, 'quotations');
         }
 
-        $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? $defaultTitle;
-        $data['doc_no']    = $docNo;
+        if ($isPriceList) {
+            $data['doc_title'] = 'PRICE LIST';
+            $data['settings']['pdf']['amount'] = true;
+            $data['settings']['pdf']['show_totals'] = false;
+        } else {
+            $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? $defaultTitle;
+        }
+
+        $data['doc_no']    = strtoupper((string)$docNo);
         $data['doc_date']  = $docDate ?? now()->format('d/m/Y');
         $data['due_date']  = $dueDate ?? 'N/A';
         $data['state']     = $state;
@@ -1081,8 +1095,6 @@ class PrintDataFormatter
         $data['ship_to'] = self::formatShipTo($model->site, $data['bill_to']);
 
         $isIntra = self::isIntraState($model->plant->gstin ?? '', $model->patron->gstin ?? '');
-
-        $settings = \App\Models\CustomSetting::getForModule($model->plant_id, 'batching');
 
         // Determine if selected concrete pump is boom or manual
         $isBoom = false;
@@ -1251,7 +1263,7 @@ class PrintDataFormatter
         $data = self::base();
         $data['settings'] = self::getCustomSettings($salesOrder->plant_id, 'sales_orders') ?: self::getCustomSettings($salesOrder->plant_id, 'quotations');
         $data['doc_title']  = $data['settings']['pdf']['labels']['invoice_title'] ?? 'SALES ORDER';
-        $data['doc_no']     = ($salesOrder->prefix ?? '') . ($salesOrder->order_no ?? $salesOrder->id);
+        $data['doc_no']     = strtoupper((string)(($salesOrder->prefix ?? '') . ($salesOrder->order_no ?? $salesOrder->id)));
         $data['doc_date']   = $salesOrder->created_at ? $salesOrder->created_at->format('d/m/Y') : now()->format('d/m/Y');
         $data['due_date']   = $salesOrder->scheduled_end ? \Carbon\Carbon::parse($salesOrder->scheduled_end)->format('d/m/Y') : '';
         $statusMap = [1 => 'SCHEDULED', 2 => 'IN PROGRESS', 3 => 'COMPLETED', 4 => 'CANCELLED'];
@@ -1449,7 +1461,7 @@ class PrintDataFormatter
         $data = self::base();
         $data['settings'] = self::getCustomSettings($batch->salesOrder->plant_id, 'delivery_challans');
         $data['doc_title'] = $data['settings']['pdf']['labels']['invoice_title'] ?? 'DELIVERY CHALLAN';
-        $data['doc_no']    = 'B' . ($batch->batch_no ?? $batch->id);
+        $data['doc_no']    = strtoupper('B' . ($batch->batch_no ?? $batch->id));
         $data['doc_date']  = optional($batch->load_time ?? $batch->created_at)->format('d/m/Y H:i');
         $dispatch = $batch->dispatches->first();
         $data['delivery_date'] = $dispatch?->load_time ? \Carbon\Carbon::parse($dispatch->load_time)->format('d/m/Y H:i') : ($batch->load_time ? $batch->load_time->format('d/m/Y H:i') : 'N/A');
@@ -1644,6 +1656,7 @@ class PrintDataFormatter
                 'company_name'=>true,'logo'=>true,'address'=>true,'phone'=>true,'email'=>true,'gstin'=>true,
                 'invoice_title'=>true,'invoice_number'=>true,'date'=>true,'due_date'=>true,'status'=>false,
                 'bill_to'=>true,'ship_to'=>true,'hsn_code'=>true,'description'=>true,'unit'=>true,'discount'=>true,
+                'amount'=>true,
                 'tax_percent'=>true,'cgst'=>true,'sgst'=>true,'igst'=>true,'adjustment'=>true,
                 'round_off'=>true,'total_words'=>true,'notes'=>true,'terms'=>true,'signature'=>true,
                 'upi_qr'=>true,

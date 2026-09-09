@@ -620,12 +620,12 @@ const submit = () => {
                         <BaseSelect v-model="form.concrete_pump" :options="concretePumpOptions" optionLabel="label" optionValue="value" label="Concrete Type" placeholder="Select Concrete Type" :error="form.errors.concrete_pump" />
                     </div> -->
                     <div>
-                        <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :max="selectedSalesOrder ? remainingQty : 20" :minFractionDigits="1" :maxFractionDigits="1" required :error="form.errors.batch_size" />
+                        <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :min="0.1" :max="selectedSalesOrder ? remainingQty : 20" :minFractionDigits="3" :maxFractionDigits="3" required :error="form.errors.batch_size" />
                     </div>
                     <div>
                         <div class="flex items-end gap-2">
                             <div class="flex-1">
-                                <BaseInputNumber v-model="form.empty_weight_truck" :disabled="customSettings?.batching?.manual_weight === 0" label="Empty Weight (MT)" :required="customSettings?.batching?.manual_weight === 1" :error="form.errors.empty_weight_truck" />
+                                <BaseInputNumber v-model="form.empty_weight_truck" :minFractionDigits="0" :maxFractionDigits="3" :disabled="customSettings?.batching?.manual_weight === 0" label="Empty Weight (MT)" :required="customSettings?.batching?.manual_weight === 1" :error="form.errors.empty_weight_truck" />
                             </div>
                             
                             <button @click="handleWeightCapture" type="button" v-if="customSettings?.batching?.manual_weight === 0" 
@@ -750,7 +750,10 @@ const submit = () => {
                         <div class="flex-1">
                             <BaseInputNumber 
                                 v-model="tareForm.empty_weight" 
-                                placeholder="e.g. 5400" 
+                                :minFractionDigits="0"
+                                :maxFractionDigits="3"
+                                :fluid="true"
+                                placeholder="e.g. 5.400" 
                                 class="!rounded-2xl border-slate-200/80 shadow-sm focus:border-indigo-500 text-sm font-bold"
                                 :error="tareFormErrors.empty_weight" 
                             />

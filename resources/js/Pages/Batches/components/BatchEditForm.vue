@@ -1057,14 +1057,14 @@ console.log('test');
                                 <div>
                                     <div class="flex items-end gap-2">
                                         <div class="flex-1">
-                                            <BaseInputNumber v-model="form.empty_weight_truck" :disabled="isLocked" label="Empty Weight" required :error="form.errors.empty_weight_truck" />
+                                            <BaseInputNumber v-model="form.empty_weight_truck" :minFractionDigits="0" :maxFractionDigits="3" :disabled="isLocked" label="Empty Weight" required :error="form.errors.empty_weight_truck" />
                                         </div>
                                     </div>
                                 </div>
                                 <div>
                                     <div class="flex items-end gap-2">
                                         <div class="flex-1">
-                                            <BaseInputNumber v-model="form.loaded_weight_truck" :disabled="isLocked || customSettings?.batching?.manual_weight === 0" label="Full Weight" required :error="form.errors.loaded_weight_truck" />
+                                            <BaseInputNumber v-model="form.loaded_weight_truck" :minFractionDigits="0" :maxFractionDigits="3" :disabled="isLocked || customSettings?.batching?.manual_weight === 0" label="Full Weight" required :error="form.errors.loaded_weight_truck" />
                                         </div>
                                         <button v-if="!isLocked && !customSettings?.batching?.manual_weight && form.net_weight<=0" @click="handleWeightCapture('loaded')" type="button" 
                                             :class="['p-2.5 rounded-xl transition-all duration-200 border shadow-sm flex items-center justify-center', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 

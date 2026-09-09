@@ -14,6 +14,14 @@ class ConcreteBatchingSchedule extends Model
 {
     use HasFactory, SoftDeletes, PlantScoping, TracksModelChanges;
 
+    public const PUMP_TYPES = [
+        'boom_pump',
+        'line_pump',
+        'crane_bucket',
+        'direct_pour',
+        'stationary_pump',
+    ];
+
     protected $table = 'mm_concrete_batching_schedules';
 
     protected $guarded = [];
@@ -98,6 +106,11 @@ class ConcreteBatchingSchedule extends Model
     public function salesOrder(): BelongsTo
     {
         return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(Batch::class, 'batch_id');
     }
 
     public function dispatch(): BelongsTo
@@ -217,7 +230,18 @@ class ConcreteBatchingSchedule extends Model
             return;
         }
 
-        $orderVolume = (float) ($schedules->first()->order_volume_m3 ?? 0);
+        $salesOrderId = $schedules->first(fn($s) => !empty($s->sales_order_id))?->sales_order_id;
+        $orderVolume = 0.0;
+        if ($salesOrderId) {
+            $salesOrder = SalesOrder::find($salesOrderId);
+            if ($salesOrder && (float)$salesOrder->total_qty > 0) {
+                $orderVolume = (float) $salesOrder->total_qty;
+            }
+        }
+        if ($orderVolume <= 0) {
+            $orderVolume = (float) ($schedules->first()->order_volume_m3 ?? 0);
+        }
+
         $cumulative = 0.0;
 
         foreach ($schedules as $item) {

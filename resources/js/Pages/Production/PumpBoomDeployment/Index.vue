@@ -1,9 +1,17 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
+import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
+import PumpDeploymentForm from './components/PumpDeploymentForm.vue';
 import { Link } from '@inertiajs/vue3';
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
+import BaseInput from '@/Components/Base/BaseInput.vue';
+import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
+import Column from 'primevue/column';
+import Tag from 'primevue/tag';
+import Dropdown from '@/Components/Dropdown.vue';
 import {
     WrenchScrewdriverIcon,
     ArrowPathIcon,
@@ -15,10 +23,15 @@ import {
     StopIcon,
     PencilSquareIcon,
     TrashIcon,
+    UserIcon,
+    TruckIcon,
+    ClockIcon,
+    CheckCircleIcon,
+    XCircleIcon,
+    EllipsisVerticalIcon,
     ExclamationTriangleIcon,
-    InformationCircleIcon,
-    XMarkIcon,
-    UserIcon
+    ListBulletIcon,
+    DocumentTextIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -27,6 +40,10 @@ const props = defineProps({
     initialDate: String,
     initialFilters: Object,
 });
+
+// View management: 'list' | 'create' | 'edit'
+const activeView = ref('list');
+const selectedDeployment = ref(null);
 
 // 7 Operational Filters: Schedule date, Site, Pour location, Pump type, Pump number, Operator, Status
 const filters = ref({
@@ -59,36 +76,42 @@ const dropdowns = ref({
     pumpTypes: []
 });
 
-const isModalOpen = ref(false);
-const isEditing = ref(false);
-const editingId = ref(null);
-const saving = ref(false);
+// Dropdown option maps for filter dropdowns
+const siteFilterOptions = computed(() => [
+    { label: 'All Sites', value: 'all' },
+    ...(props.dropdowns?.sites || dropdowns.value.sites || []).map(s => ({ label: s.name, value: s.id }))
+]);
 
-const form = ref({
-    schedule_date: filters.value.schedule_date,
-    pour_reference: '',
-    site_id: '',
-    site_name: '',
-    pour_location: '',
-    mix_design_id: '',
-    grade: '',
-    planned_qty_m3: 45.0,
-    pump_type: 'boom_pump',
-    pump_vehicle_id: '',
-    pump_no: '',
-    boom_length_m: 36.0,
-    operator_id: '',
-    operator_name: '',
-    pump_arrival_time: '',
-    setup_start_time: '',
-    setup_end_time: '',
-    pour_start_time: '',
-    planned_end_time: '',
-    actual_start_time: '',
-    actual_end_time: '',
-    status: 'scheduled',
-    notes: '',
-});
+const machineFilterOptions = computed(() => [
+    { label: 'All Machines', value: 'all' },
+    ...(props.dropdowns?.machines || dropdowns.value.machines || []).map(m => ({ label: `${m.registration} (${m.vehicle_model || 'Rig'})`, value: m.registration }))
+]);
+
+const operatorFilterOptions = computed(() => [
+    { label: 'All Operators', value: 'all' },
+    ...(props.dropdowns?.operators || dropdowns.value.operators || []).map(o => ({ label: `${o.first_name} ${o.last_name || ''}`, value: o.id }))
+]);
+
+const pumpTypeFilterOptions = [
+    { label: 'All Types', value: 'all' },
+    { label: 'Boom Pump', value: 'boom_pump' },
+    { label: 'Line Pump', value: 'line_pump' },
+    { label: 'Stationary Pump', value: 'stationary_pump' },
+    { label: 'Crane & Bucket', value: 'crane_bucket' },
+    { label: 'Direct Chute', value: 'direct_pour' },
+];
+
+const statusFilterOptions = [
+    { label: 'All Statuses', value: 'all' },
+    { label: 'Scheduled', value: 'scheduled' },
+    { label: 'En Route', value: 'en_route' },
+    { label: 'Setup', value: 'setup' },
+    { label: 'Ready', value: 'ready' },
+    { label: 'In Progress', value: 'in_progress' },
+    { label: 'Completed', value: 'completed' },
+    { label: 'Delayed', value: 'delayed' },
+    { label: 'Cancelled', value: 'cancelled' },
+];
 
 let pollTimer = null;
 let searchDebounceTimer = null;
@@ -151,11 +174,15 @@ onMounted(() => {
     fetchDropdowns();
     fetchData();
     pollTimer = setInterval(fetchData, 30000);
+    window.addEventListener('click', closeActionMenu);
+    window.addEventListener('scroll', closeActionMenu, true);
 });
 
 onUnmounted(() => {
     if (pollTimer) clearInterval(pollTimer);
     if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    window.removeEventListener('click', closeActionMenu);
+    window.removeEventListener('scroll', closeActionMenu, true);
 });
 
 // Real-time client-side filter computation
@@ -183,192 +210,59 @@ const filteredDeployments = computed(() => {
     });
 });
 
-const onSiteSelect = () => {
-    const s = dropdowns.value.sites.find(item => item.id == form.value.site_id);
-    if (s) form.value.site_name = s.name;
+// View Navigation Actions (No Modals)
+const openCreateForm = () => {
+    selectedDeployment.value = null;
+    activeView.value = 'create';
 };
 
-const onMixSelect = () => {
-    const m = dropdowns.value.mixDesigns.find(item => item.id == form.value.mix_design_id);
-    if (m) form.value.grade = m.name;
+const openEditForm = (item) => {
+    selectedDeployment.value = item;
+    activeView.value = 'edit';
 };
 
-const onPumpSelect = () => {
-    const p = dropdowns.value.machines.find(item => item.id == form.value.pump_vehicle_id);
-    if (p) form.value.pump_no = p.registration;
+const handleFormSaved = () => {
+    activeView.value = 'list';
+    selectedDeployment.value = null;
+    fetchData();
 };
 
-const onOperatorSelect = () => {
-    const o = dropdowns.value.operators.find(item => item.id == form.value.operator_id);
-    if (o) form.value.operator_name = o.first_name + ' ' + (o.last_name || '');
+const handleFormCancel = () => {
+    activeView.value = 'list';
+    selectedDeployment.value = null;
 };
 
-// Automated Status Transitions on Time Entry
-const onActualStartInput = () => {
-    if (form.value.actual_start_time) {
-        if (form.value.actual_end_time) {
-            form.value.status = 'completed';
-        } else if (!['delayed', 'cancelled'].includes(form.value.status)) {
-            // Recording an actual start changes status to In Progress
-            form.value.status = 'in_progress';
-        }
+const getRowClass = (data) => {
+    if (!data) return '';
+    if (data.status === 'delayed') return 'bg-orange-50/30 dark:bg-orange-950/20';
+    if (data.status === 'cancelled') return 'opacity-60 bg-gray-50/40 dark:bg-gray-800/40';
+    return '';
+};
+
+// Floating Action Menu Popover (Teleported to avoid overflow clipping)
+const activeActionMenu = ref(null);
+
+const openActionMenu = (event, item) => {
+    event.stopPropagation();
+    if (activeActionMenu.value?.id === item.id) {
+        activeActionMenu.value = null;
+        return;
     }
-};
+    const rect = event.currentTarget.getBoundingClientRect();
+    const menuHeight = 240;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpwards = spaceBelow < menuHeight && rect.top > menuHeight;
 
-const onActualEndInput = () => {
-    if (form.value.actual_end_time) {
-        if (!['cancelled'].includes(form.value.status)) {
-            // Recording an actual end changes status to Completed
-            form.value.status = 'completed';
-        }
-    }
-};
-
-// Modal Openers
-const openCreateModal = () => {
-    isEditing.value = false;
-    editingId.value = null;
-    form.value = {
-        schedule_date: filters.value.schedule_date || new Date().toISOString().substring(0, 10),
-        pour_reference: '',
-        site_id: dropdowns.value.sites[0]?.id || '',
-        site_name: dropdowns.value.sites[0]?.name || '',
-        pour_location: '',
-        mix_design_id: dropdowns.value.mixDesigns[0]?.id || '',
-        grade: dropdowns.value.mixDesigns[0]?.name || '',
-        planned_qty_m3: 45.0,
-        pump_type: 'boom_pump',
-        pump_vehicle_id: '',
-        pump_no: '',
-        boom_length_m: 36.0,
-        operator_id: '',
-        operator_name: '',
-        pump_arrival_time: '',
-        setup_start_time: '',
-        setup_end_time: '',
-        pour_start_time: '',
-        planned_end_time: '',
-        actual_start_time: '',
-        actual_end_time: '',
-        status: 'scheduled', // New records default to Scheduled
-        notes: '',
+    activeActionMenu.value = {
+        item,
+        id: item.id,
+        top: openUpwards ? Math.max(10, rect.top - menuHeight) : rect.bottom + 4,
+        right: Math.max(12, window.innerWidth - rect.right),
     };
-    isModalOpen.value = true;
 };
 
-const openEditModal = (item) => {
-    isEditing.value = true;
-    editingId.value = item.id;
-    form.value = {
-        schedule_date: item.schedule_date,
-        pour_reference: item.pour_reference,
-        site_id: item.site_id || '',
-        site_name: item.site_name || '',
-        pour_location: item.pour_location || '',
-        mix_design_id: item.mix_design_id || '',
-        grade: item.grade || '',
-        planned_qty_m3: item.planned_qty_m3,
-        pump_type: item.pump_type || 'boom_pump',
-        pump_vehicle_id: item.pump_vehicle_id || '',
-        pump_no: item.pump_no || '',
-        boom_length_m: item.boom_length_m || 36.0,
-        operator_id: item.operator_id || '',
-        operator_name: item.operator_name || '',
-        pump_arrival_time: item.pump_arrival_time ? item.pump_arrival_time.substring(0, 16) : '',
-        setup_start_time: item.setup_start_time ? item.setup_start_time.substring(0, 16) : '',
-        setup_end_time: item.setup_end_time ? item.setup_end_time.substring(0, 16) : '',
-        pour_start_time: item.pour_start_time ? item.pour_start_time.substring(0, 16) : '',
-        planned_end_time: item.planned_end_time ? item.planned_end_time.substring(0, 16) : '',
-        actual_start_time: item.actual_start_time ? item.actual_start_time.substring(0, 16) : '',
-        actual_end_time: item.actual_end_time ? item.actual_end_time.substring(0, 16) : '',
-        notes: item.notes || '',
-        status: item.status,
-    };
-    isModalOpen.value = true;
-};
-
-// Form Save with strict Time Validations
-const saveDeployment = async () => {
-    // Rule 1: Every pour must have a schedule date and pour reference.
-    if (!form.value.schedule_date || !form.value.pour_reference?.trim()) {
-        Swal.fire('Required Field', 'Every pour must have a schedule date and pour reference.', 'warning');
-        return;
-    }
-
-    if (!form.value.pour_location?.trim() || !form.value.planned_qty_m3) {
-        Swal.fire('Required Fields', 'Please specify Pour Location and Planned Pour Volume.', 'warning');
-        return;
-    }
-
-    // Rule 2: Every scheduled pour must have a pump type and assigned pump.
-    if (!form.value.pump_type || (!form.value.pump_vehicle_id && !form.value.pump_no?.trim())) {
-        Swal.fire('Assigned Pump Required', 'Every scheduled pour must have a pump type and assigned pump.', 'warning');
-        return;
-    }
-
-    // Rule 3 & 4: Boom pump must have boom length. Stationary pump does not require boom length.
-    if (form.value.pump_type === 'boom_pump') {
-        const boomLen = parseFloat(form.value.boom_length_m);
-        if (isNaN(boomLen) || boomLen <= 0) {
-            Swal.fire('Boom Length Required', 'A boom pump must have a boom length (in meters).', 'warning');
-            return;
-        }
-    }
-
-    // Time Validation 1: setup_start_time cannot be later than setup_end_time.
-    if (form.value.setup_start_time && form.value.setup_end_time) {
-        if (new Date(form.value.setup_start_time) > new Date(form.value.setup_end_time)) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Time Validation Error',
-                text: 'setup_start_time cannot be later than setup_end_time.',
-                confirmButtonColor: '#dc2626'
-            });
-            return;
-        }
-    }
-
-    // Time Validation 2: actual_start_time cannot be later than actual_end_time.
-    if (form.value.actual_start_time && form.value.actual_end_time) {
-        if (new Date(form.value.actual_start_time) > new Date(form.value.actual_end_time)) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Time Validation Error',
-                text: 'actual_start_time cannot be later than actual_end_time.',
-                confirmButtonColor: '#dc2626'
-            });
-            return;
-        }
-    }
-
-    // Note: actual_end_time may be later than planned_end_time; this should not block completion.
-
-    saving.value = true;
-    try {
-        if (isEditing.value) {
-            await axios.put(route('production.pump-deployments.update', editingId.value), form.value);
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Pump deployment updated', timer: 2000, showConfirmButton: false });
-        } else {
-            await axios.post(route('production.pump-deployments.store'), form.value);
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Pump deployment scheduled', timer: 2000, showConfirmButton: false });
-        }
-        isModalOpen.value = false;
-        fetchData();
-    } catch (err) {
-        console.error('Error saving deployment:', err);
-        const errMsg = err.response?.data?.errors
-            ? Object.values(err.response.data.errors).flat().join('<br><br>')
-            : (err.response?.data?.message || 'Failed to save pump deployment.');
-
-        Swal.fire({
-            icon: 'error',
-            title: 'Validation / Overlap Conflict',
-            html: `<div class="text-left text-xs leading-relaxed">${errMsg}</div>`,
-            confirmButtonColor: '#4f46e5'
-        });
-    } finally {
-        saving.value = false;
-    }
+const closeActionMenu = () => {
+    activeActionMenu.value = null;
 };
 
 // 1-Click Operational Status Transition
@@ -381,7 +275,7 @@ const transitionStatus = async (item, nextStatus) => {
             toast: true,
             position: 'top-end',
             icon: 'success',
-            title: `Status changed to ${nextStatus.replace('_', ' ').toUpperCase()}`,
+            title: `Status updated to ${nextStatus.replace('_', ' ').toUpperCase()}`,
             showConfirmButton: false,
             timer: 2000
         });
@@ -397,16 +291,18 @@ const markDelayed = async (item) => {
     const { value: reason } = await Swal.fire({
         title: 'Mark Pour as Delayed',
         input: 'text',
-        inputLabel: 'Reason for delay (e.g. site access, weather, slump issue)',
+        inputLabel: 'Reason for delay (e.g. site access, weather, slump delay)',
+        inputValue: item.notes || '',
         inputPlaceholder: 'Enter delay notes...',
         showCancelButton: true,
-        confirmButtonColor: '#ea580c',
+        confirmButtonColor: '#f97316',
         confirmButtonText: 'Confirm Delay'
     });
 
     if (reason !== undefined) {
         await axios.patch(route('production.pump-deployments.update-status', item.id), {
-            status: 'delayed'
+            status: 'delayed',
+            notes: reason,
         });
         fetchData();
         Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Marked as Delayed', timer: 2000, showConfirmButton: false });
@@ -414,19 +310,24 @@ const markDelayed = async (item) => {
 };
 
 const markCancelled = async (item) => {
-    const result = await Swal.fire({
+    const { value: reason, isConfirmed } = await Swal.fire({
         title: 'Cancel Pour Deployment?',
-        text: `Are you sure you want to cancel pour "${item.pour_reference}"? This requires explicit planner confirmation.`,
+        text: `Are you sure you want to cancel pour "${item.pour_reference}"? This requires planner confirmation.`,
+        input: 'text',
+        inputLabel: 'Reason for cancellation (optional)',
+        inputValue: item.notes || '',
+        inputPlaceholder: 'Enter cancellation notes...',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#dc2626',
+        confirmButtonColor: '#ef4444',
         confirmButtonText: 'Yes, Cancel Pour'
     });
 
-    if (!result.isConfirmed) return;
+    if (!isConfirmed) return;
 
     await axios.patch(route('production.pump-deployments.update-status', item.id), {
-        status: 'cancelled'
+        status: 'cancelled',
+        notes: reason,
     });
     fetchData();
     Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'Pour deployment cancelled', timer: 2000, showConfirmButton: false });
@@ -438,7 +339,7 @@ const deleteDeployment = async (item) => {
         text: `Delete pump allocation for pour "${item.pour_reference}"?`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#dc2626',
+        confirmButtonColor: '#ef4444',
         confirmButtonText: 'Yes, Delete'
     });
 
@@ -456,8 +357,17 @@ const deleteDeployment = async (item) => {
 const formatTime = (ts) => {
     if (!ts) return '-';
     try {
-        const d = new Date(ts);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+        if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(ts)) {
+            const [h, m] = ts.split(':');
+            const hour = parseInt(h, 10);
+            const period = hour >= 12 ? 'PM' : 'AM';
+            const formattedHour = hour % 12 || 12;
+            return `${formattedHour}:${m} ${period}`;
+        }
+        const normalized = ts.replace('t', 'T');
+        const d = new Date(normalized);
+        if (isNaN(d.getTime())) return ts;
+        return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
     } catch (e) {
         return ts;
     }
@@ -466,734 +376,592 @@ const formatTime = (ts) => {
 const getStatusBadge = (status) => {
     switch (status) {
         case 'scheduled':
-            return { label: 'Scheduled', bg: 'bg-slate-100 text-slate-700 border-slate-300 font-semibold' };
+            return { label: 'Scheduled', severity: 'secondary' };
         case 'en_route':
-            return { label: 'En Route', bg: 'bg-sky-50 text-sky-700 border-sky-300 font-semibold' };
+            return { label: 'En Route', severity: 'info' };
         case 'setup':
-            return { label: 'Setup / Rigging', bg: 'bg-amber-50 text-amber-800 border-amber-300 font-semibold' };
+            return { label: 'Setup', severity: 'warn' };
         case 'ready':
-            return { label: 'Ready & Primed', bg: 'bg-indigo-50 text-indigo-700 border-indigo-300 font-semibold' };
+            return { label: 'Ready', severity: 'info' };
         case 'in_progress':
         case 'pumping':
-            return { label: 'In Progress', bg: 'bg-blue-50 text-blue-800 border-blue-300 font-bold' };
+            return { label: 'In Progress', severity: 'info' };
         case 'washout':
-            return { label: 'Line Washout', bg: 'bg-purple-50 text-purple-700 border-purple-300' };
+            return { label: 'Washout', severity: 'secondary' };
         case 'completed':
-            return { label: 'Completed', bg: 'bg-emerald-50 text-emerald-800 border-emerald-300 font-bold' };
+            return { label: 'Completed', severity: 'success' };
         case 'delayed':
-            return { label: 'Delayed', bg: 'bg-orange-50 text-orange-700 border-orange-300 font-bold' };
+            return { label: 'Delayed', severity: 'warn' };
         case 'breakdown':
-            return { label: 'Breakdown', bg: 'bg-rose-50 text-rose-700 border-rose-300 font-bold' };
+            return { label: 'Breakdown', severity: 'danger' };
         case 'cancelled':
-            return { label: 'Cancelled', bg: 'bg-slate-100 text-slate-500 border-slate-300' };
+            return { label: 'Cancelled', severity: 'danger' };
         default:
-            return { label: status, bg: 'bg-slate-100 text-slate-700 border-slate-300' };
+            return { label: status, severity: 'secondary' };
     }
 };
 </script>
 
 <template>
-    <AppLayout title="Pump & Boom Deployment Operations">
-        <!-- SAP Fiori Quartz Light Shell Frame -->
-        <div class="bg-[#f4f6f9] min-h-screen text-[#1d2d3e] font-sans antialiased pb-12">
-            
-            <!-- Shell Header Bar -->
-            <div class="bg-[#1d2d3e] text-white px-6 py-4 shadow flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#2d3e50]">
-                <div class="flex items-center gap-3">
-                    <div class="w-8 h-8 rounded bg-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
-                        <WrenchScrewdriverIcon class="w-4 h-4 text-white" />
-                    </div>
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[10px] uppercase font-bold text-slate-300 tracking-wider">Concrete Placement Logistics</span>
-                            <span class="text-[10px] bg-[#2a3c50] text-sky-300 px-2 py-0.5 rounded font-mono font-semibold">Plant Scoped</span>
+    <AppLayout title="Pump & Boom Deployments">
+        <div class="py-2 px-2 sm:px-4 w-full">
+            <ModuleSubTopNav />
+
+            <div class="w-full mt-3 space-y-3">
+                
+                <!-- Main Header Card in Indigo Theme -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xs border border-gray-200 dark:border-gray-700 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+                            <WrenchScrewdriverIcon class="w-5 h-5 text-white" />
                         </div>
-                        <h1 class="text-base font-bold tracking-tight text-white mt-0.5">Pour Schedule & Pump Deployment</h1>
-                    </div>
-                </div>
-
-                <!-- Right Header Actions -->
-                <div class="flex items-center gap-2">
-                    <Link 
-                        :href="route('production.batching-schedules.index')" 
-                        class="px-3 py-2 bg-[#2a3c50] hover:bg-[#374c63] text-slate-200 rounded text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                    >
-                        <CalendarIcon class="w-4 h-4 text-sky-400" />
-                        <span>Batching Schedules</span>
-                    </Link>
-
-                    <button 
-                        @click="fetchData" 
-                        :disabled="loading"
-                        class="p-2 bg-[#2a3c50] hover:bg-[#374c63] text-white rounded text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                        title="Refresh Live Data"
-                    >
-                        <ArrowPathIcon class="w-4 h-4" :class="{ 'animate-spin': loading }" />
-                    </button>
-
-                    <button 
-                        @click="openCreateModal"
-                        class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
-                    >
-                        <PlusIcon class="w-4 h-4 stroke-[2.5]" />
-                        <span>Deploy Pump / Boom</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="px-6 pt-5 space-y-5">
-
-                <!-- 1. Operational KPI Cards -->
-                <div class="grid grid-cols-2 lg:grid-cols-6 gap-3.5">
-                    <div class="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-                        <span class="text-[10px] font-bold uppercase text-slate-400 tracking-wider block">Total Deployments</span>
-                        <div class="mt-1.5 flex items-baseline justify-between">
-                            <span class="text-2xl font-black text-slate-800">{{ metrics.total_deployments }}</span>
-                            <span class="text-xs font-bold text-slate-400">Rigs</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-                        <span class="text-[10px] font-bold uppercase text-indigo-600 tracking-wider block">Planned Placement</span>
-                        <div class="mt-1.5 flex items-baseline justify-between">
-                            <span class="text-2xl font-black text-indigo-700">{{ metrics.total_planned_m3 }}</span>
-                            <span class="text-xs font-bold text-indigo-600">m³</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-                        <span class="text-[10px] font-bold uppercase text-blue-600 tracking-wider block">In Progress</span>
-                        <div class="mt-1.5 flex items-baseline justify-between">
-                            <span class="text-2xl font-black text-blue-700">{{ metrics.active_pumping_count }}</span>
-                            <span class="text-xs font-bold text-blue-600">Active</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-                        <span class="text-[10px] font-bold uppercase text-amber-600 tracking-wider block">Setup & Priming</span>
-                        <div class="mt-1.5 flex items-baseline justify-between">
-                            <span class="text-2xl font-black text-amber-700">{{ metrics.setup_in_progress }}</span>
-                            <span class="text-xs font-bold text-amber-600">Pumps</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-                        <span class="text-[10px] font-bold uppercase text-emerald-600 tracking-wider block">Completed Pours</span>
-                        <div class="mt-1.5 flex items-baseline justify-between">
-                            <span class="text-2xl font-black text-emerald-700">{{ metrics.completed_deployments }}</span>
-                            <span class="text-xs font-bold text-emerald-600">Pours</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-white rounded-lg p-3.5 border border-slate-200 shadow-sm">
-                        <span class="text-[10px] font-bold uppercase text-orange-600 tracking-wider block">Delayed Pours</span>
-                        <div class="mt-1.5 flex items-baseline justify-between">
-                            <span class="text-2xl font-black text-orange-700">{{ metrics.delayed_count }}</span>
-                            <span class="text-xs font-bold text-orange-600">Alerts</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2. Main Screen Pour Schedule Table with 7 Filters -->
-                <div class="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-                    
-                    <!-- 7 Operational Filter Bar -->
-                    <div class="p-4 border-b border-slate-200 bg-slate-50/80 space-y-3">
-                        <div class="flex items-center justify-between">
+                        <div>
                             <div class="flex items-center gap-2">
-                                <FunnelIcon class="w-4 h-4 text-indigo-600" />
-                                <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Schedule View Filters</span>
+                                <span class="text-[10px] uppercase font-bold tracking-wider text-indigo-600 dark:text-indigo-400">
+                                    Placement & Production Logistics
+                                </span>
+                                <span class="text-[9px] bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.2 rounded font-mono font-semibold border border-indigo-100 dark:border-indigo-900">
+                                    Plant Active
+                                </span>
                             </div>
-                            <button 
-                                @click="resetFilters" 
-                                class="text-[11px] font-bold text-slate-500 hover:text-indigo-600 transition-colors flex items-center gap-1"
-                            >
-                                <ArrowPathIcon class="w-3.5 h-3.5" />
-                                <span>Reset All Filters</span>
-                            </button>
-                        </div>
-
-                        <!-- Filter Grid: 7 filters strictly covered -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5">
-                            
-                            <!-- 1. Schedule Date Filter -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Schedule Date</label>
-                                <input 
-                                    type="date" 
-                                    v-model="filters.schedule_date" 
-                                    @change="fetchData"
-                                    class="w-full text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-600"
-                                />
-                            </div>
-
-                            <!-- 2. Site Filter -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Site</label>
-                                <select 
-                                    v-model="filters.site_id" 
-                                    @change="fetchData"
-                                    class="w-full text-xs text-slate-700 bg-white border border-slate-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-600"
-                                >
-                                    <option value="all">All Sites</option>
-                                    <option v-for="site in dropdowns.sites" :key="site.id" :value="site.id">
-                                        {{ site.name }}
-                                    </option>
-                                </select>
-                            </div>
-
-                            <!-- 3. Pour Location Filter -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pour Location</label>
-                                <input 
-                                    type="text" 
-                                    v-model="filters.pour_location" 
-                                    @input="onLocationSearchInput"
-                                    placeholder="e.g. Raft, Slab, Column..." 
-                                    class="w-full text-xs text-slate-700 bg-white border border-slate-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-600"
-                                />
-                            </div>
-
-                            <!-- 4. Pump Type Filter -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pump Type</label>
-                                <select 
-                                    v-model="filters.pump_type" 
-                                    @change="fetchData"
-                                    class="w-full text-xs text-slate-700 bg-white border border-slate-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-600"
-                                >
-                                    <option value="all">All Pump Types</option>
-                                    <option value="boom_pump">Boom Pump</option>
-                                    <option value="line_pump">Line Pump</option>
-                                    <option value="stationary_pump">Stationary Pump</option>
-                                    <option value="crane_bucket">Crane & Bucket</option>
-                                    <option value="direct_pour">Direct Chute</option>
-                                </select>
-                            </div>
-
-                            <!-- 5. Pump Number Filter -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pump Number</label>
-                                <select 
-                                    v-model="filters.pump_no" 
-                                    @change="fetchData"
-                                    class="w-full text-xs text-slate-700 bg-white border border-slate-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-600"
-                                >
-                                    <option value="all">All Pumps</option>
-                                    <option v-for="m in dropdowns.machines" :key="m.id" :value="m.registration">
-                                        {{ m.registration }} ({{ m.vehicle_model || 'Rig' }})
-                                    </option>
-                                </select>
-                            </div>
-
-                            <!-- 6. Operator Filter -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Operator</label>
-                                <select 
-                                    v-model="filters.operator_id" 
-                                    @change="fetchData"
-                                    class="w-full text-xs text-slate-700 bg-white border border-slate-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-600"
-                                >
-                                    <option value="all">All Operators</option>
-                                    <option v-for="op in dropdowns.operators" :key="op.id" :value="op.id">
-                                        {{ op.first_name }} {{ op.last_name || '' }}
-                                    </option>
-                                </select>
-                            </div>
-
-                            <!-- 7. Status Filter -->
-                            <div>
-                                <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Status</label>
-                                <select 
-                                    v-model="filters.status" 
-                                    @change="fetchData"
-                                    class="w-full text-xs text-slate-700 bg-white border border-slate-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-indigo-600 font-semibold"
-                                >
-                                    <option value="all">All Statuses</option>
-                                    <option value="scheduled">Scheduled</option>
-                                    <option value="in_progress">In Progress</option>
-                                    <option value="setup">Setup</option>
-                                    <option value="ready">Ready</option>
-                                    <option value="completed">Completed</option>
-                                    <option value="delayed">Delayed</option>
-                                    <option value="cancelled">Cancelled</option>
-                                </select>
-                            </div>
-
-                        </div>
-
-                        <!-- Status Quick-Filter Pills -->
-                        <div class="flex items-center gap-1.5 pt-1 overflow-x-auto whitespace-nowrap">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase mr-1">Quick Status:</span>
-                            <button 
-                                v-for="st in [
-                                    { id: 'all', label: 'All' },
-                                    { id: 'scheduled', label: 'Scheduled' },
-                                    { id: 'in_progress', label: 'In Progress' },
-                                    { id: 'setup', label: 'Setup' },
-                                    { id: 'ready', label: 'Ready' },
-                                    { id: 'completed', label: 'Completed' },
-                                    { id: 'delayed', label: 'Delayed' },
-                                    { id: 'cancelled', label: 'Cancelled' }
-                                ]"
-                                :key="st.id"
-                                @click="filters.status = st.id; fetchData()"
-                                class="px-2.5 py-0.5 rounded-full text-[11px] font-bold transition-all border"
-                                :class="filters.status === st.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white text-slate-600 hover:bg-slate-100 border-slate-200'"
-                            >
-                                {{ st.label }}
-                            </button>
+                            <h1 class="text-sm sm:text-base font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
+                                Concrete Pour Schedule & Pump Deployments
+                            </h1>
                         </div>
                     </div>
 
-                    <!-- PRIMARY OPERATIONAL VIEW TABLE -->
-                    <!-- Sequence: What pour → Where → When → Quantity → Which pump → Which operator → Current status -->
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <thead>
-                                <tr class="bg-slate-100/90 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
-                                    <th class="py-3 px-3.5 text-center w-12">#</th>
-                                    <th class="py-3 px-3.5">1. What Pour</th>
-                                    <th class="py-3 px-3.5">2. Where (Site & Location)</th>
-                                    <th class="py-3 px-3.5">3. When (Date & Timelines)</th>
-                                    <th class="py-3 px-3.5 text-right">4. Quantity</th>
-                                    <th class="py-3 px-3.5">5. Which Pump</th>
-                                    <th class="py-3 px-3.5">6. Which Operator</th>
-                                    <th class="py-3 px-3.5 text-center">7. Current Status</th>
-                                    <th class="py-3 px-3.5 text-right">Operational Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100 font-medium">
-                                <tr v-if="filteredDeployments.length === 0">
-                                    <td colspan="9" class="py-14 text-center text-slate-400 italic">
-                                        No pour deployments matching the selected filters. Click "Deploy Pump / Boom" to schedule one.
-                                    </td>
-                                </tr>
+                    <!-- Actions -->
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <Link 
+                            :href="route('production.batching-schedules.index')" 
+                            class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+                        >
+                            <CalendarIcon class="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Batching Schedules</span>
+                        </Link>
 
-                                <tr 
-                                    v-for="item in filteredDeployments" 
-                                    :key="item.id"
-                                    class="hover:bg-slate-50/90 transition-colors"
-                                    :class="{
-                                        'bg-orange-50/30': item.status === 'delayed',
-                                        'opacity-60 bg-slate-50/50': item.status === 'cancelled'
-                                    }"
+                        <button 
+                            @click="fetchData" 
+                            :disabled="loading"
+                            class="p-1.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-semibold flex items-center transition-colors shadow-xs"
+                            title="Refresh Live Data"
+                        >
+                            <ArrowPathIcon class="w-3.5 h-3.5" :class="{ 'animate-spin': loading }" />
+                        </button>
+
+                        <button 
+                            v-if="activeView === 'list'"
+                            @click="openCreateForm"
+                            class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                        >
+                            <PlusIcon class="w-3.5 h-3.5 stroke-[2.5]" />
+                            <span>Deploy Pump / Boom</span>
+                        </button>
+
+                        <button 
+                            v-else
+                            @click="activeView = 'list'"
+                            class="px-3.5 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+                        >
+                            <ListBulletIcon class="w-3.5 h-3.5" />
+                            <span>View All Schedules</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- VIEW 1: CREATE / EDIT FORM (COMPLETELY REPLACING MODAL) -->
+                <div v-if="activeView !== 'list'">
+                    <PumpDeploymentForm
+                        :isEditing="activeView === 'edit'"
+                        :initialData="selectedDeployment"
+                        :dropdowns="dropdowns"
+                        :defaultScheduleDate="filters.schedule_date"
+                        @saved="handleFormSaved"
+                        @cancel="handleFormCancel"
+                    />
+                </div>
+
+                <!-- VIEW 2: LIST DASHBOARD WITH KPI METRICS & FILTERS -->
+                <div v-else class="space-y-3">
+
+                    <!-- 1. Operational KPI Cards -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span class="text-[9px] font-bold uppercase text-gray-400 dark:text-gray-500 tracking-wider block">Total Deployments</span>
+                            <div class="mt-0.5 flex items-baseline justify-between">
+                                <span class="text-lg font-black text-gray-900 dark:text-gray-100">{{ metrics.total_deployments }}</span>
+                                <span class="text-[10px] font-semibold text-gray-400">Rigs</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span class="text-[9px] font-bold uppercase text-indigo-600 dark:text-indigo-400 tracking-wider block">Planned Volume</span>
+                            <div class="mt-0.5 flex items-baseline justify-between">
+                                <span class="text-lg font-black text-indigo-600 dark:text-indigo-400">{{ metrics.total_planned_m3 }}</span>
+                                <span class="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">m³</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span class="text-[9px] font-bold uppercase text-blue-600 dark:text-blue-400 tracking-wider block">Active Pumping</span>
+                            <div class="mt-0.5 flex items-baseline justify-between">
+                                <span class="text-lg font-black text-blue-600 dark:text-blue-400">{{ metrics.active_pumping_count }}</span>
+                                <span class="text-[10px] font-semibold text-blue-600 dark:text-blue-400">Pumps</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span class="text-[9px] font-bold uppercase text-amber-600 dark:text-amber-400 tracking-wider block">Setup & Rigging</span>
+                            <div class="mt-0.5 flex items-baseline justify-between">
+                                <span class="text-lg font-black text-amber-600 dark:text-amber-400">{{ metrics.setup_in_progress }}</span>
+                                <span class="text-[10px] font-semibold text-amber-600 dark:text-amber-400">Rigs</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span class="text-[9px] font-bold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider block">Completed Pours</span>
+                            <div class="mt-0.5 flex items-baseline justify-between">
+                                <span class="text-lg font-black text-emerald-600 dark:text-emerald-400">{{ metrics.completed_deployments }}</span>
+                                <span class="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Pours</span>
+                            </div>
+                        </div>
+
+                        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 shadow-xs">
+                            <span class="text-[9px] font-bold uppercase text-orange-600 dark:text-orange-400 tracking-wider block">Delayed Pours</span>
+                            <div class="mt-0.5 flex items-baseline justify-between">
+                                <span class="text-lg font-black text-orange-600 dark:text-orange-400">{{ metrics.delayed_count }}</span>
+                                <span class="text-[10px] font-semibold text-orange-600 dark:text-orange-400">Alerts</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Main Filter & Schedule Table Card -->
+                    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xs overflow-hidden text-xs">
+                        
+                        <!-- 7 Operational Filter Bar -->
+                        <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/30 space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-1.5">
+                                    <FunnelIcon class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                                    <span class="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider">
+                                        Operational Filters
+                                    </span>
+                                </div>
+                                <button 
+                                    @click="resetFilters" 
+                                    class="text-[10px] font-bold text-gray-500 hover:text-indigo-600 dark:text-gray-400 dark:hover:text-indigo-400 transition-colors flex items-center gap-1"
                                 >
-                                    <!-- ID -->
-                                    <td class="py-3.5 px-3.5 text-center font-bold text-slate-500">
-                                        #{{ item.id }}
-                                    </td>
+                                    <ArrowPathIcon class="w-3 h-3" />
+                                    <span>Reset Filters</span>
+                                </button>
+                            </div>
 
-                                    <!-- 1. WHAT POUR -->
-                                    <td class="py-3.5 px-3.5">
-                                        <div class="font-bold text-slate-900 flex items-center gap-1.5">
-                                            <span>{{ item.pour_reference }}</span>
+                            <!-- Filter Grid -->
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                                
+                                <!-- 1. Date -->
+                                <div>
+                                    <BaseInput
+                                        v-model="filters.schedule_date"
+                                        type="date"
+                                        label="Date"
+                                        @update:modelValue="fetchData"
+                                    />
+                                </div>
+
+                                <!-- 2. Site -->
+                                <div>
+                                    <BaseSelect
+                                        v-model="filters.site_id"
+                                        :options="siteFilterOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        label="Site"
+                                        @change="fetchData"
+                                    />
+                                </div>
+
+                                <!-- 3. Pour Location -->
+                                <div>
+                                    <BaseInput
+                                        v-model="filters.pour_location"
+                                        type="text"
+                                        label="Location"
+                                        placeholder="Raft, Slab..."
+                                        @update:modelValue="onLocationSearchInput"
+                                    />
+                                </div>
+
+                                <!-- 4. Pump Type -->
+                                <div>
+                                    <BaseSelect
+                                        v-model="filters.pump_type"
+                                        :options="pumpTypeFilterOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        label="Pump Type"
+                                        @change="fetchData"
+                                    />
+                                </div>
+
+                                <!-- 5. Pump Rig Number -->
+                                <div>
+                                    <BaseSelect
+                                        v-model="filters.pump_no"
+                                        :options="machineFilterOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        label="Machine"
+                                        @change="fetchData"
+                                    />
+                                </div>
+
+                                <!-- 6. Operator -->
+                                <div>
+                                    <BaseSelect
+                                        v-model="filters.operator_id"
+                                        :options="operatorFilterOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        label="Operator"
+                                        @change="fetchData"
+                                    />
+                                </div>
+
+                                <!-- 7. Status -->
+                                <div>
+                                    <BaseSelect
+                                        v-model="filters.status"
+                                        :options="statusFilterOptions"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        label="Status"
+                                        @change="fetchData"
+                                    />
+                                </div>
+
+                            </div>
+
+                            <!-- Quick Status Filter Pills in Indigo Theme -->
+                            <div class="flex items-center gap-1.5 pt-0.5 overflow-x-auto whitespace-nowrap">
+                                <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase mr-1">Status:</span>
+                                <button 
+                                    v-for="st in [
+                                        { id: 'all', label: 'All' },
+                                        { id: 'scheduled', label: 'Scheduled' },
+                                        { id: 'in_progress', label: 'In Progress' },
+                                        { id: 'setup', label: 'Setup' },
+                                        { id: 'ready', label: 'Ready' },
+                                        { id: 'completed', label: 'Completed' },
+                                        { id: 'delayed', label: 'Delayed' },
+                                        { id: 'cancelled', label: 'Cancelled' }
+                                    ]"
+                                    :key="st.id"
+                                    @click="filters.status = st.id; fetchData()"
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold transition-all border"
+                                    :class="filters.status === st.id ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs' : 'bg-white dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-600 border-gray-200 dark:border-gray-600'"
+                                >
+                                    {{ st.label }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Data Table using BaseDataTable -->
+                        <div class="w-full">
+                            <BaseDataTable
+                                :value="filteredDeployments"
+                                :loading="loading"
+                                dataKey="id"
+                                :paginator="true"
+                                :rows="20"
+                                :rowsPerPageOptions="[10, 20, 50, 100]"
+                                :showSerial="true"
+                                :rowClass="getRowClass"
+                                class="text-xs"
+                            >
+                                <!-- Pour Reference & Mix -->
+                                <Column field="pour_reference" header="Pour Reference" :sortable="true">
+                                    <template #body="{ data }">
+                                        <div class="font-semibold text-gray-900 dark:text-gray-100 text-xs">
+                                            {{ data.pour_reference }}
                                         </div>
-                                        <div class="mt-0.5 flex items-center gap-1 text-[11px]">
-                                            <span class="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
-                                                {{ item.grade || item.mix_design?.name || 'Standard Mix' }}
+                                        <div class="mt-0.5">
+                                            <span class="inline-block px-1.5 py-0.2 rounded text-[9px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-900">
+                                                {{ data.grade || data.mix_design?.name || 'Standard Mix' }}
                                             </span>
                                         </div>
-                                    </td>
+                                    </template>
+                                </Column>
 
-                                    <!-- 2. WHERE (Site & Location) -->
-                                    <td class="py-3.5 px-3.5">
-                                        <div class="font-bold text-slate-800 flex items-center gap-1">
-                                            <MapPinIcon class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                            <span>{{ item.site_name || item.site?.name || 'Unspecified Site' }}</span>
+                                <!-- Destination & Site -->
+                                <Column field="site_name" header="Destination & Site" :sortable="true">
+                                    <template #body="{ data }">
+                                        <div class="font-semibold text-gray-800 dark:text-gray-200 text-xs flex items-center gap-1">
+                                            <MapPinIcon class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                                            <span class="truncate max-w-[140px]" :title="data.site_name || data.site?.name">{{ data.site_name || data.site?.name || 'Unspecified Site' }}</span>
                                         </div>
-                                        <div class="text-[11px] text-slate-500 font-semibold mt-0.5 pl-4.5">
-                                            {{ item.pour_location }}
+                                        <div v-if="data.pour_location" class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 pl-4.5 truncate max-w-[140px]" :title="data.pour_location">
+                                            {{ data.pour_location }}
                                         </div>
-                                    </td>
+                                    </template>
+                                </Column>
 
-                                    <!-- 3. WHEN (Date & Timelines) -->
-                                    <td class="py-3.5 px-3.5 text-[11px]">
-                                        <div class="font-bold text-slate-800 flex items-center gap-1">
-                                            <CalendarIcon class="w-3.5 h-3.5 text-slate-400" />
-                                            <span>{{ item.schedule_date }}</span>
+                                <!-- Timelines -->
+                                <Column field="schedule_date" header="Timelines" :sortable="true">
+                                    <template #body="{ data }">
+                                        <div class="flex items-center gap-1 text-[11px] text-gray-700 dark:text-gray-300 font-medium">
+                                            <CalendarIcon class="w-3 h-3 text-gray-400 shrink-0" />
+                                            <span>{{ data.schedule_date }}</span>
                                         </div>
-                                        <div class="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-1 text-[10px] text-slate-500">
-                                            <div>Target: <strong class="text-slate-700">{{ formatTime(item.pour_start_time) }}</strong></div>
-                                            <div>Plan End: <strong class="text-slate-700">{{ formatTime(item.planned_end_time) }}</strong></div>
-                                            <div>Act Start: <strong class="text-blue-700 font-bold">{{ formatTime(item.actual_start_time) }}</strong></div>
-                                            <div>Act End: <strong class="text-emerald-700 font-bold">{{ formatTime(item.actual_end_time) }}</strong></div>
+                                        <div class="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5 flex items-center gap-1 whitespace-nowrap">
+                                            <span class="text-gray-400">Target:</span>
+                                            <span class="font-medium text-gray-800 dark:text-gray-200">{{ formatTime(data.pour_start_time) }} - {{ formatTime(data.planned_end_time) }}</span>
                                         </div>
-                                    </td>
+                                        <div v-if="data.actual_start_time || data.actual_end_time" class="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5 flex items-center gap-1 whitespace-nowrap">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                                            <span>Act: {{ formatTime(data.actual_start_time) }} <template v-if="data.actual_end_time">- {{ formatTime(data.actual_end_time) }}</template></span>
+                                        </div>
+                                    </template>
+                                </Column>
 
-                                    <!-- 4. QUANTITY -->
-                                    <td class="py-3.5 px-3.5 text-right">
-                                        <div class="font-black text-indigo-700 text-sm">
-                                            {{ item.planned_qty_m3 }} <span class="text-[10px] text-slate-400 font-normal">m³</span>
+                                <!-- Volume -->
+                                <Column field="planned_qty_m3" header="Volume" :sortable="true" align="right" headerClass="text-right">
+                                    <template #body="{ data }">
+                                        <div class="font-bold text-gray-900 dark:text-gray-100 text-xs">
+                                            {{ Number(data.planned_qty_m3 || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }} <span class="text-[9px] font-normal text-gray-500">m³</span>
                                         </div>
-                                        <div v-if="item.pumping_rate_m3_per_hour" class="text-[10px] text-teal-700 font-semibold">
-                                            ~{{ item.pumping_rate_m3_per_hour }} m³/h
+                                        <div v-if="data.pumping_rate_m3_per_hour" class="text-[9px] text-teal-600 dark:text-teal-400 font-medium mt-0.5">
+                                            ~{{ Number(data.pumping_rate_m3_per_hour).toFixed(1) }} m³/h
                                         </div>
-                                    </td>
+                                    </template>
+                                </Column>
 
-                                    <!-- 5. WHICH PUMP -->
-                                    <td class="py-3.5 px-3.5">
-                                        <div class="flex items-center gap-1.5">
+                                <!-- Pump Rig & Reach -->
+                                <Column field="pump_no" header="Pump Rig & Reach" :sortable="true">
+                                    <template #body="{ data }">
+                                        <div class="flex items-center gap-1">
                                             <span 
-                                                class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border"
-                                                :class="item.pump_type === 'boom_pump' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : (item.pump_type === 'stationary_pump' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-amber-50 text-amber-800 border-amber-200')"
+                                                class="px-1 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider border shrink-0"
+                                                :class="data.pump_type === 'boom_pump' ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' : 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'"
                                             >
-                                                {{ item.pump_type === 'boom_pump' ? 'Boom' : (item.pump_type === 'stationary_pump' ? 'Stationary' : (item.pump_type === 'line_pump' ? 'Line' : item.pump_type)) }}
+                                                {{ data.pump_type === 'boom_pump' ? 'Boom' : (data.pump_type === 'stationary_pump' ? 'Stationary' : (data.pump_type === 'line_pump' ? 'Line' : data.pump_type)) }}
                                             </span>
-                                            <strong class="text-slate-800">{{ item.pump_no || item.pump_machine?.registration || 'TBD' }}</strong>
+                                            <span class="font-semibold text-gray-800 dark:text-gray-200 text-xs whitespace-nowrap">
+                                                {{ data.pump_no || data.pump_machine?.registration || 'TBD' }}
+                                            </span>
                                         </div>
-                                        <div v-if="item.boom_length_m" class="text-[10px] text-slate-500 mt-0.5">
-                                            Reach / Line: <strong class="text-slate-700">{{ item.boom_length_m }}m</strong>
+                                        <div v-if="data.boom_length_m" class="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                            Reach: <span class="font-medium text-gray-700 dark:text-gray-300">{{ Number(data.boom_length_m).toFixed(0) }}m</span>
                                         </div>
-                                    </td>
+                                    </template>
+                                </Column>
 
-                                    <!-- 6. WHICH OPERATOR -->
-                                    <td class="py-3.5 px-3.5">
-                                        <div class="font-bold text-slate-700 flex items-center gap-1">
-                                            <UserIcon class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                            <span>{{ item.operator_name || (item.operator ? item.operator.first_name + ' ' + (item.operator.last_name || '') : 'Unassigned') }}</span>
+                                <!-- Operator -->
+                                <Column field="operator_name" header="Operator" :sortable="true">
+                                    <template #body="{ data }">
+                                        <div class="flex items-center gap-1 whitespace-nowrap">
+                                            <UserIcon class="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                            <span class="font-medium text-gray-800 dark:text-gray-200 text-xs truncate max-w-[110px]" :title="data.operator_name || (data.operator ? data.operator.first_name + ' ' + (data.operator.last_name || '') : 'Unassigned')">
+                                                {{ data.operator_name || (data.operator ? data.operator.first_name + ' ' + (data.operator.last_name || '') : 'Unassigned') }}
+                                            </span>
                                         </div>
-                                        <div v-if="item.operator?.phone" class="text-[10px] text-slate-400 pl-4.5">
-                                            {{ item.operator.phone }}
+                                        <div v-if="data.operator?.phone" class="text-[9px] text-gray-400 pl-4.5">
+                                            {{ data.operator.phone }}
                                         </div>
-                                    </td>
+                                    </template>
+                                </Column>
 
-                                    <!-- 7. CURRENT STATUS -->
-                                    <td class="py-3.5 px-3.5 text-center">
-                                        <span 
-                                            class="px-2.5 py-1 rounded-full text-[10px] font-bold border inline-block"
-                                            :class="getStatusBadge(item.status).bg"
-                                        >
-                                            {{ getStatusBadge(item.status).label }}
-                                        </span>
-                                    </td>
+                                <!-- Status Badge -->
+                                <Column field="status" header="Status" :sortable="true" align="center" headerClass="text-center">
+                                    <template #body="{ data }">
+                                        <div class="flex items-center justify-center">
+                                            <Tag 
+                                                :value="getStatusBadge(data.status).label" 
+                                                :severity="getStatusBadge(data.status).severity" 
+                                                rounded 
+                                                class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5"
+                                            />
+                                        </div>
+                                    </template>
+                                </Column>
 
-                                    <!-- OPERATIONAL ACTIONS -->
-                                    <td class="py-3.5 px-3.5 text-right">
-                                        <div class="flex items-center justify-end gap-1.5 flex-wrap">
+                                <!-- Actions -->
+                                <Column header="Actions" align="right" headerClass="text-right" style="width: 80px">
+                                    <template #body="{ data }">
+                                        <div class="flex items-center justify-end gap-1.5 whitespace-nowrap">
                                             
-                                            <!-- Action: Advance to Setup -->
+                                            <!-- Quick Primary Progression Action Button (Temporarily commented)
                                             <button 
-                                                v-if="item.status === 'scheduled'" 
-                                                @click="transitionStatus(item, 'setup')"
-                                                class="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded text-[10px] transition-colors"
+                                                v-if="data.status === 'scheduled'" 
+                                                @click="transitionStatus(data, 'setup')"
+                                                class="px-2 py-0.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded text-[11px] transition-colors shadow-xs"
                                                 title="Start Rigging & Setup"
                                             >
-                                                Start Setup
+                                                Setup
                                             </button>
 
-                                            <!-- Action: Advance to Ready -->
                                             <button 
-                                                v-else-if="item.status === 'setup'" 
-                                                @click="transitionStatus(item, 'ready')"
-                                                class="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded text-[10px] transition-colors"
+                                                v-else-if="data.status === 'setup'" 
+                                                @click="transitionStatus(data, 'ready')"
+                                                class="px-2 py-0.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded text-[11px] transition-colors shadow-xs"
                                                 title="Mark Setup Finished & Ready"
                                             >
-                                                Mark Ready
+                                                Ready
                                             </button>
 
-                                            <!-- Action: Start Pouring -> Status becomes In Progress -->
                                             <button 
-                                                v-else-if="['ready', 'scheduled'].includes(item.status)" 
-                                                @click="transitionStatus(item, 'in_progress')"
-                                                class="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-[10px] transition-colors flex items-center gap-1"
-                                                title="Record Actual Start (Changes status to In Progress)"
+                                                v-else-if="['ready', 'en_route'].includes(data.status)" 
+                                                @click="transitionStatus(data, 'in_progress')"
+                                                class="px-2 py-0.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded text-[11px] transition-colors flex items-center gap-1 shadow-xs"
+                                                title="Record Actual Start (In Progress)"
                                             >
-                                                <PlayIcon class="w-3 h-3" />
-                                                <span>Start Pour</span>
+                                                <PlayIcon class="w-2.5 h-2.5" />
+                                                <span>Start</span>
                                             </button>
 
-                                            <!-- Action: Complete Pour -> Status becomes Completed -->
                                             <button 
-                                                v-else-if="['in_progress', 'pumping'].includes(item.status)" 
-                                                @click="transitionStatus(item, 'completed')"
-                                                class="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-[10px] transition-colors flex items-center gap-1"
-                                                title="Record Actual End (Changes status to Completed)"
+                                                v-else-if="['in_progress', 'pumping'].includes(data.status)" 
+                                                @click="transitionStatus(data, 'completed')"
+                                                class="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded text-[11px] transition-colors flex items-center gap-1 shadow-xs"
+                                                title="Record Actual End (Completed)"
                                             >
-                                                <StopIcon class="w-3 h-3" />
-                                                <span>Complete</span>
+                                                <StopIcon class="w-2.5 h-2.5" />
+                                                <span>Finish</span>
+                                            </button>
+                                            -->
+
+                                            <!-- Edit Schedule -->
+                                            <button 
+                                                @click="openEditForm(data)"
+                                                class="p-1 text-gray-500 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                                                title="Edit Schedule"
+                                            >
+                                                <PencilSquareIcon class="w-3.5 h-3.5" />
                                             </button>
 
-                                            <!-- Explicit Delay Action -->
+                                            <!-- Popover Trigger Button -->
                                             <button 
-                                                v-if="!['completed', 'cancelled', 'delayed'].includes(item.status)"
-                                                @click="markDelayed(item)"
-                                                class="px-2 py-1 bg-orange-100 hover:bg-orange-200 text-orange-800 font-bold rounded text-[10px] transition-colors"
-                                                title="Explicitly Mark as Delayed"
+                                                type="button"
+                                                @click="(e) => openActionMenu(e, data)"
+                                                class="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                                                :class="{ 'bg-gray-100 dark:bg-gray-700 text-indigo-600 dark:text-indigo-400': activeActionMenu?.id === data.id }"
+                                                title="More Options"
                                             >
-                                                Delay
+                                                <EllipsisVerticalIcon class="w-4 h-4" />
                                             </button>
 
-                                            <!-- Explicit Cancel Action -->
-                                            <button 
-                                                v-if="!['completed', 'cancelled'].includes(item.status)"
-                                                @click="markCancelled(item)"
-                                                class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded text-[10px] transition-colors"
-                                                title="Explicitly Cancel Pour"
-                                            >
-                                                Cancel
-                                            </button>
-
-                                            <!-- Edit -->
-                                            <button 
-                                                @click="openEditModal(item)"
-                                                class="p-1 hover:bg-slate-200 text-slate-600 rounded transition-colors"
-                                                title="Edit Deployment Schedule"
-                                            >
-                                                <PencilSquareIcon class="w-4 h-4" />
-                                            </button>
-
-                                            <!-- Delete -->
-                                            <button 
-                                                @click="deleteDeployment(item)"
-                                                class="p-1 hover:bg-rose-100 text-rose-600 rounded transition-colors"
-                                                title="Delete Schedule"
-                                            >
-                                                <TrashIcon class="w-4 h-4" />
-                                            </button>
                                         </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                                    </template>
+                                </Column>
 
-            </div>
-
-            <!-- MODAL: Create / Edit Pump & Boom Deployment -->
-            <div 
-                v-if="isModalOpen" 
-                class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto"
-            >
-                <div class="bg-white rounded-xl shadow-2xl max-w-3xl w-full border border-slate-200 my-8 overflow-hidden text-xs">
-                    
-                    <!-- Modal Header -->
-                    <div class="px-6 py-4 bg-[#1d2d3e] text-white flex items-center justify-between">
-                        <div>
-                            <span class="text-[10px] uppercase font-bold text-slate-300 tracking-wider">
-                                {{ isEditing ? 'Edit Pour Deployment' : 'New Pour Schedule & Pump Deployment' }}
-                            </span>
-                            <h2 class="text-base font-bold text-white mt-0.5">
-                                {{ isEditing ? `Deployment #${editingId} - ${form.pour_reference}` : 'Schedule Pour & Assign Pump' }}
-                            </h2>
+                                <template #empty>
+                                    <div class="py-10 flex flex-col items-center justify-center text-gray-400">
+                                        <WrenchScrewdriverIcon class="w-8 h-8 text-gray-300 dark:text-gray-600 mb-2" />
+                                        <span class="font-medium text-xs">No pour deployments matching the selected filters. Click "Deploy Pump / Boom" to create one.</span>
+                                    </div>
+                                </template>
+                            </BaseDataTable>
                         </div>
-                        <button @click="isModalOpen = false" class="text-slate-400 hover:text-white p-1">
-                            <XMarkIcon class="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    <!-- Modal Body Form -->
-                    <div class="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-
-                        <!-- Real-Time Time Validation Warnings / Advisories -->
-                        <div v-if="form.setup_start_time && form.setup_end_time && new Date(form.setup_start_time) > new Date(form.setup_end_time)" 
-                             class="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 font-bold flex items-center gap-2">
-                            <ExclamationTriangleIcon class="w-4 h-4 text-rose-600 shrink-0" />
-                            <span>Time Validation Error: setup_start_time cannot be later than setup_end_time.</span>
-                        </div>
-
-                        <div v-if="form.actual_start_time && form.actual_end_time && new Date(form.actual_start_time) > new Date(form.actual_end_time)" 
-                             class="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-800 font-bold flex items-center gap-2">
-                            <ExclamationTriangleIcon class="w-4 h-4 text-rose-600 shrink-0" />
-                            <span>Time Validation Error: actual_start_time cannot be later than actual_end_time.</span>
-                        </div>
-
-                        <div v-if="form.pump_arrival_time && form.setup_start_time && new Date(form.pump_arrival_time) > new Date(form.setup_start_time)" 
-                             class="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 font-medium flex items-center gap-2">
-                            <InformationCircleIcon class="w-4 h-4 text-amber-600 shrink-0" />
-                            <span>Operational Advisory: Pump arrival should normally be before setup start.</span>
-                        </div>
-
-                        <div v-if="form.setup_end_time && form.actual_start_time && new Date(form.setup_end_time) > new Date(form.actual_start_time)" 
-                             class="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 font-medium flex items-center gap-2">
-                            <InformationCircleIcon class="w-4 h-4 text-amber-600 shrink-0" />
-                            <span>Operational Advisory: Setup should normally finish before actual pour start.</span>
-                        </div>
-
-                        <!-- Row 1: Schedule Date & Pour Reference -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1">Schedule Date *</label>
-                                <input type="date" v-model="form.schedule_date" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs font-semibold focus:ring-1 focus:ring-indigo-600" required />
-                            </div>
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1">Pour Reference / Order Ref *</label>
-                                <input type="text" v-model="form.pour_reference" placeholder="e.g. POUR-2026-0908-01" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs font-semibold focus:ring-1 focus:ring-indigo-600" required />
-                            </div>
-                        </div>
-
-                        <!-- Row 2: Destination Site & Pour Location -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1">Delivery Destination Site *</label>
-                                <select v-model="form.site_id" @change="onSiteSelect" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-indigo-600">
-                                    <option value="">Select Destination Site</option>
-                                    <option v-for="site in dropdowns.sites" :key="site.id" :value="site.id">{{ site.name }}</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1">Pour Location / Structural Element *</label>
-                                <input type="text" v-model="form.pour_location" placeholder="e.g. Raft Foundation Grid A-D, 3rd Floor Deck" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-indigo-600" required />
-                            </div>
-                        </div>
-
-                        <!-- Row 3: Mix Design & Quantity -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1">Concrete Grade / Recipe</label>
-                                <select v-model="form.mix_design_id" @change="onMixSelect" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-indigo-600">
-                                    <option value="">Select Grade</option>
-                                    <option v-for="mix in dropdowns.mixDesigns" :key="mix.id" :value="mix.id">{{ mix.name }} ({{ mix.code || '-' }})</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1">Planned Pour Volume (m³) *</label>
-                                <input type="number" step="0.5" v-model="form.planned_qty_m3" placeholder="e.g. 45.0" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs font-bold text-indigo-700" required />
-                            </div>
-                        </div>
-
-                        <!-- Row 4: Pump Rig, Boom Reach & Type -->
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-indigo-50/60 p-3.5 rounded-lg border border-indigo-100">
-                            <div>
-                                <label class="block font-bold text-indigo-900 mb-1">Pump Type *</label>
-                                <select v-model="form.pump_type" class="w-full bg-white border border-indigo-200 rounded p-2 text-xs font-semibold text-indigo-900">
-                                    <option value="boom_pump">Boom Pump (Articulated)</option>
-                                    <option value="line_pump">Line Pump (Ground Pipeline)</option>
-                                    <option value="stationary_pump">Stationary High-Rise Pump</option>
-                                    <option value="crane_bucket">Crane & Bucket Pour</option>
-                                    <option value="direct_pour">Direct Chute Discharge</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block font-bold text-indigo-900 mb-1">Assigned Pump Rig *</label>
-                                <select v-model="form.pump_vehicle_id" @change="onPumpSelect" class="w-full bg-white border border-indigo-200 rounded p-2 text-xs font-semibold" required>
-                                    <option value="">-- Select Assigned Pump Machine --</option>
-                                    <option v-for="m in dropdowns.machines" :key="m.id" :value="m.id">
-                                        {{ m.registration }} ({{ m.vehicle_model || 'Pump' }})
-                                    </option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block font-bold text-indigo-900 mb-1">
-                                    {{ form.pump_type === 'boom_pump' ? 'Boom Length (m) *' : (form.pump_type === 'stationary_pump' ? 'Stationary Line (m) (Optional)' : 'Pipeline Length (m) (Optional)') }}
-                                </label>
-                                <input 
-                                    type="number" 
-                                    step="1" 
-                                    v-model="form.boom_length_m" 
-                                    :placeholder="form.pump_type === 'boom_pump' ? 'e.g. 36.0 (Required)' : 'e.g. 100.0 (Optional)'" 
-                                    :required="form.pump_type === 'boom_pump'"
-                                    class="w-full bg-white border border-indigo-200 rounded p-2 text-xs font-bold text-indigo-900" 
-                                />
-                            </div>
-                        </div>
-
-                        <!-- Row 5: Operator & Current Status -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1">Pump Operator / Crew</label>
-                                <select v-model="form.operator_id" @change="onOperatorSelect" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs">
-                                    <option value="">Assign Later</option>
-                                    <option v-for="o in dropdowns.operators" :key="o.id" :value="o.id">
-                                        {{ o.first_name }} {{ o.last_name || '' }} ({{ o.phone || o.employee_code }})
-                                    </option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block font-bold text-slate-700 mb-1">Deployment Status</label>
-                                <select v-model="form.status" class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs font-bold text-slate-800">
-                                    <option value="scheduled">Scheduled (Default for new records)</option>
-                                    <option value="in_progress">In Progress (Recording Actual Start)</option>
-                                    <option value="setup">Setup (Rigging / Outriggers)</option>
-                                    <option value="ready">Ready (Primed & Prepared)</option>
-                                    <option value="completed">Completed (Recording Actual End)</option>
-                                    <option value="delayed">Delayed (Requires Explicit Change)</option>
-                                    <option value="cancelled">Cancelled (Requires Explicit Change)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Row 6: Detailed Operational Timelines Section -->
-                        <div class="p-3.5 bg-slate-50 rounded-lg border border-slate-200 space-y-3">
-                            <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                                Operational Milestone Timelines
-                            </span>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Pump Arrival at Site</label>
-                                    <input type="datetime-local" v-model="form.pump_arrival_time" class="w-full bg-white border border-slate-300 rounded p-1.5 text-xs" />
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Setup Start Time</label>
-                                    <input type="datetime-local" v-model="form.setup_start_time" class="w-full bg-white border border-slate-300 rounded p-1.5 text-xs" />
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Setup End Time</label>
-                                    <input type="datetime-local" v-model="form.setup_end_time" class="w-full bg-white border border-slate-300 rounded p-1.5 text-xs" />
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Target Pour Start Time</label>
-                                    <input type="datetime-local" v-model="form.pour_start_time" class="w-full bg-white border border-slate-300 rounded p-1.5 text-xs" />
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">Planned End Time</label>
-                                    <input type="datetime-local" v-model="form.planned_end_time" class="w-full bg-white border border-slate-300 rounded p-1.5 text-xs" />
-                                </div>
-                            </div>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-blue-50/50 p-2.5 rounded border border-blue-100">
-                                <div>
-                                    <label class="block text-[10px] font-bold text-blue-900 mb-1">
-                                        Actual Start Time <span class="text-[9px] font-normal text-blue-600">(Sets status to In Progress)</span>
-                                    </label>
-                                    <input 
-                                        type="datetime-local" 
-                                        v-model="form.actual_start_time" 
-                                        @change="onActualStartInput"
-                                        class="w-full bg-white border border-blue-200 rounded p-1.5 text-xs font-semibold text-blue-900" 
-                                    />
-                                </div>
-                                <div>
-                                    <label class="block text-[10px] font-bold text-emerald-900 mb-1">
-                                        Actual End Time <span class="text-[9px] font-normal text-emerald-600">(Sets status to Completed)</span>
-                                    </label>
-                                    <input 
-                                        type="datetime-local" 
-                                        v-model="form.actual_end_time" 
-                                        @change="onActualEndInput"
-                                        class="w-full bg-white border border-emerald-200 rounded p-1.5 text-xs font-semibold text-emerald-900" 
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Notes -->
-                        <div>
-                            <label class="block font-bold text-slate-600 mb-1">Site Access, Rigging & Overhead Wire Notes</label>
-                            <textarea v-model="form.notes" rows="2" placeholder="e.g. 8m outrigger footprint clear, overhead high-tension wire 15m away, priming with 2 bags cement slurry..." class="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs"></textarea>
-                        </div>
-
-                    </div>
-
-                    <!-- Modal Actions -->
-                    <div class="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
-                        <button @click="isModalOpen = false" class="px-4 py-2 border border-slate-300 text-slate-700 rounded text-xs font-bold hover:bg-slate-100 transition-colors">
-                            Cancel
-                        </button>
-                        <button @click="saveDeployment" :disabled="saving" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-bold shadow-sm transition-colors flex items-center gap-1.5">
-                            <span v-if="saving" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                            <span>{{ isEditing ? 'Save Changes' : 'Confirm Deployment' }}</span>
-                        </button>
                     </div>
 
                 </div>
-            </div>
 
+            </div>
         </div>
+
+        <!-- Teleported Action Popover (Never clipped by container overflow) -->
+        <Teleport to="body">
+            <div 
+                v-if="activeActionMenu" 
+                class="fixed inset-0 z-[9998]" 
+                @click="closeActionMenu"
+            />
+            <div 
+                v-if="activeActionMenu" 
+                class="fixed z-[9999] w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-xl py-1 text-xs divide-y divide-gray-100 dark:divide-gray-700 transition-all"
+                :style="{ top: `${activeActionMenu.top}px`, right: `${activeActionMenu.right}px` }"
+                @click.stop
+            >
+                <!-- Status Actions -->
+                <div class="py-1">
+                    <div class="px-3 py-1 text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                        Status Actions
+                    </div>
+
+                    <button
+                        v-if="activeActionMenu.item.status === 'scheduled'"
+                        @click="transitionStatus(activeActionMenu.item, 'setup'); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2 transition-colors"
+                    >
+                        <WrenchScrewdriverIcon class="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span>Move to Setup / Rigging</span>
+                    </button>
+
+                    <button
+                        v-if="activeActionMenu.item.status === 'setup'"
+                        @click="transitionStatus(activeActionMenu.item, 'ready'); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center gap-2 transition-colors"
+                    >
+                        <CheckCircleIcon class="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                        <span>Mark Ready & Primed</span>
+                    </button>
+
+                    <button
+                        v-if="['ready', 'scheduled', 'en_route'].includes(activeActionMenu.item.status)"
+                        @click="transitionStatus(activeActionMenu.item, 'in_progress'); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/40 flex items-center gap-2 transition-colors"
+                    >
+                        <PlayIcon class="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <span>Start Pour (In Progress)</span>
+                    </button>
+
+                    <button
+                        v-if="['in_progress', 'pumping'].includes(activeActionMenu.item.status)"
+                        @click="transitionStatus(activeActionMenu.item, 'completed'); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center gap-2 transition-colors"
+                    >
+                        <StopIcon class="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Complete & Finish Pour</span>
+                    </button>
+
+                    <button
+                        v-if="!['completed', 'cancelled', 'delayed'].includes(activeActionMenu.item.status)"
+                        @click="markDelayed(activeActionMenu.item); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/40 flex items-center gap-2 transition-colors"
+                    >
+                        <ClockIcon class="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                        <span>Mark as Delayed...</span>
+                    </button>
+
+                    <button
+                        v-if="!['completed', 'cancelled'].includes(activeActionMenu.item.status)"
+                        @click="markCancelled(activeActionMenu.item); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 transition-colors"
+                    >
+                        <XCircleIcon class="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span>Cancel Pour...</span>
+                    </button>
+                </div>
+
+                <!-- Management Options -->
+                <div class="py-1">
+                    <!-- <button
+                        @click="openEditForm(activeActionMenu.item); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
+                    >
+                        <PencilSquareIcon class="w-3.5 h-3.5 text-gray-500 shrink-0" />
+                        <span>Edit Deployment</span>
+                    </button> -->
+
+                    <button
+                        @click="deleteDeployment(activeActionMenu.item); closeActionMenu()"
+                        class="w-full text-left px-3 py-1.5 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center gap-2 transition-colors"
+                    >
+                        <TrashIcon class="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span>Delete Deployment</span>
+                    </button>
+                </div>
+            </div>
+        </Teleport>
     </AppLayout>
 </template>
