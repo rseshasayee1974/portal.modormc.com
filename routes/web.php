@@ -296,6 +296,7 @@ Route::middleware([
         Route::post('mixdesigns/{mixdesign}/toggle-active', [\App\Http\Controllers\MixDesignController::class, 'toggleActive'])->name('mixdesigns.toggle-active');
         Route::resource('mixdesigns', \App\Http\Controllers\MixDesignController::class);
         Route::resource('concretegrades', \App\Http\Controllers\ConcreteGradeController::class);
+        Route::get('concrete-quality-tests/lookup/invoices', [\App\Http\Controllers\ConcreteQualityTestController::class, 'lookupInvoices'])->name('concrete-quality-tests.lookup.invoices');
         Route::resource('concrete-quality-tests', \App\Http\Controllers\ConcreteQualityTestController::class);
     });
 

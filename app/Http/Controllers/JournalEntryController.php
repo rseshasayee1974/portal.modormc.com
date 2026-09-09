@@ -103,16 +103,17 @@ class JournalEntryController extends Controller
 
             // 3. Create Header
             $entry = JournalEntry::create([
-                'plant_id'       => $plantId,
-                'voucher_type'   => $validated['voucher_type'],
-                'voucher_number' => $voucherNumber,
-                'voucher_date'   => $validated['voucher_date'],
-                'posting_date'   => $validated['posting_date'],
-                'narration'      => $validated['narration'],
-                'total_debit'    => $totalDebit,
-                'total_credit'   => $totalCredit,
-                'is_status'      => 'POSTED', // Default to posted for simplicity or 'DRAFT'
-                'created_by'     => $userId,
+                'plant_id'        => $plantId,
+                'voucher_type'    => $validated['voucher_type'],
+                'voucher_number'  => $voucherNumber,
+                'voucher_date'    => $validated['voucher_date'],
+                'posting_date'    => $validated['posting_date'],
+                'narration'       => $validated['narration'],
+                'narration_label' => JournalEntry::resolveNarrationLabel(null, $validated['voucher_type']),
+                'total_debit'     => $totalDebit,
+                'total_credit'    => $totalCredit,
+                'is_status'       => 'POSTED', // Default to posted for simplicity or 'DRAFT'
+                'created_by'      => $userId,
             ]);
 
             // 4. Create Lines
@@ -126,6 +127,7 @@ class JournalEntryController extends Controller
                     'journal_entry_id' => $entry->id,
                     'plant_id'         => $plantId,
                     'created_by'       => $userId,
+                    'narration_label'  => $entry->narration_label,
                 ]));
             }
 

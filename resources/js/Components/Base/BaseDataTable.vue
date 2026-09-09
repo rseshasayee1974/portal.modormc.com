@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSlots, ref } from 'vue';
+import { useSlots, ref, computed } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Skeleton from 'primevue/skeleton';
@@ -189,12 +189,20 @@ const handleRowClick = (event: any) => {
     }
 };
 
-const internalPageOptions = [
-    { label: '30 Per Page', value: 30 },
-    { label: '50 Per Page', value: 50 },
-    { label: '100 Per Page', value: 100 },
-    { label: '200 Per Page', value: 200 }
-];
+const internalPageOptions = computed(() => {
+    if (props.rowsPerPageOptions && props.rowsPerPageOptions.length > 0) {
+        return props.rowsPerPageOptions.map((opt: any) => {
+            if (typeof opt === 'object' && opt !== null) return opt;
+            return { label: `${opt} Per Page`, value: Number(opt) };
+        });
+    }
+    return [
+        { label: '30 Per Page', value: 30 },
+        { label: '50 Per Page', value: 50 },
+        { label: '100 Per Page', value: 100 },
+        { label: '200 Per Page', value: 200 }
+    ];
+});
 
 const handleSearch = (val: string) => {
     const newFilters = { ...props.filters };
@@ -269,9 +277,9 @@ const toggleFilterPopover = (event: any) => {
                     <h3 class="text-lg font-bold text-slate-800 tracking-tight leading-none">
                         {{ heading }}
                     </h3>
-                    <div v-if="value?.length > 0" class="flex items-center gap-2 mt-1">
+                    <div v-if="(totalRecords !== undefined ? totalRecords : value?.length) > 0" class="flex items-center gap-2 mt-1">
                         <div class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ value.length }} Records Found</span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ totalRecords !== undefined ? totalRecords : value.length }} Records Found</span>
                     </div>
                 </div>
             </div>
@@ -369,7 +377,7 @@ const toggleFilterPopover = (event: any) => {
             <!-- Default S.No Column -->
             <Column v-if="showSerial" header="S.No" style="width: 5rem">
                 <template #body="slotProps">
-                    <div class="font-semibold bg-gray-200/10 h-9 pt-2 rounded-3xl shadow-inner text-center text-slate-600 w-9 mx-auto">
+                    <div class="font-semibold bg-gray-200/10 dark:bg-gray-800/60 h-9 pt-2 rounded-3xl shadow-inner text-center text-slate-600 dark:text-slate-300 w-9 mx-auto">
                         {{ getRowSerial(slotProps.index) }}
                     </div>
                 </template>

@@ -67,29 +67,23 @@ class QCTestTypeController extends Controller
         }
         $materials = $materials->where('status', true)->get(['id', 'title', 'code', 'material_code']);
 
+        $editingTestType = null;
+        if ($request->filled('edit')) {
+            $editingTestType = QcTestType::with(['parameters'])->find($request->edit);
+        }
+
         return Inertia::render('Quality/Configuration/TestTypes/Index', [
             'testTypes' => $testTypes,
             'materials' => $materials,
-            'filters' => $request->only(['search', 'category', 'status', 'layout_type', 'per_page']),
+            'filters' => $request->only(['search', 'category', 'status', 'layout_type', 'per_page', 'edit']),
             'categories' => ['Aggregate', 'Cement', 'Concrete', 'Admixture', 'Water', 'General'],
+            'editingTestType' => $editingTestType,
         ]);
     }
 
     public function create()
     {
-        $ctx = app(PlantContextService::class);
-        $plantId = $ctx->plantId();
-
-        $materials = Product::query();
-        if ($plantId) {
-            $materials->where('plant_id', $plantId);
-        }
-        $materials = $materials->where('status', true)->get(['id', 'title', 'code', 'material_code']);
-
-        return Inertia::render('Quality/Configuration/TestTypes/Create', [
-            'materials' => $materials,
-            'categories' => ['Aggregate', 'Cement', 'Concrete', 'Admixture', 'Water', 'General'],
-        ]);
+        return redirect()->route('quality.config.test-types.index');
     }
 
     public function store(Request $request)
@@ -124,22 +118,7 @@ class QCTestTypeController extends Controller
 
     public function edit(QcTestType $test_type)
     {
-        $ctx = app(PlantContextService::class);
-        $plantId = $ctx->plantId();
-
-        $materials = Product::query();
-        if ($plantId) {
-            $materials->where('plant_id', $plantId);
-        }
-        $materials = $materials->where('status', true)->get(['id', 'title', 'code', 'material_code']);
-
-        $test_type->load('parameters');
-
-        return Inertia::render('Quality/Configuration/TestTypes/Edit', [
-            'testType' => $test_type,
-            'materials' => $materials,
-            'categories' => ['Aggregate', 'Cement', 'Concrete', 'Admixture', 'Water', 'General'],
-        ]);
+        return redirect()->route('quality.config.test-types.index', ['edit' => $test_type->id]);
     }
 
     public function update(Request $request, QcTestType $test_type)

@@ -19,6 +19,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     'update:searchQuery': [value: string];
+    view: [test: any];
     edit: [test: any];
     delete: [id: number];
     page: [event: any];
@@ -101,135 +102,100 @@ watch(() => filters.value.global.value, (newVal) => {
             @sort="emit('sort', $event)"
         >
 
-            <Column field="test_code" header="QC Code" sortable>
+            <Column field="test_number" header="Test Number" sortable>
                 <template #body="slotProps">
-                    <span class="font-bold text-indigo-600 dark:text-indigo-400">
-                        {{ slotProps.data.test_code }}
+                    <span class="font-bold text-sky-700">
+                        {{ slotProps.data.test_number || slotProps.data.test_code }}
+                    </span>
+                    <span v-if="slotProps.data.plant" class="block text-[10px] text-gray-400">
+                        {{ slotProps.data.plant.name }}
                     </span>
                 </template>
             </Column>
 
-            <Column field="batch_id" header="Batch No" sortable>
+            <Column header="Customer / Invoice">
                 <template #body="slotProps">
-                    <div v-if="slotProps.data.batch" class="flex flex-col">
-                        <span class="font-extrabold text-slate-800 dark:text-slate-200">#{{ slotProps.data.batch.batch_no }}</span>
-                        <span class="text-[10px] text-gray-400 font-semibold mt-0.5">RMC Production</span>
+                    <div class="flex flex-col text-xs">
+                        <span class="font-bold text-gray-800">
+                            {{ slotProps.data.account_name || slotProps.data.patron?.name || (slotProps.data.batch?.work_order?.customer?.legal_name) || '—' }}
+                        </span>
+                        <span v-if="slotProps.data.invoice_no" class="text-[11px] text-gray-500 font-mono">
+                            Inv: {{ slotProps.data.invoice_no }}
+                        </span>
                     </div>
-                    <span v-else class="text-xs text-gray-400 dark:text-gray-600 italic">Generic / Manual</span>
                 </template>
             </Column>
 
-            <Column header="Order / Dispatch Details">
+            <Column header="Grade / Age">
                 <template #body="slotProps">
-                    <div v-if="slotProps.data.batch?.work_order" class="flex flex-col gap-1 text-xs">
-                        <!-- Mix Design -->
-                        <div class="flex items-center gap-1.5" v-if="slotProps.data.batch.work_order.mix_design">
-                            <span class="text-[9px] font-black bg-purple-50 dark:bg-purple-900/20 text-purple-600 px-1.5 py-0.5 rounded uppercase">Mix</span>
-                            <span class="font-bold text-gray-700 dark:text-gray-300">
-                                {{ slotProps.data.batch.work_order.mix_design.design_name }}
-                            </span>
-                        </div>
-                        
-                        <!-- Customer -->
-                        <div class="flex items-center gap-1.5" v-if="slotProps.data.batch.work_order.customer">
-                            <span class="text-[9px] font-black bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-1.5 py-0.5 rounded uppercase">Cust</span>
-                            <span class="text-gray-600 dark:text-gray-400 font-semibold truncate max-w-[150px]" :title="slotProps.data.batch.work_order.customer.legal_name">
-                                {{ slotProps.data.batch.work_order.customer.legal_name }}
-                            </span>
-                        </div>
-
-                        <!-- Truck -->
-                        <div class="flex items-center gap-1.5" v-if="slotProps.data.batch.dispatches?.[0]?.truck">
-                            <span class="text-[9px] font-black bg-amber-50 dark:bg-amber-900/20 text-amber-600 px-1.5 py-0.5 rounded uppercase">Truck</span>
-                            <span class="font-mono text-gray-600 dark:text-gray-400 font-bold uppercase">
-                                {{ slotProps.data.batch.dispatches[0].truck.registration }}
-                            </span>
-                        </div>
+                    <div class="flex flex-col text-xs">
+                        <span class="font-bold text-purple-700">
+                            {{ slotProps.data.grade || (slotProps.data.batch?.work_order?.mix_design?.design_name) || '—' }}
+                        </span>
+                        <span class="text-[11px] text-gray-500">
+                            Age: {{ slotProps.data.age_of_test_days || 7 }} Days
+                        </span>
                     </div>
-                    <span v-else class="text-xs text-gray-400 dark:text-gray-600 italic">No Dispatch Linked</span>
                 </template>
             </Column>
 
-            <Column header="Tested By / Date">
+            <Column header="Casting / Test Date">
                 <template #body="slotProps">
-                    <span class="block font-medium text-gray-800 dark:text-gray-200">{{ slotProps.data.tested_by || 'Unknown Operator' }}</span>
-                    <span class="block text-xs text-gray-400 mt-0.5">{{ new Date(slotProps.data.test_date).toLocaleDateString('en-IN') }}</span>
+                    <div class="flex flex-col text-xs">
+                        <span class="text-gray-700 font-medium">
+                            Cast: {{ slotProps.data.concrete_date ? slotProps.data.concrete_date.substring(0, 10) : '—' }}
+                        </span>
+                        <span class="text-gray-500 text-[11px]">
+                            Test: {{ slotProps.data.date_of_testing ? slotProps.data.date_of_testing.substring(0, 10) : (slotProps.data.test_date ? slotProps.data.test_date.substring(0, 10) : '—') }}
+                        </span>
+                    </div>
                 </template>
             </Column>
 
-            <Column header="Reference Photos" style="width: 120px">
+            <Column header="Slump / Temp">
                 <template #body="slotProps">
-                    <div v-if="slotProps.data.photos && slotProps.data.photos.length" class="flex items-center gap-1.5">
-                        <a 
-                            :href="slotProps.data.photos[0].url" 
-                            target="_blank" 
-                            class="block group relative w-10 h-10 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 shadow-sm bg-gray-50 flex items-center justify-center"
-                        >
-                            <img 
-                                :src="slotProps.data.photos[0].url" 
-                                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                            />
-                            <div class="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                <i class="pi pi-eye text-white text-xs"></i>
-                            </div>
-                        </a>
-                        
-                        <!-- Extra images counter badge -->
-                        <div v-if="slotProps.data.photos.length > 1" class="flex flex-col gap-0.5">
-                            <span class="text-[9px] font-black bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded-md">
-                                +{{ slotProps.data.photos.length - 1 }}
-                            </span>
-                            <span class="text-[8px] text-gray-400 font-bold uppercase tracking-wider">More</span>
-                        </div>
+                    <div class="flex flex-wrap gap-1.5 text-xs">
+                        <span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">
+                            {{ slotProps.data.slump_value }} mm
+                        </span>
+                        <span v-if="slotProps.data.fresh_temperature" class="px-2 py-0.5 rounded bg-orange-50 text-orange-700 font-semibold">
+                            {{ slotProps.data.fresh_temperature }}°C
+                        </span>
                     </div>
-                    <span v-else class="text-[9px] font-black text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded uppercase tracking-wider">
-                        No Photos
+                </template>
+            </Column>
+
+            <Column header="Avg Compressive Strength">
+                <template #body="slotProps">
+                    <span v-if="slotProps.data.avg_compressive_strength" class="px-2.5 py-1 rounded bg-sky-50 text-sky-800 font-extrabold text-xs">
+                        {{ slotProps.data.avg_compressive_strength }} N/mm²
                     </span>
+                    <span v-else-if="slotProps.data.cube_strength_28_days || slotProps.data.cube_strength_7_days" class="text-xs text-gray-600 font-bold">
+                        {{ slotProps.data.cube_strength_28_days || slotProps.data.cube_strength_7_days }} MPa
+                    </span>
+                    <span v-else class="text-xs text-gray-400 italic">—</span>
                 </template>
             </Column>
 
-            <Column header="Fresh Testing Details">
-                <template #body="slotProps">
-                    <div class="flex flex-wrap gap-2">
-                        <span class="px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-semibold">
-                            Slump: {{ slotProps.data.slump_value }} mm
-                        </span>
-                        <span class="px-2 py-0.5 rounded bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 text-xs font-semibold">
-                            Temp: {{ slotProps.data.fresh_temperature }}°C
-                        </span>
-                        <span class="px-2 py-0.5 rounded bg-slate-50 dark:bg-slate-900/60 text-slate-600 dark:text-slate-400 text-xs font-semibold">
-                            Density: {{ slotProps.data.fresh_density }}
-                        </span>
-                    </div>
-                </template>
-            </Column>
-
-            <Column header="Hardened Compressive Strength">
-                <template #body="slotProps">
-                    <div class="flex flex-wrap gap-2">
-                        <span class="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 text-xs font-semibold">
-                            7d: {{ slotProps.data.cube_strength_7_days }} MPa
-                        </span>
-                        <span class="px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 text-xs font-semibold">
-                            28d: {{ slotProps.data.cube_strength_28_days }} MPa
-                        </span>
-                    </div>
-                </template>
-            </Column>
-
-            <Column field="status" header="Status" sortable style="width: 120px">
+            <Column field="status" header="Status" sortable style="width: 110px">
                 <template #body="slotProps">
                     <Tag 
                         :severity="slotProps.data.status === 'passed' ? 'success' : (slotProps.data.status === 'failed' ? 'danger' : 'warning')" 
-                        :value="slotProps.data.status.toUpperCase()" 
+                        :value="slotProps.data.status ? slotProps.data.status.toUpperCase() : 'PENDING'" 
                         class="rounded-lg px-2.5 py-1 text-xs font-bold tracking-wider"
                     />
                 </template>
             </Column>
 
-            <Column header="Actions" class="text-right" style="width: 120px">
+            <Column header="Actions" class="text-right" style="width: 140px">
                 <template #body="slotProps">
                     <div class="flex justify-end gap-1">
+                        <BaseActionButton
+                            icon="pi pi-eye"
+                            severity="info"
+                            tooltip="View Test Certificate"
+                            @click.stop="emit('view', slotProps.data)"
+                        />
                         <BaseActionButton
                             icon="pi pi-pencil"
                             severity="secondary"

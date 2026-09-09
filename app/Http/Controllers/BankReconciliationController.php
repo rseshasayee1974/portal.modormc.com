@@ -282,17 +282,19 @@ class BankReconciliationController extends Controller
             $narrationText = $customNarration ?: "BRS Quick Entry: " . $statementLine->description;
 
             $journalEntry = JournalEntry::create([
-                'entity_id'      => $entityId,
-                'plant_id'       => $plantId,
-                'voucher_type'   => 'JOURNAL',
-                'voucher_number' => $voucherNumber,
-                'voucher_date'   => $statementLine->transaction_date,
-                'posting_date'   => $statementLine->transaction_date,
-                'narration'      => $narrationText,
-                'total_debit'    => $amount,
-                'total_credit'   => $amount,
-                'is_status'      => 'POSTED',
-                'created_by'     => $userId,
+                'entity_id'       => $entityId,
+                'plant_id'        => $plantId,
+                'voucher_type'    => 'JOURNAL',
+                'voucher_number'  => $voucherNumber,
+                'ref_module'      => 'bank_reconciliation',
+                'voucher_date'    => $statementLine->transaction_date,
+                'posting_date'    => $statementLine->transaction_date,
+                'narration'       => $narrationText,
+                'narration_label' => 'Bank Reconciliation',
+                'total_debit'     => $amount,
+                'total_credit'    => $amount,
+                'is_status'       => 'POSTED',
+                'created_by'      => $userId,
             ]);
 
             // 3. Create Bank Line (Auto-Reconciled)
@@ -302,6 +304,7 @@ class BankReconciliationController extends Controller
                 'account_id' => $statementLine->bank_ledger_id,
                 'debit_amount' => $isWithdrawal ? 0.0000 : $amount, // Deposit is Debit to bank account ledger
                 'credit_amount' => $isWithdrawal ? $amount : 0.0000, // Withdrawal is Credit from bank account ledger
+                'narration_label' => $journalEntry->narration_label,
                 'line_narration' => $statementLine->description,
                 'bank_statement_line_id' => $statementLine->id,
                 'reconciled_at' => now(),
@@ -315,6 +318,7 @@ class BankReconciliationController extends Controller
                 'account_id' => $oppositeLedgerId,
                 'debit_amount' => $isWithdrawal ? $amount : 0.0000, // Withdrawal represents Expense/Asset/Liability Debit
                 'credit_amount' => $isWithdrawal ? 0.0000 : $amount, // Deposit represents Income/Liability Credit
+                'narration_label' => $journalEntry->narration_label,
                 'line_narration' => $statementLine->description,
                 'created_by' => $userId,
             ]);

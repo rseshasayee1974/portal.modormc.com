@@ -1,35 +1,135 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
-import { Head, router, Link } from '@inertiajs/vue3';
-import { ref, computed } from 'vue';
+import { Head, router, Link, usePage } from '@inertiajs/vue3';
+import { ref, computed, watch, nextTick } from 'vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import Column from 'primevue/column';
-import BaseCard from '@/Components/Base/BaseCard.vue';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
 import Toast from 'primevue/toast';
 import { useToast } from 'primevue/usetoast';
+import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import TestTypeForm from './TestTypeForm.vue';
 
 const props = defineProps<{
     testTypes: any;
     materials: any[];
     filters: any;
     categories: string[];
+    editingTestType?: any;
 }>();
 
 const toast = useToast();
+const page = usePage();
 
-const searchQuery = ref(props.filters?.search || '');
+const formContainerRef = ref<HTMLElement | null>(null);
+const expandedRows = ref<Record<number, boolean>>({});
+
+const isRowExpanded = (row: any) => {
+    if (!row || row.id === undefined) return false;
+    if (Array.isArray(expandedRows.value)) {
+        return (expandedRows.value as any[]).some((r: any) => (r.id || r) === row.id);
+    }
+    return Boolean(expandedRows.value && expandedRows.value[row.id]);
+};
+
+const toggleRowEdit = (row: any) => {
+    if (!row || row.id === undefined) return;
+    const id = row.id;
+    if (isRowExpanded(row)) {
+        closeExpansion(row);
+    } else {
+        if (Array.isArray(expandedRows.value)) {
+            expandedRows.value = [row];
+        } else {
+            expandedRows.value = { [id]: true };
+        }
+    }
+};
+
+const closeExpansion = (row?: any) => {
+    if (row && row.id !== undefined) {
+        if (Array.isArray(expandedRows.value)) {
+            expandedRows.value = (expandedRows.value as any[]).filter((r: any) => (r.id || r) !== row.id);
+        } else {
+            const newExp = { ...expandedRows.value };
+            delete newExp[row.id];
+            expandedRows.value = newExp;
+        }
+    } else {
+        expandedRows.value = {};
+    }
+};
+
+const handleRowSaved = (row: any) => {
+    closeExpansion(row);
+    toast.add({ severity: 'success', summary: 'Updated', detail: 'Test type updated successfully', life: 2500 });
+};
+
+const getRowClass = (data: any) => {
+    return isRowExpanded(data) ? '!bg-amber-50/40 dark:!bg-amber-950/20' : '';
+};
+
+watch(
+    () => props.editingTestType,
+    (newVal) => {
+        if (newVal && newVal.id) {
+            expandedRows.value = { [newVal.id]: true };
+        }
+    },
+    { immediate: true }
+);
+
+watch(
+    () => (page.props as any).flash,
+    (flash: any) => {
+        if (flash?.success) {
+            toast.add({ severity: 'success', summary: 'Success', detail: flash.success, life: 2500 });
+        }
+        if (flash?.error) {
+            toast.add({ severity: 'error', summary: 'Error', detail: flash.error, life: 3000 });
+        }
+    },
+    { immediate: true, deep: true }
+);
+
+const handleFormSaved = () => {
+    toast.add({ severity: 'success', summary: 'Created', detail: 'New test type defined successfully', life: 2500 });
+};
+
 const selectedCategory = ref(props.filters?.category || 'All');
-const selectedStatus = ref(props.filters?.status || 'All');
-const selectedLayoutType = ref(props.filters?.layout_type || 'All');
 const perPage = ref(Number(props.filters?.per_page) || 15);
 
-const statusFilterOptions = [
-    { label: 'All Status', value: 'All' },
-    { label: 'Active', value: 'Active' },
-    { label: 'Inactive', value: 'Inactive' }
-];
+const tableFilters = ref({
+    global: { value: props.filters?.search || '', matchMode: 'contains' }
+});
+
+let searchDebounceTimer: any = null;
+
+watch(
+    () => tableFilters.value?.global?.value,
+    (newVal) => {
+        const query = newVal ? String(newVal).trim() : '';
+        if (query === (props.filters?.search || '')) return;
+
+        if (searchDebounceTimer) {
+            clearTimeout(searchDebounceTimer);
+        }
+        searchDebounceTimer = setTimeout(() => {
+            applyFilters(1);
+        }, 350);
+    }
+);
+
+watch(() => props.filters, (newFilters) => {
+    if (newFilters) {
+        if (tableFilters.value?.global) {
+            tableFilters.value.global.value = newFilters.search || '';
+        }
+        selectedCategory.value = newFilters.category || 'All';
+        perPage.value = Number(newFilters.per_page) || 15;
+    }
+}, { deep: true });
 
 const layoutTypeOptions = [
     { value: 'SINGLE_TRIAL', label: 'Single Reading / Trial', icon: 'pi pi-check-circle' },
@@ -42,46 +142,22 @@ const layoutTypeOptions = [
     { value: 'OBSERVATION_CLASSIFICATION', label: 'Visual Observation & Defects', icon: 'pi pi-eye' }
 ];
 
-const layoutFilterOptions = computed(() => [
-    { label: 'All UI Formats', value: 'All' },
-    ...layoutTypeOptions.map(l => ({ label: l.label, value: l.value }))
-]);
-
-const perPageOptions = [
-    { label: '15 / page', value: 15 },
-    { label: '30 / page', value: 30 },
-    { label: '50 / page', value: 50 },
-    { label: '100 / page', value: 100 }
-];
-
 const hasActiveFilters = computed(() => {
     return (
-        Boolean(searchQuery.value) ||
+        Boolean(tableFilters.value?.global?.value) ||
         selectedCategory.value !== 'All' ||
-        selectedStatus.value !== 'All' ||
-        selectedLayoutType.value !== 'All' ||
         perPage.value !== 15
     );
 });
 
-const applyFilters = (page: number = 1) => {
+const applyFilters = (targetPage: number = 1) => {
+    const searchVal = tableFilters.value?.global?.value ? String(tableFilters.value.global.value).trim() : undefined;
     router.get(route('quality.config.test-types.index'), {
-        page: page > 1 ? page : undefined,
+        page: targetPage > 1 ? targetPage : undefined,
         per_page: perPage.value !== 15 ? perPage.value : undefined,
-        search: searchQuery.value ? searchQuery.value.trim() : undefined,
+        search: searchVal || undefined,
         category: selectedCategory.value !== 'All' ? selectedCategory.value : undefined,
-        status: selectedStatus.value !== 'All' ? selectedStatus.value : undefined,
-        layout_type: selectedLayoutType.value !== 'All' ? selectedLayoutType.value : undefined,
-    }, { preserveState: true, replace: true });
-};
-
-const handleSearch = () => {
-    applyFilters(1);
-};
-
-const clearSearch = () => {
-    searchQuery.value = '';
-    applyFilters(1);
+    }, { preserveState: true, replace: true, preserveScroll: true });
 };
 
 const filterByCategory = (cat: string) => {
@@ -90,20 +166,30 @@ const filterByCategory = (cat: string) => {
 };
 
 const resetFilters = () => {
-    searchQuery.value = '';
+    if (searchDebounceTimer) {
+        clearTimeout(searchDebounceTimer);
+    }
+    if (tableFilters.value?.global) {
+        tableFilters.value.global.value = '';
+    }
     selectedCategory.value = 'All';
-    selectedStatus.value = 'All';
-    selectedLayoutType.value = 'All';
     perPage.value = 15;
     applyFilters(1);
 };
 
-const onPageChange = (event: any) => {
-    const page = event.page !== undefined ? event.page + 1 : Math.floor(event.first / event.rows) + 1;
-    if (event.rows && event.rows !== perPage.value) {
-        perPage.value = event.rows;
+const onRowsChange = (newRows: number) => {
+    if (newRows && Number(newRows) !== perPage.value) {
+        perPage.value = Number(newRows);
+        applyFilters(1);
     }
-    applyFilters(page);
+};
+
+const onPageChange = (event: any) => {
+    const targetPage = event.page !== undefined ? event.page + 1 : Math.floor((event.first || 0) / (event.rows || perPage.value)) + 1;
+    if (event.rows && Number(event.rows) !== perPage.value) {
+        perPage.value = Number(event.rows);
+    }
+    applyFilters(targetPage);
 };
 
 const categoryList = computed(() => {
@@ -140,147 +226,79 @@ const toggleStatus = (type: any) => {
         <Head title="QC Test Types" />
         <Toast />
 
-        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-5">
-            <!-- Header Bar -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200 dark:border-gray-800">
-                <div>
-                    <div class="flex items-center gap-2.5">
-                        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">
-                            QC Test Types Master
-                        </h1>
-                        <span class="px-2.5 py-0.5 text-xs font-bold font-mono rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                            {{ testTypes.total || 0 }} definitions
-                        </span>
-                    </div>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        Manage quality test definitions, IS standard specifications, and execution templates.
-                    </p>
-                </div>
-                <div>
-                    <Link
-                        :href="route('quality.config.test-types.create')"
-                        class="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-indigo-600/20 transition-all cursor-pointer"
-                    >
-                        <i class="pi pi-plus text-xs"></i>
-                        <span>Add Test Type</span>
-                    </Link>
-                </div>
+        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
+            
+
+            <!-- Form on Top of the Page (Create New Test Type) -->
+            <div ref="formContainerRef" class="scroll-mt-6">
+                <TestTypeForm
+                    :categories="categories"
+                    :isEditing="false"
+                    @saved="handleFormSaved"
+                />
             </div>
 
-            <!-- Filters Section -->
-            <div class="space-y-3">
-                <!-- Sleek Category Filter Tabs & Filter Badges -->
-                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                    <!-- Filter Pills -->
-                    <div class="inline-flex p-1 bg-gray-100 dark:bg-gray-800/80 rounded-xl text-xs font-semibold overflow-x-auto max-w-full border border-gray-200/50 dark:border-gray-700/50 shadow-2xs">
-                        <button
-                            v-for="cat in categoryList"
-                            :key="cat"
-                            @click="filterByCategory(cat)"
-                            type="button"
-                            :class="[
-                                'px-3 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer',
-                                selectedCategory === cat
-                                    ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-300 font-bold shadow-xs'
-                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                            ]"
-                        >
-                            {{ cat }}
-                        </button>
-                    </div>
+            <!-- Sleek Enterprise Data Table with Integrated Heading & Filter Header -->
+            <BaseDataTable
+                :value="testTypes.data || []"
+                dataKey="id"
+                showSerial
+                showSearch
+                :showAdvancedFilter="false"
+                v-model:filters="tableFilters"
+                v-model:expandedRows="expandedRows"
+                :rowClass="getRowClass"
+                :paginator="true"
+                :lazy="true"
+                :first="((testTypes.current_page || 1) - 1) * perPage"
+                :rows="perPage"
+                :totalRecords="testTypes.total || 0"
+                :rowsPerPageOptions="[10, 15, 25, 30, 50, 100]"
+                heading="List of Test Types"
+                headingIcon="pi pi-list"
+                class="rounded-2xl overflow-hidden shadow-xs border border-gray-200/80 dark:border-gray-800"
+                @page="onPageChange"
+                @update:rows="onRowsChange"
+            >
+                <!-- Integrated Filters Header inside BaseDataTable -->
+                <template #header>
+                    <div class="p-3.5 bg-gray-50/70 dark:bg-gray-900/70 border-b border-gray-200/80 dark:border-gray-800">
+                        <!-- Category Filter Tabs & Badges -->
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                            <!-- Filter Pills -->
+                            <div class="inline-flex p-1 bg-white dark:bg-gray-800 rounded-xl text-xs font-semibold overflow-x-auto max-w-full border border-gray-200/60 dark:border-gray-700/60 shadow-2xs">
+                                <button
+                                    v-for="cat in categoryList"
+                                    :key="cat"
+                                    @click="filterByCategory(cat)"
+                                    type="button"
+                                    :class="[
+                                        'px-3 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer',
+                                        selectedCategory === cat
+                                            ? 'bg-indigo-600 text-white font-bold shadow-xs'
+                                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                                    ]"
+                                >
+                                    {{ cat }}
+                                </button>
+                            </div>
 
-                    <!-- Reset Filters Button (Visible if active filters) -->
-                    <div v-if="hasActiveFilters" class="flex items-center gap-2">
-                        <span class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1">
-                            <i class="pi pi-filter text-[10px]"></i> Filters Active
-                        </span>
-                        <button
-                            @click="resetFilters"
-                            type="button"
-                            class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-colors flex items-center gap-1 cursor-pointer"
-                        >
-                            <i class="pi pi-times text-[10px]"></i> Reset
-                        </button>
+                            <!-- Reset Filters Button (Visible if active filters) -->
+                            <div v-if="hasActiveFilters" class="flex items-center gap-2">
+                                <span class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold flex items-center gap-1">
+                                    <i class="pi pi-filter text-[10px]"></i> Filters Active
+                                </span>
+                                <button
+                                    @click="resetFilters"
+                                    type="button"
+                                    class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 border border-rose-200 dark:border-rose-800 transition-colors flex items-center gap-1 cursor-pointer"
+                                >
+                                    <i class="pi pi-times text-[10px]"></i> Reset
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Secondary Filter Bar (Search, Status, UI Layout, Rows Per Page) -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5 p-3 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200/80 dark:border-gray-800 shadow-2xs">
-                    <!-- Search Input (Span 5) -->
-                    <div class="lg:col-span-5 relative">
-                        <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-                        <input
-                            v-model="searchQuery"
-                            @keydown.enter="handleSearch"
-                            type="text"
-                            placeholder="Search tests, codes, IS standard, material..."
-                            class="w-full pl-8 pr-8 py-1.5 bg-gray-50 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 rounded-xl text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 shadow-2xs"
-                        />
-                        <button
-                            v-if="searchQuery"
-                            @click="clearSearch"
-                            type="button"
-                            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 cursor-pointer"
-                            title="Clear search"
-                        >
-                            <i class="pi pi-times text-xs"></i>
-                        </button>
-                    </div>
-
-                    <!-- Status Filter (Span 2) -->
-                    <div class="lg:col-span-2">
-                        <select
-                            v-model="selectedStatus"
-                            @change="applyFilters(1)"
-                            class="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-                        >
-                            <option v-for="opt in statusFilterOptions" :key="opt.value" :value="opt.value">
-                                {{ opt.label }}
-                            </option>
-                        </select>
-                    </div>
-
-                    <!-- UI Format Filter (Span 3) -->
-                    <div class="lg:col-span-3">
-                        <select
-                            v-model="selectedLayoutType"
-                            @change="applyFilters(1)"
-                            class="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-                        >
-                            <option v-for="opt in layoutFilterOptions" :key="opt.value" :value="opt.value">
-                                {{ opt.label }}
-                            </option>
-                        </select>
-                    </div>
-
-                    <!-- Rows per page (Span 2) -->
-                    <div class="lg:col-span-2">
-                        <select
-                            v-model="perPage"
-                            @change="applyFilters(1)"
-                            class="w-full px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-800 dark:text-gray-200 focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-                        >
-                            <option v-for="opt in perPageOptions" :key="opt.value" :value="opt.value">
-                                {{ opt.label }}
-                            </option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sleek Enterprise Data Table -->
-            <BaseCard class="!p-0 overflow-hidden border border-gray-200/80 dark:border-gray-800 rounded-2xl shadow-xs">
-                <BaseDataTable
-                    :value="testTypes.data || []"
-                    dataKey="id"
-                    :paginator="true"
-                    :lazy="true"
-                    :first="((testTypes.current_page || 1) - 1) * (testTypes.per_page || 15)"
-                    :rows="Number(testTypes.per_page) || 15"
-                    :totalRecords="testTypes.total || 0"
-                    :rowsPerPageOptions="[10, 15, 25, 30, 50, 100]"
-                    @page="onPageChange"
-                >
+                </template>
                     <!-- Empty State Template -->
                     <template #empty>
                         <div class="text-center py-12 px-4 space-y-3">
@@ -306,6 +324,8 @@ const toggleStatus = (type: any) => {
                             </div>
                         </div>
                     </template>
+
+
                     <!-- Test Type & Standard Reference -->
                     <Column field="name" header="Test Type & Reference" sortable>
                         <template #body="{ data }">
@@ -347,34 +367,6 @@ const toggleStatus = (type: any) => {
                         </template>
                     </Column>
 
-                    <!-- UI Format -->
-                    <Column header="UI Layout Format" style="width: 200px;">
-                        <template #body="{ data }">
-                            <div class="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300 font-medium">
-                                <i :class="getLayoutIcon(data.layout_type)" class="text-gray-400 text-xs"></i>
-                                <span>{{ formatLayoutLabel(data.layout_type) }}</span>
-                            </div>
-                        </template>
-                    </Column>
-
-                    <!-- Parameters & Criteria Metric Chip -->
-                    <Column header="Parameters & Criteria" style="width: 200px;">
-                        <template #body="{ data }">
-                            <Link
-                                :href="route('quality.config.test-parameters.index', { test_type_id: data.id })"
-                                class="inline-flex items-center gap-2 text-xs font-semibold text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group"
-                            >
-                                <span class="px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-mono text-[11px] font-bold">
-                                    {{ data.parameters?.length || 0 }} params
-                                </span>
-                                <span v-if="data.parameters?.some((p: any) => p.rule_type)" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                                    {{ data.parameters?.filter((p: any) => p.rule_type).length }} criteria
-                                </span>
-                                <i class="pi pi-arrow-right text-[9px] text-gray-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all"></i>
-                            </Link>
-                        </template>
-                    </Column>
-
                     <!-- Status Indicator -->
                     <Column field="is_active" header="Status" style="width: 110px;">
                         <template #body="{ data }">
@@ -388,22 +380,32 @@ const toggleStatus = (type: any) => {
                     </Column>
 
                     <!-- Actions -->
-                    <Column header="Actions" alignFrozen="right" freezeRight style="width: 100px;">
+                    <Column header="Actions" alignFrozen="right" freezeRight style="width: 35px; text-align: right;">
                         <template #body="{ data }">
-                            <div class="flex items-center gap-1">
-                                <Link
-                                    :href="route('quality.config.test-types.edit', data.id)"
-                                    class="p-1.5 rounded-lg text-gray-500 hover:text-indigo-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                                    title="Edit Test Type"
-                                >
-                                    <i class="pi pi-pencil text-xs"></i>
-                                </Link>
+                            <div class="">
+                                
                                 <BaseDeleteButton :url="route('quality.config.test-types.destroy', data.id)" />
                             </div>
                         </template>
                     </Column>
+
+                    <!-- Row Expansion Inline Editor -->
+                    <template #expansion="{ data }">
+                        <div class="bg-gradient-to-b from-amber-50/40 via-slate-50/60 to-white dark:from-amber-950/20 dark:via-slate-900/60 dark:to-gray-950">
+                            
+                                <!-- Inline Edit Form for this Row -->
+                                <TestTypeForm
+                                    :testType="data"
+                                    :categories="categories"
+                                    :isEditing="true"
+                                    :isExpansion="true"
+                                    @saved="handleRowSaved(data)"
+                                    @cancel="closeExpansion(data)"
+                                />
+                           
+                        </div>
+                    </template>
                 </BaseDataTable>
-            </BaseCard>
-        </div>
+            </div>
     </AppLayout>
 </template>

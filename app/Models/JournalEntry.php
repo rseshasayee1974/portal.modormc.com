@@ -23,6 +23,7 @@ class JournalEntry extends Model
         'voucher_date',
         'posting_date',
         'narration',
+        'narration_label',
         'total_debit',
         'total_credit',
         'is_status',
@@ -85,5 +86,31 @@ class JournalEntry extends Model
     public function isBalanced()
     {
         return $this->total_debit === $this->total_credit;
+    }
+
+    public static function resolveNarrationLabel(?string $refModule, ?string $voucherType = null): string
+    {
+        $module = strtolower($refModule ?? '');
+        $vType = strtoupper($voucherType ?? '');
+
+        return match ($module) {
+            'invoice', 'sales'           => 'Sales',
+            'purchase', 'purchase_order' => 'Purchase',
+            'bill'                       => 'Purchase Bill',
+            'payment'                    => $vType === 'RECEIPT' ? 'Receipt' : 'Payment',
+            'expense'                    => 'Expense',
+            'dispatch'                   => 'Dispatch',
+            'stockin'                    => 'StockIn',
+            'stockout'                   => 'StockOut',
+            'bank_reconciliation', 'brs' => 'Bank Reconciliation',
+            default                      => match ($vType) {
+                'SALES'         => 'Sales',
+                'PURCHASE'      => 'Purchase',
+                'PAYMENT'       => 'Payment',
+                'RECEIPT'       => 'Receipt',
+                'JOURNAL', 'JV' => 'Manual JV',
+                default         => !empty($refModule) ? ucfirst($refModule) : 'Manual JV',
+            },
+        };
     }
 }

@@ -58,18 +58,19 @@ class AccountingPostingService
                 'voucher_number' => $document->getVoucherNumber(),
             ],
             [
-                'ref_module'     => $docType,
-                'ref_id'         => $document->getDocumentId(),
-                'entity_id'      => $document->getEntityId(),
-                'voucher_date'   => $document->getVoucherDate(),
-                'posting_date'   => $document->getVoucherDate(),
-                'narration'      => ucfirst($docType) . ': '
+                'ref_module'      => $docType,
+                'ref_id'          => $document->getDocumentId(),
+                'entity_id'       => $document->getEntityId(),
+                'voucher_date'    => $document->getVoucherDate(),
+                'posting_date'    => $document->getVoucherDate(),
+                'narration'       => ucfirst($docType) . ': '
                                     . $document->getVoucherNumber()
                                     . ' | ' . $document->getPartnerName(),
-                'total_debit'    => 0,  // finalized below
-                'total_credit'   => 0,
-                'is_status'      => 'POSTED',
-                'created_by'     => $userId,
+                'narration_label' => JournalEntry::resolveNarrationLabel($docType, $config['voucher_type']),
+                'total_debit'     => 0,  // finalized below
+                'total_credit'    => 0,
+                'is_status'       => 'POSTED',
+                'created_by'      => $userId,
             ]
         );
 
@@ -79,12 +80,7 @@ class AccountingPostingService
         $totalDebitCents  = 0;
         $totalCreditCents = 0;
 
-        $narrationLabel = null;
-        if ($document instanceof \App\Models\Invoice) {
-            if ($document->invoice_type === 'bill') {
-                $narrationLabel = !empty($document->ref_id) ? 'purchase' : 'manual';
-            }
-        }
+        $narrationLabel = $journalEntry->narration_label ?? JournalEntry::resolveNarrationLabel($docType, $config['voucher_type']);
 
         foreach ($lines as $line) {
             JournalEntryLine::create([

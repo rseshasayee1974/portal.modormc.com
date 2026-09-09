@@ -134,6 +134,7 @@ trait PostsToAccounting
             'partner'     => $partner,
             'partnerId'   => $this->partner_id ?? $this->vendor_id ?? $this->customer_id
                 ?? $this->transport_id ?? $this->transporter_id,
+            'narrationLabel' => JournalEntry::resolveNarrationLabel($hasPoNumber ? 'purchase_order' : $docType, static::$voucherTypeMap[$docType] ?? ($isSales ? 'SALES' : 'PURCHASE')),
         ];
     }
 
@@ -149,16 +150,17 @@ trait PostsToAccounting
                 'plant_id'   => $ctx['plantId'],
             ],
             [
-                'entity_id'      => $ctx['entityId'],
-                'voucher_type'   => $ctx['voucherType'],
-                'voucher_number' => $ctx['invoiceNo'],
-                'voucher_date'   => $ctx['invoiceDate'],
-                'posting_date'   => $ctx['invoiceDate'],
-                'narration'      => $label . $ctx['invoiceNo'] . ' | ' . $partnerName,
-                'total_debit'    => $ctx['totalAmount'],
-                'total_credit'   => $ctx['totalAmount'],
-                'is_status'      => 'DRAFT',
-                'created_by'     => Auth::id() ?? 1,
+                'entity_id'       => $ctx['entityId'],
+                'voucher_type'    => $ctx['voucherType'],
+                'voucher_number'  => $ctx['invoiceNo'],
+                'voucher_date'    => $ctx['invoiceDate'],
+                'posting_date'    => $ctx['invoiceDate'],
+                'narration'       => $label . $ctx['invoiceNo'] . ' | ' . $partnerName,
+                'narration_label' => $ctx['narrationLabel'] ?? JournalEntry::resolveNarrationLabel($ctx['refModule'], $ctx['voucherType']),
+                'total_debit'     => $ctx['totalAmount'],
+                'total_credit'    => $ctx['totalAmount'],
+                'is_status'       => 'DRAFT',
+                'created_by'      => Auth::id() ?? 1,
             ]
         );
     }
@@ -323,11 +325,7 @@ trait PostsToAccounting
      */
     protected function persistLines(JournalEntry $journalEntry, array $lines, ?int $plantId): array
     {
-        $narrationLabel = null;
-        $docType = strtolower($this->invoice_type ?? 'purchase');
-        if ($docType === 'bill') {
-            $narrationLabel = !empty($this->ref_id) ? 'purchase' : 'manual';
-        }
+        $narrationLabel = $journalEntry->narration_label ?? JournalEntry::resolveNarrationLabel($journalEntry->ref_module, $journalEntry->voucher_type);
 
         $totalDebit = 0;
         $totalCredit = 0;

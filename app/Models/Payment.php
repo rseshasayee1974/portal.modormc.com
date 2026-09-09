@@ -74,7 +74,7 @@ class Payment extends Model
             $y2 = $currentYear + 1;
         }
 
-        return substr($y1, -2) . substr($y2, -2);
+        return substr($y1, -2) .'-'. substr($y2, -2);
     }
 
     public static function generateReferenceNumber($plantId, $ledgerId, $transactionType, $transactionDate = null): string
@@ -198,11 +198,12 @@ class Payment extends Model
                     'voucher_number' => $voucherNo,
                     'voucher_date'   => $this->transaction_date,
                     'posting_date'   => $this->transaction_date,
-                    'narration'      => ucfirst($this->transaction_type) . " " . $voucherNo . ($this->patron ? " | " . $this->patron->legal_name : ""),
-                    'total_debit'    => $totalAmount,
-                    'total_credit'   => $totalAmount,
-                    'is_status'      => 'POSTED',
-                    'created_by'     => \Illuminate\Support\Facades\Auth::id() ?? 1,
+                    'narration'       => ucfirst($this->transaction_type) . " " . $voucherNo . ($this->patron ? " | " . $this->patron->legal_name : ""),
+                    'narration_label' => $this->transaction_type === 'receipt' ? 'Receipt' : 'Payment',
+                    'total_debit'     => $totalAmount,
+                    'total_credit'    => $totalAmount,
+                    'is_status'       => 'POSTED',
+                    'created_by'      => \Illuminate\Support\Facades\Auth::id() ?? 1,
                 ]
             );
 
@@ -266,6 +267,7 @@ class Payment extends Model
                 $lineData['journal_entry_id'] = $journalEntry->id;
                 $lineData['plant_id']         = $plantId;
                 $lineData['created_by']       = \Illuminate\Support\Facades\Auth::id() ?? 1;
+                $lineData['narration_label']  = $journalEntry->narration_label;
                 \App\Models\JournalEntryLine::create($lineData);
             }
 
