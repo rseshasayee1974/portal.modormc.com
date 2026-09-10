@@ -4,8 +4,9 @@
     <meta charset="utf-8">
     <title>Customer Outstanding & Aging Report</title>
     <style>
+        @page { size: A4 landscape; margin: 8mm; }
         {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/customer_consolidated_report.css')) ? file_get_contents(public_path('css/reports/customer_consolidated_report.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 8pt; color: #1e293b; margin: 15px; }
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 7.5pt; color: #1e293b; margin: 10px; }
         .header-table { width: 100%; margin-bottom: 12px; border-collapse: collapse; }
         .address-box { font-size: 8pt; line-height: 1.35; }
         .address-title { font-size: 7pt; font-weight: bold; color: #64748b; text-transform: uppercase; display: block; }
@@ -137,14 +138,18 @@
     <table class="data-table">
         <thead>
             <tr>
-                <th width="4%" class="text-center">#</th>
-                <th width="10%">Code</th>
-                <th width="24%">Customer</th>
-                <th width="12%">GSTIN</th>
-                <th width="12%" class="text-right">Total Invoiced</th>
-                <th width="12%" class="text-right">Total Paid</th>
-                <th width="14%" class="text-right">Balance Due (₹)</th>
-                <th width="12%" class="text-right">90+ Days (₹)</th>
+                <th width="3%" class="text-center">#</th>
+                <th width="7%">Code</th>
+                <th width="19%">Customer</th>
+                <th width="9%">GSTIN</th>
+                <th width="10%" class="text-right">Total Invoiced</th>
+                <th width="10%" class="text-right">Total Receipts</th>
+                <th width="9%" class="text-right">Total Payments</th>
+                <th width="11%" class="text-right">Balance Due (₹)</th>
+                <th width="6%" class="text-right">0-30d (₹)</th>
+                <th width="6%" class="text-right">30-60d (₹)</th>
+                <th width="5%" class="text-right">60-90d (₹)</th>
+                <th width="5%" class="text-right">90+d (₹)</th>
             </tr>
         </thead>
         <tbody>
@@ -155,80 +160,44 @@
                     <td style="font-weight: bold; color: #0f172a;">{{ $row['customer_name'] ?? '-' }}</td>
                     <td style="color: #64748b;">{{ $row['gstin'] ?? '-' }}</td>
                     <td class="text-right">{{ number_format($row['total_invoiced'] ?? 0, 2) }}</td>
-                    <td class="text-right" style="color: #166534;">{{ number_format($row['total_paid'] ?? 0, 2) }}</td>
+                    <td class="text-right" style="color: #166534;">{{ number_format($row['total_receipt'] ?? ($row['total_paid'] ?? 0), 2) }}</td>
+                    <td class="text-right" style="color: #0284c7;">{{ number_format($row['total_payment'] ?? 0, 2) }}</td>
                     <td class="text-right" style="font-weight: bold; color: {{ ($row['total_outstanding'] ?? 0) > 0 ? '#b91c1c' : '#334155' }};">
                         {{ number_format($row['total_outstanding'] ?? 0, 2) }}
                     </td>
-                    <td class="text-right" style="color: {{ ($row['aging_90_plus'] ?? 0) > 0 ? '#be123c' : '#94a3b8' }};">
-                        {{ number_format($row['aging_90_plus'] ?? 0, 2) }}
+                    <td class="text-right" style="color: #1e40af;">
+                        {{ ($row['aging_0_30'] ?? 0) > 0 ? number_format($row['aging_0_30'], 2) : '-' }}
+                    </td>
+                    <td class="text-right" style="color: #b45309;">
+                        {{ ($row['aging_31_60'] ?? 0) > 0 ? number_format($row['aging_31_60'], 2) : '-' }}
+                    </td>
+                    <td class="text-right" style="color: #c2410c;">
+                        {{ ($row['aging_61_90'] ?? 0) > 0 ? number_format($row['aging_61_90'], 2) : '-' }}
+                    </td>
+                    <td class="text-right" style="color: {{ ($row['aging_90_plus'] ?? 0) > 0 ? '#be123c' : '#94a3b8' }}; font-weight: bold;">
+                        {{ ($row['aging_90_plus'] ?? 0) > 0 ? number_format($row['aging_90_plus'], 2) : '-' }}
                     </td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="8" class="text-center" style="padding: 15px; color: #94a3b8;">No customer outstanding balances found.</td>
+                    <td colspan="12" class="text-center" style="padding: 15px; color: #94a3b8;">No customer outstanding balances found.</td>
                 </tr>
             @endforelse
 
             <tr class="total-row">
                 <td colspan="4" class="text-center uppercase">Total Outstanding Receivables</td>
                 <td class="text-right">{{ number_format($total_invoiced_amount ?? 0, 2) }}</td>
-                <td class="text-right">{{ number_format($total_paid_amount ?? 0, 2) }}</td>
+                <td class="text-right">{{ number_format($total_receipt_amount ?? ($total_paid_amount ?? 0), 2) }}</td>
+                <td class="text-right">{{ number_format($total_payment_amount ?? 0, 2) }}</td>
                 <td class="text-right" style="color: #b91c1c;">₹ {{ number_format($total_outstanding_amount ?? 0, 2) }}</td>
+                <td class="text-right" style="color: #1e40af;">{{ number_format($aging_0_30 ?? 0, 2) }}</td>
+                <td class="text-right" style="color: #b45309;">{{ number_format($aging_31_60 ?? 0, 2) }}</td>
+                <td class="text-right" style="color: #c2410c;">{{ number_format($aging_61_90 ?? 0, 2) }}</td>
                 <td class="text-right" style="color: #be123c;">₹ {{ number_format($aging_90_plus ?? 0, 2) }}</td>
             </tr>
         </tbody>
     </table>
 
-    <!-- Section 2: Open Invoices Breakdown -->
-    @if(!empty($open_invoices) && count($open_invoices) > 0)
-        <div class="section-header" style="page-break-before: auto;">
-            <h3 class="section-title">Itemized Open Invoices ({{ count($open_invoices) }} Invoices)</h3>
-            <span class="section-sub">Detailed unpaid & partially paid sales invoices contributing to outstanding balance</span>
-        </div>
-
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th width="4%" class="text-center">#</th>
-                    <th width="14%">Invoice No</th>
-                    <th width="20%">Customer Name</th>
-                    <th width="10%" class="text-center">Inv Date</th>
-                    <th width="10%" class="text-center">Due Date</th>
-                    <th width="8%" class="text-center">Overdue</th>
-                    <th width="10%" class="text-right">Total (₹)</th>
-                    <th width="10%" class="text-right">Paid (₹)</th>
-                    <th width="14%" class="text-right">Balance Due (₹)</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($open_invoices as $iIdx => $inv)
-                    <tr>
-                        <td class="text-center">{{ $iIdx + 1 }}</td>
-                        <td style="font-weight: bold; color: #0284c7;">{{ $inv['full_number'] }}</td>
-                        <td style="color: #0f172a;">{{ $inv['customer_name'] }}</td>
-                        <td class="text-center">{{ $inv['invoice_date'] }}</td>
-                        <td class="text-center">{{ $inv['due_date'] }}</td>
-                        <td class="text-center">
-                            @if($inv['days_overdue'] > 0)
-                                <span class="badge badge-danger">{{ $inv['days_overdue'] }}d</span>
-                            @else
-                                <span class="badge badge-success">Current</span>
-                            @endif
-                        </td>
-                        <td class="text-right">{{ number_format($inv['total_amount'], 2) }}</td>
-                        <td class="text-right" style="color: #166534;">{{ number_format($inv['paid_amount'], 2) }}</td>
-                        <td class="text-right" style="font-weight: bold; color: #b91c1c;">{{ number_format($inv['balance_amount'], 2) }}</td>
-                    </tr>
-                @endforeach
-                <tr class="total-row">
-                    <td colspan="6" class="text-center uppercase">Total Pending Due</td>
-                    <td class="text-right">{{ number_format(collect($open_invoices)->sum('total_amount'), 2) }}</td>
-                    <td class="text-right">{{ number_format(collect($open_invoices)->sum('paid_amount'), 2) }}</td>
-                    <td class="text-right" style="color: #b91c1c;">₹ {{ number_format(collect($open_invoices)->sum('balance_amount'), 2) }}</td>
-                </tr>
-            </tbody>
-        </table>
-    @endif
-
 </body>
 </html>
+
