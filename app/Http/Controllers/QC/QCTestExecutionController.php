@@ -358,9 +358,29 @@ class QCTestExecutionController extends Controller
 
             $parameterValuesMap = []; // Stores array of numeric values per parameter across trials
 
+            // Pre-populate shared test context variables (e.g. standard specimen area, dimensions)
+            $sharedContext = [];
+            if ($test->testType) {
+                if ($test->testType->specimen_dimensions) {
+                    $sharedContext['SPECIMEN_DIMENSIONS'] = $test->testType->specimen_dimensions;
+                }
+            }
+
+            // Extract test-level variables from inputs
+            foreach ($validated['measurements'] as $m) {
+                $p = $parameters->get($m['parameter_id'] ?? null);
+                if ($p && $p->code && ($p->scope === 'test' || ($m['row_index'] ?? 0) === 0)) {
+                    if (isset($m['value_numeric']) && $m['value_numeric'] !== null && $m['value_numeric'] !== '') {
+                        $sharedContext[$p->code] = (float)$m['value_numeric'];
+                    } elseif (!empty($m['value_text'])) {
+                        $sharedContext[$p->code] = $m['value_text'];
+                    }
+                }
+            }
+
             // Process each specimen trial (row_index)
             foreach ($rowsGrouped as $rowIndex => $rowMeasurements) {
-                $trialVariables = [];
+                $trialVariables = $sharedContext;
 
                 // Save raw input measurements for this trial
                 foreach ($rowMeasurements as $m) {
@@ -380,15 +400,19 @@ class QCTestExecutionController extends Controller
                         'row_index' => $rowIndex,
                     ]);
 
-                    if ($param->code && $numVal !== null) {
-                        $trialVariables[$param->code] = $numVal;
-                        $parameterValuesMap[$param->id][] = $numVal;
+                    if ($param->code) {
+                        if ($numVal !== null) {
+                            $trialVariables[$param->code] = $numVal;
+                            $parameterValuesMap[$param->id][] = $numVal;
+                        } elseif ($txtVal !== null && $txtVal !== '') {
+                            $trialVariables[$param->code] = $txtVal;
+                        }
                     }
                 }
 
-                // Calculate formulas for this trial
+                // Calculate formulas for this trial (specimen-level & test-level)
                 foreach ($parameters as $param) {
-                    if ($param->is_calculated && !empty($param->formula)) {
+                    if ($param->is_calculated && !empty($param->formula) && $param->scope !== 'summary') {
                         $calcVal = $this->formulaEngine->evaluateFormula($param->formula, $trialVariables);
 
                         QcTestMeasurement::create([
@@ -408,7 +432,45 @@ class QCTestExecutionController extends Controller
                 }
             }
 
-            // 3. Evaluate Pass / Fail against Acceptance Criteria
+            // 3. Evaluate Summary Parameters (e.g. Average Strength across specimens)
+            $summaryVariables = $sharedContext;
+            foreach ($parameters as $param) {
+                if ($param->code && !empty($parameterValuesMap[$param->id])) {
+                    $vals = $parameterValuesMap[$param->id];
+                    $summaryVariables[$param->code] = array_sum($vals) / count($vals);
+                    // Also expose as array for AVG/SUM functions if needed
+                    $summaryVariables['ALL_' . $param->code] = implode(',', $vals);
+                }
+            }
+
+            foreach ($parameters as $param) {
+                if ($param->is_calculated && !empty($param->formula) && $param->scope === 'summary') {
+                    // Replace AVG(TOKEN) with mean of tokens if present
+                    $calcFormula = preg_replace_callback('/AVG\(([A-Za-z0-9_]+)\)/i', function($m) use ($parameterValuesMap, $parameters) {
+                        $targetCode = strtoupper($m[1]);
+                        $foundParam = $parameters->firstWhere('code', $targetCode);
+                        if ($foundParam && !empty($parameterValuesMap[$foundParam->id])) {
+                            return (string)(array_sum($parameterValuesMap[$foundParam->id]) / count($parameterValuesMap[$foundParam->id]));
+                        }
+                        return '0';
+                    }, $param->formula);
+
+                    $calcVal = $this->formulaEngine->evaluateFormula($calcFormula, $summaryVariables);
+                    if ($calcVal !== null) {
+                        $parameterValuesMap[$param->id] = [$calcVal];
+                        QcTestMeasurement::create([
+                            'qc_test_id' => $test->id,
+                            'parameter_id' => $param->id,
+                            'value_numeric' => $calcVal,
+                            'value_text' => (string) round($calcVal, 4),
+                            'is_calculated' => true,
+                            'row_index' => 0,
+                        ]);
+                    }
+                }
+            }
+
+            // 4. Evaluate Pass / Fail against Acceptance Criteria
             $hasFailure = false;
             $hasEvaluated = false;
 

@@ -797,7 +797,8 @@ class ExcelExportService
                     'GSTIN',
                     'Contact Phone',
                     'Total Invoiced (₹)',
-                    'Total Paid (₹)',
+                    'Total Receipts (₹)',
+                    'Total Payments (₹)',
                     'Outstanding Balance (₹)',
                     '0-30 Days (₹)',
                     '31-60 Days (₹)',
@@ -813,7 +814,8 @@ class ExcelExportService
                         $row['gstin'] ?? '-',
                         $row['phone'] ?? '-',
                         (float)($row['total_invoiced'] ?? 0),
-                        (float)($row['total_paid'] ?? 0),
+                        (float)($row['total_receipt'] ?? ($row['total_paid'] ?? 0)),
+                        (float)($row['total_payment'] ?? 0),
                         (float)($row['total_outstanding'] ?? 0),
                         (float)($row['aging_0_30'] ?? 0),
                         (float)($row['aging_31_60'] ?? 0),
@@ -825,7 +827,8 @@ class ExcelExportService
                 $totalRow = [
                     '', 'Total Outstanding Receivables', '', '', '',
                     (float)($data['total_invoiced_amount'] ?? 0),
-                    (float)($data['total_paid_amount'] ?? 0),
+                    (float)($data['total_receipt_amount'] ?? ($data['total_paid_amount'] ?? 0)),
+                    (float)($data['total_payment_amount'] ?? 0),
                     (float)($data['total_outstanding_amount'] ?? 0),
                     (float)($data['aging_0_30'] ?? 0),
                     (float)($data['aging_31_60'] ?? 0),
@@ -833,6 +836,8 @@ class ExcelExportService
                     (float)($data['aging_90_plus'] ?? 0),
                     (int)($data['total_open_invoices'] ?? 0),
                 ];
+
+                $extraSections['tables'] = [];
 
                 if (!empty($data['open_invoices'])) {
                     $invRows = [];
@@ -852,12 +857,54 @@ class ExcelExportService
                         ];
                     }
 
-                    $extraSections['tables'] = [
-                        [
-                            'title' => 'ITEMIZED OPEN INVOICES BREAKDOWN (' . count($data['open_invoices']) . ' INVOICES)',
-                            'headers' => ['#', 'Customer Name', 'Invoice #', 'Invoice Date', 'Due Date', 'Overdue Days', 'Aging Bracket', 'Total Amt (₹)', 'Paid Amt (₹)', 'Balance Due (₹)', 'Status'],
-                            'rows' => $invRows,
-                        ]
+                    $extraSections['tables'][] = [
+                        'title' => 'ITEMIZED OPEN INVOICES BREAKDOWN (' . count($data['open_invoices']) . ' INVOICES)',
+                        'headers' => ['#', 'Customer Name', 'Invoice #', 'Invoice Date', 'Due Date', 'Overdue Days', 'Aging Bracket', 'Total Amt (₹)', 'Paid Amt (₹)', 'Balance Due (₹)', 'Status'],
+                        'rows' => $invRows,
+                    ];
+                }
+
+                if (!empty($data['all_receipts'])) {
+                    $rcptRows = [];
+                    foreach ($data['all_receipts'] as $ri => $rcpt) {
+                        $rcptRows[] = [
+                            $ri + 1,
+                            $rcpt['customer_name'] ?? '',
+                            $rcpt['voucher_no'] ?? '',
+                            $rcpt['transaction_date'] ?? '',
+                            $rcpt['mode'] ?? 'Cash',
+                            $rcpt['account'] ?? 'Cash/Bank',
+                            (float)($rcpt['amount'] ?? 0),
+                            $rcpt['status'] ?? 'Paid',
+                            $rcpt['description'] ?? '',
+                        ];
+                    }
+                    $extraSections['tables'][] = [
+                        'title' => 'CUSTOMER RECEIPTS COLLECTION LOG (' . count($data['all_receipts']) . ' RECEIPTS)',
+                        'headers' => ['#', 'Customer Name', 'Receipt #', 'Date', 'Payment Mode', 'Ledger Account', 'Amount (₹)', 'Status', 'Description'],
+                        'rows' => $rcptRows,
+                    ];
+                }
+
+                if (!empty($data['all_payments'])) {
+                    $pmtRows = [];
+                    foreach ($data['all_payments'] as $pi => $pmt) {
+                        $pmtRows[] = [
+                            $pi + 1,
+                            $pmt['customer_name'] ?? '',
+                            $pmt['voucher_no'] ?? '',
+                            $pmt['transaction_date'] ?? '',
+                            $pmt['mode'] ?? 'Cash',
+                            $pmt['account'] ?? 'Cash/Bank',
+                            (float)($pmt['amount'] ?? 0),
+                            $pmt['status'] ?? 'Paid',
+                            $pmt['description'] ?? '',
+                        ];
+                    }
+                    $extraSections['tables'][] = [
+                        'title' => 'CUSTOMER PAYMENTS / REFUNDS LOG (' . count($data['all_payments']) . ' PAYMENTS)',
+                        'headers' => ['#', 'Customer Name', 'Payment #', 'Date', 'Payment Mode', 'Ledger Account', 'Amount (₹)', 'Status', 'Description'],
+                        'rows' => $pmtRows,
                     ];
                 }
             } elseif ($type === 'overall') {

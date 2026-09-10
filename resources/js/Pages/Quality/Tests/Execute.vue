@@ -22,12 +22,17 @@ const gridConfig = computed(() => props.test.test_type?.grid_config || {});
 
 // Concrete Cube Compressive Strength testing flag
 const isConcreteCubeTest = computed(() => {
+    const cat = (props.test.test_type?.category || '').toLowerCase();
+    const name = (props.test.test_type?.name || '').toLowerCase();
+    // Exclude Cement and Raw Material so they use the dynamic IS 4031 parameter engine
+    if (cat === 'raw material' || cat === 'cement' || name.includes('cement')) {
+        return false;
+    }
     return (
-        props.test.test_type?.category === 'Concrete' ||
+        cat === 'concrete' ||
         props.test.sample?.concrete_grade_id != null ||
         props.test.age_days != null ||
-        /concrete/i.test(props.test.test_type?.name || '') ||
-        /compressive/i.test(props.test.test_type?.name || '')
+        name.includes('concrete')
     );
 });
 
@@ -172,11 +177,19 @@ const concreteStatus = computed(() => {
 });
 
 // Active trial mode state (for Single vs Multi-Trial layouts)
-const isMultiTrial = ref<boolean>(layoutType.value === 'MULTI_TRIAL');
+const isMultiTrial = ref<boolean>(
+    layoutType.value === 'MULTI_TRIAL' ||
+    Boolean(props.test.test_type?.specimen_count && props.test.test_type.specimen_count > 1) ||
+    Boolean(props.test.test_type?.parameters?.some((p: any) => p.scope === 'specimen'))
+);
 
 // Watch layoutType changes and sync isMultiTrial
-watch(layoutType, (newType) => {
-    isMultiTrial.value = newType === 'MULTI_TRIAL';
+watch([layoutType, () => props.test.test_type], () => {
+    isMultiTrial.value = (
+        layoutType.value === 'MULTI_TRIAL' ||
+        Boolean(props.test.test_type?.specimen_count && props.test.test_type.specimen_count > 1) ||
+        Boolean(props.test.test_type?.parameters?.some((p: any) => p.scope === 'specimen'))
+    );
 }, { immediate: true });
 
 // -----------------------------------------------------------------------------
@@ -475,7 +488,8 @@ const getDefaultText = (p: any) => {
 const buildInitialTrials = () => {
     const existing = props.test.measurements || [];
     const maxRow = existing.reduce((max: number, m: any) => Math.max(max, m.row_index ?? 0), 0);
-    const count = layoutType.value === 'MULTI_TRIAL' ? Math.max(3, maxRow + 1) : 1;
+    const configuredCount = Number(props.test.test_type?.specimen_count) || (props.test.test_type?.parameters?.some((p: any) => p.scope === 'specimen') ? 3 : 1);
+    const count = isMultiTrial.value ? Math.max(configuredCount, maxRow + 1) : 1;
 
     const trials = [];
     for (let r = 0; r < count; r++) {
@@ -485,6 +499,7 @@ const buildInitialTrials = () => {
                 parameter_id: p.id,
                 code: p.code,
                 name: p.name,
+                scope: p.scope || 'test',
                 data_type: p.data_type,
                 unit: p.unit,
                 default_value: p.default_value,
@@ -508,6 +523,7 @@ const addTrialRow = () => {
         parameter_id: p.id,
         code: p.code,
         name: p.name,
+        scope: p.scope || 'test',
         data_type: p.data_type,
         unit: p.unit,
         default_value: p.default_value,
@@ -528,7 +544,7 @@ const removeTrialRow = (idx: number) => {
     });
 };
 
-// Formula evaluation per trial row
+// Formula evaluation per trial row (supporting TIMEDIFF_MINUTES, cross-variable tokens, and math operators)
 const getTrialCalculatedVal = (rowIndex: number, paramCode: string, formula: string) => {
     if (!formula) return null;
     try {
@@ -536,13 +552,51 @@ const getTrialCalculatedVal = (rowIndex: number, paramCode: string, formula: str
         const row = trialsData.value[rowIndex];
         if (!row) return null;
 
+        // 1. Evaluate TIMEDIFF_MINUTES(start, end)
+        expr = expr.replace(/TIMEDIFF_MINUTES\s*\(([^,]+),([^)]+)\)/gi, (_, rawStart, rawEnd) => {
+            const findVal = (token: string) => {
+                const t = token.trim().toUpperCase();
+                const m = row.find((item: any) => (item.code || '').toUpperCase() === t);
+                if (m) return m.value_text || m.value_numeric;
+                if (trialsData.value[0]) {
+                    const m0 = trialsData.value[0].find((item: any) => (item.code || '').toUpperCase() === t);
+                    if (m0) return m0.value_text || m0.value_numeric;
+                }
+                return token.trim();
+            };
+            const sVal = findVal(rawStart);
+            const eVal = findVal(rawEnd);
+            const toMins = (v: any) => {
+                if (typeof v === 'number') return v;
+                const str = String(v).trim().replace(/['"]/g, '');
+                const match = str.match(/^(\d{1,2}):(\d{2})/);
+                if (match) return parseInt(match[1]) * 60 + parseInt(match[2]);
+                const ts = Date.parse(str);
+                return !isNaN(ts) ? Math.floor(ts / 60000) : 0;
+            };
+            const diff = toMins(eVal) - toMins(sVal);
+            return String(diff < 0 ? diff + 1440 : diff);
+        });
+
+        // 2. Replace parameter codes in current row
         row.forEach((m: any) => {
             if (m.code && m.value_numeric !== null && m.value_numeric !== '') {
-                const regex = new RegExp('\\b' + m.code + '\\b', 'g');
+                const regex = new RegExp('\\b' + m.code + '\\b', 'gi');
                 expr = expr.replace(regex, String(m.value_numeric));
             }
         });
 
+        // 3. Also check test-level parameters from trial row 0 if this is a specimen row
+        if (rowIndex > 0 && trialsData.value[0]) {
+            trialsData.value[0].forEach((m0: any) => {
+                if (m0.code && m0.value_numeric !== null && m0.value_numeric !== '') {
+                    const regex = new RegExp('\\b' + m0.code + '\\b', 'gi');
+                    expr = expr.replace(regex, String(m0.value_numeric));
+                }
+            });
+        }
+
+        // 4. Fallback: Positional letters A, B, C
         const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         row.forEach((m: any, idx: number) => {
             if (idx < 26) {
@@ -557,7 +611,7 @@ const getTrialCalculatedVal = (rowIndex: number, paramCode: string, formula: str
         if (/[A-Za-z_]+/.test(expr)) return null;
         // eslint-disable-next-line no-new-func
         const res = Function('"use strict"; return (' + expr + ')')();
-        return isNaN(res) || res === null || res === undefined ? null : Number(res).toFixed(2);
+        return isNaN(res) || res === null || res === undefined ? null : Number(Number(res).toFixed(2));
     } catch (e) {
         return null;
     }
@@ -634,6 +688,16 @@ const submitExecution = () => {
                     value_text: m.value_text,
                     row_index: rIdx,
                 });
+            } else {
+                const calc = getTrialCalculatedVal(rIdx, m.code, m.formula);
+                if (calc !== null) {
+                    flat.push({
+                        parameter_id: m.parameter_id,
+                        value_numeric: parseFloat(calc),
+                        value_text: String(calc),
+                        row_index: rIdx,
+                    });
+                }
             }
         });
     });
@@ -1575,7 +1639,7 @@ const printCertificate = () => {
                     </div>
 
                     <!-- --------------------------------------------------------- -->
-                    <!-- LAYOUT 7: SINGLE READING / TRIAL                          -->
+                    <!-- LAYOUT 7: SINGLE READING / TEST-LEVEL EXECUTION           -->
                     <!-- --------------------------------------------------------- -->
                     <div v-else-if="!isMultiTrial" class="space-y-3">
                         <div v-if="trialsData[0] && trialsData[0].length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1588,8 +1652,16 @@ const printCertificate = () => {
                                     <span class="font-bold text-slate-800 dark:text-slate-200">{{ m.name }}</span>
                                     <span v-if="m.unit" class="text-indigo-600 font-mono font-bold text-[11px] bg-indigo-50 dark:bg-indigo-950 px-1.5 py-0.5 rounded">{{ m.unit }}</span>
                                 </div>
-                                <div v-if="m.is_calculated" class="px-3 py-2 bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 rounded-lg font-mono font-black text-purple-700 dark:text-purple-300 text-sm">
-                                    {{ getTrialCalculatedVal(0, m.code, m.formula) ?? '-' }}
+                                <div v-if="m.is_calculated" class="px-3 py-2 bg-purple-50 dark:bg-purple-950/50 border border-purple-200 dark:border-purple-800 rounded-lg font-mono font-black text-purple-700 dark:text-purple-300 text-sm flex items-center justify-between">
+                                    <span>{{ getTrialCalculatedVal(0, m.code, m.formula) ?? '-' }}</span>
+                                    <span v-if="m.unit" class="text-xs font-bold text-purple-600/80">{{ m.unit }}</span>
+                                </div>
+                                <div v-else-if="m.data_type === 'time'">
+                                    <input
+                                        v-model="m.value_text"
+                                        type="time"
+                                        class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold focus:ring-2 focus:ring-indigo-500"
+                                    />
                                 </div>
                                 <div v-else>
                                     <input
@@ -1631,6 +1703,12 @@ const printCertificate = () => {
                                             <span v-if="m.is_calculated" class="font-black text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/60 px-2.5 py-1 rounded-md border border-purple-200/60 inline-block">
                                                 {{ getTrialCalculatedVal(rIdx, m.code, m.formula) ?? '-' }}
                                             </span>
+                                            <input
+                                                v-else-if="m.data_type === 'time'"
+                                                v-model="m.value_text"
+                                                type="time"
+                                                class="w-28 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold focus:ring-2 focus:ring-indigo-500"
+                                            />
                                             <input
                                                 v-else
                                                 v-model.number="m.value_numeric"

@@ -58,7 +58,7 @@ class QCSampleController extends Controller
 
         $samples = $query->orderBy('id', 'desc')->paginate(20)->withQueryString();
 
-        $concreteGrades = ConcreteGrade::where('status', true)->get(['id', 'name', 'design_type', 'code']);
+        $concreteGrades = ConcreteGrade::where('status', true)->get(['id', 'name']);
 
         $materials = Product::query();
         if ($plantId) {
@@ -68,7 +68,7 @@ class QCSampleController extends Controller
 
         $customers = Patron::where('status', true)->get(['id', 'legal_name', 'code']);
 
-        $dispatches = Dispatch::with(['customer:id,legal_name', 'unloadSite:id,name', 'truck:id,reg_number,machine_name', 'mixDesign.concreteGrade:id,name,design_type'])
+        $dispatches = Dispatch::with(['customer:id,legal_name', 'unloadSite:id,name', 'truck:id,registration', 'mixDesign.concreteGrade:id,name'])
             ->whereNotNull('dispatch_no')
             ->orderBy('id', 'desc')
             ->limit(60)
@@ -99,7 +99,7 @@ class QCSampleController extends Controller
         $ctx = app(PlantContextService::class);
         $plantId = $ctx->plantId();
 
-        $concreteGrades = ConcreteGrade::where('status', true)->get(['id', 'name', 'design_type', 'code']);
+        $concreteGrades = ConcreteGrade::where('status', true)->get(['id', 'name']);
 
         $materials = Product::query();
         if ($plantId) {
@@ -109,7 +109,7 @@ class QCSampleController extends Controller
 
         $customers = Patron::where('status', true)->get(['id', 'legal_name', 'code']);
 
-        $dispatches = Dispatch::with(['customer:id,legal_name', 'unloadSite:id,name', 'truck:id,reg_number,machine_name', 'mixDesign.concreteGrade:id,name,design_type'])
+        $dispatches = Dispatch::with(['customer:id,legal_name', 'unloadSite:id,name', 'truck:id,registration', 'mixDesign.concreteGrade:id,name'])
             ->whereNotNull('dispatch_no')
             ->orderBy('id', 'desc')
             ->limit(60)
@@ -143,7 +143,7 @@ class QCSampleController extends Controller
 
         $sample->load(['tests.testType', 'concreteGrade', 'material', 'customer', 'batch', 'dispatch']);
 
-        $concreteGrades = ConcreteGrade::where('status', true)->get(['id', 'name', 'design_type', 'code']);
+        $concreteGrades = ConcreteGrade::where('status', true)->get(['id', 'name']);
 
         $materials = Product::query();
         if ($plantId) {
@@ -153,7 +153,7 @@ class QCSampleController extends Controller
 
         $customers = Patron::where('status', true)->get(['id', 'legal_name', 'code']);
 
-        $dispatches = Dispatch::with(['customer:id,legal_name', 'unloadSite:id,name', 'truck:id,reg_number,machine_name', 'mixDesign.concreteGrade:id,name,design_type'])
+        $dispatches = Dispatch::with(['customer:id,legal_name', 'unloadSite:id,name', 'truck:id,registration', 'mixDesign.concreteGrade:id,name'])
             ->whereNotNull('dispatch_no')
             ->orderBy('id', 'desc')
             ->limit(60)
@@ -248,8 +248,7 @@ class QCSampleController extends Controller
                     $targetTestTypeIds = QcTestType::where('is_active', true)
                         ->where(function ($q) use ($grade) {
                             $q->where('material_type', $grade->name)
-                              ->orWhere('material_type', (string)$grade->id)
-                              ->orWhere('material_type', $grade->design_type);
+                              ->orWhere('material_type', (string)$grade->id);
                         })
                         ->pluck('id')
                         ->toArray();

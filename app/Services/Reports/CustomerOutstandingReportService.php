@@ -20,13 +20,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $start    = $params['start'] ?? null;
         $end      = $params['end'] ?? null;
 
-        $query = Invoice::query()
-            ->with([
-                'partner' => function ($q) {
-                    $q->select('id', 'code', 'legal_name', 'gstin', 'pan_no')
-                      ->with(['contacts:id,patron_id,name,mobile,alt_mobile,landline,email,is_primary']);
-                }
-            ])
+        // 1. Query Sales Invoices (whereNull('deleted_at') and status != 'Cancelled')
+        $invoiceQuery = Invoice::query()
             ->where('invoice_type', 'sales')
             ->whereNull('deleted_at')
             ->where(function ($q) {
@@ -35,135 +30,295 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             });
 
         if ($plantId) {
-            $query->where('plant_id', $plantId);
+            $invoiceQuery->where('plant_id', $plantId);
         }
 
         if ($patronId) {
-            $query->where('partner_id', $patronId);
+            $invoiceQuery->where('partner_id', $patronId);
         }
 
-        // Include invoices in range or any invoice prior that still has pending balance
-        if ($start && $end) {
-            $query->where(function ($q) use ($start, $end) {
-                $q->whereBetween('invoice_date', [$start, $end])
-                  ->orWhere('balance_amount', '>', 0);
-            });
-        }
         if ($end) {
-            $query->where('invoice_date', '<=', $end);
+            $invoiceQuery->where('invoice_date', '<=', $end);
         }
 
-        $invoices = $query->orderBy('invoice_date', 'asc')
+        $invoices = $invoiceQuery->orderBy('invoice_date', 'asc')
             ->orderBy('id', 'asc')
             ->get();
 
-        $today = now()->startOfDay();
-        $allOpenInvoices = [];
-        $grouped = [];
+        // 2. Fetch all Payments and Receipts from mm_payments where deleted_at IS NULL
+        $paymentQuery = \App\Models\Payment::query()
+            ->with(['ledger:id,title'])
+            ->whereNull('deleted_at')
+            ->whereNotNull('patron_id')
+            ->where(function ($q) {
+                $q->whereNull('status')
+                  ->orWhereNotIn('status', ['cancelled', 'rejected', 'failed']);
+            });
 
-        foreach ($invoices as $inv) {
-            $dueDate = !empty($inv->due_date) 
-                ? Carbon::parse($inv->due_date)->startOfDay() 
-                : ($inv->invoice_date ? Carbon::parse($inv->invoice_date)->startOfDay() : $today);
-
-            $daysPastDue = (int)$dueDate->diffInDays($today, false);
-            $daysOverdue = max(0, $daysPastDue);
-            $isOverdue = $daysOverdue > 0;
-
-            $totalAmount   = round((float)($inv->total_amount ?? 0), 2);
-            $paidAmount    = round((float)($inv->paid_amount ?? 0), 2);
-            $balanceAmount = round(max(0.00, (float)($inv->balance_amount ?? ($totalAmount - $paidAmount))), 2);
-
-            $bracket = match (true) {
-                $daysOverdue > 90 => 'aging_90_plus',
-                $daysOverdue > 60 => 'aging_61_90',
-                $daysOverdue > 30 => 'aging_31_60',
-                default           => 'aging_0_30',
-            };
-
-            $invItem = [
-                'id'             => $inv->id,
-                'encrypted_id'   => $inv->encrypted_id,
-                'full_number'    => $inv->full_number ?: ('INV-' . $inv->id),
-                'prefix'         => $inv->prefix,
-                'invoice_number' => $inv->invoice_number,
-                'invoice_date'   => $inv->invoice_date ? Carbon::parse($inv->invoice_date)->format('d/m/Y') : '-',
-                'raw_date'       => $inv->invoice_date ? Carbon::parse($inv->invoice_date)->format('Y-m-d') : '',
-                'due_date'       => $inv->due_date ? Carbon::parse($inv->due_date)->format('d/m/Y') : '-',
-                'raw_due_date'   => $inv->due_date ? Carbon::parse($inv->due_date)->format('Y-m-d') : '',
-                'days_overdue'   => $daysOverdue,
-                'is_overdue'     => $isOverdue,
-                'aging_bucket'   => $bracket,
-                'total_amount'   => $totalAmount,
-                'paid_amount'    => $paidAmount,
-                'balance_amount' => $balanceAmount,
-                'status'         => $balanceAmount <= 0 ? 'Paid' : ($paidAmount > 0 ? 'Partially Paid' : 'Unpaid'),
-                'customer_id'    => $inv->partner_id,
-                'customer_name'  => $inv->partner?->legal_name ?? 'Unknown Customer',
-                'customer_code'  => $inv->partner?->code ?? '-',
-            ];
-
-            if ($balanceAmount > 0) {
-                $allOpenInvoices[] = $invItem;
-            }
-
-            $cId = $inv->partner_id ?: 0;
-            if (!isset($grouped[$cId])) {
-                $partner = $inv->partner;
-                $contacts = $partner?->contacts ?? collect();
-                $primaryContact = $contacts->firstWhere('is_primary', 1) ?? $contacts->first();
-
-                $grouped[$cId] = [
-                    'customer_id'        => $partner?->id ?? $cId,
-                    'customer_code'      => $partner?->code ?? '-',
-                    'customer_name'      => $partner?->legal_name ?? 'Unknown Customer',
-                    'party_name'         => $partner?->legal_name ?? 'Unknown Customer',
-                    'gstin'              => $partner?->gstin ?? '-',
-                    'pan_no'             => $partner?->pan_no ?? '-',
-                    'contact_person'     => $primaryContact?->name ?? '-',
-                    'phone'              => $primaryContact?->mobile ?: ($primaryContact?->alt_mobile ?: ($primaryContact?->landline ?? '-')),
-                    'email'              => $primaryContact?->email ?? '-',
-                    'total_invoiced'     => 0.0,
-                    'total_paid'         => 0.0,
-                    'total_outstanding'  => 0.0,
-                    'aging_0_30'         => 0.0,
-                    'aging_31_60'        => 0.0,
-                    'aging_61_90'        => 0.0,
-                    'aging_90_plus'      => 0.0,
-                    'invoices_count'     => 0,
-                    'open_invoices_count'=> 0,
-                    'invoices'           => [],
-                ];
-            }
-
-            $grouped[$cId]['total_invoiced'] += $totalAmount;
-            $grouped[$cId]['total_paid']     += $paidAmount;
-            $grouped[$cId]['total_outstanding'] += $balanceAmount;
-            $grouped[$cId]['invoices_count']++;
-
-            if ($balanceAmount > 0) {
-                $grouped[$cId]['open_invoices_count']++;
-                $grouped[$cId][$bracket] += $balanceAmount;
-            }
-
-            $grouped[$cId]['invoices'][] = $invItem;
+        if ($plantId) {
+            $paymentQuery->where('plant_id', $plantId);
         }
 
-        // Format and sort customers: sort by total_outstanding descending
-        $customersList = collect(array_values($grouped))->map(function ($row) {
-            $row['total_invoiced']    = round($row['total_invoiced'], 2);
-            $row['total_paid']        = round($row['total_paid'], 2);
-            $row['total_outstanding'] = round($row['total_outstanding'], 2);
-            $row['aging_0_30']        = round($row['aging_0_30'], 2);
-            $row['aging_31_60']       = round($row['aging_31_60'], 2);
-            $row['aging_61_90']       = round($row['aging_61_90'], 2);
-            $row['aging_90_plus']     = round($row['aging_90_plus'], 2);
-            return $row;
-        })->sortByDesc('total_outstanding')->values()->all();
+        if ($patronId) {
+            $paymentQuery->where('patron_id', $patronId);
+        }
+
+        if ($end) {
+            $endDateOnly = substr($end, 0, 10);
+            $paymentQuery->where('transaction_date', '<=', $endDateOnly);
+        }
+
+        $allPaymentsAndReceipts = $paymentQuery->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        // 3. Collect distinct patron IDs across invoices and payment/receipt transactions
+        $patronIdsFromInvoices = $invoices->pluck('partner_id')->filter()->unique()->all();
+        $patronIdsFromPayments = $allPaymentsAndReceipts->pluck('patron_id')->filter()->unique()->all();
+        $allPatronIds = array_values(array_unique(array_merge($patronIdsFromInvoices, $patronIdsFromPayments)));
+
+        if ($patronId && !in_array($patronId, $allPatronIds)) {
+            $allPatronIds[] = $patronId;
+        }
+
+        // 4. Load Customer Master Details (whereNull('deleted_at'))
+        $allPatrons = Patron::with(['contacts:id,patron_id,name,mobile,alt_mobile,landline,email,is_primary'])
+            ->whereNull('deleted_at')
+            ->whereIn('id', $allPatronIds)
+            ->get()
+            ->keyBy('id');
+
+        // Group invoices and payment transactions by customer
+        $invoicesByCustomer = $invoices->groupBy('partner_id');
+        $receiptsByCustomer = $allPaymentsAndReceipts->filter(function ($p) {
+            $type = strtolower($p->transaction_type ?? '');
+            return in_array($type, ['receipt', 'rcpt']) || str_contains($type, 'receipt');
+        })->groupBy('patron_id');
+
+        $paymentsByCustomer = $allPaymentsAndReceipts->filter(function ($p) {
+            $type = strtolower($p->transaction_type ?? '');
+            return in_array($type, ['payment', 'pmt']) || (!str_contains($type, 'receipt') && $type === 'payment');
+        })->groupBy('patron_id');
+
+        $today = now()->startOfDay();
+        $allOpenInvoices = [];
+        $allReceiptsList = [];
+        $allPaymentsList = [];
+        $customersList   = [];
+
+        // 5. Process each customer
+        foreach ($allPatronIds as $cId) {
+            $partner = $allPatrons->get($cId);
+            $contacts = $partner?->contacts ?? collect();
+            $primaryContact = $contacts->firstWhere('is_primary', 1) ?? $contacts->first();
+
+            $customerCode = $partner?->code ?? '-';
+            $customerName = $partner?->legal_name ?? ('Customer #' . $cId);
+            $phone = $primaryContact?->mobile ?: ($primaryContact?->alt_mobile ?: ($primaryContact?->landline ?? '-'));
+
+            $custInvoices = $invoicesByCustomer->get($cId, collect())->sortBy('invoice_date')->values();
+            $custReceipts = $receiptsByCustomer->get($cId, collect())->values();
+            $custPayments = $paymentsByCustomer->get($cId, collect())->values();
+
+            // Total Invoiced, Receipts, and Payments
+            $totalInvoiced = round((float)$custInvoices->sum(fn($i) => (float)($i->total_amount ?? 0)), 2);
+            $totalReceipt  = round((float)$custReceipts->sum(fn($p) => (float)($p->amount ?? 0)), 2);
+            $totalPayment  = round((float)$custPayments->sum(fn($p) => (float)($p->amount ?? 0)), 2);
+
+            // Net collections from customer = Receipts - Payments / Refunds
+            $netCollections = max(0.00, round($totalReceipt - $totalPayment, 2));
+
+            // Outstanding Balance = Total Invoiced + Total Payments - Total Receipts
+            $netOutstanding = round($totalInvoiced + $totalPayment - $totalReceipt, 2);
+
+            $aging0to30    = 0.00;
+            $aging31to60   = 0.00;
+            $aging61to90   = 0.00;
+            $aging90plus   = 0.00;
+            $openInvoicesCount = 0;
+
+            $custInvoiceItems     = [];
+            $custOpenInvoiceItems = [];
+            $custReceiptItems     = [];
+            $custPaymentItems     = [];
+
+            // Process Invoices with FIFO allocation of Net Collections
+            $remainingCollectionsToAllocate = $netCollections;
+
+            foreach ($custInvoices as $inv) {
+                $invTotal = round((float)($inv->total_amount ?? 0), 2);
+
+                if ($remainingCollectionsToAllocate >= $invTotal) {
+                    $invPaid = $invTotal;
+                    $invBal  = 0.00;
+                    $remainingCollectionsToAllocate = round($remainingCollectionsToAllocate - $invTotal, 2);
+                } else {
+                    $invPaid = $remainingCollectionsToAllocate;
+                    $invBal  = round($invTotal - $invPaid, 2);
+                    $remainingCollectionsToAllocate = 0.00;
+                }
+
+                $dueDate = !empty($inv->due_date) 
+                    ? Carbon::parse($inv->due_date)->startOfDay() 
+                    : ($inv->invoice_date ? Carbon::parse($inv->invoice_date)->startOfDay() : $today);
+
+                $daysPastDue = (int)$dueDate->diffInDays($today, false);
+                $daysOverdue = max(0, $daysPastDue);
+                $isOverdue   = $daysOverdue > 0;
+
+                $bracket = match (true) {
+                    $daysOverdue > 90 => 'aging_90_plus',
+                    $daysOverdue > 60 => 'aging_61_90',
+                    $daysOverdue > 30 => 'aging_31_60',
+                    default           => 'aging_0_30',
+                };
+
+                $invItem = [
+                    'id'             => $inv->id,
+                    'encrypted_id'   => $inv->encrypted_id,
+                    'full_number'    => $inv->full_number ?: ('INV-' . $inv->id),
+                    'prefix'         => $inv->prefix,
+                    'invoice_number' => $inv->invoice_number,
+                    'invoice_date'   => $inv->invoice_date ? Carbon::parse($inv->invoice_date)->format('d/m/Y') : '-',
+                    'raw_date'       => $inv->invoice_date ? Carbon::parse($inv->invoice_date)->format('Y-m-d') : '',
+                    'due_date'       => $inv->due_date ? Carbon::parse($inv->due_date)->format('d/m/Y') : '-',
+                    'raw_due_date'   => $inv->due_date ? Carbon::parse($inv->due_date)->format('Y-m-d') : '',
+                    'days_overdue'   => $daysOverdue,
+                    'is_overdue'     => $isOverdue,
+                    'aging_bucket'   => $bracket,
+                    'total_amount'   => $invTotal,
+                    'paid_amount'    => $invPaid,
+                    'balance_amount' => $invBal,
+                    'status'         => $invBal <= 0 ? 'Paid' : ($invPaid > 0 ? 'Partially Paid' : 'Unpaid'),
+                    'customer_id'    => $cId,
+                    'customer_name'  => $customerName,
+                    'customer_code'  => $customerCode,
+                ];
+
+                $custInvoiceItems[] = $invItem;
+
+                if ($invBal > 0) {
+                    $custOpenInvoiceItems[] = $invItem;
+                    $allOpenInvoices[]      = $invItem;
+                    $openInvoicesCount++;
+
+                    if ($bracket === 'aging_90_plus') {
+                        $aging90plus += $invBal;
+                    } elseif ($bracket === 'aging_61_90') {
+                        $aging61to90 += $invBal;
+                    } elseif ($bracket === 'aging_31_60') {
+                        $aging31to60 += $invBal;
+                    } else {
+                        $aging0to30  += $invBal;
+                    }
+                }
+            }
+
+            // If net balance is zero or customer is in advance
+            if ($netOutstanding <= 0) {
+                $unallocatedAdvance = abs($netOutstanding);
+                $finalOutstanding   = 0.00;
+                $aging0to30         = 0.00;
+                $aging31to60        = 0.00;
+                $aging61to90        = 0.00;
+                $aging90plus        = 0.00;
+            } else {
+                $unallocatedAdvance = 0.00;
+                $finalOutstanding   = $netOutstanding;
+
+                // If customer has a net debit from extra payments/refunds without corresponding invoices, bucket in 0-30
+                $sumAging = round($aging0to30 + $aging31to60 + $aging61to90 + $aging90plus, 2);
+                if ($finalOutstanding > $sumAging) {
+                    $aging0to30 = round($aging0to30 + ($finalOutstanding - $sumAging), 2);
+                }
+            }
+
+            // Process Receipts
+            foreach ($custReceipts as $p) {
+                $pAmt = round((float)($p->amount ?? 0), 2);
+                $rItem = [
+                    'id'               => $p->id,
+                    'voucher_no'       => $p->reference ?? ('RCPT-' . $p->id),
+                    'reference'        => $p->reference,
+                    'transaction_date' => $p->transaction_date ? Carbon::parse($p->transaction_date)->format('d/m/Y') : '-',
+                    'raw_date'         => $p->transaction_date ? Carbon::parse($p->transaction_date)->format('Y-m-d') : '',
+                    'amount'           => $pAmt,
+                    'type'             => 'receipt',
+                    'mode'             => ucfirst($p->transaction_mode ?: 'Cash'),
+                    'account'          => $p->ledger?->title ?? 'Cash/Bank',
+                    'status'           => ucfirst($p->status ?: 'paid'),
+                    'description'      => $p->description ?? '',
+                    'customer_id'      => $cId,
+                    'customer_name'    => $customerName,
+                    'customer_code'    => $customerCode,
+                ];
+                $custReceiptItems[] = $rItem;
+                $allReceiptsList[]  = $rItem;
+            }
+
+            // Process Payments (Refunds/Outflows to customer)
+            foreach ($custPayments as $p) {
+                $pAmt = round((float)($p->amount ?? 0), 2);
+                $pItem = [
+                    'id'               => $p->id,
+                    'voucher_no'       => $p->reference ?? ('PMT-' . $p->id),
+                    'reference'        => $p->reference,
+                    'transaction_date' => $p->transaction_date ? Carbon::parse($p->transaction_date)->format('d/m/Y') : '-',
+                    'raw_date'         => $p->transaction_date ? Carbon::parse($p->transaction_date)->format('Y-m-d') : '',
+                    'amount'           => $pAmt,
+                    'type'             => 'payment',
+                    'mode'             => ucfirst($p->transaction_mode ?: 'Cash'),
+                    'account'          => $p->ledger?->title ?? 'Cash/Bank',
+                    'status'           => ucfirst($p->status ?: 'paid'),
+                    'description'      => $p->description ?? '',
+                    'customer_id'      => $cId,
+                    'customer_name'    => $customerName,
+                    'customer_code'    => $customerCode,
+                ];
+                $custPaymentItems[] = $pItem;
+                $allPaymentsList[]  = $pItem;
+            }
+
+            $customersList[] = [
+                'customer_id'         => $partner?->id ?? $cId,
+                'customer_code'       => $customerCode,
+                'customer_name'       => $customerName,
+                'party_name'          => $customerName,
+                'gstin'               => $partner?->gstin ?? '-',
+                'pan_no'              => $partner?->pan_no ?? '-',
+                'contact_person'      => $primaryContact?->name ?? '-',
+                'phone'               => $phone,
+                'email'               => $primaryContact?->email ?? '-',
+                'total_invoiced'      => $totalInvoiced,
+                'total_receipt'       => $totalReceipt,
+                'total_payment'       => $totalPayment,
+                'total_paid'          => $totalReceipt,
+                'total_outstanding'   => $finalOutstanding,
+                'unallocated_advance' => $unallocatedAdvance,
+                'aging_0_30'          => round($aging0to30, 2),
+                'aging_31_60'         => round($aging31to60, 2),
+                'aging_61_90'         => round($aging61to90, 2),
+                'aging_90_plus'       => round($aging90plus, 2),
+                'invoices_count'      => count($custInvoiceItems),
+                'open_invoices_count' => $openInvoicesCount,
+                'receipts_count'      => count($custReceiptItems),
+                'payments_count'      => count($custPaymentItems),
+                'invoices'            => $custInvoiceItems,
+                'open_invoices'       => $custOpenInvoiceItems,
+                'receipts'            => $custReceiptItems,
+                'payments'            => $custPaymentItems,
+            ];
+        }
+
+        // Sort customers: customer_name ascending order
+        $customersList = collect($customersList)->sortBy(function ($r) {
+            return strtolower($r['customer_name'] ?? '');
+        })->values()->all();
 
         // Totals
         $totalInvoiced    = round(collect($customersList)->sum('total_invoiced'), 2);
-        $totalPaid        = round(collect($customersList)->sum('total_paid'), 2);
+        $totalReceipt     = round(collect($customersList)->sum('total_receipt'), 2);
+        $totalPayment     = round(collect($customersList)->sum('total_payment'), 2);
         $totalOutstanding = round(collect($customersList)->sum('total_outstanding'), 2);
         $totalAging0to30  = round(collect($customersList)->sum('aging_0_30'), 2);
         $totalAging31to60 = round(collect($customersList)->sum('aging_31_60'), 2);
@@ -172,18 +327,22 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $totalOpenInvCount= (int)collect($customersList)->sum('open_invoices_count');
         $customersWithBal = collect($customersList)->where('total_outstanding', '>', 0)->count();
 
-        $plant = $plantId ? Plant::with(['addresses.state'])->find($plantId) : null;
-        $patron = $patronId ? Patron::with(['addresses'])->find($patronId) : null;
+        $plant = $plantId ? Plant::with(['addresses.state'])->whereNull('deleted_at')->find($plantId) : null;
+        $patron = $patronId ? Patron::with(['addresses'])->whereNull('deleted_at')->find($patronId) : null;
 
         return [
             'transactions'               => $customersList,
             'items'                      => $customersList,
             'customer_summary'           => $customersList,
             'open_invoices'              => $allOpenInvoices,
+            'all_receipts'               => $allReceiptsList,
+            'all_payments'               => $allPaymentsList,
             'total_customers'            => count($customersList),
             'customers_with_balance'     => $customersWithBal,
             'total_invoiced_amount'      => $totalInvoiced,
-            'total_paid_amount'          => $totalPaid,
+            'total_receipt_amount'       => $totalReceipt,
+            'total_payment_amount'       => $totalPayment,
+            'total_paid_amount'          => $totalReceipt,
             'total_outstanding_amount'   => $totalOutstanding,
             'total_amount'               => $totalOutstanding,
             'aging_0_30'                 => $totalAging0to30,
@@ -191,6 +350,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             'aging_61_90'                => $totalAging61to90,
             'aging_90_plus'              => $totalAging90Plus,
             'total_open_invoices'        => $totalOpenInvCount,
+            'total_receipts_count'       => count($allReceiptsList),
+            'total_payments_count'       => count($allPaymentsList),
             'plant'                      => $plant,
             'patron'                     => $patron,
             'generated_at'               => now()->format('d/m/Y h:i A'),

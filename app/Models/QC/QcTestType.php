@@ -24,6 +24,9 @@ class QcTestType extends Model
         'calculation_type',
         'custom_calculator_class',
         'layout_type',
+        'specimen_count',
+        'specimen_shape',
+        'specimen_dimensions',
         'grid_config',
         'description',
         'is_active',
@@ -34,6 +37,7 @@ class QcTestType extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'specimen_count' => 'integer',
         'grid_config' => 'array',
     ];
 

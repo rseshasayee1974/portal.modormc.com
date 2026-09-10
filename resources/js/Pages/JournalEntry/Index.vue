@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
+import { useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 
@@ -12,9 +12,12 @@ import {
     ExclamationTriangleIcon,
     ArrowPathIcon,
     EyeIcon,
+    PrinterIcon,
+    XMarkIcon,
+    BoltIcon,
+    DocumentTextIcon,
     ScaleIcon,
-    PencilSquareIcon,
-    XMarkIcon
+    CalendarIcon
 } from '@heroicons/vue/24/outline';
 import Swal from 'sweetalert2';
 import { useJournalStore, JournalEntry, JournalLine } from './useJournalStore';
@@ -22,7 +25,9 @@ import { useJournalStore, JournalEntry, JournalLine } from './useJournalStore';
 // Custom Base UI Components
 import BaseCard from '@/Components/Base/BaseCard.vue';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
-import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import Dialog from 'primevue/dialog';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
@@ -51,10 +56,10 @@ onMounted(() => {
     store.setInitialData(props);
 });
 
-// Keep store synchronized whenever Inertia props refresh
-watch(() => props.entries, () => {
-    store.setInitialData(props);
-}, { deep: true });
+// UI State
+const showViewModal = ref(false);
+const activeViewEntry = ref<JournalEntry | null>(null);
+const selectedVoucherTypeFilter = ref<string | null>(null);
 
 const filters = ref({
     global: { value: null, matchMode: 'contains' },
@@ -87,10 +92,11 @@ const defaultVType = props.initialVoucherType || (props.voucherTypes?.[0]?.short
 const editingEntryId = ref<number | null>(null);
 
 const journalForm = useForm({
-    voucher_type: defaultVType,
-    voucher_number: props.initialVoucherNumber || '',
-    voucher_date: formatLocalDate(new Date()),
-    posting_date: formatLocalDate(new Date()),
+    voucher_type: 'JV' as string | null,
+    voucher_id: null as number | null,
+    voucher_name: '' as string,
+    voucher_date: new Date(),
+    posting_date: new Date(),
     narration: '',
     lines: [
         { account_id: null, debit_amount: 0, credit_amount: 0, partner_id: null, line_narration: '' },
@@ -98,23 +104,28 @@ const journalForm = useForm({
     ] as JournalLine[]
 });
 
-const refreshVoucherNumber = () => {
-    if (!journalForm.voucher_type || editingEntryId.value) return;
-    const nextNum = store.computeNextVoucherNumber(journalForm.voucher_type);
-    if (nextNum) {
-        journalForm.voucher_number = nextNum;
-    }
+const resetForm = () => {
+    journalForm.reset();
+    journalForm.voucher_type = 'JV';
+    journalForm.voucher_id = null;
+    journalForm.voucher_name = '';
+    journalForm.voucher_date = new Date();
+    journalForm.posting_date = new Date();
+    journalForm.narration = '';
+    journalForm.lines = [
+        { account_id: null, debit_amount: 0, credit_amount: 0, partner_id: null, line_narration: '' },
+        { account_id: null, debit_amount: 0, credit_amount: 0, partner_id: null, line_narration: '' }
+    ];
 };
 
-// Auto-fetch reference sequence when voucher type changes in Create mode
-watch(() => journalForm.voucher_type, (newType) => {
-    if (newType && !editingEntryId.value) {
-        refreshVoucherNumber();
-    }
-});
-
 const addLine = () => {
-    journalForm.lines.push({ account_id: null, debit_amount: 0, credit_amount: 0, partner_id: null, line_narration: '' });
+    journalForm.lines.push({
+        account_id: null,
+        debit_amount: 0,
+        credit_amount: 0,
+        partner_id: null,
+        line_narration: ''
+    });
 };
 
 const removeLine = (index: number) => {
@@ -123,69 +134,187 @@ const removeLine = (index: number) => {
     }
 };
 
-// Calculations
-const totalDebit = computed(() => journalForm.lines.reduce((sum, line) => sum + (Number(line.debit_amount) || 0), 0));
-const totalCredit = computed(() => journalForm.lines.reduce((sum, line) => sum + (Number(line.credit_amount) || 0), 0));
-const balanceDifference = computed(() => Math.abs(totalDebit.value - totalCredit.value));
-const isBalanced = computed(() => totalDebit.value > 0 && balanceDifference.value < 0.0001);
-
-// Auto-balance helper
-const autoBalance = () => {
-    const diff = totalDebit.value - totalCredit.value;
-    if (Math.abs(diff) < 0.0001) return;
-
-    const lastLine = journalForm.lines[journalForm.lines.length - 1];
-    if (diff > 0) {
-        // Need more credit
-        if (lastLine.debit_amount === 0 && lastLine.credit_amount === 0) {
-            lastLine.credit_amount = parseFloat(diff.toFixed(2));
-        } else {
-            journalForm.lines.push({
-                account_id: null,
-                debit_amount: 0,
-                credit_amount: parseFloat(diff.toFixed(2)),
-                partner_id: null,
-                line_narration: ''
-            });
-        }
-    } else {
-        // Need more debit
-        const absDiff = Math.abs(diff);
-        if (lastLine.debit_amount === 0 && lastLine.credit_amount === 0) {
-            lastLine.debit_amount = parseFloat(absDiff.toFixed(2));
-        } else {
-            journalForm.lines.push({
-                account_id: null,
-                debit_amount: parseFloat(absDiff.toFixed(2)),
-                credit_amount: 0,
-                partner_id: null,
-                line_narration: ''
-            });
-        }
+const onDebitChange = (line: JournalLine) => {
+    if (line.debit_amount && line.debit_amount > 0) {
+        line.credit_amount = 0;
     }
 };
 
-// Dropdown Options
-const ledgerOptions = computed(() =>
-    store.ledgers.map(l => ({
-        label: `${l.code} - ${l.title}`,
+const onCreditChange = (line: JournalLine) => {
+    if (line.credit_amount && line.credit_amount > 0) {
+        line.debit_amount = 0;
+    }
+};
+
+// Auto-balance shortcut
+const autoBalanceDifference = () => {
+    const diff = totalDebit.value - totalCredit.value;
+    if (Math.abs(diff) < 0.01) return;
+
+    if (diff > 0) {
+        // Need more credit
+        journalForm.lines.push({
+            account_id: null,
+            debit_amount: 0,
+            credit_amount: Number(diff.toFixed(2)),
+            partner_id: null,
+            line_narration: 'Balancing line'
+        });
+    } else {
+        // Need more debit
+        journalForm.lines.push({
+            account_id: null,
+            debit_amount: Number(Math.abs(diff).toFixed(2)),
+            credit_amount: 0,
+            partner_id: null,
+            line_narration: 'Balancing line'
+        });
+    }
+};
+
+const totalDebit = computed(() => journalForm.lines.reduce((sum, line) => sum + (Number(line.debit_amount) || 0), 0));
+const totalCredit = computed(() => journalForm.lines.reduce((sum, line) => sum + (Number(line.credit_amount) || 0), 0));
+const balanceDifference = computed(() => Math.abs(totalDebit.value - totalCredit.value));
+const isBalanced = computed(() => totalDebit.value > 0 && balanceDifference.value < 0.005);
+
+const ledgerOptions = computed(() => [
+    { label: '-- Auto / Select Ledger --', value: null },
+    ...(store.ledgers || []).map(l => ({
+        label: `${l.code ? l.code + ' - ' : ''}${l.title}`,
         value: l.id
     }))
-);
+]);
 
-const voucherOptions = computed(() =>
-    store.voucherTypes.map(v => ({
+const getLedgerLabel = (val: any) => {
+    if (val === null || val === undefined) return '-- Auto / Select Ledger --';
+    const found = (store.ledgers || []).find(l => l.id === val);
+    return found ? `${found.code ? found.code + ' - ' : ''}${found.title}` : val;
+};
+
+const voucherOptions = computed(() => [
+    {
+        id: null,
+        voucher_id: null,
+        name: '',
+        voucher_name: '',
+        journal_name: '',
+        short_code: '',
+        label: '-- Select Voucher Type --',
+        value: null
+    },
+    ...(store.voucherTypes || []).map(v => ({
+        id: v.id,
+        voucher_id: v.id,
+        name: v.journal_name,
+        voucher_name: v.journal_name,
+        journal_name: v.journal_name,
+        short_code: v.short_code,
         label: `${v.journal_name} (${v.short_code})`,
-        value: v.short_code
+        value: v.journal_name
     }))
-);
+]);
 
-const partnerOptions = computed(() =>
-    store.partners.map(p => ({
-        label: p.legal_name,
-        value: p.id
+watch(() => journalForm.voucher_type, (newVal) => {
+    if (!newVal) {
+        journalForm.voucher_id = null;
+        journalForm.voucher_name = '';
+        return;
+    }
+    const found = (store.voucherTypes || []).find(v => v.journal_name === newVal || v.short_code === newVal || v.id === newVal);
+    if (found) {
+        journalForm.voucher_id = found.id;
+        journalForm.voucher_name = found.journal_name;
+    }
+}, { immediate: true });
+
+const filterVoucherOptions = computed(() => [
+    { label: '-- All Voucher Types --', value: null },
+    ...(store.voucherTypes || []).map(vt => ({
+        label: `${vt.journal_name} (${vt.short_code})`,
+        value: vt.short_code
     }))
-);
+]);
+
+const partnerOptions = computed(() => [
+    { label: '-- None (No Patron) --', value: null },
+    ...(store.partners || []).map(p => ({
+        label: p.legal_name || p.name,
+        value: p.id,
+        ledger_id: p.ledger_id,
+        patron_type: p.patron_type
+    }))
+]);
+
+const onPartnerChange = (line: any) => {
+    if (!line.partner_id) return;
+    const patron = (store.partners || []).find((p: any) => p.id === line.partner_id);
+    if (patron && patron.ledger_id && !line.account_id) {
+        line.account_id = patron.ledger_id;
+    }
+};
+
+// Summary KPIs across store entries
+const kpiStats = computed(() => {
+    const list = store.entries || [];
+    const count = list.length;
+    const totalDebitSum = list.reduce((acc, e) => acc + (Number(e.total_debit) || 0), 0);
+    const totalCreditSum = list.reduce((acc, e) => acc + (Number(e.total_credit) || 0), 0);
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const thisMonthCount = list.filter(e => {
+        if (!e.posting_date) return false;
+        const d = new Date(e.posting_date);
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    }).length;
+
+    return {
+        count,
+        totalDebitSum,
+        totalCreditSum,
+        thisMonthCount
+    };
+});
+
+// Filtered entries by voucher type
+const filteredEntries = computed(() => {
+    let list = store.entries || [];
+    if (selectedVoucherTypeFilter.value) {
+        list = list.filter(e => e.voucher_type === selectedVoucherTypeFilter.value);
+    }
+    return list;
+});
+
+const formatCurrency = (amount: number | string | null | undefined) => {
+    const num = Number(amount) || 0;
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(num);
+};
+
+const getVoucherBadgeClass = (vType: string) => {
+    const t = (vType || '').toUpperCase();
+    if (t === 'JV') return 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
+    if (t === 'PAYMENT' || t === 'PAY') return 'bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 border-rose-200 dark:border-rose-800';
+    if (t === 'RECEIPT' || t === 'REC') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+    if (t === 'CONTRA') return 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border-purple-200 dark:border-purple-800';
+    if (t === 'SALES' || t === 'INV') return 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+    if (t === 'PURCHASE' || t === 'BILL') return 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+    return 'bg-gray-50 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700';
+};
+
+const openViewModal = (entry: JournalEntry) => {
+    activeViewEntry.value = entry;
+    showViewModal.value = true;
+};
+
+const printActiveVoucher = () => {
+    window.print();
+};
 
 // Helpers to resolve names
 const getVoucherTypeName = (shortCode: string) => {
@@ -248,118 +377,68 @@ const cancelEdit = () => {
 // Submit form (Create or Update via Inertia DB Refresh)
 const submitForm = () => {
     if (totalDebit.value === 0) {
-        Swal.fire({ icon: 'error', title: 'Empty Journal', text: 'You must enter amounts for debit and credit.' });
+        Swal.fire({ icon: 'error', title: 'Empty Journal', text: 'You must enter debit and credit amounts in the journal.' });
         return;
     }
     if (!isBalanced.value) {
         Swal.fire({
             icon: 'error',
             title: 'Unbalanced Journal',
-            text: `Total Debit (₹${totalDebit.value.toFixed(2)}) must equal Total Credit (₹${totalCredit.value.toFixed(2)}). Difference: ₹${balanceDifference.value.toFixed(2)}`
+            text: `Total Debit (₹ ${totalDebit.value.toFixed(2)}) must equal Total Credit (₹ ${totalCredit.value.toFixed(2)}). Difference: ₹ ${balanceDifference.value.toFixed(2)}`
         });
         return;
     }
 
-    // Check account_id presence on active lines
-    const invalidLine = journalForm.lines.find(l => (l.debit_amount > 0 || l.credit_amount > 0) && !l.account_id);
-    if (invalidLine) {
-        Swal.fire({ icon: 'error', title: 'Missing Account', text: 'Please select an Account / Ledger for all journal lines with amounts.' });
-        return;
-    }
-
-    const payload = {
-        ...journalForm.data(),
-        voucher_date: formatLocalDate(journalForm.voucher_date),
-        posting_date: formatLocalDate(journalForm.posting_date),
-    };
-
-    if (editingEntryId.value) {
-        journalForm.transform(() => payload).put(route('journalentries.update', editingEntryId.value), {
-            preserveScroll: true,
-            onSuccess: () => {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Entry Updated!',
-                    text: 'Journal Entry updated successfully.',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-                cancelEdit();
-            },
-            onError: (errors) => {
-                const errMsg = Object.values(errors).flat().join('\n') || 'Validation failed. Please check all line items and try again.';
-                Swal.fire({ icon: 'error', title: 'Update Error', text: errMsg });
-            }
+    try {
+        journalForm.processing = true;
+        const selectedVoucher = (store.voucherTypes || []).find(v => v.journal_name === journalForm.voucher_type || v.short_code === journalForm.voucher_type || v.id === journalForm.voucher_type);
+        const formData = {
+            ...journalForm.data(),
+            voucher_id: selectedVoucher ? selectedVoucher.id : journalForm.voucher_id,
+            voucher_name: selectedVoucher ? selectedVoucher.journal_name : journalForm.voucher_name,
+            voucher_date: journalForm.voucher_date instanceof Date ? journalForm.voucher_date.toISOString().slice(0, 10) : journalForm.voucher_date,
+            posting_date: journalForm.posting_date instanceof Date ? journalForm.posting_date.toISOString().slice(0, 10) : journalForm.posting_date,
+        };
+        const res = await axios.post(route('journalentries.store'), formData);
+        Swal.fire({
+            icon: 'success',
+            title: 'Voucher Posted!',
+            text: res.data.message || 'Journal Entry Created successfully',
+            timer: 2000,
+            showConfirmButton: false
         });
-    } else {
-        journalForm.transform(() => payload).post(route('journalentries.store'), {
-            preserveScroll: true,
-            onSuccess: () => {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Entry Posted!',
-                    text: 'Journal Entry created successfully.',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-                journalForm.reset();
-                journalForm.voucher_type = defaultVType;
-                journalForm.lines = [
-                    { account_id: null, debit_amount: 0, credit_amount: 0, partner_id: null, line_narration: '' },
-                    { account_id: null, debit_amount: 0, credit_amount: 0, partner_id: null, line_narration: '' }
-                ];
-                refreshVoucherNumber();
-            },
-            onError: (errors) => {
-                const errMsg = Object.values(errors).flat().join('\n') || 'Validation failed. Please check all line items and try again.';
-                Swal.fire({ icon: 'error', title: 'Submission Error', text: errMsg });
-            }
+        store.addEntry(res.data.entry);
+        resetForm();
+    } catch (err: any) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Posting Failed',
+            text: err.response?.data?.message || 'Validation error while saving journal entry.'
         });
+    } finally {
+        journalForm.processing = false;
     }
 };
 
 // Soft Delete Entry (Frees voucher number for reuse via Inertia DB Refresh)
 const deleteEntry = (id: number, voucherNumber: string) => {
     Swal.fire({
-        title: `Delete ${voucherNumber}?`,
-        text: `Are you sure you want to delete this journal entry? The reference number "${voucherNumber}" will be freed and can be reused for new entries.`,
+        title: 'Delete Journal Entry?',
+        text: 'Are you sure you want to delete this journal transaction? This action is audited.',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Yes, Delete & Free Reference'
-    }).then((result) => {
+        confirmButtonColor: '#e11d48',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Yes, Delete'
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.delete(route('journalentries.destroy', id), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Deleted',
-                        text: `Journal entry ${voucherNumber} deleted and reference freed.`,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
-                    refreshVoucherNumber();
-                },
-                onError: () => {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Delete Failed',
-                        text: 'Failed to delete journal entry.'
-                    });
-                }
-            });
-        }
-    });
-};
-
-// Refresh List with Inertia DB Refresh
-const refreshList = () => {
-    router.reload({
-        preserveScroll: true,
-        onSuccess: () => {
-            refreshVoucherNumber();
+            try {
+                await axios.delete(route('journalentries.destroy', id));
+                store.removeEntry(id);
+                Swal.fire({ icon: 'success', title: 'Deleted', text: 'Journal Entry deleted.', timer: 1500, showConfirmButton: false });
+            } catch (e: any) {
+                Swal.fire({ icon: 'error', title: 'Error', text: e.response?.data?.message || 'Unable to delete.' });
+            }
         }
     });
 };
@@ -380,80 +459,85 @@ const openViewModal = (entry: JournalEntry) => {
             <ModuleSubTopNav />
         </template>
 
-        <div class="py-8 px-4 sm:px-6 lg:px-8 bg-slate-50 dark:bg-slate-950 min-h-screen">
-            <div class="max-w-7xl mx-auto space-y-8">
-                
-                <!-- HEADER FORM CARD (Using Custom BaseCard) -->
-                <BaseCard class="shadow-xl border border-slate-200 dark:border-slate-800">
-                    <template #header>
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div class="flex items-center gap-3">
-                                <div class="p-2.5 rounded-xl shadow-lg" :class="editingEntryId ? 'bg-amber-500 shadow-amber-500/30' : 'bg-indigo-600 shadow-indigo-600/30'">
-                                    <PencilSquareIcon v-if="editingEntryId" class="w-6 h-6 text-white" />
-                                    <DocumentChartBarIcon v-else class="w-6 h-6 text-white" />
-                                </div>
-                                <div>
-                                    <h2 class="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
-                                        {{ editingEntryId ? `Edit Journal Voucher (${journalForm.voucher_number})` : 'New Double-Entry Journal' }}
-                                    </h2>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                        {{ editingEntryId ? 'Update details, line accounts, or debit/credit allocations' : 'Record debit and credit transactions with global voucher sequence' }}
-                                    </p>
-                                </div>
-                            </div>
+        <div class="py-6 px-4 sm:px-6 lg:px-8 bg-slate-50/60 dark:bg-slate-950 min-h-screen">
+            <div class="max-w-7xl mx-auto space-y-6">
 
-                            <div v-if="editingEntryId" class="flex items-center gap-2">
-                                <BaseButton 
-                                    label="Cancel Edit" 
-                                    icon="pi pi-times" 
-                                    severity="secondary" 
-                                    variant="text" 
-                                    size="small" 
-                                    rounded 
-                                    @click="cancelEdit" 
-                                />
+                <!-- ═════════════════════════════════════════════════════════════ -->
+                <!-- TOP: JOURNAL VOUCHER CREATION FORM                            -->
+                <!-- ═════════════════════════════════════════════════════════════ -->
+                <div class="bg-white dark:bg-slate-900 shadow-xs rounded-2xl border border-slate-200/80 dark:border-slate-800 p-6 space-y-6">
+                    <!-- Form Header with Icon (White Background) -->
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-slate-100 dark:border-slate-800">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
+                                <DocumentTextIcon class="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h1 class="text-lg font-black text-slate-900 dark:text-white tracking-tight">
+                                    General Journal Entry
+                                </h1>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                    Double-entry general ledger voucher posting with real-time balancing
+                                </p>
                             </div>
                         </div>
-                    </template>
 
-                    <!-- Header Inputs -->
-                    <div class="space-y-6 pt-2">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                            <!-- Voucher Type (Custom BaseSelect) -->
-                            <BaseSelect 
-                                v-model="journalForm.voucher_type" 
-                                :options="voucherOptions" 
-                                optionLabel="label" 
-                                optionValue="value" 
-                                label="Voucher Type"
-                                required
-                                filter
-                                :disabled="!!editingEntryId"
-                                placeholder="Choose Type..." 
-                                class="w-full" 
-                            />
+                        <!-- <div class="flex items-center gap-2">
+                            <button
+                                type="button"
+                                @click="resetForm"
+                                class="px-3.5 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                                title="Reset all form fields"
+                            >
+                                <ArrowPathIcon class="w-3.5 h-3.5 text-slate-400" />
+                                <span>Clear Fields</span>
+                            </button>
+                        </div> -->
+                    </div>
 
-                            <!-- Reference / Voucher Number (Custom BaseInput with Refresh action) -->
-                            <div class="flex flex-col">
-                                <div class="flex items-center justify-between mb-0.5">
-                                    <span class="text-[10px] font-semibold capitalize text-gray-700">Reference # <span class="text-red-500">*</span></span>
-                                    <button 
-                                        v-if="!editingEntryId"
-                                        type="button" 
-                                        @click="refreshVoucherNumber"
-                                        class="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-semibold"
-                                        title="Recalculate lowest available sequence"
-                                    >
-                                        <ArrowPathIcon class="w-3 h-3" />
-                                        Auto-Gen
-                                    </button>
-                                </div>
-                                <BaseInput 
-                                    v-model="journalForm.voucher_number" 
-                                    :disabled="!!editingEntryId"
-                                    placeholder="e.g. JV-00001" 
-                                    inputClass="font-mono font-bold"
-                                    class="w-full" 
+                    <!-- Voucher Metadata Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                                <BaseSelect
+                                    v-model="journalForm.voucher_type"
+                                    label="Voucher Type"
+                                    required
+                                    :options="voucherOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="Select Type (e.g. JV)"
+                                />
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-700 dark:text-slate-200 mb-1">
+                                    Voucher Date *
+                                </label>
+                                <DatePicker
+                                    v-model="journalForm.voucher_date"
+                                    dateFormat="yy-mm-dd"
+                                    showIcon
+                                    class="w-full text-xs"
+                                />
+                            </div>
+
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-700 dark:text-slate-200 mb-1">
+                                    Posting Date *
+                                </label>
+                                <DatePicker
+                                    v-model="journalForm.posting_date"
+                                    dateFormat="yy-mm-dd"
+                                    showIcon
+                                    class="w-full text-xs"
+                                />
+                            </div>
+
+                            <div>
+                                <BaseInput
+                                    label="Reference #"
+                                    placeholder="Auto-generated upon posting"
+                                    disabled
                                 />
                             </div>
 
@@ -476,260 +560,403 @@ const openViewModal = (entry: JournalEntry) => {
                             />
                         </div>
 
-                        <!-- Main Narration -->
-                        <BaseField label="Main Narration / Description">
-                            <Textarea 
-                                v-model="journalForm.narration" 
-                                placeholder="Describe the purpose of this journal entry..." 
-                                rows="2" 
-                                class="w-full rounded-xl" 
+                        <!-- Narration -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                            <label class="block text-[10px] font-bold text-slate-700 dark:text-slate-200 mb-1">
+                                Voucher Main Narration
+                            </label>
+                            <Textarea
+                                v-model="journalForm.narration"
+                                placeholder="Enter transaction details..."
+                                rows="2"
+                                class="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2.5"
                             />
-                        </BaseField>
-
-                        <!-- JOURNAL LINES TABLE -->
-                        <div class="mt-4 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
-                            <div class="bg-slate-100 dark:bg-slate-800/80 px-4 py-2.5 flex items-center justify-between border-b border-slate-200 dark:border-slate-800">
-                                <span class="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">Journal Lines</span>
-                                <div class="flex items-center gap-2">
-                                    <BaseButton 
-                                        v-if="balanceDifference > 0 && (totalDebit > 0 || totalCredit > 0)"
-                                        :label="`Auto-Balance (₹${balanceDifference.toFixed(2)})`"
-                                        icon="pi pi-sliders-h"
-                                        severity="primary"
-                                        variant="filled"
-                                        size="small"
-                                        @click="autoBalance" 
-                                    />
-                                    <BaseButton 
-                                        label="Add Line" 
-                                        icon="pi pi-plus" 
-                                        severity="primary" 
-                                        variant="text" 
-                                        size="small" 
-                                        rounded 
-                                        @click="addLine" 
-                                    />
-                                </div>
                             </div>
-
-                            <table class="w-full text-sm text-left">
-                                <thead class="bg-slate-50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-black uppercase text-slate-600 dark:text-slate-400 tracking-wider">
-                                    <tr>
-                                        <th class="px-4 py-3 min-w-[220px]">Account / Ledger *</th>
-                                        <th class="px-4 py-3 min-w-[180px]">Patron / Partner</th>
-                                        <th class="px-4 py-3 w-36 text-right">Debit (₹)</th>
-                                        <th class="px-4 py-3 w-36 text-right">Credit (₹)</th>
-                                        <th class="px-4 py-3 min-w-[160px]">Line Note</th>
-                                        <th class="px-2 py-3 w-12 text-center"></th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                                    <tr v-for="(line, idx) in journalForm.lines" :key="idx" class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition">
-                                        <td class="p-2">
-                                            <BaseSelect 
-                                                v-model="line.account_id" 
-                                                :options="ledgerOptions" 
-                                                optionLabel="label" 
-                                                optionValue="value" 
-                                                filter 
-                                                placeholder="Select Ledger..." 
-                                                class="w-full" 
-                                            />
-                                        </td>
-                                        <td class="p-2">
-                                            <BaseSelect 
-                                                v-model="line.partner_id" 
-                                                :options="partnerOptions" 
-                                                optionLabel="label" 
-                                                optionValue="value" 
-                                                filter 
-                                                placeholder="Select Patron..." 
-                                                class="w-full" 
-                                            />
-                                        </td>
-                                        <td class="p-2">
-                                            <BaseInputNumber 
-                                                v-model="line.debit_amount" 
-                                                :minFractionDigits="2" 
-                                                :disabled="line.credit_amount > 0" 
-                                                placeholder="0.00" 
-                                                class="w-full" 
-                                                inputClass="text-right font-mono font-semibold" 
-                                            />
-                                        </td>
-                                        <td class="p-2">
-                                            <BaseInputNumber 
-                                                v-model="line.credit_amount" 
-                                                :minFractionDigits="2" 
-                                                :disabled="line.debit_amount > 0" 
-                                                placeholder="0.00" 
-                                                class="w-full" 
-                                                inputClass="text-right font-mono font-semibold" 
-                                            />
-                                        </td>
-                                        <td class="p-2">
-                                            <BaseInput 
-                                                v-model="line.line_narration" 
-                                                placeholder="Line memo..." 
-                                                class="w-full text-xs" 
-                                            />
-                                        </td>
-                                        <td class="p-2 text-center">
-                                            <BaseButton 
-                                                icon="pi pi-trash" 
-                                                severity="danger" 
-                                                variant="text" 
-                                                rounded 
-                                                @click="removeLine(idx)" 
-                                                :disabled="journalForm.lines.length <= 2" 
-                                                title="Remove Line"
-                                            />
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
                         </div>
 
-                        <!-- TOTALS & POST ACTION BAR -->
-                        <div class="mt-6 flex flex-col md:flex-row justify-between items-center gap-6 pt-4 border-t border-slate-100 dark:border-slate-800">
-                            <!-- Debit / Credit Totals -->
-                            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                                <div class="bg-indigo-50/50 dark:bg-indigo-950/30 px-5 py-3 rounded-xl border border-indigo-100 dark:border-indigo-900/50 min-w-[160px]">
-                                    <span class="text-[10px] text-indigo-600 dark:text-indigo-400 uppercase font-black tracking-widest block mb-0.5">Total Debit</span>
-                                    <span class="text-xl font-black text-indigo-700 dark:text-indigo-300 font-mono">₹ {{ totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
-                                </div>
-                                <div class="bg-indigo-50/50 dark:bg-indigo-950/30 px-5 py-3 rounded-xl border border-indigo-100 dark:border-indigo-900/50 min-w-[160px]">
-                                    <span class="text-[10px] text-indigo-600 dark:text-indigo-400 uppercase font-black tracking-widest block mb-0.5">Total Credit</span>
-                                    <span class="text-xl font-black text-indigo-700 dark:text-indigo-300 font-mono">₹ {{ totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}</span>
+                        <!-- Lines Grid -->
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                                    Journal Line Items
+                                </span>
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        @click="autoBalanceDifference"
+                                        :disabled="isBalanced || balanceDifference === 0"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-lg text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition-colors disabled:opacity-40 cursor-pointer"
+                                        title="Automatically create a balancing line with the remaining difference"
+                                    >
+                                        <BoltIcon class="w-3.5 h-3.5" />
+                                        <span>Auto-Balance Diff (₹ {{ balanceDifference.toFixed(2) }})</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        @click="addLine"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer"
+                                    >
+                                        <PlusIcon class="w-3.5 h-3.5" />
+                                        <span>Add Line</span>
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Balanced Indicator & Submit (Custom BaseButton) -->
-                            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto justify-end">
-                                <div 
-                                    v-if="totalDebit > 0 || totalCredit > 0" 
-                                    class="flex items-center px-4 py-2 rounded-xl text-xs font-black tracking-wide uppercase shadow-sm"
-                                    :class="isBalanced ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800'"
-                                >
-                                    <CheckCircleIcon v-if="isBalanced" class="w-5 h-5 mr-1.5 text-emerald-600 dark:text-emerald-400" />
-                                    <ExclamationTriangleIcon v-else class="w-5 h-5 mr-1.5 text-rose-600 dark:text-rose-400" />
-                                    <span>{{ isBalanced ? 'BALANCED' : `DIFF: ₹${balanceDifference.toFixed(2)}` }}</span>
+                            <div class="border border-slate-200 dark:border-slate-700 rounded-xl overflow-x-auto shadow-2xs">
+                                <table class="w-full text-xs text-left">
+                                    <thead>
+                                        <tr class="bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-bold uppercase text-[11px]">
+                                            <th class="py-2.5 px-3 w-10 text-center">#</th>
+                                            <th class="py-2.5 px-3 min-w-[220px]">
+                                                Account / General Ledger
+                                                <span class="text-[10px] font-normal text-slate-400 dark:text-slate-400 lowercase">(or via Patron)</span>
+                                            </th>
+                                            <th class="py-2.5 px-3 min-w-[180px]">Patron / Sub-Ledger</th>
+                                            <th class="py-2.5 px-3 w-36 text-right text-indigo-700 dark:text-indigo-300">Debit (₹)</th>
+                                            <th class="py-2.5 px-3 w-36 text-right text-purple-700 dark:text-purple-300">Credit (₹)</th>
+                                            <th class="py-2.5 px-3 min-w-[160px]">Line Memo</th>
+                                            <th class="py-2.5 px-2 w-10 text-center"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-sans">
+                                        <tr
+                                            v-for="(line, idx) in journalForm.lines"
+                                            :key="idx"
+                                            class="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
+                                        >
+                                            <td class="py-2.5 px-3 text-center font-mono font-bold text-slate-400">
+                                                {{ idx + 1 }}
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <BaseSelect
+                                                    v-model="line.account_id"
+                                                    :options="ledgerOptions"
+                                                    optionLabel="label"
+                                                    optionValue="value"
+                                                    filter
+                                                    showClear
+                                                    :placeholder="line.partner_id ? 'Auto-resolves from Patron' : 'Select Ledger...'"
+                                                    class="w-full"
+                                                />
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <BaseSelect
+                                                    v-model="line.partner_id"
+                                                    :options="partnerOptions"
+                                                    optionLabel="label"
+                                                    optionValue="value"
+                                                    filter
+                                                    showClear
+                                                    placeholder="Select Patron..."
+                                                    class="w-full"
+                                                    @change="onPartnerChange(line)"
+                                                />
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <BaseInputNumber
+                                                    v-model="line.debit_amount"
+                                                    :minFractionDigits="2"
+                                                    :disabled="Number(line.credit_amount) > 0"
+                                                    @input="onDebitChange(line)"
+                                                    placeholder="0.00"
+                                                    class="w-full font-mono text-right"
+                                                />
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <BaseInputNumber
+                                                    v-model="line.credit_amount"
+                                                    :minFractionDigits="2"
+                                                    :disabled="Number(line.debit_amount) > 0"
+                                                    @input="onCreditChange(line)"
+                                                    placeholder="0.00"
+                                                    class="w-full font-mono text-right"
+                                                />
+                                            </td>
+                                            <td class="py-2 px-3">
+                                                <BaseInput
+                                                    v-model="line.line_narration"
+                                                    placeholder="Narration..."
+                                                    class="w-full"
+                                                />
+                                            </td>
+                                            <td class="py-2 px-2 text-center">
+                                                <button
+                                                    type="button"
+                                                    @click="removeLine(idx)"
+                                                    :disabled="journalForm.lines.length <= 2"
+                                                    class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors disabled:opacity-20 cursor-pointer"
+                                                    title="Delete row"
+                                                >
+                                                    <TrashIcon class="w-4 h-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Live Balancing Bar & Actions -->
+                        <div class="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4">
+                            <div class="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                                <div class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 min-w-[150px]">
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Total Debit</span>
+                                    <div class="text-lg font-black font-mono text-indigo-700 dark:text-indigo-400">
+                                        ₹ {{ totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                    </div>
                                 </div>
 
-                                <BaseButton 
-                                    size="large" 
-                                    :severity="editingEntryId ? 'warn' : 'primary'" 
-                                    variant="filled" 
-                                    rounded 
-                                    class="px-8 h-12 text-sm font-black shadow-lg uppercase tracking-widest" 
-                                    :disabled="!isBalanced || journalForm.processing" 
-                                    :loading="journalForm.processing"
-                                    @click="submitForm" 
-                                    :label="journalForm.processing ? (editingEntryId ? 'SAVING...' : 'POSTING...') : (editingEntryId ? 'UPDATE JOURNAL ENTRY' : 'POST JOURNAL ENTRY')" 
-                                />
+                                <div class="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 min-w-[150px]">
+                                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Total Credit</span>
+                                    <div class="text-lg font-black font-mono text-purple-700 dark:text-purple-300">
+                                        ₹ {{ totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                    </div>
+                                </div>
+
+                                <!-- Balance Pill -->
+                                <div
+                                    class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 border"
+                                    :class="isBalanced
+                                        ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                                        : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'"
+                                >
+                                    <CheckCircleIcon v-if="isBalanced" class="w-4 h-4 text-emerald-500" />
+                                    <ExclamationTriangleIcon v-else class="w-4 h-4 text-rose-500" />
+                                    <span>{{ isBalanced ? 'JOURNAL BALANCED' : `OUT OF BALANCE: ₹ ${balanceDifference.toFixed(2)}` }}</span>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="flex items-center gap-2.5 w-full md:w-auto justify-end">
+                                <button
+                                    type="button"
+                                    @click="resetForm"
+                                    class="px-4 py-2 text-xs font-semibold rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                                >
+                                    Clear Form
+                                </button>
+
+                                <button
+                                    type="button"
+                                    :disabled="!isBalanced || journalForm.processing"
+                                    @click="submitForm"
+                                    class="px-6 py-2.5 text-xs font-bold rounded-xl text-white bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 shadow-md shadow-indigo-600/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                                >
+                                    <i v-if="journalForm.processing" class="pi pi-spin pi-spinner text-xs"></i>
+                                    <CheckCircleIcon v-else class="w-4 h-4" />
+                                    <span>{{ journalForm.processing ? 'Posting...' : 'Post Journal Entry' }}</span>
+                                </button>
                             </div>
                         </div>
                     </div>
-                </BaseCard>
 
-                <!-- RECENT TRANSACTIONS TABLE (Custom BaseDataTable) -->
-                <div class="space-y-4">
+                <!-- ═════════════════════════════════════════════════════════════ -->
+                <!-- FINANCIAL STATS & KPIS BANNER                                 -->
+                <!-- ═════════════════════════════════════════════════════════════ -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- 1. Total Postings -->
+                    <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Total Journal Vouchers</span>
+                            <div class="text-2xl font-black font-mono text-slate-900 dark:text-white mt-1">
+                                {{ kpiStats.count }}
+                            </div>
+                            <span class="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5 block">
+                                {{ kpiStats.thisMonthCount }} posted this month
+                            </span>
+                        </div>
+                        <div class="p-3 bg-indigo-50 dark:bg-indigo-950/60 rounded-xl text-indigo-600 dark:text-indigo-400">
+                            <DocumentTextIcon class="w-6 h-6" />
+                        </div>
+                    </div>
+
+                    <!-- 2. Total Debit Volume -->
+                    <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Total Debits</span>
+                            <div class="text-xl font-black font-mono text-slate-900 dark:text-white mt-1">
+                                {{ formatCurrency(kpiStats.totalDebitSum) }}
+                            </div>
+                            <span class="text-[11px] text-slate-400 font-mono mt-0.5 block">Dr Cumulative</span>
+                        </div>
+                        <div class="p-3 bg-blue-50 dark:bg-blue-950/60 rounded-xl text-blue-600 dark:text-blue-400">
+                            <ScaleIcon class="w-6 h-6" />
+                        </div>
+                    </div>
+
+                    <!-- 3. Total Credit Volume -->
+                    <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Total Credits</span>
+                            <div class="text-xl font-black font-mono text-slate-900 dark:text-white mt-1">
+                                {{ formatCurrency(kpiStats.totalCreditSum) }}
+                            </div>
+                            <span class="text-[11px] text-slate-400 font-mono mt-0.5 block">Cr Cumulative</span>
+                        </div>
+                        <div class="p-3 bg-purple-50 dark:bg-purple-950/60 rounded-xl text-purple-600 dark:text-purple-400">
+                            <ScaleIcon class="w-6 h-6" />
+                        </div>
+                    </div>
+
+                    <!-- 4. General Ledger Integrity -->
+                    <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">Ledger Integrity</span>
+                            <div class="flex items-center gap-1.5 mt-1">
+                                <CheckCircleIcon class="w-5 h-5 text-emerald-500" />
+                                <span class="text-base font-black uppercase text-emerald-600 dark:text-emerald-400">
+                                    Balanced
+                                </span>
+                            </div>
+                            <span class="text-[11px] text-slate-400 font-mono mt-0.5 block">Sum(Dr) = Sum(Cr)</span>
+                        </div>
+                        <div class="p-3 bg-emerald-50 dark:bg-emerald-950/60 rounded-xl text-emerald-600 dark:text-emerald-400">
+                            <CheckCircleIcon class="w-6 h-6" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═════════════════════════════════════════════════════════════ -->
+                <!-- RECENT TRANSACTIONS REGISTRY (DataTable)                      -->
+                <!-- ═════════════════════════════════════════════════════════════ -->
+                <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden">
                     <BaseDataTable
-                        :value="store.entries"
+                        :value="filteredEntries"
                         v-model:filters="filters"
-                        :globalFilterFields="['posting_date', 'voucher_type', 'voucher_number', 'narration', 'is_status']"
+                        :globalFilterFields="['posting_date', 'voucher_date', 'voucher_number', 'voucher_type', 'narration', 'is_status']"
                         showSearch
                         showSerial
-                        heading="Recent Journal Vouchers"
+                        heading="General Journal Transactions"
                         headingIcon="DocumentChartBarIcon"
                         :rows="15"
                     >
                         <template #toolbar>
-                            <BaseButton 
-                                icon="pi pi-refresh" 
-                                severity="secondary" 
-                                variant="text" 
-                                rounded 
-                                label="Refresh List" 
-                                @click="refreshList" 
-                            />
+                            <div class="flex items-center gap-2">
+                                <!-- Voucher Type Filter -->
+                                <BaseSelect
+                                    v-model="selectedVoucherTypeFilter"
+                                    :options="filterVoucherOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    size="small"
+                                    placeholder="Filter by Voucher Type"
+                                    class="w-56"
+                                />
+                            </div>
                         </template>
 
-                        <Column field="posting_date" header="Date" style="width: 120px" sortable>
+                        <!-- Posting Date -->
+                        <Column field="posting_date" header="Date" style="width: 110px" sortable>
                             <template #body="slotProps">
-                                <span class="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
-                                    {{ displayDate(slotProps.data.posting_date) }}
-                                </span>
-                            </template>
-                        </Column>
-                        
-                        <Column field="voucher_type" header="Type" style="width: 100px" sortable>
-                            <template #body="slotProps">
-                                <Tag severity="info" rounded class="text-[10px] font-black uppercase">
-                                    {{ slotProps.data.voucher_type }}
-                                </Tag>
-                            </template>
-                        </Column>
-
-                        <Column field="voucher_number" header="Voucher #" style="width: 140px" sortable>
-                            <template #body="slotProps">
-                                <span class="font-mono font-bold text-slate-800 dark:text-slate-200">
-                                    {{ slotProps.data.voucher_number }}
+                                <span class="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
+                                    {{ slotProps.data.posting_date ? slotProps.data.posting_date.substring(0, 10) : slotProps.data.voucher_date }}
                                 </span>
                             </template>
                         </Column>
 
-                        <Column header="Narration">
+                        <!-- Voucher Number -->
+                        <Column field="voucher_number" header="Voucher #" style="width: 150px" sortable>
                             <template #body="slotProps">
-                                <div class="text-xs text-slate-600 dark:text-slate-400 max-w-sm truncate" :title="slotProps.data.narration">
-                                    {{ slotProps.data.narration || '—' }}
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-mono font-black text-xs text-indigo-600 dark:text-indigo-400">
+                                        {{ slotProps.data.voucher_number }}
+                                    </span>
                                 </div>
                             </template>
                         </Column>
 
-                        <Column header="Total Amount" align="right" style="width: 140px">
+                        <!-- Voucher Type -->
+                        <Column field="voucher_type" header="Type" style="width: 100px" sortable>
                             <template #body="slotProps">
-                                <span class="font-mono font-bold text-indigo-700 dark:text-indigo-400">
-                                    ₹ {{ parseFloat(slotProps.data.total_debit?.toString() || '0').toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }}
+                                <span
+                                    :class="getVoucherBadgeClass(slotProps.data.voucher_type)"
+                                    class="inline-block px-2 py-0.5 rounded-md font-mono text-[10px] font-black uppercase tracking-wider border"
+                                >
+                                    {{ slotProps.data.voucher_type }}
                                 </span>
                             </template>
                         </Column>
 
-                        <Column header="Status" style="width: 100px">
+                        <!-- Accounts Involved -->
+                        <Column header="Accounts Summary" style="min-width: 220px">
                             <template #body="slotProps">
-                                <Tag :severity="slotProps.data.is_status === 'POSTED' ? 'success' : 'warn'" rounded class="text-[10px] font-black uppercase">
-                                    {{ slotProps.data.is_status }}
-                                </Tag>
+                                <div v-if="slotProps.data.lines && slotProps.data.lines.length" class="space-y-0.5 text-xs">
+                                    <div class="flex items-center gap-1 font-semibold text-slate-800 dark:text-slate-200">
+                                        <span class="text-indigo-600 dark:text-indigo-400 font-bold">Dr:</span>
+                                        <span class="truncate max-w-[180px]">
+                                            {{ slotProps.data.lines.find((l: any) => Number(l.debit_amount) > 0)?.ledger?.title || 'Account Dr' }}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-1 font-semibold text-slate-600 dark:text-slate-400">
+                                        <span class="text-purple-600 dark:text-purple-400 font-bold">Cr:</span>
+                                        <span class="truncate max-w-[180px]">
+                                            {{ slotProps.data.lines.find((l: any) => Number(l.credit_amount) > 0)?.ledger?.title || 'Account Cr' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <span v-else class="text-slate-400 text-xs">—</span>
                             </template>
                         </Column>
 
-                        <Column header="Actions" align="right" style="width: 140px">
+                        <!-- Narration -->
+                        <Column header="Narration" style="min-width: 180px">
+                            <template #body="slotProps">
+                                <div class="text-xs text-slate-600 dark:text-slate-400 line-clamp-2" :title="slotProps.data.narration">
+                                    {{ slotProps.data.narration || 'No description recorded' }}
+                                </div>
+                            </template>
+                        </Column>
+
+                        <!-- Total Amount -->
+                        <Column header="Amount (₹)" align="right" style="width: 140px" sortable>
+                            <template #body="slotProps">
+                                <span class="font-mono font-black text-xs text-slate-900 dark:text-white">
+                                    {{ formatCurrency(slotProps.data.total_debit) }}
+                                </span>
+                            </template>
+                        </Column>
+
+                        <!-- Status -->
+                        <Column header="Status" style="width: 100px">
+                            <template #body="slotProps">
+                                <span
+                                    v-if="slotProps.data.is_status === 'POSTED'"
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                                >
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    POSTED
+                                </span>
+                                <span
+                                    v-else
+                                    class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                                >
+                                    {{ slotProps.data.is_status }}
+                                </span>
+                            </template>
+                        </Column>
+
+                        <!-- Actions -->
+                        <Column header="Actions" align="right" style="width: 100px">
                             <template #body="slotProps">
                                 <div class="flex justify-end gap-1">
-                                    <BaseButton 
-                                        icon="pi pi-eye" 
-                                        severity="secondary" 
-                                        variant="text" 
-                                        rounded 
-                                        title="View Voucher Details"
-                                        @click="openViewModal(slotProps.data)" 
-                                    />
-                                    <BaseButton 
-                                        icon="pi pi-pencil" 
-                                        severity="info" 
-                                        variant="text" 
-                                        rounded 
-                                        title="Edit Journal Entry"
-                                        @click="editEntry(slotProps.data)" 
-                                    />
-                                    <BaseButton 
-                                        icon="pi pi-trash" 
-                                        severity="danger" 
-                                        variant="text" 
-                                        rounded 
-                                        title="Delete (Soft Delete & Free Reference #)"
-                                        @click="deleteEntry(slotProps.data.id, slotProps.data.voucher_number)" 
-                                    />
+                                    <button
+                                        type="button"
+                                        @click="openViewModal(slotProps.data)"
+                                        class="p-1.5 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer"
+                                        title="View Voucher"
+                                    >
+                                        <EyeIcon class="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="deleteEntry(slotProps.data.id)"
+                                        class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer"
+                                        title="Delete Entry"
+                                    >
+                                        <TrashIcon class="w-4 h-4" />
+                                    </button>
                                 </div>
                             </template>
                         </Column>
@@ -739,99 +966,131 @@ const openViewModal = (entry: JournalEntry) => {
             </div>
         </div>
 
-        <!-- ── VIEW JOURNAL DETAILS MODAL ───────────────────────── -->
-        <Dialog 
-            v-model:visible="showViewModal" 
-            modal 
-            :header="`JOURNAL VOUCHER: ${viewingEntry?.voucher_number || ''}`" 
-            :style="{ width: '820px', maxWidth: '95vw' }"
+        <!-- ═════════════════════════════════════════════════════════════ -->
+        <!-- VOUCHER DETAIL & PRINT MODAL                                  -->
+        <!-- ═════════════════════════════════════════════════════════════ -->
+        <Dialog
+            v-model:visible="showViewModal"
+            modal
+            header="General Journal Voucher"
+            :style="{ width: '700px', maxWidth: '95vw' }"
+            class="rounded-2xl"
         >
-            <div v-if="viewingEntry" class="space-y-6 pt-2">
-                <!-- Metadata Grid -->
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs">
+            <div v-if="activeViewEntry" class="space-y-4 py-2 text-xs print:p-0">
+                <!-- Voucher Receipt Header -->
+                <div class="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex justify-between items-start">
                     <div>
-                        <span class="text-slate-400 uppercase font-black text-[10px] block">Voucher Type</span>
-                        <span class="font-bold text-slate-800 dark:text-slate-200 uppercase">
-                            {{ getVoucherTypeName(viewingEntry.voucher_type) }}
-                        </span>
+                        <div class="text-[10px] font-black uppercase tracking-wider text-slate-400">Voucher Number</div>
+                        <div class="text-base font-black font-mono text-indigo-600 dark:text-indigo-400">
+                            {{ activeViewEntry.voucher_number }}
+                        </div>
+                        <div class="text-xs text-slate-500 mt-0.5">
+                            Type: <strong class="font-mono text-slate-800 dark:text-slate-200">{{ activeViewEntry.voucher_type }}</strong>
+                        </div>
                     </div>
-                    <div>
-                        <span class="text-slate-400 uppercase font-black text-[10px] block">Voucher Date</span>
-                        <span class="font-bold font-mono text-slate-800 dark:text-slate-200">
-                            {{ displayDate(viewingEntry.voucher_date) }}
+
+                    <div class="text-right">
+                        <div class="text-[10px] font-black uppercase tracking-wider text-slate-400">Posting Date</div>
+                        <div class="font-mono font-bold text-slate-800 dark:text-slate-200">
+                            {{ activeViewEntry.posting_date ? activeViewEntry.posting_date.substring(0, 10) : activeViewEntry.voucher_date }}
+                        </div>
+                        <span class="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                            {{ activeViewEntry.is_status }}
                         </span>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 uppercase font-black text-[10px] block">Posting Date</span>
-                        <span class="font-bold font-mono text-slate-800 dark:text-slate-200">
-                            {{ displayDate(viewingEntry.posting_date) }}
-                        </span>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 uppercase font-black text-[10px] block">Status</span>
-                        <Tag :severity="viewingEntry.is_status === 'POSTED' ? 'success' : 'warn'" rounded class="text-[9px] font-black uppercase">
-                            {{ viewingEntry.is_status }}
-                        </Tag>
                     </div>
                 </div>
 
-                <!-- Main Narration -->
-                <div v-if="viewingEntry.narration" class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                    <span class="text-[10px] uppercase font-black text-slate-400 block mb-1">Narration</span>
-                    <p class="text-xs text-slate-700 dark:text-slate-300 italic">{{ viewingEntry.narration }}</p>
-                </div>
-
-                <!-- Line Items Table -->
-                <div class="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                <!-- Lines Table -->
+                <div class="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-2xs">
                     <table class="w-full text-xs text-left">
-                        <thead class="bg-slate-100 dark:bg-slate-800 text-[10px] font-black uppercase text-slate-600 dark:text-slate-400 tracking-wider">
-                            <tr>
-                                <th class="px-3.5 py-2.5">Account / Ledger</th>
-                                <th class="px-3.5 py-2.5">Patron / Partner</th>
-                                <th class="px-3.5 py-2.5 text-right w-32">Debit (₹)</th>
-                                <th class="px-3.5 py-2.5 text-right w-32">Credit (₹)</th>
-                                <th class="px-3.5 py-2.5">Note</th>
+                        <thead>
+                            <tr class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-bold uppercase text-[11px]">
+                                <th class="py-2.5 px-3 w-8 text-center">#</th>
+                                <th class="py-2.5 px-3">Account Title & Code</th>
+                                <th class="py-2.5 px-3">Line Memo</th>
+                                <th class="py-2.5 px-3 text-right w-28 text-indigo-700 dark:text-indigo-300">Debit (₹)</th>
+                                <th class="py-2.5 px-3 text-right w-28 text-purple-700 dark:text-purple-300">Credit (₹)</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                            <tr v-for="(line, idx) in viewingEntry.lines" :key="idx" class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                                <td class="px-3.5 py-2.5 font-semibold text-slate-800 dark:text-slate-200">
-                                    {{ line.ledger ? `${line.ledger.code} - ${line.ledger.title}` : getLedgerName(line.account_id) }}
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-sans">
+                            <tr
+                                v-for="(line, lIdx) in (activeViewEntry.lines || [])"
+                                :key="lIdx"
+                                class="hover:bg-slate-50/50 dark:hover:bg-slate-800/30"
+                            >
+                                <td class="py-2 px-3 text-center font-mono text-slate-400">{{ lIdx + 1 }}</td>
+                                <td class="py-2 px-3">
+                                    <div class="font-bold text-slate-800 dark:text-slate-200">
+                                        {{ line.ledger?.title || ('Ledger #' + line.account_id) }}
+                                    </div>
+                                    <div v-if="line.ledger?.code" class="text-[10px] font-mono text-slate-400">
+                                        Code: {{ line.ledger.code }}
+                                    </div>
                                 </td>
-                                <td class="px-3.5 py-2.5 text-slate-600 dark:text-slate-400">
-                                    {{ line.partner ? line.partner.legal_name : getPartnerName(line.partner_id) }}
-                                </td>
-                                <td class="px-3.5 py-2.5 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
-                                    {{ Number(line.debit_amount) > 0 ? '₹ ' + Number(line.debit_amount).toFixed(2) : '—' }}
-                                </td>
-                                <td class="px-3.5 py-2.5 text-right font-mono font-bold text-slate-800 dark:text-slate-200">
-                                    {{ Number(line.credit_amount) > 0 ? '₹ ' + Number(line.credit_amount).toFixed(2) : '—' }}
-                                </td>
-                                <td class="px-3.5 py-2.5 text-slate-500 italic text-[11px]">
+                                <td class="py-2 px-3 text-slate-500 italic">
                                     {{ line.line_narration || '—' }}
+                                </td>
+                                <td class="py-2 px-3 text-right font-mono font-bold text-indigo-700 dark:text-indigo-400">
+                                    {{ Number(line.debit_amount) > 0 ? formatCurrency(line.debit_amount) : '—' }}
+                                </td>
+                                <td class="py-2 px-3 text-right font-mono font-bold text-purple-700 dark:text-purple-300">
+                                    {{ Number(line.credit_amount) > 0 ? formatCurrency(line.credit_amount) : '—' }}
                                 </td>
                             </tr>
                         </tbody>
-                        <tfoot class="bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 font-bold">
+                        <tfoot class="bg-slate-50 dark:bg-slate-800/80 font-mono font-black border-t-2 border-slate-200 dark:border-slate-700 text-xs">
                             <tr>
-                                <td colspan="2" class="px-3.5 py-2.5 text-right uppercase text-[10px] font-black text-slate-500">Total:</td>
-                                <td class="px-3.5 py-2.5 text-right font-mono text-indigo-600 dark:text-indigo-400">
-                                    ₹ {{ parseFloat(viewingEntry.total_debit?.toString() || '0').toFixed(2) }}
+                                <td colspan="3" class="py-2.5 px-3 text-slate-700 dark:text-slate-200 uppercase font-bold font-sans">
+                                    Total Balanced Amount
                                 </td>
-                                <td class="px-3.5 py-2.5 text-right font-mono text-indigo-600 dark:text-indigo-400">
-                                    ₹ {{ parseFloat(viewingEntry.total_credit?.toString() || '0').toFixed(2) }}
+                                <td class="py-2.5 px-3 text-right text-indigo-700 dark:text-indigo-400">
+                                    {{ formatCurrency(activeViewEntry.total_debit) }}
                                 </td>
-                                <td></td>
+                                <td class="py-2.5 px-3 text-right text-purple-700 dark:text-purple-300">
+                                    {{ formatCurrency(activeViewEntry.total_credit) }}
+                                </td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
 
-                <!-- Footer button (Custom BaseButton) -->
-                <div class="flex justify-end pt-2">
-                    <BaseButton label="Close" severity="secondary" variant="outlined" @click="showViewModal = false" />
+                <!-- Narration Details -->
+                <div v-if="activeViewEntry.narration" class="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">Voucher Narration</span>
+                    <p class="text-xs text-slate-700 dark:text-slate-300 italic">{{ activeViewEntry.narration }}</p>
                 </div>
             </div>
+
+            <template #footer>
+                <div class="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <button
+                        type="button"
+                        @click="printActiveVoucher"
+                        class="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer shadow-2xs"
+                    >
+                        <PrinterIcon class="w-4 h-4" />
+                        <span>Print Voucher</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        @click="showViewModal = false"
+                        class="px-4 py-1.5 text-xs font-semibold rounded-xl text-white bg-slate-900 hover:bg-black dark:bg-slate-700 dark:hover:bg-slate-600 transition-colors cursor-pointer"
+                    >
+                        Close
+                    </button>
+                </div>
+            </template>
         </Dialog>
     </AppLayout>
 </template>
+
+<style scoped>
+:deep(.p-select-option:has(.bg-indigo-900)) {
+    background-color: #312e81 !important; /* Tailwind indigo-900 */
+    color: #ffffff !important;
+}
+:deep(.p-select-option:has(.bg-indigo-900):hover) {
+    background-color: #3730a3 !important; /* Tailwind indigo-800 */
+}
+</style>

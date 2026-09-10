@@ -380,6 +380,7 @@ Route::middleware([
         Route::get('ledgers/nextcode', [\App\Http\Controllers\LedgerController::class, 'getNextCode'])->name('accounting.nextcode');
         
         Route::resource('vouchertypes', \App\Http\Controllers\VoucherTypeController::class);
+        Route::get('journalentries/generate-voucher-number', [\App\Http\Controllers\JournalEntryController::class, 'generateVoucherNumber'])->name('journalentries.generate_voucher_number');
         Route::resource('journalentries', \App\Http\Controllers\JournalEntryController::class);
         
         Route::resource('expensetypes', \App\Http\Controllers\ExpenseTypeController::class)->except(['create', 'edit', 'show']);

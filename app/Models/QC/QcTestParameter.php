@@ -57,6 +57,10 @@ class QcTestParameter extends Model
         ];
     }
 
+    public const SCOPE_TEST = 'test';
+    public const SCOPE_SPECIMEN = 'specimen';
+    public const SCOPE_SUMMARY = 'summary';
+
     protected $table = 'mm_qc_test_parameters';
 
     protected $fillable = [
@@ -65,9 +69,13 @@ class QcTestParameter extends Model
         'name',
         'data_type',
         'unit',
+        'scope',
         'is_required',
         'is_calculated',
+        'is_summary',
         'formula',
+        'calculation_scope',
+        'formula_expression',
         'default_value',
         'options',
         'display_order',
@@ -86,6 +94,7 @@ class QcTestParameter extends Model
     protected $casts = [
         'is_required' => 'boolean',
         'is_calculated' => 'boolean',
+        'is_summary' => 'boolean',
         'is_active' => 'boolean',
         'options' => 'array',
         'display_order' => 'integer',
