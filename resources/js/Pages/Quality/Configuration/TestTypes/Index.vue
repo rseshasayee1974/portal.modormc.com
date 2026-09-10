@@ -16,6 +16,7 @@ const props = defineProps<{
     testTypes: any;
     concrete_grade: any;
     units?: any;
+    presets?: any;
 }>();
 
 const toast = useToast();
@@ -129,6 +130,7 @@ const toggleStatus = (type: any) => {
                     :products="products"
                     :concrete_grade="concrete_grade"
                     :units="units"
+                    :presets="presets"
                     :isEditing="false"
                     @saved="handleFormSaved"
                 />
@@ -277,6 +279,7 @@ const toggleStatus = (type: any) => {
                             :products="products"
                             :concrete_grade="concrete_grade"
                             :units="units"
+                            :presets="presets"
                             :isEditing="true"
                             :isExpansion="true"
                             @saved="handleRowSaved(data)"

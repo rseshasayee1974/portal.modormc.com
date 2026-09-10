@@ -31,9 +31,43 @@ class FormulaEngine
         // Sort keys by length descending to avoid partial variable replacements
         uksort($upperVariables, fn($a, $b) => strlen($b) <=> strlen($a));
 
+        // Evaluate TIMEDIFF_MINUTES function: TIMEDIFF_MINUTES(start, end)
+        $processedFormula = preg_replace_callback('/\b(timediff_minutes|timediff)\s*\(([^,]+),([^)]+)\)/i', function ($matches) use ($upperVariables) {
+            $rawStart = trim($matches[2]);
+            $rawEnd = trim($matches[3]);
+
+            // If tokens are variable names, fetch their original string/time value
+            $startVal = $upperVariables[strtoupper($rawStart)] ?? $rawStart;
+            $endVal = $upperVariables[strtoupper($rawEnd)] ?? $rawEnd;
+
+            $toMinutes = function($v) {
+                if (is_numeric($v)) return (float)$v;
+                $cleaned = trim((string)$v, " '\"");
+                if (preg_match('/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/', $cleaned, $m)) {
+                    return ((int)$m[1] * 60) + (int)$m[2];
+                }
+                $ts = strtotime($cleaned);
+                if ($ts !== false) {
+                    return (int)($ts / 60);
+                }
+                return 0;
+            };
+
+            $startMin = $toMinutes($startVal);
+            $endMin = $toMinutes($endVal);
+            $diff = $endMin - $startMin;
+            if ($diff < 0) $diff += (24 * 60); // handle day turnover e.g. 23:30 to 01:00
+
+            return (string)$diff;
+        }, $processedFormula);
+
         foreach ($upperVariables as $code => $val) {
             if ($val === null || $val === '') {
-                return null; // Cannot calculate if a required variable is missing
+                // If the variable was already consumed by timediff, don't fail
+                if (preg_match('/\b' . preg_quote($code, '/') . '\b/i', $processedFormula)) {
+                    return null;
+                }
+                continue;
             }
             $numericVal = is_numeric($val) ? (float) $val : 0;
             // Case-insensitive regex replacement for variable tokens

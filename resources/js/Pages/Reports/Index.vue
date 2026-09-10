@@ -197,7 +197,7 @@ const valuationMethodOptions = [
 
 const ledgerVoucherFilter = ref('ALL');
 const ledgerVoucherFilterOptions = [
-    { label: 'All Vouchers', value: 'ALL' },
+    { label: '-- All Vouchers --', value: 'ALL' },
     { label: 'Payments & Receipts', value: 'PAYMENT_RECEIPT' },
     { label: 'Payments Only', value: 'PAYMENT' },
     { label: 'Receipts Only', value: 'RECEIPT' },
@@ -250,13 +250,13 @@ const isExporting = ref(false);
 const currentExportType = ref(null);
 
 const gstTypeOptions = [
-    { label: 'All GST Types', value: null },
+    { label: '-- All GST Types --', value: null },
     { label: 'Intra-State (CGST + SGST)', value: 'intra' },
     { label: 'Inter-State (IGST)', value: 'inter' }
 ];
 
 const paymentStatusOptions = [
-    { label: 'All Statuses', value: null },
+    { label: '-- All Statuses --', value: null },
     { label: 'Paid Only', value: 'paid' },
     { label: 'Unpaid Only', value: 'unpaid' },
     { label: 'Partially Paid', value: 'partial' }
@@ -344,9 +344,9 @@ const patronLabel = computed(() => {
 });
 
 const patronPlaceholder = computed(() => {
-    if (isCustomerReport.value) return 'All Customers';
-    if (isSupplierReport.value) return 'All Suppliers';
-    return 'All Partners';
+    if (isCustomerReport.value) return '-- All Customers --';
+    if (isSupplierReport.value) return '-- All Suppliers --';
+    return '-- All Partners --';
 });
 
 const patronOptions = computed(() => {
@@ -366,7 +366,7 @@ const patronOptions = computed(() => {
 });
 
 const ledgerPlaceholder = computed(() => {
-    return ['payment', 'receipt'].includes(reportType.value) ? 'All Accounts' : 'All Ledgers';
+    return ['payment', 'receipt'].includes(reportType.value) ? '-- All Accounts --' : '-- All Ledgers --';
 });
 
 const ledgerOptions = computed(() => {
@@ -382,9 +382,9 @@ const mixDesignOptions = computed(() => {
     return [
         {
             id: null,
-            design_name: 'All Mix Designs',
-            name: 'All Mix Designs',
-            title: 'All Mix Designs',
+            design_name: '-- All Mix Designs --',
+            name: '-- All Mix Designs --',
+            title: '-- All Mix Designs --',
             design_code: 'ALL',
             code: 'ALL'
         },
@@ -395,7 +395,7 @@ const mixDesignOptions = computed(() => {
 const truckOptions = computed(() => {
     const list = props.machines || [];
     return [
-        { id: null, registration: 'All Trucks / Vehicles' },
+        { id: null, registration: '-- All Trucks / Vehicles --' },
         ...list
     ];
 });
@@ -403,7 +403,7 @@ const truckOptions = computed(() => {
 const driverOptions = computed(() => {
     const list = props.drivers || [];
     return [
-        { id: null, name: 'All Drivers' },
+        { id: null, name: '-- All Drivers --' },
         ...list
     ];
 });
@@ -411,7 +411,7 @@ const driverOptions = computed(() => {
 const salesExecutiveOptions = computed(() => {
     const list = props.salesExecutives || [];
     return [
-        { id: null, name: 'All Sales Executives' },
+        { id: null, name: '-- All Sales Executives --' },
         ...list
     ];
 });

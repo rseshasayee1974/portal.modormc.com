@@ -1,0 +1,472 @@
+<?php
+
+namespace App\Services\QC;
+
+use App\Models\QC\QcTestParameter;
+
+class QcTestPresetService
+{
+    /**
+     * Get all test presets mapped by QC test type key.
+     */
+    public static function getPresets(): array
+    {
+        return [
+            // CEMENT TEST SUITE (IS 4031)
+            'CEMENT_FINENESS' => [
+                'name' => 'Cement Fineness (Sieve Method)',
+                'category' => 'Raw Material',
+                'qc_test_type' => 'FINENESS',
+                'standard' => 'IS 4031 (Part 1)',
+                'unit' => '%',
+                'specimen_count' => 1,
+                'specimen_shape' => 'None',
+                'specimen_dimensions' => null,
+                'description' => 'Determination of fineness of cement by dry sieving per IS 4031 Part 1.',
+                'parameters' => [
+                    [
+                        'name' => 'Sample Weight',
+                        'code' => 'SAMPLE_WT',
+                        'data_type' => 'decimal',
+                        'unit' => 'g',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'default_value' => '100',
+                        'display_order' => 1,
+                    ],
+                    [
+                        'name' => 'Residue Weight',
+                        'code' => 'RESIDUE_WT',
+                        'data_type' => 'decimal',
+                        'unit' => 'g',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'display_order' => 2,
+                    ],
+                    [
+                        'name' => 'Sieve Residue (%)',
+                        'code' => 'RESIDUE_PCT',
+                        'data_type' => 'decimal',
+                        'unit' => '%',
+                        'scope' => 'test',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'formula' => '(RESIDUE_WT / SAMPLE_WT) * 100',
+                        'formula_expression' => '(Residue Weight / Sample Weight) × 100',
+                        'rule_type' => QcTestParameter::RULE_TYPE_LESS_THAN_OR_EQUAL,
+                        'max_value' => 10.0,
+                        'display_order' => 3,
+                    ],
+                    [
+                        'name' => 'Sieve Passing (%)',
+                        'code' => 'PASSING_PCT',
+                        'data_type' => 'decimal',
+                        'unit' => '%',
+                        'scope' => 'test',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'formula' => '100 - RESIDUE_PCT',
+                        'formula_expression' => '100 - Sieve Residue (%)',
+                        'rule_type' => QcTestParameter::RULE_TYPE_GREATER_THAN_OR_EQUAL,
+                        'min_value' => 90.0,
+                        'display_order' => 4,
+                    ]
+                ]
+            ],
+
+            'CEMENT_CONSISTENCY' => [
+                'name' => 'Cement Standard Consistency',
+                'category' => 'Raw Material',
+                'qc_test_type' => 'CONSISTENCY',
+                'standard' => 'IS 4031 (Part 4)',
+                'unit' => '%',
+                'specimen_count' => 1,
+                'specimen_shape' => 'None',
+                'specimen_dimensions' => null,
+                'description' => 'Determination of consistency of standard cement paste using Vicat apparatus per IS 4031 Part 4.',
+                'parameters' => [
+                    [
+                        'name' => 'Cement Weight',
+                        'code' => 'CEMENT_WT',
+                        'data_type' => 'decimal',
+                        'unit' => 'g',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'default_value' => '400',
+                        'display_order' => 1,
+                    ],
+                    [
+                        'name' => 'Water Weight',
+                        'code' => 'WATER_WT',
+                        'data_type' => 'decimal',
+                        'unit' => 'g',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'display_order' => 2,
+                    ],
+                    [
+                        'name' => 'Standard Consistency (%)',
+                        'code' => 'CONSISTENCY',
+                        'data_type' => 'decimal',
+                        'unit' => '%',
+                        'scope' => 'test',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'formula' => '(WATER_WT / CEMENT_WT) * 100',
+                        'formula_expression' => '(Water Weight / Cement Weight) × 100',
+                        'rule_type' => QcTestParameter::RULE_TYPE_RANGE,
+                        'min_value' => 25.0,
+                        'max_value' => 35.0,
+                        'display_order' => 3,
+                    ]
+                ]
+            ],
+
+            'CEMENT_INITIAL_SETTING_TIME' => [
+                'name' => 'Cement Initial Setting Time',
+                'category' => 'Raw Material',
+                'qc_test_type' => 'INITIAL_SETTING_TIME',
+                'standard' => 'IS 4031 (Part 5)',
+                'unit' => 'min',
+                'specimen_count' => 1,
+                'specimen_shape' => 'None',
+                'specimen_dimensions' => null,
+                'description' => 'Determination of initial setting time of cement using Vicat needle per IS 4031 Part 5.',
+                'parameters' => [
+                    [
+                        'name' => 'Mixing Start Time',
+                        'code' => 'START_TIME',
+                        'data_type' => 'text',
+                        'unit' => 'hh:mm',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'display_order' => 1,
+                    ],
+                    [
+                        'name' => 'Initial Set Time',
+                        'code' => 'INITIAL_SET_TIME',
+                        'data_type' => 'text',
+                        'unit' => 'hh:mm',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'display_order' => 2,
+                    ],
+                    [
+                        'name' => 'Initial Setting Time (min)',
+                        'code' => 'INITIAL_SET_MIN',
+                        'data_type' => 'integer',
+                        'unit' => 'min',
+                        'scope' => 'test',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'formula' => 'TIMEDIFF_MINUTES(START_TIME, INITIAL_SET_TIME)',
+                        'formula_expression' => 'Initial Set Timestamp - Start Timestamp',
+                        'rule_type' => QcTestParameter::RULE_TYPE_GREATER_THAN_OR_EQUAL,
+                        'min_value' => 30.0,
+                        'display_order' => 3,
+                    ]
+                ]
+            ],
+
+            'CEMENT_FINAL_SETTING_TIME' => [
+                'name' => 'Cement Final Setting Time',
+                'category' => 'Raw Material',
+                'qc_test_type' => 'FINAL_SETTING_TIME',
+                'standard' => 'IS 4031 (Part 5)',
+                'unit' => 'min',
+                'specimen_count' => 1,
+                'specimen_shape' => 'None',
+                'specimen_dimensions' => null,
+                'description' => 'Determination of final setting time of cement using annular attachment per IS 4031 Part 5.',
+                'parameters' => [
+                    [
+                        'name' => 'Mixing Start Time',
+                        'code' => 'START_TIME',
+                        'data_type' => 'text',
+                        'unit' => 'hh:mm',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'display_order' => 1,
+                    ],
+                    [
+                        'name' => 'Final Set Time',
+                        'code' => 'FINAL_SET_TIME',
+                        'data_type' => 'text',
+                        'unit' => 'hh:mm',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'display_order' => 2,
+                    ],
+                    [
+                        'name' => 'Final Setting Time (min)',
+                        'code' => 'FINAL_SET_MIN',
+                        'data_type' => 'integer',
+                        'unit' => 'min',
+                        'scope' => 'test',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'formula' => 'TIMEDIFF_MINUTES(START_TIME, FINAL_SET_TIME)',
+                        'formula_expression' => 'Final Set Timestamp - Start Timestamp',
+                        'rule_type' => QcTestParameter::RULE_TYPE_LESS_THAN_OR_EQUAL,
+                        'max_value' => 600.0,
+                        'display_order' => 3,
+                    ]
+                ]
+            ],
+
+            'CEMENT_SOUNDNESS' => [
+                'name' => 'Cement Soundness (Le-Chatelier)',
+                'category' => 'Raw Material',
+                'qc_test_type' => 'SOUNDNESS',
+                'standard' => 'IS 4031 (Part 3)',
+                'unit' => 'mm',
+                'specimen_count' => 1,
+                'specimen_shape' => 'None',
+                'specimen_dimensions' => null,
+                'description' => 'Determination of soundness of cement by Le-Chatelier method per IS 4031 Part 3.',
+                'parameters' => [
+                    [
+                        'name' => 'Initial Indicator Reading',
+                        'code' => 'INITIAL_READING',
+                        'data_type' => 'decimal',
+                        'unit' => 'mm',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'display_order' => 1,
+                    ],
+                    [
+                        'name' => 'Final Indicator Reading',
+                        'code' => 'FINAL_READING',
+                        'data_type' => 'decimal',
+                        'unit' => 'mm',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'display_order' => 2,
+                    ],
+                    [
+                        'name' => 'Soundness Expansion',
+                        'code' => 'EXPANSION',
+                        'data_type' => 'decimal',
+                        'unit' => 'mm',
+                        'scope' => 'test',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'formula' => 'FINAL_READING - INITIAL_READING',
+                        'formula_expression' => 'Final Reading - Initial Reading',
+                        'rule_type' => QcTestParameter::RULE_TYPE_LESS_THAN_OR_EQUAL,
+                        'max_value' => 10.0,
+                        'display_order' => 3,
+                    ]
+                ]
+            ],
+
+            'CEMENT_COMPRESSIVE' => [
+                'name' => 'Cement Compressive Strength (70.6mm)',
+                'category' => 'Raw Material',
+                'qc_test_type' => 'COMPRESSIVE',
+                'standard' => 'IS 4031 (Part 6)',
+                'unit' => 'MPa',
+                'specimen_count' => 3,
+                'specimen_shape' => 'Cube',
+                'specimen_dimensions' => '70.6x70.6x70.6 mm',
+                'description' => 'Determination of compressive strength of standard mortar cubes per IS 4031 Part 6.',
+                'parameters' => [
+                    [
+                        'name' => 'Cube Length',
+                        'code' => 'CUBE_LENGTH',
+                        'data_type' => 'decimal',
+                        'unit' => 'mm',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'default_value' => '70.6',
+                        'display_order' => 1,
+                    ],
+                    [
+                        'name' => 'Cube Width',
+                        'code' => 'CUBE_WIDTH',
+                        'data_type' => 'decimal',
+                        'unit' => 'mm',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'default_value' => '70.6',
+                        'display_order' => 2,
+                    ],
+                    [
+                        'name' => 'Cross-Sectional Area',
+                        'code' => 'CUBE_AREA',
+                        'data_type' => 'decimal',
+                        'unit' => 'mm²',
+                        'scope' => 'test',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'formula' => 'CUBE_LENGTH * CUBE_WIDTH',
+                        'formula_expression' => 'Length × Width',
+                        'default_value' => '4984.36',
+                        'display_order' => 3,
+                    ],
+                    [
+                        'name' => 'Crushing Load',
+                        'code' => 'LOAD_KN',
+                        'data_type' => 'decimal',
+                        'unit' => 'kN',
+                        'scope' => 'specimen',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'display_order' => 4,
+                    ],
+                    [
+                        'name' => 'Compressive Strength',
+                        'code' => 'STRENGTH',
+                        'data_type' => 'decimal',
+                        'unit' => 'MPa',
+                        'scope' => 'specimen',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'formula' => '(LOAD_KN * 1000) / CUBE_AREA',
+                        'formula_expression' => '(Load × 1000) / Area',
+                        'display_order' => 5,
+                    ],
+                    [
+                        'name' => 'Average Compressive Strength',
+                        'code' => 'AVG_STRENGTH',
+                        'data_type' => 'decimal',
+                        'unit' => 'MPa',
+                        'scope' => 'summary',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'is_summary' => true,
+                        'formula' => 'AVG(STRENGTH)',
+                        'formula_expression' => 'Average of Specimen Strengths',
+                        'rule_type' => QcTestParameter::RULE_TYPE_GREATER_THAN_OR_EQUAL,
+                        'min_value' => 33.0,
+                        'display_order' => 6,
+                    ]
+                ]
+            ],
+
+            // CONCRETE TEST SUITE (IS 516)
+            'CONCRETE_COMPRESSIVE' => [
+                'name' => 'Concrete Cube Compressive Strength (150mm)',
+                'category' => 'Concrete',
+                'qc_test_type' => 'COMPRESSIVE',
+                'standard' => 'IS 516',
+                'unit' => 'MPa',
+                'specimen_count' => 3,
+                'specimen_shape' => 'Cube',
+                'specimen_dimensions' => '150x150x150 mm',
+                'description' => 'Determination of compressive strength of 150mm concrete cubes per IS 516.',
+                'parameters' => [
+                    [
+                        'name' => 'Cross-Sectional Area',
+                        'code' => 'CROSS_AREA',
+                        'data_type' => 'decimal',
+                        'unit' => 'mm²',
+                        'scope' => 'test',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'default_value' => '22500',
+                        'display_order' => 1,
+                    ],
+                    [
+                        'name' => 'Slump',
+                        'code' => 'SLUMP',
+                        'data_type' => 'decimal',
+                        'unit' => 'mm',
+                        'scope' => 'test',
+                        'is_required' => false,
+                        'is_calculated' => false,
+                        'display_order' => 2,
+                    ],
+                    [
+                        'name' => 'Concrete Temperature',
+                        'code' => 'CONC_TEMP',
+                        'data_type' => 'decimal',
+                        'unit' => '°C',
+                        'scope' => 'test',
+                        'is_required' => false,
+                        'is_calculated' => false,
+                        'display_order' => 3,
+                    ],
+                    [
+                        'name' => 'Specimen Weight',
+                        'code' => 'SPECIMEN_WT',
+                        'data_type' => 'decimal',
+                        'unit' => 'kg',
+                        'scope' => 'specimen',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'display_order' => 4,
+                    ],
+                    [
+                        'name' => 'Density',
+                        'code' => 'DENSITY',
+                        'data_type' => 'decimal',
+                        'unit' => 'kg/m³',
+                        'scope' => 'specimen',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'formula' => 'SPECIMEN_WT / 0.003375',
+                        'formula_expression' => 'Weight / Volume (0.003375 m³)',
+                        'display_order' => 5,
+                    ],
+                    [
+                        'name' => 'Crushing Load',
+                        'code' => 'LOAD_KN',
+                        'data_type' => 'decimal',
+                        'unit' => 'kN',
+                        'scope' => 'specimen',
+                        'is_required' => true,
+                        'is_calculated' => false,
+                        'display_order' => 6,
+                    ],
+                    [
+                        'name' => 'Compressive Strength',
+                        'code' => 'STRENGTH',
+                        'data_type' => 'decimal',
+                        'unit' => 'MPa',
+                        'scope' => 'specimen',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'formula' => '(LOAD_KN * 1000) / CROSS_AREA',
+                        'formula_expression' => '(Load × 1000) / Area (22,500 mm²)',
+                        'display_order' => 7,
+                    ],
+                    [
+                        'name' => 'Average Compressive Strength',
+                        'code' => 'AVG_STRENGTH',
+                        'data_type' => 'decimal',
+                        'unit' => 'MPa',
+                        'scope' => 'summary',
+                        'is_required' => false,
+                        'is_calculated' => true,
+                        'is_summary' => true,
+                        'formula' => 'AVG(STRENGTH)',
+                        'formula_expression' => 'Average of Specimen Strengths',
+                        'display_order' => 8,
+                    ]
+                ]
+            ]
+        ];
+    }
+
+    /**
+     * Get preset by key.
+     */
+    public static function getPreset(string $key): ?array
+    {
+        $presets = self::getPresets();
+        return $presets[$key] ?? null;
+    }
+}

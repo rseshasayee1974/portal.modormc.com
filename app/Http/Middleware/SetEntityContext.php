@@ -50,15 +50,21 @@ class SetEntityContext
             if ($activeEntityId && $activePlantId) {
                 $plant = Plant::find($activePlantId);
                 session([
-                    'active_entity_id' => $activeEntityId,
-                    'active_plant_id'  => $activePlantId,
-                    'gstin'            => $plant?->gstin,
+                    'active_entity_id'  => $activeEntityId,
+                    'active_plant_id'   => $activePlantId,
+                    'gstin'             => $plant?->gstin,
                 ]);
             }
         }
 
         // --- Apply entity/plant context ---
         if ($activeEntityId) {
+            if (!session('default_entity_id')) {
+                session(['default_entity_id' => $activeEntityId]);
+            }
+            if ($activePlantId && !session('default_plant_id')) {
+                session(['default_plant_id' => $activePlantId]);
+            }
             // Check if the entity is suspended (non-admins only)
             if (!$isSuperAdmin) {
                 $isSuspended = Entity::where('id', $activeEntityId)

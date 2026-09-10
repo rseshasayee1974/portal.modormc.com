@@ -11,9 +11,22 @@ import Dialog from 'primevue/dialog';
 interface ParameterItem {
     id?: number;
     name: string;
-    age: string;
-    target: string | number;
-    min: string | number;
+    code?: string;
+    scope?: 'test' | 'specimen' | 'summary';
+    data_type?: string;
+    unit?: string;
+    is_required?: boolean;
+    is_calculated?: boolean;
+    is_summary?: boolean;
+    formula?: string;
+    calculation_scope?: string;
+    formula_expression?: string;
+    default_value?: string;
+    age?: string;
+    target?: string | number;
+    min?: string | number;
+    max?: string | number;
+    rule_type?: string;
 }
 
 const toast = useToast();
@@ -23,12 +36,14 @@ const props = withDefaults(defineProps<{
     products?: any[];
     concrete_grade?: any[];
     units?: any[];
+    presets?: Record<string, any>;
     isEditing?: boolean;
     isExpansion?: boolean;
 }>(), {
     products: () => [],
     concrete_grade: () => [],
     units: () => [],
+    presets: () => ({}),
     isEditing: false,
     isExpansion: false
 });
@@ -308,13 +323,48 @@ const parameters = ref<ParameterItem[]>([]);
 const form = useForm({
     category: 'Concrete',
     concrete_grade: '',
-    qc_test_type: 'Compressive',
+    qc_test_type: 'COMPRESSIVE',
     product_id: null as any,
     grade_strength: '30.00',
     standard: 'IS 516',
     unit: 'MPa',
+    specimen_count: 3,
+    specimen_shape: 'Cube',
+    specimen_dimensions: '150x150x150 mm',
     is_active: true,
 });
+
+const scopeOptions = [
+    { label: 'Test Level (Single input per test)', value: 'test' },
+    { label: 'Specimen Level (Repeated per specimen)', value: 'specimen' },
+    { label: 'Summary Level (Aggregate across specimens)', value: 'summary' }
+];
+
+const dataTypeOptions = [
+    { label: 'Decimal (Numeric)', value: 'decimal' },
+    { label: 'Integer', value: 'integer' },
+    { label: 'Text / Observation', value: 'text' },
+    { label: 'Time (HH:MM or Timestamp)', value: 'time' },
+    { label: 'Boolean (Pass/Fail)', value: 'boolean' }
+];
+
+const ruleTypeOptions = [
+    { label: 'None (Informational)', value: '' },
+    { label: 'Greater Than or Equal (>= Min)', value: 'GREATER_THAN_OR_EQUAL' },
+    { label: 'Greater Than (> Min)', value: 'GREATER_THAN' },
+    { label: 'Less Than or Equal (<= Max)', value: 'LESS_THAN_OR_EQUAL' },
+    { label: 'Less Than (< Max)', value: 'LESS_THAN' },
+    { label: 'Range (Min – Max)', value: 'RANGE' },
+    { label: 'Equal (= Target)', value: 'EQUAL' },
+    { label: 'Target ± Tolerance', value: 'TARGET_TOLERANCE' }
+];
+
+const specimenShapeOptions = [
+    { label: 'None (Bulk/Single Sample)', value: 'None' },
+    { label: 'Cube (e.g. 150mm, 70.6mm)', value: 'Cube' },
+    { label: 'Cylinder', value: 'Cylinder' },
+    { label: 'Beam / Prism', value: 'Beam' }
+];
 
 // Helper to auto-calculate default 7, 15, 28-day parameters
 const generateDefaultParameters = (strengthValue: number) => {
@@ -445,18 +495,56 @@ const showParamModal = ref(false);
 const editingParamIndex = ref<number | null>(null);
 const paramForm = ref<ParameterItem>({
     name: '',
+    code: '',
+    scope: 'test',
+    data_type: 'decimal',
+    unit: '',
+    is_required: true,
+    is_calculated: false,
+    formula: '',
+    formula_expression: '',
+    default_value: '',
     age: '',
     target: '',
-    min: ''
+    min: '',
+    max: '',
+    rule_type: ''
+});
+
+const onParamNameInput = () => {
+    if (!paramForm.value.code || editingParamIndex.value === null) {
+        paramForm.value.code = paramForm.value.name.toUpperCase().replace(/[^A-Z0-9]/g, '_').slice(0, 30);
+    }
+};
+
+const availableVariables = computed(() => {
+    return parameters.value
+        .filter((_, idx) => editingParamIndex.value === null || idx !== editingParamIndex.value)
+        .map(p => ({
+            name: p.name,
+            code: p.code || p.name.toUpperCase().replace(/[^A-Z0-9]/g, '_').slice(0, 30),
+            unit: p.unit
+        }));
 });
 
 const openAddParameter = () => {
     editingParamIndex.value = null;
     paramForm.value = {
         name: '',
+        code: '',
+        scope: isConcrete.value ? 'specimen' : 'test',
+        data_type: 'decimal',
+        unit: form.unit || '',
+        is_required: true,
+        is_calculated: false,
+        formula: '',
+        formula_expression: '',
+        default_value: '',
         age: '',
         target: '',
-        min: ''
+        min: '',
+        max: '',
+        rule_type: ''
     };
     showParamModal.value = true;
 };
@@ -475,16 +563,31 @@ const saveParameter = () => {
         return;
     }
 
-    let formattedAge = paramForm.value.age.trim();
+    let formattedAge = paramForm.value.age ? paramForm.value.age.trim() : '';
     if (formattedAge && !formattedAge.toLowerCase().endsWith('d') && !isNaN(Number(formattedAge))) {
         formattedAge = `${formattedAge} d`;
     }
 
+    const pCode = (paramForm.value.code || paramForm.value.name).toUpperCase().replace(/[^A-Z0-9]/g, '_').slice(0, 30);
+
     const itemToSave: ParameterItem = {
+        id: paramForm.value.id,
         name: paramForm.value.name.trim(),
+        code: pCode,
+        scope: paramForm.value.scope || 'test',
+        data_type: paramForm.value.data_type || 'decimal',
+        unit: paramForm.value.unit || '',
+        is_required: paramForm.value.is_required !== false,
+        is_calculated: Boolean(paramForm.value.is_calculated || paramForm.value.formula),
+        is_summary: paramForm.value.scope === 'summary',
+        formula: paramForm.value.is_calculated ? paramForm.value.formula?.trim() : '',
+        formula_expression: paramForm.value.formula_expression || '',
+        default_value: paramForm.value.default_value || '',
         age: formattedAge,
-        target: paramForm.value.target !== '' ? parseFloat(String(paramForm.value.target)).toFixed(2) : '',
-        min: paramForm.value.min !== '' ? parseFloat(String(paramForm.value.min)).toFixed(2) : ''
+        target: paramForm.value.target !== '' && paramForm.value.target !== null && paramForm.value.target !== undefined ? String(paramForm.value.target) : '',
+        min: paramForm.value.min !== '' && paramForm.value.min !== null && paramForm.value.min !== undefined ? String(paramForm.value.min) : '',
+        max: paramForm.value.max !== '' && paramForm.value.max !== null && paramForm.value.max !== undefined ? String(paramForm.value.max) : '',
+        rule_type: paramForm.value.rule_type || ''
     };
 
     if (editingParamIndex.value !== null && editingParamIndex.value >= 0) {
@@ -503,6 +606,52 @@ const deleteParameter = (index: number) => {
     parameters.value.splice(index, 1);
 };
 
+// Load Standard IS Preset
+const loadStandardPreset = (presetKey?: string) => {
+    let key = presetKey;
+    if (!key) {
+        if (isConcrete.value) {
+            key = 'CONCRETE_COMPRESSIVE';
+        } else if (rawMaterialType.value === 'Cement') {
+            const t = (form.qc_test_type || '').toUpperCase();
+            key = `CEMENT_${t}`;
+        }
+    }
+
+    const preset = props.presets?.[key || ''];
+    if (!preset) {
+        toast.add({ severity: 'warn', summary: 'No Preset', detail: `No built-in standard preset found for ${form.qc_test_type}.`, life: 2500 });
+        return;
+    }
+
+    if (preset.standard) form.standard = preset.standard;
+    if (preset.unit) form.unit = preset.unit;
+    if (preset.specimen_count !== undefined) form.specimen_count = preset.specimen_count;
+    if (preset.specimen_shape) form.specimen_shape = preset.specimen_shape;
+    if (preset.specimen_dimensions) form.specimen_dimensions = preset.specimen_dimensions;
+
+    if (Array.isArray(preset.parameters) && preset.parameters.length > 0) {
+        parameters.value = preset.parameters.map((p: any) => ({
+            name: p.name,
+            code: p.code,
+            scope: p.scope || 'test',
+            data_type: p.data_type || 'decimal',
+            unit: p.unit || '',
+            is_required: p.is_required !== false,
+            is_calculated: Boolean(p.is_calculated),
+            is_summary: Boolean(p.is_summary || p.scope === 'summary'),
+            formula: p.formula || '',
+            formula_expression: p.formula_expression || '',
+            default_value: p.default_value || '',
+            min: p.min_value !== undefined ? String(p.min_value) : (p.min !== undefined ? String(p.min) : ''),
+            max: p.max_value !== undefined ? String(p.max_value) : (p.max !== undefined ? String(p.max) : ''),
+            target: p.target_value !== undefined ? String(p.target_value) : (p.target !== undefined ? String(p.target) : ''),
+            rule_type: p.rule_type || ''
+        }));
+        toast.add({ severity: 'success', summary: 'Preset Loaded', detail: `Loaded standard IS parameters for ${preset.name}`, life: 2500 });
+    }
+};
+
 // Reset Form to Clean / Default State
 const resetForm = () => {
     form.reset();
@@ -514,6 +663,9 @@ const resetForm = () => {
     form.grade_strength = '30.00';
     form.standard = 'IS 516';
     form.unit = 'MPa';
+    form.specimen_count = 3;
+    form.specimen_shape = 'Cube';
+    form.specimen_dimensions = '150x150x150 mm';
     form.is_active = true;
     parameters.value = [];
     form.clearErrors();
@@ -840,6 +992,35 @@ const submit = () => {
                         />
                     </div>
                 </div>
+
+                <!-- Specimen Configuration Row (Dynamic ERP Architecture) -->
+                <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div>
+                        <BaseInput
+                            v-model.number="form.specimen_count"
+                            type="number"
+                            label="Specimen Count (Trials)"
+                            placeholder="e.g. 3"
+                            :error="form.errors.specimen_count"
+                        />
+                    </div>
+                    <div>
+                        <BaseInput
+                            v-model="form.specimen_shape"
+                            label="Specimen Shape"
+                            placeholder="Cube / Cylinder / Prism"
+                            :error="form.errors.specimen_shape"
+                        />
+                    </div>
+                    <div>
+                        <BaseInput
+                            v-model="form.specimen_dimensions"
+                            label="Specimen Dimensions"
+                            placeholder="e.g. 150 × 150 × 150 mm or 70.6 × 70.6 mm"
+                            :error="form.errors.specimen_dimensions"
+                        />
+                    </div>
+                </div>
             </div>
             <!-- SECTION 2: QC PARAMETERS -->
             <div class="p-6 space-y-4">
@@ -853,15 +1034,28 @@ const submit = () => {
                         </span>
                     </div>
 
-                    <!-- Add Parameter Button -->
-                    <button
-                        type="button"
-                        @click="openAddParameter"
-                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/80 transition-all cursor-pointer shadow-2xs"
-                    >
-                        <i class="pi pi-plus text-[10px]"></i>
-                        <span>Add Parameter</span>
-                    </button>
+                    <div class="flex items-center gap-2">
+                        <!-- Load Standard IS Preset Button -->
+                        <button
+                            type="button"
+                            @click="loadStandardPreset()"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/60 border border-amber-200/80 dark:border-amber-800/80 transition-all cursor-pointer shadow-2xs"
+                            title="Load standard IS 4031 / IS 516 parameters and formulas"
+                        >
+                            <i class="pi pi-bolt text-[11px] text-amber-600"></i>
+                            <span>Load Standard IS Preset</span>
+                        </button>
+
+                        <!-- Add Parameter Button -->
+                        <button
+                            type="button"
+                            @click="openAddParameter"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/80 transition-all cursor-pointer shadow-2xs"
+                        >
+                            <i class="pi pi-plus text-[10px]"></i>
+                            <span>Add Parameter</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Parameters Table Box -->
@@ -869,12 +1063,12 @@ const submit = () => {
                     <table class="w-full text-left text-xs">
                         <thead>
                             <tr class="bg-gray-50/80 dark:bg-gray-800/60 border-b border-gray-200/80 dark:border-gray-800 text-gray-600 dark:text-gray-300 font-bold uppercase tracking-wider text-[11px]">
-                                <th class="py-3 px-4 w-12 text-center">#</th>
-                                <th class="py-3 px-4">Parameter</th>
-                                <th class="py-3 px-4">Age</th>
-                                <th class="py-3 px-4">Target</th>
-                                <th class="py-3 px-4">Min</th>
-                                <th class="py-3 px-4 text-right w-36">Actions</th>
+                                <th class="py-3 px-4 w-10 text-center">#</th>
+                                <th class="py-3 px-4">Parameter & Variable Code</th>
+                                <th class="py-3 px-4 w-28">Scope</th>
+                                <th class="py-3 px-4 w-32">Type & Unit</th>
+                                <th class="py-3 px-4">Formula / Acceptance Rule</th>
+                                <th class="py-3 px-4 text-right w-28">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900">
@@ -883,36 +1077,76 @@ const submit = () => {
                                 :key="idx"
                                 class="hover:bg-gray-50/60 dark:hover:bg-gray-800/40 transition-colors"
                             >
-                                <td class="py-3 px-4 text-center font-mono text-gray-500 font-semibold">
+                                <td class="py-3 px-4 text-center font-mono text-gray-400 font-semibold">
                                     {{ idx + 1 }}
                                 </td>
-                                <td class="py-3 px-4 font-bold text-gray-900 dark:text-gray-100">
-                                    {{ param.name }}
+                                <td class="py-3 px-4">
+                                    <div class="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                                        <span>{{ param.name }}</span>
+                                        <span v-if="param.is_required" class="text-rose-500 font-bold" title="Required">*</span>
+                                    </div>
+                                    <div class="text-[10px] font-mono text-gray-400 font-semibold mt-0.5">
+                                        {{ param.code }}
+                                    </div>
                                 </td>
-                                <td class="py-3 px-4 font-semibold text-gray-600 dark:text-gray-300">
-                                    <span class="inline-block px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 font-mono text-[11px]">
-                                        {{ param.age || '—' }}
+                                <td class="py-3 px-4">
+                                    <span
+                                        v-if="param.scope === 'specimen'"
+                                        class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/80"
+                                    >
+                                        Specimen Level
+                                    </span>
+                                    <span
+                                        v-else-if="param.scope === 'summary'"
+                                        class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/80"
+                                    >
+                                        Summary Level
+                                    </span>
+                                    <span
+                                        v-else
+                                        class="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/80"
+                                    >
+                                        Test Level
                                     </span>
                                 </td>
-                                <td class="py-3 px-4 font-bold text-indigo-600 dark:text-indigo-400 font-mono">
-                                    {{ param.target || '—' }}
+                                <td class="py-3 px-4">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="font-mono text-[11px] text-gray-500 capitalize">{{ param.data_type || 'decimal' }}</span>
+                                        <span v-if="param.unit" class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono font-bold text-[10px] text-gray-700 dark:text-gray-300">
+                                            {{ param.unit }}
+                                        </span>
+                                    </div>
                                 </td>
-                                <td class="py-3 px-4 font-bold text-gray-700 dark:text-gray-300 font-mono">
-                                    {{ param.min || '—' }}
+                                <td class="py-3 px-4">
+                                    <!-- Calculated Formula -->
+                                    <div v-if="param.is_calculated && param.formula" class="inline-flex items-center gap-1.5 font-mono text-[11px] text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded-md border border-purple-200/80 dark:border-purple-800/80 mb-1">
+                                        <i class="pi pi-calculator text-[10px]"></i>
+                                        <span>{{ param.formula }}</span>
+                                    </div>
+                                    <!-- Acceptance rule / targets -->
+                                    <div v-if="param.target || param.min || param.max" class="text-[11px] font-mono text-gray-600 dark:text-gray-300 flex flex-wrap gap-2">
+                                        <span v-if="param.target" class="text-indigo-600 dark:text-indigo-400 font-bold">Target: {{ param.target }}</span>
+                                        <span v-if="param.min">Min: <strong>{{ param.min }}</strong></span>
+                                        <span v-if="param.max">Max: <strong>{{ param.max }}</strong></span>
+                                        <span v-if="param.age" class="text-gray-400 font-sans">({{ param.age }})</span>
+                                    </div>
+                                    <span v-if="!param.is_calculated && !param.target && !param.min && !param.max" class="text-gray-400 text-xs">
+                                        —
+                                    </span>
                                 </td>
                                 <td class="py-3 px-4 text-right">
-                                    <div class="inline-flex items-center gap-1.5">
+                                    <div class="inline-flex items-center gap-1">
                                         <button
                                             type="button"
                                             @click="openEditParameter(idx)"
-                                            class="px-2.5 py-1 text-xs font-semibold rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer"
+                                            class="px-2 py-1 text-xs font-semibold rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer"
                                         >
                                             Edit
                                         </button>
                                         <button
                                             type="button"
                                             @click="deleteParameter(idx)"
-                                            class="px-2.5 py-1 text-xs font-semibold rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer"
+                                            class="px-2 py-1 text-xs font-semibold rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer"
                                         >
                                             Delete
                                         </button>
@@ -924,7 +1158,7 @@ const submit = () => {
                             <tr v-if="parameters.length === 0">
                                 <td colspan="6" class="py-8 text-center text-gray-400 text-xs">
                                     <i class="pi pi-inbox text-lg mb-1 block"></i>
-                                    No parameters added yet. Click <span class="font-bold text-indigo-600 dark:text-indigo-400">[+ Add Parameter]</span> or select a Concrete Grade to populate standard values.
+                                    No parameters added yet. Click <span class="font-bold text-amber-600 dark:text-amber-400 cursor-pointer" @click="loadStandardPreset()">[⚡ Load Standard IS Preset]</span> or <span class="font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer" @click="openAddParameter">[+ Add Parameter]</span>.
                                 </td>
                             </tr>
                         </tbody>
@@ -973,44 +1207,174 @@ const submit = () => {
             </div>
         </form>
 
-        <!-- ADD / EDIT PARAMETER MODAL -->
+        <!-- ADD / EDIT PARAMETER MODAL (Dynamic Industrial QC Architecture) -->
         <Dialog
             v-model:visible="showParamModal"
             modal
             :header="editingParamIndex !== null ? 'Edit QC Parameter' : 'Add QC Parameter'"
-            :style="{ width: '420px' }"
+            :style="{ width: '600px', maxWidth: '95vw' }"
             class="rounded-2xl"
         >
-            <div class="space-y-3.5 py-2">
-                <div>
-                    <BaseInput
-                        v-model="paramForm.name"
-                        label="Parameter Name"
-                        required
-                        placeholder="e.g. 7-Day, 15-Day, 28-Day"
-                    />
+            <div class="space-y-4 py-2 text-xs">
+                <!-- 1. Identification -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <BaseInput
+                            v-model="paramForm.name"
+                            label="Parameter Name"
+                            required
+                            placeholder="e.g. Residue Weight, Crushing Load"
+                            @input="onParamNameInput"
+                        />
+                    </div>
+                    <div>
+                        <BaseInput
+                            v-model="paramForm.code"
+                            label="Variable Code"
+                            required
+                            placeholder="e.g. RESIDUE_WT, CRUSHING_LOAD"
+                        />
+                        <span class="text-[10px] text-gray-400">Used in formulas as token</span>
+                    </div>
                 </div>
 
-                <div class="grid grid-cols-3 gap-3">
+                <!-- 2. Scope & Measurement -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
+                        <BaseSelect
+                            v-model="paramForm.scope"
+                            label="Parameter Scope"
+                            required
+                            :options="scopeOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                        />
+                    </div>
+                    <div>
+                        <BaseSelect
+                            v-model="paramForm.data_type"
+                            label="Data Type"
+                            :options="dataTypeOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                        />
+                    </div>
+                    <div>
+                        <BaseInput
+                            v-model="paramForm.unit"
+                            label="Unit"
+                            placeholder="e.g. g, kN, MPa, min, %"
+                        />
+                    </div>
+                </div>
+
+                <!-- 3. Behavior Toggles -->
+                <div class="flex items-center gap-6 p-2.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
+                    <label class="inline-flex items-center gap-2 font-bold text-gray-700 dark:text-gray-300 cursor-pointer">
+                        <input type="checkbox" v-model="paramForm.is_required" class="rounded text-indigo-600 focus:ring-indigo-500" />
+                        <span>Mandatory Input</span>
+                    </label>
+
+                    <label class="inline-flex items-center gap-2 font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer">
+                        <input type="checkbox" v-model="paramForm.is_calculated" class="rounded text-indigo-600 focus:ring-indigo-500" />
+                        <span>Calculated Parameter (Formula)</span>
+                    </label>
+                </div>
+
+                <!-- 4. Calculation Configuration & Formula Builder -->
+                <div v-if="paramForm.is_calculated" class="p-3.5 bg-purple-50/60 dark:bg-purple-950/40 rounded-xl border border-purple-200/80 dark:border-purple-800/80 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-extrabold uppercase tracking-wider text-purple-900 dark:text-purple-200">
+                            Calculation Formula
+                        </span>
+                        <span class="text-[10px] text-purple-600 dark:text-purple-300 font-medium">Click variable/operator to append</span>
+                    </div>
+
+                    <BaseInput
+                        v-model="paramForm.formula"
+                        label="Formula Expression"
+                        placeholder="e.g. (RESIDUE_WT / SAMPLE_WT) * 100 or TIMEDIFF_MINUTES(START_TIME, INITIAL_SET_TIME)"
+                    />
+
+                    <!-- Variable Chips -->
+                    <div v-if="availableVariables.length > 0" class="space-y-1">
+                        <span class="text-[10px] font-bold text-gray-500">Insert Variable Token:</span>
+                        <div class="flex flex-wrap gap-1">
+                            <button
+                                v-for="v in availableVariables"
+                                :key="v.code"
+                                type="button"
+                                @click="insertVariableIntoFormula(v.code)"
+                                class="px-2 py-0.5 bg-white dark:bg-gray-800 hover:bg-purple-100 dark:hover:bg-purple-900 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700 rounded text-[10px] font-mono font-bold transition-colors cursor-pointer"
+                                :title="`${v.name} (${v.unit || 'no unit'})`"
+                            >
+                                {{ v.code }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Operator Chips -->
+                    <div class="flex flex-wrap items-center gap-1 pt-1">
+                        <span class="text-[10px] font-bold text-gray-500 mr-1">Operators:</span>
+                        <button type="button" @click="insertVariableIntoFormula('+')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">+</button>
+                        <button type="button" @click="insertVariableIntoFormula('-')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">-</button>
+                        <button type="button" @click="insertVariableIntoFormula('*')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">×</button>
+                        <button type="button" @click="insertVariableIntoFormula('/')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">÷</button>
+                        <button type="button" @click="insertVariableIntoFormula('(')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">(</button>
+                        <button type="button" @click="insertVariableIntoFormula(')')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-xs font-mono font-bold cursor-pointer">)</button>
+                        <button type="button" @click="insertVariableIntoFormula('100')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">100</button>
+                        <button type="button" @click="insertVariableIntoFormula('1000')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">1000</button>
+                        <button type="button" @click="insertVariableIntoFormula('AVG(')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">AVG(</button>
+                        <button type="button" @click="insertVariableIntoFormula('TIMEDIFF_MINUTES(')" class="px-1.5 py-0.5 bg-white dark:bg-gray-800 hover:bg-gray-100 rounded border border-gray-200 text-[10px] font-mono font-bold cursor-pointer">TIMEDIFF_MINUTES(</button>
+                    </div>
+                </div>
+
+                <!-- 5. Acceptance Criteria -->
+                <div class="space-y-2.5 pt-2 border-t border-gray-100 dark:border-gray-800">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-extrabold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+                            Acceptance Criteria & Limits
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div>
+                            <BaseSelect
+                                v-model="paramForm.rule_type"
+                                label="Rule Type"
+                                :options="ruleTypeOptions"
+                                optionLabel="label"
+                                optionValue="value"
+                            />
+                        </div>
+                        <div>
+                            <BaseInput
+                                v-model="paramForm.target"
+                                label="Target Value"
+                                placeholder="e.g. 20.0"
+                            />
+                        </div>
+                        <div>
+                            <BaseInput
+                                v-model="paramForm.min"
+                                label="Min Allowed"
+                                placeholder="e.g. 18.0"
+                            />
+                        </div>
+                        <div>
+                            <BaseInput
+                                v-model="paramForm.max"
+                                label="Max Allowed"
+                                placeholder="e.g. 10.0 (Soundness)"
+                            />
+                        </div>
+                    </div>
+
+                    <div v-if="isConcrete" class="w-1/3">
                         <BaseInput
                             v-model="paramForm.age"
                             label="Age (Days)"
-                            placeholder="e.g. 7 d"
-                        />
-                    </div>
-                    <div>
-                        <BaseInput
-                            v-model="paramForm.target"
-                            label="Target"
-                            placeholder="19.50"
-                        />
-                    </div>
-                    <div>
-                        <BaseInput
-                            v-model="paramForm.min"
-                            label="Min"
-                            placeholder="18.00"
+                            placeholder="e.g. 7 d or 28 d"
                         />
                     </div>
                 </div>
@@ -1030,7 +1394,7 @@ const submit = () => {
                         @click="saveParameter"
                         class="px-4 py-1.5 text-xs font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 transition-colors shadow-xs cursor-pointer"
                     >
-                        {{ editingParamIndex !== null ? 'Update' : 'Add' }}
+                        {{ editingParamIndex !== null ? 'Update Parameter' : 'Add Parameter' }}
                     </button>
                 </div>
             </template>

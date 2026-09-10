@@ -4,39 +4,7 @@
     <meta charset="utf-8">
     <title>Daily Overall Business & Operational MIS Report</title>
     <style>
-        {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/customer_consolidated_report.css')) ? file_get_contents(public_path('css/reports/customer_consolidated_report.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 7.5pt; color: #1e293b; margin: 12px; }
-        .header-table { width: 100%; margin-bottom: 10px; border-collapse: collapse; }
-        .address-box { font-size: 7.5pt; line-height: 1.3; }
-        .address-title { font-size: 6.5pt; font-weight: bold; color: #64748b; text-transform: uppercase; display: block; }
-        .address-name { font-size: 10.5pt; font-weight: bold; color: #0369a1; display: block; margin-bottom: 2px; }
-        .title-banner { background: #0f172a; color: #ffffff; padding: 6px 10px; text-align: center; font-size: 10.5pt; font-weight: bold; margin-bottom: 10px; border-radius: 3px; text-transform: uppercase; }
-        .period-text { font-size: 7.5pt; font-weight: normal; color: #94a3b8; }
-        
-        .kpi-table { width: 100%; margin-bottom: 12px; border-collapse: separate; border-spacing: 4px; }
-        .kpi-card { background: #f8fafc; border: 1px solid #cbd5e1; padding: 5px 6px; text-align: center; border-radius: 4px; }
-        .kpi-label { font-size: 6pt; font-weight: bold; text-transform: uppercase; color: #64748b; margin-bottom: 2px; }
-        .kpi-val { font-size: 8.5pt; font-weight: bold; color: #0f172a; }
-        .kpi-success { color: #166534; }
-        .kpi-danger { color: #991b1b; }
-        .kpi-info { color: #0369a1; }
-        
-        .section-header { margin-top: 12px; margin-bottom: 5px; padding-bottom: 3px; border-bottom: 1.5px solid #0284c7; }
-        .section-title { font-size: 8.5pt; font-weight: bold; color: #0369a1; text-transform: uppercase; margin: 0; }
-        .section-sub { font-size: 6.5pt; color: #64748b; }
-        
-        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 6.5pt; }
-        .data-table th { background: #f1f5f9; color: #334155; font-weight: bold; text-transform: uppercase; padding: 4px 3px; border: 1px solid #cbd5e1; }
-        .data-table td { padding: 3.5px 3px; border: 1px solid #e2e8f0; }
-        .data-table tr:nth-child(even) { background: #f8fafc; }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        .total-row td { background: #e2e8f0; font-weight: bold; color: #0f172a; border-top: 1.5px solid #94a3b8; }
-        .badge { padding: 1px 3.5px; border-radius: 2px; font-size: 5.5pt; font-weight: bold; display: inline-block; }
-        .badge-danger { background: #fee2e2; color: #991b1b; }
-        .badge-warning { background: #fef3c7; color: #92400e; }
-        .badge-info { background: #e0f2fe; color: #075985; }
-        .badge-success { background: #dcfce7; color: #166534; }
+        {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '') !!}
     </style>
 </head>
 <body>

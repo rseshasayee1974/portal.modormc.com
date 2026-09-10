@@ -50,6 +50,7 @@ use App\Models\ExpenseType;
 use App\Models\PaymentMethod;
 use App\Services\PlantContextService;
 use App\Models\MachineType;
+use App\Models\VoucherType;
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helper — single source of truth for the active plant ID in this file.
 // Falls back to user->default_plant_id when the session is unavailable.
@@ -122,7 +123,7 @@ if (!function_exists('PatronsDropdown')) {
             $plantId = _activePlantId();
         }
         $query = Patron::where('plant_id', $plantId)
-            ->select('id', 'legal_name', 'plant_id');
+            ->select('id', 'legal_name', 'plant_id', 'ledger_id', 'patron_type');
 
         if ($patronTypes !== null) {
             $query->ofType($patronTypes);
@@ -679,6 +680,22 @@ if (!function_exists('SalesLedgersDropdown')) {
         return $query->select('id', 'code as name', 'title') 
             ->whereNull('deleted_at')
             ->orderBy('title')
+            ->get();
+    }
+}
+
+if (!function_exists('VoucherTypesDropdown')) {
+    /**
+     * Universal Voucher Types dropdown options.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    function VoucherTypesDropdown()
+    {
+        return VoucherType::query()
+            ->select('id', 'journal_name', 'short_code', 'prefix', 'voucher_group')
+            ->whereNull('deleted_at')
+            ->orderBy('journal_name')
             ->get();
     }
 }

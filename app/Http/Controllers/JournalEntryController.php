@@ -9,8 +9,10 @@ use App\Models\VoucherType;
 use App\Models\Entity;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
+use App\Models\Plant;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 use App\Http\Controllers\Concerns\AuthorizesModule;
 
@@ -30,28 +32,15 @@ class JournalEntryController extends Controller
         $entries = JournalEntry::with(['lines.ledger', 'creator'])
             ->where('plant_id', $plantId)
             ->where('is_deleted', 0)
+            ->whereNull('deleted_at')
             ->latest()
             ->get();
 
-        $ledgers = Ledger::where('plant_id', $plantId)
-            ->where('status', 1)
-            ->orderBy('title', 'asc')
-            ->get();
-
-        $voucherTypes = VoucherType::where(function ($q) use ($plantId) {
-                $q->whereNull('plant_id')
-                  ->orWhere('plant_id', $plantId);
-            })
-            ->get();
-
-        // Using entities as 'Patrons' or 'Partners' for now
-        $partners = Entity::orderBy('legal_name', 'asc')->get();
-
         return Inertia::render('JournalEntry/Index', [
             'entries'      => $entries,
-            'ledgers'      => $ledgers,
-            'voucherTypes' => $voucherTypes,
-            'partners'     => $partners,
+            'ledgers'      => LedgersDropdown(),
+            'voucherTypes' => VoucherTypesDropdown(),
+            'partners'     => PatronsDropdown(),
         ]);
     }
 
@@ -63,19 +52,48 @@ class JournalEntryController extends Controller
         $this->authorizeModule('create');
         $plantId = session('active_plant_id');
         $userId = Auth::id();
-
+        $entityId = session('active_entity_id');
+ 
         $validated = $request->validate([
             'voucher_type'   => ['required', 'string'],
+            'voucher_id'     => ['nullable'],
+            'voucher_name'   => ['nullable', 'string'],
+            'voucher_number' => [
+                'nullable',
+                'string',
+                'max:50',
+                Rule::unique('mm_journal_entries', 'voucher_number')
+                    ->where(fn ($query) => $query->where('plant_id', $plantId)->whereNull('deleted_at')),
+            ],
             'voucher_date'   => ['required', 'date'],
             'posting_date'   => ['required', 'date'],
             'narration'      => ['nullable', 'string'],
-            'lines'          => ['required', 'array', 'min:2'],
-            'lines.*.account_id'    => ['required', 'exists:mm_ledgers,id'],
-            'lines.*.debit_amount'  => ['required', 'numeric', 'min:0'],
-            'lines.*.credit_amount' => ['required', 'numeric', 'min:0'],
-            'lines.*.partner_id'    => ['nullable', 'exists:mm_entities,id'],
+            'lines'                  => ['required', 'array', 'min:2'],
+            'lines.*.account_id'     => ['nullable', 'required_without:lines.*.partner_id', 'exists:mm_ledgers,id'],
+            'lines.*.debit_amount'   => ['required', 'numeric', 'min:0'],
+            'lines.*.credit_amount'  => ['required', 'numeric', 'min:0'],
+            'lines.*.partner_id'     => ['nullable'],
             'lines.*.line_narration' => ['nullable', 'string', 'max:255'],
         ]);
+
+        // Auto-resolve account_id for lines where partner_id is selected without an account
+        foreach ($validated['lines'] as $i => &$line) {
+            if (empty($line['account_id']) && !empty($line['partner_id'])) {
+                $line['account_id'] = JournalEntry::resolvePatronLedgerId(
+                    $plantId,
+                    $line['partner_id'],
+                    (float) ($line['debit_amount'] ?? 0),
+                    (float) ($line['credit_amount'] ?? 0)
+                );
+            }
+            if (empty($line['account_id'])) {
+                return response()->json([
+                    'message' => "The ledger account for line " . ($i + 1) . " could not be resolved. Please select an Account or configure default Patron ledgers in Settings.",
+                    'errors'  => ["lines.{$i}.account_id" => ["The ledger account is required."]]
+                ], 422);
+            }
+        }
+        unset($line);
 
         return DB::transaction(function () use ($validated, $plantId, $userId) {
             $totalDebit = collect($validated['lines'])->sum('debit_amount');
@@ -89,46 +107,68 @@ class JournalEntryController extends Controller
                 ], 422);
             }
 
-            // 2. Voucher Number Generation
-            $vType = VoucherType::where('short_code', $validated['voucher_type'])->first();
-            $prefix = $vType ? $vType->prefix : ($validated['voucher_type'] . '-');
-            
-            $lastEntry = JournalEntry::where('plant_id', $plantId)
-                ->where('voucher_type', $validated['voucher_type'])
-                ->orderBy('id', 'desc')
-                ->first();
-            
-            $nextNum = $lastEntry ? (int) filter_var($lastEntry->voucher_number, FILTER_SANITIZE_NUMBER_INT) + 1 : 1;
-            $voucherNumber = $prefix . str_pad($nextNum, 5, '0', STR_PAD_LEFT);
+            // 2. Voucher Number Generation & Duplicate Validation (where deleted_at IS NULL)
+            $voucherNumber = !empty($validated['voucher_number'])
+                ? $validated['voucher_number']
+                : JournalEntry::generateVoucherNumber(
+                    $plantId,
+                    $validated['voucher_type'],
+                    $validated['voucher_id'] ?? null,
+                    $validated['voucher_date'] ?? null
+                );
 
-            // 3. Create Header
+            if (JournalEntry::isDuplicateVoucherNumber($plantId, $voucherNumber)) {
+                return response()->json([
+                    'message' => "Voucher number {$voucherNumber} already exists for this plant.",
+                    'errors'  => ['voucher_number' => ["Voucher number {$voucherNumber} already exists."]]
+                ], 422);
+            }
+
+            // 3. Build Header and Line Narrations
+            $narrations = JournalEntry::buildDefaultNarrations(
+                $validated['lines'],
+                $validated['voucher_type'],
+                $voucherNumber,
+                $validated['narration'] ?? null
+            );
+
+            // 4. Create Header
             $entry = JournalEntry::create([
+                'entity_id'       => session('active_entity_id'),
                 'plant_id'        => $plantId,
                 'voucher_type'    => $validated['voucher_type'],
                 'voucher_number'  => $voucherNumber,
+                'ref_module'      => 'entries',
                 'voucher_date'    => $validated['voucher_date'],
                 'posting_date'    => $validated['posting_date'],
-                'narration'       => $validated['narration'],
-                'narration_label' => JournalEntry::resolveNarrationLabel(null, $validated['voucher_type']),
+                'narration'       => $narrations['header'],
+                'narration_label' => $validated['voucher_type'],
                 'total_debit'     => $totalDebit,
                 'total_credit'    => $totalCredit,
                 'is_status'       => 'POSTED', // Default to posted for simplicity or 'DRAFT'
                 'created_by'      => $userId,
             ]);
 
-            // 4. Create Lines
-            foreach ($validated['lines'] as $line) {
+            // 5. Create Lines
+            foreach ($validated['lines'] as $idx => $line) {
                 // Ensure exactly one side is populated
                 if ($line['debit_amount'] > 0 && $line['credit_amount'] > 0) {
                      throw new \Exception('A single line cannot have both debit and credit amounts.');
                 }
 
-                JournalEntryLine::create(array_merge($line, [
+                JournalEntryLine::create([
                     'journal_entry_id' => $entry->id,
                     'plant_id'         => $plantId,
+                    'account_id'       => $line['account_id'],
+                    'debit_amount'     => $line['debit_amount'],
+                    'credit_amount'    => $line['credit_amount'],
+                    'partner_type'     => !empty($line['partner_id']) ? 'Patron' : null,
+                    'partner_id'       => $line['partner_id'] ?? null,
+                    'narration_name'   => 'Journal entry',
+                    'narration_label'  => $validated['voucher_type'],
+                    'line_narration'   => $narrations['lines'][$idx] ?? null,
                     'created_by'       => $userId,
-                    'narration_label'  => $entry->narration_label,
-                ]));
+                ]);
             }
 
             return response()->json([
@@ -153,6 +193,23 @@ class JournalEntryController extends Controller
 
         return response()->json([
             'message' => 'Journal Entry Deleted Successfully!',
+        ]);
+    }
+
+    /**
+     * Generate the next voucher number for a journal entry.
+     */
+    public function generateVoucherNumber(Request $request)
+    {
+        $plantId = session('active_plant_id') ?? $request->input('plant_id');
+        $voucherType = $request->input('voucher_type', 'Journal');
+        $voucherId = $request->input('voucher_id');
+        $voucherDate = $request->input('voucher_date', now()->toDateString());
+
+        $voucherNumber = JournalEntry::generateVoucherNumber($plantId, $voucherType, $voucherId, $voucherDate);
+
+        return response()->json([
+            'voucher_number' => $voucherNumber
         ]);
     }
 }

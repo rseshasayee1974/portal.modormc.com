@@ -87,13 +87,16 @@ class PlantContextService
     {
         $fromSession = Session::get('active_entity_id');
         if ($fromSession) {
+            if (!Session::has('active_entity_id')) {
+                Session::put('active_entity_id', (int) $fromSession);
+            }
             return (int) $fromSession;
         }
 
         $user = Auth::user();
-        if ($user && $user->default_entity_id) {
-            Session::put('active_entity_id', $user->default_entity_id);
-            return (int) $user->default_entity_id;
+        if ($user && $user->active_entity_id) {
+            Session::put('active_entity_id', $user->active_entity_id);
+            return (int) $user->active_entity_id;
         }
 
         return null;

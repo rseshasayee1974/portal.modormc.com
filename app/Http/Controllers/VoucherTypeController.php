@@ -21,15 +21,10 @@ class VoucherTypeController extends Controller
     public function index()
     {
         $this->authorizeModule('menu');
-        $entityId = session('active_entity_id');
         $user = Auth::user();
         $isSuperAdmin = $user->hasRole('Admin') || $user->roles->contains('id', 1);
 
-        $voucherTypes = VoucherType::where(function ($q) use ($entityId) {
-                $q->whereNull('entity_id')
-                  ->orWhere('entity_id', $entityId);
-            })
-            ->orderBy('voucher_group', 'asc')
+        $voucherTypes = VoucherType::orderBy('voucher_group', 'asc')
             ->orderBy('journal_name', 'asc')
             ->get();
 
@@ -45,22 +40,12 @@ class VoucherTypeController extends Controller
     public function store(Request $request)
     {
         $this->authorizeModule('create');
-        $entityId = session('active_entity_id');
         $user = Auth::user();
-        
-        // Identify if user is Superadmin (role_id 1)
-        // Usually checked via Spatie roles or EntityUser
         $isSuperAdmin = $user->hasRole('Admin') || $user->roles->contains('id', 1);
 
         $validated = $request->validate([
-            'journal_name'        => [
-                'required', 'string', 'max:100', 
-                Rule::unique('mm_voucher_types')->where(fn ($q) => $q->where('entity_id', $entityId)->orWhereNull('entity_id'))
-            ],
-            'short_code'          => [
-                'required', 'string', 'max:20', 
-                Rule::unique('mm_voucher_types')->where(fn ($q) => $q->where('entity_id', $entityId)->orWhereNull('entity_id'))
-            ],
+            'journal_name'        => ['required', 'string', 'max:100', Rule::unique('mm_voucher_types', 'journal_name')],
+            'short_code'          => ['required', 'string', 'max:20', Rule::unique('mm_voucher_types', 'short_code')],
             'is_system_generated' => ['required', 'boolean'],
             'prefix'              => ['nullable', 'string', 'max:20'],
             'voucher_group'       => ['required', 'string', 'max:100'],
@@ -76,7 +61,6 @@ class VoucherTypeController extends Controller
         }
 
         $voucherType = VoucherType::create(array_merge($validated, [
-            'entity_id'           => $createSystem ? null : $entityId,
             'is_system_generated' => $createSystem ? 1 : 0
         ]));
 
@@ -92,31 +76,21 @@ class VoucherTypeController extends Controller
     public function update(Request $request, $id)
     {
         $this->authorizeModule('edit');
-        $entityId = session('active_entity_id');
         $user = Auth::user();
         $isSuperAdmin = $user->hasRole('Admin') || $user->roles->contains('id', 1);
 
-        $voucherType = VoucherType::where(function ($q) use ($entityId) {
-                $q->whereNull('entity_id')
-                  ->orWhere('entity_id', $entityId);
-            })->findOrFail($id);
+        $voucherType = VoucherType::findOrFail($id);
 
         // Protect system templates from non-admins
-        if ($voucherType->entity_id === null && !$isSuperAdmin) {
+        if ($voucherType->is_system_generated && !$isSuperAdmin) {
             return response()->json([
                 'message' => 'Global system templates can only be modified by Superadmins.',
             ], 403);
         }
 
         $validated = $request->validate([
-            'journal_name' => [
-                'required', 'string', 'max:100', 
-                Rule::unique('mm_voucher_types')->ignore($id)->where(fn ($q) => $q->where('entity_id', $entityId)->orWhereNull('entity_id'))
-            ],
-            'short_code' => [
-                'required', 'string', 'max:20', 
-                Rule::unique('mm_voucher_types')->ignore($id)->where(fn ($q) => $q->where('entity_id', $entityId)->orWhereNull('entity_id'))
-            ],
+            'journal_name' => ['required', 'string', 'max:100', Rule::unique('mm_voucher_types', 'journal_name')->ignore($id)],
+            'short_code'   => ['required', 'string', 'max:20', Rule::unique('mm_voucher_types', 'short_code')->ignore($id)],
             'is_system_generated' => ['required', 'boolean'],
             'prefix'              => ['nullable', 'string', 'max:20'],
             'voucher_group'       => ['required', 'string', 'max:100'],
@@ -129,9 +103,7 @@ class VoucherTypeController extends Controller
             ], 403);
         }
 
-        $voucherType->update(array_merge($validated, [
-            'entity_id' => ($isSuperAdmin && $validated['is_system_generated']) ? null : ($voucherType->entity_id ?? $entityId)
-        ]));
+        $voucherType->update($validated);
 
         return response()->json([
             'message'     => 'Voucher Type Updated Successfully!',
@@ -145,8 +117,7 @@ class VoucherTypeController extends Controller
     public function destroy($id)
     {
         $this->authorizeModule('delete');
-        $entityId = session('active_entity_id');
-        $voucherType = VoucherType::where('entity_id', $entityId)->findOrFail($id);
+        $voucherType = VoucherType::findOrFail($id);
         
         if ($voucherType->is_system_generated) {
             return response()->json([
