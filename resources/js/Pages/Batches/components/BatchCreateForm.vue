@@ -642,6 +642,7 @@ const submit = () => {
                             optionValue="id" 
                             filter 
                             label="Select Sales Order" 
+                            placeholder="Select Sales Order"
                             required
                             :error="form.errors.sales_order_id" 
                         />
@@ -690,16 +691,16 @@ const submit = () => {
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 p-4">
                     <div>
-                        <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Assign Truck" required :error="form.errors.truck_id" />
+                        <BaseSelect v-model="form.truck_id" :options="trucks" optionLabel="registration" optionValue="id" filter label="Assign Truck" placeholder="Select Truck" required :error="form.errors.truck_id" />
                     </div>
                     <div>
-                        <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" showClear />
+                        <BaseSelect v-model="form.transport_id" :options="transporters" optionLabel="legal_name" optionValue="id" filter label="Transporter" placeholder="Select Transporter" showClear />
                     </div>
                     <div>
-                        <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label" optionValue="id" filter label="Driver" showClear />
+                        <BaseSelect v-model="form.driver_id" :options="drivers" optionLabel="label" optionValue="id" filter label="Driver" placeholder="Select Driver" showClear />
                     </div>
                     <div>
-                        <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear />
+                        <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" placeholder="Select Sales Executive" showClear />
                     </div>
                     <!-- <div>
                         <BaseSelect v-model="form.concrete_pump" :options="concretePumpOptions" optionLabel="label" optionValue="value" label="Concrete Type" placeholder="Select Concrete Type" :error="form.errors.concrete_pump" />

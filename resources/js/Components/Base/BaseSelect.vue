@@ -41,7 +41,7 @@ const props = withDefaults(
         required: false,
         disabled: false,
         filter: true,
-        size: 'medium',
+        size: 'small',
         fluid: true,
         showClear: false,
         autoFilterFocus: true,
@@ -112,6 +112,10 @@ const getSpecialOptionTag = (option: any) => {
     if (label.includes('select')) return 'Select';
     return 'Default';
 };
+
+const defaultPlaceholder = computed(() => {
+    return props.placeholder || (props.label ? `Select ${props.label}` : 'Select...');
+});
 
 const normalizedOptions = computed(() => {
     const rawOpts = Array.isArray(props.options) ? [...props.options] : [];
@@ -188,7 +192,7 @@ const getSelectedLabelText = (val: any) => {
         return getOptionLabelText(selectedSpecialOption.value);
     }
     if (val === null || val === undefined || val === '') {
-        return props.placeholder || '';
+        return defaultPlaceholder.value;
     }
     const found = normalizedOptions.value.find(o => getOptionValue(o) === val);
     if (found) return getOptionLabelText(found);
@@ -213,13 +217,13 @@ const getSelectedLabelText = (val: any) => {
                 :options="normalizedOptions"
                 :optionLabel="optionLabel"
                 :optionValue="optionValue"
-                :placeholder="placeholder"
+                :placeholder="defaultPlaceholder"
                 :disabled="disabled"
                 :filter="filter"
                 :filterFields="effectiveFilterFields"
                 :autoFilterFocus="autoFilterFocus"
                 :checkmark="true"
-                :showClear="false"
+                :showClear="showClear"
                 :size="size"
                 :fluid="fluid"
                 :panelClass="effectiveOverlayClass"
@@ -247,11 +251,11 @@ const getSelectedLabelText = (val: any) => {
                 <template #value="slotProps">
                     <slot v-if="$slots.value" name="value" v-bind="slotProps" />
                     <template v-else>
-                        <span v-if="slotProps.value !== null && slotProps.value !== undefined && slotProps.value !== ''" class="text-xs text-slate-800 dark:text-slate-100 font-semibold">
+                        <span v-if="slotProps.value !== null && slotProps.value !== undefined && slotProps.value !== ''" class="text-xs text-slate-800 dark:text-slate-100 font-semibold truncate block">
                             {{ getSelectedLabelText(slotProps.value) }}
                         </span>
-                        <span v-else class="text-xs text-slate-400">
-                            {{ slotProps.placeholder || placeholder }}
+                        <span v-else class="text-xs text-slate-400 truncate block">
+                            {{ slotProps.placeholder || defaultPlaceholder }}
                         </span>
                     </template>
                 </template>
@@ -267,6 +271,48 @@ const getSelectedLabelText = (val: any) => {
 </template>
 
 <style scoped>
+:deep(.p-component) {
+    border-radius: 4px !important;
+}
+
+:deep(.p-select) {
+    min-height: 2.25rem !important;
+    background-color: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    border-radius: 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+}
+
+:deep(.p-select-label) {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0.375rem 0.625rem !important;
+    font-size: 0.75rem !important;
+    line-height: 1.25rem !important;
+    color: #1e293b !important;
+    border: none !important;
+    background: transparent !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+}
+
+:deep(.p-select-label.p-placeholder) {
+    color: #94a3b8 !important;
+    font-weight: 400 !important;
+}
+
+:deep(.p-select-dropdown) {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 2rem !important;
+    flex-shrink: 0 !important;
+    color: #64748b !important;
+    border: none !important;
+    background: transparent !important;
+}
 /* Clear icon styling */
 :deep([data-pc-section="clearicon"]),
 :deep(.p-select-clear-icon) {
