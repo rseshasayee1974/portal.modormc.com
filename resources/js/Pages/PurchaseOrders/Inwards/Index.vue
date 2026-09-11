@@ -119,7 +119,7 @@ const deleteInward = (inward: any) => {
                                 </div>
                             </template>
 
-                            <Column expander style="width: 3.5rem" />
+                            <!-- <Column expander style="width: 3.5rem" /> -->
 
                             <Column header="Inward #" sortable field="inward_no" style="min-width: 160px" class="py-4 px-4">
                                 <template #body="slotProps">
