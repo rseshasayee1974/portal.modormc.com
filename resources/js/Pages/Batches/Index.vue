@@ -1756,7 +1756,7 @@ const shareBatchEmail = () => {
                     </div>
                     <div>
                         <span class="text-slate-400 block text-[10px] uppercase font-bold">Truck Registration</span>
-                        <span class="font-semibold text-slate-700">{{ cancellingBatch.dispatches?.[0]?.truck?.reg_number || 'N/A' }}</span>
+                        <span class="font-semibold text-slate-700">{{ cancellingBatch.dispatches?.[0]?.truck?.registration || 'N/A' }}</span>
                     </div>
                 </div>
 

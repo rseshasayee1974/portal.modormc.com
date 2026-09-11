@@ -259,7 +259,13 @@ class QueueReportExportJob implements ShouldQueue
             'report_css'    => $css,
         ], $data, $extraParams);
 
-        $pdf = Pdf::loadView($view, $pdfData)->setPaper('a4', $orientation);
+        $pdf = Pdf::loadView($view, $pdfData)
+            ->setPaper('a4', $orientation)
+            ->setOption([
+                'defaultFont' => 'DejaVu Sans',
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+            ]);
         $pdf->save($filePath);
     }
 

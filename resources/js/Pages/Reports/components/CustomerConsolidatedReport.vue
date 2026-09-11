@@ -1,10 +1,15 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { formatCurrency, formatQuantity } from '@/Utils/formatters';
+import { DocumentTextIcon } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
     reportData: Object
 });
+
+const emit = defineEmits(['view-statement', 'select-patron']);
+
+const activeTab = ref('summary'); // 'summary' | 'trips'
 
 // 1. Consolidated Customers Pagination
 const perPage = ref(30);
@@ -204,173 +209,43 @@ const tripTotals = computed(() => {
                 </p>
             </div>
         </div>
-  <div v-if="allTrips.length" class="bg-white rounded border border-slate-200 shadow-sm mt-8">
-            <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/70 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">
-                            Every Batching / Trip Verification List
-                        </h3>
-                        <span class="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-800 font-bold rounded">
-                            {{ tripTotalCount }} Trips
-                        </span>
-                    </div>
-                    <p class="text-[10px] text-slate-400 mt-0.5">
-                        Itemized batch tickets and dispatches so customer can audit and verify each trip count
-                    </p>
-                </div>
-
-                <!-- Customer Filter & Search
-                <div class="flex flex-wrap items-center gap-2">
-                    <select 
-                        v-if="customerOptions.length > 1"
-                        v-model="selectedCustomerFilter"
-                        @change="tripCurrentPage = 1"
-                        class="border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-700 bg-white font-medium focus:outline-none focus:ring-1 focus:ring-[#0064d2]"
-                    >
-                        <option value="">All Customers</option>
-                        <option v-for="c in customerOptions" :key="c" :value="c">{{ c }}</option>
-                    </select>
-
-                    <input 
-                        type="text" 
-                        v-model="tripSearch" 
-                        @input="tripCurrentPage = 1"
-                        placeholder="Search trip, docket, mixer..." 
-                        class="border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-[#0064d2] w-48"
-                    />
-                </div> -->
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse min-w-[1200px]">
-                    <thead>
-                        <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f8fafc]">
-                            <th class="py-3 px-3 text-center" width="4%">Trip #</th>
-                            <th class="py-3 px-3" width="12%">Date & Time</th>
-                            <th class="py-3 px-3" width="12%">Dispatch / DSP #</th>
-                            <th class="py-3 px-3" width="15%">Customer Name</th>
-                            <th class="py-3 px-3" width="13%">Unload Site</th>
-                            <th class="py-3 px-3 text-center" width="9%">Mixer / Truck</th>
-                            <th class="py-3 px-3 text-center" width="9%">Grade / Mix</th>
-                            <!-- <th class="py-3 px-3 text-right" width="6%">Batch (m³)</th> -->
-                            <th class="py-3 px-3 text-right" width="6%">Deliv (m³)</th>
-                            <th class="py-3 px-3 text-right" width="5%">Empty (T)</th>
-                            <th class="py-3 px-3 text-right" width="5%">Load (T)</th>
-                            <th class="py-3 px-3 text-right" width="5%">Net (T)</th>
-                            <th class="py-3 px-3 text-right" width="9%">Total Amt</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-[11px] font-semibold text-slate-700 divide-y divide-slate-100">
-                        <tr v-for="(trip, tIdx) in paginatedTrips" :key="tIdx" class="hover:bg-slate-50 transition-all">
-                            <td class="py-2.5 px-3 text-center text-slate-400 font-bold">{{ (sanitizedTripPage - 1) * tripPerPage + tIdx + 1 }}</td>
-                            <td class="py-2.5 px-3 text-slate-600 font-mono text-[10px]">{{ trip.dispatch_time }}</td>
-                            <td class="py-2.5 px-3 font-bold text-slate-800">{{ trip.docket_no }}</td>
-                            <td class="py-2.5 px-3 font-bold text-slate-800">{{ trip.customer_name }}</td>
-                            <td class="py-2.5 px-3 text-slate-600">{{ trip.site_name }}</td>
-                            <td class="py-2.5 px-3 text-center font-bold text-indigo-700">{{ trip.truck_no }}</td>
-                            <td class="py-2.5 px-3 text-center font-bold text-emerald-700">{{ trip.concrete_grade }}</td>
-                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(trip.batch_size) }}</td> -->
-                            <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(trip.delivered_qty) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(trip.empty_weight) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(trip.loaded_weight) }}</td>
-                            <td class="py-2.5 px-3 text-right font-semibold text-slate-800">{{ formatQuantity(trip.net_weight) }}</td>
-                            <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(trip.amount_total) }}</td>
-                        </tr>
-                        <tr v-if="!paginatedTrips.length">
-                            <td colspan="13" class="py-8 text-center text-slate-400">No batching trips match the search criteria</td>
-                        </tr>
-                        <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
-                            <td colspan="7" class="py-3 px-3 text-center text-[#1d2d3e] uppercase">Total Verified Batch Trips ({{ tripTotalCount }} Trips)</td>
-                            <!-- <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(tripTotals.batch_size) }}</td> -->
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(tripTotals.delivered_qty) }}</td>
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(tripTotals.empty_weight) }}</td>
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(tripTotals.loaded_weight) }}</td>
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(tripTotals.net_weight) }}</td>
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(tripTotals.amount_total) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Trip Pagination Bar (30 rows per page) -->
-            <div v-if="tripTotalCount > tripPerPage || tripTotalPages > 1" class="px-4 py-3 bg-slate-50 border-t border-slate-200 rounded-b flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-                <div class="flex items-center gap-3 text-slate-500 font-medium">
-                    <span>
-                        Showing <strong class="text-slate-800">{{ tripStartIndex }}</strong> to <strong class="text-slate-800">{{ tripEndIndex }}</strong> of <strong class="text-slate-800">{{ tripTotalCount }}</strong> batch trips
-                    </span>
-                    <div class="flex items-center gap-1.5 ml-2">
-                        <span class="text-[11px] text-slate-400">Rows:</span>
-                        <select 
-                            v-model.number="tripPerPage" 
-                            @change="tripCurrentPage = 1"
-                            class="border border-slate-200 rounded px-2 py-0.5 text-xs text-slate-700 bg-white font-semibold focus:outline-none focus:ring-1 focus:ring-[#0064d2]"
-                        >
-                            <option :value="15">15</option>
-                            <option :value="30">30</option>
-                            <option :value="50">50</option>
-                            <option :value="100">100</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="flex items-center gap-1">
-                    <button 
-                        type="button" 
-                        @click="goToTripPage(1)" 
-                        :disabled="sanitizedTripPage <= 1"
-                        class="px-2 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-[11px] cursor-pointer"
-                        title="First Page"
-                    >
-                        « First
-                    </button>
-                    <button 
-                        type="button" 
-                        @click="goToTripPage(sanitizedTripPage - 1)" 
-                        :disabled="sanitizedTripPage <= 1"
-                        class="px-2.5 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-[11px] cursor-pointer"
-                    >
-                        ‹ Prev
-                    </button>
-                    
-                    <template v-for="(p, pIdx) in visibleTripPages" :key="pIdx">
-                        <span v-if="p === '...'" class="px-1 text-slate-400 font-semibold">...</span>
-                        <button 
-                            v-else 
-                            type="button" 
-                            @click="goToTripPage(p)"
-                            :class="[
-                                'px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer',
-                                sanitizedTripPage === p 
-                                    ? 'bg-[#0064d2] text-white shadow-xs' 
-                                    : 'border border-slate-200 text-slate-600 hover:bg-slate-100'
-                            ]"
-                        >
-                            {{ p }}
-                        </button>
-                    </template>
-
-                    <button 
-                        type="button" 
-                        @click="goToTripPage(sanitizedTripPage + 1)" 
-                        :disabled="sanitizedTripPage >= tripTotalPages"
-                        class="px-2.5 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-[11px] cursor-pointer"
-                    >
-                        Next ›
-                    </button>
-                    <button 
-                        type="button" 
-                        @click="goToTripPage(tripTotalPages)" 
-                        :disabled="sanitizedTripPage >= tripTotalPages"
-                        class="px-2 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-[11px] cursor-pointer"
-                        title="Last Page"
-                    >
-                        Last »
-                    </button>
-                </div>
-            </div>
+        <!-- Section Tabs: Customer Summary vs Trip Details -->
+        <div class="flex items-center gap-2 border-b border-slate-200 bg-white px-5 pt-3 rounded-t-xl shadow-2xs">
+            <button 
+                type="button" 
+                @click="activeTab = 'summary'"
+                :class="[
+                    'pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer',
+                    activeTab === 'summary' 
+                        ? 'border-[#0064d2] text-[#0064d2]' 
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                ]"
+            >
+                <span>Customer Consolidated Summary</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold" :class="activeTab === 'summary' ? 'bg-blue-100 text-[#0064d2]' : 'bg-slate-100 text-slate-500'">
+                    {{ totalCount }} Customers
+                </span>
+            </button>
+            <button 
+                v-if="allTrips.length"
+                type="button" 
+                @click="activeTab = 'trips'"
+                :class="[
+                    'pb-3 px-3 text-xs font-bold transition-all border-b-2 flex items-center gap-2 cursor-pointer',
+                    activeTab === 'trips' 
+                        ? 'border-[#0064d2] text-[#0064d2]' 
+                        : 'border-transparent text-slate-500 hover:text-slate-800'
+                ]"
+            >
+                <span>Batching / Trip Verification List</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold" :class="activeTab === 'trips' ? 'bg-blue-100 text-[#0064d2]' : 'bg-slate-100 text-slate-500'">
+                    {{ tripTotalCount }} Trips
+                </span>
+            </button>
         </div>
-        <!-- Section 1: Customer Consolidated Summary Table -->
-        <div class="bg-white rounded border border-slate-200 shadow-sm">
+
+        <!-- Section 1: Customer Consolidated Summary Table (Primary Tab) -->
+        <div v-show="activeTab === 'summary'" class="bg-white rounded-b-xl border border-t-0 border-slate-200 shadow-sm overflow-hidden">
             <div class="px-5 py-3 border-b border-slate-100 bg-slate-50/60 flex justify-between items-center">
                 <div>
                     <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700">Customer Consolidated Summary</h3>
@@ -381,53 +256,53 @@ const tripTotals = computed(() => {
                 </span>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse ">
+            <div class="overflow-x-auto max-h-[580px] overflow-y-auto">
+                <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f8fafc]">
+                        <tr class="sticky top-0 bg-[#f8fafc] z-10 text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 shadow-2xs">
                             <th class="py-3 px-3 text-center" width="4%">#</th>
-                            <th class="py-3 px-3" width="26%">Customer / Party Name</th>
-                            <th class="py-3 px-3 text-center" width="7%">Trips</th>
-                            <!-- <th class="py-3 px-3 text-right" width="9%">Batch Size</th> -->
-                            <th class="py-3 px-3 text-right" width="10%">Delivered Qty</th>
-                            <!-- <th class="py-3 px-3 text-right" width="9%">Empty Wt</th>
-                            <th class="py-3 px-3 text-right" width="9%">Loaded Wt</th>
-                            <th class="py-3 px-3 text-right" width="9%">Net Wt</th>-->
-                            <!-- <th class="py-3 px-3 text-right" width="11%">Taxable Amt</th>
-                            <th class="py-3 px-3 text-right" width="10%">Tax Amt</th>  -->
-                            <th class="py-3 px-3 text-right" width="11%">Total Amt</th>
+                            <th class="py-3 px-3" width="36%">Customer / Party Name</th>
+                            <th class="py-3 px-3 text-center" width="8%">Trips</th>
+                            <th class="py-3 px-3 text-right" width="14%">Delivered Qty</th>
+                            <th class="py-3 px-3 text-right" width="18%">Total Amt</th>
+                            <th class="py-3 px-3 text-center" width="20%">Statement</th>
                         </tr>
                     </thead>
                     <tbody class="text-[11px] font-semibold text-slate-700 divide-y divide-slate-100">
                         <tr v-for="(row, idx) in paginatedRows" :key="idx" class="hover:bg-slate-50 transition-all">
-                            <td class="py-2.5 px-3 text-center text-slate-400">{{ (sanitizedPage - 1) * perPage + idx + 1 }}</td>
-                            <td class="py-2.5 px-3 font-bold text-slate-800">{{ row.party_name || row.customer_name || 'Unknown Customer' }}</td>
+                            <td class="py-2.5 px-3 text-center text-slate-400 font-bold">{{ (sanitizedPage - 1) * perPage + idx + 1 }}</td>
+                            <td class="py-2.5 px-3 font-bold text-slate-800">
+                                {{ row.party_name || row.customer_name || 'Unknown Customer' }}
+                            </td>
                             <td class="py-2.5 px-3 text-center text-slate-700 font-bold">{{ row.trips_count }}</td>
-                            <!-- <td class="py-2.5 px-3 text-right text-slate-700">{{ formatQuantity(row.batch_size) }}</td> -->
-                            <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(row.quantity) }}</td>
-                            <!-- <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(row.truck_empty) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(row.loaded_weight) }}</td>
-                            <td class="py-2.5 px-3 text-right font-semibold text-slate-800">{{ formatQuantity(row.netweight) }}</td>-->
-                            <!-- <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_untaxed) }}</td>
-                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatCurrency(row.amount_tax) }}</td> -->
-                            <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55">{{ formatCurrency(row.amount_total) }}</td>
+                            <td class="py-2.5 px-3 text-right font-bold text-slate-900 whitespace-nowrap">{{ formatQuantity(row.quantity) }}</td>
+                            <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55 whitespace-nowrap">{{ formatCurrency(row.amount_total) }}</td>
+                            <td class="py-2.5 px-3 text-center">
+                                <button 
+                                    type="button" 
+                                    @click="emit('view-statement', row.customer_id)"
+                                    :disabled="!row.customer_id"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed text-[#0064d2] font-bold rounded text-[11px] border border-blue-200 hover:border-blue-300 transition-colors cursor-pointer shadow-2xs"
+                                    title="View Patron Statement of Accounts"
+                                >
+                                    <DocumentTextIcon class="w-3.5 h-3.5" />
+                                    <span>Statement</span>
+                                </button>
+                            </td>
                         </tr>
                         <tr v-if="!paginatedRows?.length">
-                            <td colspan="11" class="py-8 text-center text-slate-400">No customer dispatches found for selected period</td>
-                        </tr>
-                        <tr class="bg-[#f2f4f7] font-bold border-t border-slate-300 text-xs">
-                            <td colspan="2" class="py-3 px-3 text-center text-[#1d2d3e] uppercase">Total Customer Volume</td>
-                            <td class="py-3 px-3 text-center text-[#1d2d3e] font-black">{{ reportData.total_trips }}</td>
-                            <!-- <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_batch_size) }}</td> -->
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_quantity) }}</td>
-                            <!-- <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_truck_empty) }}</td>
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_loaded_weight) }}</td>
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatQuantity(reportData.total_net_weight) }}</td>-->
-                            <!-- <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_untaxed) }}</td>
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_tax) }}</td> -->
-                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black">{{ formatCurrency(reportData.total_amount) }}</td>
+                            <td colspan="6" class="py-8 text-center text-slate-400">No customer dispatches found for selected period</td>
                         </tr>
                     </tbody>
+                    <tfoot class="sticky bottom-0 bg-[#f2f4f7] font-bold border-t-2 border-slate-300 text-xs shadow-2xs z-10">
+                        <tr>
+                            <td colspan="2" class="py-3 px-3 text-center text-[#1d2d3e] uppercase">Total Customer Volume</td>
+                            <td class="py-3 px-3 text-center text-[#1d2d3e] font-black">{{ reportData.total_trips }}</td>
+                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black whitespace-nowrap">{{ formatQuantity(reportData.total_quantity) }}</td>
+                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black whitespace-nowrap">{{ formatCurrency(reportData.total_amount) }}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
 
@@ -508,7 +383,149 @@ const tripTotals = computed(() => {
             </div>
         </div>
 
-        <!-- Section 2: Every Batching / Trip Verification List -->
-      
+        <!-- Section 2: Batching / Trip Verification List (Secondary Tab) -->
+        <div v-if="allTrips.length" v-show="activeTab === 'trips'" class="bg-white rounded-b-xl border border-t-0 border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/70 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">
+                            Every Batching / Trip Verification List
+                        </h3>
+                        <span class="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-800 font-bold rounded">
+                            {{ tripTotalCount }} Trips
+                        </span>
+                    </div>
+                    <p class="text-[10px] text-slate-400 mt-0.5">
+                        Itemized batch tickets and dispatches so customer can audit and verify each trip count
+                    </p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto max-h-[580px] overflow-y-auto">
+                <table class="w-full text-left border-collapse min-w-[950px]">
+                    <thead>
+                        <tr class="sticky top-0 bg-[#f8fafc] z-10 text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 shadow-2xs">
+                            <th class="py-3 px-3 text-center" width="4%">Trip #</th>
+                            <th class="py-3 px-3" width="12%">Date & Time</th>
+                            <th class="py-3 px-3" width="12%">Dispatch / DSP #</th>
+                            <th class="py-3 px-3" width="15%">Customer Name</th>
+                            <th class="py-3 px-3" width="13%">Unload Site</th>
+                            <th class="py-3 px-3 text-center" width="9%">Mixer / Truck</th>
+                            <th class="py-3 px-3 text-center" width="9%">Grade / Mix</th>
+                            <th class="py-3 px-3 text-right" width="6%">Deliv (m³)</th>
+                            <th class="py-3 px-3 text-right" width="5%">Empty (T)</th>
+                            <th class="py-3 px-3 text-right" width="5%">Load (T)</th>
+                            <th class="py-3 px-3 text-right" width="5%">Net (T)</th>
+                            <th class="py-3 px-3 text-right" width="9%">Total Amt</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-[11px] font-semibold text-slate-700 divide-y divide-slate-100">
+                        <tr v-for="(trip, tIdx) in paginatedTrips" :key="tIdx" class="hover:bg-slate-50 transition-all">
+                            <td class="py-2.5 px-3 text-center text-slate-400 font-bold">{{ (sanitizedTripPage - 1) * tripPerPage + tIdx + 1 }}</td>
+                            <td class="py-2.5 px-3 text-slate-600 font-mono text-[10px]">{{ trip.dispatch_time }}</td>
+                            <td class="py-2.5 px-3 font-bold text-slate-800">{{ trip.docket_no }}</td>
+                            <td class="py-2.5 px-3 font-bold text-slate-800">{{ trip.customer_name }}</td>
+                            <td class="py-2.5 px-3 text-slate-600">{{ trip.site_name }}</td>
+                            <td class="py-2.5 px-3 text-center font-bold text-indigo-700">{{ trip.truck_no }}</td>
+                            <td class="py-2.5 px-3 text-center font-bold text-emerald-700">{{ trip.concrete_grade }}</td>
+                            <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ formatQuantity(trip.delivered_qty) }}</td>
+                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(trip.empty_weight) }}</td>
+                            <td class="py-2.5 px-3 text-right text-slate-600">{{ formatQuantity(trip.loaded_weight) }}</td>
+                            <td class="py-2.5 px-3 text-right font-semibold text-slate-800">{{ formatQuantity(trip.net_weight) }}</td>
+                            <td class="py-2.5 px-3 text-right font-bold text-[#1d2d3e] bg-slate-50/55 whitespace-nowrap">{{ formatCurrency(trip.amount_total) }}</td>
+                        </tr>
+                        <tr v-if="!paginatedTrips.length">
+                            <td colspan="12" class="py-8 text-center text-slate-400">No batching trips match the search criteria</td>
+                        </tr>
+                    </tbody>
+                    <tfoot class="sticky bottom-0 bg-[#f2f4f7] font-bold border-t-2 border-slate-300 text-xs shadow-2xs z-10">
+                        <tr>
+                            <td colspan="7" class="py-3 px-3 text-center text-[#1d2d3e] uppercase">Total Verified Batch Trips ({{ tripTotalCount }} Trips)</td>
+                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black whitespace-nowrap">{{ formatQuantity(tripTotals.delivered_qty) }}</td>
+                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black whitespace-nowrap">{{ formatQuantity(tripTotals.empty_weight) }}</td>
+                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black whitespace-nowrap">{{ formatQuantity(tripTotals.loaded_weight) }}</td>
+                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black whitespace-nowrap">{{ formatQuantity(tripTotals.net_weight) }}</td>
+                            <td class="py-3 px-3 text-right text-[#1d2d3e] font-black whitespace-nowrap">{{ formatCurrency(tripTotals.amount_total) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- Trip Pagination Bar (30 rows per page) -->
+            <div v-if="tripTotalCount > tripPerPage || tripTotalPages > 1" class="px-4 py-3 bg-slate-50 border-t border-slate-200 rounded-b flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div class="flex items-center gap-3 text-slate-500 font-medium">
+                    <span>
+                        Showing <strong class="text-slate-800">{{ tripStartIndex }}</strong> to <strong class="text-slate-800">{{ tripEndIndex }}</strong> of <strong class="text-slate-800">{{ tripTotalCount }}</strong> batch trips
+                    </span>
+                    <div class="flex items-center gap-1.5 ml-2">
+                        <span class="text-[11px] text-slate-400">Rows:</span>
+                        <select 
+                            v-model.number="tripPerPage" 
+                            @change="tripCurrentPage = 1"
+                            class="border border-slate-200 rounded px-2 py-0.5 text-xs text-slate-700 bg-white font-semibold focus:outline-none focus:ring-1 focus:ring-[#0064d2]"
+                        >
+                            <option :value="15">15</option>
+                            <option :value="30">30</option>
+                            <option :value="50">50</option>
+                            <option :value="100">100</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button 
+                        type="button" 
+                        @click="goToTripPage(1)" 
+                        :disabled="sanitizedTripPage <= 1"
+                        class="px-2 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-[11px] cursor-pointer"
+                        title="First Page"
+                    >
+                        « First
+                    </button>
+                    <button 
+                        type="button" 
+                        @click="goToTripPage(sanitizedTripPage - 1)" 
+                        :disabled="sanitizedTripPage <= 1"
+                        class="px-2.5 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-[11px] cursor-pointer"
+                    >
+                        ‹ Prev
+                    </button>
+                    
+                    <template v-for="(p, pIdx) in visibleTripPages" :key="pIdx">
+                        <span v-if="p === '...'" class="px-1 text-slate-400 font-semibold">...</span>
+                        <button 
+                            v-else 
+                            type="button" 
+                            @click="goToTripPage(p)"
+                            :class="[
+                                'px-2.5 py-1 rounded text-[11px] font-bold transition-all cursor-pointer',
+                                sanitizedTripPage === p 
+                                    ? 'bg-[#0064d2] text-white shadow-xs' 
+                                    : 'border border-slate-200 text-slate-600 hover:bg-slate-100'
+                            ]"
+                        >
+                            {{ p }}
+                        </button>
+                    </template>
+
+                    <button 
+                        type="button" 
+                        @click="goToTripPage(sanitizedTripPage + 1)" 
+                        :disabled="sanitizedTripPage >= tripTotalPages"
+                        class="px-2.5 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-[11px] cursor-pointer"
+                    >
+                        Next ›
+                    </button>
+                    <button 
+                        type="button" 
+                        @click="goToTripPage(tripTotalPages)" 
+                        :disabled="sanitizedTripPage >= tripTotalPages"
+                        class="px-2 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-semibold text-[11px] cursor-pointer"
+                        title="Last Page"
+                    >
+                        Last »
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>

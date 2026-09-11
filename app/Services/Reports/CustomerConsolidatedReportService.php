@@ -80,7 +80,7 @@ class CustomerConsolidatedReportService implements ReportServiceInterface
             'd.empty_weight_truck',
             'd.loaded_weight_truck',
             'd.net_weight',
-            'd.customer_id',
+            DB::raw('COALESCE(d.customer_id, so.customer_id) as customer_id'),
             'b.id as batch_id',
             'b.batch_no',
             'b.batch_size',

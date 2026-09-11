@@ -51,7 +51,10 @@ import {
     Cog6ToothIcon,
     TruckIcon,
     UsersIcon,
-    InboxIcon
+    InboxIcon,
+    AdjustmentsHorizontalIcon,
+    ChevronUpIcon,
+    ChevronDownIcon
 } from '@heroicons/vue/24/outline';
 
 const props = defineProps({
@@ -182,6 +185,7 @@ const mixDesignId = ref(null);
 const startDate = ref(props.filters.start_date);
 const endDate = ref(props.filters.end_date);
 
+const isFiltersCollapsed = ref(false);
 const loading = ref(false);
 const reportData = ref(null);
 
@@ -241,6 +245,43 @@ const getReportComponent = (type) => {
 
 const handlePageChange = (newPage) => {
     currentPage.value = newPage;
+    generateReport();
+};
+
+const returnReportContext = ref(null);
+
+const handleViewStatement = (id) => {
+    if (!id) return;
+    returnReportContext.value = {
+        moduleId: selectedModuleId.value,
+        reportType: reportType.value,
+        patronId: patronId.value,
+    };
+    selectedModuleId.value = 'accounting';
+    reportType.value = 'customer_outstanding';
+    patronId.value = id;
+    currentPage.value = 1;
+    generateReport();
+};
+
+const handleSelectPatron = (id) => {
+    patronId.value = id;
+    currentPage.value = 1;
+    generateReport();
+};
+
+const handleClearPatron = () => {
+    if (returnReportContext.value) {
+        selectedModuleId.value = returnReportContext.value.moduleId;
+        reportType.value = returnReportContext.value.reportType;
+        patronId.value = returnReportContext.value.patronId;
+        returnReportContext.value = null;
+        currentPage.value = 1;
+        generateReport();
+        return;
+    }
+    patronId.value = null;
+    currentPage.value = 1;
     generateReport();
 };
 
@@ -908,19 +949,52 @@ const shareEmail = () => {
                         </div>
                     </div>
 
-                    <!-- SAP Fiori Smart Filter Bar -->
-                    <div class="bg-white rounded border border-slate-200 shadow-sm mb-6">
-                        <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                            <div>
-                                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ activeModule.name }}</span>
-                                <h3 class="text-sm font-bold text-[#1d2d3e] mt-0.5">{{ activeReport.name }}</h3>
+                    <!-- SAP Fiori Smart Filter Bar (Collapsible) -->
+                    <div class="bg-white rounded border border-slate-200 shadow-sm mb-6 transition-all duration-200">
+                        <div class="px-5 py-3.5 border-b border-slate-100 bg-slate-50/50 flex flex-wrap justify-between items-center gap-3">
+                            <div class="flex items-center gap-3">
+                                <div>
+                                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ activeModule.name }}</span>
+                                    <h3 class="text-sm font-bold text-[#1d2d3e] mt-0.5">{{ activeReport.name }}</h3>
+                                </div>
+                                <div v-if="isFiltersCollapsed" class="hidden sm:flex items-center gap-2 pl-3 border-l border-slate-200 text-xs text-slate-500">
+                                    <span class="font-semibold bg-blue-50 text-[#0064d2] px-2 py-0.5 rounded text-[11px] border border-blue-100">
+                                        {{ startDate?.substring(0, 10) }} to {{ endDate?.substring(0, 10) }}
+                                    </span>
+                                </div>
                             </div>
-                            <span v-if="['payroll_personnel'].includes(reportType)" class="text-[10px] px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-500 font-semibold">
-                                Live Database Scoped
-                            </span>
+                            <div class="flex items-center gap-2">
+                                <span v-if="['payroll_personnel'].includes(reportType)" class="text-[10px] px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-slate-500 font-semibold">
+                                    Live Database Scoped
+                                </span>
+                                <!-- Quick Run when Collapsed -->
+                                <button 
+                                    v-if="isFiltersCollapsed"
+                                    @click="generateReport"
+                                    :disabled="loading"
+                                    class="px-3 py-1.5 bg-[#0064d2] hover:bg-[#0057b8] text-white text-xs font-bold rounded transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                                    title="Re-run query with current filters"
+                                >
+                                    <span v-if="loading" class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                    <ArrowPathIcon v-else class="w-3.5 h-3.5" />
+                                    <span>Run</span>
+                                </button>
+                                <!-- Toggle Button -->
+                                <button 
+                                    type="button" 
+                                    @click="isFiltersCollapsed = !isFiltersCollapsed"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-2xs cursor-pointer"
+                                    :title="isFiltersCollapsed ? 'Show all filters' : 'Collapse filters to maximize report table view'"
+                                >
+                                    <AdjustmentsHorizontalIcon class="w-3.5 h-3.5 text-slate-500" />
+                                    <span>{{ isFiltersCollapsed ? 'Show Filters' : 'Collapse Filters' }}</span>
+                                    <ChevronDownIcon v-if="isFiltersCollapsed" class="w-3.5 h-3.5 text-slate-400" />
+                                    <ChevronUpIcon v-else class="w-3.5 h-3.5 text-slate-400" />
+                                </button>
+                            </div>
                         </div>
                         
-                        <div class="p-5">
+                        <div v-show="!isFiltersCollapsed" class="p-5">
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 items-end">
                                 <!-- Target Dropdown (Ledger / Bank & Cash Account) -->
                                 <div v-if="['ledger', 'payment', 'receipt'].includes(reportType)" class="lg:col-span-1">
@@ -1237,6 +1311,9 @@ const shareEmail = () => {
                                 :start-date="startDate"
                                 :valuation-method="valuationMethod"
                                 @page-change="handlePageChange"
+                                @select-patron="handleSelectPatron"
+                                @view-statement="handleViewStatement"
+                                @clear-patron="handleClearPatron"
                             />
                         </div>
                     </div>

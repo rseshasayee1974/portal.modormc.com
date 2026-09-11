@@ -19,6 +19,11 @@ class PatronReportService implements ReportServiceInterface
         $start    = $params['start'];
         $end      = $params['end'];
 
+        if ($patronId) {
+            $custOutstandingService = app(CustomerOutstandingReportService::class);
+            return $custOutstandingService->generateSinglePatronStatement((int)$patronId, $plantId, $start, $end, $params);
+        }
+
         $query = JournalEntryLine::where('plant_id', $plantId)
             ->whereNull('deleted_at')
             ->where(fn($q) => $q->where('is_deleted', 0)->orWhereNull('is_deleted'))

@@ -41,6 +41,7 @@ class QcSample extends Model
         'curing_tank_id',
         'sample_quantity',
         'sampled_by',
+        'tested_by',
         'status',
         'remarks',
         'created_by',
@@ -99,6 +100,11 @@ class QcSample extends Model
     public function sampler()
     {
         return $this->belongsTo(User::class, 'sampled_by');
+    }
+
+    public function tester()
+    {
+        return $this->belongsTo(\App\Models\Personnel::class, 'tested_by');
     }
 
     public function tests()

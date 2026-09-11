@@ -1,10 +1,16 @@
-<!DOCTYPE html>
-<html>
 <head>
-    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>Customer Consolidated Report</title>
     <style>
         {!! $css ?? $report_css ?? (file_exists(public_path('css/reports/customer_consolidated_report.css')) ? file_get_contents(public_path('css/reports/customer_consolidated_report.css')) : (file_exists(public_path('css/reports/report_pdf.css')) ? file_get_contents(public_path('css/reports/report_pdf.css')) : '')) !!}
+
+        body, table, th, td, div, span, p, h1, h2, h3, strong, b {
+            font-family: 'DejaVu Sans', sans-serif !important;
+        }
+
+        .amount-cell, .nowrap, td.amount-cell, th.nowrap {
+            white-space: nowrap !important;
+        }
     </style>
 </head>
 <body>
@@ -117,7 +123,7 @@
                 <th width="8%">Net Wt</th> -->
                 <!-- <th width="11%">Taxable Amt</th>
                 <th width="8%">Tax Amt</th> -->
-                <th width="20%">Total Amt (₹)</th>
+                <th width="20%">Total Amt (&#8377;)</th>
             </tr>
         </thead>
         <tbody>
@@ -127,13 +133,13 @@
                     <td class="font-bold">{{ $row['party_name'] ?? $row['customer_name'] }}</td>
                     <td class="text-center font-bold">{{ $row['trips_count'] ?? 1 }}</td>
                     <!-- <td class="text-right">{{ number_format($row['batch_size'] ?? 0, 2) }}</td> -->
-                    <td class="text-right font-bold">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold amount-cell nowrap">{{ number_format($row['quantity'] ?? 0, 2) }}</td>
                     <!-- <td class="text-right">{{ number_format($row['truck_empty'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['loaded_weight'] ?? 0, 2) }}</td>
                     <td class="text-right font-bold">{{ number_format($row['netweight'] ?? 0, 2) }}</td> -->
                     <!-- <td class="text-right">{{ number_format($row['amount_untaxed'] ?? 0, 2) }}</td>
                     <td class="text-right">{{ number_format($row['amount_tax'] ?? 0, 2) }}</td> -->
-                    <td class="text-right font-bold">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
+                    <td class="text-right font-bold amount-cell nowrap">{{ number_format($row['amount_total'] ?? 0, 2) }}</td>
                 </tr>
             @endforeach
             
@@ -141,13 +147,13 @@
                 <td colspan="2" class="text-center font-bold">Total Customer Volume</td>
                 <td class="text-center font-bold">{{ $total_trips ?? collect($transactions ?? $items ?? [])->sum('trips_count') }}</td>
                 <!-- <td class="text-right font-bold">{{ number_format($total_batch_size ?? 0, 2) }}</td> -->
-                <td class="text-right font-bold">{{ number_format($total_quantity ?? 0, 2) }}</td>
+                <td class="text-right font-bold amount-cell nowrap">{{ number_format($total_quantity ?? 0, 2) }}</td>
                 <!-- <td class="text-right font-bold">{{ number_format($total_truck_empty ?? 0, 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_loaded_weight ?? 0, 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_net_weight ?? 0, 2) }}</td> -->
                 <!-- <td class="text-right font-bold">{{ number_format($total_untaxed ?? 0, 2) }}</td>
                 <td class="text-right font-bold">{{ number_format($total_tax ?? 0, 2) }}</td> -->
-                <td class="text-right font-bold">{{ number_format($total_amount ?? 0, 2) }}</td>
+                <td class="text-right font-bold amount-cell nowrap">{{ number_format($total_amount ?? 0, 2) }}</td>
             </tr>
         </tbody>
     </table>

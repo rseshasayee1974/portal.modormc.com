@@ -6,7 +6,8 @@
     <title>Batch Sheet Report</title>
     <style>
         @page {
-            size: A4 landscape;
+            /* size: A4 landscape; */
+            size: A4 portrait !important;
             margin: 12mm 10mm 14mm 10mm;
         }
 

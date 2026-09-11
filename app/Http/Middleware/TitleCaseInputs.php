@@ -115,6 +115,11 @@ class TitleCaseInputs
 
         // Misc flags & selectors
         'status',
+        'overall_status',
+        'qc_status',
+        'result_status',
+        'approval_status',
+        'dispatch_status',
         'type',
         'guard_name',
         'concrete_pump',
@@ -124,7 +129,6 @@ class TitleCaseInputs
         'calculation_type',
         'rule_type',
         'comparison_operator',
-        'formula',
         'tax_type',
         'tax_number',
 
@@ -140,6 +144,7 @@ class TitleCaseInputs
      * Regex patterns — any field whose key CONTAINS one of these substrings is skipped.
      */
     protected array $skipPatterns = [
+        'status',
         'password',
         'email',
         'token',

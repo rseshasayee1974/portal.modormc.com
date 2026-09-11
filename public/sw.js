@@ -44,6 +44,9 @@ self.addEventListener('fetch', (event) => {
     // Only handle http/https requests (ignore chrome-extension://, etc.)
     if (!url.protocol.startsWith('http')) return;
 
+    // Ignore cross-origin requests (e.g., local weighbridge API at localhost:8089, external CDNs)
+    if (url.origin !== self.location.origin) return;
+
     // 1. Static Assets (Compiled Vite bundles, fonts, images) -> Cache-First
     if (url.pathname.includes('/build/assets/') || url.pathname.includes('/assets/') || request.destination === 'font') {
         event.respondWith(

@@ -58,6 +58,7 @@ class QcTestParameter extends Model
     }
 
     public const SCOPE_TEST = 'test';
+    public const SCOPE_SET = 'set';
     public const SCOPE_SPECIMEN = 'specimen';
     public const SCOPE_SUMMARY = 'summary';
 
@@ -69,6 +70,7 @@ class QcTestParameter extends Model
         'name',
         'data_type',
         'unit',
+        'qc_unit_id',
         'scope',
         'is_required',
         'is_calculated',
@@ -107,6 +109,11 @@ class QcTestParameter extends Model
     public function testType()
     {
         return $this->belongsTo(QcTestType::class, 'test_type_id');
+    }
+
+    public function unitRef()
+    {
+        return $this->belongsTo(QcUnit::class, 'qc_unit_id');
     }
 
     public function creator()

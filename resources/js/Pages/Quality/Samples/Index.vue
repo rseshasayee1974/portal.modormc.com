@@ -174,6 +174,10 @@ const handleSearch = () => {
                             <div class="text-[11px] text-gray-500 truncate">
                                 {{ data.curing_tank_id || 'Water Curing' }}
                             </div>
+                            <div v-if="data.tester || data.sampler" class="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold truncate flex items-center gap-1">
+                                <i class="pi pi-user text-[9px]"></i>
+                                {{ data.tester?.first_name ? `${data.tester.first_name} ${data.tester.last_name || ''}`.trim() : (data.tester?.label || data.sampler?.name) }}
+                            </div>
                         </div>
                     </template>
                 </Column>

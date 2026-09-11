@@ -317,6 +317,7 @@ Route::middleware([
             Route::post('material-mapping', [\App\Http\Controllers\QC\QCMaterialTestMappingController::class, 'save'])->name('quality.config.material-mapping.save');
 
             Route::resource('test-schedules', \App\Http\Controllers\QC\QCTestScheduleController::class)->names('quality.config.test-schedules');
+            Route::resource('product-grade-configs', \App\Http\Controllers\QC\QcProductGradeConfigController::class)->names('quality.config.product-grade-configs');
         });
 
         // Operations
@@ -333,6 +334,7 @@ Route::middleware([
 
             Route::post('{test}/approve', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'approve'])->name('quality.tests.approve');
             Route::post('{test}/retest', [\App\Http\Controllers\QC\QCTestExecutionController::class, 'markRetest'])->name('quality.tests.retest');
+            Route::get('{test}/cube-report-pdf', [\App\Http\Controllers\QC\QCReportController::class, 'downloadCubeReportPdf'])->name('quality.tests.cube-report-pdf');
         });
 
         // Reports

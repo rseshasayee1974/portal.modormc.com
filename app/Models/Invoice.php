@@ -47,7 +47,17 @@ class Invoice extends Model implements Postable
 
     public function getFullNumberAttribute()
     {
-        return ($this->prefix ?? '') . ($this->invoice_number ?? '');
+        $prefix = $this->prefix ?? '';
+        $num = trim((string)($this->invoice_number ?? ''));
+        if (!empty($prefix) && str_starts_with($num, $prefix)) {
+            $num = trim(substr($num, strlen($prefix)));
+        }
+        $num = trim($num, " \t\n\r\0\x0B/-");
+        if ($num === '') {
+            $num = (string)$this->id;
+        }
+        $cleanPrefix = !empty($prefix) ? (str_ends_with($prefix, '/') ? $prefix : $prefix . '/') : '';
+        return $cleanPrefix . $num;
     }
 
     public function getEinvoiceIrnAttribute()

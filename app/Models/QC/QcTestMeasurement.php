@@ -13,6 +13,8 @@ class QcTestMeasurement extends Model
 
     protected $fillable = [
         'qc_test_id',
+        'qc_test_set_id',
+        'qc_test_specimen_id',
         'parameter_id',
         'value_text',
         'value_numeric',
@@ -21,6 +23,8 @@ class QcTestMeasurement extends Model
     ];
 
     protected $casts = [
+        'qc_test_set_id' => 'integer',
+        'qc_test_specimen_id' => 'integer',
         'value_numeric' => 'decimal:4',
         'is_calculated' => 'boolean',
         'row_index' => 'integer',
@@ -29,6 +33,16 @@ class QcTestMeasurement extends Model
     public function test()
     {
         return $this->belongsTo(QcTest::class, 'qc_test_id');
+    }
+
+    public function set()
+    {
+        return $this->belongsTo(QcTestSet::class, 'qc_test_set_id');
+    }
+
+    public function specimen()
+    {
+        return $this->belongsTo(QcTestSpecimen::class, 'qc_test_specimen_id');
     }
 
     public function parameter()

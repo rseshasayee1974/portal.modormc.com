@@ -272,7 +272,13 @@ class ReportController extends Controller
             'report_css'    => $css,
         ], $data, $extraParams);
 
-        $pdf = Pdf::loadView($view, $pdfData)->setPaper('a4', 'portrait');
+        $pdf = Pdf::loadView($view, $pdfData)
+            ->setPaper('a4', 'portrait')
+            ->setOption([
+                'defaultFont' => 'DejaVu Sans',
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+            ]);
 
         $cleanStart = str_replace([':', ' '], ['-', '_'], $startLabel);
         return $pdf->download("Report_{$type}_{$cleanStart}.pdf");

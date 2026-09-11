@@ -174,8 +174,50 @@ const productOptions = computed(() => {
     }));
 });
 
-// Standard presets
-const standardPresets = ['IS 516', 'IS 456', 'IS 10262', 'IS 1199', 'ASTM C39'];
+// Standard dropdown options
+const standardOptions = [
+    // ── Concrete ──────────────────────────────────────────────────────
+    { label: 'IS 516 — Compressive / Flexural Strength of Concrete', value: 'IS 516' },
+    { label: 'IS 5816 — Split Tensile Strength of Concrete', value: 'IS 5816' },
+    { label: 'IS 1199 — Sampling & Testing of Fresh Concrete (Slump)', value: 'IS 1199' },
+    { label: 'IS 456 — Plain & Reinforced Concrete Code', value: 'IS 456' },
+    { label: 'IS 10262 — Concrete Mix Proportioning', value: 'IS 10262' },
+    { label: 'IS 383 — Coarse & Fine Aggregates for Concrete', value: 'IS 383' },
+    // ── Cement ───────────────────────────────────────────────────────
+    { label: 'IS 4031 (Part 1) — Fineness of Cement (Dry Sieving)', value: 'IS 4031 (Part 1)' },
+    { label: 'IS 4031 (Part 2) — Fineness of Cement (Blaine)', value: 'IS 4031 (Part 2)' },
+    { label: 'IS 4031 (Part 3) — Soundness of Cement (Le-Chatelier)', value: 'IS 4031 (Part 3)' },
+    { label: 'IS 4031 (Part 4) — Standard Consistency of Cement Paste', value: 'IS 4031 (Part 4)' },
+    { label: 'IS 4031 (Part 5) — Initial & Final Setting Time of Cement', value: 'IS 4031 (Part 5)' },
+    { label: 'IS 4031 (Part 6) — Compressive Strength of Cement Mortar', value: 'IS 4031 (Part 6)' },
+    { label: 'IS 4031 (Part 11) — Density of Cement', value: 'IS 4031 (Part 11)' },
+    { label: 'IS 269 — OPC 33 Grade Cement Specification', value: 'IS 269' },
+    { label: 'IS 8112 — OPC 43 Grade Cement Specification', value: 'IS 8112' },
+    { label: 'IS 12269 — OPC 53 Grade Cement Specification', value: 'IS 12269' },
+    { label: 'IS 1489 (Part 1) — Portland Pozzolana Cement (PPC)', value: 'IS 1489 (Part 1)' },
+    { label: 'IS 455 — Portland Slag Cement (PSC)', value: 'IS 455' },
+    // ── Aggregate ─────────────────────────────────────────────────────
+    { label: 'IS 2386 (Part 1) — Particle Size & Shape (Sieve, Flakiness, Elongation)', value: 'IS 2386 (Part 1)' },
+    { label: 'IS 2386 (Part 2) — Estimation of Deleterious Materials', value: 'IS 2386 (Part 2)' },
+    { label: 'IS 2386 (Part 3) — Specific Gravity, Density, Voids, Absorption', value: 'IS 2386 (Part 3)' },
+    { label: 'IS 2386 (Part 4) — Mechanical Properties (ACV, AIV, LA)', value: 'IS 2386 (Part 4)' },
+    { label: 'IS 2386 (Part 5) — Soundness of Aggregate', value: 'IS 2386 (Part 5)' },
+    { label: 'IS 2386 (Part 6) — Mortar Making Properties of Fine Aggregate', value: 'IS 2386 (Part 6)' },
+    // ── Water ──────────────────────────────────────────────────────────
+    { label: 'IS 456 Annex A — Water Quality for Concrete', value: 'IS 456 Annex A' },
+    // ── Permeability / Durability ──────────────────────────────────────
+    { label: 'ASTM C1202 — Rapid Chloride Permeability Test (RCPT)', value: 'ASTM C1202' },
+    { label: 'DIN 1048 — Water Permeability of Hardened Concrete', value: 'DIN 1048' },
+    // ── ASTM Equivalents ───────────────────────────────────────────────
+    { label: 'ASTM C39 — Compressive Strength of Cylindrical Concrete', value: 'ASTM C39' },
+    { label: 'ASTM C78 — Flexural Strength (Third-Point Loading)', value: 'ASTM C78' },
+    { label: 'ASTM C496 — Split Tensile Strength of Cylindrical Concrete', value: 'ASTM C496' },
+    { label: 'ASTM C143 — Slump of Hydraulic Cement Concrete', value: 'ASTM C143' },
+    { label: 'ASTM C150 — Portland Cement Specification', value: 'ASTM C150' },
+    // ── British Standards ──────────────────────────────────────────────
+    { label: 'BS EN 12390-3 — Compressive Strength of Test Specimens', value: 'BS EN 12390-3' },
+    { label: 'BS EN 196-1 — Methods of Testing Cement — Strength', value: 'BS EN 196-1' },
+];
 
 // Unit Master Options & Management
 const localUnits = ref<any[]>([]);
@@ -703,9 +745,21 @@ watch(() => props.testType, (newVal) => {
             parameters.value = newVal.parameters.map((p: any) => ({
                 id: p.id,
                 name: p.name,
-                age: p.default_value ? `${p.default_value} d` : (p.name.includes('Day') ? p.name.replace('-Day', ' d') : ''),
-                target: p.target_value !== null ? parseFloat(p.target_value).toFixed(2) : '',
-                min: p.min_value !== null ? parseFloat(p.min_value).toFixed(2) : ''
+                code: p.code || p.name.toUpperCase().replace(/[^A-Z0-9]/g, '_').slice(0, 30),
+                scope: p.scope || 'test',
+                data_type: p.data_type || 'decimal',
+                unit: p.unit || form.unit || 'MPa',
+                is_required: p.is_required !== false,
+                is_calculated: Boolean(p.is_calculated),
+                is_summary: Boolean(p.is_summary),
+                formula: p.formula || '',
+                formula_expression: p.formula_expression || '',
+                default_value: p.default_value || '',
+                age: p.default_value ? `${p.default_value} d` : (p.name.includes('Day') ? p.name.replace('-Day', ' d') : (p.age || '')),
+                rule_type: p.rule_type || '',
+                target: p.target_value !== null && p.target_value !== undefined ? parseFloat(p.target_value).toFixed(2) : '',
+                min: p.min_value !== null && p.min_value !== undefined ? parseFloat(p.min_value).toFixed(2) : '',
+                max: p.max_value !== null && p.max_value !== undefined ? parseFloat(p.max_value).toFixed(2) : '',
             }));
         } else {
             const match = form.concrete_grade.match(/\d+/);
@@ -762,10 +816,21 @@ const submit = () => {
         },
         parameters: parameters.value.map(p => ({
             name: p.name,
-            age: p.age,
-            target: p.target !== '' && p.target !== null ? parseFloat(String(p.target)) : null,
-            min: p.min !== '' && p.min !== null ? parseFloat(String(p.min)) : null,
-            unit: form.unit || 'MPa'
+            code: p.code || p.name.toUpperCase().replace(/[^A-Z0-9]/g, '_').slice(0, 30),
+            scope: p.scope || 'test',
+            data_type: p.data_type || 'decimal',
+            unit: p.unit || form.unit || 'MPa',
+            is_required: p.is_required !== false,
+            is_calculated: Boolean(p.is_calculated || p.formula),
+            is_summary: p.scope === 'summary',
+            formula: p.formula || '',
+            formula_expression: p.formula_expression || '',
+            default_value: p.default_value || '',
+            age: p.age || '',
+            rule_type: p.rule_type || '',
+            target: p.target !== '' && p.target !== null && p.target !== undefined ? parseFloat(String(p.target)) : null,
+            min: p.min !== '' && p.min !== null && p.min !== undefined ? parseFloat(String(p.min)) : null,
+            max: p.max !== '' && p.max !== null && p.max !== undefined ? parseFloat(String(p.max)) : null,
         }))
     };
 
@@ -956,11 +1021,17 @@ const submit = () => {
 
                     <!-- Standard -->
                     <div>
-                        <BaseInput
+                        <BaseSelect
                             v-model="form.standard"
                             label="Standard"
-                            placeholder="IS 516"
+                            :options="standardOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Select Standard"
+                            :filter="true"
+                            filterPlaceholder="Search IS / ASTM / DIN..."
                             :error="form.errors.standard || form.errors.standard_reference"
+                            panelWidth="26rem"
                         />
                     </div>
 

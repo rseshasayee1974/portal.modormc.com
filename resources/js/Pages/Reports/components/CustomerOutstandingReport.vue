@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { formatCurrency } from '@/Utils/formatters';
+import PatronStatementView from './PatronStatementView.vue';
 import { 
     MagnifyingGlassIcon,
     CheckCircleIcon,
@@ -13,6 +14,10 @@ import {
 const props = defineProps({
     reportData: Object
 });
+
+const emit = defineEmits(['select-patron', 'clear-patron', 'page-change']);
+
+const isSinglePatron = computed(() => !!props.reportData?.is_single_patron);
 
 // Search & Filter State
 const searchQuery = ref('');
@@ -131,8 +136,17 @@ const filteredTotals = computed(() => {
 
 <template>
     <div class="space-y-6">
-        <!-- 1. KPI Metric Dashboard -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- 1. Single Patron Statement of Accounts (v2 Ledger View) -->
+        <PatronStatementView 
+            v-if="isSinglePatron"
+            :report-data="reportData"
+            @back="emit('clear-patron')"
+        />
+
+        <!-- 2. Multi-Customer Outstanding & Aging Summary (v1 Catalog View) -->
+        <template v-else>
+            <!-- KPI Metric Dashboard -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <!-- Total Outstanding Card -->
             <div class="bg-gradient-to-br from-rose-50 via-white to-white p-4 rounded-xl border border-rose-200 shadow-xs flex flex-col justify-between">
                 <div class="flex items-center justify-between">
@@ -306,21 +320,22 @@ const filteredTotals = computed(() => {
             </div>
 
             <!-- Customer Summary Table -->
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse min-w-[1100px]">
+            <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                <table class="w-full text-left border-collapse min-w-[980px]">
                     <thead>
-                        <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f8fafc]">
-                            <th class="py-3 px-3 text-center" width="4%">#</th>
-                            <th class="py-3 px-3" width="9%">Code</th>
-                            <th class="py-3 px-3" width="22%">Customer Name</th>
-                            <th class="py-3 px-3 text-right text-slate-700" width="10%">Total Invoiced</th>
-                            <th class="py-3 px-3 text-right text-emerald-700" width="10%">Total Receipts</th>
-                            <th class="py-3 px-3 text-right text-indigo-700" width="9%">Total Payments</th>
-                            <th class="py-3 px-3 text-right text-rose-700" width="12%">Outstanding Balance</th>
-                            <th class="py-3 px-3 text-right text-blue-700" width="6%">0-30d</th>
-                            <th class="py-3 px-3 text-right text-amber-700" width="6%">31-60d</th>
-                            <th class="py-3 px-3 text-right text-orange-700" width="6%">61-90d</th>
-                            <th class="py-3 px-3 text-right text-rose-700" width="6%">90+d</th>
+                        <tr class="sticky top-0 bg-[#f8fafc] z-10 text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 shadow-2xs">
+                            <th class="py-3 px-3 text-center" width="3%">#</th>
+                            <th class="py-3 px-3" width="8%">Code</th>
+                            <th class="py-3 px-3" width="19%">Customer Name</th>
+                            <th class="py-3 px-3 text-right text-slate-700" width="9%">Total Invoiced</th>
+                            <th class="py-3 px-3 text-right text-emerald-700" width="9%">Total Receipts</th>
+                            <th class="py-3 px-3 text-right text-indigo-700" width="8%">Total Payments</th>
+                            <th class="py-3 px-3 text-right text-rose-700" width="11%">Outstanding Balance</th>
+                            <th class="py-3 px-3 text-right text-blue-700" width="5.5%">0-30d</th>
+                            <th class="py-3 px-3 text-right text-amber-700" width="5.5%">31-60d</th>
+                            <th class="py-3 px-3 text-right text-orange-700" width="5.5%">61-90d</th>
+                            <th class="py-3 px-3 text-right text-rose-700" width="5.5%">90+d</th>
+                            <th class="py-3 px-3 text-center" width="11%">Statement</th>
                         </tr>
                     </thead>
                     <tbody class="text-xs divide-y divide-slate-100">
@@ -366,10 +381,21 @@ const filteredTotals = computed(() => {
                             <td class="py-3 px-3 text-right font-bold text-rose-700 text-[11px]">
                                 {{ c.aging_90_plus > 0 ? formatCurrency(c.aging_90_plus) : '-' }}
                             </td>
+                            <td class="py-3 px-3 text-center">
+                                <button 
+                                    type="button" 
+                                    @click="emit('select-patron', c.customer_id)"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-[#0064d2] font-bold rounded text-[11px] border border-blue-200 hover:border-blue-300 transition-colors cursor-pointer shadow-2xs"
+                                    title="View Full Patron Statement of Accounts"
+                                >
+                                    <DocumentTextIcon class="w-3.5 h-3.5" />
+                                    <span>Statement</span>
+                                </button>
+                            </td>
                         </tr>
 
                         <tr v-if="!paginatedCustomers.length">
-                            <td colspan="11" class="py-12 text-center text-slate-400">
+                            <td colspan="12" class="py-12 text-center text-slate-400">
                                 <CheckCircleIcon class="w-8 h-8 mx-auto text-emerald-400 mb-2" />
                                 No customer outstanding records found matching your filters.
                             </td>
@@ -377,7 +403,7 @@ const filteredTotals = computed(() => {
                     </tbody>
 
                     <!-- Table Footer: Column Totals -->
-                    <tfoot v-if="filteredCustomers.length > 0" class="bg-slate-100 font-bold text-xs border-t-2 border-slate-300">
+                    <tfoot v-if="filteredCustomers.length > 0" class="sticky bottom-0 bg-slate-100 font-bold text-xs border-t-2 border-slate-300 shadow-2xs z-10">
                         <tr>
                             <td colspan="3" class="py-3 px-3 text-slate-800 uppercase text-[11px]">
                                 Summary Totals ({{ filteredCustomers.length }} Customers)
@@ -406,6 +432,7 @@ const filteredTotals = computed(() => {
                             <td class="py-3 px-3 text-right text-rose-800 text-[11px]">
                                 {{ formatCurrency(filteredTotals.aging90Plus) }}
                             </td>
+                            <td class="py-3 px-3"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -489,5 +516,6 @@ const filteredTotals = computed(() => {
                 </div>
             </div>
         </div>
+        </template>
     </div>
 </template>

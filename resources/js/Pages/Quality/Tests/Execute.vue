@@ -5,6 +5,16 @@ import { Head, useForm, Link } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
 import Toast from 'primevue/toast';
 import { useToast } from 'primevue/usetoast';
+import BaseSelect from '@/Components/Base/BaseSelect.vue';
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+
+const fracturePatternOptions = [
+    { label: 'Normal Non-explosive', value: 'Normal non-explosive' },
+    { label: 'Semi-explosive', value: 'Semi-explosive' },
+    { label: 'Columnar', value: 'Columnar' },
+    { label: 'Shear', value: 'Shear' },
+    { label: 'Unsatisfactory', value: 'Unsatisfactory' },
+];
 
 const props = defineProps<{
     test: any;
@@ -659,7 +669,7 @@ const submitExecution = () => {
             remarks: form.remarks,
             concrete_specimens: concreteSpecimens.value,
             avg_strength: concreteAvgStrength.value,
-            overall_status: concreteStatus.value,
+            overall_status: (concreteStatus.value || 'pending').toLowerCase(),
             measurements: []
         })).post(route('quality.tests.submit', props.test.id), {
             preserveScroll: true,
@@ -670,6 +680,15 @@ const submitExecution = () => {
                     summary: 'Test Saved & Evaluated',
                     detail: `Average Strength: ${concreteAvgStrength.value} MPa (${concreteStatus.value.toUpperCase()})`,
                     life: 3000
+                });
+            },
+            onError: (errs) => {
+                const firstErr = Object.values(errs)[0];
+                toast.add({
+                    severity: 'error',
+                    summary: 'Execution Failed',
+                    detail: typeof firstErr === 'string' ? firstErr : 'Please check your inputs and try again.',
+                    life: 4000
                 });
             }
         });
@@ -763,11 +782,25 @@ const submitExecution = () => {
         onSuccess: () => {
             mode.value = 'certificate';
             toast.add({ severity: 'success', summary: 'Saved', detail: 'Test evaluated and certificate generated successfully', life: 2500 });
+        },
+        onError: (errs) => {
+            const firstErr = Object.values(errs)[0];
+            toast.add({
+                severity: 'error',
+                summary: 'Execution Failed',
+                detail: typeof firstErr === 'string' ? firstErr : 'Please check your inputs and try again.',
+                life: 4000
+            });
         }
     });
 };
 
 const printCertificate = () => {
+    const testName = `${props.test.test_type?.code || ''} ${props.test.test_type?.name || ''}`;
+    if (isConcreteCubeTest.value && /compress|cube/i.test(testName)) {
+        window.open(route('quality.tests.cube-report-pdf', { test: props.test.id, inline: 1 }), '_blank', 'noopener');
+        return;
+    }
     window.print();
 };
 </script>
@@ -895,18 +928,25 @@ const printCertificate = () => {
                     <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Tested By</span>
                     <span class="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block mt-0.5">{{ test.tester?.name || 'Lab Technician' }}</span>
                 </div>
-                <div class="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl flex items-center justify-between">
-                    <div>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Test Date</span>
-                        <input
-                            v-if="mode === 'entry'"
+                <div class="p-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl flex flex-col justify-center">
+                    <template v-if="mode === 'entry'">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Test Date</span>
+                        <BaseDatePicker
                             v-model="form.test_date"
-                            type="date"
-                            class="bg-transparent border-0 p-0 text-xs font-mono font-bold text-slate-800 dark:text-slate-200 focus:ring-0 cursor-pointer"
+                            dateFormat="yy-mm-dd"
+                            placeholder="Select test date"
+                            size="small"
+                            class="w-full"
+                            :error="form.errors.test_date"
                         />
-                        <span v-else class="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 block mt-0.5">{{ form.test_date }}</span>
+                    </template>
+                    <div v-else class="flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Test Date</span>
+                            <span class="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 block mt-0.5">{{ form.test_date }}</span>
+                        </div>
+                        <i class="pi pi-calendar text-slate-400 text-sm"></i>
                     </div>
-                    <i class="pi pi-calendar text-slate-400 text-sm"></i>
                 </div>
             </div>
 
@@ -1001,27 +1041,39 @@ const printCertificate = () => {
                             <table class="w-full text-left text-xs">
                                 <thead>
                                     <tr class="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-bold">
-                                        <th class="py-3 px-3.5 w-12 text-center">#</th>
-                                        <th class="py-3 px-3 w-32">Cube Mark / ID</th>
-                                        <th class="py-3 px-3">
+                                        <th class="py-3 px-3 w-12 text-center">#</th>
+                                        <th class="py-3 px-3 min-w-[130px]">
+                                            <span>Cube Mark / ID</span>
+                                            <span class="text-[10px] text-slate-400 block font-normal">Specimen Tag</span>
+                                        </th>
+                                        <th class="py-3 px-3 min-w-[110px]">
                                             <span>Weight (kg)</span>
                                             <span class="text-[10px] text-slate-400 block font-normal">Air-dry mass</span>
                                         </th>
-                                        <th class="py-3 px-3">
+                                        <th class="py-3 px-3 min-w-[105px]">
                                             <span>Density (kg/m³)</span>
                                             <span class="text-[10px] text-slate-400 block font-normal">Vol: 0.003375 m³</span>
                                         </th>
-                                        <th class="py-3 px-3">
+                                        <th class="py-3 px-3 min-w-[130px]">
                                             <span class="text-indigo-600 dark:text-indigo-400 font-black">CTM Load (kN) *</span>
                                             <span class="text-[10px] text-slate-400 block font-normal">Failure Load</span>
                                         </th>
-                                        <th class="py-3 px-3">
-                                            <span class="text-purple-600 dark:text-purple-400 font-black">Strength (MPa / N/mm²)</span>
+                                        <th class="py-3 px-3 min-w-[125px]">
+                                            <span class="text-purple-600 dark:text-purple-400 font-black">Strength (MPa)</span>
                                             <span class="text-[10px] text-slate-400 block font-normal">Load / 22.5</span>
                                         </th>
-                                        <th class="py-3 px-3">Fracture Pattern</th>
-                                        <th class="py-3 px-2 text-center">IS 516 Dev</th>
-                                        <th class="py-3 px-2 text-center w-10"></th>
+                                        <th class="py-3 px-3 min-w-[180px]">
+                                            <span>Fracture Pattern</span>
+                                            <span class="text-[10px] text-slate-400 block font-normal">IS 516 Failure</span>
+                                        </th>
+                                        <th class="py-3 px-3 min-w-[100px] text-center">
+                                            <span>IS 516 Dev</span>
+                                            <span class="text-[10px] text-slate-400 block font-normal">±15% Limit</span>
+                                        </th>
+                                        <th class="py-3 px-2 text-center w-12 min-w-[48px]">
+                                            <span>Option</span>
+                                            <span class="text-[10px] text-slate-400 block font-normal">Action</span>
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -1032,7 +1084,7 @@ const printCertificate = () => {
                                                 v-model="spec.ident_mark"
                                                 type="text"
                                                 placeholder="Specimen #"
-                                                class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-semibold text-slate-800 dark:text-slate-200"
+                                                class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                                             />
                                         </td>
                                         <td class="py-2.5 px-3">
@@ -1042,13 +1094,11 @@ const printCertificate = () => {
                                                 type="number"
                                                 step="0.001"
                                                 placeholder="e.g. 8.25"
-                                                class="w-28 px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-slate-200"
+                                                class="w-full px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono font-bold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
                                             />
                                         </td>
-                                        <td class="py-2.5 px-3">
-                                            <span class="font-mono font-bold text-xs text-slate-700 dark:text-slate-300">
-                                                {{ spec.density ? `${spec.density}` : '-' }}
-                                            </span>
+                                        <td class="py-2.5 px-3 font-mono font-bold text-xs text-slate-700 dark:text-slate-300">
+                                            {{ spec.density ? `${spec.density}` : '-' }}
                                         </td>
                                         <td class="py-2.5 px-3">
                                             <input
@@ -1057,7 +1107,7 @@ const printCertificate = () => {
                                                 type="number"
                                                 step="0.1"
                                                 placeholder="e.g. 510.0"
-                                                class="w-32 px-3 py-1.5 bg-white dark:bg-slate-900 border-2 border-indigo-300 dark:border-indigo-700/60 focus:border-indigo-600 rounded-xl text-xs font-mono font-black text-indigo-700 dark:text-indigo-300"
+                                                class="w-full px-3 py-1.5 bg-white dark:bg-slate-900 border-2 border-indigo-300 dark:border-indigo-700/60 focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500 rounded-xl text-xs font-mono font-black text-indigo-700 dark:text-indigo-300 transition-colors"
                                             />
                                         </td>
                                         <td class="py-2.5 px-3">
@@ -1070,24 +1120,25 @@ const printCertificate = () => {
                                             <span v-else class="text-slate-300 dark:text-slate-700 font-mono">-</span>
                                         </td>
                                         <td class="py-2.5 px-3">
-                                            <select
+                                            <BaseSelect
                                                 v-model="spec.failure_type"
-                                                class="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-medium text-slate-700 dark:text-slate-300 cursor-pointer"
-                                            >
-                                                <option value="Normal non-explosive">Normal Non-explosive Pyramid</option>
-                                                <option value="Semi-explosive">Semi-explosive Fracture</option>
-                                                <option value="Columnar">Columnar Vertical Cracking</option>
-                                                <option value="Shear">Shear Failure</option>
-                                            </select>
+                                                :options="fracturePatternOptions"
+                                                optionLabel="label"
+                                                optionValue="value"
+                                                placeholder="Select Pattern"
+                                                size="small"
+                                                :filter="false"
+                                                class="w-full"
+                                            />
                                         </td>
-                                        <td class="py-2.5 px-2 text-center font-mono text-[11px]">
+                                        <td class="py-2.5 px-3 text-center font-mono text-[11px]">
                                             <template v-if="concreteAvgStrength > 0 && spec.strength_mpa">
                                                 <span
                                                     :class="[
-                                                        'font-bold px-1.5 py-0.5 rounded',
+                                                        'font-bold px-2 py-0.5 rounded-md inline-block',
                                                         Math.abs((spec.strength_mpa - concreteAvgStrength) / concreteAvgStrength) * 100 > 15
-                                                            ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 font-black'
-                                                            : 'text-slate-500 dark:text-slate-400'
+                                                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-black'
+                                                            : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                                                     ]"
                                                 >
                                                     {{ ((spec.strength_mpa - concreteAvgStrength) / concreteAvgStrength * 100).toFixed(1) }}%
@@ -1095,12 +1146,12 @@ const printCertificate = () => {
                                             </template>
                                             <span v-else class="text-slate-300">-</span>
                                         </td>
-                                        <td class="py-2.5 px-2 text-center">
+                                        <td class="py-2.5 px-2 text-center w-12">
                                             <button
                                                 v-if="concreteSpecimens.length > 1"
                                                 type="button"
                                                 @click="removeConcreteSpecimen(sIdx)"
-                                                class="text-rose-400 hover:text-rose-600 p-1 rounded-md transition-colors"
+                                                class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer"
                                                 title="Remove Specimen"
                                             >
                                                 <i class="pi pi-trash text-xs"></i>
@@ -1110,13 +1161,13 @@ const printCertificate = () => {
                                 </tbody>
                                 <tfoot class="bg-slate-50/80 dark:bg-slate-800/60 font-bold border-t border-slate-200 dark:border-slate-700">
                                     <tr>
-                                        <td colspan="3" class="py-3 px-4 text-slate-700 dark:text-slate-300">
-                                            3-Specimen Average Results:
+                                        <td colspan="3" class="py-3 px-4 text-slate-700 dark:text-slate-300 font-bold">
+                                            {{ concreteSpecimens.length }}-Specimen Average Results:
                                         </td>
-                                        <td class="py-3 px-3 font-mono text-slate-700 dark:text-slate-300">
+                                        <td class="py-3 px-3 font-mono text-slate-700 dark:text-slate-300 font-bold">
                                             {{ concreteAvgDensity ? `${concreteAvgDensity} kg/m³` : '-' }}
                                         </td>
-                                        <td class="py-3 px-3 text-slate-400 text-[11px]">
+                                        <td class="py-3 px-3 text-slate-400 text-[11px] font-normal">
                                             Formula: Load / 22.5
                                         </td>
                                         <td class="py-3 px-3 font-mono font-black text-sm text-purple-700 dark:text-purple-300">

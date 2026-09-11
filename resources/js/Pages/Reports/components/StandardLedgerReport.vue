@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { formatDate, formatCurrency } from '@/Utils/formatters';
+import PatronStatementView from './PatronStatementView.vue';
 
 const props = defineProps({
     reportData: {
@@ -13,12 +14,14 @@ const props = defineProps({
     }
 });
 
+const isSinglePatron = computed(() => !!props.reportData?.is_single_patron);
+
 const formattedStartDate = computed(() => formatDate(props.startDate));
 
 const transactionsWithBalance = computed(() => {
-    if (!props.reportData) return [];
+    if (!props.reportData || isSinglePatron.value) return [];
     let balance = props.reportData.opening_balance;
-    return props.reportData.transactions.map(trx => {
+    return (props.reportData.transactions || []).map(trx => {
         balance += (trx.debit - trx.credit);
         return { ...trx, running_balance: balance };
     });
@@ -26,7 +29,15 @@ const transactionsWithBalance = computed(() => {
 </script>
 
 <template>
-    <div class="overflow-x-auto border border-slate-200 rounded">
+    <!-- Single Patron Statement View -->
+    <PatronStatementView 
+        v-if="isSinglePatron"
+        :report-data="reportData"
+        :show-back-button="false"
+    />
+
+    <!-- Standard Double-Entry General Ledger -->
+    <div v-else class="overflow-x-auto border border-slate-200 rounded">
         <table class="w-full text-left border-collapse min-w-[800px]">
             <thead>
                 <tr class="text-[10px] font-bold uppercase tracking-wider text-slate-600 border-b border-slate-200 bg-[#f2f4f7]">

@@ -12,6 +12,7 @@ defineProps<{
     dispatches?: any[];
     batches?: any[];
     testTypes?: any[];
+    personnels?: any[];
 }>();
 </script>
 
@@ -31,6 +32,7 @@ defineProps<{
                 :dispatches="dispatches"
                 :batches="batches"
                 :testTypes="testTypes"
+                :personnels="personnels"
                 :isEditing="true"
             />
         </div>

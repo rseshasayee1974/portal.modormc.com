@@ -128,13 +128,26 @@ class QCTestExecutionController extends Controller
             'sample.concreteGrade',
             'sample.dispatch.truck',
             'sample.dispatch.salesOrder.customer',
-            'testType.parameters',
+            'config.standard',
+            'config.milestones',
+            'testType.parameters.unitRef',
+            'sets.specimens',
             'measurements',
             'results.parameter',
             'photos',
             'tester',
             'reviewer'
         ]);
+
+        $isConcrete = ($test->testType?->category === 'Concrete') || 
+                      str_contains(strtolower($test->testType?->name ?? ''), 'concrete') || 
+                      str_contains(strtolower($test->testType?->name ?? ''), 'cube') ||
+                      ($test->sample?->concrete_grade_id !== null);
+
+        if ($isConcrete && $test->sets->isEmpty()) {
+            $test->ensureSetsAndSpecimensInitialized();
+            $test->load('sets.specimens');
+        }
 
         $mergedRules = [];
         if ($test->testType && $test->testType->parameters) {
@@ -166,6 +179,69 @@ class QCTestExecutionController extends Controller
 
     public function submitExecution(Request $request, QcTest $test)
     {
+        if ($request->has('sets') && !empty($request->sets)) {
+            $validated = $request->validate([
+                'test_date' => 'nullable|date',
+                'remarks' => 'nullable|string',
+                'sets' => 'required|array',
+                'sets.*.id' => 'required|exists:mm_qc_test_sets,id',
+                'sets.*.casting_date' => 'nullable|date',
+                'sets.*.place_of_casting' => 'nullable|string|max:150',
+                'sets.*.testing_date' => 'nullable|date',
+                'sets.*.age_days' => 'nullable|integer',
+                'sets.*.client_sign_name' => 'nullable|string|max:150',
+                'sets.*.qc_sign_name' => 'nullable|string|max:150',
+                'sets.*.specimens' => 'nullable|array',
+                'sets.*.specimens.*.id' => 'required|exists:mm_qc_test_specimens,id',
+                'sets.*.specimens.*.identification_mark' => 'nullable|string|max:100',
+                'sets.*.specimens.*.weight_kg' => 'nullable|numeric',
+                'sets.*.specimens.*.load_kn' => 'nullable|numeric',
+                'sets.*.specimens.*.failure_type' => 'nullable|string|max:50',
+                'photos.*' => 'nullable|image|max:10240',
+            ]);
+
+            app(\App\Services\QC\QcSetExecutionService::class)->processExecution($test, $request->all());
+
+            if ($request->hasFile('photos')) {
+                foreach ($request->file('photos') as $photo) {
+                    $path = $photo->store('qc_tests', 'public');
+                    Image::create([
+                        'category' => 'QC_TEST',
+                        'ref_no' => $test->id,
+                        'image_path' => $path,
+                        'image_name' => $photo->getClientOriginalName(),
+                        'plant_id' => $test->plant_id,
+                        'created_by' => auth()->id(),
+                    ]);
+                }
+            }
+
+            // Update sample status
+            $pendingRemaining = QcTest::where('sample_id', $test->sample_id)
+                ->where('id', '!=', $test->id)
+                ->where('overall_status', 'pending')
+                ->count();
+
+            if ($test->sample) {
+                $test->sample->status = $pendingRemaining === 0 ? 'completed' : 'testing';
+                $test->sample->save();
+            }
+
+            return redirect()->route('quality.tests.index', ['status' => 'all'])->with('success', "Test {$test->test_no} executed and evaluated successfully.");
+        }
+
+        if ($request->has('overall_status')) {
+            $rawStatus = strtolower(trim((string) $request->input('overall_status')));
+            $normalizedStatus = match ($rawStatus) {
+                'pass', 'passed', 'pass/compliant' => 'pass',
+                'fail', 'failed', 'non-compliant' => 'fail',
+                'hold' => 'hold',
+                'retest' => 'retest',
+                default => 'pending',
+            };
+            $request->merge(['overall_status' => $normalizedStatus]);
+        }
+
         $validated = $request->validate([
             'test_date' => 'required|date',
             'measurements' => 'nullable|array',
@@ -177,7 +253,7 @@ class QCTestExecutionController extends Controller
             'photos.*' => 'nullable|image|max:10240',
             'concrete_specimens' => 'nullable|array',
             'avg_strength' => 'nullable|numeric',
-            'overall_status' => 'nullable|in:pass,fail,pending,hold,retest',
+            'overall_status' => 'nullable|string|in:pass,fail,pending,hold,retest,Pass,Fail,Pending,Hold,Retest,PASS,FAIL,PENDING,HOLD,RETEST',
         ]);
 
         return DB::transaction(function () use ($validated, $test, $request) {
@@ -328,7 +404,7 @@ class QCTestExecutionController extends Controller
                     ->where('overall_status', 'pending')
                     ->count();
 
-                $test->sample->status = $pendingRemaining === 0 ? 'completed' : 'in_progress';
+                $test->sample->status = $pendingRemaining === 0 ? 'completed' : 'testing';
                 $test->sample->save();
 
                 return redirect()->route('quality.tests.index', ['status' => 'all'])->with('success', "Concrete Test {$test->test_no} executed: Avg {$avgStrength} MPa (" . strtoupper($overallStatus) . ")");

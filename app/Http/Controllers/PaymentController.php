@@ -505,11 +505,8 @@ class PaymentController extends Controller
                                     'deleted_at' => now(),
                                 ]);
                             }
-                            $entry->update([
-                                'is_deleted' => 1,
-                                'deleted_by' => auth()->id(),
-                                'deleted_at' => now(),
-                            ]);
+                            // Use SoftDeletes; deleted_at is not mass assignable.
+                            $entry->delete();
                         });
                 }
 
@@ -577,4 +574,3 @@ class PaymentController extends Controller
         ]);
     }
 }
-

@@ -7,21 +7,78 @@ use Exception;
 
 class FormulaEngine
 {
+    public const STATUS_OK = 'OK';
+    public const STATUS_ERROR = 'ERROR';
+    public const STATUS_INCOMPLETE = 'INCOMPLETE';
+
+    public const ERR_DIV_ZERO = 'ERR_DIV_ZERO';
+    public const ERR_MISSING_INPUT = 'ERR_MISSING_INPUT';
+    public const ERR_SYNTAX = 'ERR_SYNTAX';
+    public const ERR_INVALID_DATE = 'ERR_INVALID_DATE';
+    public const ERR_UNRESOLVED_VARIABLE = 'ERR_UNRESOLVED_VARIABLE';
+
     /**
      * Evaluate a mathematical formula string with parameter code variables.
-     *
-     * Example formula: "(WET_WEIGHT - DRY_WEIGHT) / DRY_WEIGHT * 100"
-     * Variables map: ['WET_WEIGHT' => 1000, 'DRY_WEIGHT' => 960]
+     * Backward-compatible simple float return (or null on failure).
      */
     public function evaluateFormula(string $formula, array $variables): ?float
     {
-        if (empty(trim($formula))) {
-            return null;
+        $result = $this->evaluateFormulaDetailed($formula, $variables);
+        return $result['status'] === self::STATUS_OK ? $result['value'] : null;
+    }
+
+    /**
+     * Evaluate a formula with configuration-specific variable bindings.
+     * E.g. Formula: "(LOAD * 1000) / AREA"
+     * Bindings: ['LOAD' => 'LOAD_KN', 'AREA' => 22500]
+     * Inputs: ['LOAD_KN' => 675.0]
+     */
+    public function evaluateWithBindings(string $formula, ?array $bindings, array $inputs): array
+    {
+        $resolvedVariables = [];
+
+        // If bindings are provided, map each formula variable to the input value or constant
+        if (!empty($bindings)) {
+            foreach ($bindings as $varName => $source) {
+                $upperVar = strtoupper($varName);
+                if (is_numeric($source)) {
+                    $resolvedVariables[$upperVar] = (float)$source;
+                } elseif (is_string($source)) {
+                    $upperSource = strtoupper($source);
+                    $resolvedVariables[$upperVar] = $inputs[$upperSource] ?? ($inputs[$source] ?? null);
+                }
+            }
         }
 
-        // Replace variable codes with numeric values (case-insensitive key mapping)
+        // Also merge direct inputs in case formula references parameter codes directly
+        foreach ($inputs as $k => $v) {
+            $upperK = strtoupper($k);
+            if (!isset($resolvedVariables[$upperK])) {
+                $resolvedVariables[$upperK] = $v;
+            }
+        }
+
+        return $this->evaluateFormulaDetailed($formula, $resolvedVariables);
+    }
+
+    /**
+     * Evaluate a mathematical formula string with detailed error tracking.
+     *
+     * @return array{value: float|null, status: string, error: string|null, message: string|null}
+     */
+    public function evaluateFormulaDetailed(string $formula, array $variables): array
+    {
+        if (empty(trim($formula))) {
+            return [
+                'value' => null,
+                'status' => self::STATUS_INCOMPLETE,
+                'error' => self::ERR_MISSING_INPUT,
+                'message' => 'Formula is empty',
+            ];
+        }
+
         $processedFormula = $formula;
-        
+
         // Normalize variables array to uppercase keys
         $upperVariables = [];
         foreach ($variables as $code => $val) {
@@ -32,15 +89,15 @@ class FormulaEngine
         uksort($upperVariables, fn($a, $b) => strlen($b) <=> strlen($a));
 
         // Evaluate TIMEDIFF_MINUTES function: TIMEDIFF_MINUTES(start, end)
-        $processedFormula = preg_replace_callback('/\b(timediff_minutes|timediff)\s*\(([^,]+),([^)]+)\)/i', function ($matches) use ($upperVariables) {
+        $dateError = false;
+        $processedFormula = preg_replace_callback('/\b(timediff_minutes|timediff)\s*\(([^,]+),([^)]+)\)/i', function ($matches) use ($upperVariables, &$dateError) {
             $rawStart = trim($matches[2]);
             $rawEnd = trim($matches[3]);
 
-            // If tokens are variable names, fetch their original string/time value
             $startVal = $upperVariables[strtoupper($rawStart)] ?? $rawStart;
             $endVal = $upperVariables[strtoupper($rawEnd)] ?? $rawEnd;
 
-            $toMinutes = function($v) {
+            $toMinutes = function($v) use (&$dateError) {
                 if (is_numeric($v)) return (float)$v;
                 $cleaned = trim((string)$v, " '\"");
                 if (preg_match('/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/', $cleaned, $m)) {
@@ -50,31 +107,50 @@ class FormulaEngine
                 if ($ts !== false) {
                     return (int)($ts / 60);
                 }
+                $dateError = true;
                 return 0;
             };
 
             $startMin = $toMinutes($startVal);
             $endMin = $toMinutes($endVal);
             $diff = $endMin - $startMin;
-            if ($diff < 0) $diff += (24 * 60); // handle day turnover e.g. 23:30 to 01:00
+            if ($diff < 0) $diff += (24 * 60);
 
             return (string)$diff;
         }, $processedFormula);
 
+        if ($dateError) {
+            return [
+                'value' => null,
+                'status' => self::STATUS_ERROR,
+                'error' => self::ERR_INVALID_DATE,
+                'message' => 'Invalid date or time value provided in TIMEDIFF function',
+            ];
+        }
+
+        // Variable substitution
+        $missingVariables = [];
         foreach ($upperVariables as $code => $val) {
             if ($val === null || $val === '') {
-                // If the variable was already consumed by timediff, don't fail
                 if (preg_match('/\b' . preg_quote($code, '/') . '\b/i', $processedFormula)) {
-                    return null;
+                    $missingVariables[] = $code;
                 }
                 continue;
             }
             $numericVal = is_numeric($val) ? (float) $val : 0;
-            // Case-insensitive regex replacement for variable tokens
             $processedFormula = preg_replace('/\b' . preg_quote($code, '/') . '\b/i', (string) $numericVal, $processedFormula);
         }
 
-        // Evaluate statistical functions: mean(...), median(...), mode(...), min(...), max(...), round(...), abs(...), sqrt(...)
+        if (!empty($missingVariables)) {
+            return [
+                'value' => null,
+                'status' => self::STATUS_INCOMPLETE,
+                'error' => self::ERR_MISSING_INPUT,
+                'message' => 'Missing inputs for: ' . implode(', ', $missingVariables),
+            ];
+        }
+
+        // Evaluate statistical functions: mean(...), avg(...), median(...), mode(...), min(...), max(...), round(...), abs(...), sqrt(...)
         $processedFormula = preg_replace_callback('/\b(mean|avg|median|mode|min|max|round|abs|sqrt)\s*\(([^()]+)\)/i', function ($matches) {
             $func = strtolower($matches[1]);
             $argsStr = $matches[2];
@@ -118,21 +194,42 @@ class FormulaEngine
             }
         }, $processedFormula);
 
-        // Check if all variables were replaced (no unresolved words left)
-        if (preg_match('/[A-Za-z_]+/', $processedFormula)) {
-            return null; // Unresolved variable in formula
+        // Check if any unresolved alphabetic variable words remain
+        if (preg_match('/[A-Za-z_]+/', $processedFormula, $matches)) {
+            return [
+                'value' => null,
+                'status' => self::STATUS_INCOMPLETE,
+                'error' => self::ERR_UNRESOLVED_VARIABLE,
+                'message' => "Unresolved variable: {$matches[0]}",
+            ];
         }
 
-        // Safe mathematical evaluation using string parser
+        // Safe mathematical evaluation
         try {
-            return $this->calculateMath($processedFormula);
+            $val = $this->calculateMath($processedFormula);
+            return [
+                'value' => round($val, 4),
+                'status' => self::STATUS_OK,
+                'error' => null,
+                'message' => null,
+            ];
         } catch (Exception $e) {
-            return null;
+            $errMsg = $e->getMessage();
+            $code = str_contains($errMsg, 'Division by zero') ? self::ERR_DIV_ZERO : self::ERR_SYNTAX;
+
+            return [
+                'value' => null,
+                'status' => self::STATUS_ERROR,
+                'error' => $code,
+                'message' => $errMsg,
+            ];
         }
     }
 
     /**
      * Evaluate an acceptance rule against a given numeric or text result.
+     * Strict evaluation against min/max/rule_type.
+     * Does NOT treat target_percentage or target_value as an acceptance rule.
      *
      * Returns 'PASS' or 'FAIL'
      */
@@ -195,10 +292,8 @@ class FormulaEngine
      */
     private function calculateMath(string $expression): float
     {
-        // Remove whitespace
         $expr = str_replace(' ', '', $expression);
 
-        // Basic sanity check: only allow digits, decimals, operators, parentheses
         if (!preg_match('/^[0-9\.\+\-\*\/\(\)\^]+$/', $expr)) {
             throw new Exception("Invalid math characters in expression: $expr");
         }
@@ -254,10 +349,10 @@ class FormulaEngine
     private function parseFactor(string &$expr): float
     {
         if (strlen($expr) > 0 && $expr[0] === '(') {
-            $expr = substr($expr, 1); // remove '('
+            $expr = substr($expr, 1);
             $result = $this->parseSum($expr);
             if (strlen($expr) > 0 && $expr[0] === ')') {
-                $expr = substr($expr, 1); // remove ')'
+                $expr = substr($expr, 1);
             }
             return $result;
         }
