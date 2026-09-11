@@ -14,7 +14,7 @@ class PatronReportService implements ReportServiceInterface
 
     public function generate(array $params): array
     {
-        $plantId  = $this->ctx->requirePlantId();
+        $plantId  = $params['plant_id'] ?? $this->ctx->plantId() ?? session('active_plant_id');
         $patronId = $params['patron_id'] ?? null;
         $start    = $params['start'];
         $end      = $params['end'];

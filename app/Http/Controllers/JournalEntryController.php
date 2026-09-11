@@ -39,9 +39,9 @@ class JournalEntryController extends Controller
 
         return Inertia::render('JournalEntry/Index', [
             'entries'      => $entries,
-            'ledgers'      => function_exists('LedgersDropdown') ? LedgersDropdown() : Ledger::all(),
-            'voucherTypes' => function_exists('VoucherTypesDropdown') ? VoucherTypesDropdown() : VoucherType::all(),
-            'partners'     => function_exists('PatronsDropdown') ? PatronsDropdown() : Patron::all(),
+            'ledgers'      =>  LedgersDropdown(),
+            'voucherTypes' =>  VoucherTypesDropdown(),
+            'partners'     => PatronsDropdown() ,
         ]);
     }
 

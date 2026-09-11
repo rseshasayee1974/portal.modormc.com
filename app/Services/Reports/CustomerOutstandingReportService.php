@@ -3,8 +3,11 @@
 namespace App\Services\Reports;
 
 use App\Models\Invoice;
+use App\Models\JournalEntryLine;
 use App\Models\Patron;
+use App\Models\Payment;
 use App\Models\Plant;
+use App\Models\PurchaseOrder;
 use App\Services\PlantContextService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +22,10 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         $patronId = $params['patron_id'] ?? null;
         $start    = $params['start'] ?? null;
         $end      = $params['end'] ?? null;
+
+        if ($patronId) {
+            return $this->generateSinglePatronStatement((int)$patronId, $plantId, $start, $end, $params);
+        }
 
         // 1. Query Sales Invoices (whereNull('deleted_at') and status != 'Cancelled')
         $invoiceQuery = Invoice::query()
@@ -360,6 +367,419 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'end'       => $end,
                 'patron_id' => $patronId,
             ],
+        ];
+    }
+
+    /**
+     * Generate a complete, chronological statement of accounts for a single patron.
+     */
+    public function generateSinglePatronStatement(int $patronId, ?int $plantId, ?string $start, ?string $end, array $params = []): array
+    {
+        $plantId = $plantId ?? $params['plant_id'] ?? $this->ctx->plantId() ?? session('active_plant_id');
+
+        $patron = Patron::with(['addresses.state', 'contacts'])->whereNull('deleted_at')->find($patronId);
+
+        // Normalize patron address fields for both Vue and Blade views
+        if ($patron && $patron->addresses) {
+            foreach ($patron->addresses as $addr) {
+                $addr->address_line_1 = $addr->address_line_1 ?? $addr->line_1;
+                $addr->address_line_2 = $addr->address_line_2 ?? $addr->line_2;
+                $addr->postal_code    = $addr->postal_code ?? $addr->zipcode;
+            }
+        }
+
+        // Primary contact details
+        $contacts = $patron?->contacts ?? collect();
+        $primaryContact = $contacts->firstWhere('is_primary', 1) ?? $contacts->first();
+        $phone = $primaryContact?->mobile ?: ($primaryContact?->alt_mobile ?: ($primaryContact?->landline ?: ($patron?->phone ?? '-')));
+
+        // Plant details
+        $plant = $plantId ? Plant::with(['addresses.state'])->whereNull('deleted_at')->find($plantId) : null;
+        if ($plant && $plant->addresses) {
+            foreach ($plant->addresses as $addr) {
+                $addr->address_line_1 = $addr->address_line_1 ?? $addr->line_1;
+                $addr->address_line_2 = $addr->address_line_2 ?? $addr->line_2;
+                $addr->postal_code    = $addr->postal_code ?? $addr->zipcode;
+            }
+        }
+
+        $startDateOnly = $start ? substr($start, 0, 10) : null;
+        $endDateOnly   = $end ? substr($end, 0, 10) : null;
+
+        // 1. Sales Invoices Query
+        $invQuery = Invoice::query()
+            ->where('invoice_type', 'sales')
+            ->where('partner_id', $patronId)
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->whereNull('status')->orWhere('status', '!=', 'Cancelled');
+            });
+
+        if ($plantId) {
+            $invQuery->where('plant_id', $plantId);
+        }
+
+        // 2. Payments & Receipts Query
+        $pmtQuery = Payment::query()
+            ->with(['ledger:id,title'])
+            ->where('patron_id', $patronId)
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->whereNull('status')
+                  ->orWhereNotIn('status', ['cancelled', 'rejected', 'failed']);
+            });
+
+        if ($plantId) {
+            $pmtQuery->where('plant_id', $plantId);
+        }
+
+        // 3. Journal Entry Lines Query (non-invoice, non-payment entries: manual JVs, adjustments)
+        $jelQuery = JournalEntryLine::query()
+            ->with(['entry', 'ledger'])
+            ->where('partner_id', $patronId)
+            ->where('partner_type', 'Patron')
+            ->whereNull('deleted_at')
+            ->where(fn($q) => $q->where('is_deleted', 0)->orWhereNull('is_deleted'))
+            ->whereHas('entry', function ($q) {
+                $q->whereNull('deleted_at')
+                  ->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))
+                  ->where(function ($sq) {
+                      $sq->whereNull('ref_module')
+                         ->orWhereNotIn('ref_module', ['invoice', 'payment']);
+                  });
+            });
+
+        if ($plantId) {
+            $jelQuery->where('plant_id', $plantId);
+        }
+
+        // 4. Calculate Opening Balance prior to start date
+        if ($startDateOnly) {
+            $openingInvoiced = (clone $invQuery)
+                ->where('invoice_date', '<', $startDateOnly)
+                ->sum('total_amount') ?: 0;
+
+            $openingReceipts = (clone $pmtQuery)
+                ->where('transaction_date', '<', $startDateOnly)
+                ->where(function ($q) {
+                    $q->where('transaction_type', 'like', '%receipt%')
+                      ->orWhere('transaction_type', 'rcpt');
+                })
+                ->sum('amount') ?: 0;
+
+            $openingPayments = (clone $pmtQuery)
+                ->where('transaction_date', '<', $startDateOnly)
+                ->where(function ($q) {
+                    $q->where('transaction_type', 'payment')
+                      ->orWhere('transaction_type', 'pmt');
+                })
+                ->sum('amount') ?: 0;
+
+            $openingJel = (clone $jelQuery)
+                ->whereHas('entry', fn($q) => $q->where('voucher_date', '<', $startDateOnly))
+                ->selectRaw('SUM(debit_amount) - SUM(credit_amount) as bal')
+                ->value('bal') ?: 0;
+
+            $openingBalance = round((float)$openingInvoiced - (float)$openingReceipts + (float)$openingPayments + (float)$openingJel, 2);
+        } else {
+            $openingBalance = 0.00;
+        }
+
+        // 5. Fetch transactions within period
+        $periodInvoices = (clone $invQuery)
+            ->when($startDateOnly, fn($q) => $q->where('invoice_date', '>=', $startDateOnly))
+            ->when($endDateOnly, fn($q) => $q->where('invoice_date', '<=', $endDateOnly))
+            ->orderBy('invoice_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $periodPayments = (clone $pmtQuery)
+            ->when($startDateOnly, fn($q) => $q->where('transaction_date', '>=', $startDateOnly))
+            ->when($endDateOnly, fn($q) => $q->where('transaction_date', '<=', $endDateOnly))
+            ->orderBy('transaction_date', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        $periodJel = (clone $jelQuery)
+            ->when($startDateOnly, fn($q) => $q->whereHas('entry', fn($sq) => $sq->where('voucher_date', '>=', $startDateOnly)))
+            ->when($endDateOnly, fn($q) => $q->whereHas('entry', fn($sq) => $sq->where('voucher_date', '<=', $endDateOnly)))
+            ->get();
+
+        // 6. Compute Account Summary Totals
+        $invoicedTaxTotal    = 0.0;
+        $invoicedNonTaxTotal = 0.0;
+        $salesDiscount       = 0.0;
+
+        foreach ($periodInvoices as $inv) {
+            $invTotal = (float)($inv->total_amount ?? 0);
+            if ((float)($inv->tax_amount ?? 0) > 0) {
+                $invoicedTaxTotal += $invTotal;
+            } else {
+                $invoicedNonTaxTotal += $invTotal;
+            }
+            $salesDiscount += (float)($inv->discount_amount ?? 0);
+        }
+
+        $totalInvoiced = round($invoicedTaxTotal + $invoicedNonTaxTotal, 2);
+
+        $receiptsList = $periodPayments->filter(function ($p) {
+            $type = strtolower($p->transaction_type ?? '');
+            return str_contains($type, 'receipt') || in_array($type, ['receipt', 'rcpt']);
+        });
+
+        $paymentsList = $periodPayments->filter(function ($p) {
+            $type = strtolower($p->transaction_type ?? '');
+            return !str_contains($type, 'receipt') && in_array($type, ['payment', 'pmt']);
+        });
+
+        $amountReceived = round((float)$receiptsList->sum('amount'), 2);
+        $amountPaid     = round((float)$paymentsList->sum('amount'), 2);
+
+        // Purchases (if customer also acts as vendor)
+        $purchased = round((float)PurchaseOrder::where('vendor_id', $patronId)
+            ->when($plantId, fn($q) => $q->where('plant_id', $plantId))
+            ->whereNull('deleted_at')
+            ->when($startDateOnly, fn($q) => $q->where('date_order', '>=', $startDateOnly))
+            ->when($endDateOnly, fn($q) => $q->where('date_order', '<=', $endDateOnly))
+            ->sum('amount_total'), 2);
+
+        $credits = round((float)$periodJel->sum('credit_amount'), 2);
+
+        // 7. Assemble Unified Chronological Items
+        $items = collect();
+
+        foreach ($periodInvoices as $inv) {
+            $invTotal = round((float)($inv->total_amount ?? 0), 2);
+            $invNum   = $inv->full_number ?: ('INV-' . $inv->id);
+            $details  = $invNum;
+            if (!empty($inv->remarks)) {
+                $details .= "\n" . $inv->remarks;
+            }
+
+            $items->push([
+                'timestamp'    => $inv->invoice_date ? Carbon::parse($inv->invoice_date)->timestamp : 0,
+                'raw_date'     => $inv->invoice_date ? Carbon::parse($inv->invoice_date)->format('Y-m-d') : '',
+                'date'         => $inv->invoice_date ? Carbon::parse($inv->invoice_date)->format('d-m-Y') : '-',
+                'sort_order'   => 1,
+                'id'           => $inv->id,
+                'transactions' => 'Sales Invoice',
+                'narration'    => 'Invoice ' . $invNum,
+                'details'      => $details,
+                'type'         => 'INV',
+                'voucher_type' => 'SALES',
+                'voucher_no'   => $invNum,
+                'debit'        => $invTotal,
+                'credit'       => 0.0,
+                'discount'     => (float)($inv->discount_amount ?? 0),
+            ]);
+        }
+
+        foreach ($receiptsList as $p) {
+            $pAmt    = round((float)($p->amount ?? 0), 2);
+            $rcptNum = $p->reference ?: ('RCPT-' . $p->id);
+            $details = $rcptNum;
+            if ($p->ledger?->title) {
+                $details .= "\n" . $p->ledger->title;
+            }
+            if ($p->transaction_mode) {
+                $details .= " (" . ucfirst($p->transaction_mode) . ")";
+            }
+            if (!empty($p->description)) {
+                $details .= "\n" . $p->description;
+            }
+
+            $items->push([
+                'timestamp'    => $p->transaction_date ? Carbon::parse($p->transaction_date)->timestamp : 0,
+                'raw_date'     => $p->transaction_date ? Carbon::parse($p->transaction_date)->format('Y-m-d') : '',
+                'date'         => $p->transaction_date ? Carbon::parse($p->transaction_date)->format('d-m-Y') : '-',
+                'sort_order'   => 2,
+                'id'           => $p->id,
+                'transactions' => 'Payment Received',
+                'narration'    => 'Receipt ' . $rcptNum,
+                'details'      => $details,
+                'type'         => 'RCPT',
+                'voucher_type' => 'RECEIPT',
+                'voucher_no'   => $rcptNum,
+                'debit'        => 0.0,
+                'credit'       => $pAmt,
+                'discount'     => 0.0,
+            ]);
+        }
+
+        foreach ($paymentsList as $p) {
+            $pAmt    = round((float)($p->amount ?? 0), 2);
+            $pmtNum  = $p->reference ?: ('PMT-' . $p->id);
+            $details = $pmtNum;
+            if ($p->ledger?->title) {
+                $details .= "\n" . $p->ledger->title;
+            }
+            if (!empty($p->description)) {
+                $details .= "\n" . $p->description;
+            }
+
+            $items->push([
+                'timestamp'    => $p->transaction_date ? Carbon::parse($p->transaction_date)->timestamp : 0,
+                'raw_date'     => $p->transaction_date ? Carbon::parse($p->transaction_date)->format('Y-m-d') : '',
+                'date'         => $p->transaction_date ? Carbon::parse($p->transaction_date)->format('d-m-Y') : '-',
+                'sort_order'   => 3,
+                'id'           => $p->id,
+                'transactions' => 'Payment Made',
+                'narration'    => 'Payment ' . $pmtNum,
+                'details'      => $details,
+                'type'         => 'PMT',
+                'voucher_type' => 'PAYMENT',
+                'voucher_no'   => $pmtNum,
+                'debit'        => $pAmt,
+                'credit'       => 0.0,
+                'discount'     => 0.0,
+            ]);
+        }
+
+        foreach ($periodJel as $line) {
+            $dr      = round((float)($line->debit_amount ?? 0), 2);
+            $cr      = round((float)($line->credit_amount ?? 0), 2);
+            $vNum    = $line->entry?->voucher_number ?: ('JV-' . $line->id);
+            $vType   = strtoupper($line->entry?->voucher_type ?? 'JOURNAL');
+            $label   = match (true) {
+                str_contains($vType, 'CREDIT') => 'Credit Note',
+                str_contains($vType, 'DEBIT')  => 'Debit Note',
+                default                        => 'Journal Voucher',
+            };
+            $details = $vNum . "\n" . ($line->line_narration ?: $line->entry?->narration ?: $label);
+            $vDate   = $line->entry?->voucher_date;
+
+            $items->push([
+                'timestamp'    => $vDate ? Carbon::parse($vDate)->timestamp : 0,
+                'raw_date'     => $vDate ? Carbon::parse($vDate)->format('Y-m-d') : '',
+                'date'         => $vDate ? Carbon::parse($vDate)->format('d-m-Y') : '-',
+                'sort_order'   => 4,
+                'id'           => $line->id,
+                'transactions' => $label,
+                'narration'    => $vType . ' ' . $vNum,
+                'details'      => $details,
+                'type'         => $vType,
+                'voucher_type' => $vType,
+                'voucher_no'   => $vNum,
+                'debit'        => $dr,
+                'credit'       => $cr,
+                'discount'     => 0.0,
+            ]);
+        }
+
+        // Sort items by raw_date asc, then sort_order asc, then id asc
+        $sortedItems = $items->sort(function ($a, $b) {
+            if ($a['raw_date'] !== $b['raw_date']) {
+                return strcmp($a['raw_date'], $b['raw_date']);
+            }
+            if ($a['sort_order'] !== $b['sort_order']) {
+                return $a['sort_order'] <=> $b['sort_order'];
+            }
+            return $a['id'] <=> $b['id'];
+        })->values();
+
+        // 8. Build Running Balance Rows
+        $runningBalance = $openingBalance;
+        $rows = [];
+
+        // Row 1: Opening Balance Row
+        $rows[] = [
+            's_no'                    => 1,
+            'date'                    => $startDateOnly ? Carbon::parse($startDateOnly)->format('d-m-Y') : '-',
+            'raw_date'                => $startDateOnly ?: '',
+            'transactions'            => 'Opening Balance',
+            'narration'               => 'Opening Balance',
+            'details'                 => 'Opening Balance',
+            'type'                    => '-',
+            'voucher_type'            => 'OPENING',
+            'voucher_no'              => '---',
+            'invoice_bill_display'    => '0',
+            'receipt_payment_display' => '0',
+            'discount_display'        => '0',
+            'balance_display'         => ($openingBalance != 0 ? ($openingBalance > 0 ? 'Dr ' : 'Cr ') : '') . '₹ ' . number_format(abs($openingBalance), 2),
+            'balance_type'            => $openingBalance >= 0 ? 'Dr' : 'Cr',
+            'balance'                 => $openingBalance,
+            'debit'                   => 0.0,
+            'credit'                  => 0.0,
+            'is_opening'              => true,
+        ];
+
+        $sNo = 2;
+        foreach ($sortedItems as $it) {
+            $debit  = (float)$it['debit'];
+            $credit = (float)$it['credit'];
+            $disc   = (float)$it['discount'];
+
+            $runningBalance = round($runningBalance + $debit - $credit, 2);
+
+            $rows[] = [
+                's_no'                    => $sNo++,
+                'id'                      => $it['id'],
+                'date'                    => $it['date'],
+                'raw_date'                => $it['raw_date'],
+                'transactions'            => $it['transactions'],
+                'narration'               => $it['narration'],
+                'details'                 => $it['details'],
+                'type'                    => $it['type'],
+                'voucher_type'            => $it['voucher_type'],
+                'voucher_no'              => $it['voucher_no'],
+                'invoice_bill_display'    => $debit > 0 ? '₹ ' . number_format($debit, 2) : '0',
+                'receipt_payment_display' => $credit > 0 ? '(₹ ' . number_format($credit, 2) . ')' : '0',
+                'discount_display'        => $disc > 0 ? '₹ ' . number_format($disc, 2) : '0',
+                'balance_display'         => ($runningBalance != 0 ? ($runningBalance > 0 ? 'Dr ' : 'Cr ') : '') . '₹ ' . number_format(abs($runningBalance), 2),
+                'balance_type'            => $runningBalance >= 0 ? 'Dr' : 'Cr',
+                'balance'                 => $runningBalance,
+                'debit'                   => $debit,
+                'credit'                  => $credit,
+                'is_opening'              => false,
+            ];
+        }
+
+        $closingBalance = $runningBalance;
+
+        $accountSummary = [
+            'opening_balance'         => (float)$openingBalance,
+            'opening_balance_display' => ($openingBalance != 0 ? ($openingBalance > 0 ? 'Dr ' : 'Cr ') : '') . '₹ ' . number_format(abs($openingBalance), 2),
+            'invoiced_tax'            => (float)$invoicedTaxTotal,
+            'invoiced_tax_display'    => $invoicedTaxTotal > 0 ? '₹ ' . number_format($invoicedTaxTotal, 2) : '0',
+            'invoiced_nontax'         => (float)$invoicedNonTaxTotal,
+            'invoiced_nontax_display' => $invoicedNonTaxTotal > 0 ? '₹ ' . number_format($invoicedNonTaxTotal, 2) : '0',
+            'total_invoiced'          => (float)$totalInvoiced,
+            'total_invoiced_display'  => $totalInvoiced > 0 ? '₹ ' . number_format($totalInvoiced, 2) : '0',
+            'sales_discount'          => (float)$salesDiscount,
+            'sales_discount_display'  => $salesDiscount > 0 ? '₹ ' . number_format($salesDiscount, 2) : '0',
+            'purchased'               => (float)$purchased,
+            'purchased_display'       => $purchased > 0 ? '₹ ' . number_format($purchased, 2) : '0',
+            'amount_received'         => (float)$amountReceived,
+            'amount_received_display' => $amountReceived > 0 ? '₹ ' . number_format($amountReceived, 2) : '0',
+            'amount_paid'             => (float)$amountPaid,
+            'amount_paid_display'     => $amountPaid > 0 ? '₹ ' . number_format($amountPaid, 2) : '0',
+            'credits'                 => (float)$credits,
+            'credits_display'         => $credits > 0 ? '₹ ' . number_format($credits, 2) : '0',
+            'balance_due'             => (float)$closingBalance,
+            'balance_due_display'     => ($closingBalance != 0 ? ($closingBalance > 0 ? 'Dr ' : 'Cr ') : '') . '₹ ' . number_format(abs($closingBalance), 2),
+            'balance_due_type'        => $closingBalance >= 0 ? 'Dr' : 'Cr',
+        ];
+
+        $balanceDueDisplay = ($closingBalance != 0 ? ($closingBalance > 0 ? 'Dr ' : 'Cr ') : '') . '₹ ' . number_format(abs($closingBalance), 2);
+
+        return [
+            'is_single_patron'     => true,
+            'plant'                => $plant,
+            'patron'               => $patron,
+            'phone'                => $phone,
+            'start'                => $start,
+            'end'                  => $end,
+            'start_formatted'      => $startDateOnly ? Carbon::parse($startDateOnly)->format('d-m-Y') : '',
+            'end_formatted'        => $endDateOnly ? Carbon::parse($endDateOnly)->format('d-m-Y') : '',
+            'transactions'         => $rows,
+            'ledger_transactions'  => $rows,
+            'account_summary'      => $accountSummary,
+            'balance_due_display'  => $balanceDueDisplay,
+            'balance_due'          => (float)$closingBalance,
+            'opening_balance'      => (float)$openingBalance,
+            'total_amount'         => (float)$closingBalance,
+            'generated_at'         => now()->format('d/m/Y h:i A'),
+            'filters'              => $params,
         ];
     }
 
