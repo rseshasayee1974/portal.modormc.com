@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { ref, watch, computed } from 'vue';
-import { useForm, router } from '@inertiajs/vue3';
+import { useForm, router, usePage } from '@inertiajs/vue3';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
 
 // Components
@@ -10,6 +10,7 @@ import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
+import Dialog from 'primevue/dialog';
 import Swal from 'sweetalert2';
 import { 
     ArchiveBoxIcon, 
@@ -18,15 +19,30 @@ import {
     Bars3CenterLeftIcon,
     ArrowPathIcon,
     CheckCircleIcon,
-    ArrowDownTrayIcon
+    ArrowDownTrayIcon,
+    CameraIcon,
+    EyeIcon,
+    TrashIcon
 } from '@heroicons/vue/24/outline';
 import { useWeighbridge } from '@/Composables/useWeighbridge';
 
-const { isScaleConnected, captureWeight } = useWeighbridge();
+const page = usePage();
+const { isScaleConnected, captureWeight, captureCameraSnap } = useWeighbridge();
+
+const imageModalVisible = ref(false);
+const imageModalSrc = ref('');
+const imageModalTitle = ref('');
+
+const openImageModal = (src: string, title: string = 'Weight Snapshot') => {
+    imageModalSrc.value = src;
+    imageModalTitle.value = title;
+    imageModalVisible.value = true;
+};
 
 const props = defineProps<{
     purchase_order?: any;
     purchaseOrders: any[];
+    vehicles?: any[];
 }>();
 
 const selectedPoId = ref(props.purchase_order?.id || null);
@@ -68,8 +84,65 @@ const setupItems = (po: any) => {
         ordered_qty: Number(item.product_quantity),
         received_qty_previously: Number(item.received_quantity || 0),
         uom: item.uom?.unit_code,
-        received_qty: 0
+        received_qty: 0,
+        loaded_weight_photo: null
     }));
+};
+
+const captureInwardLoadedWeight = async (item: any) => {
+    await captureWeight(async (w: number) => {
+        item.received_qty = w;
+
+        const customSettings: any = page.props.custom_settings || {};
+        if (customSettings?.batching?.camera == 1 && (customSettings?.batching?.camera_url || customSettings?.batching?.camera_url_1 || customSettings?.batching?.camera_url_2)) {
+            const cameraUrl = customSettings.batching.camera_url_1 || customSettings.batching.camera_url || customSettings.batching.camera_url_2;
+            try {
+                const snap = await captureCameraSnap(cameraUrl);
+                item.loaded_weight_photo = snap;
+            } catch (err) {
+                console.error('Inward camera capture failed:', err);
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'warning',
+                    title: 'Weight captured, but camera failed',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
+        }
+    });
+};
+
+const takeInwardSnapOnly = async (item: any) => {
+    const customSettings: any = page.props.custom_settings || {};
+    const cameraUrl = customSettings?.batching?.camera_url_1 || customSettings?.batching?.camera_url || customSettings?.batching?.camera_url_2;
+    if (!cameraUrl) {
+        Swal.fire('Warning', 'No camera URL configured in settings', 'warning');
+        return;
+    }
+    try {
+        const snap = await captureCameraSnap(cameraUrl);
+        item.loaded_weight_photo = snap;
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Camera snapshot captured',
+            showConfirmButton: false,
+            timer: 1500
+        });
+    } catch (err) {
+        console.error('Camera snapshot failed:', err);
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: 'Camera snapshot failed',
+            showConfirmButton: false,
+            timer: 1500
+        });
+    }
 };
 
 if (props.purchase_order) {
@@ -208,17 +281,48 @@ const remainingToReceive = (item: any) => {
                                             </div>
                                         </td>
                                         <td class="px-8 py-6">
-                                            <div class="flex items-center justify-end gap-3">
-                                                
-                                                <BaseInputNumber 
-                                                    v-model="item.received_qty" 
-                                                    :disabled="remainingToReceive(item) <= 0"
-                                                    :max="remainingToReceive(item)"
-                                                    :minFractionDigits="2"
-                                                    class="w-32 text-right !rounded-md overflow-hidden border border-slate-200"
-                                                    inputClass="!text-right font-black !h-9 !bg-slate-50/50"
-                                                />
-                                                <span class="text-[10px] font-black text-slate-400 w-8">{{ item.uom }}</span>
+                                            <div class="flex flex-col items-end gap-2">
+                                                <div class="flex items-center justify-end gap-2">
+                                                    <BaseInputNumber 
+                                                        v-model="item.received_qty" 
+                                                        :disabled="remainingToReceive(item) <= 0"
+                                                        :max="remainingToReceive(item)"
+                                                        :minFractionDigits="2"
+                                                        class="w-32 text-right !rounded-md overflow-hidden border border-slate-200"
+                                                        inputClass="!text-right font-black !h-9 !bg-slate-50/50"
+                                                    />
+                                                    <span class="text-[10px] font-black text-slate-400 w-8">{{ item.uom }}</span>
+                                                    <button 
+                                                        v-if="remainingToReceive(item) > 0" 
+                                                        @click="captureInwardLoadedWeight(item)" 
+                                                        type="button" 
+                                                        :class="['px-2.5 py-1.5 rounded-md transition-all border shrink-0 flex flex-col items-center gap-0.5 shadow-xs', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
+                                                        :title="isScaleConnected ? 'Capture Weight & Camera Snap' : 'Connect Weighbridge & Capture'">
+                                                        <ArrowDownTrayIcon class="w-4 h-4" />
+                                                        <span v-if="page.props.custom_settings?.batching?.camera == 1" class="text-[7px] font-black uppercase tracking-widest leading-none">Snap</span>
+                                                    </button>
+                                                    <button 
+                                                        v-if="page.props.custom_settings?.batching?.camera == 1" 
+                                                        @click="takeInwardSnapOnly(item)" 
+                                                        type="button" 
+                                                        class="p-2 rounded-md text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-200 transition-colors shrink-0 shadow-xs" 
+                                                        title="Capture / Re-take Camera Snapshot only">
+                                                        <CameraIcon class="w-4 h-4" />
+                                                    </button>
+                                                </div>
+
+                                                <div v-if="item.loaded_weight_photo" class="relative group w-32 h-16 rounded-md overflow-hidden border border-slate-200 shadow-xs bg-slate-100">
+                                                    <img :src="item.loaded_weight_photo" class="w-full h-full object-cover cursor-pointer" @click="openImageModal(item.loaded_weight_photo, 'Inward Weight Snap')" />
+                                                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                                                        <button @click="openImageModal(item.loaded_weight_photo, 'Inward Weight Snap')" type="button" class="p-1 bg-white/80 hover:bg-white text-slate-800 rounded text-xs" title="View Full Image">
+                                                            <EyeIcon class="w-3 h-3" />
+                                                        </button>
+                                                        <button @click="item.loaded_weight_photo = null" type="button" class="p-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs" title="Remove Snap">
+                                                            <TrashIcon class="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                    <span class="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[7px] font-bold px-1 rounded">SNAP</span>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
@@ -257,6 +361,12 @@ const remainingToReceive = (item: any) => {
                 </form>
             </div>
         </div>
+
+        <Dialog v-model:visible="imageModalVisible" modal :header="imageModalTitle" :style="{ width: '560px', maxWidth: '95vw' }" class="p-fluid rounded-2xl overflow-hidden shadow-2xl border-0">
+            <div class="p-3 flex flex-col items-center justify-center bg-slate-900/5 rounded-xl">
+                <img :src="imageModalSrc" class="w-full max-h-[70vh] object-contain rounded-lg border border-slate-200 shadow-md bg-white" alt="Weight Snapshot" />
+            </div>
+        </Dialog>
     </AppLayout>
 </template>
 

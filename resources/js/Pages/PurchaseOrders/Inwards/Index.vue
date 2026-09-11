@@ -11,6 +11,7 @@ import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import InputGroup from 'primevue/inputgroup';
 import InputGroupAddon from 'primevue/inputgroupaddon';
+import Dialog from 'primevue/dialog';
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
@@ -24,15 +25,26 @@ import {
     ArrowPathIcon,
     CheckCircleIcon,
     TrashIcon,
-    ArrowDownTrayIcon
+    ArrowDownTrayIcon,
+    CameraIcon,
+    EyeIcon
 } from '@heroicons/vue/24/outline';
 import PurchaseOrderPreviewDialog from '../components/PurchaseOrderPreviewDialog.vue';
 import { useWeighbridge } from '@/Composables/useWeighbridge';
 
 const page = usePage();
 const isManualWeightDisabled = computed(() => page.props.custom_settings?.batching?.manual_weight == 1);
- console.log(isManualWeightDisabled);
-const { isScaleConnected, captureWeight } = useWeighbridge();
+const { isScaleConnected, captureWeight, captureCameraSnap } = useWeighbridge();
+
+const imageModalVisible = ref(false);
+const imageModalSrc = ref('');
+const imageModalTitle = ref('');
+
+const openImageModal = (src: string, title: string = 'Weight Snapshot') => {
+    imageModalSrc.value = src;
+    imageModalTitle.value = title;
+    imageModalVisible.value = true;
+};
 
 const props = defineProps<{
     inwards: any[];
@@ -116,8 +128,66 @@ const loadPoDetails = (poId: number | null) => {
             uom: item.uom?.unit_code,
             received_qty: 0,
             truck_id: form.truck_id,
-            truck_loaded: 0
+            truck_loaded: 0,
+            loaded_weight_photo: null
         }));
+    }
+};
+
+const captureInwardLoadedWeight = async (item: any) => {
+    await captureWeight(async (w: number) => {
+        item.truck_loaded = w;
+        item.received_qty = w;
+
+        const customSettings: any = page.props.custom_settings || {};
+        if (customSettings?.batching?.camera == 1 && (customSettings?.batching?.camera_url || customSettings?.batching?.camera_url_1 || customSettings?.batching?.camera_url_2)) {
+            const cameraUrl = customSettings.batching.camera_url_1 || customSettings.batching.camera_url || customSettings.batching.camera_url_2;
+            try {
+                const snap = await captureCameraSnap(cameraUrl);
+                item.loaded_weight_photo = snap;
+            } catch (err) {
+                console.error('Inward camera capture failed:', err);
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'warning',
+                    title: 'Weight captured, but camera failed',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
+        }
+    });
+};
+
+const takeInwardSnapOnly = async (item: any) => {
+    const customSettings: any = page.props.custom_settings || {};
+    const cameraUrl = customSettings?.batching?.camera_url_1 || customSettings?.batching?.camera_url || customSettings?.batching?.camera_url_2;
+    if (!cameraUrl) {
+        Swal.fire('Warning', 'No camera URL configured in settings', 'warning');
+        return;
+    }
+    try {
+        const snap = await captureCameraSnap(cameraUrl);
+        item.loaded_weight_photo = snap;
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Camera snapshot captured',
+            showConfirmButton: false,
+            timer: 1500
+        });
+    } catch (err) {
+        console.error('Camera snapshot failed:', err);
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'error',
+            title: 'Camera snapshot failed',
+            showConfirmButton: false,
+            timer: 1500
+        });
     }
 };
 
@@ -156,15 +226,44 @@ const submitInward = () => {
     });
 };
 
-const saveEmptyWeight = (inward: any, newWeight: number) => {
+const saveEmptyWeight = (inward: any, newWeight: number, photo?: string | null) => {
     if (newWeight <= 0) return;
     
     router.post(route('inwards.update-weight', inward.id), {
-        truck_empty: newWeight
+        truck_empty: newWeight,
+        empty_weight_photo: photo || inward._empty_snap || null
     }, {
         onSuccess: () => {
              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Weight updated', showConfirmButton: false, timer: 1500 });
         }
+    });
+};
+
+const captureTareWeight = async (inward: any) => {
+    await captureWeight(async (w: number) => {
+        inward.truck_empty = w;
+
+        let snap: string | null = null;
+        const customSettings: any = page.props.custom_settings || {};
+        if (customSettings?.batching?.camera == 1 && (customSettings?.batching?.camera_url || customSettings?.batching?.camera_url_1 || customSettings?.batching?.camera_url_2)) {
+            const cameraUrl = customSettings.batching.camera_url_2 || customSettings.batching.camera_url || customSettings.batching.camera_url_1;
+            try {
+                snap = await captureCameraSnap(cameraUrl);
+                inward._empty_snap = snap;
+            } catch (err) {
+                console.error('Tare camera capture failed:', err);
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'warning',
+                    title: 'Tare weight captured, but camera failed',
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
+        }
+
+        saveEmptyWeight(inward, w, snap);
     });
 };
 
@@ -285,23 +384,47 @@ const deleteInward = (inward: any) => {
                                         </div>
                             
                                     </td>
-                                    <td class="px-8 py-4">
-                                        <div class="flex items-center ">
-                                            <BaseInputNumber 
-                                                v-model="item.truck_loaded" 
-                                                placeholder="Inward Weight"
-                                                 :disabled="page.props.custom_settings?.batching?.manual_weight == 0"
-                                                :max="remainingToReceive(item)"
-                                                :minFractionDigits="2"
-                                                class="w-28 text-right  overflow-hidden"
-                                                inputClass="!text-right !h-8 !bg-white"
-                                                
-                                            />
-                                            <button v-if="remainingToReceive(item) > 0 && page.props.custom_settings?.batching?.manual_weight == 0" @click="captureWeight((w) => { item.truck_loaded = w; item.received_qty = w; })" type="button" 
-                                                    :class="['p-2 rounded transition-colors border shrink-0', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
-                                                    :title="isScaleConnected ? 'Capture Current Weight' : 'Connect & Capture'">
+                                    <td class="px-6 py-4">
+                                        <div class="flex flex-col gap-1.5">
+                                            <div class="flex items-center gap-1.5">
+                                                <BaseInputNumber 
+                                                    v-model="item.truck_loaded" 
+                                                    placeholder="Inward Weight"
+                                                    :disabled="page.props.custom_settings?.batching?.manual_weight == 0"
+                                                    :max="remainingToReceive(item)"
+                                                    :minFractionDigits="2"
+                                                    class="w-28 text-right overflow-hidden !rounded-sm border border-slate-200"
+                                                    inputClass="!text-right !h-8 !bg-white font-mono font-bold"
+                                                />
+                                                <button v-if="remainingToReceive(item) > 0" 
+                                                        @click="captureInwardLoadedWeight(item)" 
+                                                        type="button" 
+                                                        :class="['p-2 rounded transition-colors border shrink-0 flex flex-col items-center gap-0.5 shadow-xs', isScaleConnected ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border-emerald-200' : 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200']" 
+                                                        :title="isScaleConnected ? 'Capture Current Weight & Camera Snap' : 'Connect Weighbridge & Capture'">
                                                     <ArrowDownTrayIcon class="w-4 h-4" />
+                                                    <span v-if="page.props.custom_settings?.batching?.camera == 1" class="text-[7px] font-black uppercase tracking-widest leading-none">Snap</span>
                                                 </button>
+                                                <button v-if="page.props.custom_settings?.batching?.camera == 1" 
+                                                        @click="takeInwardSnapOnly(item)" 
+                                                        type="button" 
+                                                        class="p-2 rounded text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-200 transition-colors shrink-0 shadow-xs" 
+                                                        title="Capture / Re-take Camera Snapshot only">
+                                                    <CameraIcon class="w-4 h-4" />
+                                                </button>
+                                            </div>
+
+                                            <div v-if="item.loaded_weight_photo" class="relative group w-32 h-16 rounded-md overflow-hidden border border-slate-200 shadow-xs bg-slate-100">
+                                                <img :src="item.loaded_weight_photo" class="w-full h-full object-cover cursor-pointer" @click="openImageModal(item.loaded_weight_photo, 'Inward Weight Snap')" />
+                                                <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                                                    <button @click="openImageModal(item.loaded_weight_photo, 'Inward Weight Snap')" type="button" class="p-1 bg-white/80 hover:bg-white text-slate-800 rounded text-xs" title="View Full Image">
+                                                        <EyeIcon class="w-3 h-3" />
+                                                    </button>
+                                                    <button @click="item.loaded_weight_photo = null" type="button" class="p-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs" title="Remove Snap">
+                                                        <TrashIcon class="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                                <span class="absolute bottom-0.5 right-0.5 bg-black/60 text-white text-[7px] font-bold px-1 rounded">SNAP</span>
+                                            </div>
                                         </div>
                                     </td>
                                     <!-- <td class="px-8 py-4">
@@ -430,33 +553,75 @@ const deleteInward = (inward: any) => {
                                 </template>
                             </Column>
 
-                            <Column header="Weight Data" sortable field="truck_loaded" style="min-width: 220px">
+                            <Column header="Weight Data" sortable field="truck_loaded" style="min-width: 250px">
                                 <template #body="slotProps">
                                     <div class="grid grid-cols-2 gap-2">
                                         <div class="flex flex-col bg-slate-50 p-2 rounded border border-slate-100">
-                                            <span class="text-[7px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">Gross (Loaded)</span>
-                                            <span class="text-[11px] font-black text-slate-800">{{ Number(slotProps.data.truck_loaded || 0).toLocaleString() }}</span>
-                                        </div>
-                                        <div class="flex flex-col bg-amber-50/30 p-2 rounded border border-amber-100 group relative">
-                                             <div class="flex items-center gap-1">
-                                                <span class="text-[7px] text-amber-600 font-black uppercase tracking-[0.2em] mb-1">Tare (Empty)</span>
+                                            <div class="flex items-center justify-between">
+                                                <span class="text-[7px] text-slate-400 font-black uppercase tracking-[0.2em] mb-1">Gross (Loaded)</span>
                                                 <button 
-                                                    @click="saveEmptyWeight(slotProps.data, slotProps.data.truck_empty)"
-                                                    class="text-amber-500 hover:text-amber-700 transition-colors p-0.5 rounded hover:bg-amber-100"
-                                                    title="Update Weight"
+                                                    v-if="slotProps.data.loaded_weight_image?.url" 
+                                                    @click="openImageModal(slotProps.data.loaded_weight_image.url, 'Gross Weight Snap — ' + slotProps.data.inward_no)"
+                                                    class="text-indigo-600 hover:text-indigo-800 p-0.5 rounded hover:bg-indigo-50 transition-colors"
+                                                    title="View Gross Weight Snapshot"
                                                 >
-                                                    <i class="pi pi-external-link text-[10px]"></i>
+                                                    <CameraIcon class="w-3.5 h-3.5" />
                                                 </button>
                                             </div>
-                                                <input 
-                                                    type="number" 
-                                                    v-model="slotProps.data.truck_empty"
-                                                    :disabled="page.props.custom_settings?.batching?.manual_weight == 0"
-                                                    class="w-full bg-transparent border-none text-[11px] font-black text-amber-800 focus:ring-0 p-0"
-                                                    placeholder="0.00"
-                                                    @keyup.enter="saveEmptyWeight(slotProps.data, slotProps.data.truck_empty)"
+                                            <span class="text-[11px] font-black text-slate-800">{{ Number(slotProps.data.truck_loaded || 0).toLocaleString() }}</span>
+                                            <div v-if="slotProps.data.loaded_weight_image?.url" class="mt-1">
+                                                <img 
+                                                    :src="slotProps.data.loaded_weight_image.url" 
+                                                    @click="openImageModal(slotProps.data.loaded_weight_image.url, 'Gross Weight Snap — ' + slotProps.data.inward_no)"
+                                                    class="w-12 h-8 object-cover rounded border border-slate-200 cursor-pointer hover:opacity-80 transition-opacity shadow-xs" 
+                                                    alt="Gross Snap"
                                                 />
-                                                
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col bg-amber-50/30 p-2 rounded border border-amber-100 group relative">
+                                            <div class="flex items-center justify-between gap-1">
+                                                <span class="text-[7px] text-amber-600 font-black uppercase tracking-[0.2em] mb-1">Tare (Empty)</span>
+                                                <div class="flex items-center gap-1">
+                                                    <button 
+                                                        v-if="slotProps.data.empty_weight_image?.url" 
+                                                        @click="openImageModal(slotProps.data.empty_weight_image.url, 'Tare Weight Snap — ' + slotProps.data.inward_no)"
+                                                        class="text-amber-700 hover:text-amber-900 p-0.5 rounded hover:bg-amber-100 transition-colors"
+                                                        title="View Tare Weight Snapshot"
+                                                    >
+                                                        <CameraIcon class="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button 
+                                                        @click="captureTareWeight(slotProps.data)"
+                                                        :class="['p-0.5 rounded transition-colors', isScaleConnected ? 'text-emerald-600 hover:bg-emerald-100' : 'text-amber-600 hover:bg-amber-100']"
+                                                        :title="isScaleConnected ? 'Capture Tare Weight & Snap' : 'Connect Weighbridge & Capture'"
+                                                    >
+                                                        <ArrowDownTrayIcon class="w-3.5 h-3.5" />
+                                                    </button>
+                                                    <button 
+                                                        @click="saveEmptyWeight(slotProps.data, slotProps.data.truck_empty)"
+                                                        class="text-amber-500 hover:text-amber-700 transition-colors p-0.5 rounded hover:bg-amber-100"
+                                                        title="Save Tare Weight"
+                                                    >
+                                                        <i class="pi pi-check text-[10px]"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <input 
+                                                type="number" 
+                                                v-model="slotProps.data.truck_empty"
+                                                :disabled="page.props.custom_settings?.batching?.manual_weight == 0"
+                                                class="w-full bg-transparent border-none text-[11px] font-black text-amber-800 focus:ring-0 p-0"
+                                                placeholder="0.00"
+                                                @keyup.enter="saveEmptyWeight(slotProps.data, slotProps.data.truck_empty)"
+                                            />
+                                            <div v-if="slotProps.data.empty_weight_image?.url" class="mt-1">
+                                                <img 
+                                                    :src="slotProps.data.empty_weight_image.url" 
+                                                    @click="openImageModal(slotProps.data.empty_weight_image.url, 'Tare Weight Snap — ' + slotProps.data.inward_no)"
+                                                    class="w-12 h-8 object-cover rounded border border-amber-200 cursor-pointer hover:opacity-80 transition-opacity shadow-xs" 
+                                                    alt="Tare Snap"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 </template>
@@ -563,6 +728,12 @@ const deleteInward = (inward: any) => {
         </div>
 
         <PurchaseOrderPreviewDialog v-model:visible="previewVisible" :order="selectedOrder" />
+
+        <Dialog v-model:visible="imageModalVisible" modal :header="imageModalTitle" :style="{ width: '560px', maxWidth: '95vw' }" class="p-fluid rounded-2xl overflow-hidden shadow-2xl border-0">
+            <div class="p-3 flex flex-col items-center justify-center bg-slate-900/5 rounded-xl">
+                <img :src="imageModalSrc" class="w-full max-h-[70vh] object-contain rounded-lg border border-slate-200 shadow-md bg-white" alt="Weight Snapshot" />
+            </div>
+        </Dialog>
     </AppLayout>
 </template>
 

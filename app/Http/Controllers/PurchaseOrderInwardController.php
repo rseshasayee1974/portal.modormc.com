@@ -7,9 +7,12 @@ use App\Models\PurchaseOrderHistory;
 use App\Models\PurchaseOrderItem;
 use App\Models\ProductUnit;
 use App\Models\Quantity;
+use App\Models\Image;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use App\Http\Controllers\Concerns\AuthorizesModule;
 
@@ -35,7 +38,9 @@ class PurchaseOrderInwardController extends Controller
                 'order.items.tax',
                 'order.items.history',
                 'order.items.history.uom',
-                'truck'
+                'truck',
+                'loadedWeightImage',
+                'emptyWeightImage',
             ])
             ->latest()
             ->get();
@@ -59,7 +64,7 @@ class PurchaseOrderInwardController extends Controller
         $this->authorizeModule('create');
         $allowedPlantId = session('active_plant_id');
 
-            if ($purchase_order) {
+        if ($purchase_order) {
             $purchase_order->load(['items.product', 'items.uom', 'items.tax', 'items.history', 'vendor']);
         }
 
@@ -73,6 +78,7 @@ class PurchaseOrderInwardController extends Controller
         return Inertia::render('PurchaseOrders/Inwards/Create', [
             'purchase_order' => $purchase_order,
             'purchaseOrders' => $purchaseOrders,
+            'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration')
         ]);
     }
 
@@ -91,6 +97,7 @@ class PurchaseOrderInwardController extends Controller
             'items.*.received_qty' => 'required|numeric|min:0',
             'items.*.truck_id' => 'nullable|exists:mm_machines,id',
             'items.*.truck_loaded' => 'nullable|numeric|min:0',
+            'items.*.loaded_weight_photo' => 'nullable|string',
         ]);
 
         $order = PurchaseOrder::findOrFail($validated['order_id']);
@@ -137,6 +144,10 @@ class PurchaseOrderInwardController extends Controller
                     'created_by' => $userId,
                     'updated_by' => $userId,
                 ]);
+
+                if (!empty($itemData['loaded_weight_photo'])) {
+                    $this->storeInwardImage($history, $itemData['loaded_weight_photo'], 'loaded');
+                }
 
                 if ($acceptedQty > 0) {
                     $item->received_quantity = $newReceivedQty;
@@ -214,7 +225,8 @@ class PurchaseOrderInwardController extends Controller
                 $stock->save();
             }
 
-            // 3. Delete the history record
+            // 3. Delete the history record and associated images
+            Image::where('category', 'Inward')->where('ref_no', (string)$inward->id)->delete();
             $inward->delete();
 
             // 4. Update order status/totals
@@ -232,6 +244,7 @@ class PurchaseOrderInwardController extends Controller
 
         $validated = $request->validate([
             'truck_empty' => 'required|numeric|min:0',
+            'empty_weight_photo' => 'nullable|string',
         ]);
 
         DB::transaction(function () use ($validated, $inward) {
@@ -246,6 +259,10 @@ class PurchaseOrderInwardController extends Controller
             $inward->received_qty = $newReceivedQty;
             $inward->updated_by = $userId;
             $inward->save();
+
+            if (!empty($validated['empty_weight_photo'])) {
+                $this->storeInwardImage($inward, $validated['empty_weight_photo'], 'empty');
+            }
 
             // Update item total received
             $item = $inward->item;
@@ -279,6 +296,46 @@ class PurchaseOrderInwardController extends Controller
         });
 
         return redirect()->back()->with('success', 'Net weight calculated and stock updated.');
+    }
+
+    private function storeInwardImage(PurchaseOrderHistory $inward, ?string $base64Data, string $type): void
+    {
+        if (!$base64Data || !str_contains($base64Data, 'base64')) return;
+
+        try {
+            if (preg_match('/^data:image\/(\w+);base64,/', $base64Data, $typeMatch)) {
+                $extension = strtolower($typeMatch[1]);
+                $allowedExtensions = ['jpeg', 'png', 'jpg', 'gif', 'svg', 'webp'];
+                
+                if (!in_array($extension, $allowedExtensions)) {
+                    Log::warning("Blocked suspicious inward image upload with extension: {$extension}");
+                    return;
+                }
+
+                $data = substr($base64Data, strpos($base64Data, ',') + 1);
+                $data = base64_decode($data);
+            } else {
+                return;
+            }
+
+            $fileName = "inward_{$inward->id}_{$type}_" . time() . ".{$extension}";
+            $path = "images/inwards/{$fileName}";
+            
+            Storage::disk('public')->put($path, $data);
+
+            Image::updateOrCreate(
+                ['category' => 'Inward', 'ref_no' => (string)$inward->id, 'image_name' => "{$type}_weight_snap"],
+                [
+                    'alt_txt' => ucfirst($type) . ' Weight Photo',
+                    'image_path' => $path,
+                    'plant_id' => $inward->plant_id ?? session('active_plant_id'),
+                    'created_by' => auth()->id(),
+                    'updated_by' => auth()->id(),
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::error("Failed to store inward image: " . $e->getMessage());
+        }
     }
 
     protected function refreshOrderReceiptStatus(PurchaseOrder $order)

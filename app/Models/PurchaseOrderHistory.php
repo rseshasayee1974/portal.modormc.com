@@ -45,6 +45,20 @@ class PurchaseOrderHistory extends Model
         return $this->belongsTo(ProductUnit::class, 'uom_id');
     }
 
+    public function loadedWeightImage()
+    {
+        return $this->hasOne(Image::class, 'ref_no', 'id')
+            ->where('category', 'Inward')
+            ->where('image_name', 'loaded_weight_snap');
+    }
+
+    public function emptyWeightImage()
+    {
+        return $this->hasOne(Image::class, 'ref_no', 'id')
+            ->where('category', 'Inward')
+            ->where('image_name', 'empty_weight_snap');
+    }
+
     public static function generateNextInwardNo($plantId, $date = null)
     {
         $finYearString = PurchaseOrder::getFinancialYearString($date);
