@@ -293,15 +293,15 @@ const mobileMenuOpen = ref(false);
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                                 </svg>
                             </button>
-                            <Link :href="route('dashboard')" class="flex items-center">
+                            <Link :href="route('dashboard')" class="flex items-center bg-white px-2 py-1 rounded-md shadow-xs">
                                 <ApplicationMark class="h-8 w-auto" />
                             </Link>
                         </div>
 
                         <!-- Desktop Logo (visible on md and up) -->
                         <div class="hidden md:flex w-64 shrink-0 items-center mr-2 pl-2">
-                            <Link :href="route('dashboard')" class="flex items-center gap-3 group">
-                                <ApplicationMark class="h-12 w-auto transition-transform group-hover:scale-105" />
+                            <Link :href="route('dashboard')" class="flex items-center gap-3 group bg-white px-3 py-1.5 rounded-lg shadow-sm">
+                                <ApplicationMark class="h-11 w-auto transition-transform group-hover:scale-105" />
                             </Link>
                         </div>
 
