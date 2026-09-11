@@ -8,6 +8,10 @@ use App\Models\PurchaseOrderItem;
 use App\Models\ProductUnit;
 use App\Models\Quantity;
 use App\Models\Image;
+use App\Models\Plant;
+use App\Rules\Base64Image;
+use App\Services\PrintDataFormatter;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -45,17 +49,33 @@ class PurchaseOrderInwardController extends Controller
             ->latest()
             ->get();
             
-        $purchase_order_list = PurchaseOrder::where('plant_id', $allowedPlantId)
+        $purchaseOrders = PurchaseOrder::where('plant_id', $allowedPlantId)
             ->where('receipt_status', '<', 2)
-            ->where('state', '=', 'approved')
+            ->where('state', 'approved')
             ->with(['vendor', 'items.product', 'items.uom'])
             ->latest()
             ->get();
-        
+
         return Inertia::render('PurchaseOrders/Inwards/Index', [
             'inwards' => $inwards,
-            'purchaseOrders' => $purchase_order_list,
-            'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration')
+            'purchaseOrders' => $purchaseOrders,
+            'vehicles' => toSelectOptions(VehiclesDropdown(), 'registration'),
+        ]);
+    }
+
+    public function edit(PurchaseOrderHistory $inward)
+    {
+        $this->authorizeModule('edit');
+        abort_unless((int) $inward->plant_id === (int) session('active_plant_id'), 404);
+
+        $inward->load([
+            'order.vendor', 'order.items.product', 'order.items.uom',
+            'order.items.tax', 'order.items.history.uom',
+            'product', 'uom', 'item', 'truck', 'loadedWeightImage', 'emptyWeightImage',
+        ]);
+
+        return Inertia::render('PurchaseOrders/Inwards/Edit', [
+            'inward' => $inward,
         ]);
     }
 
@@ -92,12 +112,15 @@ class PurchaseOrderInwardController extends Controller
             'inward_no' => 'nullable|string|max:250',
             'truck_id' => 'nullable|exists:mm_machines,id',
             'truck_loaded' => 'nullable|numeric|min:0',
+            'truck_empty' => 'nullable|numeric|min:0',
             'items' => 'required|array|min:1',
             'items.*.order_item_id' => 'required|exists:mm_purchase_order_items,id',
             'items.*.received_qty' => 'required|numeric|min:0',
             'items.*.truck_id' => 'nullable|exists:mm_machines,id',
             'items.*.truck_loaded' => 'nullable|numeric|min:0',
-            'items.*.loaded_weight_photo' => 'nullable|string',
+            'items.*.truck_empty' => 'nullable|numeric|min:0',
+            'items.*.loaded_weight_photo' => ['nullable', 'string', new Base64Image],
+            'items.*.empty_weight_photo' => ['nullable', 'string', new Base64Image],
         ]);
 
         $order = PurchaseOrder::findOrFail($validated['order_id']);
@@ -116,13 +139,19 @@ class PurchaseOrderInwardController extends Controller
                 // Item truck data or fallback to master truck data
                 $itemTruckId = $itemData['truck_id'] ?? $validated['truck_id'] ?? null;
                 $itemTruckLoaded = $itemData['truck_loaded'] ?? $validated['truck_loaded'] ?? null;
+                $itemTruckEmpty = $itemData['truck_empty'] ?? $validated['truck_empty'] ?? null;
 
                 if ($itemData['received_qty'] <= 0 && empty($itemTruckLoaded)) continue;
 
                 $item = PurchaseOrderItem::findOrFail($itemData['order_item_id']);
                 
                 $remaining = max(0, (float) $item->product_quantity - (float) $item->received_quantity);
-                $acceptedQty = min((float)$itemData['received_qty'], $remaining);
+                
+                $calcQty = (float)$itemData['received_qty'];
+                if ($itemTruckLoaded !== null && $itemTruckEmpty !== null && (float)$itemTruckEmpty > 0) {
+                    $calcQty = max(0, (float)$itemTruckLoaded - (float)$itemTruckEmpty);
+                }
+                $acceptedQty = min($calcQty, $remaining);
 
                 $entryDate = \Carbon\Carbon::parse($validated['received_date'])->toDateString();
                 $newReceivedQty = (float) $item->received_quantity + $acceptedQty;
@@ -140,13 +169,19 @@ class PurchaseOrderInwardController extends Controller
                     'inward_no' => $validated['inward_no'] ?: PurchaseOrderHistory::generateNextInwardNo($order->plant_id, $entryDate),
                     'truck_id' => $itemTruckId,
                     'truck_loaded' => $itemTruckLoaded,
+                    'truck_empty' => $itemTruckEmpty,
                     'status' => 1,
                     'created_by' => $userId,
                     'updated_by' => $userId,
                 ]);
 
-                if (!empty($itemData['loaded_weight_photo'])) {
-                    $this->storeInwardImage($history, $itemData['loaded_weight_photo'], 'loaded');
+                $loadedPhoto = $itemData['loaded_weight_photo'] ?? $validated['loaded_weight_photo'] ?? null;
+                if (!empty($loadedPhoto)) {
+                    $this->storeInwardImage($history, $loadedPhoto, 'loaded');
+                }
+                $emptyPhoto = $itemData['empty_weight_photo'] ?? $validated['empty_weight_photo'] ?? null;
+                if (!empty($emptyPhoto)) {
+                    $this->storeInwardImage($history, $emptyPhoto, 'empty');
                 }
 
                 if ($acceptedQty > 0) {
@@ -243,22 +278,48 @@ class PurchaseOrderInwardController extends Controller
         $this->authorizeModule('edit'); 
 
         $validated = $request->validate([
-            'truck_empty' => 'required|numeric|min:0',
-            'empty_weight_photo' => 'nullable|string',
+            'truck_empty' => 'nullable|numeric|min:0',
+            'truck_loaded' => 'nullable|numeric|min:0',
+            'empty_weight_photo' => ['nullable', 'string', new Base64Image],
+            'loaded_weight_photo' => ['nullable', 'string', new Base64Image],
         ]);
 
         DB::transaction(function () use ($validated, $inward) {
             $userId = Auth::id();
             $oldReceivedQty = (float)$inward->received_qty;
-            $newReceivedQty = max(0, (float)$inward->truck_loaded - (float)$validated['truck_empty']);
+
+            $loadedWeight = array_key_exists('truck_loaded', $validated) && $validated['truck_loaded'] !== null
+                ? (float)$validated['truck_loaded']
+                : (float)($inward->truck_loaded ?? 0);
+
+            $emptyWeight = array_key_exists('truck_empty', $validated) && $validated['truck_empty'] !== null
+                ? (float)$validated['truck_empty']
+                : (float)($inward->truck_empty ?? 0);
+
+            if ($emptyWeight > 0 && $loadedWeight > 0) {
+                $newReceivedQty = max(0, $loadedWeight - $emptyWeight);
+            } elseif ($loadedWeight > 0) {
+                $newReceivedQty = $loadedWeight;
+            } else {
+                $newReceivedQty = $oldReceivedQty;
+            }
             
             $diff = $newReceivedQty - $oldReceivedQty;
 
             // Update history record
-            $inward->truck_empty = $validated['truck_empty'];
+            if (array_key_exists('truck_loaded', $validated) && $validated['truck_loaded'] !== null) {
+                $inward->truck_loaded = $validated['truck_loaded'];
+            }
+            if (array_key_exists('truck_empty', $validated) && $validated['truck_empty'] !== null) {
+                $inward->truck_empty = $validated['truck_empty'];
+            }
             $inward->received_qty = $newReceivedQty;
             $inward->updated_by = $userId;
             $inward->save();
+
+            if (!empty($validated['loaded_weight_photo'])) {
+                $this->storeInwardImage($inward, $validated['loaded_weight_photo'], 'loaded');
+            }
 
             if (!empty($validated['empty_weight_photo'])) {
                 $this->storeInwardImage($inward, $validated['empty_weight_photo'], 'empty');
@@ -266,75 +327,98 @@ class PurchaseOrderInwardController extends Controller
 
             // Update item total received
             $item = $inward->item;
-            if ($item) {
-                $item->received_quantity = (float)$item->received_quantity + $diff;
+            if ($item && $diff != 0) {
+                $item->received_quantity = max(0, (float)$item->received_quantity + $diff);
                 $item->updated_by = $userId;
                 $item->save();
             }
 
             // Update Stock Balance
-            $quantityRecord = Quantity::firstOrNew([
-                'plant_id' => $inward->plant_id,
-                'product_id' => $inward->product_id,
-                'uom_id' => $inward->uom_id
-            ]);
+            if ($diff != 0) {
+                $quantityRecord = Quantity::firstOrNew([
+                    'plant_id' => $inward->plant_id,
+                    'product_id' => $inward->product_id,
+                    'uom_id' => $inward->uom_id
+                ]);
 
-            if (!$quantityRecord->exists) {
-                $quantityRecord->opening_quantity = 0;
-                $quantityRecord->created_by = $userId;
-                $quantityRecord->status = 1;
+                if (!$quantityRecord->exists) {
+                    $quantityRecord->opening_quantity = 0;
+                    $quantityRecord->created_by = $userId;
+                    $quantityRecord->status = 1;
+                }
+
+                $quantityRecord->quantity = max(0, (float)$quantityRecord->quantity + $diff);
+                $quantityRecord->updated_by = $userId;
+                $quantityRecord->save();
             }
-
-            $quantityRecord->quantity = (float)$quantityRecord->quantity + $diff;
-            $quantityRecord->updated_by = $userId;
-            $quantityRecord->save();
 
             // Recalculate Order
             $order = $inward->order;
-            $order->recalculateTotals();
-            $this->refreshOrderReceiptStatus($order);
+            if ($order) {
+                $order->recalculateTotals();
+                $this->refreshOrderReceiptStatus($order);
+            }
         });
 
-        return redirect()->back()->with('success', 'Net weight calculated and stock updated.');
+        return redirect()->back()->with('success', 'Weight and stock balance updated successfully.');
     }
 
     private function storeInwardImage(PurchaseOrderHistory $inward, ?string $base64Data, string $type): void
     {
-        if (!$base64Data || !str_contains($base64Data, 'base64')) return;
+        if (empty($base64Data)) {
+            Log::warning("storeInwardImage skipped: empty image payload", ['inward_id' => $inward->id, 'type' => $type]);
+            return;
+        }
 
         try {
-            if (preg_match('/^data:image\/(\w+);base64,/', $base64Data, $typeMatch)) {
-                $extension = strtolower($typeMatch[1]);
-                $allowedExtensions = ['jpeg', 'png', 'jpg', 'gif', 'svg', 'webp'];
-                
-                if (!in_array($extension, $allowedExtensions)) {
-                    Log::warning("Blocked suspicious inward image upload with extension: {$extension}");
-                    return;
-                }
-
-                $data = substr($base64Data, strpos($base64Data, ',') + 1);
-                $data = base64_decode($data);
-            } else {
-                return;
-            }
+            $decoded = Base64Image::decode($base64Data);
+            $data = $decoded['data'];
+            $extension = $decoded['extension'];
 
             $fileName = "inward_{$inward->id}_{$type}_" . time() . ".{$extension}";
             $path = "images/inwards/{$fileName}";
             
+            Storage::disk('public')->makeDirectory('images/inwards');
             Storage::disk('public')->put($path, $data);
 
-            Image::updateOrCreate(
-                ['category' => 'Inward', 'ref_no' => (string)$inward->id, 'image_name' => "{$type}_weight_snap"],
+            try {
+                $directDir = public_path('storage/images/inwards');
+                if (!file_exists($directDir)) {
+                    @mkdir($directDir, 0777, true);
+                }
+                @file_put_contents($directDir . DIRECTORY_SEPARATOR . $fileName, $data);
+            } catch (\Throwable $e) {
+                // Ignore if junction handles it
+            }
+
+            $image = Image::updateOrCreate(
+                [
+                    'category' => 'Inward',
+                    'ref_no' => (string)$inward->id,
+                    'image_name' => "{$type}_weight_snap"
+                ],
                 [
                     'alt_txt' => ucfirst($type) . ' Weight Photo',
                     'image_path' => $path,
                     'plant_id' => $inward->plant_id ?? session('active_plant_id'),
-                    'created_by' => auth()->id(),
-                    'updated_by' => auth()->id(),
+                    'created_by' => auth()->id() ?? $inward->created_by ?? 1,
+                    'updated_by' => auth()->id() ?? $inward->updated_by ?? 1,
                 ]
             );
+
+            Log::info("Inward image saved successfully in mm_images table", [
+                'image_id' => $image->id,
+                'inward_id' => $inward->id,
+                'type' => $type,
+                'path' => $path,
+                'bytes' => strlen($data)
+            ]);
         } catch (\Exception $e) {
-            Log::error("Failed to store inward image: " . $e->getMessage());
+            Log::error("Failed to store inward image in mm_images: " . $e->getMessage(), [
+                'inward_id' => $inward->id,
+                'type' => $type,
+                'exception' => $e
+            ]);
         }
     }
 
@@ -358,6 +442,105 @@ class PurchaseOrderInwardController extends Controller
         }
     }
 
-   
+    public function receipt(PurchaseOrderHistory $inward, Request $request)
+    {
+        $this->authorizeModule('view');
+        $data = $this->prepareReceiptData($inward);
 
+        return view('pdfs.inwards.receipt', $data);
+    }
+
+    public function downloadReceipt(PurchaseOrderHistory $inward)
+    {
+        $this->authorizeModule('view');
+        $data = $this->prepareReceiptData($inward);
+        $data['is_pdf'] = true;
+
+        $pdf = Pdf::loadView('pdfs.inwards.receipt', $data)->setPaper('a4', 'portrait');
+
+        $safeInwardNo = str_replace(['/', '\\'], '-', $inward->inward_no);
+        $filename = "GRN_{$safeInwardNo}.pdf";
+
+        return $pdf->download($filename);
+    }
+
+    private function prepareReceiptData(PurchaseOrderHistory $inward): array
+    {
+        $inward->loadMissing([
+            'order.vendor.contacts.addresses',
+            'order.items.product',
+            'order.items.uom',
+            'product',
+            'uom',
+            'truck',
+            'loadedWeightImage',
+            'emptyWeightImage',
+        ]);
+
+        $plantId = $inward->plant_id ?? session('active_plant_id') ?? 1;
+        $plant = Plant::with(['entity', 'addresses.state'])->find($plantId);
+        $company = $plant ? PrintDataFormatter::formatCompany($plant) : [
+            'name' => 'MODO RMC',
+            'address' => '',
+            'city' => '',
+            'state' => '',
+            'pin' => '',
+            'gstin' => '',
+            'phone' => '',
+            'email' => '',
+        ];
+
+        // Format company logo as base64 for DomPDF
+        if (!empty($company['logo_path'])) {
+            $company['logo_base64'] = $this->fileToBase64($company['logo_path']);
+        }
+
+        // Prepare camera snapshots as base64 data URIs so DomPDF renders them reliably without network
+        $grossSnapBase64 = null;
+        if ($inward->loadedWeightImage && $inward->loadedWeightImage->image_path) {
+            $grossSnapBase64 = $this->fileToBase64($inward->loadedWeightImage->image_path);
+        }
+
+        $tareSnapBase64 = null;
+        if ($inward->emptyWeightImage && $inward->emptyWeightImage->image_path) {
+            $tareSnapBase64 = $this->fileToBase64($inward->emptyWeightImage->image_path);
+        }
+
+        return compact('inward', 'company', 'grossSnapBase64', 'tareSnapBase64');
+    }
+
+    private function fileToBase64(?string $path): ?string
+    {
+        if (!$path) return null;
+        if (str_starts_with($path, 'data:image')) return $path;
+
+        $cleanPath = ltrim($path, '/');
+        if (str_starts_with($cleanPath, 'storage/')) {
+            $cleanPath = substr($cleanPath, 8);
+        }
+
+        $candidates = [
+            storage_path('app/public/' . $cleanPath),
+            public_path('storage/' . $cleanPath),
+            public_path($cleanPath),
+        ];
+
+        foreach ($candidates as $file) {
+            if (file_exists($file) && is_file($file)) {
+                $content = @file_get_contents($file);
+                if ($content && strlen($content) > 30) {
+                    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+                    $mime = match($ext) {
+                        'png' => 'image/png',
+                        'gif' => 'image/gif',
+                        'webp' => 'image/webp',
+                        default => 'image/jpeg',
+                    };
+                    return "data:{$mime};base64," . base64_encode($content);
+                }
+            }
+        }
+
+        return null;
+    }
 }

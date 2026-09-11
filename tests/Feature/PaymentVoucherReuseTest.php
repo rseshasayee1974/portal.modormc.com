@@ -67,6 +67,26 @@ class PaymentVoucherReuseTest extends TestCase
         DB::table('mm_journal_entries')->insert($this->voucher(['ref_id' => 2]));
     }
 
+    public function test_legacy_migration_followed_by_replacement_keeps_active_uniqueness(): void
+    {
+        (require database_path('migrations/2026_09_10_174648_drop_uk_voucher_from_journal_entries_table.php'))->up();
+        $this->assertTrue(Schema::hasIndex('mm_journal_entries', 'uk_voucher'));
+        $this->migrateVoucherIndex();
+        $this->assertFalse(Schema::hasIndex('mm_journal_entries', 'uk_voucher'));
+        DB::table('mm_journal_entries')->insert($this->voucher());
+        $this->expectException(QueryException::class);
+        DB::table('mm_journal_entries')->insert($this->voucher(['ref_id' => 2]));
+    }
+
+    public function test_replacement_handles_previously_removed_legacy_index(): void
+    {
+        Schema::table('mm_journal_entries', fn (Blueprint $table) => $table->dropUnique('uk_voucher'));
+        $this->migrateVoucherIndex();
+        DB::table('mm_journal_entries')->insert($this->voucher());
+        $this->expectException(QueryException::class);
+        DB::table('mm_journal_entries')->insert($this->voucher(['ref_id' => 2]));
+    }
+
     public function test_other_plants_and_voucher_types_can_use_same_number(): void
     {
         $this->migrateVoucherIndex();

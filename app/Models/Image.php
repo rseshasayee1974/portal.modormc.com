@@ -28,7 +28,15 @@ class Image extends Model
 
     public function getUrlAttribute()
     {
-        return $this->image_path ? \Illuminate\Support\Facades\Storage::url($this->image_path) : null;
+        if (!$this->image_path) {
+            return null;
+        }
+
+        if (str_starts_with($this->image_path, 'http://') || str_starts_with($this->image_path, 'https://') || str_starts_with($this->image_path, 'data:image')) {
+            return $this->image_path;
+        }
+
+        return '/storage/' . ltrim($this->image_path, '/');
     }
 
     /**

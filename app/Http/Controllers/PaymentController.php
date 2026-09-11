@@ -84,7 +84,7 @@ class PaymentController extends Controller
         $validated['plant_id'] = $plantId;
         $validated['created_by'] = auth()->id();
 
-        if (empty($validated['reference'])) {
+        if (empty($validated['reference']) || Payment::where('plant_id', $plantId)->where('reference', $validated['reference'])->exists()) {
             $validated['reference'] = Payment::generateReferenceNumber(
                 $plantId ?? 1,
                 $validated['ledger_id'],
@@ -505,6 +505,7 @@ class PaymentController extends Controller
                                     'deleted_at' => now(),
                                 ]);
                             }
+                            
                             // Use SoftDeletes; deleted_at is not mass assignable.
                             $entry->delete();
                         });

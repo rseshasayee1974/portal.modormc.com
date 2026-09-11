@@ -93,6 +93,9 @@ export function useCameraSnapshot() {
     const convertBlobToBase64 = (blob: Blob): Promise<string> => {
         return new Promise((resolve, reject) => {
             if (blob.size < 100) return reject('Image data too small');
+            const safeBlob = (blob.type && blob.type.startsWith('image/'))
+                ? blob
+                : new Blob([blob], { type: 'image/jpeg' });
             const reader = new FileReader();
             reader.onloadend = () => {
                 const base64 = reader.result as string;
@@ -100,7 +103,7 @@ export function useCameraSnapshot() {
                 else reject('Invalid base64 length');
             };
             reader.onerror = () => reject('FileReader failed');
-            reader.readAsDataURL(blob);
+            reader.readAsDataURL(safeBlob);
         });
     };
 

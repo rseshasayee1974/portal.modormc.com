@@ -284,9 +284,11 @@ Route::middleware([
         Route::delete('purchaseorder/{purchase_order}/delete-bill', [PurchaseOrderController::class, 'deleteBill'])->name('purchaseorder.delete-bill');
           Route::resource('stock-exhausts', \App\Http\Controllers\StockExhaustController::class);
         Route::get('stocks', [\App\Http\Controllers\StockController::class, 'index'])->name('stocks.index');
-        Route::resource('inwards', PurchaseOrderInwardController::class)->except(['create']);
         Route::get('inwards/create/{purchase_order?}', [PurchaseOrderInwardController::class, 'create'])->name('inwards.create');
+        Route::resource('inwards', PurchaseOrderInwardController::class)->except(['create']);
         Route::post('inwards/{inward}/update-weight', [PurchaseOrderInwardController::class, 'updateWeight'])->name('inwards.update-weight');
+        Route::get('inwards/{inward}/receipt', [PurchaseOrderInwardController::class, 'receipt'])->name('inwards.receipt');
+        Route::get('inwards/{inward}/download-receipt', [PurchaseOrderInwardController::class, 'downloadReceipt'])->name('inwards.download-receipt');
        
         Route::resource('products', \App\Http\Controllers\ProductController::class);
         Route::post('products/batch', [\App\Http\Controllers\ProductController::class, 'batchStore'])->name('products.batchstore');
@@ -489,5 +491,20 @@ Route::get('share/batch/{token}/pdf', [\App\Http\Controllers\InvoiceShareControl
 // Public Gate Pass Verification (Guest)
 Route::get('/public/gatepass/verify/{batch}/{hash}', [\App\Http\Controllers\BatchController::class, 'publicVerifyGatePass'])->name('public.gatepass.verify');
 Route::post('/public/gatepass/verify/{batch}/{hash}', [\App\Http\Controllers\BatchController::class, 'publicConfirmGatePass'])->name('public.gatepass.confirm');
+
+// Direct Storage Route for serving uploaded files reliably (WAMP/Windows junctions & symlinks)
+Route::get('storage/{path}', function (string $path) {
+    $storagePath = storage_path('app/public/' . $path);
+    if (file_exists($storagePath) && is_file($storagePath)) {
+        return response()->file($storagePath);
+    }
+
+    $pubPath = public_path('storage/' . $path);
+    if (file_exists($pubPath) && is_file($pubPath)) {
+        return response()->file($pubPath);
+    }
+
+    abort(404);
+})->where('path', '.*')->name('storage.file');
 
 require __DIR__.'/auth.php';

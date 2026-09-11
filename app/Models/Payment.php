@@ -49,9 +49,10 @@ class Payment extends Model
         parent::boot();
 
         static::creating(function ($payment) {
-            if (empty($payment->reference)) {
+            $plantId = $payment->plant_id ?? session('active_plant_id', 1);
+            if (empty($payment->reference) || self::where('plant_id', $plantId)->where('reference', $payment->reference)->exists()) {
                 $payment->reference = self::generateReferenceNumber(
-                    $payment->plant_id ?? session('active_plant_id', 1),
+                    $plantId,
                     $payment->ledger_id,
                     $payment->transaction_type,
                     $payment->transaction_date
@@ -81,6 +82,7 @@ class Payment extends Model
     {
         $isReceipt = strtolower((string)$transactionType) === 'receipt';
         $typeShort = $isReceipt ? 'REC' : 'PAY';
+        $voucherType = $isReceipt ? 'RECEIPT' : 'PAYMENT';
         $finYearString = self::getFinancialYearString($transactionDate);
         $ledger = Ledger::find($ledgerId);
         
@@ -114,19 +116,44 @@ class Payment extends Model
             }
         } else {
             // Default fallback when ledger description is empty:
-            // Separate Payment (PAY/2627/...) and Receipt (REC/2627/...)
+            // Separate Payment (PAY/26-27/...) and Receipt (REC/26-27/...)
             $prefix = "{$typeShort}/{$finYearString}/";
         }
 
-        $lastPayment = self::where('plant_id', $plantId)
-            ->where('transaction_type', $transactionType)
+        // Gather all active references from payments
+        $paymentRefs = self::where('plant_id', $plantId)
             ->where('reference', 'like', $prefix . '%')
-            ->orderBy('id', 'desc')
-            ->first();
+            ->pluck('reference');
+
+        // Gather all active voucher numbers from journal entries
+        $journalVouchers = \App\Models\JournalEntry::where('plant_id', $plantId)
+            ->where('voucher_type', $voucherType)
+            ->where('voucher_number', 'like', $prefix . '%')
+            ->where('is_deleted', 0)
+            ->whereNull('deleted_at')
+            ->pluck('voucher_number');
+
+        $usedNumbers = [];
+        $pattern = '/' . preg_quote($prefix, '/') . '(\d+)/i';
+
+        foreach ($paymentRefs as $ref) {
+            if (preg_match($pattern, $ref, $matches)) {
+                $usedNumbers[(int) $matches[1]] = true;
+            }
+        }
+
+        foreach ($journalVouchers as $vNum) {
+            if (str_contains($vNum, '_DEL_')) {
+                continue;
+            }
+            if (preg_match($pattern, $vNum, $matches)) {
+                $usedNumbers[(int) $matches[1]] = true;
+            }
+        }
 
         $nextNumber = 1;
-        if ($lastPayment && preg_match('/' . preg_quote($prefix, '/') . '(\d+)/i', $lastPayment->reference, $matches)) {
-            $nextNumber = (int) $matches[1] + 1;
+        while (isset($usedNumbers[$nextNumber])) {
+            $nextNumber++;
         }
 
         return $prefix . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
@@ -189,23 +216,105 @@ class Payment extends Model
             
             $voucherType = $this->transaction_type === 'receipt' ? 'RECEIPT' : 'PAYMENT';
             $voucherNo = $this->reference ?? strtoupper(substr($this->transaction_type, 0, 3)) . '-' . $this->id;
-            
-            $journalEntry = \App\Models\JournalEntry::updateOrCreate(
-                ['ref_module' => 'payment', 'ref_id' => $this->id, 'plant_id' => $plantId],
-                [
-                    'entity_id'      => $entityId,
-                    'voucher_type'   => $voucherType,
-                    'voucher_number' => $voucherNo,
-                    'voucher_date'   => $this->transaction_date,
-                    'posting_date'   => $this->transaction_date,
-                    'narration'       => ucfirst($this->transaction_type) . " " . $voucherNo . ($this->patron ? " | " . $this->patron->legal_name : ""),
-                    'narration_label' => $this->transaction_type === 'receipt' ? 'Receipt' : 'Payment',
-                    'total_debit'     => $totalAmount,
-                    'total_credit'    => $totalAmount,
-                    'is_status'       => 'POSTED',
-                    'created_by'      => \Illuminate\Support\Facades\Auth::id() ?? 1,
-                ]
-            );
+
+            // Resolve any conflicting voucher in mm_journal_entries to avoid 1062 duplicate key error on uk_voucher
+            $conflictingEntry = \App\Models\JournalEntry::withTrashed()
+                ->where('plant_id', $plantId)
+                ->where('voucher_type', $voucherType)
+                ->where('voucher_number', $voucherNo)
+                ->first();
+
+            if ($conflictingEntry) {
+                $isOwnEntry = ($conflictingEntry->ref_module === 'payment' && (int)$conflictingEntry->ref_id === (int)$this->id);
+
+                if (!$isOwnEntry) {
+                    $isSoftDeleted = $conflictingEntry->trashed() || (bool)$conflictingEntry->is_deleted;
+                    if (!$isSoftDeleted && $conflictingEntry->ref_module === 'payment') {
+                        $linkedPayment = self::withTrashed()->find($conflictingEntry->ref_id);
+                        if (!$linkedPayment || $linkedPayment->trashed()) {
+                            $isSoftDeleted = true;
+                        }
+                    }
+
+                    if ($isSoftDeleted) {
+                        // Free up the voucher number by renaming the soft-deleted entry
+                        $renamed = substr($conflictingEntry->voucher_number, 0, 35) . '_DEL_' . $conflictingEntry->id;
+                        \Illuminate\Support\Facades\DB::table('mm_journal_entries')
+                            ->where('id', $conflictingEntry->id)
+                            ->update([
+                                'voucher_number' => $renamed,
+                                'is_deleted'     => 1,
+                                'deleted_at'     => $conflictingEntry->deleted_at ?? now(),
+                            ]);
+                    } else {
+                        // Number is genuinely taken by another active transaction; generate next sequence number
+                        $voucherNo = self::generateReferenceNumber(
+                            $plantId,
+                            $this->ledger_id,
+                            $this->transaction_type,
+                            $this->transaction_date
+                        );
+                        $this->reference = $voucherNo;
+                        $this->saveQuietly();
+
+                        PaymentTransaction::where('payment_id', $this->id)
+                            ->update(['reference' => $voucherNo]);
+                    }
+                }
+            }
+
+            try {
+                $journalEntry = \App\Models\JournalEntry::updateOrCreate(
+                    ['ref_module' => 'payment', 'ref_id' => $this->id, 'plant_id' => $plantId],
+                    [
+                        'entity_id'      => $entityId,
+                        'voucher_type'   => $voucherType,
+                        'voucher_number' => $voucherNo,
+                        'voucher_date'   => $this->transaction_date,
+                        'posting_date'   => $this->transaction_date,
+                        'narration'       => ucfirst($this->transaction_type) . " " . $voucherNo . ($this->patron ? " | " . $this->patron->legal_name : ""),
+                        'narration_label' => $this->transaction_type === 'receipt' ? 'Receipt' : 'Payment',
+                        'total_debit'     => $totalAmount,
+                        'total_credit'    => $totalAmount,
+                        'is_status'       => 'POSTED',
+                        'created_by'      => \Illuminate\Support\Facades\Auth::id() ?? 1,
+                    ]
+                );
+            } catch (\Illuminate\Database\QueryException $qe) {
+                if ($qe->errorInfo[1] == 1062 || str_contains($qe->getMessage(), '1062 Duplicate entry')) {
+                    // In case of a race condition, advance reference number and retry
+                    $voucherNo = self::generateReferenceNumber(
+                        $plantId,
+                        $this->ledger_id,
+                        $this->transaction_type,
+                        $this->transaction_date
+                    );
+                    $this->reference = $voucherNo;
+                    $this->saveQuietly();
+
+                    PaymentTransaction::where('payment_id', $this->id)
+                        ->update(['reference' => $voucherNo]);
+
+                    $journalEntry = \App\Models\JournalEntry::updateOrCreate(
+                        ['ref_module' => 'payment', 'ref_id' => $this->id, 'plant_id' => $plantId],
+                        [
+                            'entity_id'      => $entityId,
+                            'voucher_type'   => $voucherType,
+                            'voucher_number' => $voucherNo,
+                            'voucher_date'   => $this->transaction_date,
+                            'posting_date'   => $this->transaction_date,
+                            'narration'       => ucfirst($this->transaction_type) . " " . $voucherNo . ($this->patron ? " | " . $this->patron->legal_name : ""),
+                            'narration_label' => $this->transaction_type === 'receipt' ? 'Receipt' : 'Payment',
+                            'total_debit'     => $totalAmount,
+                            'total_credit'    => $totalAmount,
+                            'is_status'       => 'POSTED',
+                            'created_by'      => \Illuminate\Support\Facades\Auth::id() ?? 1,
+                        ]
+                    );
+                } else {
+                    throw $qe;
+                }
+            }
 
             // Clear existing lines to rebuild
             $journalEntry->lines()->delete();

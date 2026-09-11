@@ -9,6 +9,29 @@ use Symfony\Component\HttpFoundation\Response;
 
 class TitleCaseInputsTest extends TestCase
 {
+    public function test_it_preserves_camera_payloads_for_create_and_update(): void
+    {
+        $payload = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2w==';
+        $rawPayload = '/9j/4AAQSkZJRgABAQAAAQABAAD/2w==';
+        $request = Request::create('/test', 'POST', [
+            'loaded_weight_photo' => $payload,
+            'empty_weight_photo' => $rawPayload,
+            'items' => [['loaded_weight_photo' => $payload, 'empty_weight_photo' => $rawPayload]],
+            'preview' => $payload,
+            'name' => 'm sand',
+        ]);
+
+        (new TitleCaseInputs)->handle($request, function ($request) use ($payload, $rawPayload) {
+            $this->assertSame($payload, $request->input('loaded_weight_photo'));
+            $this->assertSame($rawPayload, $request->input('empty_weight_photo'));
+            $this->assertSame($payload, $request->input('items.0.loaded_weight_photo'));
+            $this->assertSame($rawPayload, $request->input('items.0.empty_weight_photo'));
+            $this->assertSame($payload, $request->input('preview'));
+            $this->assertSame('M Sand', $request->input('name'));
+            return new Response;
+        });
+    }
+
     public function test_it_title_cases_simple_inputs(): void
     {
         $middleware = new TitleCaseInputs();

@@ -223,7 +223,7 @@ const getSelectedLabelText = (val: any) => {
                 :filterFields="effectiveFilterFields"
                 :autoFilterFocus="autoFilterFocus"
                 :checkmark="true"
-                :showClear="showClear"
+                :showClear="false"
                 :size="size"
                 :fluid="fluid"
                 :panelClass="effectiveOverlayClass"

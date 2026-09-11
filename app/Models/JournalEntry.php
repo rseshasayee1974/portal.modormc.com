@@ -53,6 +53,29 @@ class JournalEntry extends Model
     {
         parent::boot();
 
+        static::creating(function ($entry) {
+            if ($entry->plant_id && $entry->voucher_type && $entry->voucher_number) {
+                // If a soft-deleted journal entry holds this exact voucher number,
+                // release it so MySQL uk_voucher does not throw duplicate key error 1062.
+                $conflicting = static::withTrashed()
+                    ->where('plant_id', $entry->plant_id)
+                    ->where('voucher_type', $entry->voucher_type)
+                    ->where('voucher_number', $entry->voucher_number)
+                    ->where(function ($q) {
+                        $q->whereNotNull('deleted_at')
+                          ->orWhere('is_deleted', 1);
+                    })
+                    ->first();
+
+                if ($conflicting) {
+                    $renamed = substr($conflicting->voucher_number, 0, 35) . '_DEL_' . $conflicting->id;
+                    \Illuminate\Support\Facades\DB::table('mm_journal_entries')
+                        ->where('id', $conflicting->id)
+                        ->update(['voucher_number' => $renamed]);
+                }
+            }
+        });
+
         static::deleting(function ($entry) {
             // Mass update lines to ensure is_deleted, deleted_by, and deleted_at are set
             $entry->lines()->update([
@@ -61,11 +84,32 @@ class JournalEntry extends Model
                 'deleted_at' => now(),
             ]);
 
+            $voucherNo = $entry->voucher_number;
+            if ($voucherNo && !str_contains($voucherNo, '_DEL_')) {
+                $voucherNo = substr($voucherNo, 0, 35) . '_DEL_' . $entry->id;
+            }
+
             $entry->updateQuietly([
-                'is_deleted' => 1,
-                'deleted_by' => auth()->id(),
-                'deleted_at' => now(),
+                'voucher_number' => $voucherNo,
+                'is_deleted'     => 1,
+                'deleted_by'     => auth()->id(),
+                'deleted_at'     => now(),
             ]);
+        });
+
+        static::restoring(function ($entry) {
+            if ($entry->voucher_number && str_contains($entry->voucher_number, '_DEL_')) {
+                $originalVoucher = preg_replace('/_DEL_\d+$/', '', $entry->voucher_number);
+                $exists = static::where('plant_id', $entry->plant_id)
+                    ->where('voucher_type', $entry->voucher_type)
+                    ->where('voucher_number', $originalVoucher)
+                    ->exists();
+                if (!$exists) {
+                    $entry->voucher_number = $originalVoucher;
+                }
+            }
+            $entry->is_deleted = 0;
+            $entry->deleted_by = null;
         });
     }
 
@@ -165,6 +209,9 @@ class JournalEntry extends Model
 
         $usedNumbers = [];
         foreach ($activeVouchers as $vNum) {
+            if (str_contains($vNum, '_DEL_')) {
+                continue;
+            }
             if (preg_match('/\/(\d+)$/', $vNum, $matches)) {
                 $usedNumbers[(int) $matches[1]] = true;
             }

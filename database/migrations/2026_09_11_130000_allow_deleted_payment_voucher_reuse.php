@@ -33,7 +33,10 @@ return new class extends Migration
                 ->virtualAs("CASE WHEN ref_module = 'payment' AND deleted_at IS NOT NULL THEN NULL ELSE voucher_number END");
             $table->unique(['plant_id', 'voucher_type', 'active_payment_voucher_number'], 'uk_active_voucher');
         });
-        Schema::table('mm_journal_entries', fn (Blueprint $table) => $table->dropUnique('uk_voucher'));
+        // Older installations may already have run the superseded index removal.
+        if (Schema::hasIndex('mm_journal_entries', 'uk_voucher')) {
+            Schema::table('mm_journal_entries', fn (Blueprint $table) => $table->dropUnique('uk_voucher'));
+        }
     }
 
     public function down(): void

@@ -109,6 +109,8 @@ class TitleCaseInputs
         'logo',
         'logo_file',
         'photo',
+        'loaded_weight_photo',
+        'empty_weight_photo',
         'signature',
         'attachment',
         'document',
@@ -263,6 +265,11 @@ class TitleCaseInputs
      */
     protected function toTitleCase(string $value): string
     {
+        // Data URLs contain case-sensitive encoded bytes, not display text.
+        if (preg_match('/^\s*data:/i', $value)) {
+            return $value;
+        }
+
         // Normalize multiple spaces to single
         $value = preg_replace('/\s+/', ' ', trim($value));
 
