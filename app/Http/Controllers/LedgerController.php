@@ -104,14 +104,18 @@ class LedgerController extends Controller
     /**
      * Soft-delete the specified ledger.
      */
-    public function destroy(Ledger $ledger)
+    public function destroy(Request $request, Ledger $ledger)
     {
         $this->authorizeModule('delete');
         $ledger->delete();
 
-        return response()->json([
-            'message' => 'Ledger Deleted Successfully!',
-        ]);
+        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+            return response()->json([
+                'message' => 'Ledger Deleted Successfully!',
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Ledger Deleted Successfully!');
     }
 
     public function dropdown(Request $request)

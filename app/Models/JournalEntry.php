@@ -38,6 +38,7 @@ class JournalEntry extends Model
         'updated_by',
         'deleted_by',
         'is_deleted',
+        'deleted_at',
     ];
 
     protected $casts = [
@@ -53,19 +54,18 @@ class JournalEntry extends Model
         parent::boot();
 
         static::deleting(function ($entry) {
-            if (!$entry->isForceDeleting()) {
-                // Mass update lines to ensure is_deleted, deleted_by, and deleted_at are set
-                $entry->lines()->update([
-                    'is_deleted' => 1,
-                    'deleted_by' => auth()->id(),
-                    'deleted_at' => now(),
-                ]);
+            // Mass update lines to ensure is_deleted, deleted_by, and deleted_at are set
+            $entry->lines()->update([
+                'is_deleted' => 1,
+                'deleted_by' => auth()->id(),
+                'deleted_at' => now(),
+            ]);
 
-                $entry->updateQuietly([
-                    'is_deleted' => 1,
-                    'deleted_by' => auth()->id()
-                ]);
-            }
+            $entry->updateQuietly([
+                'is_deleted' => 1,
+                'deleted_by' => auth()->id(),
+                'deleted_at' => now(),
+            ]);
         });
     }
 
@@ -121,9 +121,8 @@ class JournalEntry extends Model
     }
 
     /**
-     * Generate the next unique voucher number formatted as: {prefix}/{financial_year}/{sequence} (e.g. J/26-27/00001)
-     * Validates that the generated voucher number does not duplicate any existing active voucher (where deleted_at IS NULL).
-     * Reuses numbers only if previous entries were deleted (where deleted_at is not null).
+     * Generate the next unique voucher number formatted as: {prefix}/{financial_year}/{sequence} (e.g. CON/26-27/00001)
+     * Reassigns any soft-deleted voucher numbers by picking the lowest available sequence number.
      */
     public static function generateVoucherNumber($plantId, ?string $voucherType = 'Journal', $voucherId = null, $voucherDate = null): string
     {
@@ -157,45 +156,37 @@ class JournalEntry extends Model
 
         $pattern = "{$prefix}/{$financialYear}/%";
 
-        // Find the latest active entry within the plant & financial year (where deleted_at IS NULL)
-        $lastEntry = self::where('plant_id', $plantId)
+        // Fetch all active voucher numbers for this plant, prefix, and financial year (excluding soft-deleted)
+        $activeVouchers = self::where('plant_id', $plantId)
+            ->where('is_deleted', 0)
             ->whereNull('deleted_at')
             ->where('voucher_number', 'like', $pattern)
-            ->orderBy('id', 'desc')
-            ->first();
+            ->pluck('voucher_number');
 
-        $nextNum = 1;
-        if ($lastEntry) {
-            if (preg_match('/\/(\d+)$/', $lastEntry->voucher_number, $matches)) {
-                $nextNum = (int) $matches[1] + 1;
-            } else {
-                $nextNum = (int) filter_var($lastEntry->voucher_number, FILTER_SANITIZE_NUMBER_INT) + 1;
+        $usedNumbers = [];
+        foreach ($activeVouchers as $vNum) {
+            if (preg_match('/\/(\d+)$/', $vNum, $matches)) {
+                $usedNumbers[(int) $matches[1]] = true;
             }
         }
 
-        // Duplicate validation loop: Ensure the number does NOT exist where deleted_at IS NULL
-        do {
-            $voucherNumber = "{$prefix}/{$financialYear}/" . str_pad($nextNum, 5, '0', STR_PAD_LEFT);
-            $duplicate = self::where('plant_id', $plantId)
-                ->where('voucher_number', $voucherNumber)
-                ->whereNull('deleted_at')
-                ->exists();
+        // Find the lowest available sequence number starting from 1 (reuses soft-deleted gaps)
+        $nextNum = 1;
+        while (isset($usedNumbers[$nextNum])) {
+            $nextNum++;
+        }
 
-            if ($duplicate) {
-                $nextNum++;
-            }
-        } while ($duplicate);
-
-        return $voucherNumber;
+        return "{$prefix}/{$financialYear}/" . str_pad($nextNum, 5, '0', STR_PAD_LEFT);
     }
 
     /**
-     * Check if a voucher number is already taken by an active entry (where deleted_at IS NULL).
+     * Check if a voucher number is already taken by an active entry (where deleted_at IS NULL and is_deleted = 0).
      */
     public static function isDuplicateVoucherNumber($plantId, string $voucherNumber, $ignoreId = null): bool
     {
         $query = self::where('plant_id', $plantId)
             ->where('voucher_number', $voucherNumber)
+            ->where('is_deleted', 0)
             ->whereNull('deleted_at');
 
         if ($ignoreId) {

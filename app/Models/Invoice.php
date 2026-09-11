@@ -189,7 +189,7 @@ class Invoice extends Model implements Postable
                     // Rename voucher number to avoid unique constraint violations on regeneration
                     // and mark as deleted for audit purposes.
                     $entry->updateQuietly([
-                        'voucher_number' => $entry->voucher_number . '/VOID/' . $entry->id,
+                        'voucher_number' => $entry->voucher_number,
                         'is_deleted'     => 1,
                         'deleted_by'     => auth()->id(),
                         'deleted_at'     => now(),
@@ -201,7 +201,7 @@ class Invoice extends Model implements Postable
                         'deleted_by' => auth()->id(),
                         'deleted_at' => now(),
                     ]);
-                                        $entry->delete();
+                    $entry->delete();
                 });
 
             // Cascading soft deletes for invoice components

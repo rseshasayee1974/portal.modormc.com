@@ -24,7 +24,11 @@ class PatronReportService implements ReportServiceInterface
             ->where(fn($q) => $q->where('is_deleted', 0)->orWhereNull('is_deleted'))
             ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted')));
 
-        if ($patronId) $query->where('partner_id', $patronId)->where('partner_type', 'Patron');
+        if ($patronId) {
+            $query->where('partner_id', $patronId)->where('partner_type', 'Patron');
+        } else {
+            $query->whereNotNull('partner_id')->where('partner_type', 'Patron');
+        }
 
         $openingBalance = (clone $query)
             ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))->where('voucher_date', '<', $start))
@@ -41,21 +45,46 @@ class PatronReportService implements ReportServiceInterface
             ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))->whereBetween('voucher_date', [$start, $end]))
             ->get()
             ->sortBy(fn($line) => $line->entry->voucher_date . $line->entry->id)
-            ->map(function ($line) {
-                $isDebit      = $line->debit_amount > 0;
+            ->map(function ($line) use ($patronId) {
+                $isDebit       = $line->debit_amount > 0;
+                $vType         = strtoupper($line->entry->voucher_type ?? '');
+                $refModule     = strtolower($line->entry->ref_module ?? '');
                 $oppositeLines = $line->entry->lines->filter(fn($l) => $l->id != $line->id && empty($l->deleted_at) && empty($l->is_deleted));
-                $particulars  = $oppositeLines->count() == 1
-                    ? ($isDebit ? 'To ' : 'By ') . ($oppositeLines->first()->ledger?->title ?? 'General Account')
-                    : ($isDebit ? 'To ' : 'By ') . 'As per details';
+                
+                $oppositeParty = $oppositeLines->first(fn($ol) => !empty($ol->partner?->legal_name))?->partner?->legal_name;
 
-                $patronNamePrefix = (!$line->partner_id) ? '[' . ($line->partner?->legal_name ?? 'N/A') . '] ' : '';
+                // Identify core operating / real account (Sales, Purchase, Bank, Cash, etc.)
+                $coreLedgerLine = $oppositeLines->first(function ($ol) {
+                    $t = strtolower($ol->ledger?->title ?? '');
+                    return str_contains($t, 'sales') || str_contains($t, 'purchase') || str_contains($t, 'revenue') || str_contains($t, 'bank') || str_contains($t, 'cash');
+                });
+
+                $primaryOppositeLine = $coreLedgerLine ?: $oppositeLines->sortByDesc(fn($l) => (float)$l->debit_amount + (float)$l->credit_amount)->first();
+                $realAccount = $primaryOppositeLine?->ledger?->title ?: 'General Account';
+
+                $accountTitle = $oppositeParty ?: $realAccount;
+                $particulars  = ($isDebit ? 'To ' : 'By ') . $accountTitle;
+
+                $patronNamePrefix = (!$patronId && !empty($line->partner?->legal_name)) ? '[' . $line->partner->legal_name . '] ' : '';
+                
+                // Suppress redundant repetitive narrations like "Invoice #Inv/2627/21" while preserving custom remarks
+                $rawNarration = trim($line->line_narration ?: $line->entry->narration ?: '');
+                $extraNarration = '';
+                if ($rawNarration && !preg_match('/^(invoice|payment|receipt|bill)\s*#?[\w\/\-]+$/i', $rawNarration)) {
+                    $extraNarration = " ({$rawNarration})";
+                }
 
                 return [
-                    'date'         => $line->entry->voucher_date->toDateString(),
+                    'id'           => $line->id,
+                    'date'         => $line->entry->voucher_date ? $line->entry->voucher_date->toDateString() : '',
                     'due_date'     => $line->entry->due_date?->toDateString(),
                     'voucher_type' => $line->entry->voucher_type,
                     'voucher_no'   => $line->entry->voucher_number,
-                    'narration'    => $patronNamePrefix . $particulars . ' (' . ($line->line_narration ?: $line->entry->narration) . ')',
+                    'ref_module'   => $line->entry->ref_module,
+                    'ref_id'       => $line->entry->ref_id,
+                    'account_name' => $realAccount,
+                    'particulars'  => $particulars,
+                    'narration'    => $patronNamePrefix . $particulars . $extraNarration,
                     'amount'       => $isDebit ? (float)$line->debit_amount : (float)$line->credit_amount,
                     'type'         => $isDebit ? 'Dr' : 'Cr',
                     'debit'        => (float)$line->debit_amount,

@@ -239,19 +239,7 @@ const getSelectedLabelText = (val: any) => {
                 <template #option="slotProps">
                     <slot v-if="$slots.option" name="option" v-bind="slotProps" />
                     <template v-else>
-                        <div
-                            v-if="isSpecialOption(slotProps.option)"
-                            class="special-dropdown-option flex items-center justify-between w-full px-2.5 py-1.5 -mx-2 -my-1 rounded-lg bg-indigo-900 dark:bg-indigo-950 text-white font-semibold text-xs shadow-xs border border-indigo-700/50"
-                        >
-                            <span class="flex items-center gap-1.5">
-                                <span class="text-indigo-300 font-bold">⚡</span>
-                                <span class="text-white">{{ getOptionLabelText(slotProps.option) }}</span>
-                            </span>
-                            <span class="text-[10px] bg-indigo-700/80 text-indigo-100 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                                {{ getSpecialOptionTag(slotProps.option) }}
-                            </span>
-                        </div>
-                        <div v-else class="flex items-center justify-between w-full text-xs text-slate-700 dark:text-slate-200">
+                        <div class="flex items-center justify-between w-full text-xs text-slate-700 dark:text-slate-200">
                             <span>{{ getOptionLabelText(slotProps.option) }}</span>
                         </div>
                     </template>
@@ -261,9 +249,6 @@ const getSelectedLabelText = (val: any) => {
                     <template v-else>
                         <span v-if="slotProps.value !== null && slotProps.value !== undefined && slotProps.value !== ''" class="text-xs text-slate-800 dark:text-slate-100 font-semibold">
                             {{ getSelectedLabelText(slotProps.value) }}
-                        </span>
-                        <span v-else-if="selectedSpecialOption" class="text-xs text-slate-700 dark:text-slate-300 font-medium">
-                            {{ getOptionLabelText(selectedSpecialOption) }}
                         </span>
                         <span v-else class="text-xs text-slate-400">
                             {{ slotProps.placeholder || placeholder }}
@@ -292,15 +277,6 @@ const getSelectedLabelText = (val: any) => {
 :deep([data-pc-section="clearicon"]:hover),
 :deep(.p-select-clear-icon:hover) {
     opacity: 1 !important;
-}
-
-/* Dark indigo special option styling */
-:deep(.p-select-option:has(.bg-indigo-900)) {
-    background-color: #312e81 !important;
-    color: #ffffff !important;
-}
-:deep(.p-select-option:has(.bg-indigo-900):hover) {
-    background-color: #3730a3 !important;
 }
 
 /* Disabled state styling */

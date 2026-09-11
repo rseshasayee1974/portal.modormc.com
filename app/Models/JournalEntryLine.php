@@ -42,12 +42,11 @@ class JournalEntryLine extends Model
         parent::boot();
 
         static::deleting(function ($line) {
-            if (!$line->isForceDeleting()) {
-                $line->updateQuietly([
-                    'is_deleted' => 1,
-                    'deleted_by' => auth()->id()
-                ]);
-            }
+            $line->updateQuietly([
+                'is_deleted' => 1,
+                'deleted_by' => auth()->id(),
+                'deleted_at' => now(),
+            ]);
         });
     }
 
