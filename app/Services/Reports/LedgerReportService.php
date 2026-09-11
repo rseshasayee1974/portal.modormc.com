@@ -90,24 +90,47 @@ class LedgerReportService implements ReportServiceInterface
             ->sortBy(fn($line) => ($line->entry->voucher_date ? $line->entry->voucher_date->format('Y-m-d') : '') . '_' . str_pad($line->entry->id, 8, '0', STR_PAD_LEFT))
             ->map(function ($line) use ($ledgerId) {
                 $isDebit       = $line->debit_amount > 0;
+                $vType         = strtoupper($line->entry->voucher_type ?? '');
+                $refModule     = strtolower($line->entry->ref_module ?? '');
                 $oppositeLines = $line->entry->lines->filter(fn($l) => $l->id != $line->id && empty($l->deleted_at) && empty($l->is_deleted));
                 
                 $oppositeParty = $oppositeLines->first(fn($ol) => !empty($ol->partner?->legal_name))?->partner?->legal_name;
-                $oppositeLedger = $oppositeLines->first()?->ledger?->title;
-                $oppTitle = $oppositeParty ?: ($oppositeLedger ?: 'General Account');
+                
+                $coreOppLedger = $oppositeLines->first(function ($ol) {
+                    $t = strtolower($ol->ledger?->title ?? '');
+                    return str_contains($t, 'sales') || str_contains($t, 'purchase') || str_contains($t, 'bank') || str_contains($t, 'cash');
+                })?->ledger?->title;
 
-                $particulars = $oppositeLines->count() == 1
-                    ? ($isDebit ? 'To ' : 'By ') . $oppTitle
-                    : ($isDebit ? 'To ' : 'By ') . ($oppositeParty ?: 'As per details');
+                $firstOppLedger = $oppositeLines->first()?->ledger?->title;
+                
+                if ($oppositeParty) {
+                    $oppTitle = $oppositeParty;
+                } elseif ($vType === 'SALES' || $refModule === 'invoice') {
+                    $oppTitle = $coreOppLedger ?: 'Sales Account';
+                } elseif ($vType === 'PURCHASE' || $refModule === 'purchase') {
+                    $oppTitle = $coreOppLedger ?: 'Purchase Account';
+                } else {
+                    $oppTitle = $coreOppLedger ?: ($firstOppLedger ?: 'General Account');
+                }
 
-                $ledgerNamePrefix = (!$ledgerId) ? '[' . ($line->ledger?->title ?? 'N/A') . '] ' : '';
-                $rawNarration = $line->line_narration ?: $line->entry->narration ?: '';
+                $particulars = ($isDebit ? 'To ' : 'By ') . $oppTitle;
+
+                $ledgerNamePrefix = (!$ledgerId && !empty($line->ledger?->title)) ? '[' . $line->ledger->title . '] ' : '';
+                $rawNarration = trim($line->line_narration ?: $line->entry->narration ?: '');
+                $extraNarration = '';
+                if ($rawNarration && !preg_match('/^(invoice|payment|receipt|bill)\s*#?[\w\/\-]+$/i', $rawNarration)) {
+                    $extraNarration = " ({$rawNarration})";
+                }
 
                 return [
+                    'id'           => $line->id,
                     'date'         => $line->entry->voucher_date ? $line->entry->voucher_date->toDateString() : '',
                     'voucher_type' => $line->entry->voucher_type,
                     'voucher_no'   => $line->entry->voucher_number,
-                    'narration'    => $ledgerNamePrefix . $particulars . ($rawNarration ? " ({$rawNarration})" : ''),
+                    'ref_module'   => $line->entry->ref_module,
+                    'ref_id'       => $line->entry->ref_id,
+                    'particulars'  => $particulars,
+                    'narration'    => $ledgerNamePrefix . $particulars . $extraNarration,
                     'amount'       => $isDebit ? (float)$line->debit_amount : (float)$line->credit_amount,
                     'type'         => $isDebit ? 'Dr' : 'Cr',
                     'debit'        => (float)$line->debit_amount,

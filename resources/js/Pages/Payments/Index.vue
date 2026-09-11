@@ -180,7 +180,7 @@ import { router } from '@inertiajs/vue3';
                                 </div>
                             </template>
                         </Column>
-                        <Column field="ledger.title"  header="Journal" sortable>
+                        <Column field="ledger.title"  header="Ledger" sortable>
                             <template #body="slotProps">
                                 <div>
                                     <div class="font-semibold text-slate-700 dark:text-gray-200 text-xs tracking-tighter">

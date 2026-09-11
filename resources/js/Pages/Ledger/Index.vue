@@ -57,13 +57,17 @@ const deleteLedger = (id: number) => {
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         confirmButtonText: 'Yes, delete it!'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            router.delete(route('ledgers.destroy', id), {
-                onSuccess: () => {
-                    toast.add({ severity: 'info', summary: 'Deleted', detail: 'Ledger removed' });
-                }
-            });
+            try {
+                const response = await axios.delete(route('ledgers.destroy', id));
+                store.removeLedger(id);
+                toast.removeAllGroups();
+                toast.add({ severity: 'info', summary: 'Deleted', detail: response.data?.message || 'Ledger removed', life: 2000 });
+            } catch (err: any) {
+                toast.removeAllGroups();
+                toast.add({ severity: 'error', summary: 'Error', detail: err.response?.data?.message || 'Failed to delete ledger', life: 2500 });
+            }
         }
     });
 };
