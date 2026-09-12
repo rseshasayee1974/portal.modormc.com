@@ -51,6 +51,7 @@ class PermissionSeeder extends Seeder
             'FISCAL_YEAR' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'EXPENSE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'EXPENSE_TYPE' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
+            'DISCOUNT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE'],
             'PETTY_CASH' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'PAYMENT' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
             'BILLING' => ['VIEW', 'CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'EXPORT', 'PDF'],
@@ -176,7 +177,7 @@ class PermissionSeeder extends Seeder
         $accountantRole = Role::where('code', 'ACCOUNTANT')->first();
         if ($accountantRole) {
             $accountantPermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['ACCOUNT', 'LEDGER', 'VOUCHER', 'INVOICE', 'PAYMENT', 'EXPENSE', 'PETTY_CASH', 'TAX', 'CURRENCY', 'BILLING'])
+                return Str::startsWith($p, ['ACCOUNT', 'LEDGER', 'VOUCHER', 'INVOICE', 'PAYMENT', 'EXPENSE', 'DISCOUNT', 'PETTY_CASH', 'TAX', 'CURRENCY', 'BILLING'])
                        || Str::endsWith($p, '.VIEW');
             });
             $accountantRole->syncPermissions($accountantPermissions);
@@ -255,7 +256,7 @@ class PermissionSeeder extends Seeder
         $financeManagerRole = Role::where('code', 'FINANCE_MANAGER')->first();
         if ($financeManagerRole) {
             $financePermissions = array_filter($allPermissionNames, function($p) {
-                return Str::startsWith($p, ['ACCOUNT', 'LEDGER', 'VOUCHER', 'INVOICE', 'PAYMENT', 'EXPENSE', 'PETTY_CASH', 'TAX', 'CURRENCY', 'BILLING'])
+                return Str::startsWith($p, ['ACCOUNT', 'LEDGER', 'VOUCHER', 'INVOICE', 'PAYMENT', 'EXPENSE', 'DISCOUNT', 'PETTY_CASH', 'TAX', 'CURRENCY', 'BILLING'])
                        || Str::endsWith($p, '.VIEW');
             });
             $financeManagerRole->syncPermissions($financePermissions);

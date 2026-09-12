@@ -1204,6 +1204,17 @@ class BatchController extends Controller
             }
         }
         
+        if (isset($payload['batch_size']) && (float)$payload['batch_size'] !== (float)$batch->batch_size) {
+            $hasInvoice = $batch->dispatches()
+                ->whereHas('status', fn($q) => $q->whereNotNull('invoice_id'))
+                ->exists();
+            if ($hasInvoice) {
+                throw ValidationException::withMessages([
+                    'batch_size' => ['Cannot modify batch size because an invoice has already been generated for this dispatch.']
+                ]);
+            }
+        }
+        
         $emptyPhoto = $payload['empty_weight_photo'] ?? null;
         $loadedPhoto = $payload['loaded_weight_photo'] ?? null;
         unset($payload['empty_weight_photo'], $payload['loaded_weight_photo']);
@@ -1264,21 +1275,49 @@ class BatchController extends Controller
                     session()->flash('dispatched_batch_id', $batch->id);
                 }
 
-                $dispatch = $batch->dispatches()->first();
-                if ($dispatch) {
+                $batchDispatches = $batch->dispatches()->get();
+                $newBatchSize = array_key_exists('batch_size', $payload) ? (float)$payload['batch_size'] : (float)$batch->batch_size;
+
+                foreach ($batchDispatches as $dispatch) {
+                    $loadRate = (float)($dispatch->load_rate > 0 ? $dispatch->load_rate : ($batch->rate ?? $batch->salesOrder?->rate ?? 0));
+                    $taxId = $dispatch->load_tax_id ?? $batch->tax_id ?? $batch->salesOrder?->tax_id ?? null;
+                    $isTaxInclusive = (bool)($dispatch->status?->is_tax_inclusive ?? $batch->salesOrder?->is_tax_inclusive ?? false);
+
+                    $grossTotal = $newBatchSize * $loadRate;
+                    $loadUntaxAmount = $grossTotal;
+                    $loadTaxAmount = 0.0;
+
+                    if ($taxId) {
+                        $tax = \App\Models\Tax::find($taxId);
+                        $taxRate = $tax ? (float)($tax->tax_rate ?? $tax->rate ?? 0) : 0.0;
+                        if ($isTaxInclusive && $taxRate > 0) {
+                            $loadUntaxAmount = $grossTotal / (1 + ($taxRate / 100));
+                            $loadTaxAmount = $grossTotal - $loadUntaxAmount;
+                        } else {
+                            $loadUntaxAmount = $grossTotal;
+                            $loadTaxAmount = ($loadUntaxAmount * $taxRate) / 100;
+                        }
+                    }
+                    $loadTotalAmount = $isTaxInclusive ? $grossTotal : ($loadUntaxAmount + $loadTaxAmount);
+
                     $dispatch->update([
                         'truck_id' => array_key_exists('truck_id', $payload) ? $payload['truck_id'] : $dispatch->truck_id,
                         'transport_id' => array_key_exists('transport_id', $payload) ? $payload['transport_id'] : $dispatch->transport_id,
                         'driver_id' => array_key_exists('driver_id', $payload) ? $payload['driver_id'] : $dispatch->driver_id,
                         'operator_id' => array_key_exists('operator_id', $payload) ? $payload['operator_id'] : $dispatch->operator_id,
                         'sales_executive_id' => array_key_exists('sales_executive_id', $payload) ? $payload['sales_executive_id'] : $dispatch->sales_executive_id,
-                        'concrete_pump' => array_key_exists('concrete_pump', $payload) ? $payload['concrete_pump'] : (array_key_exists('concrete_pump', $payload) ? $payload['concrete_pump'] : $dispatch->concrete_pump),
+                        'concrete_pump' => array_key_exists('concrete_pump', $payload) ? $payload['concrete_pump'] : $dispatch->concrete_pump,
                         'empty_weight_truck' => array_key_exists('empty_weight_truck', $payload) ? $payload['empty_weight_truck'] : $dispatch->empty_weight_truck,
                         'loaded_weight_truck' => array_key_exists('loaded_weight_truck', $payload) ? $payload['loaded_weight_truck'] : $dispatch->loaded_weight_truck,
                         'net_weight' => array_key_exists('net_weight', $payload) ? $payload['net_weight'] : $dispatch->net_weight,
                         'uom_id' => array_key_exists('uom_id', $payload) ? $payload['uom_id'] : $dispatch->uom_id,
                         'empty_time' => array_key_exists('empty_time', $payload) ? $payload['empty_time'] : $dispatch->empty_time,
                         'load_time' => array_key_exists('load_time', $payload) ? $payload['load_time'] : $dispatch->load_time,
+                        'delivered_qty' => $newBatchSize,
+                        'load_rate' => $loadRate,
+                        'load_untax_amount' => $loadUntaxAmount,
+                        'load_tax_amount' => $loadTaxAmount,
+                        'load_total_amount' => $loadTotalAmount,
                         'updated_by' => auth()->id(),
                     ]);
                 }

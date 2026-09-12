@@ -123,6 +123,7 @@ class TitleCaseInputs
         'approval_status',
         'dispatch_status',
         'type',
+        'value_type',
         'guard_name',
         'concrete_pump',
         'formula',

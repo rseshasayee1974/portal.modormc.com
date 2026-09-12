@@ -389,6 +389,7 @@ Route::middleware([
         
         Route::resource('expensetypes', \App\Http\Controllers\ExpenseTypeController::class)->except(['create', 'edit', 'show']);
         Route::resource('expenses', \App\Http\Controllers\ExpenseController::class)->only(['index', 'store', 'destroy']);
+        Route::resource('discounts', \App\Http\Controllers\AccountDiscountController::class)->only(['index', 'show', 'store', 'update', 'destroy']);
         
         Route::resource('pettycash', \App\Http\Controllers\PettyCashController::class)->except(['create', 'edit', 'show']);
         Route::post('pettycash/{petty_cash}/close', [\App\Http\Controllers\PettyCashController::class, 'close'])->name('pettycash.close');

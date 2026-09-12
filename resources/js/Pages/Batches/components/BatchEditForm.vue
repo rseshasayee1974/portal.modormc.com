@@ -1159,7 +1159,15 @@ console.log('test');
                                     <BaseSelect v-model="form.sales_executive_id" :options="sales_executives" optionLabel="label" optionValue="id" filter label="Sales Executive" showClear :error="form.errors.sales_executive_id" :disabled="isLocked" />
                                 </div>
                                 <div>
-                                    <BaseInputNumber v-model="form.batch_size" label="Batch Quantity (m³)" :minFractionDigits="2" :disabled="true" :error="form.errors.batch_size" />
+                                    <BaseInputNumber 
+                                        v-model="form.batch_size" 
+                                        label="Batch Quantity (m³)" 
+                                        :minFractionDigits="2" 
+                                        :maxFractionDigits="3"
+                                        :min="0.01"
+                                        :disabled="isLocked" 
+                                        :error="form.errors.batch_size" 
+                                    />
                                 </div>
                                 <div>
                                     <BaseDatePicker label="Empty Time" v-model="form.empty_time" showTime hourFormat="24" fluid :error="form.errors.empty_time" :disabled="isLocked" />

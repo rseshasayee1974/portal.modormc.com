@@ -149,5 +149,6 @@ class MenuSeeder extends Seeder
                 $menu
             );
         }
+        $this->call(DiscountModuleSeeder::class);
     }
 }
