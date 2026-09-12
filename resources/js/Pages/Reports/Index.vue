@@ -587,7 +587,11 @@ const startQueuedExport = async (url, type = 'export') => {
         const response = await axios.get(url);
         if (response.data && response.data.queued) {
             if (response.data.export && response.data.export.status === 'completed') {
-                triggerDownload(response.data.export.url, response.data.export.filename);
+                if (type === 'pdf') {
+                    window.open(response.data.export.url, '_blank');
+                } else {
+                    triggerDownload(response.data.export.url, response.data.export.filename);
+                }
                 isExporting.value = false;
                 currentExportType.value = null;
             } else {
@@ -654,6 +658,7 @@ const exportPdf = () => {
             export: 'pdf'
         });
     }
+    // Initiate queued PDF export and handle streaming when ready
     startQueuedExport(url, 'pdf');
 };
 
