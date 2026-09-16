@@ -1297,7 +1297,7 @@ class EwayBillController extends Controller
      */
     public function getEmail(?Plant $plant = null): string
     {
-        return $this->isProduction($plant) ? ($plant?->email_address ?: $this->prodEmail) : $this->sandboxEmail;
+        return $this->isProduction($plant) ?  $this->prodEmail : $this->sandboxEmail;
     }
 
     /**
