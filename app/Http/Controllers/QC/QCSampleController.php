@@ -150,7 +150,7 @@ class QCSampleController extends Controller
                     'mixDesign.concreteGrade:id,name',
                 ])
                 ->latest(),
-            'operator:id,name',
+            'operator:id,full_name',
         ])
             ->orderBy('id', 'desc')
             ->limit(60)
@@ -222,7 +222,7 @@ class QCSampleController extends Controller
                     'mixDesign.concreteGrade:id,name',
                 ])
                 ->latest(),
-            'operator:id,name',
+            'operator:id,full_name',
         ])
             ->orderBy('id', 'desc')
             ->limit(60)

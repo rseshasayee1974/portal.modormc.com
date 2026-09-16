@@ -67,7 +67,7 @@ class QCUnitController extends Controller
 
         $unit = QcUnit::create($validated);
 
-        if ($request->wantsJson() || $request->ajax()) {
+        if (($request->wantsJson() || $request->ajax()) && !$request->header('X-Inertia')) {
             return response()->json([
                 'success' => true,
                 'unit' => $unit,
