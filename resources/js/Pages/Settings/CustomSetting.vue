@@ -58,6 +58,7 @@ const form = useForm({
         auto_carry_pump:   props.batchingSettings?.auto_carry_pump == 1,
         default_transport: props.batchingSettings?.default_transport || '',
         quote_validity:    props.batchingSettings?.quote_validity !== undefined ? props.batchingSettings.quote_validity : 15,
+        print_item_name_format: props.batchingSettings?.print_item_name_format !== undefined ? Number(props.batchingSettings.print_item_name_format) : 2,
         print_delivery_ingredients: props.batchingSettings?.print_delivery_ingredients !== undefined 
             ? (props.batchingSettings?.print_delivery_ingredients == 1 || props.batchingSettings?.print_delivery_ingredients === true || props.batchingSettings?.print_delivery_ingredients === "true") 
             : true,
@@ -647,6 +648,30 @@ const deleteModule = (id: number) => {
                                     </div>
                                 </div>
                                 <InputSwitch v-model="form.settings.print_delivery_ingredients" />
+                            </div>
+
+                            <!-- print_item_name_format -->
+                            <div class="flex flex-col gap-2 p-4 bg-teal-50 rounded-xl border border-teal-100">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-bold text-teal-700 text-sm">Item Name Format on Prints <code class="text-[9px] text-teal-400 ml-1 font-normal">[print_item_name_format]</code></h4>
+                                        <p class="text-xs text-teal-500 mt-0.5">Choose whether to display the Concrete Grade or the Mix Design name on Quotations, Sales Orders, and Invoices.</p>
+                                    </div>
+                                </div>
+                                <div class="mt-2 max-w-md">
+                                    <Dropdown
+                                        v-model="form.settings.print_item_name_format"
+                                        :options="[
+                                            { label: 'Grade (0)', value: 0 },
+                                            { label: 'Mix Design (1)', value: 1 },
+                                            { label: 'Grade + Mix Design (2)', value: 2 }
+                                        ]"
+                                        optionLabel="label"
+                                        optionValue="value"
+                                        placeholder="Select item name format"
+                                        class="w-full text-sm"
+                                    />
+                                </div>
                             </div>
 
                             <!-- quotation_price_list -->
