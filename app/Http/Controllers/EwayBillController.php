@@ -223,7 +223,7 @@ class EwayBillController extends Controller
         $transId = trim((string)($params['trans_id'] ?? ''));
         $transName = trim((string)($params['trans_name'] ?? ''));
         $transDocNo = trim((string)($params['trans_doc_no'] ?? ''));
-        $transDocDt = !empty($params['trans_doc_dt']) ? Carbon::parse($params['trans_doc_dt'])->format('d/m/Y') : '';
+        $transDocDt = !empty($params['trans_doc_dt']) ? ($this->parseEwbDateTime($params['trans_doc_dt'])?->format('d/m/Y') ?? '') : '';
         $vehType = (string)($params['veh_type'] ?? 'R'); // R = Regular
 
         // 3. Seller, Buyer & Valuation Data
@@ -352,7 +352,7 @@ class EwayBillController extends Controller
             'subSupplyType'    => '1',
             'docType'          => 'INV',
             'docNo'            => (string)($invoice->full_number ?: ($invoice->prefix . $invoice->invoice_number)),
-            'docDate'          => Carbon::parse($invoice->invoice_date ?: now())->format('d/m/Y'),
+            'docDate'          => $this->parseEwbDateTime($invoice->invoice_date ?: now())?->format('d/m/Y') ?? now()->format('d/m/Y'),
             'fromGstin'        => $sellerGstin,
             'fromTrdName'      => (string)($plant?->name),
             'fromAddr1'        => (string)($plantAddress?->line_1),
@@ -409,8 +409,10 @@ class EwayBillController extends Controller
             if ($response->successful() && (!isset($body['status_cd']) || ($body['status_cd'] !== 0 && $body['status_cd'] !== '0' && strtolower((string)$body['status_cd']) !== 'error'))) {
                 $data = $body['data'] ?? $body['Data'] ?? $body ?? [];
                 $ewbNo = $data['ewayBillNo'] ?? $data['EwbNo'] ?? $data['ewb_no'] ?? null;
-                $ewbDt = !empty($data['ewayBillDate'] ?? $data['EwbDt']) ? Carbon::parse($data['ewayBillDate'] ?? $data['EwbDt']) : Carbon::now();
-                $ewbValidTill = !empty($data['validUpto'] ?? $data['EwbValidTill']) ? Carbon::parse($data['validUpto'] ?? $data['EwbValidTill']) : null;
+                $rawEwbDate = $data['ewayBillDate'] ?? $data['EwbDt'] ?? null;
+                $rawValidTill = $data['validUpto'] ?? $data['EwbValidTill'] ?? null;
+                $ewbDt = $this->parseEwbDateTime($rawEwbDate) ?? Carbon::now();
+                $ewbValidTill = $this->parseEwbDateTime($rawValidTill);
             } else {
                 $errorMsg = $this->extractGatewayErrorMessage($body, $response->body() ?: ('HTTP ' . $response->status()));
                 Log::error('PeriOne Standalone EWB Failed: ' . $errorMsg, ['response' => $body]);
@@ -702,21 +704,15 @@ class EwayBillController extends Controller
         $ewbNoFormatted = trim(chunk_split($ewbNo, 4, ' '));
 
         $rawDate = $ewb->ewaybill_date ?: now();
-        try {
-            $ewbDate = Carbon::parse($rawDate)->format('d/m/Y h:i A');
-        } catch (\Throwable $e) {
-            $ewbDate = (string)$rawDate;
-        }
+        $ewbDateObj = $this->parseEwbDateTime($rawDate);
+        $ewbDate = $ewbDateObj ? $ewbDateObj->format('d/m/Y h:i A') : (string)$rawDate;
 
         $distance = 33;
         $validFrom = $ewbDate . ' [' . $distance . 'Kms]';
 
         $rawValidUpto = $ewb->valid_upto ?: now()->addDay();
-        try {
-            $validUntil = Carbon::parse($rawValidUpto)->format('d/m/Y');
-        } catch (\Throwable $e) {
-            $validUntil = (string)$rawValidUpto;
-        }
+        $validUntilObj = $this->parseEwbDateTime($rawValidUpto);
+        $validUntil = $validUntilObj ? $validUntilObj->format('d/m/Y') : (string)$rawValidUpto;
 
         // Plant_id used to get FROM details (Supplier)
         $fromGstin = (string)($plant?->gstin ?: ($plant?->entity?->gstin ?: ''));
@@ -747,11 +743,8 @@ class EwayBillController extends Controller
         // Document Details
         $docNo = (string)($invoice?->full_number ?: ($invoice?->invoice_number ?: ($dispatch ? ('DP-' . $dispatch->dispatch_no) : ('Inv/26-27/' . $ewb->origin_id))));
         $rawDocDate = $invoice?->invoice_date ?: ($ewb->ewaybill_date ?: now());
-        try {
-            $docDate = Carbon::parse($rawDocDate)->format('d/m/Y');
-        } catch (\Throwable $e) {
-            $docDate = (string)$rawDocDate;
-        }
+        $docDateObj = $this->parseEwbDateTime($rawDocDate);
+        $docDate = $docDateObj ? $docDateObj->format('d/m/Y') : (string)$rawDocDate;
 
         $transactionType = 'Regular';
 
@@ -867,21 +860,15 @@ class EwayBillController extends Controller
         $ewbNoFormatted = trim(chunk_split($rawEwbNo, 4, ' '));
 
         $rawDate = $apiData['ewayBillDate'] ?? ($ewb?->ewaybill_date ?? now());
-        try {
-            $ewbDate = Carbon::parse($rawDate)->format('d/m/Y h:i A');
-        } catch (\Throwable $e) {
-            $ewbDate = (string)$rawDate;
-        }
+        $ewbDateObj = $this->parseEwbDateTime($rawDate);
+        $ewbDate = $ewbDateObj ? $ewbDateObj->format('d/m/Y h:i A') : (string)$rawDate;
 
         $distance = $apiData['transDistance'] ?? ($apiData['actualDist'] ?? 33);
         $validFrom = $ewbDate . ' [' . $distance . 'Kms]';
 
         $rawValidUpto = $apiData['validUpto'] ?? ($ewb?->valid_upto ?? now()->addDay());
-        // try {
-        //     $validUntil = Carbon::parse($rawValidUpto)->format('d/m/Y');
-        // } catch (\Throwable $e) {
-            $validUntil = (string)$rawValidUpto;
-        // }
+        $validUntilObj = $this->parseEwbDateTime($rawValidUpto);
+        $validUntil = $validUntilObj ? $validUntilObj->format('d/m/Y') : (string)$rawValidUpto;
 
         // Supplier (FROM)
         $fromGstin = (string)($apiData['fromGstin'] ?? ($plant?->gstin ?? ($plant?->entity?->gstin ?? '')));
@@ -909,11 +896,8 @@ class EwayBillController extends Controller
         // Document Details
         $docNo = (string)($apiData['docNo'] ?? ($invoice?->full_number ?: ($invoice?->invoice_number ?: ($dispatch ? ('DP-' . $dispatch->dispatch_no) : ''))));
         $rawDocDate = $apiData['docDate'] ?? ($invoice?->invoice_date ?: ($ewb?->ewaybill_date ?: now()));
-        try {
-            $docDate = Carbon::parse($rawDocDate)->format('d/m/Y');
-        } catch (\Throwable $e) {
-            $docDate = (string)$rawDocDate;
-        }
+        $docDateObj = $this->parseEwbDateTime($rawDocDate);
+        $docDate = $docDateObj ? $docDateObj->format('d/m/Y') : (string)$rawDocDate;
 
         $transactionType = 'Regular';
         $valOfGoods = (string)($apiData['totInvValue'] ?? ($apiData['totalValue'] ?? ($invoice?->total_amount ?? ($dispatch?->load_total_amount ?? ''))));
@@ -942,11 +926,8 @@ class EwayBillController extends Controller
         $vehicleNo = (string)($firstVeh['vehicleNo'] ?? ($apiData['vehNo'] ?? ($dispatch?->truck?->registration ?: '')));
         $fromVeh = (string)($firstVeh['fromPlace'] ?? ($fromPlace ?: ''));
         $enteredDateRaw = $firstVeh['enteredDate'] ?? $rawDate;
-        try {
-            $enteredDate = Carbon::parse($enteredDateRaw)->format('d/m/Y h:i A');
-        } catch (\Throwable $e) {
-            $enteredDate = (string)$enteredDateRaw;
-        }
+        $enteredDateObj = $this->parseEwbDateTime($enteredDateRaw);
+        $enteredDate = $enteredDateObj ? $enteredDateObj->format('d/m/Y h:i A') : (string)$enteredDateRaw;
         $enteredBy = (string)($firstVeh['userGSTINTransin'] ?? ($fromGstin ?: ''));
         $cewbNo = (string)($firstVeh['tripshtNo'] ?? '-');
         if (empty($cewbNo) || $cewbNo === '0') $cewbNo = '-';
@@ -1205,13 +1186,8 @@ class EwayBillController extends Controller
                 continue;
             }
 
-            $ewbDate = !empty($data['ewayBillDate']) 
-                ? Carbon::parse(str_replace('/', '-', $data['ewayBillDate']))->toDateTimeString() 
-                : Carbon::now()->toDateTimeString();
-
-            $validTill = !empty($data['validUpto']) 
-                ? Carbon::parse(str_replace('/', '-', $data['validUpto']))->toDateTimeString() 
-                : null;
+            $ewbDate = ($this->parseEwbDateTime($data['ewayBillDate'] ?? null) ?? Carbon::now())->toDateTimeString();
+            $validTill = $this->parseEwbDateTime($data['validUpto'] ?? null)?->toDateTimeString();
 
             EwaybillDetail::create([
                 'plant_id'        => $plantId,
@@ -1239,16 +1215,67 @@ class EwayBillController extends Controller
     }
 
     /**
+     * Safely parse date and time strings from E-Way Bill gateway or inputs (e.g. '17/09/2026 12:33:00 PM', '17/09/2026', '2026-09-17').
+     */
+    protected function parseEwbDateTime($dateStr): ?Carbon
+    {
+        if (empty($dateStr)) {
+            return null;
+        }
+
+        if ($dateStr instanceof Carbon) {
+            return $dateStr;
+        }
+
+        if ($dateStr instanceof \DateTimeInterface) {
+            return Carbon::instance($dateStr);
+        }
+
+        $dateStr = trim((string)$dateStr);
+        if ($dateStr === '') {
+            return null;
+        }
+
+        // Handle slash-separated dates (e.g. '17/09/2026 12:33:00 PM' or '17/09/2026')
+        // Replacing '/' with '-' forces PHP/Carbon to interpret as European (d-m-Y) instead of American (m/d/Y)
+        $normalized = str_replace('/', '-', $dateStr);
+
+        try {
+            return Carbon::parse($normalized);
+        } catch (\Throwable $e) {
+            // Fallback formats commonly used in GST portals
+            $formats = [
+                'd-m-Y h:i:s A',
+                'd-m-Y h:i A',
+                'd-m-Y H:i:s',
+                'd-m-Y H:i',
+                'd-m-Y',
+                'Y-m-d H:i:s',
+                'Y-m-d',
+            ];
+            foreach ($formats as $fmt) {
+                try {
+                    return Carbon::createFromFormat($fmt, $normalized);
+                } catch (\Throwable) {
+                    continue;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Date range generator helper.
      */
     protected function dateRange(string $startDate = '', string $endDate = '', string $step = '+1 day', string $format = 'd/m/Y'): array
     {
         $dates = [];
-        $current = strtotime($startDate);
-        $last = strtotime($endDate);
-        while ($current <= $last) {
-            $dates[] = date($format, $current);
-            $current = strtotime($step, $current);
+        $start = ($this->parseEwbDateTime($startDate) ?? Carbon::now())->startOfDay();
+        $end   = ($this->parseEwbDateTime($endDate) ?? Carbon::now())->startOfDay();
+        while ($start->lte($end)) {
+            $dates[] = $start->format($format);
+            $start->addDay();
         }
         return $dates;
     }
