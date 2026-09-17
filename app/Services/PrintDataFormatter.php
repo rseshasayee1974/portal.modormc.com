@@ -336,19 +336,19 @@ class PrintDataFormatter
      */
     public static function getPrintItemNameFormat(array $settings, ?int $plantId = null): int
     {
-        if (isset($settings['batching']['print_item_name_format'])) {
-            return (int) $settings['batching']['print_item_name_format'];
+        if (isset($settings['batching']['is_grade_or_is_mix_design'])) {
+            return (int) $settings['batching']['is_grade_or_is_mix_design'];
         }
 
-        if (isset($settings['print_item_name_format'])) {
-            return (int) $settings['print_item_name_format'];
+        if (isset($settings['is_grade_or_is_mix_design'])) {
+            return (int) $settings['is_grade_or_is_mix_design'];
         }
 
         try {
             $pid = $plantId ?: (session('active_plant_id') ?: 1);
             $batchingSettings = CustomSetting::getForModule($pid, 'batching');
-            if (isset($batchingSettings['print_item_name_format'])) {
-                return (int) $batchingSettings['print_item_name_format'];
+            if (isset($batchingSettings['is_grade_or_is_mix_design'])) {
+                return (int) $batchingSettings['is_grade_or_is_mix_design'];
             }
         } catch (Throwable $e) {
         }
