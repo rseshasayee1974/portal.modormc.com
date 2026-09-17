@@ -17,10 +17,10 @@ import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
 import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
-import BaseFormActions from '@/Components/Base/BaseFormActions.vue';
 import Textarea from 'primevue/textarea';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
+import DatePicker from 'primevue/datepicker';
 import { useToast } from 'primevue/usetoast';
 
 const props = defineProps<{
@@ -210,6 +210,8 @@ const complianceForm = useForm({
     vehicle_type: 'Regular',
     transporter_id: '',
     transporter_name: '',
+    trans_doc_no: '',
+    trans_doc_date: new Date().toISOString().split('T')[0],
     cancel_reason: '2',
     cancel_remarks: '',
 });
@@ -568,7 +570,9 @@ const setupDemoCompliance = () => {
                         <BaseSelect v-model="complianceForm.trans_mode" label="Transport Mode *" :options="[{label: 'Road', value: '1'}, {label: 'Rail', value: '2'}, {label: 'Air', value: '3'}, {label: 'Ship', value: '4'}]" optionLabel="label" optionValue="value" :error="complianceForm.errors.trans_mode" required />
                         <BaseSelect v-model="complianceForm.vehicle_type" label="Vehicle Type *" :options="[{label: 'Regular', value: 'Regular'}, {label: 'ODC (Over Dimensional Cargo)', value: 'ODC'}]" optionLabel="label" optionValue="value" :error="complianceForm.errors.vehicle_type" required />
                         <BaseInput v-model="complianceForm.transporter_id" label="Transporter GSTIN/ID" placeholder="15-character GSTIN or ID" :error="complianceForm.errors.transporter_id" />
-                        <BaseInput v-model="complianceForm.transporter_name" label="Transporter Name" placeholder="Transporter Company Name" />
+                        <BaseInput v-model="complianceForm.transporter_name" label="Transporter Name" placeholder="Transporter Company Name" :error="complianceForm.errors.transporter_name" />
+                        <BaseInput v-model="complianceForm.trans_doc_no" label="Transport Doc / LR No" placeholder="e.g. LR-9876 or Challan" :error="complianceForm.errors.trans_doc_no" />
+                        <BaseDatePicker v-model="complianceForm.trans_doc_date" label="Transport Doc Date" dateFormat="yy-mm-dd" :error="complianceForm.errors.trans_doc_date" />
                     </div>
 
                     <div class="flex justify-end pt-4">
@@ -685,6 +689,10 @@ const setupDemoCompliance = () => {
                                 <BaseInputNumber v-model="complianceForm.distance_km" label="Distance in Km *" placeholder="150" :error="complianceForm.errors.distance_km" />
                                 <BaseSelect v-model="complianceForm.trans_mode" label="Transport Mode *" :options="[{label: 'Road', value: '1'}, {label: 'Rail', value: '2'}, {label: 'Air', value: '3'}, {label: 'Ship', value: '4'}]" optionLabel="label" optionValue="value" :error="complianceForm.errors.trans_mode" required />
                                 <BaseSelect v-model="complianceForm.vehicle_type" label="Vehicle Type *" :options="[{label: 'Regular', value: 'Regular'}, {label: 'ODC (Over Dimensional Cargo)', value: 'ODC'}]" optionLabel="label" optionValue="value" :error="complianceForm.errors.vehicle_type" required />
+                                <BaseInput v-model="complianceForm.transporter_id" label="Transporter GSTIN/ID" placeholder="15-character GSTIN or ID" :error="complianceForm.errors.transporter_id" />
+                                <BaseInput v-model="complianceForm.transporter_name" label="Transporter Name" placeholder="Transporter Company Name" :error="complianceForm.errors.transporter_name" />
+                                <BaseInput v-model="complianceForm.trans_doc_no" label="Transport Doc / LR No" placeholder="e.g. LR-9876 or Challan" :error="complianceForm.errors.trans_doc_no" />
+                                <BaseDatePicker v-model="complianceForm.trans_doc_date" label="Transport Doc Date" dateFormat="yy-mm-dd" :error="complianceForm.errors.trans_doc_date" />
                             </div>
                             <div class="flex justify-end">
                                 <Button 

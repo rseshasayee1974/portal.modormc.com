@@ -9,6 +9,10 @@ import TabPanel from 'primevue/tabpanel';
 import { PaperAirplaneIcon, ReceiptPercentIcon, CalculatorIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 import { computed } from 'vue';
 import BaseButton from '@/Components/Base/BaseButton.vue';
+import Dialog from 'primevue/dialog';
+import BaseDatePicker from '@/Components/Base/BaseDatePicker.vue';
+import BaseInput from '@/Components/Base/BaseInput.vue';
+import BaseInputNumber from '@/Components/Base/BaseInputNumber.vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { usePermissions } from '@/Composables/usePermissions';
@@ -690,6 +694,18 @@ const handleGenerateEInvoice = (passedInvoiceIdOrObj?: any) => {
     });
 };
 
+const showEwayBillDialog = ref(false);
+const isGeneratingEwb = ref(false);
+const ewbForm = ref({
+    veh_no: '',
+    distance: 20,
+    transporter_id: '',
+    transporter_name: '',
+    trans_doc_no: '',
+    trans_doc_date: new Date().toISOString().split('T')[0],
+    errors: {} as Record<string, string>,
+});
+
 const handleGenerateEwayBill = () => {
     const invoiceId = form.status?.invoice_id || form.status?.invoice?.id;
     if (!invoiceId) {
@@ -702,77 +718,88 @@ const handleGenerateEwayBill = () => {
         return;
     }
 
-    const defaultVehNo = (props.batch?.truck_registration).trim()
+    const defaultVehNo = (props.batch?.truck_registration || '').trim()
         .toUpperCase()
         .replace(/[\s-]+/g, '');
     const defaultDistance = form.status?.transport_km || 20;
 
-    Swal.fire({
-        title: 'Generate E-Way Bill',
-        html: `
-            <div class="text-left space-y-3">
-                <p class="text-xs text-slate-500 mb-2">
-                    Generate a standard E-Way Bill directly without requiring an E-Invoice (IRN).
-                </p>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vehicle Number *</label>
-                    <input id="swal-dispatch-ewb-veh" type="text" value="${defaultVehNo}" placeholder="e.g. TN09AB1234" class="w-full px-3 py-2 border rounded-md text-sm uppercase dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
-                </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Distance (in KM)</label>
-                    <input id="swal-dispatch-ewb-dist" type="number" min="1" value="${defaultDistance}" placeholder="e.g. 25" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
-                </div>
-            </div>
-        `,
-        focusConfirm: false,
-        showCancelButton: true,
-        confirmButtonText: 'Generate E-Way Bill',
-        confirmButtonColor: '#0d9488',
-        cancelButtonColor: '#64748b',
-        preConfirm: () => {
-            const vehNo = (document.getElementById('swal-dispatch-ewb-veh') as HTMLInputElement)?.value?.trim();
-            const distance = (document.getElementById('swal-dispatch-ewb-dist') as HTMLInputElement)?.value?.trim();
-            if (!vehNo) {
-                Swal.showValidationMessage('Please enter a vehicle number');
-                return false;
+    const defaultTransName = props.batch?.dispatches?.[0]?.transport?.legal_name 
+        || props.batch?.dispatches?.[0]?.transport?.name 
+        || props.batch?.transporter_name
+        || '';
+
+    const defaultTransId = props.batch?.dispatches?.[0]?.transport?.gstin 
+        || props.batch?.transporter_id 
+        || '';
+
+    const defaultDocNo = props.batch?.dispatches?.[0]?.dispatch_no 
+        ? ('DP-' + props.batch.dispatches[0].dispatch_no) 
+        : '';
+
+    const defaultDocDate = new Date().toISOString().split('T')[0];
+
+    ewbForm.value = {
+        veh_no: defaultVehNo,
+        distance: defaultDistance,
+        transporter_id: defaultTransId,
+        transporter_name: defaultTransName,
+        trans_doc_no: defaultDocNo,
+        trans_doc_date: defaultDocDate,
+        errors: {},
+    };
+
+    showEwayBillDialog.value = true;
+};
+
+const submitEwayBill = () => {
+    if (!ewbForm.value.veh_no) {
+        ewbForm.value.errors.veh_no = 'Vehicle number is required';
+        return;
+    }
+    ewbForm.value.errors = {};
+    isGeneratingEwb.value = true;
+
+    const invoiceId = form.status?.invoice_id || form.status?.invoice?.id;
+
+    router.post(route('batches.generate-ewaybill', props.batch.id), {
+        veh_no: ewbForm.value.veh_no,
+        distance: ewbForm.value.distance,
+        transporter_id: ewbForm.value.transporter_id,
+        trans_id: ewbForm.value.transporter_id,
+        transporter_name: ewbForm.value.transporter_name,
+        trans_name: ewbForm.value.transporter_name,
+        trans_doc_no: ewbForm.value.trans_doc_no,
+        trans_doc_dt: ewbForm.value.trans_doc_date,
+        trans_doc_date: ewbForm.value.trans_doc_date,
+        invoice_id: invoiceId,
+        origin: 'batch'
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            isGeneratingEwb.value = false;
+            showEwayBillDialog.value = false;
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'E-Way Bill generated successfully.',
+                showConfirmButton: false,
+                timer: 2000
+            });
+            if (props.onSaved) {
+                props.onSaved({ batchId: props.batch.id, type: 'dispatch' });
+            } else {
+                emit('saved', { batchId: props.batch.id, type: 'dispatch' });
             }
-            
-            return { vehNo, distance: Number(distance) || 20 };
         },
-    }).then((result) => {
-        if (result.isConfirmed && result.value) {
-            console.log(result.value);
-            router.post(route('batches.generate-ewaybill', props.batch.id), {
-                veh_no: result.value.vehNo,
-                distance: result.value.distance,
-                invoice_id: invoiceId,
-                origin : 'batch'
-            }, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    Swal.fire({
-                        toast: true,
-                        position: 'top-end',
-                        icon: 'success',
-                        title: 'E-Way Bill generated successfully.',
-                        showConfirmButton: false,
-                        timer: 2000
-                    });
-                    if (props.onSaved) {
-                        props.onSaved({ batchId: props.batch.id, type: 'dispatch' });
-                    } else {
-                        emit('saved', { batchId: props.batch.id, type: 'dispatch' });
-                    }
-                },
-                onError: (errors: any) => {
-                    const msg = errors.error || errors.message || Object.values(errors)[0] || 'Failed to generate E-Way Bill.';
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'E-Way Bill Failed',
-                        text: String(msg),
-                        confirmButtonColor: '#d33'
-                    });
-                }
+        onError: (errors: any) => {
+            isGeneratingEwb.value = false;
+            const msg = errors.error || errors.message || Object.values(errors)[0] || 'Failed to generate E-Way Bill.';
+            Swal.fire({
+                icon: 'error',
+                title: 'E-Way Bill Failed',
+                text: String(msg),
+                confirmButtonColor: '#d33'
             });
         }
     });
@@ -989,6 +1016,93 @@ const handleDeleteInvoice = () => {
                 </div>
             </div>
         </div>
+
+        <!-- E-Way Bill Generation Dialog with PrimeVue DatePicker -->
+        <Dialog 
+            v-model:visible="showEwayBillDialog" 
+            modal 
+            header="Generate E-Way Bill" 
+            :style="{ width: '580px', maxWidth: '95vw' }"
+        >
+            <div class="space-y-4 pt-2">
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    Generate a standard E-Way Bill directly without requiring an E-Invoice (IRN).
+                </p>
+
+                <!-- Row 1: Vehicle & Distance -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <BaseInput 
+                        v-model="ewbForm.veh_no" 
+                        label="Vehicle Number *" 
+                        placeholder="e.g. TN09AB1234" 
+                        class="uppercase font-semibold"
+                        :error="ewbForm.errors?.veh_no"
+                        required 
+                    />
+                    <BaseInputNumber 
+                        v-model="ewbForm.distance" 
+                        label="Distance (in KM) *" 
+                        placeholder="e.g. 25" 
+                        :min="1"
+                        required 
+                    />
+                </div>
+
+                <!-- Transporter Details Header -->
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <span class="text-[10px] font-black uppercase tracking-widest text-teal-600 dark:text-teal-400">
+                        Transporter & Document Details
+                    </span>
+                </div>
+
+                <!-- Row 2: Transporter ID & Name -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <BaseInput 
+                        v-model="ewbForm.transporter_id" 
+                        label="Transporter ID / GSTIN" 
+                        placeholder="15-digit GSTIN (optional)" 
+                        class="uppercase"
+                    />
+                    <BaseInput 
+                        v-model="ewbForm.transporter_name" 
+                        label="Transporter Name" 
+                        placeholder="e.g. Fast Logistics" 
+                    />
+                </div>
+
+                <!-- Row 3: Transport Doc No & Date with PrimeVue DatePicker -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <BaseInput 
+                        v-model="ewbForm.trans_doc_no" 
+                        label="Transport Doc / LR No" 
+                        placeholder="e.g. LR-9876 or Challan" 
+                    />
+                    <BaseDatePicker 
+                        v-model="ewbForm.trans_doc_date" 
+                        label="Transport Doc Date" 
+                        dateFormat="yy-mm-dd" 
+                    />
+                </div>
+            </div>
+
+            <template #footer>
+                <div class="flex items-center justify-end gap-2 pt-3">
+                    <Button 
+                        label="Cancel" 
+                        severity="secondary" 
+                        text 
+                        @click="showEwayBillDialog = false" 
+                    />
+                    <Button 
+                        label="Generate E-Way Bill" 
+                        icon="pi pi-check" 
+                        :loading="isGeneratingEwb" 
+                        @click="submitEwayBill" 
+                        class="!bg-teal-600 hover:!bg-teal-700 !text-white !border-none !text-xs !font-bold"
+                    />
+                </div>
+            </template>
+        </Dialog>
 </template>
 
 <style scoped>

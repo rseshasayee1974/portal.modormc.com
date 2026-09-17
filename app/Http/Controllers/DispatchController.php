@@ -302,19 +302,34 @@ class DispatchController extends Controller
                         if (!empty($autoPrefix) && str_starts_with($trimmed, $autoPrefix)) {
                             $numberPart = substr($trimmed, strlen($autoPrefix));
                         }
+                        if (ctype_digit((string)$numberPart)) {
+                            $numberPart = str_pad((string)$numberPart, 5, '0', STR_PAD_LEFT);
+                        }
                         $fullNumber = $autoPrefix . $numberPart;
+
+                        $rawInt = ctype_digit((string)$numberPart) ? (int)$numberPart : null;
+                        $unpadded = ctype_digit((string)$numberPart) ? (string)(int)$numberPart : $numberPart;
 
                         $query = \App\Models\Invoice::withoutGlobalScopes()
                             ->where('plant_id', $dispatch->plant_id)
                             ->where('is_active', 1)
                             ->whereNull('deleted_at');
 
-                        $exists = $query->where(function ($q) use ($numberPart, $fullNumber, $autoPrefix) {
-                                $q->where(function ($sub) use ($numberPart, $autoPrefix) {
-                                    $sub->where('invoice_number', $numberPart)
-                                        ->where('prefix', $autoPrefix);
+                        $exists = $query->where(function ($q) use ($numberPart, $fullNumber, $autoPrefix, $unpadded, $rawInt) {
+                                $q->where(function ($sub) use ($numberPart, $autoPrefix, $unpadded, $rawInt) {
+                                    $sub->where('prefix', $autoPrefix)
+                                        ->where(function ($sq) use ($numberPart, $unpadded, $rawInt) {
+                                            $sq->where('invoice_number', $numberPart)
+                                               ->orWhere('invoice_number', $unpadded);
+                                            if ($rawInt !== null) {
+                                                $sq->orWhere(\Illuminate\Support\Facades\DB::raw("CAST(invoice_number AS UNSIGNED)"), $rawInt);
+                                            }
+                                        });
                                 })
-                                ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber);
+                                ->orWhere('invoice_number', $numberPart)
+                                ->orWhere('invoice_number', $unpadded)
+                                ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber)
+                                ->orWhere(DB::raw("CONCAT(COALESCE(prefix, ''), CAST(invoice_number AS UNSIGNED))"), (!empty($autoPrefix) ? $autoPrefix : '') . $unpadded);
                             })
                             ->exists();
 
@@ -339,6 +354,9 @@ class DispatchController extends Controller
                 $manualNumber = (isset($validated['invoice_number']) && trim((string)$validated['invoice_number']) !== '') 
                     ? trim((string)$validated['invoice_number']) 
                     : null;
+                if ($manualNumber !== null && ctype_digit((string)$manualNumber)) {
+                    $manualNumber = str_pad((string)$manualNumber, 5, '0', STR_PAD_LEFT);
+                }
 
                 $invoice = \App\Models\Invoice::createFromSource($dispatch, 'sales', [
                     'account_id'     => $validated['ledger_id'],
@@ -374,8 +392,7 @@ class DispatchController extends Controller
                 $invoice = \App\Models\Invoice::query()->find($status->invoice_id);
                 // dd($invoice );
                 if ($invoice) {
-                    $invoice->is_active = 0;
-                    $invoice->save();
+                    $invoice->updateQuietly(['is_active' => 0]);
                     $invoice->orderTaxes()->update(['status' => 0]);
                     
                     // Cascading soft deletes for invoice items and taxes

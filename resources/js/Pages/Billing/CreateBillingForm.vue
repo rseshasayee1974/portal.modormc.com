@@ -328,6 +328,13 @@ const allowOnlyInvoiceChars = (e: KeyboardEvent) => {
     }
 };
 
+const onInvoiceNumberBlur = () => {
+    if (form.invoice_number && /^\d+$/.test(form.invoice_number.trim())) {
+        form.invoice_number = form.invoice_number.trim().padStart(5, '0');
+    }
+    validateInvoiceNumber();
+};
+
 const onInvoiceNumberInput = () => {
     // Strip prefix if user pastes the full number
     if (form.prefix && form.invoice_number && form.invoice_number.startsWith(form.prefix)) {
@@ -580,7 +587,7 @@ const taxOptions = computed(() => props.taxes);
                                         AUTO
                                     </span>
                                     <span class="font-mono text-slate-600 font-semibold truncate" title="Will be auto-generated upon saving">
-                                        {{ autoInvoicePreview || next_invoice_number || (form.prefix ? form.prefix + 'XXXX' : 'Auto Sequence') }}
+                                        {{ autoInvoicePreview || next_invoice_number || (form.prefix ? form.prefix + '00001' : 'Auto Sequence') }}
                                     </span>
                                     <span class="ml-auto text-[10px] text-slate-400 italic">Auto-generated</span>
                                 </div>
@@ -601,8 +608,8 @@ const taxOptions = computed(() => props.taxes);
                                                 v-model="form.invoice_number" 
                                                 @input="onInvoiceNumberInput"
                                                 @keypress="allowOnlyInvoiceChars"
-                                                @blur="validateInvoiceNumber"
-                                                placeholder="Enter Bill #" 
+                                                @blur="onInvoiceNumberBlur"
+                                                placeholder="e.g. 00001" 
                                                 class="w-full h-10 px-3 pr-8 rounded-md border text-xs font-mono font-bold transition-all focus:outline-none focus:ring-1"
                                                 :class="[
                                                     invoiceNumberStatus.checked && invoiceNumberStatus.exists

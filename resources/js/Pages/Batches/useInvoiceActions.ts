@@ -298,20 +298,69 @@ export function useInvoiceActions(
             || batchOrInvoice.transport_km
             || 20;
 
+        const defaultTransId = batchOrInvoice.dispatches?.[0]?.transport?.gstin
+            || batchOrInvoice.transporter_id
+            || '';
+
+        const defaultTransName = batchOrInvoice.dispatches?.[0]?.transport?.legal_name
+            || batchOrInvoice.dispatches?.[0]?.transport?.name
+            || batchOrInvoice.transporter_name
+            || '';
+
+        const defaultDocNo = batchOrInvoice.dispatches?.[0]?.dispatch_no 
+            ? ('DP-' + batchOrInvoice.dispatches[0].dispatch_no) 
+            : (batchOrInvoice.full_number || batchOrInvoice.invoice_number || '');
+
+        const defaultDocDate = new Date().toISOString().split('T')[0];
+
         Swal.fire({
             title: 'Generate E-Way Bill',
+            width: '600px',
             html: `
-                <div class="text-left space-y-3">
-                    <p class="text-xs text-slate-500 mb-2">
+                <div class="text-left space-y-3.5 text-slate-700 dark:text-slate-200">
+                    <p class="text-xs text-slate-500">
                         Generate a standard E-Way Bill directly without requiring an E-Invoice (IRN).
                     </p>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vehicle Number *</label>
-                        <input id="swal-ewb-veh-no" type="text" value="${defaultVehNo}" placeholder="e.g. TN09AB1234" class="w-full px-3 py-2 border rounded-md text-sm uppercase dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+
+                    <!-- Row 1: Vehicle & Distance -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">Vehicle Number *</label>
+                            <input id="swal-ewb-veh-no" type="text" value="${defaultVehNo}" placeholder="e.g. TN09AB1234" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm uppercase font-semibold focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">Distance (KM) *</label>
+                            <input id="swal-ewb-distance" type="number" min="1" value="${defaultDistance}" placeholder="e.g. 25" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold focus:ring-2 focus:ring-teal-500 focus:border-teal-500 dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Distance (in KM)</label>
-                        <input id="swal-ewb-distance" type="number" min="1" value="${defaultDistance}" placeholder="e.g. 25" class="w-full px-3 py-2 border rounded-md text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+
+                    <!-- Transporter Details Header -->
+                    <div class="pt-2 border-t border-slate-200 dark:border-slate-700">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-teal-600 dark:text-teal-400">Transporter & Document Details</span>
+                    </div>
+
+                    <!-- Row 2: Transporter ID & Name -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">Transporter ID / GSTIN</label>
+                            <input id="swal-ewb-trans-id" type="text" value="${defaultTransId}" placeholder="15-digit GSTIN (optional)" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm uppercase dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">Transporter Name</label>
+                            <input id="swal-ewb-trans-name" type="text" value="${defaultTransName}" placeholder="e.g. Fast Logistics" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                        </div>
+                    </div>
+
+                    <!-- Row 3: Transport Doc No & Date -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">Transport Doc / LR No</label>
+                            <input id="swal-ewb-doc-no" type="text" value="${defaultDocNo}" placeholder="e.g. LR-9876 or Challan" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">Transport Doc Date</label>
+                            <input id="swal-ewb-doc-date" type="date" value="${defaultDocDate}" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                        </div>
                     </div>
                 </div>
             `,
@@ -323,11 +372,23 @@ export function useInvoiceActions(
             preConfirm: () => {
                 const vehNo = (document.getElementById('swal-ewb-veh-no') as HTMLInputElement)?.value?.trim();
                 const distance = (document.getElementById('swal-ewb-distance') as HTMLInputElement)?.value?.trim();
+                const transId = (document.getElementById('swal-ewb-trans-id') as HTMLInputElement)?.value?.trim();
+                const transName = (document.getElementById('swal-ewb-trans-name') as HTMLInputElement)?.value?.trim();
+                const transDocNo = (document.getElementById('swal-ewb-doc-no') as HTMLInputElement)?.value?.trim();
+                const transDocDate = (document.getElementById('swal-ewb-doc-date') as HTMLInputElement)?.value?.trim();
+
                 if (!vehNo) {
                     Swal.showValidationMessage('Please enter a vehicle number');
                     return false;
                 }
-                return { vehNo, distance: Number(distance) || 20 };
+                return { 
+                    vehNo, 
+                    distance: Number(distance) || 20,
+                    transId,
+                    transName,
+                    transDocNo,
+                    transDocDate,
+                };
             },
         }).then(async (result) => {
             if (result.isConfirmed && result.value) {
@@ -346,6 +407,13 @@ export function useInvoiceActions(
                     const res = await axios.post(postUrl, {
                         veh_no: result.value.vehNo,
                         distance: result.value.distance,
+                        transporter_id: result.value.transId,
+                        trans_id: result.value.transId,
+                        transporter_name: result.value.transName,
+                        trans_name: result.value.transName,
+                        trans_doc_no: result.value.transDocNo,
+                        trans_doc_dt: result.value.transDocDate,
+                        trans_doc_date: result.value.transDocDate,
                     });
 
                     Swal.close();

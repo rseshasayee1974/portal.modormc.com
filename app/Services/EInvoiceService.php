@@ -122,10 +122,10 @@ class EInvoiceService
             'Irn'         => $irn,
             'Distance'    => (int)($transportDetails['distance'] ?? 0),
             'TransMode'   => (string)($transportDetails['trans_mode'] ?? '1'),
-            'TransId'     => $transportDetails['trans_id'] ?? null,
-            'TransName'   => $transportDetails['trans_name'] ?? null,
+            'TransId'     => $transportDetails['transporter_id'] ?? ($transportDetails['trans_id'] ?? null),
+            'TransName'   => $transportDetails['transporter_name'] ?? ($transportDetails['trans_name'] ?? null),
             'TransDocNo'  => $transportDetails['trans_doc_no'] ?? null,
-            'TransDocDt'  => !empty($transportDetails['trans_doc_dt']) ? Carbon::parse($transportDetails['trans_doc_dt'])->format('d/m/Y') : null,
+            'TransDocDt'  => !empty($transportDetails['trans_doc_dt'] ?? $transportDetails['trans_doc_date']) ? Carbon::parse(str_replace('/', '-', $transportDetails['trans_doc_dt'] ?? $transportDetails['trans_doc_date']))->format('d/m/Y') : null,
             'VehNo'       => strtoupper($vehNo),
             'VehType'     => $transportDetails['veh_type'] ?? 'R',
             'ExpShipDtls' => [

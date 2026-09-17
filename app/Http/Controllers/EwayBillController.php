@@ -220,11 +220,14 @@ class EwayBillController extends Controller
         }
 
         $transMode = (string)($params['trans_mode'] ?? '1'); // 1 = Road
-        $transId = trim((string)($params['trans_id'] ?? ''));
-        $transName = trim((string)($params['trans_name'] ?? ''));
-        $transDocNo = trim((string)($params['trans_doc_no'] ?? ''));
-        $transDocDt = !empty($params['trans_doc_dt']) ? ($this->parseEwbDateTime($params['trans_doc_dt'])?->format('d/m/Y') ?? '') : '';
-        $vehType = (string)($params['veh_type'] ?? 'R'); // R = Regular
+        $transId = trim((string)($params['transporter_id'] ?? ($params['trans_id'] ?? '')));
+        $transName = trim((string)($params['transporter_name'] ?? ($params['trans_name'] ?? '')));
+        $transDocNo = trim((string)($params['trans_doc_no'] ?? ($params['transDocNo'] ?? '')));
+        $transDocRaw = $params['trans_doc_dt'] ?? ($params['trans_doc_date'] ?? ($params['transDocDate'] ?? null));
+        $transDocDt = !empty($transDocRaw) ? ($this->parseEwbDateTime($transDocRaw)?->format('d/m/Y') ?? '') : '';
+        $vehType = (string)($params['veh_type'] ?? ($params['vehicle_type'] ?? 'R')); // R = Regular
+        if ($vehType === 'Regular') $vehType = 'R';
+        if ($vehType === 'ODC') $vehType = 'O';
 
         // 3. Seller, Buyer & Valuation Data
         $this->setEWBCredential($plant);
@@ -378,7 +381,7 @@ class EwayBillController extends Controller
             'transMode'        => $transMode,
             'transactionType'  => '4',
             'transDistance'    => (string)($distance > 0 ? $distance : 20),
-            'transporterId'    => $sellerGstin,
+            'transporterId'    => $transId ?: $sellerGstin,
             'transporterName'  => $transName,
             'transDocNo'       => $transDocNo,
             'transDocDate'     => $transDocDt,
