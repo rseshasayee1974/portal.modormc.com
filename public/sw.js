@@ -63,7 +63,7 @@ self.addEventListener('fetch', (event) => {
                     });
                     return networkResponse;
                 }).catch(() => {
-                    // Fail silently for static assets offline
+                    return Response.error();
                 });
             })
         );
@@ -74,15 +74,17 @@ self.addEventListener('fetch', (event) => {
     if (request.mode === 'navigate' || url.pathname === '/orders/batches') {
         event.respondWith(
             fetch(request).then((networkResponse) => {
-                // Update cached page shell with the latest network response
-                const responseToCache = networkResponse.clone();
-                caches.open(CACHE_NAME).then((cache) => {
-                    cache.put('/orders/batches', responseToCache);
-                });
+                if (networkResponse && networkResponse.status === 200) {
+                    const responseToCache = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put('/orders/batches', responseToCache);
+                    });
+                }
                 return networkResponse;
-            }).catch(() => {
+            }).catch(async () => {
                 console.log('[Service Worker] Offline fallback serving cached batches page');
-                return caches.match('/orders/batches');
+                const cached = await caches.match('/orders/batches');
+                return cached || Response.error();
             })
         );
         return;
@@ -90,6 +92,12 @@ self.addEventListener('fetch', (event) => {
 
     // Default request behavior (Network First)
     event.respondWith(
-        fetch(request).catch(() => caches.match(request))
+        fetch(request).catch(async () => {
+            const cachedResponse = await caches.match(request);
+            if (cachedResponse) {
+                return cachedResponse;
+            }
+            return Response.error();
+        })
     );
 });

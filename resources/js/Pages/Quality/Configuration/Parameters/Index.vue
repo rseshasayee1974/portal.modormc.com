@@ -119,32 +119,62 @@ const getUnitDisplay = (unitSymbol: string) => {
 };
 
 const formatParamRule = (param: any) => {
-    if (!param.rule_type) return null;
+    if (!param?.rule_type) return null;
+
     const unit = param.unit ? ` ${param.unit}` : '';
+
     switch (param.rule_type) {
-        case 'MIN_MAX':
         case 'RANGE':
-            if (param.min_value !== null && param.max_value !== null) {
+            if (param.min_value !== null && param.min_value !== undefined &&
+                param.max_value !== null && param.max_value !== undefined) {
                 return `${Number(param.min_value)} – ${Number(param.max_value)}${unit}`;
             }
-            return param.min_value !== null ? `≥ ${Number(param.min_value)}${unit}` : `≤ ${Number(param.max_value)}${unit}`;
+
+            return null;
+
         case 'GREATER_THAN':
+            if (param.min_value === null || param.min_value === undefined) {
+                return null;
+            }
+
             return `> ${Number(param.min_value)}${unit}`;
-        case 'MIN_ONLY':
+
         case 'GREATER_THAN_OR_EQUAL':
+            if (param.min_value === null || param.min_value === undefined) {
+                return null;
+            }
+
             return `≥ ${Number(param.min_value)}${unit}`;
+
         case 'LESS_THAN':
+            if (param.max_value === null || param.max_value === undefined) {
+                return null;
+            }
+
             return `< ${Number(param.max_value)}${unit}`;
-        case 'MAX_ONLY':
+
         case 'LESS_THAN_OR_EQUAL':
+            if (param.max_value === null || param.max_value === undefined) {
+                return null;
+            }
+
             return `≤ ${Number(param.max_value)}${unit}`;
-        case 'EXACT_VALUE':
+
         case 'EQUAL':
+            if (param.target_value === null || param.target_value === undefined) {
+                return null;
+            }
+
             return `= ${Number(param.target_value)}${unit}`;
+
         case 'TARGET_TOLERANCE':
+            if (param.target_value === null || param.target_value === undefined ||
+                param.tolerance === null || param.tolerance === undefined) {
+                return null;
+            }
+
             return `${Number(param.target_value)} ± ${Number(param.tolerance)}${unit}`;
-        case 'PASS_FAIL':
-            return 'Pass / Fail Criteria';
+
         default:
             return param.rule_type;
     }

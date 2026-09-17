@@ -9,6 +9,9 @@ import Column from 'primevue/column';
 import BaseButton from '@/Components/Base/BaseButton.vue';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseCard from '@/Components/Base/BaseCard.vue';
+import { usePermissions } from '@/Composables/usePermissions';
+
+const { can } = usePermissions();
 
 const props = defineProps<{
     roles: any;
@@ -118,10 +121,19 @@ const confirmDelete = (role: any) => {
             <Column header="Actions" class="text-right" style="width: 120px">
                 <template #body="slotProps">
                     <div class="flex justify-end gap-2">
-                        <BaseButton icon="pi pi-pencil" text rounded  severity="info" @click="emit('edit', slotProps.data)" />
                         <BaseButton 
+                            v-if="can('role.update') || can('role.edit') || can('roles.update') || can('roles.edit')" 
+                            icon="pi pi-pencil" 
+                            text 
+                            rounded  
+                            severity="info" 
+                            @click="emit('edit', slotProps.data)" 
+                        />
+                        <BaseButton 
+                            v-if="can('role.delete') || can('roles.delete')" 
                             icon="pi pi-trash" 
-                            text rounded  
+                            text 
+                            rounded  
                             :severity="slotProps.data.is_system ? 'secondary' : 'danger'" 
                             :disabled="slotProps.data.is_system"
                             @click="confirmDelete(slotProps.data)" 

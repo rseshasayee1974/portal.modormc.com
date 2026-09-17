@@ -47,14 +47,45 @@ const unitOptions = computed(() => {
 });
 
 const ruleTypeSelectOptions = [
-    { label: 'None (Informational Only)', value: '' },
-    { label: 'Min / Max Range (Acceptable Interval)', value: 'MIN_MAX' },
-    { label: 'Target Value ± Tolerance', value: 'TARGET_TOLERANCE' },
-    { label: 'Minimum Threshold (≥ Value)', value: 'MIN_ONLY' },
-    { label: 'Maximum Limit (≤ Value)', value: 'MAX_ONLY' },
-    { label: 'Pass / Fail Condition (Boolean)', value: 'PASS_FAIL' },
-    { label: 'Exact Nominal Value', value: 'EXACT_VALUE' }
+    {
+        label: 'None (Informational Only)',
+        value: '',
+    },
+    {
+        label: 'Range (Min – Max)',
+        value: 'RANGE',
+    },
+    {
+        label: 'Greater Than (>)',
+        value: 'GREATER_THAN',
+    },
+    {
+        label: 'Greater Than or Equal (≥)',
+        value: 'GREATER_THAN_OR_EQUAL',
+    },
+    {
+        label: 'Less Than (<)',
+        value: 'LESS_THAN',
+    },
+    {
+        label: 'Less Than or Equal (≤)',
+        value: 'LESS_THAN_OR_EQUAL',
+    },
+    {
+        label: 'Equal (=)',
+        value: 'EQUAL',
+    },
+    {
+        label: 'Target Value ± Tolerance',
+        value: 'TARGET_TOLERANCE',
+    },
 ];
+
+// watch(() => props.isEditing, (newValue) => {
+//     if (newValue) {
+//         console.log(props.parameter);
+//     }
+// }, { immediate: true });
 
 const isStandardPresets = [
     'IS 456',
@@ -415,87 +446,142 @@ const submit = () => {
                         {{ preset }}
                     </button>
                 </div>
-
-                <!-- Dynamic Threshold Inputs based on Rule Type -->
-                <div v-if="form.rule_type === 'MIN_MAX'" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70">
-                    <BaseInput
-                        v-model.number="form.min_value"
-                        type="number"
-                        step="any"
-                        label="Minimum Acceptable Limit (≥)"
-                        required
-                        placeholder="e.g. 75"
-                        :error="form.errors.min_value"
-                    />
-                    <BaseInput
-                        v-model.number="form.max_value"
-                        type="number"
-                        step="any"
-                        label="Maximum Acceptable Limit (≤)"
-                        required
-                        placeholder="e.g. 125"
-                        :error="form.errors.max_value"
-                    />
                 </div>
+                
+                <!-- Dynamic Acceptance Rule Inputs -->
 
-                <div v-else-if="form.rule_type === 'TARGET_TOLERANCE'" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70">
-                    <BaseInput
-                        v-model.number="form.target_value"
-                        type="number"
-                        step="any"
-                        label="Target Design Value"
-                        required
-                        placeholder="e.g. 100"
-                        :error="form.errors.target_value"
-                    />
-                    <BaseInput
-                        v-model.number="form.tolerance"
-                        type="number"
-                        step="any"
-                        label="Permissible Tolerance (±)"
-                        required
-                        placeholder="e.g. 25"
-                        :error="form.errors.tolerance"
-                    />
-                </div>
+<!-- Range: Min + Max -->
+<div
+    v-if="form.rule_type === 'RANGE'"
+    class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70"
+>
+    <BaseInput
+        v-model.number="form.min_value"
+        type="number"
+        step="any"
+        label="Minimum Acceptable Limit (≥)"
+        required
+        placeholder="e.g. 75"
+        :error="form.errors.min_value"
+    />
 
-                <div v-else-if="form.rule_type === 'MIN_ONLY'" class="p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70">
-                    <BaseInput
-                        v-model.number="form.min_value"
-                        type="number"
-                        step="any"
-                        label="Minimum Threshold (≥ Value)"
-                        required
-                        placeholder="e.g. 30"
-                        :error="form.errors.min_value"
-                    />
-                </div>
+    <BaseInput
+        v-model.number="form.max_value"
+        type="number"
+        step="any"
+        label="Maximum Acceptable Limit (≤)"
+        required
+        placeholder="e.g. 125"
+        :error="form.errors.max_value"
+    />
+</div>
 
-                <div v-else-if="form.rule_type === 'MAX_ONLY'" class="p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70">
-                    <BaseInput
-                        v-model.number="form.max_value"
-                        type="number"
-                        step="any"
-                        label="Maximum Limit (≤ Value)"
-                        required
-                        placeholder="e.g. 40"
-                        :error="form.errors.max_value"
-                    />
-                </div>
+<!-- Target ± Tolerance -->
+<div
+    v-else-if="form.rule_type === 'TARGET_TOLERANCE'"
+    class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70"
+>
+    <BaseInput
+        v-model.number="form.target_value"
+        type="number"
+        step="any"
+        label="Target Design Value"
+        required
+        placeholder="e.g. 100"
+        :error="form.errors.target_value"
+    />
 
-                <div v-else-if="form.rule_type === 'EXACT_VALUE'" class="p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70">
-                    <BaseInput
-                        v-model.number="form.target_value"
-                        type="number"
-                        step="any"
-                        label="Exact Required Nominal Value"
-                        required
-                        placeholder="e.g. 0"
-                        :error="form.errors.target_value"
-                    />
-                </div>
-            </div>
-        </div>
+    <BaseInput
+        v-model.number="form.tolerance"
+        type="number"
+        step="any"
+        label="Permissible Tolerance (±)"
+        required
+        placeholder="e.g. 25"
+        :error="form.errors.tolerance"
+    />
+</div>
+
+<!-- Greater Than -->
+<div
+    v-else-if="form.rule_type === 'GREATER_THAN'"
+    class="p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70"
+>
+    <BaseInput
+        v-model.number="form.min_value"
+        type="number"
+        step="any"
+        label="Minimum Value (>)"
+        required
+        placeholder="e.g. 30"
+        :error="form.errors.min_value"
+    />
+</div>
+
+<!-- Greater Than or Equal -->
+<div
+    v-else-if="form.rule_type === 'GREATER_THAN_OR_EQUAL'"
+    class="p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70"
+>
+    <BaseInput
+        v-model.number="form.min_value"
+        type="number"
+        step="any"
+        label="Minimum Threshold (≥)"
+        required
+        placeholder="e.g. 30"
+        :error="form.errors.min_value"
+    />
+</div>
+
+<!-- Less Than -->
+<div
+    v-else-if="form.rule_type === 'LESS_THAN'"
+    class="p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70"
+>
+    <BaseInput
+        v-model.number="form.max_value"
+        type="number"
+        step="any"
+        label="Maximum Value (<)"
+        required
+        placeholder="e.g. 40"
+        :error="form.errors.max_value"
+    />
+</div>
+
+<!-- Less Than or Equal -->
+<div
+    v-else-if="form.rule_type === 'LESS_THAN_OR_EQUAL'"
+    class="p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70"
+>
+    <BaseInput
+        v-model.number="form.max_value"
+        type="number"
+        step="any"
+        label="Maximum Limit (≤)"
+        required
+        placeholder="e.g. 40"
+        :error="form.errors.max_value"
+    />
+</div>
+
+<!-- Exact / Equal Value -->
+<div
+    v-else-if="form.rule_type === 'EQUAL'"
+    class="p-3.5 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200/70 dark:border-gray-700/70"
+>
+    <BaseInput
+        v-model.number="form.target_value"
+        type="number"
+        step="any"
+        label="Required Nominal Value (=)"
+        required
+        placeholder="e.g. 100"
+        :error="form.errors.target_value"
+    />
+</div>
+</div>
 
         <!-- Form Actions Footer Bar -->
         <div

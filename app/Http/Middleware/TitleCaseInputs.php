@@ -141,6 +141,8 @@ class TitleCaseInputs
         'remarks',
         'terms_condition',
         'message',
+        'scope',
+        'retest_reason',
     ];
 
     /**
