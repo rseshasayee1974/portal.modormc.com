@@ -143,9 +143,6 @@ class Payment extends Model
         }
 
         foreach ($journalVouchers as $vNum) {
-            if (str_contains($vNum, '_DEL_')) {
-                continue;
-            }
             if (preg_match($pattern, $vNum, $matches)) {
                 $usedNumbers[(int) $matches[1]] = true;
             }
@@ -237,15 +234,7 @@ class Payment extends Model
                     }
 
                     if ($isSoftDeleted) {
-                        // Free up the voucher number by renaming the soft-deleted entry
-                        $renamed = substr($conflictingEntry->voucher_number, 0, 35) . '_DEL_' . $conflictingEntry->id;
-                        \Illuminate\Support\Facades\DB::table('mm_journal_entries')
-                            ->where('id', $conflictingEntry->id)
-                            ->update([
-                                'voucher_number' => $renamed,
-                                'is_deleted'     => 1,
-                                'deleted_at'     => $conflictingEntry->deleted_at ?? now(),
-                            ]);
+                        // Soft-deleted entry keeps original voucher number; no action needed
                     } else {
                         // Number is genuinely taken by another active transaction; generate next sequence number
                         $voucherNo = self::generateReferenceNumber(

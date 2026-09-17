@@ -26,15 +26,6 @@ return new class extends Migration
                 }
             });
 
-        if (!Schema::hasColumn('mm_journal_entries', 'active_payment_voucher_number')) {
-            Schema::table('mm_journal_entries', function (Blueprint $table) {
-                // NULL is excluded from MySQL unique comparisons. Other journal
-                // sources retain their existing voucher-number restriction.
-                $table->string('active_payment_voucher_number', 50)->nullable()
-                    ->virtualAs("CASE WHEN ref_module = 'payment' AND deleted_at IS NOT NULL THEN NULL ELSE voucher_number END");
-                $table->unique(['plant_id', 'voucher_type', 'active_payment_voucher_number'], 'uk_active_voucher');
-            });
-        }
         // Older installations may already have run the superseded index removal.
         if (Schema::hasIndex('mm_journal_entries', 'uk_voucher')) {
             Schema::table('mm_journal_entries', fn (Blueprint $table) => $table->dropUnique('uk_voucher'));
@@ -43,14 +34,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Fail without dropping the active constraint if reused numbers exist.
-        // Do not delete or rename historical vouchers to force a rollback.
-        if (Schema::hasColumn('mm_journal_entries', 'active_payment_voucher_number')) {
-            Schema::table('mm_journal_entries', function (Blueprint $table) {
-                $table->dropUnique('uk_active_voucher');
-                $table->dropColumn('active_payment_voucher_number');
-            });
-        }
         // Recreate original unique constraint if not exists
         if (!Schema::hasIndex('mm_journal_entries', 'uk_voucher')) {
             Schema::table('mm_journal_entries', function (Blueprint $table) {
