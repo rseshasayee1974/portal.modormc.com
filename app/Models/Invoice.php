@@ -151,19 +151,36 @@ class Invoice extends Model implements Postable
                 $m->invoice_number = substr($m->invoice_number, strlen($m->prefix));
             }
 
-            // Enforce duplicate restriction plant-wide for prefix + invoice_number
+            if (!empty($m->invoice_number) && ctype_digit((string)$m->invoice_number)) {
+                $m->invoice_number = str_pad((string)$m->invoice_number, 5, '0', STR_PAD_LEFT);
+            }
+
+            // Enforce duplicate restriction plant-wide on creation (strictly restrict reuse of deleted records)
             if (!empty($m->prefix) && !empty($m->invoice_number) && !empty($m->plant_id)) {
                 $fullNumber = ($m->prefix ?? '') . ($m->invoice_number ?? '');
+                $numOnly = $m->invoice_number;
+                $rawInt = ctype_digit((string)$numOnly) ? (int)$numOnly : null;
+                $unpadded = ctype_digit((string)$numOnly) ? (string)(int)$numOnly : $numOnly;
+
                 $alreadyExists = self::withoutGlobalScopes()
                     ->where('plant_id', $m->plant_id)
                     ->where('is_active', 1)
                     ->whereNull('deleted_at')
-                    ->where(function ($q) use ($m, $fullNumber) {
-                        $q->where(function ($sub) use ($m) {
+                    ->where(function ($q) use ($m, $fullNumber, $numOnly, $unpadded, $rawInt) {
+                        $q->where(function ($sub) use ($m, $numOnly, $unpadded, $rawInt) {
                             $sub->where('prefix', $m->prefix)
-                                ->where('invoice_number', $m->invoice_number);
+                                ->where(function ($sq) use ($numOnly, $unpadded, $rawInt) {
+                                    $sq->where('invoice_number', $numOnly)
+                                       ->orWhere('invoice_number', $unpadded);
+                                    if ($rawInt !== null) {
+                                        $sq->orWhere(\Illuminate\Support\Facades\DB::raw("CAST(invoice_number AS UNSIGNED)"), $rawInt);
+                                    }
+                                });
                         })
-                        ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber);
+                        ->orWhere('invoice_number', $numOnly)
+                        ->orWhere('invoice_number', $unpadded)
+                        ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber)
+                        ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), CAST(invoice_number AS UNSIGNED))"), ($m->prefix ?? '') . $unpadded);
                     })
                     ->exists();
 
@@ -186,6 +203,45 @@ class Invoice extends Model implements Postable
 
             if (!empty($m->prefix) && !empty($m->invoice_number) && str_starts_with((string)$m->invoice_number, $m->prefix)) {
                 $m->invoice_number = substr($m->invoice_number, strlen($m->prefix));
+            }
+
+            if (!empty($m->invoice_number) && ctype_digit((string)$m->invoice_number)) {
+                $m->invoice_number = str_pad((string)$m->invoice_number, 5, '0', STR_PAD_LEFT);
+            }
+
+            // Only check duplicate on saving if invoice_number or prefix was actually modified, and not during deactivation/deletion
+            if ($m->exists && ($m->isDirty('invoice_number') || $m->isDirty('prefix')) && (int)$m->is_active === 1 && empty($m->deleted_at)) {
+                $fullNumber = ($m->prefix ?? '') . ($m->invoice_number ?? '');
+                $numOnly = $m->invoice_number;
+                $rawInt = ctype_digit((string)$numOnly) ? (int)$numOnly : null;
+                $unpadded = ctype_digit((string)$numOnly) ? (string)(int)$numOnly : $numOnly;
+
+                $alreadyExists = self::withoutGlobalScopes()
+                    ->where('plant_id', $m->plant_id)
+                    ->where('is_active', 1)
+                    ->whereNull('deleted_at')
+                    ->where('id', '!=', $m->id)
+                    ->where(function ($q) use ($m, $fullNumber, $numOnly, $unpadded, $rawInt) {
+                        $q->where(function ($sub) use ($m, $numOnly, $unpadded, $rawInt) {
+                            $sub->where('prefix', $m->prefix)
+                                ->where(function ($sq) use ($numOnly, $unpadded, $rawInt) {
+                                    $sq->where('invoice_number', $numOnly)
+                                       ->orWhere('invoice_number', $unpadded);
+                                    if ($rawInt !== null) {
+                                        $sq->orWhere(\Illuminate\Support\Facades\DB::raw("CAST(invoice_number AS UNSIGNED)"), $rawInt);
+                                    }
+                                });
+                        })
+                        ->orWhere('invoice_number', $numOnly)
+                        ->orWhere('invoice_number', $unpadded)
+                        ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), invoice_number)"), $fullNumber)
+                        ->orWhere(\Illuminate\Support\Facades\DB::raw("CONCAT(COALESCE(prefix, ''), CAST(invoice_number AS UNSIGNED))"), ($m->prefix ?? '') . $unpadded);
+                    })
+                    ->exists();
+
+                if ($alreadyExists) {
+                    throw new \Exception("The invoice number '{$fullNumber}' is already in use and active in the database.");
+                }
             }
         });
 
@@ -307,11 +363,12 @@ class Invoice extends Model implements Postable
             ->first();
 
         $next = $lastInvoice ? ((int)$lastInvoice->invoice_number + 1) : 1;
+        $nextNumber = str_pad((string)$next, 5, '0', STR_PAD_LEFT);
 
         return [
             'prefix' => $prefix,
-            'next_number' => (string)$next,
-            'full_number' => $prefix . $next
+            'next_number' => $nextNumber,
+            'full_number' => $prefix . $nextNumber
         ];
     }
 
@@ -714,6 +771,9 @@ class Invoice extends Model implements Postable
                 $rawNumber = trim((string)$params['invoice_number']);
                 if (!empty($autoPrefix) && str_starts_with($rawNumber, $autoPrefix)) {
                     $rawNumber = substr($rawNumber, strlen($autoPrefix));
+                }
+                if (ctype_digit((string)$rawNumber)) {
+                    $rawNumber = str_pad((string)$rawNumber, 5, '0', STR_PAD_LEFT);
                 }
                 $invoiceHeaderData['invoice_number'] = $rawNumber;
                 $invoiceHeaderData['prefix'] = $autoPrefix;

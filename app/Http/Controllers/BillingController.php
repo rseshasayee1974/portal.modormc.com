@@ -83,6 +83,9 @@ class BillingController extends Controller
                 if (str_starts_with((string)$validated['invoice_number'], $validated['prefix'])) {
                     $validated['invoice_number'] = substr($validated['invoice_number'], strlen($validated['prefix']));
                 }
+                if (ctype_digit((string)$validated['invoice_number'])) {
+                    $validated['invoice_number'] = str_pad((string)$validated['invoice_number'], 5, '0', STR_PAD_LEFT);
+                }
             }
 
             $poIds = !empty($validated['purchase_order_ids']) && is_array($validated['purchase_order_ids'])
