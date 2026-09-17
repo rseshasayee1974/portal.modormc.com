@@ -351,11 +351,7 @@
                     $halfRate = $itemTaxRate / 2;
                     $halfAmt = $itemTaxAmt / 2;
                     $formattedHalfRate = $formatRate($halfRate);
-                    $rawGrade = $item['grade'] ?? $item['name'] ?? '-';
-                    $displayGrade = $rawGrade;
-                    if (preg_match('/^(M\s*\d+(?:\.\d+)?|PQC|DLC|GMM|WMM|CTB|FSG)\b/i', trim($rawGrade), $gm)) {
-                        $displayGrade = strtoupper(str_replace(' ', '', $gm[1]));
-                    }
+                    $displayGrade = $item['name'] ?? $item['grade'] ?? '-';
                 @endphp
                 <tr>
                     @if($showHsn) <td style="text-align: center; {{ $hasRecipe ? 'border-bottom: none;' : '' }}">HSN :<br><strong>{{ $item['hsn'] ?? '38245010' }}</strong></td> @endif
