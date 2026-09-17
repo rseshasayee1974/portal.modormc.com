@@ -5,6 +5,7 @@ import { debounce } from 'lodash';
 import Swal from 'sweetalert2';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import ModuleSubTopNav from '@/Navigation/ModuleSubTopNav.vue';
+import { usePermissions } from '@/Composables/usePermissions';
 
 // PrimeVue
 import BaseDataTable from '@/Components/Base/BaseDataTable.vue';
@@ -13,6 +14,8 @@ import BaseButton from '@/Components/Base/BaseButton.vue';
 import Dialog from 'primevue/dialog';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import { useToast } from 'primevue/usetoast';
+
+const { can } = usePermissions();
 
 const props = defineProps<{
     permissions: any;
@@ -123,7 +126,12 @@ const firstRecord = computed(() => (props.permissions.current_page - 1) * props.
                             <span class="text-xl font-semibold uppercase tracking-tight">System Permissions</span>
                             <div class="flex items-center gap-2">
                                 <BaseInput v-model="searchQuery" placeholder="Search keys..." class="p-inputtext-sm" @input="handleSearch" />
-                                <BaseButton label="New Key" icon="pi pi-plus"  @click="openCreateModal" />
+                                <BaseButton 
+                                    v-if="can('permission.create') || can('permissions.create')" 
+                                    label="New Key" 
+                                    icon="pi pi-plus"  
+                                    @click="openCreateModal" 
+                                />
                             </div>
                         </div>
                     </template>
@@ -146,8 +154,22 @@ const firstRecord = computed(() => (props.permissions.current_page - 1) * props.
                     <Column header="Actions" class="text-right" style="width: 120px">
                         <template #body="slotProps">
                             <div class="flex justify-end gap-2">
-                                <BaseButton icon="pi pi-pencil" text rounded  severity="info" @click="openEditModal(slotProps.data)" />
-                                <BaseButton icon="pi pi-trash" text rounded  severity="danger" @click="confirmDelete(slotProps.data.id)" />
+                                <BaseButton 
+                                    v-if="can('permission.update') || can('permission.edit') || can('permissions.update') || can('permissions.edit')" 
+                                    icon="pi pi-pencil" 
+                                    text 
+                                    rounded  
+                                    severity="info" 
+                                    @click="openEditModal(slotProps.data)" 
+                                />
+                                <BaseButton 
+                                    v-if="can('permission.delete') || can('permissions.delete')" 
+                                    icon="pi pi-trash" 
+                                    text 
+                                    rounded  
+                                    severity="danger" 
+                                    @click="confirmDelete(slotProps.data.id)" 
+                                />
                             </div>
                         </template>
                     </Column>

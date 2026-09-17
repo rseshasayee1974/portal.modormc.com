@@ -6,135 +6,82 @@ use Illuminate\Database\Eloquent\Model;
 use App\Models\InventoryAuditLog;
 use Illuminate\Support\Facades\Auth;
 
-/**
- * Class ModelAuditObserver
- * 
- * Automatically captures and persists audit logs for Eloquent models
- * implementing the TracksModelChanges trait.
- */
 class ModelAuditObserver
 {
     /**
-     * Keep track of changes during the 'updating' event, since the model's
-     * dirty attributes will be cleared by the time the 'updated' event runs.
-     *
-     * @var array<int, array{remarks: string, log_from: string, log_to: string}>
-     */
-    protected static array $pendingUpdates = [];
-
-    /**
-     * Handle the Model "created" event.
-     *
-     * @param Model $model
-     * @return void
-     */
-    public function created(Model $model): void
-    {
-        // CREATE logs are no longer recorded
-        return;
-    }
-
-    /**
-     * Handle the Model "updating" event.
-     * Captures dirty state in-memory before it gets saved/flushed.
-     *
-     * @param Model $model
-     * @return void
-     */
-    public function updating(Model $model): void
-    {
-        if (!method_exists($model, 'getAuditChanges')) {
-            return;
-        }
-
-        try {
-            // Prevent duplicate/empty UPDATE logs when no actual change exists
-            $changes = $model->getAuditChanges();
-            if (empty($changes)) {
-                return;
-            }
-
-            $logFrom = [];
-            $logTo = [];
-            foreach ($changes as $change) {
-                $logFrom[$change['field']] = $change['old'];
-                $logTo[$change['field']] = $change['new'];
-            }
-
-            $remarks = 'Updated: ' . $model->getAuditRemarkString();
-            $cacheKey = class_basename($model) . ':' . $model->getKey();
-
-            self::$pendingUpdates[$cacheKey] = [
-                'remarks'  => $remarks,
-                'log_from' => json_encode($logFrom, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-                'log_to'   => json_encode($logTo, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-            ];
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to capture model updating audit: ' . $e->getMessage());
-        }
-    }
-
-    /**
      * Handle the Model "updated" event.
-     * Writes to database only after successful update.
-     *
-     * @param Model $model
-     * @return void
      */
     public function updated(Model $model): void
     {
-        $cacheKey = class_basename($model) . ':' . $model->getKey();
-
-        if (!isset(self::$pendingUpdates[$cacheKey])) {
+        if ($model instanceof InventoryAuditLog) {
             return;
         }
 
-        $pending = self::$pendingUpdates[$cacheKey];
-        unset(self::$pendingUpdates[$cacheKey]);
+        $changes = method_exists($model, 'getAuditChanges')
+            ? $model->getAuditChanges()
+            : [];
+
+        // If no fields were updated, don't log it
+        if (empty($changes)) {
+            return;
+        }
+
+        $remark = method_exists($model, 'getAuditRemarkString')
+            ? $model->getAuditRemarkString($changes)
+            : '';
+
+        $oldValues = [];
+        $newValues = [];
+        foreach ($changes as $change) {
+            $oldValues[$change['field']] = $change['old'];
+            $newValues[$change['field']] = $change['new'];
+        }
+
+        $plantId = $model->plant_id ?? session('active_plant_id') ?? null;
 
         try {
             InventoryAuditLog::create([
-                'plant_id'         => $model->plant_id ?? (session('active_plant_id') ?: 1),
+                'plant_id'         => $plantId,
                 'transaction_type' => 'UPDATE',
-                'reference_type'   => class_basename($model),
+                'reference_type'   => get_class($model),
                 'reference_id'     => $model->getKey(),
-                'log_from'         => $pending['log_from'],
-                'log_to'           => $pending['log_to'],
-                'remarks'          => $pending['remarks'],
+                'log_from'         => !empty($oldValues) ? json_encode($oldValues, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null,
+                'log_to'           => !empty($newValues) ? json_encode($newValues, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) : null,
                 'user_id'          => Auth::id(),
-                'ip_address'       => app()->runningInConsole() ? '127.0.0.1' : request()->ip(),
+                'remarks'          => $remark ?: "Updated " . class_basename($model) . " (#{$model->getKey()})",
+                'ip_address'        => request()?->ip(),
             ]);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to log model update audit: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            // Safe fallback to prevent breaking transaction if audit logging encounters schema mismatch
+            \Illuminate\Support\Facades\Log::error("ModelAuditObserver update failed: " . $e->getMessage());
         }
     }
 
     /**
      * Handle the Model "deleted" event.
-     *
-     * @param Model $model
-     * @return void
      */
     public function deleted(Model $model): void
     {
-        if (!method_exists($model, 'getAuditChanges')) {
+        if ($model instanceof InventoryAuditLog) {
             return;
         }
 
+        $plantId = $model->plant_id ?? session('active_plant_id') ?? null;
+
         try {
             InventoryAuditLog::create([
-                'plant_id'         => $model->plant_id ?? (session('active_plant_id') ?: 1),
+                'plant_id'         => $plantId,
                 'transaction_type' => 'DELETE',
-                'reference_type'   => class_basename($model),
+                'reference_type'   => get_class($model),
                 'reference_id'     => $model->getKey(),
                 'log_from'         => json_encode($model->getOriginal(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-                'log_to'           => json_encode([]),
-                'remarks'          => 'Deleted: ' . class_basename($model) . ': ' . ($model->title ?? $model->name ?? $model->getKey()),
+                'log_to'           => null,
                 'user_id'          => Auth::id(),
-                'ip_address'       => app()->runningInConsole() ? '127.0.0.1' : request()->ip(),
+                'remarks'          => "Deleted " . class_basename($model) . " (#{$model->getKey()})",
+                'ip_address'        => request()?->ip(),
             ]);
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Failed to log model deletion audit: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error("ModelAuditObserver delete failed: " . $e->getMessage());
         }
     }
 }

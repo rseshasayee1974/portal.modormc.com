@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasTable('mm_voucher_types')) {
+        if (Schema::hasTable('mm_voucher_types') && DB::connection()->getDriverName() !== 'sqlite') {
             // Drop any active foreign keys on entity_id or plant_id
             $fks = DB::select("
                 SELECT CONSTRAINT_NAME 

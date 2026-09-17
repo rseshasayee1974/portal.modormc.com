@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Gate;
  *
  * Permission names follow the pattern: {module}.{action}
  * e.g. users.menu, users.create, users.edit, users.delete, users.show
+ * or uppercase module patterns: BATCH.VIEW, BATCHES.VIEW
  */
 trait AuthorizesModule
 {
@@ -39,7 +40,7 @@ trait AuthorizesModule
         }
 
         if ($isMasterModule) {
-            if ($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin')) {
+            if ($user->hasRole('Saas Owner') || $user->hasRole('Platform Admin') || $user->hasRole('SAAS_OWNER') || $user->hasRole('PLATFORM_ADMIN')) {
                 return;
             }
             abort(403, "Access Denied: Master data is restricted to SaaS Owners.");
@@ -50,7 +51,27 @@ trait AuthorizesModule
             return;
         }
 
-        // Map common controller actions to the new uppercase actions
+        // Fetch active entity role for user if available
+        $activeEntityId = session('active_entity_id');
+        $activeRole = null;
+        if ($activeEntityId) {
+            $entityUser = \App\Models\EntityUser::where('user_id', $user->id)
+                ->where('entity_id', $activeEntityId)
+                ->first();
+            if ($entityUser && $entityUser->role_id) {
+                $activeRole = \App\Models\Role::with('permissions')->find($entityUser->role_id);
+            }
+        }
+
+        if ($activeRole) {
+            $adminRoleCodes = ['SAAS_OWNER', 'PLATFORM_ADMIN', 'SUPER_ADMIN', 'ADMINISTRATOR'];
+            $adminRoleNames = ['Saas Owner', 'Platform Admin', 'Super Admin', 'Super Administrator', 'Administrator'];
+            if (in_array(strtoupper($activeRole->code ?? ''), $adminRoleCodes) || in_array($activeRole->name ?? '', $adminRoleNames)) {
+                return;
+            }
+        }
+
+        // Map common controller actions to uppercase actions
         $actionMap = [
             'menu'    => 'VIEW',
             'listing' => 'VIEW',
@@ -65,16 +86,30 @@ trait AuthorizesModule
 
         $mappedAction = $actionMap[$action] ?? strtoupper($action);
         
-        // Check both singular and plural forms (e.g. EWAYBILL.VIEW and EWAYBILLS.VIEW)
+        // Check both singular and plural forms (e.g. BATCH.VIEW and BATCHES.VIEW)
         $singular = strtoupper(\Illuminate\Support\Str::singular($this->module));
         $plural   = strtoupper(\Illuminate\Support\Str::plural($this->module));
         
         $permissionSingular = "{$singular}.{$mappedAction}";
         $permissionPlural   = "{$plural}.{$mappedAction}";
 
-        if (\Illuminate\Support\Facades\Gate::denies($permissionSingular) && \Illuminate\Support\Facades\Gate::denies($permissionPlural)) {
+        $tenantPermissions = collect();
+        if ($activeRole) {
+            $tenantPermissions = $activeRole->permissions->pluck('name');
+            $tenantPermissions = $tenantPermissions->merge($user->getDirectPermissions()->pluck('name'))->unique()->values();
+        } else {
+            $tenantPermissions = $user->getAllPermissions()->pluck('name');
+        }
+
+        $upperTenantPermissions = $tenantPermissions->map(fn($p) => strtoupper($p));
+
+        $hasPermission = $upperTenantPermissions->contains(strtoupper($permissionSingular))
+            || $upperTenantPermissions->contains(strtoupper($permissionPlural))
+            || \Illuminate\Support\Facades\Gate::allows($permissionSingular)
+            || \Illuminate\Support\Facades\Gate::allows($permissionPlural);
+
+        if (!$hasPermission) {
             abort(403, "Access Denied: You do not have the required permission ({$permissionPlural}) for the {$this->module} module.");
         }
     }
 }
-

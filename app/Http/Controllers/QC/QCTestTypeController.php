@@ -64,6 +64,7 @@ class QCTestTypeController extends Controller
     public function store(Request $request)
     {
         \Log::info('QCTestTypeController store payload parameters:', $request->input('parameters', []));
+        
         $validated = $request->validate([
             'name' => 'nullable|string|max:150',
             'code' => 'nullable|string|max:50',
@@ -215,7 +216,7 @@ class QCTestTypeController extends Controller
             'parameters' => 'nullable|array',
             'parameters.*.name' => 'required|string|max:150',
             'parameters.*.code' => 'nullable|string|max:50',
-            'parameters.*.scope' => ['nullable', 'string', \Illuminate\Validation\Rule::in(['test', 'specimen', 'summary'])],
+            'parameters.*.scope' => ['nullable', 'string', 'in:test,specimen,summary,set'],
             'parameters.*.data_type' => 'nullable|string|max:30',
             'parameters.*.unit' => 'nullable|string|max:30',
             'parameters.*.is_required' => 'nullable|boolean',

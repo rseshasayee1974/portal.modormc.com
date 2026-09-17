@@ -61,6 +61,7 @@ class InventoryAuditLogController extends Controller
                 'transaction_type' => $log->transaction_type,
                 'reference_type' => $log->reference_type,
                 'reference_id' => $log->reference_id,
+                'table_name' => $this->getTableNameForReference($log->reference_type),
                 'log_from' => $log->log_from,
                 'log_to' => $log->log_to,
                 'user' => $log->user ? [
@@ -164,6 +165,7 @@ class InventoryAuditLogController extends Controller
                 'transaction_type' => $inventoryAuditLog->transaction_type,
                 'reference_type' => $inventoryAuditLog->reference_type,
                 'reference_id' => $inventoryAuditLog->reference_id,
+                'table_name' => $this->getTableNameForReference($inventoryAuditLog->reference_type),
                 'reference' => $reference,
                 'log_from' => $inventoryAuditLog->log_from,
                 'log_to' => $inventoryAuditLog->log_to,
@@ -178,11 +180,43 @@ class InventoryAuditLogController extends Controller
             ]
         ]);
     }
+
     public function destroy(InventoryAuditLog $inventoryAuditLog)
     {
         $this->authorizeModule('delete');
         $inventoryAuditLog->delete();
 
         return redirect()->back()->with('success', 'Inventory audit log deleted successfully.');
+    }
+
+    /**
+     * Resolve database table name for a reference model class or basename.
+     */
+    protected function getTableNameForReference(?string $referenceType): ?string
+    {
+        if (!$referenceType) {
+            return null;
+        }
+
+        static $tableCache = [];
+        if (isset($tableCache[$referenceType])) {
+            return $tableCache[$referenceType];
+        }
+
+        $modelClass = class_exists($referenceType)
+            ? $referenceType
+            : '\\App\\Models\\' . $referenceType;
+
+        if (class_exists($modelClass)) {
+            try {
+                /** @var \Illuminate\Database\Eloquent\Model $instance */
+                $instance = new $modelClass();
+                return $tableCache[$referenceType] = $instance->getTable();
+            } catch (\Throwable $e) {
+                // Ignore instantiation errors
+            }
+        }
+
+        return $tableCache[$referenceType] = null;
     }
 }

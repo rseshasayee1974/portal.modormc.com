@@ -74,6 +74,8 @@ class QCTestParameterController extends Controller
 
     public function store(Request $request)
     {
+
+        // dd( $request->all());
         if ($request->has('data_type')) {
             $request->merge([
                 'data_type' => trim($request->data_type)

@@ -139,7 +139,7 @@ return new class extends Migration
             $table->foreignId('material_id')->constrained('mm_products')->onDelete('cascade');
             $table->foreignId('supplier_id')->nullable()->constrained('mm_patrons')->onDelete('set null');
             $table->foreignId('customer_id')->nullable()->constrained('mm_patrons')->onDelete('set null');
-            $table->foreignId('inward_id')->nullable()->constrained('mm_purchase_order_inwards')->onDelete('set null');
+            $table->foreignId('inward_id')->nullable();
             $table->foreignId('batch_id')->nullable()->constrained('mm_batches')->onDelete('set null');
             $table->foreignId('dispatch_id')->nullable()->constrained('mm_dispatches')->onDelete('set null');
             $table->string('source_location', 150)->nullable();

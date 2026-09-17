@@ -15,6 +15,9 @@ trait TracksModelChanges
 
     public static function bootTracksModelChanges(): void
     {
+        // Automatically attach audit observer to any model using this trait
+        static::observe(\App\Observers\ModelAuditObserver::class);
+
         static::creating(function ($model) {
             if (Auth::check()) {
                 $userId = Auth::id();
@@ -67,18 +70,121 @@ trait TracksModelChanges
         return isset(static::$tableColumnsCache[$table][$column]);
     }
 
+    /**
+     * Return list of actual dirty/changed fields with old and new values.
+     * Returns empty array if no user-facing fields changed.
+     *
+     * @param array<int, string> $ignoredFields
+     * @return array<int, array{field: string, old: mixed, new: mixed}>
+     */
     public function getAuditChanges(array $ignoredFields = []): array
     {
-        return [];
+        $defaultIgnored = [
+            'created_at',
+            'updated_at',
+            'deleted_at',
+            'created_by',
+            'updated_by',
+            'modified_by',
+            'deleted_by',
+            'remember_token',
+            'password',
+        ];
+
+        $ignored = array_merge($defaultIgnored, $ignoredFields);
+        if (property_exists($this, 'auditIgnore') && is_array($this->auditIgnore)) {
+            $ignored = array_merge($ignored, $this->auditIgnore);
+        }
+
+        $dirty = $this->getDirty();
+        $changes = [];
+
+        foreach ($dirty as $field => $newValue) {
+            if (in_array($field, $ignored, true)) {
+                continue;
+            }
+
+            $oldValue = $this->getOriginal($field);
+
+            if ($this->isAuditValueChanged($oldValue, $newValue)) {
+                $changes[] = [
+                    'field' => $field,
+                    'old'   => $oldValue,
+                    'new'   => $newValue,
+                ];
+            }
+        }
+
+        return $changes;
     }
 
-    public function getAuditRemarkString(): string
+    /**
+     * Determine if an audit field value actually changed.
+     */
+    protected function isAuditValueChanged(mixed $oldValue, mixed $newValue): bool
     {
-        return '';
+        if ($oldValue === $newValue) {
+            return false;
+        }
+
+        // Ignore null vs empty string difference
+        if (($oldValue === null && $newValue === '') || ($oldValue === '' && $newValue === null)) {
+            return false;
+        }
+
+        // Compare numeric values numerically to prevent float/string false positives (e.g. 10.00 vs 10)
+        if (is_numeric($oldValue) && is_numeric($newValue)) {
+            return (float) $oldValue !== (float) $newValue;
+        }
+
+        // Array / JSON comparison
+        if (is_array($oldValue) || is_array($newValue)) {
+            return json_encode($oldValue) !== json_encode($newValue);
+        }
+
+        return (string) $oldValue !== (string) $newValue;
     }
 
+    /**
+     * Format a readable audit summary string for remarks.
+     *
+     * @param array<int, array{field: string, old: mixed, new: mixed}> $changes
+     * @return string
+     */
+    public function getAuditRemarkString(array $changes = []): string
+    {
+        if (empty($changes)) {
+            $changes = $this->getAuditChanges();
+        }
+
+        if (empty($changes)) {
+            return '';
+        }
+
+        $parts = [];
+        foreach ($changes as $change) {
+            $oldStr = $this->normalizeAuditValue($change['old']);
+            $newStr = $this->normalizeAuditValue($change['new']);
+            $parts[] = "{$change['field']}: '{$oldStr}' => '{$newStr}'";
+        }
+
+        return implode(', ', $parts);
+    }
+
+    /**
+     * Normalize audit value into string representation.
+     */
     protected function normalizeAuditValue(mixed $value): string
     {
-        return '';
+        if ($value === null) {
+            return '';
+        }
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (is_array($value) || is_object($value)) {
+            return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }
+        return (string) $value;
     }
 }

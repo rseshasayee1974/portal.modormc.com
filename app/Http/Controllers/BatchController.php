@@ -29,7 +29,7 @@ class BatchController extends Controller
 {
     use AuthorizesModule;
 
-    protected string $module = 'batches';
+    protected string $module = 'BATCH';
 
     public function index()
     {

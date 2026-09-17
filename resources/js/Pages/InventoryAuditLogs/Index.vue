@@ -238,6 +238,9 @@ function badgeClass(type: string): string {
 
 interface ParsedRemark {
     action: 'Created' | 'Updated' | 'Deleted' | 'Custom';
+    targetEntity?: string;
+    targetTable?: string;
+    targetId?: string;
     raw: string;
     changes: Array<{
         field: string;
@@ -253,12 +256,18 @@ function parseRemarks(remarks: string | null): ParsedRemark {
     
     const trimRemarks = remarks.trim();
     let action: 'Created' | 'Updated' | 'Deleted' | 'Custom' = 'Custom';
-    let content = '';
+    let targetEntity = '';
+    let targetTable = '';
+    let targetId = '';
+    let content = trimRemarks;
     
-    const actionMatch = trimRemarks.match(/^(Updated|Created|Deleted):\s*(.*)$/s);
+    const actionMatch = trimRemarks.match(/^(Updated|Created|Deleted)(?:\s+([A-Za-z0-9_]+))?(?:\s*\(([^)]+)\))?(?:\s*#(\d+))?:\s*(.*)$/s);
     if (actionMatch) {
         action = actionMatch[1] as 'Created' | 'Updated' | 'Deleted';
-        content = actionMatch[2].trim();
+        targetEntity = actionMatch[2] || '';
+        targetTable = actionMatch[3] || '';
+        targetId = actionMatch[4] || '';
+        content = actionMatch[5].trim();
     } else if (trimRemarks.includes('=>')) {
         action = 'Updated';
         content = trimRemarks;
@@ -316,6 +325,9 @@ function parseRemarks(remarks: string | null): ParsedRemark {
     
     return {
         action,
+        targetEntity,
+        targetTable,
+        targetId,
         raw: trimRemarks,
         changes
     };
@@ -588,15 +600,20 @@ const hasActiveFilters = computed(() => {
                     </template>
                 </Column> -->
 
-                <!-- Reference -->
-                <Column header="Reference" style="min-width:95px">
+                <!-- Reference / Affected Entity & Table -->
+                <Column header="Target Model / Table" style="min-width:145px">
                     <template #body="{ data }">
-                        <div v-if="data.reference_type" class="flex flex-col leading-tight">
-                            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono truncate max-w-[90px]" :title="data.reference_type">
-                                {{ data.reference_type }}
-                            </span>
-                            <span class="text-[9px] text-indigo-500 font-bold">
-                                #{{ data.reference_id }}
+                        <div v-if="data.reference_type" class="flex flex-col leading-tight gap-0.5">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-xs font-bold text-slate-800 dark:text-slate-200 font-mono truncate max-w-[100px]" :title="data.reference_type">
+                                    {{ data.reference_type }}
+                                </span>
+                                <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-extrabold">
+                                    #{{ data.reference_id }}
+                                </span>
+                            </div>
+                            <span v-if="data.table_name || parseRemarks(data.remarks).targetTable" class="text-[9px] font-mono text-slate-400 dark:text-slate-500 truncate max-w-[135px]" :title="data.table_name || parseRemarks(data.remarks).targetTable">
+                                {{ data.table_name || parseRemarks(data.remarks).targetTable }}
                             </span>
                         </div>
                         <span v-else class="text-xs text-slate-400 italic">None</span>
@@ -780,8 +797,13 @@ const hasActiveFilters = computed(() => {
                                 <div class="flex flex-col justify-between h-[110px]">
                                     <div v-if="data.reference_type" class="space-y-1">
                                         <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Polymorphic Target</p>
-                                        <p class="text-sm font-black text-slate-700 dark:text-slate-350 font-mono">{{ data.reference_type }}</p>
-                                        <p class="text-xs text-slate-500">Database Record ID: <span class="font-mono text-indigo-600 dark:text-indigo-400 font-bold">#{{ data.reference_id }}</span></p>
+                                        <p class="text-sm font-black text-slate-700 dark:text-slate-300 font-mono flex items-center gap-1">
+                                            {{ data.reference_type }}
+                                            <span class="text-xs text-indigo-600 dark:text-indigo-400 font-bold">#{{ data.reference_id }}</span>
+                                        </p>
+                                        <p v-if="data.table_name || parseRemarks(data.remarks).targetTable" class="text-xs text-slate-500 font-mono">
+                                            Table: <span class="font-bold text-slate-700 dark:text-slate-300">{{ data.table_name || parseRemarks(data.remarks).targetTable }}</span>
+                                        </p>
                                     </div>
                                     <div v-else class="text-xs text-slate-400 italic py-2">
                                         No morphable database reference linked to this inventory audit entry.
@@ -1134,11 +1156,19 @@ const hasActiveFilters = computed(() => {
                 <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5">
                     <p class="text-[10px] font-black uppercase tracking-widest text-indigo-650 dark:text-indigo-405 mb-2">Polymorphic Database Target</p>
                     <div v-if="selectedLog.reference_type" class="flex flex-wrap items-center justify-between gap-4 bg-slate-50 dark:bg-slate-950/20 p-3.5 rounded-xl border border-slate-150 dark:border-slate-800">
-                        <div>
-                            <span class="text-xs font-black uppercase tracking-widest text-slate-400 mr-2">Target Entity:</span>
-                            <span class="font-mono text-sm font-black text-slate-800 dark:text-slate-205 mr-4">{{ selectedLog.reference_type }}</span>
-                            <span class="text-xs font-black uppercase tracking-widest text-slate-400 mr-2">Record ID:</span>
-                            <span class="font-mono text-sm font-black text-indigo-600 dark:text-indigo-405">#{{ selectedLog.reference_id }}</span>
+                        <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                            <div>
+                                <span class="text-xs font-black uppercase tracking-widest text-slate-400 mr-2">Model:</span>
+                                <span class="font-mono text-sm font-black text-slate-800 dark:text-slate-200">{{ selectedLog.reference_type }}</span>
+                            </div>
+                            <div v-if="selectedLog.table_name || parseRemarks(selectedLog.remarks).targetTable">
+                                <span class="text-xs font-black uppercase tracking-widest text-slate-400 mr-2">Table:</span>
+                                <span class="font-mono text-sm font-black text-slate-800 dark:text-slate-200">{{ selectedLog.table_name || parseRemarks(selectedLog.remarks).targetTable }}</span>
+                            </div>
+                            <div>
+                                <span class="text-xs font-black uppercase tracking-widest text-slate-400 mr-2">Record ID:</span>
+                                <span class="font-mono text-sm font-black text-indigo-600 dark:text-indigo-400">#{{ selectedLog.reference_id }}</span>
+                            </div>
                         </div>
                     </div>
                     <div v-else class="text-xs text-slate-400 italic py-2">
