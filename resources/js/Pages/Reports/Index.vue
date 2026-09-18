@@ -1,6 +1,6 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, nextTick } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -249,6 +249,7 @@ const handlePageChange = (newPage) => {
 };
 
 const returnReportContext = ref(null);
+const isNavigatingToStatement = ref(false);
 
 const handleViewStatement = (id) => {
     if (!id) return;
@@ -257,11 +258,15 @@ const handleViewStatement = (id) => {
         reportType: reportType.value,
         patronId: patronId.value,
     };
+    isNavigatingToStatement.value = true;
     selectedModuleId.value = 'accounting';
     reportType.value = 'customer_outstanding';
     patronId.value = id;
     currentPage.value = 1;
     generateReport();
+    nextTick(() => {
+        isNavigatingToStatement.value = false;
+    });
 };
 
 const handleSelectPatron = (id) => {
@@ -272,12 +277,16 @@ const handleSelectPatron = (id) => {
 
 const handleClearPatron = () => {
     if (returnReportContext.value) {
+        isNavigatingToStatement.value = true;
         selectedModuleId.value = returnReportContext.value.moduleId;
         reportType.value = returnReportContext.value.reportType;
         patronId.value = returnReportContext.value.patronId;
         returnReportContext.value = null;
         currentPage.value = 1;
         generateReport();
+        nextTick(() => {
+            isNavigatingToStatement.value = false;
+        });
         return;
     }
     patronId.value = null;
@@ -459,6 +468,7 @@ const salesExecutiveOptions = computed(() => {
 
 // Watch module change to select first report automatically
 watch(selectedModuleId, (newModuleId) => {
+    if (isNavigatingToStatement.value) return;
     const mod = modules.find(m => m.id === newModuleId);
     if (mod && mod.reports.length > 0) {
         reportType.value = mod.reports[0].id;
@@ -481,6 +491,7 @@ watch(selectedModuleId, (newModuleId) => {
 });
 
 watch(reportType, () => {
+    if (isNavigatingToStatement.value) return;
     reportData.value = null;
     selectedId.value = null;
     patronId.value = null;

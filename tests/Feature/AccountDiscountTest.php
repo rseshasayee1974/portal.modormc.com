@@ -22,29 +22,67 @@ class AccountDiscountTest extends TestCase
         $this->assertSame('sqlite', DB::connection()->getDriverName());
         $this->assertSame(':memory:', DB::connection()->getDatabaseName());
         (require database_path('migrations/2026_09_11_170000_create_account_discount_table.php'))->up();
-        foreach (['mm_journal_entries', 'mm_ledgers', 'mm_patrons'] as $name) {
+        (require database_path('migrations/2026_09_17_170132_add_reference_number_to_mm_account_discount_table.php'))->up();
+        (require database_path('migrations/2026_09_17_170915_add_invoice_billing_payment_id_to_mm_account_discount_table.php'))->up();
+        (require database_path('migrations/2026_09_18_113500_add_audit_columns_to_mm_account_discount_table.php'))->up();
+        foreach (['mm_journal_entries', 'mm_journal_entry_lines', 'mm_ledgers', 'mm_patrons', 'mm_plants', 'mm_account_default_settings', 'mm_invoices', 'mm_permissions', 'mm_model_has_permissions', 'mm_roles', 'mm_model_has_roles'] as $name) {
             Schema::create($name, function (Blueprint $table) use ($name) {
                 $table->id();
-                $table->integer('plant_id');
+                $table->integer('plant_id')->nullable();
+                $table->integer('entity_id')->nullable();
                 $table->softDeletes();
                 if ($name === 'mm_journal_entries') {
                     $table->string('voucher_number')->default('JV-1');
                     $table->string('voucher_type')->default('JOURNAL');
+                    $table->string('ref_module')->nullable();
+                    $table->unsignedBigInteger('ref_id')->nullable();
+                    $table->decimal('total_debit', 15, 2)->default(0);
+                    $table->decimal('total_credit', 15, 2)->default(0);
+                } elseif ($name === 'mm_journal_entry_lines') {
+                    $table->unsignedBigInteger('journal_entry_id')->nullable();
+                    $table->unsignedBigInteger('account_id')->nullable();
+                    $table->unsignedBigInteger('partner_id')->nullable();
+                    $table->decimal('debit_amount', 15, 2)->default(0);
+                    $table->decimal('credit_amount', 15, 2)->default(0);
+                    $table->boolean('is_deleted')->default(false);
+                    $table->unsignedBigInteger('deleted_by')->nullable();
+                } elseif ($name === 'mm_account_default_settings') {
+                    $table->string('module_name')->nullable();
+                    $table->string('setting_key')->nullable();
+                    $table->integer('ledger_id')->nullable();
+                    $table->boolean('is_active')->default(true);
+                } elseif ($name === 'mm_invoices') {
+                    $table->string('invoice_number')->nullable();
+                    $table->unsignedBigInteger('partner_id')->nullable();
+                    $table->unsignedBigInteger('journal_id')->nullable();
+                } elseif ($name === 'mm_permissions' || $name === 'mm_roles') {
+                    $table->string('name')->nullable();
+                    $table->string('guard_name')->default('web');
+                } elseif ($name === 'mm_model_has_permissions') {
+                    $table->unsignedBigInteger('permission_id')->nullable();
+                    $table->string('model_type')->nullable();
+                    $table->unsignedBigInteger('model_id')->nullable();
+                } elseif ($name === 'mm_model_has_roles') {
+                    $table->unsignedBigInteger('role_id')->nullable();
+                    $table->string('model_type')->nullable();
+                    $table->unsignedBigInteger('model_id')->nullable();
                 } else {
-                    $table->string($name === 'mm_ledgers' ? 'title' : 'legal_name')->default('Test');
+                    $table->string($name === 'mm_ledgers' ? 'title' : ($name === 'mm_plants' ? 'name' : 'legal_name'))->default('Test');
                 }
             });
             DB::table($name)->insert([['id' => 1, 'plant_id' => 6], ['id' => 2, 'plant_id' => 7]]);
         }
+        DB::table('mm_plants')->insert([['id' => 6, 'entity_id' => 1], ['id' => 7, 'entity_id' => 1]]);
         session(['active_plant_id' => 6]);
         $this->signIn(11);
     }
 
     private function signIn(int $id): void
     {
-        $user = $this->getMockBuilder(User::class)->onlyMethods(['isSystemAdmin'])->getMock();
+        $user = $this->getMockBuilder(User::class)->onlyMethods(['isSystemAdmin', 'hasPermissionTo'])->getMock();
         $user->setRawAttributes(['id' => $id]);
         $user->method('isSystemAdmin')->willReturn(true);
+        $user->method('hasPermissionTo')->willReturn(true);
         $this->actingAs($user);
     }
 
@@ -73,7 +111,7 @@ class AccountDiscountTest extends TestCase
         $this->assertSame(11, $discount->created_by);
         $this->assertSame(11, $discount->modified_by);
         $this->assertNotNull($discount->modified_at);
-        $this->assertFalse(Schema::hasColumn('mm_account_discount', 'updated_at'));
+        $this->assertTrue(Schema::hasColumn('mm_account_discount', 'deleted_at'));
     }
 
     public function test_percentage_and_its_amount_are_stored_separately(): void
@@ -84,7 +122,7 @@ class AccountDiscountTest extends TestCase
         $this->assertSame('Purchase', $discount->primary_type);
     }
 
-    public function test_update_and_delete_do_not_modify_linked_journal_entries(): void
+    public function test_update_and_delete_reverts_applied_status_so_invoice_can_be_reused(): void
     {
         $discount = $this->createDiscount();
         $createdAt = $discount->created_at->toDateTimeString();
@@ -97,9 +135,14 @@ class AccountDiscountTest extends TestCase
         $this->assertSame(11, $discount->created_by);
         $this->assertSame(12, $discount->modified_by);
         $this->assertSame($createdAt, $discount->created_at->toDateTimeString());
+
         (new AccountDiscountController)->destroy($discount);
-        $this->assertDatabaseMissing('mm_account_discount', ['id' => $discount->id]);
-        $this->assertSame(2, DB::table('mm_journal_entries')->count());
+        $this->assertSoftDeleted('mm_account_discount', ['id' => $discount->id]);
+
+        // Verify that after deleting the discount, the invoice/journal can be reused for a new discount
+        $newDiscount = $this->createDiscount(['value' => '50.00']);
+        $this->assertNotNull($newDiscount);
+        $this->assertSame(1, $newDiscount->journal_id);
     }
 
     public function test_index_and_show_return_discount_details_and_plant_scoped_options(): void

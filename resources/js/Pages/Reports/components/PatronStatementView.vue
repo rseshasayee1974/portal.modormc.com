@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { usePage } from '@inertiajs/vue3';
-import { 
-    ArrowLeftIcon, 
-    PrinterIcon, 
+import {
+    ArrowLeftIcon,
+    PrinterIcon,
     MagnifyingGlassIcon,
     FunnelIcon,
     BuildingOfficeIcon,
@@ -110,7 +110,7 @@ const filteredRows = computed(() => {
 
     if (searchQuery.value.trim()) {
         const q = searchQuery.value.trim().toLowerCase();
-        rows = rows.filter(r => 
+        rows = rows.filter(r =>
             (r.transactions && r.transactions.toLowerCase().includes(q)) ||
             (r.details && r.details.toLowerCase().includes(q)) ||
             (r.type && r.type.toLowerCase().includes(q)) ||
@@ -157,14 +157,11 @@ const getBadgeStyle = (txType) => {
 <template>
     <div class="space-y-4 patron-statement-container">
         <!-- 1. Top Action Toolbar (Hidden during print) -->
-        <div class="flex flex-wrap items-center justify-between gap-3 p-3 bg-white rounded-xl border border-slate-200 shadow-xs print:hidden">
+        <div
+            class="flex flex-wrap items-center justify-between gap-3 p-3 bg-white rounded-xl border border-slate-200 shadow-xs print:hidden">
             <div class="flex items-center gap-2">
-                <button 
-                    v-if="showBackButton"
-                    type="button"
-                    @click="emit('back')"
-                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
-                >
+                <button v-if="showBackButton" type="button" @click="emit('back')"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer">
                     <ArrowLeftIcon class="w-3.5 h-3.5" />
                     <span>Back to All Customers</span>
                 </button>
@@ -175,7 +172,8 @@ const getBadgeStyle = (txType) => {
                     <span class="text-xs font-bold text-slate-800">
                         {{ patron.legal_name || 'Customer' }}
                     </span>
-                    <span v-if="patron.patron_code || patron.code" class="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-slate-100 text-slate-600">
+                    <span v-if="patron.patron_code || patron.code"
+                        class="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-slate-100 text-slate-600">
                         {{ patron.patron_code || patron.code }}
                     </span>
                 </div>
@@ -184,72 +182,50 @@ const getBadgeStyle = (txType) => {
             <div class="flex flex-wrap items-center gap-2">
                 <!-- Transaction Type Filter -->
                 <div class="flex items-center bg-slate-100 rounded-lg p-0.5 text-xs font-medium text-slate-600">
-                    <button 
-                        type="button" 
-                        @click="typeFilter = 'ALL'"
-                        :class="['px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer', typeFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900']"
-                    >
+                    <button type="button" @click="typeFilter = 'ALL'"
+                        :class="['px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer', typeFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900']">
                         All
                     </button>
-                    <button 
-                        type="button" 
-                        @click="typeFilter = 'INVOICE'"
-                        :class="['px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer', typeFilter === 'INVOICE' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900']"
-                    >
+                    <button type="button" @click="typeFilter = 'INVOICE'"
+                        :class="['px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer', typeFilter === 'INVOICE' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900']">
                         Invoices
                     </button>
-                    <button 
-                        type="button" 
-                        @click="typeFilter = 'PAYMENT'"
-                        :class="['px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer', typeFilter === 'PAYMENT' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900']"
-                    >
+                    <button type="button" @click="typeFilter = 'PAYMENT'"
+                        :class="['px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer', typeFilter === 'PAYMENT' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900']">
                         Payments
                     </button>
-                    <button 
-                        type="button" 
-                        @click="typeFilter = 'NOTE'"
-                        :class="['px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer', typeFilter === 'NOTE' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900']"
-                    >
+                    <button type="button" @click="typeFilter = 'NOTE'"
+                        :class="['px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer', typeFilter === 'NOTE' ? 'bg-white text-slate-900 shadow-xs' : 'hover:text-slate-900']">
                         Credit/Debit
                     </button>
                 </div>
 
                 <!-- Quick Filter Search -->
                 <div class="relative w-48 sm:w-56">
-                    <MagnifyingGlassIcon class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
-                    <input 
-                        type="text" 
-                        v-model="searchQuery" 
-                        placeholder="Search date, truck, ref..."
-                        class="w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0064d2]"
-                    />
+                    <!-- <MagnifyingGlassIcon class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" /> -->
+                    <input type="text" v-model="searchQuery" placeholder="Search date, truck, ref..."
+                        class="w-full pl-8 pr-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-[#0064d2]" />
                 </div>
 
                 <!-- Print Button -->
-                <button 
-                    type="button" 
-                    @click="printStatement" 
+                <!-- <button type="button" @click="printStatement"
                     class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-xs cursor-pointer"
-                    title="Print Statement"
-                >
+                    title="Print Statement">
                     <PrinterIcon class="w-3.5 h-3.5 text-slate-600" />
                     <span>Print</span>
-                </button>
+                </button> -->
             </div>
         </div>
 
         <!-- 2. Statement Document Sheet (Aesthetic Pixel-Accurate Layout matching PDF) -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-8 font-sans print:p-0 print:border-none print:shadow-none">
+        <div
+            class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 sm:p-8 font-sans print:p-0 print:border-none print:shadow-none">
             <!-- Header Row: Logo & Plant Address -->
             <div class="flex flex-col sm:flex-row justify-between items-start gap-4 pb-4 border-b border-slate-100">
                 <!-- Left: Active Plant Logo Only -->
                 <div class="flex items-center">
-                    <img 
-                        v-if="plantLogoUrl"
-                        :src="plantLogoUrl" 
-                        :alt="plant.legal_name || plant.name || 'Plant Logo'" 
-                        class="h-12 max-h-14 w-auto max-w-[220px] object-contain"
-                    />
+                    <img v-if="plantLogoUrl" :src="plantLogoUrl" :alt="plant.legal_name || plant.name || 'Plant Logo'"
+                        class="h-12 max-h-14 w-auto max-w-[220px] object-contain" />
                     <div v-else class="text-xl font-black tracking-tight text-slate-900">
                         {{ plant.legal_name || plant.name || 'DEMO LOGIN' }}
                     </div>
@@ -258,7 +234,8 @@ const getBadgeStyle = (txType) => {
                 <!-- Right: Plant Legal & Address -->
                 <div class="text-right text-[11px] text-slate-600 leading-tight">
                     <div class="font-bold text-slate-500 uppercase text-[9px] tracking-wider mb-0.5">Address:</div>
-                    <div class="font-bold text-slate-900 text-xs">{{ plant.legal_name || plant.name || 'DEMO LOGIN' }}</div>
+                    <div class="font-bold text-slate-900 text-xs">{{ plant.legal_name || plant.name || 'DEMO LOGIN' }}
+                    </div>
                     <div v-if="plantAddress" class="whitespace-pre-line text-slate-600 mt-0.5">{{ plantAddress }}</div>
                     <div v-else class="text-slate-500 mt-0.5">
                         3/150, Akkiyampatti (Po), Sendamangalam (Tk),<br />
@@ -294,7 +271,8 @@ const getBadgeStyle = (txType) => {
                     <div class="text-base font-black text-slate-900 tracking-tight">
                         {{ patron.legal_name || patron.trade_name || 'Customer' }}
                     </div>
-                    <div v-if="patron.trade_name && patron.trade_name !== patron.legal_name" class="text-xs font-semibold text-slate-600">
+                    <div v-if="patron.trade_name && patron.trade_name !== patron.legal_name"
+                        class="text-xs font-semibold text-slate-600">
                         {{ patron.trade_name }}
                     </div>
                     <div v-if="patronAddress" class="text-slate-600 leading-snug text-[11px] pt-0.5">
@@ -319,7 +297,8 @@ const getBadgeStyle = (txType) => {
                 <!-- Right: Account Summary Box (Matches uploaded PDF exactly) -->
                 <div class="md:col-span-6 flex justify-start md:justify-end">
                     <div class="w-full sm:max-w-sm rounded-lg border border-slate-300 overflow-hidden shadow-2xs">
-                        <div class="bg-slate-100 px-3 py-1.5 font-bold text-xs text-slate-800 border-b border-slate-300">
+                        <div
+                            class="bg-slate-100 px-3 py-1.5 font-bold text-xs text-slate-800 border-b border-slate-300">
                             Account Summary
                         </div>
                         <table class="w-full text-xs">
@@ -331,13 +310,13 @@ const getBadgeStyle = (txType) => {
                                     </td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/50">
-                                    <td class="py-1 px-3 text-slate-600">Invoiced(Tax)</td>
+                                    <td class="py-1 px-3 text-slate-600">Invoiced (Tax)</td>
                                     <td class="py-1 px-3 text-right font-mono">
                                         {{ accountSummary.invoiced_tax_display || '0' }}
                                     </td>
                                 </tr>
                                 <tr class="hover:bg-slate-50/50">
-                                    <td class="py-1 px-3 text-slate-600">Invoiced(Non-Tax)</td>
+                                    <td class="py-1 px-3 text-slate-600">Invoiced (Non-Tax)</td>
                                     <td class="py-1 px-3 text-right font-mono">
                                         {{ accountSummary.invoiced_nontax_display || '0' }}
                                     </td>
@@ -382,7 +361,8 @@ const getBadgeStyle = (txType) => {
                             <tfoot>
                                 <tr class="bg-slate-100 font-bold border-t border-slate-300">
                                     <td class="py-1.5 px-3 text-slate-900 text-xs">Balance Due</td>
-                                    <td class="py-1.5 px-3 text-right text-xs font-mono font-black" :class="accountSummary.balance_due_type === 'Dr' ? 'text-rose-700' : 'text-slate-900'">
+                                    <td class="py-1.5 px-3 text-right text-xs font-mono font-black"
+                                        :class="accountSummary.balance_due_type === 'Dr' ? 'text-rose-700' : 'text-slate-900'">
                                         {{ accountSummary.balance_due_display || 'Cr ₹ 0.00' }}
                                     </td>
                                 </tr>
@@ -395,7 +375,8 @@ const getBadgeStyle = (txType) => {
             <!-- Balance Due Banner Strip -->
             <div class="mt-6 flex items-center justify-between px-4 py-2 bg-slate-100 border-y border-slate-200">
                 <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">Balance Due</span>
-                <span class="text-sm sm:text-base font-black font-mono" :class="accountSummary.balance_due_type === 'Dr' ? 'text-rose-700' : 'text-slate-900'">
+                <span class="text-sm sm:text-base font-black font-mono"
+                    :class="accountSummary.balance_due_type === 'Dr' ? 'text-rose-700' : 'text-slate-900'">
                     {{ accountSummary.balance_due_display || reportData.balance_due_display || 'Cr ₹ 0.00' }}
                 </span>
             </div>
@@ -404,27 +385,24 @@ const getBadgeStyle = (txType) => {
             <div class="mt-4 overflow-x-auto max-h-[600px] overflow-y-auto border border-slate-200 rounded-lg">
                 <table class="w-full text-left border-collapse min-w-[850px] text-xs">
                     <thead>
-                        <tr class="sticky top-0 bg-[#1e293b] text-white text-[10px] font-bold uppercase tracking-wider z-10 shadow-xs">
+                        <tr
+                            class="sticky top-0 bg-[#1e293b] text-white text-[10px] font-bold uppercase tracking-wider z-10 shadow-xs">
                             <th class="py-2.5 px-1 text-center" width="4%">S/No</th>
                             <th class="py-2.5 px-1" width="5%">Date</th>
                             <th class="py-2.5 px-1" width="12%">Transactions</th>
                             <th class="py-2.5 px-1" width="25%">Details</th>
                             <th class="py-2.5 px-1 text-center" width="13%">Type</th>
-                            <th class="py-2.5 px-1 text-right" width="13%">Invoice/(Bill)</th>
-                            <th class="py-2.5 px-1 text-right" width="11%">(Receipt)/ Payment</th>
+                            <th class="py-2.5 px-1 text-right" width="13%">Invoice / Bill</th>
+                            <th class="py-2.5 px-1 text-right" width="11%">Receipt / Payment</th>
                             <th class="py-2.5 px-1 text-right" width="4%">Discount</th>
                             <th class="py-2.5 px-1 text-right" width="15%">Balance</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 text-[11px]">
-                        <tr 
-                            v-for="row in filteredRows" 
-                            :key="row.s_no"
-                            :class="[
-                                'hover:bg-slate-50/80 transition-colors',
-                                row.is_opening ? 'bg-slate-50/90 font-bold' : ''
-                            ]"
-                        >
+                        <tr v-for="row in filteredRows" :key="row.s_no" :class="[
+                            'hover:bg-slate-50/80 transition-colors',
+                            row.is_opening ? 'bg-slate-50/90 font-bold' : ''
+                        ]">
                             <!-- S/No -->
                             <td class="py-2 px-1 text-center font-bold text-slate-500">
                                 {{ row.s_no }}
@@ -437,17 +415,11 @@ const getBadgeStyle = (txType) => {
 
                             <!-- Transactions -->
                             <td class="py-2 px-1 font-bold">
-                                <span 
-                                    v-if="row.is_opening"
-                                    class="text-slate-800 font-extrabold italic"
-                                >
+                                <span v-if="row.is_opening" class="text-slate-800 font-extrabold italic">
                                     {{ row.transactions }}
                                 </span>
-                                <span 
-                                    v-else 
-                                    class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border"
-                                    :class="getBadgeStyle(row.transactions)"
-                                >
+                                <span v-else class="inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border"
+                                    :class="getBadgeStyle(row.transactions)">
                                     {{ row.transactions }}
                                 </span>
                             </td>
@@ -458,8 +430,10 @@ const getBadgeStyle = (txType) => {
                             </td>
 
                             <!-- Type (Invoice Number & Prefix) -->
-                            <td class="py-2 px-1 text-center font-mono text-[11px] font-semibold text-slate-700 whitespace-nowrap">
-                                <span v-if="row.type && row.type !== '-'" class="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200">
+                            <td
+                                class="py-2 px-1 text-center font-mono text-[11px] font-semibold text-slate-700 whitespace-nowrap">
+                                <span v-if="row.type && row.type !== '-'"
+                                    class="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200">
                                     {{ row.type }}
                                 </span>
                                 <span v-else class="text-slate-400">-</span>
@@ -481,7 +455,8 @@ const getBadgeStyle = (txType) => {
                             </td>
 
                             <!-- Running Balance -->
-                            <td class="py-2 px-1 text-right font-mono font-bold whitespace-nowrap" :class="row.balance_type === 'Dr' ? 'text-rose-700' : 'text-slate-900'">
+                            <td class="py-2 px-1 text-right font-mono font-bold whitespace-nowrap"
+                                :class="row.balance_type === 'Dr' ? 'text-rose-700' : 'text-slate-900'">
                                 {{ row.balance_display }}
                             </td>
                         </tr>
@@ -497,11 +472,14 @@ const getBadgeStyle = (txType) => {
                     <!-- Bottom Balance Due Footer Row -->
                     <tfoot class="border-t-2 border-slate-300 bg-slate-100 text-xs font-bold">
                         <tr>
-                            <td colspan="5" class="py-2 px-1 text-right uppercase text-[10px] tracking-wider text-slate-700">
+                            <td colspan="5"
+                                class="py-2 px-1 text-right uppercase text-[10px] tracking-wider text-slate-700">
                                 Balance Due
                             </td>
-                            <td colspan="4" class="py-2 px-1 text-right font-black font-mono text-sm whitespace-nowrap" :class="accountSummary.balance_due_type === 'Dr' ? 'text-rose-700' : 'text-slate-900'">
-                                {{ accountSummary.balance_due_display || reportData.balance_due_display || 'Cr ₹ 0.00' }}
+                            <td colspan="4" class="py-2 px-1 text-right font-black font-mono text-sm whitespace-nowrap"
+                                :class="accountSummary.balance_due_type === 'Dr' ? 'text-rose-700' : 'text-slate-900'">
+                                {{ accountSummary.balance_due_display || reportData.balance_due_display || 'Cr ₹ 0.00'
+                                }}
                             </td>
                         </tr>
                     </tfoot>
@@ -509,7 +487,8 @@ const getBadgeStyle = (txType) => {
             </div>
 
             <!-- Copyright & Watermark Footer -->
-            <div class="mt-8 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-400">
+            <div
+                class="mt-8 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between text-[10px] text-slate-400">
                 <div>
                     {{ plant.legal_name || plant.name || 'DEMO LOGIN' }} - Copyright {{ new Date().getFullYear() }}
                 </div>
@@ -528,7 +507,8 @@ const getBadgeStyle = (txType) => {
         margin: 10mm 8mm 10mm 8mm !important;
     }
 
-    html, body {
+    html,
+    body {
         width: 100% !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -543,7 +523,8 @@ const getBadgeStyle = (txType) => {
         width: 100% !important;
     }
 
-    .overflow-x-auto, .overflow-y-auto {
+    .overflow-x-auto,
+    .overflow-y-auto {
         max-height: none !important;
         overflow: visible !important;
     }

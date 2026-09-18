@@ -37,6 +37,7 @@ class AccountDiscountController extends Controller
         $discounts->each(fn ($discount) => $discount->partner?->setAppends([]));
         $appliedDiscounts = DB::table('mm_account_discount')
             ->where('plant_id', $plantId)
+            ->whereNull('deleted_at')
             ->where('status', 1)
             ->get(['id', 'journal_id', 'invoice_id', 'billing_id', 'payment_id']);
 
@@ -109,7 +110,7 @@ class AccountDiscountController extends Controller
                 $j->applied_discount_id = $appliedId ? (int)$appliedId : null;
                 return $j;
             });
-
+// return response()->json([$journals,$discounts]);
         return Inertia::render('Discounts/Index', [
             'discounts' => $discounts,
             'journals' => $journals,
@@ -203,6 +204,7 @@ class AccountDiscountController extends Controller
         if ($selectedJournalId) {
             $alreadyApplied = DB::table('mm_account_discount')
                 ->where('plant_id', $plantId)
+                ->whereNull('deleted_at')
                 ->where('status', 1)
                 ->where('journal_id', $selectedJournalId)
                 ->when($ignoreDiscountId, fn($q) => $q->where('id', '!=', $ignoreDiscountId))

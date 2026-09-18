@@ -723,7 +723,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'voucher_type'            => $it['voucher_type'],
                 'voucher_no'              => $it['voucher_no'],
                 'invoice_bill_display'    => $debit > 0 ? '₹ ' . number_format($debit, 2) : '0',
-                'receipt_payment_display' => $credit > 0 ? '(₹ ' . number_format($credit, 2) . ')' : '0',
+                'receipt_payment_display' => $credit > 0 ? '₹ ' . number_format($credit, 2) : '0',
                 'discount_display'        => $disc > 0 ? '₹ ' . number_format($disc, 2) : '0',
                 'balance_display'         => ($runningBalance != 0 ? ($runningBalance > 0 ? 'Dr ' : 'Cr ') : '') . '₹ ' . number_format(abs($runningBalance), 2),
                 'balance_type'            => $runningBalance >= 0 ? 'Dr' : 'Cr',

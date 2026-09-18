@@ -268,7 +268,8 @@ const filteredPayments = computed(() => {
                         activeSection === 'operations' ? 'bg-[#0064d2] text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                     ]">
                         <TruckIcon class="w-3.5 h-3.5" />
-                        Production & Dispatches ({{ dispatches.dispatches_count }})
+                        <span>Production & Dispatches</span>
+                        <span v-if="dispatches.dispatches_count > 0">({{ dispatches.dispatches_count }})</span>
                     </button>
 
                     <button type="button" @click="activeSection = 'invoicing'" :class="[
@@ -276,7 +277,8 @@ const filteredPayments = computed(() => {
                         activeSection === 'invoicing' ? 'bg-[#0064d2] text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                     ]">
                         <DocumentTextIcon class="w-3.5 h-3.5" />
-                        Invoices & Billing ({{ invoicing.sales_invoices_count }})
+                        <span>Invoices & Billing</span>
+                        <span v-if="invoicing.sales_invoices_count > 0">({{ invoicing.sales_invoices_count }})</span>
                     </button>
 
                     <button type="button" @click="activeSection = 'cash_flow'" :class="[
@@ -284,7 +286,7 @@ const filteredPayments = computed(() => {
                         activeSection === 'cash_flow' ? 'bg-[#0064d2] text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                     ]">
                         <CurrencyRupeeIcon class="w-3.5 h-3.5" />
-                        Collections & Day Book
+                        <span>Collections & Day Book</span>
                     </button>
 
                     <button type="button" @click="activeSection = 'pipeline'" :class="[
@@ -292,7 +294,8 @@ const filteredPayments = computed(() => {
                         activeSection === 'pipeline' ? 'bg-[#0064d2] text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                     ]">
                         <ClipboardDocumentListIcon class="w-3.5 h-3.5" />
-                        Quotations & Orders ({{ pipeline.sales_orders_count }})
+                        <span>Quotations & Orders</span>
+                        <span v-if="pipeline.sales_orders_count > 0">({{ pipeline.sales_orders_count }})</span>
                     </button>
 
                     <button type="button" @click="activeSection = 'inward'" :class="[
@@ -300,21 +303,22 @@ const filteredPayments = computed(() => {
                         activeSection === 'inward' ? 'bg-[#0064d2] text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
                     ]">
                         <CubeIcon class="w-3.5 h-3.5" />
-                        Inwards ({{ procurement.inwards_count }})
+                        <span>Inwards</span>
+                        <span v-if="procurement.inwards_count > 0">({{ procurement.inwards_count }})</span>
                     </button>
                 </div>
 
                 <!-- Compliance Pills -->
                 <div class="flex items-center gap-2 text-[11px] font-semibold text-slate-600">
-                    <span
+                    <span v-if="summary.einvoices_count > 0"
                         class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
                         <ShieldCheckIcon class="w-3.5 h-3.5" />
-                        {{ summary.einvoices_count || 0 }} E-Invoices
+                        {{ summary.einvoices_count }} E-Invoices
                     </span>
-                    <span
+                    <span v-if="summary.ewaybills_count > 0"
                         class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
                         <TruckIcon class="w-3.5 h-3.5" />
-                        {{ summary.ewaybills_count || 0 }} E-Way Bills
+                        {{ summary.ewaybills_count }} E-Way Bills
                     </span>
                 </div>
             </div>
@@ -622,8 +626,9 @@ const filteredPayments = computed(() => {
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <!-- Quotations -->
                     <div class="space-y-2">
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800">
-                            Quotations Issued ({{ pipeline.quotations_count }})
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1">
+                            <span>Quotations Issued</span>
+                            <span v-if="pipeline.quotations_count > 0">({{ pipeline.quotations_count }})</span>
                         </h4>
                         <div class="overflow-x-auto rounded-lg border border-slate-200">
                             <table class="w-full text-left text-xs">
@@ -655,8 +660,9 @@ const filteredPayments = computed(() => {
 
                     <!-- Sales Orders -->
                     <div class="space-y-2">
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800">
-                            Sales Orders Confirmed ({{ pipeline.sales_orders_count }})
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1">
+                            <span>Sales Orders Confirmed</span>
+                            <span v-if="pipeline.sales_orders_count > 0">({{ pipeline.sales_orders_count }})</span>
                         </h4>
                         <div class="overflow-x-auto rounded-lg border border-slate-200">
                             <table class="w-full text-left text-xs">
@@ -696,8 +702,9 @@ const filteredPayments = computed(() => {
             <!-- 8. SECTION 5: INWARDS -->
             <div v-if="activeSection === 'inward'" class="p-4 space-y-4">
                 <div class="flex items-center justify-between">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800">
-                        Raw Material Inwards & Receipts ({{ procurement.inwards_count }})
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1">
+                        <span>Raw Material Inwards & Receipts</span>
+                        <span v-if="procurement.inwards_count > 0">({{ procurement.inwards_count }})</span>
                     </h4>
                     <span class="text-xs font-bold text-slate-700">
                         Total Weight: <strong class="text-indigo-700">{{ procurement.total_weight }} T</strong>
