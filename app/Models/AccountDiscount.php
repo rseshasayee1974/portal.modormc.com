@@ -133,15 +133,15 @@ class AccountDiscount extends Model
     {
         return \Illuminate\Support\Facades\DB::transaction(function () {
             $this->refresh();
-            $plantId = (int) ($this->plant_id ?? session('active_plant_id', 1));
-            $entityId = $this->plant?->entity_id ?? session('active_entity_id', 1);
-            $amount = round((float) ($this->amount ?? 0), 2);
+            $plantId = (int) ($this->plant_id ?? session('active_plant_id'));
+            $entityId = $this->plant?->entity_id ?? session('active_entity_id');
+            $amount = (float) ($this->amount ?? 0);
 
             if ($amount <= 0) {
                 return null;
             }
 
-            $voucherType = 'JOURNAL';
+            $voucherType = 'Discount Accounting';
             $voucherNo = $this->reference_number ?: ('DISC-' . $this->id);
             $isSales = $this->primary_type === 'Sales';
 

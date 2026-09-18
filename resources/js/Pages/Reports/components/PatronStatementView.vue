@@ -144,6 +144,9 @@ const getBadgeStyle = (txType) => {
     if (tx.includes('payment') && tx.includes('made')) {
         return 'bg-indigo-100 text-indigo-800 border-indigo-200';
     }
+    if (tx.includes('discount')) {
+        return 'bg-teal-100 text-teal-800 border-teal-200';
+    }
     if (tx.includes('credit')) {
         return 'bg-cyan-100 text-cyan-800 border-cyan-200';
     }
