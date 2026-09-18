@@ -6,10 +6,11 @@ use App\Traits\PlantScoping;
 use App\Traits\TracksModelChanges;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AccountDiscount extends Model
 {
-    use PlantScoping, TracksModelChanges;
+    use PlantScoping, TracksModelChanges , SoftDeletes;
 
     protected $table = 'mm_account_discount';
     public const UPDATED_AT = 'modified_at';
@@ -37,16 +38,24 @@ class AccountDiscount extends Model
                 $fyString = substr($startYear, -2) . substr($startYear + 1, -2);
                 $plantPrefix = "{$prefix}/{$fyString}/";
 
-                $latest = self::withoutGlobalScopes()
-                    ->where('plant_id', $model->plant_id)
+                // Retrieve reference numbers of active (non-deleted) discounts for this plant & prefix
+                $activeRefs = self::where('plant_id', $model->plant_id)
                     ->where('reference_number', 'LIKE', "{$plantPrefix}%")
-                    ->orderByDesc('id')
-                    ->value('reference_number');
+                    ->pluck('reference_number');
 
-                $sequence = 1;
-                if ($latest && preg_match('/\/(\d+)$/', $latest, $matches)) {
-                    $sequence = ((int) $matches[1]) + 1;
+                $usedSequences = [];
+                foreach ($activeRefs as $ref) {
+                    if (preg_match('/\/(\d+)$/', $ref, $matches)) {
+                        $usedSequences[(int) $matches[1]] = true;
+                    }
                 }
+
+                // Find lowest available sequence number starting from 1 (reusing deleted sequence numbers)
+                $sequence = 1;
+                while (isset($usedSequences[$sequence])) {
+                    $sequence++;
+                }
+
                 $model->reference_number = sprintf('%s%05d', $plantPrefix, $sequence);
             }
         });
@@ -63,12 +72,14 @@ class AccountDiscount extends Model
                     if ($journal) {
                         $vType = strtoupper($journal->voucher_type ?? '');
                         $refMod = strtolower($journal->ref_module ?? '');
+                        $refId = property_exists($journal, 'ref_id') ? $journal->ref_id : null;
+                        $hasInvoices = \Illuminate\Support\Facades\Schema::hasTable('mm_invoices');
                         if ($model->primary_type === 'Sales' || $vType === 'SALES' || $refMod === 'invoice') {
-                            $model->invoice_id = $journal->ref_id ?: \Illuminate\Support\Facades\DB::table('mm_invoices')->where('journal_id', $model->journal_id)->value('id');
+                            $model->invoice_id = $refId ?: ($hasInvoices ? \Illuminate\Support\Facades\DB::table('mm_invoices')->where('journal_id', $model->journal_id)->value('id') : null);
                         } elseif ($model->primary_type === 'Purchase' || $vType === 'PURCHASE' || $refMod === 'bill') {
-                            $model->billing_id = $journal->ref_id ?: \Illuminate\Support\Facades\DB::table('mm_invoices')->where('journal_id', $model->journal_id)->value('id');
+                            $model->billing_id = $refId ?: ($hasInvoices ? \Illuminate\Support\Facades\DB::table('mm_invoices')->where('journal_id', $model->journal_id)->value('id') : null);
                         } elseif (in_array($vType, ['PAYMENT', 'RECEIPT']) || $refMod === 'payment') {
-                            $model->payment_id = $journal->ref_id;
+                            $model->payment_id = $refId;
                         }
                     }
                 }
@@ -78,7 +89,10 @@ class AccountDiscount extends Model
         static::deleted(function (AccountDiscount $model) {
             JournalEntry::where('ref_module', 'discount')
                 ->where('ref_id', $model->id)
-                ->delete();
+                ->get()
+                ->each(function (JournalEntry $entry) {
+                    $entry->delete();
+                });
         });
     }
 
@@ -119,15 +133,15 @@ class AccountDiscount extends Model
     {
         return \Illuminate\Support\Facades\DB::transaction(function () {
             $this->refresh();
-            $plantId = (int) ($this->plant_id ?? session('active_plant_id', 1));
-            $entityId = $this->plant?->entity_id ?? session('active_entity_id', 1);
-            $amount = round((float) ($this->amount ?? 0), 2);
+            $plantId = (int) ($this->plant_id ?? session('active_plant_id'));
+            $entityId = $this->plant?->entity_id ?? session('active_entity_id');
+            $amount = (float) ($this->amount ?? 0);
 
             if ($amount <= 0) {
                 return null;
             }
 
-            $voucherType = 'JOURNAL';
+            $voucherType = 'Discount Accounting';
             $voucherNo = $this->reference_number ?: ('DISC-' . $this->id);
             $isSales = $this->primary_type === 'Sales';
 

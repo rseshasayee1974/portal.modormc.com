@@ -103,7 +103,7 @@
                     <td style="text-align: center;">
                         <span class="badge-cr" style="font-size: 7.5pt;">{{ $trx['status'] ?? 'Received' }}</span>
                     </td>
-                    <td class="text-right font-bold" style="color: #0f172a; background-color: #f8fafc;">
+                    <td class="text-right font-bold" style="color: #0f172a; background-color: #f8fafc; white-space: nowrap;">
                         ₹ {{ number_format($amt, 2) }}
                     </td>
                 </tr>
@@ -115,10 +115,10 @@
 
             <!-- Total Summary Row -->
             <tr class="closing-row">
-                <td colspan="7" class="text-right font-bold" style="padding: 10px 14px; text-transform: uppercase; font-size: 8.5pt; color: #cbd5e1;">
+                <td colspan="7" class="text-right font-bold" style="padding: 8px 10px; text-transform: uppercase; font-size: 8.5pt; white-space: nowrap;">
                     Total Receipts ({{ count($rows) }} Vouchers)
                 </td>
-                <td class="text-right font-bold" style="padding: 10px 14px; font-size: 11pt; color: #ffffff;">
+                <td class="text-right font-bold" style="padding: 8px 10px; font-size: 9.5pt; white-space: nowrap;">
                     ₹ {{ number_format($grandTotal, 2) }}
                 </td>
             </tr>

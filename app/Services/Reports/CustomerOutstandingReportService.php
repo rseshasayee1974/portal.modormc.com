@@ -636,34 +636,65 @@ class CustomerOutstandingReportService implements ReportServiceInterface
         }
 
         foreach ($periodJel as $line) {
-            $dr      = round((float)($line->debit_amount ?? 0), 2);
-            $cr      = round((float)($line->credit_amount ?? 0), 2);
-            $vNum    = $line->entry?->voucher_number ?: ('JV-' . $line->id);
-            $vType   = strtoupper($line->entry?->voucher_type ?? 'JOURNAL');
-            $label   = match (true) {
-                str_contains($vType, 'CREDIT') => 'Credit Note',
-                str_contains($vType, 'DEBIT')  => 'Debit Note',
-                default                        => 'Journal Voucher',
-            };
-            $details = $vNum . "\n" . ($line->line_narration ?: $line->entry?->narration ?: $label);
-            $vDate   = $line->entry?->voucher_date;
+            $dr        = round((float)($line->debit_amount ?? 0), 2);
+            $cr        = round((float)($line->credit_amount ?? 0), 2);
+            $vNum      = $line->entry?->voucher_number ?: ('JV-' . $line->id);
+            $vType     = strtoupper($line->entry?->voucher_type ?? 'JOURNAL');
+            $refMod    = strtolower($line->entry?->ref_module ?? '');
+            $narration = strtolower(($line->line_narration ?? '') . ' ' . ($line->entry?->narration ?? ''));
 
-            $items->push([
-                'timestamp'    => $vDate ? Carbon::parse($vDate)->timestamp : 0,
-                'raw_date'     => $vDate ? Carbon::parse($vDate)->format('Y-m-d') : '',
-                'date'         => $vDate ? Carbon::parse($vDate)->format('d-m-Y') : '-',
-                'sort_order'   => 4,
-                'id'           => $line->id,
-                'transactions' => $label,
-                'narration'    => $vType . ' ' . $vNum,
-                'details'      => $details,
-                'type'         => $vType,
-                'voucher_type' => $vType,
-                'voucher_no'   => $vNum,
-                'debit'        => $dr,
-                'credit'       => $cr,
-                'discount'     => 0.0,
-            ]);
+            $isDiscount = $refMod === 'discount'
+                || str_contains(strtolower($vType), 'discount')
+                || str_contains(strtolower($vNum), 'disc')
+                || str_contains($narration, 'discount');
+
+            if ($isDiscount) {
+                $discAmt = $cr > 0 ? $cr : $dr;
+                $details = $vNum . "\n" . ($line->line_narration ?: $line->entry?->narration ?: 'Sales Discount');
+                $vDate   = $line->entry?->voucher_date;
+
+                $items->push([
+                    'timestamp'    => $vDate ? Carbon::parse($vDate)->timestamp : 0,
+                    'raw_date'     => $vDate ? Carbon::parse($vDate)->format('Y-m-d') : '',
+                    'date'         => $vDate ? Carbon::parse($vDate)->format('d-m-Y') : '-',
+                    'sort_order'   => 4,
+                    'id'           => $line->id,
+                    'transactions' => 'Sales Discount',
+                    'narration'    => $vType . ' ' . $vNum,
+                    'details'      => $details,
+                    'type'         => $vType,
+                    'voucher_type' => $vType,
+                    'voucher_no'   => $vNum,
+                    'debit'        => 0.0,
+                    'credit'       => 0.0,
+                    'discount'     => $discAmt,
+                ]);
+            } else {
+                $label   = match (true) {
+                    str_contains($vType, 'CREDIT') => 'Credit Note',
+                    str_contains($vType, 'DEBIT')  => 'Debit Note',
+                    default                        => 'Journal Voucher',
+                };
+                $details = $vNum . "\n" . ($line->line_narration ?: $line->entry?->narration ?: $label);
+                $vDate   = $line->entry?->voucher_date;
+
+                $items->push([
+                    'timestamp'    => $vDate ? Carbon::parse($vDate)->timestamp : 0,
+                    'raw_date'     => $vDate ? Carbon::parse($vDate)->format('Y-m-d') : '',
+                    'date'         => $vDate ? Carbon::parse($vDate)->format('d-m-Y') : '-',
+                    'sort_order'   => 4,
+                    'id'           => $line->id,
+                    'transactions' => $label,
+                    'narration'    => $vType . ' ' . $vNum,
+                    'details'      => $details,
+                    'type'         => $vType,
+                    'voucher_type' => $vType,
+                    'voucher_no'   => $vNum,
+                    'debit'        => $dr,
+                    'credit'       => $cr,
+                    'discount'     => 0.0,
+                ]);
+            }
         }
 
         // Sort items by raw_date asc, then sort_order asc, then id asc
@@ -700,6 +731,7 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             'balance'                 => $openingBalance,
             'debit'                   => 0.0,
             'credit'                  => 0.0,
+            'discount'                => 0.0,
             'is_opening'              => true,
         ];
 
@@ -709,7 +741,8 @@ class CustomerOutstandingReportService implements ReportServiceInterface
             $credit = (float)$it['credit'];
             $disc   = (float)$it['discount'];
 
-            $runningBalance = round($runningBalance + $debit - $credit, 2);
+            $runningBalance = round($runningBalance + $debit - $credit - $disc, 2);
+            $salesDiscount  += $disc;
 
             $rows[] = [
                 's_no'                    => $sNo++,
@@ -723,13 +756,14 @@ class CustomerOutstandingReportService implements ReportServiceInterface
                 'voucher_type'            => $it['voucher_type'],
                 'voucher_no'              => $it['voucher_no'],
                 'invoice_bill_display'    => $debit > 0 ? '₹ ' . number_format($debit, 2) : '0',
-                'receipt_payment_display' => $credit > 0 ? '(₹ ' . number_format($credit, 2) . ')' : '0',
+                'receipt_payment_display' => $credit > 0 ? '₹ ' . number_format($credit, 2) : '0',
                 'discount_display'        => $disc > 0 ? '₹ ' . number_format($disc, 2) : '0',
                 'balance_display'         => ($runningBalance != 0 ? ($runningBalance > 0 ? 'Dr ' : 'Cr ') : '') . '₹ ' . number_format(abs($runningBalance), 2),
                 'balance_type'            => $runningBalance >= 0 ? 'Dr' : 'Cr',
                 'balance'                 => $runningBalance,
                 'debit'                   => $debit,
                 'credit'                  => $credit,
+                'discount'                => $disc,
                 'is_opening'              => false,
             ];
         }

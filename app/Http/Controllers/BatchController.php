@@ -49,6 +49,7 @@ class BatchController extends Controller
             ->leftJoin('mm_patrons as p', 'p.id', '=', 'so.customer_id')
             ->leftJoin('mm_sites as s', 's.id', '=', 'so.site_id')
             ->leftJoin('mm_mix_designs as m', 'm.id', '=', 'so.mix_design_id')
+            ->leftJoin('mm_concrete_grades as cg', 'cg.id', '=', DB::raw('COALESCE(dm.concrete_grade_id, m.concrete_grade_id)'))
             ->leftJoin('mm_dispatch_statuses as ds', 'ds.dispatch_id', '=', 'd.id')
             ->leftJoin('mm_invoices as inv', 'inv.id', '=', 'ds.invoice_id')
             ->leftJoin('mm_einvoice_invoice_rel as einv_rel', 'einv_rel.invoice_id', '=', 'inv.id')
@@ -84,6 +85,7 @@ class BatchController extends Controller
                 DB::raw('COALESCE(d.mixdesign_id, so.mix_design_id) as mix_design_id'),
                 DB::raw('COALESCE(dm.design_name, m.design_name) as mix_design_name'),
                 DB::raw('COALESCE(dm.design_code, m.design_code) as mix_design_code'),
+                DB::raw('COALESCE(cg.name, dm.design_type, m.design_type) as concrete_grade'),
                 'd.id as dispatch_id',
                 'd.truck_id as dispatch_truck_id',
                 'd.delivered_qty as dispatch_delivered_qty',
@@ -126,6 +128,7 @@ class BatchController extends Controller
                     'mix_design_id' => $row->mix_design_id,
                     'mix_design_name' => $row->mix_design_name,
                     'mix_design_code' => $row->mix_design_code,
+                    'concrete_grade' => $row->concrete_grade,
                     'truck_registration' => $row->truck_registration,
                     'rate' => (float)$row->so_rate,
                     'tax_id' => $row->so_tax_id,
@@ -160,6 +163,8 @@ class BatchController extends Controller
                         'mix_design' => [
                             'id' => $row->mix_design_id,
                             'design_name' => $row->mix_design_name,
+                            'design_code' => $row->mix_design_code,
+                            'concrete_grade' => $row->concrete_grade,
                         ],
                     ],
                     'dispatches' => $row->dispatch_id ? [
@@ -184,6 +189,7 @@ class BatchController extends Controller
                                 'id' => $row->mix_design_id,
                                 'design_name' => $row->mix_design_name,
                                 'design_code' => $row->mix_design_code,
+                                'concrete_grade' => $row->concrete_grade,
                             ],
                             'status' => [
                                 'id' => $row->dispatch_status_id,
