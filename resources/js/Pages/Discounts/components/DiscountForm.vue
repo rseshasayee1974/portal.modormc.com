@@ -443,7 +443,7 @@ const submit = () => {
         </div>
 
         <!-- Form Fields Grid -->
-        <fieldset :disabled="readonly || form.processing" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+        <fieldset :disabled="readonly || !!discount || form.processing" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
             <!-- Transaction Type -->
             <BaseSelect
                 v-model="form.primary_type"
@@ -657,9 +657,9 @@ const submit = () => {
                 :disabled="form.processing"
             />
             <BaseButton
-                v-if="!readonly"
+                v-if="!readonly && !discount"
                 type="submit"
-                :label="discount ? 'Update Discount' : 'Save Discount'"
+                label="Save Discount"
                 icon="pi pi-check"
                 variant="filled"
                 size="small"

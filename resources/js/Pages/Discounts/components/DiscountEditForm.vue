@@ -409,7 +409,8 @@ const submit = () => {
 </script>
 
 <template>
-    <form @submit.prevent="submit" class="rounded-xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-6">
+    <form @submit.prevent="submit"
+        class="rounded-xl border border-slate-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-6">
         <!-- Edit Form Header -->
         <div class="flex items-center justify-between gap-4 pb-4 border-b border-slate-100">
             <div class="flex items-center gap-3">
@@ -421,19 +422,19 @@ const submit = () => {
                         <h2 class="text-base font-bold text-slate-900 tracking-tight">
                             Edit Discount #{{ discount.id }}
                         </h2>
-                        <Tag
-                            :value="discount.primary_type"
+                        <Tag :value="discount.primary_type"
                             :severity="discount.primary_type === 'Sales' ? 'info' : 'warn'"
-                            class="text-[10px] font-bold uppercase tracking-wider"
-                        />
+                            class="text-[10px] font-bold uppercase tracking-wider" />
                     </div>
                     <p class="text-xs text-slate-500 mt-0.5">
-                        Modify recorded parameters, ledger account, or monetary value for discount voucher #{{ discount.id }}.
+                        Modify recorded parameters, ledger account, or monetary value for discount voucher #{{
+                            discount.id }}.
                     </p>
                 </div>
             </div>
             <div class="flex items-center gap-2">
-                <Tag :value="discount.status ? 'Active' : 'Inactive'" :severity="discount.status ? 'success' : 'secondary'" />
+                <Tag :value="discount.status ? 'Active' : 'Inactive'"
+                    :severity="discount.status ? 'success' : 'secondary'" />
                 <span class="text-xs font-mono text-slate-400 bg-slate-50 px-2 py-1 rounded border border-slate-200">
                     {{ discount.date?.slice(0, 10) }}
                 </span>
@@ -443,67 +444,38 @@ const submit = () => {
         <!-- Form Fields Grid -->
         <fieldset :disabled="readonly || form.processing" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <!-- Transaction Type -->
-            <BaseSelect
-                v-model="form.primary_type"
-                label="Transaction Type"
-                :options="typeOptions"
-                optionLabel="label"
-                optionValue="value"
-                :error="form.errors.primary_type"
-                :disabled="readonly || form.processing"
-                required
-            />
+            <BaseSelect v-model="form.primary_type" label="Transaction Type" :options="typeOptions" optionLabel="label"
+                optionValue="value" :error="form.errors.primary_type" :disabled="readonly || form.processing"
+                required />
 
             <!-- Date -->
-            <BaseDatePicker
-                v-model="form.date"
-                label="Discount Date"
-                placeholder="YYYY-MM-DD"
-                dateFormat="yy-mm-dd"
-                :error="form.errors.date"
-                :disabled="readonly || form.processing"
-                required
-            />
+            <BaseDatePicker v-model="form.date" label="Discount Date" placeholder="YYYY-MM-DD" dateFormat="yy-mm-dd"
+                :error="form.errors.date" :disabled="readonly || form.processing" required />
 
             <!-- Partner (Customer / Supplier) - Filtered to related patron only -->
-            <BaseSelect
-                v-model="form.partner_id"
+            <BaseSelect v-model="form.partner_id"
                 :label="form.primary_type === 'Sales' ? 'Partner (Customer) *' : 'Partner (Supplier / Vendor) *'"
-                :options="partnerOptions"
-                optionLabel="legal_name"
-                optionValue="id"
-                filter
-                showClear
+                :options="partnerOptions" optionLabel="legal_name" optionValue="id" filter showClear
                 :placeholder="form.primary_type === 'Sales' ? 'Select related customer' : 'Select related supplier'"
-                :error="form.errors.partner_id"
-                :disabled="readonly || form.processing"
+                :error="form.errors.partner_id" :disabled="readonly || form.processing"
                 :hint="form.primary_type === 'Sales' ? 'Showing customer patrons only' : 'Showing supplier / vendor patrons only'"
-                required
-            />
+                required />
 
             <!-- Journal Voucher: Filtered by Sales vs Purchase and Related Patron -->
-            <BaseSelect
-                v-model="form.journal_id"
+            <BaseSelect v-model="form.journal_id"
                 :label="form.primary_type === 'Sales' ? 'Invoice / Receipt Voucher' : 'Bill / Payment Voucher'"
-                :options="journalOptions"
-                optionLabel="label"
-                optionValue="value"
-                filter
-                showClear
+                :options="journalOptions" optionLabel="label" optionValue="value" filter showClear
                 :placeholder="form.partner_id ? (form.primary_type === 'Sales' ? 'Select invoice for this customer' : 'Select bill for this supplier') : (form.primary_type === 'Sales' ? 'Select invoice or receipt voucher' : 'Select bill or payment voucher')"
-                :error="form.errors.journal_id"
-                :disabled="readonly || form.processing"
+                :error="form.errors.journal_id" :disabled="readonly || form.processing"
                 :hint="form.partner_id ? (journalOptions.length ? `Showing ${journalOptions.length} voucher(s) for ${selectedPartner?.legal_name || 'selected partner'}` : `No bills or invoices found for ${selectedPartner?.legal_name || 'selected partner'}`) : 'Select a partner to view their specific bills or invoices'"
-                required
-            />
+                required />
 
             <!-- Selected Voucher / Bill or Invoice Value Banner -->
-            <div
-                v-if="selectedJournal && selectedVoucherAmount > 0"
-                class="col-span-1 sm:col-span-2 lg:col-span-4 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/90 via-sky-50/40 to-white p-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3"
-            >
+            <div v-if="selectedJournal && selectedVoucherAmount > 0"
+                class="col-span-1 sm:col-span-2 lg:col-span-4 rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/90 via-sky-50/40 to-white p-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                    <div
+                        class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
                         ₹
                     </div>
                     <div>
@@ -514,26 +486,26 @@ const submit = () => {
                             <span class="text-base font-bold text-indigo-900 font-mono">
                                 ₹ {{ formatCurrency(selectedVoucherAmount) }}
                             </span>
-                            <Tag
-                                :value="selectedJournal.voucher_type || 'Voucher'"
-                                severity="info"
-                                class="text-[10px] px-1.5 py-0.5 uppercase"
-                            />
+                            <Tag :value="selectedJournal.voucher_type || 'Voucher'" severity="info"
+                                class="text-[10px] px-1.5 py-0.5 uppercase" />
                         </div>
                         <div class="text-[11px] text-slate-500 mt-0.5 flex flex-wrap items-center gap-2">
-                            <span>Voucher: <strong class="text-slate-800 font-mono">{{ selectedJournal.voucher_number }}</strong></span>
+                            <span>Voucher: <strong class="text-slate-800 font-mono">{{ selectedJournal.voucher_number
+                            }}</strong></span>
                             <!-- <span v-if="selectedJournal.invoice_number">
                                 • Ref: <strong class="text-slate-800 font-mono">#{{ selectedJournal.invoice_number }}</strong>
                             </span> -->
                             <template v-if="selectedJournal.partner_name">
                                 <span>•</span>
-                                <span>Related Patron: <strong class="text-slate-800">{{ selectedJournal.partner_name }}</strong></span>
+                                <span>Related Patron: <strong class="text-slate-800">{{ selectedJournal.partner_name
+                                }}</strong></span>
                             </template>
                         </div>
                     </div>
                 </div>
 
-                <div v-if="form.value_type === 'percent' && form.value" class="bg-white/90 border border-indigo-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 shadow-2xs flex items-center gap-2">
+                <div v-if="form.value_type === 'percent' && form.value"
+                    class="bg-white/90 border border-indigo-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 shadow-2xs flex items-center gap-2">
                     <span class="text-slate-500">Discount ({{ form.value }}%):</span>
                     <span class="font-bold text-emerald-700 font-mono text-sm">
                         ₹ {{ formatCurrency(form.amount || 0) }}
@@ -542,71 +514,34 @@ const submit = () => {
             </div>
 
             <!-- Account Ledger -->
-            <BaseSelect
-                v-model="form.account_id"
-                label="Discount Account (Ledger)"
-                :options="accounts"
-                optionLabel="title"
-                optionValue="id"
-                filter
-                showClear
-                placeholder="Select ledger (optional)"
-                :error="form.errors.account_id"
-                :disabled="readonly || form.processing"
-                hint="Linked ledger line"
-            />
+            <BaseSelect v-model="form.account_id" label="Discount Account (Ledger)" :options="accounts"
+                optionLabel="title" optionValue="id" filter showClear placeholder="Select ledger (optional)"
+                :error="form.errors.account_id" :disabled="readonly || form.processing" hint="Linked ledger line" />
 
             <!-- Discount Type -->
-            <BaseSelect
-                v-model="form.value_type"
-                label="Discount Type"
-                :options="valueTypeOptions"
-                optionLabel="label"
-                optionValue="value"
-                :error="form.errors.value_type"
-                :disabled="readonly || form.processing"
-                required
-            />
+            <BaseSelect v-model="form.value_type" label="Discount Type" :options="valueTypeOptions" optionLabel="label"
+                optionValue="value" :error="form.errors.value_type" :disabled="readonly || form.processing" required />
 
             <!-- Discount Value / Rate -->
-            <BaseInputNumber
-                v-model="form.value"
+            <BaseInputNumber v-model="form.value"
                 :label="form.value_type === 'percent' ? 'Discount Rate (%)' : 'Discount Value (₹)'"
                 :prefix="form.value_type === 'percent' ? undefined : '₹ '"
-                :suffix="form.value_type === 'percent' ? '%' : undefined"
-                :min="0.01"
+                :suffix="form.value_type === 'percent' ? '%' : undefined" :min="0.01"
                 :max="form.value_type === 'percent' ? 100 : undefined"
-                :minFractionDigits="form.value_type === 'percent' ? 0 : 2"
-                :maxFractionDigits="2"
-                :error="form.errors.value"
-                :disabled="readonly || form.processing"
-                required
-            />
+                :minFractionDigits="form.value_type === 'percent' ? 0 : 2" :maxFractionDigits="2"
+                :error="form.errors.value" :disabled="readonly || form.processing" required />
 
             <!-- Calculated / Final Discount Amount -->
-            <BaseInputNumber
-                v-model="form.amount"
-                label="Net Discount Amount (₹)"
-                prefix="₹ "
-                :min="0.01"
-                :minFractionDigits="2"
-                :maxFractionDigits="2"
-                :readonly="form.value_type === 'amount'"
+            <BaseInputNumber v-model="form.amount" label="Net Discount Amount (₹)" prefix="₹ " :min="0.01"
+                :minFractionDigits="2" :maxFractionDigits="2" :readonly="form.value_type === 'amount'"
                 :disabled="readonly || form.processing"
                 :hint="form.value_type === 'percent' ? 'Enter monetary discount amount corresponding to percentage.' : 'Automatically matched with fixed value.'"
-                :error="form.errors.amount"
-                required
-            />
+                :error="form.errors.amount" required />
 
             <!-- Discount Reference Number -->
-            <BaseInput
-                v-model="form.reference_number"
-                label="Reference Number"
-                placeholder="Auto-generated if empty"
-                hint="e.g. SDISC/2627/00001 or custom ref"
-                :error="form.errors.reference_number"
-                :disabled="readonly || form.processing"
-            />
+            <BaseInput v-model="form.reference_number" label="Reference Number" placeholder="Auto-generated if empty"
+                hint="e.g. SDISC/2627/00001 or custom ref" :error="form.errors.reference_number"
+                :disabled="readonly || form.processing" />
 
             <!-- Move Reference taken automatically from selected voucher -->
             <!-- <BaseInputNumber
@@ -636,23 +571,16 @@ const submit = () => {
             <!-- Note Textarea wrapped in BaseField -->
             <BaseField label="Notes / Reason" :error="form.errors.note" class="sm:col-span-2">
                 <template #default="{ invalid, inputId }">
-                    <Textarea
-                        :id="inputId"
-                        v-model="form.note"
-                        rows="2"
-                        maxlength="10000"
-                        :disabled="readonly || form.processing"
-                        class="w-full text-xs rounded-lg border-slate-300"
+                    <Textarea :id="inputId" v-model="form.note" rows="2" maxlength="10000"
+                        :disabled="readonly || form.processing" class="w-full text-xs rounded-lg border-slate-300"
                         :class="{ 'p-invalid': invalid }"
-                        placeholder="Reason for discount, approval remarks, or supporting details..."
-                        fluid
-                    />
+                        placeholder="Reason for discount, approval remarks, or supporting details..." fluid />
                 </template>
             </BaseField>
         </fieldset>
 
         <!-- Form Actions Footer -->
-        <div class="flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
+        <!-- <div class="flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
             <BaseButton
                 label="Close"
                 severity="secondary"
@@ -670,6 +598,6 @@ const submit = () => {
                 size="small"
                 :loading="form.processing"
             />
-        </div>
+        </div> -->
     </form>
 </template>

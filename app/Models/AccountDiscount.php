@@ -6,10 +6,11 @@ use App\Traits\PlantScoping;
 use App\Traits\TracksModelChanges;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AccountDiscount extends Model
 {
-    use PlantScoping, TracksModelChanges;
+    use PlantScoping, TracksModelChanges , SoftDeletes;
 
     protected $table = 'mm_account_discount';
     public const UPDATED_AT = 'modified_at';
