@@ -23,7 +23,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class PurchaseOrderInwardController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'inwards';
+    protected string $module = 'inward';
 
     public function index()
     {

@@ -11,8 +11,8 @@ import InputGroup from 'primevue/inputgroup';
 import InputGroupAddon from 'primevue/inputgroupaddon';
 import Tag from 'primevue/tag';
 import Swal from 'sweetalert2';
-import { 
-    ShoppingCartIcon, 
+import {
+    ShoppingCartIcon,
     MagnifyingGlassIcon,
     ListBulletIcon,
     PencilSquareIcon,
@@ -33,7 +33,7 @@ const props = defineProps({
     ref_no: Object,
     currencies: Array,
     taxes: Array,
-    accounts:Array,
+    accounts: Array,
     products: Array,
     productUnits: Array,
 });
@@ -61,19 +61,19 @@ const dateTo = ref(null);
 
 const filteredPurchaseOrders = computed(() => {
     let result = props.purchaseOrders;
-    
+
     if (dateFrom.value) {
         const from = new Date(dateFrom.value);
         from.setHours(0, 0, 0, 0);
         result = result.filter(po => new Date(po.date_order) >= from);
     }
-    
+
     if (dateTo.value) {
         const to = new Date(dateTo.value);
         to.setHours(23, 59, 59, 999);
         result = result.filter(po => new Date(po.date_order) <= to);
     }
-    
+
     return result;
 });
 
@@ -92,7 +92,6 @@ const getStatusSeverity = (state) => {
 };
 
 const deleteOrder = (order) => {
-   
     Swal.fire({
         title: 'Delete Confirmation',
         text: `Are you sure you want to delete PO ${order.po_number}?`,
@@ -106,8 +105,12 @@ const deleteOrder = (order) => {
                 Swal.fire({ icon: 'error', title: 'Action Denied', text: 'Cannot delete a Purchase Order with received items.' });
                 return;
             }
+            if (Number(order.invoice_status) > 0 || order.state === 'billed' || order.bill) {
+                Swal.fire({ icon: 'error', title: 'Action Denied', text: 'Cannot delete a Purchase Order that has already been billed.' });
+                return;
+            }
             router.delete(route('purchaseorder.destroy', order.id), {
-                onSuccess: () => Swal.fire({ toast: true, position: 'topend', icon: 'success', title: 'Deleted successfully', showConfirmButton: false, timer: 1500 })
+                onSuccess: () => Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted successfully', showConfirmButton: false, timer: 1500 })
             });
         }
     });
@@ -153,74 +156,46 @@ const formatStateLabel = (state) => {
         <div class="py-2 px-4 ">
             <ModuleSubTopNav />
             <div class="max-w-7xl mx-auto mt-4 space-y-4">
-                
+
                 <!-- Create Form at the Top -->
                 <div>
-                    <PurchaseOrderForm   
-                        :ref_no="ref_no"
-                        :vendors="vendors"  
-                        :currencies="currencies" 
-                        :taxes="taxes" 
-                        :products="products" 
-                        :productUnits="productUnits" 
-                    />
+                    <PurchaseOrderForm :ref_no="ref_no" :vendors="vendors" :currencies="currencies" :taxes="taxes"
+                        :products="products" :productUnits="productUnits" />
                 </div>
 
                 <hr class="border-slate-200 border-dashed" />
 
                 <!-- Listing Table -->
                 <div class="bg-white dark:bg-gray-800 shadow-xl sm:rounded-xl">
-                    <BaseDataTable
-                        :value="filteredPurchaseOrders" 
-                        v-model:expandedRows="expandedRows"
-                        v-model:first="first"
-                        v-model:rows="rows"
-                        v-model:filters="filters"
-                        v-model:dateFrom="dateFrom"
-                        v-model:dateTo="dateTo"
-                        dataKey="id"
-                        paginator 
-                        :rowsPerPageOptions="[30, 50, 100]"
-                        paginatorPosition="bottom"
-                        stripedRows
-                        removableSort
-                        class="p-datatable-sm po-table"
-                        filterDisplay="menu"
-                        :globalFilterFields="['po_number', 'vendor.legal_name', 'ref_no']"
-                        showSearch
-                        showSerial
-                        heading="Purchase Order Directory"
-                        headingIcon="ShoppingCartIcon"
-                        showExport
-                        exportFilename="purchase-orders"
-                    >
+                    <BaseDataTable :value="filteredPurchaseOrders" v-model:expandedRows="expandedRows"
+                        v-model:first="first" v-model:rows="rows" v-model:filters="filters" v-model:dateFrom="dateFrom"
+                        v-model:dateTo="dateTo" dataKey="id" paginator :rowsPerPageOptions="[30, 50, 100]"
+                        paginatorPosition="bottom" stripedRows removableSort class="p-datatable-sm po-table"
+                        filterDisplay="menu" :globalFilterFields="['po_number', 'vendor.legal_name', 'ref_no']"
+                        showSearch showSerial heading="Purchase Order Directory" headingIcon="ShoppingCartIcon"
+                        showExport exportFilename="purchase-orders">
                         <template #toolbar>
                             <div class="flex items-center gap-2">
                                 <Link :href="route('inwards.index')">
-                                    <Button label=" " icon="pi pi-archive" severity="secondary" text class="!h-9" v-tooltip.bottom="'View Inwards'" />
+                                    <Button label=" " icon="pi pi-archive" severity="secondary" text class="!h-9"
+                                        v-tooltip.bottom="'View Inwards'" />
                                 </Link>
 
-                                <BaseSelect 
-                                    v-model="filters['state'].value" 
-                                    :options="states" 
-                                    optionLabel="label" 
-                                    optionValue="value" 
-                                    placeholder="Filter Status" 
+                                <BaseSelect v-model="filters['state'].value" :options="states" optionLabel="label"
+                                    optionValue="value" placeholder="Filter Status"
                                     class="w-44 !h-9 !rounded-lg !border-slate-300 !text-[11px]"
-                                    pt:label:class="!px-3 !py-1"
-                                />
+                                    pt:label:class="!px-3 !py-1" />
                             </div>
                         </template>
 
                         <Column field="po_number" header="PO Number" sortable>
                             <template #body="slotProps">
                                 <div>
-                                    <a 
-                                        href="#" 
+                                    <a href="#"
                                         class="text-slate-600 font-semibold text-sm hover:text-slate-800  decoration-2 underline-offset-4"
-                                        @click.prevent="toggleEdit(slotProps.data)"
-                                    >{{ slotProps.data.po_number }}</a>
-                                    <div v-if="slotProps.data.bill" class="text-[10px] text-indigo-600 font-bold mt-1 bg-indigo-50/50 border border-indigo-100 px-2 py-0.5 rounded w-fit tracking-wider uppercase">
+                                        @click.prevent="toggleEdit(slotProps.data)">{{ slotProps.data.po_number }}</a>
+                                    <div v-if="slotProps.data.bill"
+                                        class="text-[10px] text-indigo-600 font-bold mt-1 bg-indigo-50/50 border border-indigo-100 px-2 py-0.5 rounded w-fit tracking-wider uppercase">
                                         Bill: {{ slotProps.data.bill.prefix }}{{ slotProps.data.bill.invoice_number }}
                                     </div>
                                     <!-- <div class="text-xs text-slate-400 mt-1 bg-gray-100 w-fit tracking-wider font-semibold">{{ slotProps.data.ref_no || '--' }}</div> -->
@@ -231,7 +206,8 @@ const formatStateLabel = (state) => {
                         <Column field="vendor.legal_name" header="Vendor" sortable>
                             <template #body="slotProps">
                                 <div>
-                                    <div class="font-medium text-slate-800">{{ slotProps.data.vendor?.legal_name }}</div>
+                                    <div class="font-medium text-slate-800">{{ slotProps.data.vendor?.legal_name }}
+                                    </div>
                                     <!-- <div class="text-xs text-slate-500">{{ slotProps.data.plant?.name }}</div> -->
                                 </div>
                             </template>
@@ -249,52 +225,48 @@ const formatStateLabel = (state) => {
                             <template #body="slotProps">
                                 <div>
                                     <div class="font-bold text-sm text-slate-900">
-                                        <span class="text-xs text-slate-400 mr-1">{{ slotProps.data.currency?.currency_code }}</span>
-                                       <span class="text-sm" v-if="slotProps.data.amount_total > 0">  {{ Number(slotProps.data.amount_total).toLocaleString('en-IN', { minimumFractionDigits: 2 }) }}</span>
-                                       
+                                        <span class="text-xs text-slate-400 mr-1">{{
+                                            slotProps.data.currency?.currency_code }}</span>
+                                        <span class="text-sm" v-if="slotProps.data.amount_total > 0"> {{
+                                            Number(slotProps.data.amount_total).toLocaleString('en-IN', {
+                                                minimumFractionDigits: 2
+                                            }) }}</span>
+
                                     </div>
-                                    <div v-if="slotProps.data.tax_amount > 0" class="text-[10px] text-emerald-500 bg-emerald-50 px-1 inline-block rounded">Tax Incl.</div>
+                                    <div v-if="slotProps.data.tax_amount > 0"
+                                        class="text-[10px] text-emerald-500 bg-emerald-50 px-1 inline-block rounded">Tax
+                                        Incl.</div>
                                 </div>
                             </template>
                         </Column>
 
                         <Column field="state" header="Status" align="center">
                             <template #body="slotProps">
-                                <Tag class="text-xs" :severity="getStatusSeverity(slotProps.data.state)" :value="formatStateLabel(slotProps.data.state)" rounded-full />
+                                <Tag class="text-xs" :severity="getStatusSeverity(slotProps.data.state)"
+                                    :value="formatStateLabel(slotProps.data.state)" rounded-full />
                             </template>
                         </Column>
 
                         <Column header="Actions">
                             <template #body="slotProps">
                                 <div class="flex justify-end gap-2">
-                                    <Button icon="pi pi-file" severity="info" text rounded @click.stop="downloadPdf(slotProps.data.id)" title="Premium PDF" />
-                                    <Button icon="pi pi-print" severity="secondary" text rounded @click.stop="printPdf(slotProps.data.id)" title="Printable Form" />
+                                    <Button icon="pi pi-file" severity="info" text rounded
+                                        @click.stop="downloadPdf(slotProps.data.id)" title="Download PDF" />
+                                    <Button icon="pi pi-print" severity="secondary" text rounded
+                                        @click.stop="printPdf(slotProps.data.id)" title="Printable Form" />
                                     <!-- <Button icon="pi pi-pencil" :severity="slotProps.data.receipt_status > 0 ? 'secondary' : 'warn'" text rounded @click.stop="toggleEdit(slotProps.data)" :title="slotProps.data.receipt_status > 0 ? 'View Locked PO' : 'Edit Inline'" /> -->
-<Button 
-    icon="pi pi-trash" 
-    severity="danger" 
-    text 
-    rounded 
-    title="Delete"
-    class="disabled:opacity-30"
-    @click.stop="deleteOrder(slotProps.data)" 
-    :disabled="slotProps.data.receipt_status > 0 || !['draft', 'approved', 'cancel'].includes(slotProps.data.state)" 
-/>                                </div>
+                                    <Button icon="pi pi-trash" severity="danger" text rounded title="Delete"
+                                        class="disabled:opacity-30" @click.stop="deleteOrder(slotProps.data)"
+                                        :disabled="Number(slotProps.data.receipt_status) > 0 || Number(slotProps.data.invoice_status) > 0 || slotProps.data.state === 'billed' || !!slotProps.data.bill" />
+                                </div>
                             </template>
                         </Column>
 
                         <template #expansion="slotProps">
                             <BaseExpansionPanel :title="slotProps.data.reference || 'Purchase Order'">
-                                <PurchaseOrderEditWrapper 
-                                    :key="slotProps.data.id"
-                                    :purchaseOrder="slotProps.data"
-                                    :vendors="vendors"
-                                    :currencies="currencies"
-                                    :taxes="taxes"
-                                    :products="products"
-                                    :productUnits="productUnits"
-                                    :accounts="accounts"
-                                />
+                                <PurchaseOrderEditWrapper :key="slotProps.data.id" :purchaseOrder="slotProps.data"
+                                    :vendors="vendors" :currencies="currencies" :taxes="taxes" :products="products"
+                                    :productUnits="productUnits" :accounts="accounts" />
                             </BaseExpansionPanel>
                         </template>
                     </BaseDataTable>
@@ -305,8 +277,4 @@ const formatStateLabel = (state) => {
     </AppLayout>
 </template>
 
-<style scoped>
-
-
-</style>
-
+<style scoped></style>
