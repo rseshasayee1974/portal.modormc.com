@@ -50,10 +50,28 @@ class AccountDiscount extends Model
                     }
                 }
 
-                // Find lowest available sequence number starting from 1 (reusing deleted sequence numbers)
-                $sequence = 1;
-                while (isset($usedSequences[$sequence])) {
-                    $sequence++;
+                // Retrieve reference numbers of soft-deleted discounts, ordered by latest deleted first
+                $trashedRefs = self::onlyTrashed()
+                    ->where('plant_id', $model->plant_id)
+                    ->where('reference_number', 'LIKE', "{$plantPrefix}%")
+                    ->orderByDesc('deleted_at')
+                    ->orderByDesc('id')
+                    ->pluck('reference_number');
+
+                $sequence = null;
+                foreach ($trashedRefs as $ref) {
+                    if (preg_match('/\/(\d+)$/', $ref, $matches)) {
+                        $seq = (int) $matches[1];
+                        if (!isset($usedSequences[$seq])) {
+                            $sequence = $seq;
+                            break;
+                        }
+                    }
+                }
+
+                // If no unused soft-deleted sequence exists, take the next sequence after the maximum active sequence
+                if ($sequence === null) {
+                    $sequence = !empty($usedSequences) ? (max(array_keys($usedSequences)) + 1) : 1;
                 }
 
                 $model->reference_number = sprintf('%s%05d', $plantPrefix, $sequence);

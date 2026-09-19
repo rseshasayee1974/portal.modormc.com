@@ -325,7 +325,8 @@
             padding: 10px 14px;
         }
 
-        .info-table td:first-child {
+        .info-table > tbody > tr > td:first-child,
+        .info-table > tr > td:first-child {
             border-right: 1px solid #e2e8f0;
         }
 
@@ -340,15 +341,13 @@
             padding-bottom: 3px;
         }
 
-        .detail-row {
-            display: table;
-            width: 100%;
-            margin-bottom: 3px;
-            font-size: 10px;
+        .detail-subtable td {
+            padding: 3px 0;
+            vertical-align: top;
+            border: none !important;
         }
 
         .detail-label {
-            display: table-cell;
             width: 38%;
             color: #64748b;
             font-weight: 700;
@@ -357,10 +356,11 @@
         }
 
         .detail-val {
-            display: table-cell;
+            padding-left: 8px;
             width: 62%;
             color: #0f172a;
             font-weight: 800;
+            font-size: 10px;
         }
 
         /* ── Weighbridge Weight Ticket Box ── */
@@ -460,8 +460,6 @@
             padding: 5px 8px;
             border-bottom: 1px solid #cbd5e1;
             text-align: left;
-            display: flex;
-            justify-content: space-between;
         }
 
         .snap-img {
@@ -476,11 +474,9 @@
         }
 
         .snap-empty {
-            height: 120px;
-            display: table-cell;
-            vertical-align: middle;
+            padding: 40px 10px;
             text-align: center;
-            width: 320px;
+            width: 100%;
             color: #94a3b8;
             font-size: 10px;
             font-weight: 700;
@@ -681,58 +677,63 @@
         {{-- <div class="section-bar">Transaction & Transport Identification</div> --}}
         <table class="info-table">
             <tr>
-
-                <td>
+                <td style="width: 50%; vertical-align: top; padding: 10px 14px; border-right: 1px solid #e2e8f0;">
                     <div class="info-box-title">Weighbridge & Truck Info</div>
-                    <div class="detail-row">
-                        <span class="detail-label">Vendor Name:</span>
-                        <span
-                            class="detail-val">{{ $inward->order?->vendor?->legal_name ?? ($inward->order?->vendor?->trade_name ?? 'N/A') }}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Truck Reg No:</span>
-                        <span class="detail-val" style="font-size: 11px; font-weight: 900; color: #1e3a8a;">
-                            {{ $inward->truck?->registration ?? 'External Vehicle' }}
-                        </span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Material:</span>
-                        <span class="detail-val">{{ $inward->product?->title ?? 'N/A' }}
-                            ({{ $inward->product?->code ?? '' }})</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Receipt Status:</span>
-                        <span class="detail-val" style="color: #059669; font-weight: 900;">Confirmed Receipt to
-                            Stock</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Weighed At:</span>
-                        <span
-                            class="detail-val">{{ $inward->updated_at ? \Carbon\Carbon::parse($inward->updated_at)->format('d-M-Y H:i:s') : 'N/A' }}</span>
-                    </div>
+                    <table class="detail-subtable" style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td class="detail-label">Vendor Name:</td>
+                            <td class="detail-val">
+                                {{ $inward->order?->vendor?->legal_name ?? ($inward->order?->vendor?->trade_name ?? 'N/A') }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Truck Reg No:</td>
+                            <td class="detail-val" style="font-size: 11px; font-weight: 900; color: #1e3a8a;">
+                                {{ $inward->truck?->registration ?? 'External Vehicle' }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Material:</td>
+                            <td class="detail-val">
+                                {{ $inward->product?->title ?? 'N/A' }} ({{ $inward->product?->code ?? '' }})
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Receipt Status:</td>
+                            <td class="detail-val" style="color: #059669; font-weight: 900;">
+                                Confirmed Receipt to Stock
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Weighed At:</td>
+                            <td class="detail-val">
+                                {{ $inward->updated_at ? \Carbon\Carbon::parse($inward->updated_at)->format('d-M-Y H:i:s') : 'N/A' }}
+                            </td>
+                        </tr>
+                    </table>
                 </td>
-                <td>
-                    <div class="info-box-title">Vendor / Supplier Details</div>
-                    <div class="detail-row">
-                        <span class="detail-label">Loaded Weight:</span>
-                        <span class="detail-val">{{ number_format((float) ($inward->truck_loaded ?? 0), 2) }}
-                            {{ $inward->uom?->unit_code ?? ' MT' }}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Empty Weight :</span>
-                        <span class="detail-val">{{ number_format((float) ($inward->truck_empty ?? 0), 2) }}
-                            {{ $inward->uom?->unit_code ?? ' MT' }}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Net Weight:</span>
-                        <span
-                            class="detail-val">{{ number_format(max(0, (float) ($inward->truck_loaded ?? 0) - (float) ($inward->truck_empty ?? 0)), 2) }}
-                            {{ $inward->uom?->unit_code ?? ' MT' }}</span>
-                    </div>
-                    {{-- <div class="detail-row">
-                        <span class="detail-label">Purchase Order:</span>
-                        <span class="detail-val">{{ $inward->order?->po_number ?? 'N/A' }} ({{ \Carbon\Carbon::parse($inward->order?->order_date ?? $inward->order?->created_at)->format('d-M-Y') }})</span>
-                    </div> --}}
+                <td style="width: 50%; vertical-align: top; padding: 10px 14px;">
+                    <div class="info-box-title">Weighbridge Weight Details</div>
+                    <table class="detail-subtable" style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td class="detail-label">Loaded Weight:</td>
+                            <td class="detail-val" style="color: #3b82f6; font-weight: 900; font-size: 11px;">
+                                {{ number_format((float) ($inward->truck_loaded ?? 0), 2) }} {{ $inward->uom?->unit_code ?? 'KGS' }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Empty Weight:</td>
+                            <td class="detail-val" style="color: #d97706; font-weight: 900; font-size: 11px;">
+                                {{ number_format((float) ($inward->truck_empty ?? 0), 2) }} {{ $inward->uom?->unit_code ?? 'KGS' }}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="detail-label">Net Weight:</td>
+                            <td class="detail-val" style="color: #059669; font-weight: 900; font-size: 12px;">
+                                {{ number_format(max(0, (float) ($inward->truck_loaded ?? 0) - (float) ($inward->truck_empty ?? 0)), 2) }} {{ $inward->uom?->unit_code ?? 'KGS' }}
+                            </td>
+                        </tr>
+                    </table>
                 </td>
             </tr>
         </table>

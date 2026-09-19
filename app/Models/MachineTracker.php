@@ -103,7 +103,7 @@ class MachineTracker extends Model
 
     public function operator()
     {
-        return $this->belongsTo(User::class, 'operator_id');
+        return $this->belongsTo(Personnel::class, 'operator_id');
     }
 
     public function company()

@@ -12,7 +12,7 @@ use App\Http\Controllers\Concerns\AuthorizesModule;
 class MachineTrackerController extends Controller
 {
     use AuthorizesModule;
-    protected string $module = 'machine_trackers';
+    protected string $module = 'machine_tracker';
 
     public function index()
     {
@@ -23,10 +23,12 @@ class MachineTrackerController extends Controller
             ->latest()
             ->get();
 
+            // $OperatorsDropdown = OperatorsDropdown();
+            // dd($OperatorsDropdown);
         return Inertia::render('MachineTrackers/Index', [
             'trackers' => $trackers,
             'machines' => MachinesDropdown()->toArray(),
-            'operators' => User::select('id', 'username')->orderBy('username')->get()->toArray(),
+            'operators' => OperatorsDropdown(),
         ]);
     }
 
@@ -38,7 +40,7 @@ class MachineTrackerController extends Controller
             'machine_id' => 'required|exists:mm_machines,id',
             'operation_type' => 'nullable|string|max:100',
             'category' => 'nullable|string|max:10',
-            'operator_id' => 'nullable|exists:mm_users,id',
+            'operator_id' => 'nullable|exists:mm_personnels,id',
             'opening' => 'nullable|date',
             'closing' => 'nullable|date',
             'odometer_start' => 'nullable|numeric',
@@ -75,7 +77,7 @@ class MachineTrackerController extends Controller
             'machine_id' => 'required|exists:mm_machines,id',
             'operation_type' => 'nullable|string|max:100',
             'category' => 'nullable|string|max:10',
-            'operator_id' => 'nullable|exists:mm_users,id',
+            'operator_id' => 'nullable|exists:mm_personnels,id',
             'opening' => 'nullable|date',
             'closing' => 'nullable|date',
             'odometer_start' => 'nullable|numeric',

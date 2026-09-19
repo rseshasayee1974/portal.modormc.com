@@ -32,7 +32,10 @@ const machineOptions = computed<OptionItem[]>(() =>
 );
 
 const operatorOptions = computed<OptionItem[]>(() =>
-    props.operators.map(u => ({ label: u.username, value: u.id }))
+    props.operators.map(u => ({
+        label: u.label || `${u.first_name || ''} ${u.last_name || ''}`.trim() || String(u.id),
+        value: u.id ?? u.value
+    }))
 );
 
 const createForm = useForm(getInitialTrackerForm());
@@ -253,40 +256,22 @@ watch(() => page.props.flash, (flash: any) => {
         <Head title="Daily Machine Tracker | Fleet" />
 
         <div class="my-6">
-            <div class="max-w-7xl mx-auto space-y-8 px-4 sm:px-6 lg:px-8">
+            <div class="max-w-[1600px] mx-auto space-y-8 px-4 sm:px-6 lg:px-8">
 
                 <!-- ── Create Form Section (v1) ── -->
                 <section>
-                    <MachineTrackerCreateForm
-                        :form="createForm"
-                        :machineOptions="machineOptions"
-                        :shiftOptions="SHIFT_OPTIONS"
-                        :operatorOptions="operatorOptions"
-                        :errors="createForm.errors"
-                        :processing="createForm.processing"
-                        @save="submitCreate"
-                        @reset="resetCreateForm"
-                    />
+                    <MachineTrackerCreateForm :form="createForm" :machineOptions="machineOptions"
+                        :shiftOptions="SHIFT_OPTIONS" :operatorOptions="operatorOptions" :errors="createForm.errors"
+                        :processing="createForm.processing" @save="submitCreate" @reset="resetCreateForm" />
                 </section>
 
                 <!-- ── Table & Inline Row Edit Section (v1 & v2) ── -->
                 <section>
-                    <MachineTrackerIndexList
-                        :trackers="trackers"
-                        :expandedRows="expandedRows"
-                        :editingId="editingId"
-                        :editForm="editForm"
-                        :machineOptions="machineOptions"
-                        :shiftOptions="SHIFT_OPTIONS"
-                        :operatorOptions="operatorOptions"
-                        :errors="editForm.errors"
-                        :processing="editForm.processing"
-                        @update:expandedRows="handleExpandedRowsUpdate"
-                        @edit="startEdit"
-                        @delete="deleteTracker"
-                        @submitEdit="submitEdit"
-                        @cancelEdit="cancelEdit"
-                    />
+                    <MachineTrackerIndexList :trackers="trackers" :expandedRows="expandedRows" :editingId="editingId"
+                        :editForm="editForm" :machineOptions="machineOptions" :shiftOptions="SHIFT_OPTIONS"
+                        :operatorOptions="operatorOptions" :errors="editForm.errors" :processing="editForm.processing"
+                        @update:expandedRows="handleExpandedRowsUpdate" @edit="startEdit" @delete="deleteTracker"
+                        @submitEdit="submitEdit" @cancelEdit="cancelEdit" />
                 </section>
 
             </div>

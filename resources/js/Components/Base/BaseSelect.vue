@@ -179,7 +179,10 @@ const selectedSpecialOption = computed(() => {
     if (props.modelValue === null || props.modelValue === undefined || props.modelValue === '') {
         return normalizedOptions.value.find(o => isSpecialOption(o)) || null;
     }
-    const found = normalizedOptions.value.find(o => getOptionValue(o) === props.modelValue);
+    const found = normalizedOptions.value.find(o => {
+        const val = getOptionValue(o);
+        return val === props.modelValue || (val !== null && val !== undefined && props.modelValue !== null && props.modelValue !== undefined && String(val) === String(props.modelValue));
+    });
     return (found && isSpecialOption(found)) ? found : null;
 });
 
@@ -194,56 +197,34 @@ const getSelectedLabelText = (val: any) => {
     if (val === null || val === undefined || val === '') {
         return defaultPlaceholder.value;
     }
-    const found = normalizedOptions.value.find(o => getOptionValue(o) === val);
+    const found = normalizedOptions.value.find(o => {
+        const optVal = getOptionValue(o);
+        return optVal === val || (optVal !== null && optVal !== undefined && val !== null && val !== undefined && String(optVal) === String(val));
+    });
     if (found) return getOptionLabelText(found);
     return String(val);
 };
 </script>
 
 <template>
-    <BaseField
-        :label="label"
-        :required="required"
-        :error="error"
-        :hint="hint"
-        :disabled="disabled"
-        :class="[fieldClass, { 'is-dark': dark }]"
-    >
+    <BaseField :label="label" :required="required" :error="error" :hint="hint" :disabled="disabled"
+        :class="[fieldClass, { 'is-dark': dark }]">
         <template #default="{ invalid, inputId }">
-            <Select
-                ref="selectRef"
-                :id="inputId"
-                :modelValue="modelValue"
-                :options="normalizedOptions"
-                :optionLabel="optionLabel"
-                :optionValue="optionValue"
-                :placeholder="defaultPlaceholder"
-                :disabled="disabled"
-                :filter="filter"
-                :filterFields="effectiveFilterFields"
-                :autoFilterFocus="autoFilterFocus"
-                :checkmark="true"
-                :showClear="false"
-                :size="size"
-                :fluid="fluid"
-                :panelClass="effectiveOverlayClass"
-                :overlayClass="effectiveOverlayClass"
-                :panelStyle="effectiveOverlayStyle"
-                :overlayStyle="effectiveOverlayStyle"
-                :appendTo="appendTo"
-                :resetFilterOnHide="true"
-                @show="handleShow"
-                :class="[
+            <Select ref="selectRef" :id="inputId" :modelValue="modelValue" :options="normalizedOptions"
+                :optionLabel="optionLabel" :optionValue="optionValue" :placeholder="defaultPlaceholder"
+                :disabled="disabled" :filter="filter" :filterFields="effectiveFilterFields"
+                :autoFilterFocus="autoFilterFocus" :checkmark="true" :showClear="false" :size="size" :fluid="fluid"
+                :panelClass="effectiveOverlayClass" :overlayClass="effectiveOverlayClass"
+                :panelStyle="effectiveOverlayStyle" :overlayStyle="effectiveOverlayStyle" :appendTo="appendTo"
+                :resetFilterOnHide="true" @show="handleShow" :class="[
                     invalid ? 'p-invalid' : null,
                     dark ? 'dark-select' : ''
-                ]"
-                @update:modelValue="emit('update:modelValue', $event)"
-                @change="emit('change', $event)"
-            >
+                ]" @update:modelValue="emit('update:modelValue', $event)" @change="emit('change', $event)">
                 <template #option="slotProps">
                     <slot v-if="$slots.option" name="option" v-bind="slotProps" />
                     <template v-else>
-                        <div class="flex items-center justify-between w-full text-xs text-slate-700 dark:text-slate-200">
+                        <div
+                            class="flex items-center justify-between w-full text-xs text-slate-700 dark:text-slate-200">
                             <span>{{ getOptionLabelText(slotProps.option) }}</span>
                         </div>
                     </template>
@@ -251,7 +232,8 @@ const getSelectedLabelText = (val: any) => {
                 <template #value="slotProps">
                     <slot v-if="$slots.value" name="value" v-bind="slotProps" />
                     <template v-else>
-                        <span v-if="slotProps.value !== null && slotProps.value !== undefined && slotProps.value !== ''" class="text-xs text-slate-800 dark:text-slate-100 font-semibold truncate block">
+                        <span v-if="slotProps.value !== null && slotProps.value !== undefined && slotProps.value !== ''"
+                            class="text-xs text-slate-800 dark:text-slate-100 font-semibold truncate block">
                             {{ getSelectedLabelText(slotProps.value) }}
                         </span>
                         <span v-else class="text-xs text-slate-400 truncate block">
@@ -313,6 +295,7 @@ const getSelectedLabelText = (val: any) => {
     border: none !important;
     background: transparent !important;
 }
+
 /* Clear icon styling */
 :deep([data-pc-section="clearicon"]),
 :deep(.p-select-clear-icon) {
@@ -320,6 +303,7 @@ const getSelectedLabelText = (val: any) => {
     opacity: 0.6;
     transition: opacity 0.15s ease-in-out;
 }
+
 :deep([data-pc-section="clearicon"]:hover),
 :deep(.p-select-clear-icon:hover) {
     opacity: 1 !important;

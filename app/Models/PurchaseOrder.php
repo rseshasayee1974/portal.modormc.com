@@ -90,6 +90,14 @@ class PurchaseOrder extends Model
                 }
             }
         });
+
+        static::deleting(function ($purchaseOrder) {
+            if ($purchaseOrder->isForceDeleting()) {
+                $purchaseOrder->items()->forceDelete();
+            } else {
+                $purchaseOrder->items()->delete();
+            }
+        });
     }
 
     public function plant()
@@ -383,7 +391,51 @@ class PurchaseOrder extends Model
         ]);
     }
 
-    protected function refreshReceiptStatus(): void
+    public function histories()
+    {
+        return $this->hasMany(PurchaseOrderHistory::class, 'order_id');
+    }
+
+    public function hasInwards(): bool
+    {
+        if ((int) $this->receipt_status > 0) {
+            return true;
+        }
+
+        if ($this->items()->where('received_quantity', '>', 0)->exists()) {
+            return true;
+        }
+
+        if ($this->histories()->exists()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function hasBills(): bool
+    {
+        if ((int) $this->invoice_status > 0) {
+            return true;
+        }
+
+        if (strtolower($this->state ?? '') === 'billed') {
+            return true;
+        }
+
+        if ($this->bill()->exists()) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public function canBeDeleted(): bool
+    {
+        return !$this->hasInwards() && !$this->hasBills();
+    }
+
+    public function refreshReceiptStatus(): void
     {
         $totals = $this->items()
             ->selectRaw('COALESCE(SUM(product_quantity), 0) as ordered_qty, COALESCE(SUM(received_quantity), 0) as received_qty')

@@ -33,7 +33,9 @@ export interface MachineTracker {
     };
     operator?: {
         id: number;
-        username: string;
+        first_name?: string;
+        last_name?: string;
+        username?: string;
     };
 }
 

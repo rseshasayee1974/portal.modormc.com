@@ -360,13 +360,22 @@ class PurchaseOrderController extends Controller
         $this->authorizeModule('delete');
         $this->authorizePlantAccess($purchaseorder);
 
-        if ((int)$purchaseorder->receipt_status > 0) {
-            return redirect()->back()->with('error', 'Purchase Order cannot be deleted as items have already been received.');
+        if (!$purchaseorder->canBeDeleted()) {
+            if ($purchaseorder->hasInwards()) {
+                return redirect()->back()->with('error', 'Purchase Order cannot be deleted as items have already been received or inwarded.');
+            }
+            if ($purchaseorder->hasBills()) {
+                return redirect()->back()->with('error', 'Purchase Order cannot be deleted as a bill has already been generated.');
+            }
+            return redirect()->back()->with('error', 'Purchase Order cannot be deleted in its current state.');
         }
 
-        $purchaseorder->delete();
-        \Illuminate\Support\Facades\Log::info('PO deleted');
-        
+        \Illuminate\Support\Facades\DB::transaction(function () use ($purchaseorder) {
+            $purchaseorder->delete();
+        });
+
+        \Illuminate\Support\Facades\Log::info('PO deleted: ' . $purchaseorder->id);
+
         return redirect()->back()->with('success', 'Purchase Order deleted successfully.');
     }
 
