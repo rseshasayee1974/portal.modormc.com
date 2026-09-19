@@ -538,6 +538,45 @@ class ExcelExportService
                         $row['owner'] ?? ''
                     ];
                 }
+            } elseif ($type === 'machine_tracker') {
+                $headersList = ['Date', 'Machine / Vehicle', 'Vehicle Model', 'Shift', 'Operator', 'Odometer Start', 'Odometer End', 'KM Run', 'Odo Mileage (KM/L)', 'Hourmeter Start', 'Hourmeter End', 'Hours Run', 'HM Efficiency (Hrs/L)', 'EB Start', 'EB Close', 'EB Units', 'Fuel (Ltrs)', 'Fuel Amount (₹)', 'Pump Name', 'Notes'];
+                foreach (($data['transactions'] ?? []) as $row) {
+                    $rows[] = [
+                        $row['date'] ?? '',
+                        $row['machine_registration'] ?? '',
+                        $row['machine_model'] ?? '',
+                        $row['shift_label'] ?? '',
+                        $row['operator_name'] ?? '',
+                        (float)($row['odometer_start'] ?? 0),
+                        (float)($row['odometer_end'] ?? 0),
+                        (float)($row['odometer_diff'] ?? 0),
+                        (float)($row['odo_mileage'] ?? 0),
+                        (float)($row['hourmeter_start'] ?? 0),
+                        (float)($row['hourmeter_end'] ?? 0),
+                        (float)($row['hourmeter_diff'] ?? 0),
+                        (float)($row['hm_mileage'] ?? 0),
+                        (float)($row['eb_start'] ?? 0),
+                        (float)($row['eb_close'] ?? 0),
+                        (float)($row['eb_units'] ?? 0),
+                        (float)($row['fuel'] ?? 0),
+                        (float)($row['fuel_amount'] ?? 0),
+                        $row['pump_name'] ?? '',
+                        $row['notes'] ?? ''
+                    ];
+                }
+                $totalRow = [
+                    'Total Summary', '', '', '', '', '', '',
+                    (float)($data['total_km_run'] ?? 0),
+                    (float)($data['avg_km_per_liter'] ?? 0),
+                    '', '',
+                    (float)($data['total_hours_run'] ?? 0),
+                    (float)($data['avg_hrs_per_liter'] ?? 0),
+                    '', '',
+                    (float)($data['total_eb_units'] ?? 0),
+                    (float)($data['total_fuel_liters'] ?? 0),
+                    (float)($data['total_fuel_amount'] ?? 0),
+                    '', ''
+                ];
             } elseif ($type === 'payroll_personnel') {
                 $headersList = ['Name', 'Role / Employee Type', 'Joining Date', 'Status', 'Email', 'Phone'];
                 foreach (($data['transactions'] ?? []) as $row) {
