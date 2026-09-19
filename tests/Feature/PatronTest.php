@@ -54,6 +54,33 @@ class PatronTest extends TestCase
         $response->assertInertia(fn ($page) => $page->component('Patrons/Index'));
     }
 
+    public function test_directional_ledgers_are_saved_updated_and_resolved(): void
+    {
+        $ledgers = \App\Models\Ledger::factory()->count(3)->create(['plant_id' => $this->plant->id]);
+        $data = [
+            'patron_type' => ['Customer'],
+            'legal_name' => 'Directional Ledger Patron',
+            'operational_status' => 'active',
+            'status' => true,
+            'displayed' => true,
+            'debit_ledger_id' => $ledgers[1]->id,
+            'credit_ledger_id' => $ledgers[2]->id,
+        ];
+        $this->post(route('patrons.store'), $data)->assertSessionHasNoErrors();
+        $patron = Patron::where('legal_name', $data['legal_name'])->firstOrFail();
+        $this->assertEquals($ledgers[1]->id, $patron->debitLedger->id);
+        $this->assertEquals($ledgers[2]->id, $patron->creditLedger->id);
+        $this->assertSame($ledgers[1]->id, \App\Models\JournalEntry::resolvePatronLedgerId($this->plant->id, $patron->id, 100, 0));
+        $this->assertSame($ledgers[2]->id, \App\Models\JournalEntry::resolvePatronLedgerId($this->plant->id, $patron->id, 0, 100));
+
+        $data['debit_ledger_id'] = $ledgers[0]->id;
+        $data['credit_ledger_id'] = $ledgers[1]->id;
+        $this->put(route('patrons.update', $patron), $data)->assertSessionHasNoErrors();
+        $this->assertEquals($ledgers[0]->id, $patron->fresh()->debit_ledger_id);
+        $this->assertSame($ledgers[0]->id, \App\Models\JournalEntry::resolvePatronLedgerId($this->plant->id, $patron->id, 100, 0));
+        $this->assertSame($ledgers[1]->id, \App\Models\JournalEntry::resolvePatronLedgerId($this->plant->id, $patron->id, 0, 100));
+    }
+
     public function test_can_create_patron_with_relations()
     {
         $data = [

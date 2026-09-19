@@ -170,7 +170,7 @@ trait PostsToAccounting
      */
     protected function buildPartnerLine(array $ctx): array
     {
-        $ledgerId = $ctx['partner']?->ledger_id
+        $ledgerId = ($ctx['isSales'] ? $ctx['partner']?->debit_ledger_id : $ctx['partner']?->credit_ledger_id)
             ?? $this->getAccountingLedgerId($ctx['isSales'] ? 'debit_ledger' : 'credit_ledger');
 
         if (!$ledgerId) {

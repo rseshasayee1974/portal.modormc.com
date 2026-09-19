@@ -146,7 +146,7 @@ class AccountDiscount extends Model
             $isSales = $this->primary_type === 'Sales';
 
             // 1. Resolve Party Ledger
-            $partyLedgerId = $this->partner?->ledger_id;
+            $partyLedgerId = $isSales ? $this->partner?->debit_ledger_id : $this->partner?->credit_ledger_id;
             if (!$partyLedgerId) {
                 $partySettingKey = $isSales ? 'debit_ledger' : 'credit_ledger';
                 $partyLedgerId = AccountDefaultSetting::where('plant_id', $plantId)

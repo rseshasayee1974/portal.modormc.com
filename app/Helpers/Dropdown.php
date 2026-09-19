@@ -123,7 +123,7 @@ if (!function_exists('PatronsDropdown')) {
             $plantId = _activePlantId();
         }
         $query = Patron::where('plant_id', $plantId)
-            ->select('id', 'legal_name', 'plant_id', 'ledger_id', 'patron_type');
+            ->select('id', 'legal_name', 'plant_id', 'debit_ledger_id', 'credit_ledger_id', 'patron_type');
 
         if ($patronTypes !== null) {
             $query->ofType($patronTypes);
@@ -710,7 +710,7 @@ if (!function_exists('DetailedPatronsDropdown')) {
     function DetailedPatronsDropdown()
     {
         return Patron::where('plant_id', _activePlantId())
-            ->with(['plant', 'ledger', 'contacts.addresses', 'bankAccounts'])
+            ->with(['plant', 'debitLedger', 'creditLedger', 'contacts.addresses.state', 'bankAccounts'])
             ->whereNull('deleted_at')
             ->orderBy('legal_name')
             ->get();

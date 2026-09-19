@@ -33,7 +33,8 @@ class PatronController extends Controller
         return Inertia::render('Patrons/Index', [
             'patrons'  => DetailedPatronsDropdown(),
             'plants'   => ActivePlantsDropdown(),
-            'ledgers'  => LedgersDropdown(),
+            'debitLedgers' => $this->patronLedgerOptions('Sundry Debtors'),
+            'creditLedgers' => $this->patronLedgerOptions('Sundry Creditors'),
             'contactTypes' => ContactTypesDropdown(),
             'addressTypes' => AddressTypesDropdown(),
             'bankAccountTypes' => BankAccountTypesDropdown(),
@@ -42,6 +43,17 @@ class PatronController extends Controller
             'patronTypes' => PatronTypesDropdown(),
             'allStates' => StateCode::whereNull('deleted_at')->distinct()->pluck('state_code'),
         ]);
+    }
+
+    private function patronLedgerOptions(string $group)
+    {
+        return Ledger::where('plant_id', session('active_plant_id'))
+            ->where(function ($query) use ($group) {
+                $query->where('title', $group)
+                    ->orWhereHas('accountType', fn ($type) => $type->where('title', $group));
+            })
+            ->orderBy('title')
+            ->get(['id', 'code as name', 'title']);
     }
 
     public function store(StorePatronRequest $request)
@@ -58,22 +70,6 @@ class PatronController extends Controller
         $validated['entity_id'] = $entityId;
 
         DB::transaction(function () use ($validated, $plantId, $entityId) {
-            // Resolve default ledger if not provided
-            if (empty($validated['ledger_id'])) {
-                $isVendor = in_array('vendor', array_map('strtolower', $validated['patron_type']));
-                $isCustomer = in_array('customer', array_map('strtolower', $validated['patron_type']));
-                
-                $settingKey = $isVendor ? 'credit_ledger' : ($isCustomer ? 'debit_ledger' : null);
-                
-                if ($settingKey) {
-                    $validated['ledger_id'] = \App\Models\AccountDefaultSetting::where('plant_id', $plantId)
-                        ->where('module_name', 'Patron')
-                        ->where('setting_key', $settingKey)
-                        ->where('is_active', true)
-                        ->value('ledger_id');
-                }
-            }
-
             $patron = Patron::create($validated);
 
             $hasContactData = !empty($validated['contact_name']) || 
@@ -148,7 +144,8 @@ class PatronController extends Controller
         DB::transaction(function () use ($validated, $patron) {
             // Only pass patron-table columns — not contact/address/bank keys
             $patronData = array_intersect_key($validated, array_flip([
-                'patron_type', 'legal_name', 'ledger_id',
+                'patron_type', 'legal_name',
+                'debit_ledger_id', 'credit_ledger_id',
                 'operational_status', 'pan_no', 'gstin', 'aadhar_number',
                 'status', 'displayed',
             ]));

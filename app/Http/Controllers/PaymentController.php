@@ -387,7 +387,7 @@ class PaymentController extends Controller
         if ($payment->transaction_type === 'payment') {
             // DEBIT Side: The Partner/Patron
             if ($payment->patron_id) {
-                $patronLedgerId = $payment->patron?->ledger_id;
+                $patronLedgerId = $payment->patron?->credit_ledger_id;
                 if (!$patronLedgerId) {
                     $patronLedgerId = Ledger::where('title', 'like', "%Sundry Creditor%")
                         ->where('plant_id', $plantId)
@@ -419,7 +419,7 @@ class PaymentController extends Controller
 
             // CREDIT Side: The Partner/Patron
             if ($payment->patron_id) {
-                $patronLedgerId = $payment->patron?->ledger_id;
+                $patronLedgerId = $payment->patron?->debit_ledger_id;
                 if (!$patronLedgerId) {
                     $patronLedgerId = Ledger::where('title', 'like', "%Sundry Debtor%")
                         ->where('plant_id', $plantId)

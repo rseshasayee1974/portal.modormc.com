@@ -434,7 +434,7 @@ class Modormc implements Tool
     protected function getPatronReport(Request $request, int $limit): string
     {
         $patronId = $this->getParam($request, 'patron_id');
-        $query = \App\Models\Patron::with(['ledger']);
+        $query = \App\Models\Patron::with(['debitLedger', 'creditLedger']);
 
         if ($patronId) $query->where('id', $patronId);
 
@@ -457,9 +457,12 @@ class Modormc implements Tool
             ')->first();
 
             $ledgerBalance = 0.0;
-            if ($p->ledger_id) {
+            $ledgerIds = array_values(array_unique(array_filter([$p->debit_ledger_id, $p->credit_ledger_id])));
+            if ($ledgerIds) {
                 $ledgerTotals = DB::table('mm_journal_entry_lines')
-                    ->where('account_id', $p->ledger_id)
+                    ->whereIn('account_id', $ledgerIds)
+                    ->where('partner_type', 'Patron')
+                    ->where('partner_id', $p->id)
                     ->where('is_deleted', 0)
                     ->selectRaw('COALESCE(SUM(debit_amount), 0) as total_debit, COALESCE(SUM(credit_amount), 0) as total_credit')
                     ->first();
@@ -476,7 +479,8 @@ class Modormc implements Tool
                 'total_billed' => (float) $invoiceStats->total_billed,
                 'total_paid' => (float) $invoiceStats->total_paid,
                 'invoice_outstanding' => (float) $invoiceStats->outstanding_balance,
-                'ledger_id' => $p->ledger_id,
+                'debit_ledger_id' => $p->debit_ledger_id,
+                'credit_ledger_id' => $p->credit_ledger_id,
                 'ledger_balance' => (float) $ledgerBalance,
             ];
         });

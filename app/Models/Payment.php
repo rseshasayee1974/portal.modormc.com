@@ -309,7 +309,9 @@ class Payment extends Model
             $journalEntry->lines()->delete();
 
             $lines = [];
-            $partyLedgerId = $this->patron?->ledger_id;
+            $partyLedgerId = $this->transaction_type === 'receipt'
+                ? $this->patron?->debit_ledger_id
+                : $this->patron?->credit_ledger_id;
 
             if (!$partyLedgerId) {
                 // Fallback to default Sundry ledger if specific one isn't set

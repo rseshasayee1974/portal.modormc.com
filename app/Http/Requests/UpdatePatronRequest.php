@@ -86,7 +86,8 @@ class UpdatePatronRequest extends FormRequest
                 'max:200', 
                 \Illuminate\Validation\Rule::unique('mm_patrons')->ignore($patron->id ?? null)->where(fn($q) => $q->where('plant_id', session('active_plant_id'))->whereNull('deleted_at'))
             ],
-            'ledger_id' => 'nullable|exists:mm_ledgers,id',
+            'debit_ledger_id' => 'nullable|exists:mm_ledgers,id',
+            'credit_ledger_id' => 'nullable|exists:mm_ledgers,id',
             'operational_status' => 'required|string|max:100',
             'pan_no' => 'nullable|string|max:20',
             'gstin' => 'nullable|string|max:20|required_without:aadhar_number',

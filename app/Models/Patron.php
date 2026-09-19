@@ -114,7 +114,8 @@ class Patron extends Model
         'code',
         'patron_type',
         'legal_name',
-        'ledger_id',
+        'debit_ledger_id',
+        'credit_ledger_id',
         'operational_status',
         'pan_no',
         'gstin',
@@ -153,12 +154,14 @@ class Patron extends Model
         return $this->belongsTo(Plant::class, 'plant_id');
     }
 
-    /**
-     * Get the ledger associated with the patron.
-     */
-    public function ledger()
+    public function debitLedger()
     {
-        return $this->belongsTo(Ledger::class, 'ledger_id');
+        return $this->belongsTo(Ledger::class, 'debit_ledger_id');
+    }
+
+    public function creditLedger()
+    {
+        return $this->belongsTo(Ledger::class, 'credit_ledger_id');
     }
 
     /**

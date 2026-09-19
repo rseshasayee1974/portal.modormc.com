@@ -16,7 +16,8 @@ import type { Patron } from './types';
 
 const props = defineProps<{
     patrons: Patron[];
-    ledgers: any[];
+    debitLedgers: any[];
+    creditLedgers: any[];
     contactTypes: any[];
     addressTypes: any[];
     bankAccountTypes: any[];
@@ -77,7 +78,8 @@ const initialPatronForm = () => ({
     aadhar_number: '',
     status: true,
     displayed: true,
-    ledger_id: null as number | null,
+    debit_ledger_id: (props.debitLedgers.find(ledger => ledger.title === 'Sundry Debtors')?.id ?? null) as number | null,
+    credit_ledger_id: (props.creditLedgers.find(ledger => ledger.title === 'Sundry Creditors')?.id ?? null) as number | null,
     contact_name: '',
     contact_mobile: '',
     contact_email: '',
@@ -146,7 +148,8 @@ const populatePatronForm = (form: any, patron: Patron) => {
     form.aadhar_number = patron.aadhar_number || '';
     form.status = patron.status;
     form.displayed = patron.displayed ?? true;
-    form.ledger_id = patron.ledger_id;
+    form.debit_ledger_id = patron.debit_ledger_id ?? null;
+    form.credit_ledger_id = patron.credit_ledger_id ?? null;
 
     form.contact_name = '';
     form.contact_mobile = '';
@@ -156,7 +159,7 @@ const populatePatronForm = (form: any, patron: Patron) => {
     form.address_line_2 = '';
     form.address_city = '';
     form.address_zipcode = '';
-    form.address_state_id = null;
+    form.address_state_id = tamilNaduId.value;
     form.address_type_id = null;
 
     if (patron.contacts?.[0]) {
@@ -172,7 +175,13 @@ const populatePatronForm = (form: any, patron: Patron) => {
             form.address_line_2 = address.line_2 || '';
             form.address_city = address.city || '';
             form.address_zipcode = address.zipcode || '';
-            form.address_state_id = address.state_id || null;
+            const stateCode = address.state?.state_code ?? address.state_code;
+            const stateOption = props.states.find((state: any) =>
+                Number(state.value) === Number(address.state_id)
+            ) ?? props.states.find((state: any) =>
+                stateCode != null && String(state.state_code) === String(stateCode)
+            );
+            form.address_state_id = stateOption?.value ?? address.state_id ?? tamilNaduId.value;
             form.address_type_id = address.address_type_id || null;
         }
     }

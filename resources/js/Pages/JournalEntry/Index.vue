@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -52,9 +52,7 @@ const props = defineProps<{
 
 const store = useJournalStore();
 
-onMounted(() => {
-    store.setInitialData(props);
-});
+store.setInitialData(props);
 
 // UI State
 const showViewModal = ref(false);
@@ -88,13 +86,18 @@ const displayDate = (d: any): string => {
 };
 
 // ── Form State ─────────────────────────────────────────────
-const defaultVType = props.initialVoucherType || (props.voucherTypes?.[0]?.short_code ?? 'JV');
+const defaultVoucher = props.voucherTypes.find(v => props.initialVoucherType &&
+    (v.journal_name === props.initialVoucherType || v.short_code === props.initialVoucherType)
+) ?? props.voucherTypes.find(v => String(v.journal_name).toLowerCase() === 'journal')
+    ?? props.voucherTypes.find(v => ['J', 'JV', 'JOURNAL'].includes(String(v.short_code).toUpperCase()))
+    ?? props.voucherTypes[0];
+const defaultVType = defaultVoucher?.journal_name ?? null;
 const editingEntryId = ref<number | null>(null);
 
 const journalForm = useForm({
-    voucher_type: (props.initialVoucherType || defaultVType) as string | null,
-    voucher_id: null as number | null,
-    voucher_name: '' as string,
+    voucher_type: defaultVType as string | null,
+    voucher_id: (defaultVoucher?.id ?? null) as number | null,
+    voucher_name: (defaultVoucher?.journal_name ?? '') as string,
     voucher_number: (props.initialVoucherNumber || '') as string,
     voucher_date: new Date(),
     posting_date: new Date(),
@@ -129,8 +132,8 @@ const resetForm = () => {
     editingEntryId.value = null;
     journalForm.reset();
     journalForm.voucher_type = defaultVType;
-    journalForm.voucher_id = null;
-    journalForm.voucher_name = '';
+    journalForm.voucher_id = defaultVoucher?.id ?? null;
+    journalForm.voucher_name = defaultVoucher?.journal_name ?? '';
     journalForm.voucher_date = new Date();
     journalForm.posting_date = new Date();
     journalForm.narration = '';
@@ -157,16 +160,31 @@ const removeLine = (index: number) => {
     }
 };
 
-const onDebitChange = (line: JournalLine) => {
+const selectPatronLedger = (line: JournalLine) => {
+    const patron = store.partners.find(p => Number(p.id) === Number(line.partner_id));
+    if (!line.partner_id || !patron) {
+        line.account_id = null;
+        return;
+    }
+    // Start on the debit side until a credit amount is entered.
+    const ledgerId = Number(line.credit_amount) > 0 ? patron.credit_ledger_id : patron.debit_ledger_id;
+    line.account_id = ledgerId ? Number(ledgerId) : null;
+};
+
+const onDebitChange = (line: JournalLine, value: number | null) => {
+    line.debit_amount = Number(value) || 0;
     if (line.debit_amount && line.debit_amount > 0) {
         line.credit_amount = 0;
     }
+    if (line.partner_id) selectPatronLedger(line);
 };
 
-const onCreditChange = (line: JournalLine) => {
+const onCreditChange = (line: JournalLine, value: number | null) => {
+    line.credit_amount = Number(value) || 0;
     if (line.credit_amount && line.credit_amount > 0) {
         line.debit_amount = 0;
     }
+    if (line.partner_id) selectPatronLedger(line);
 };
 
 // Auto-balance shortcut
@@ -241,28 +259,19 @@ watch(() => journalForm.voucher_type, (newVal) => {
 const filterVoucherOptions = computed(() => [
     { label: '-- All Voucher Types --', value: null },
     ...(store.voucherTypes || []).map(vt => ({
-        label: `${vt.journal_name} (${vt.short_code})`,
+        label: `${vt.journal_name}`,
         value: vt.short_code
     }))
 ]);
 
 const partnerOptions = computed(() => [
-    { label: '-- None (No Patron) --', value: null },
+    { label: '-- Unselect Patron --', value: null },
     ...(store.partners || []).map(p => ({
         label: p.legal_name || p.name,
         value: p.id,
-        ledger_id: p.ledger_id,
         patron_type: p.patron_type
     }))
 ]);
-
-const onPartnerChange = (line: any) => {
-    if (!line.partner_id) return;
-    const patron = (store.partners || []).find((p: any) => p.id === line.partner_id);
-    if (patron && patron.ledger_id && !line.account_id) {
-        line.account_id = patron.ledger_id;
-    }
-};
 
 // Summary KPIs across store entries
 const kpiStats = computed(() => {
@@ -593,7 +602,7 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                                         <th class="py-2.5 px-3 min-w-[200px]">Patron / Sub-Ledger</th>
                                         <th class="py-2.5 px-3 w-36 text-right text-indigo-700 dark:text-indigo-300">Debit (₹)</th>
                                         <th class="py-2.5 px-3 w-36 text-right text-purple-700 dark:text-purple-300">Credit (₹)</th>
-                                        <th class="py-2.5 px-3 min-w-[160px]">Line Memo</th>
+                                        <th class="py-2.5 px-3 min-w-[160px]">Narration</th>
                                         <th class="py-2.5 px-2 w-10 text-center"></th>
                                     </tr>
                                 </thead>
@@ -621,6 +630,9 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                                         <td class="py-2 px-3">
                                             <BaseSelect
                                                 v-model="line.partner_id"
+                                                allowEmpty
+                                                emptyLabel="-- Unselect Patron --"
+                                                @change="selectPatronLedger(line)"
                                                 :options="partnerOptions"
                                                 optionLabel="label"
                                                 optionValue="value"
@@ -628,7 +640,6 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                                                 showClear
                                                 placeholder="Select Patron..."
                                                 class="w-full"
-                                                @change="onPartnerChange(line)"
                                             />
                                         </td>
                                         <td class="py-2 px-3">
@@ -636,7 +647,7 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                                                 v-model="line.debit_amount"
                                                 :minFractionDigits="2"
                                                 :disabled="Number(line.credit_amount) > 0"
-                                                @input="onDebitChange(line)"
+                                                @input="onDebitChange(line, $event.value)"
                                                 placeholder="0.00"
                                                 class="w-full font-mono text-right"
                                             />
@@ -646,7 +657,7 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                                                 v-model="line.credit_amount"
                                                 :minFractionDigits="2"
                                                 :disabled="Number(line.debit_amount) > 0"
-                                                @input="onCreditChange(line)"
+                                                @input="onCreditChange(line, $event.value)"
                                                 placeholder="0.00"
                                                 class="w-full font-mono text-right"
                                             />
@@ -994,7 +1005,7 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                             <tr class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-b border-slate-200 dark:border-slate-700 font-bold uppercase text-[11px]">
                                 <th class="py-2.5 px-3 w-8 text-center">#</th>
                                 <th class="py-2.5 px-3">Account Title & Code</th>
-                                <th class="py-2.5 px-3">Line Memo</th>
+                                <th class="py-2.5 px-3">Narration</th>
                                 <th class="py-2.5 px-3 text-right w-28 text-indigo-700 dark:text-indigo-300">Debit (₹)</th>
                                 <th class="py-2.5 px-3 text-right w-28 text-purple-700 dark:text-purple-300">Credit (₹)</th>
                             </tr>

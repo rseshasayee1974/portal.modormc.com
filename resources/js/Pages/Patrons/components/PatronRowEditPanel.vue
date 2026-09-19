@@ -18,7 +18,7 @@ defineEmits<{
 </script>
 
 <template>
-    <div class="border-gray-200 px-4 bg-blue-50">
+    <div class="card bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-lg p-6 text-base">
         <PatronEditForm
             :form="form"
             :patron-types="patronTypes"

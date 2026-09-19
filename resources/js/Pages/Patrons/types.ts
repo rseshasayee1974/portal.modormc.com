@@ -12,5 +12,6 @@ export interface Patron {
     contacts?: any[];
     bank_accounts?: any[];
     ledger?: any;
-    ledger_id: number | null;
+    debit_ledger_id: number | null;
+    credit_ledger_id: number | null;
 }

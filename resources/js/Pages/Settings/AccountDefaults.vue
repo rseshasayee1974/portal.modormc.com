@@ -108,6 +108,8 @@ const form = useForm({
     settings: initialSettings
 });
 
+const submitted = ref(false);
+
 const getLedgerId = (moduleId, key) => {
     const item = form.settings.find(s => s.module_id === moduleId && s.setting_key === key);
     return item ? item.ledger_id : null;
@@ -121,9 +123,24 @@ const setLedgerId = (moduleId, key, value) => {
 };
 
 const submit = () => {
+    submitted.value = true;
+
+    const hasEmpty = form.settings.some(s => !s.ledger_id);
+    if (hasEmpty) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Incomplete Mappings',
+            text: 'All ledger accounts are required and cannot be empty. Please select a ledger for all fields.',
+            confirmButtonColor: '#4f46e5',
+            customClass: { popup: 'rounded-3xl' }
+        });
+        return;
+    }
+
     form.post(route('settings.account-defaults.store'), {
         preserveScroll: true,
         onSuccess: () => {
+            submitted.value = false;
             Swal.fire({
                 toast: true,
                 position: 'top-end',
@@ -192,7 +209,9 @@ const getModuleId = (name) => {
                                     <div v-for="k in mc.keys" :key="k.key" class="flex flex-col gap-2 p-4 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors">
                                         <div class="flex items-center justify-between">
                                             <div>
-                                                <label class="text-sm font-bold text-slate-700 block">{{ k.label }}</label>
+                                                <label class="text-sm font-bold text-slate-700 block">
+                                                    {{ k.label }} <span class="text-rose-500">*</span>
+                                                </label>
                                                 <p class="text-[11px] text-slate-400 font-medium">{{ k.description }}</p>
                                             </div>
                                             <span class="text-[10px] bg-white border border-slate-200 text-slate-400 px-2 py-0.5 rounded font-mono uppercase">{{ k.key }}</span>
@@ -206,8 +225,8 @@ const getModuleId = (name) => {
                                             optionValue="id" 
                                             placeholder="Select Ledger Account" 
                                             class="w-full text-sm border-slate-200"
+                                            :invalid="submitted && !getLedgerId(getModuleId(mc.name), k.key)"
                                             filter
-                                            showClear
                                         >
                                             <template #option="slotProps">
                                                 <div class="flex flex-col">
@@ -216,6 +235,9 @@ const getModuleId = (name) => {
                                                 </div>
                                             </template>
                                         </Dropdown>
+                                        <small v-if="submitted && !getLedgerId(getModuleId(mc.name), k.key)" class="text-xs text-rose-500 font-semibold">
+                                            Ledger account is required and cannot be empty
+                                        </small>
                                     </div>
                                 </div>
                             </template>

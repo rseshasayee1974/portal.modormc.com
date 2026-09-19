@@ -439,7 +439,7 @@ class InvoiceShareController extends Controller
         if ($patronId) {
             $patron = Patron::withoutGlobalScopes()->with(['addresses.state' => fn($q) => $q->withoutGlobalScopes()])->find($patronId);
         } elseif ($ledgerId) {
-            $patron = Patron::withoutGlobalScopes()->with(['addresses.state' => fn($q) => $q->withoutGlobalScopes()])->where('ledger_id', $ledgerId)->first();
+            $patron = Patron::withoutGlobalScopes()->with(['addresses.state' => fn($q) => $q->withoutGlobalScopes()])->where(fn ($q) => $q->where('debit_ledger_id', $ledgerId)->orWhere('credit_ledger_id', $ledgerId))->first();
         }
 
         $extraParams = [];

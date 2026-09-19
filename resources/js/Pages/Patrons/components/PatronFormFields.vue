@@ -4,8 +4,17 @@ import BaseSelect from '@/Components/Base/BaseSelect.vue';
 import MultiSelect from 'primevue/multiselect';
 import BaseInput from '@/Components/Base/BaseInput.vue';
 import BaseField from '@/Components/Base/BaseField.vue';
-import { ref, watch, onMounted, computed } from 'vue';
+import { ref, watch, onMounted, computed, nextTick } from 'vue';
 import axios from 'axios';
+import { usePage } from '@inertiajs/vue3';
+
+const page = usePage();
+const ledgerOptions = (ledgers: any[]) => (ledgers || []).map(ledger => ({
+    label: `${ledger.name} - ${ledger.title}`,
+    value: ledger.id,
+}));
+const debitLedgerOptions = computed(() => ledgerOptions(page.props.debitLedgers as any[]));
+const creditLedgerOptions = computed(() => ledgerOptions(page.props.creditLedgers as any[]));
 
 const props = defineProps<{
     form: any;
@@ -29,6 +38,7 @@ const selectedArea = ref('');
 
 const isLoadingDistricts = ref(false);
 const isLoadingLocations = ref(false);
+const hydratingAddress = ref(false);
 
 const districtsOptions = computed(() => districts.value.map(d => ({ label: d, value: d })));
 const zipcodesOptions = computed(() => uniqueZipcodes.value.map(z => ({ label: z, value: z })));
@@ -98,6 +108,7 @@ const updateAreas = (zip: string) => {
 };
 
 watch(() => props.form.address_state_id, (newVal) => {
+    if (hydratingAddress.value) return;
     if (newVal) {
         selectedDistrict.value = '';
         selectedZipcode.value = '';
@@ -120,6 +131,7 @@ watch(() => props.form.address_state_id, (newVal) => {
 });
 
 watch(selectedDistrict, (newVal) => {
+    if (hydratingAddress.value) return;
     if (newVal) {
         selectedZipcode.value = '';
         selectedArea.value = '';
@@ -132,6 +144,7 @@ watch(selectedDistrict, (newVal) => {
 });
 
 watch(selectedZipcode, (newVal) => {
+    if (hydratingAddress.value) return;
     if (newVal) {
         selectedArea.value = '';
         updateAreas(newVal);
@@ -142,6 +155,7 @@ watch(selectedZipcode, (newVal) => {
 });
 
 watch(selectedArea, (newVal) => {
+    if (hydratingAddress.value) return;
     if (newVal) {
         props.form.address_line_2 = newVal;
     } else {
@@ -149,9 +163,16 @@ watch(selectedArea, (newVal) => {
     }
 });
 
-onMounted(() => {
-    if (props.form.address_state_id) {
-        loadDistricts(props.form.address_state_id, true);
+onMounted(async () => {
+    hydratingAddress.value = true;
+    try {
+        if (props.form.address_state_id) {
+            await loadDistricts(props.form.address_state_id, true);
+        }
+    } finally {
+        // Flush selection watchers before allowing user changes to clear child fields.
+        await nextTick();
+        hydratingAddress.value = false;
     }
 });
 </script>
@@ -244,6 +265,18 @@ onMounted(() => {
             </div>
         </section>
 
+        <section>
+            <h3 class="text-xs font-bold uppercase text-slate-700 dark:text-slate-200 mb-4">Patron Ledgers</h3>
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-5">
+                <BaseSelect label="Debit Ledger" v-model="form.debit_ledger_id" :options="debitLedgerOptions"
+                    optionLabel="label" optionValue="value" filter clearable
+                    placeholder="Use account defaults" :error="form.errors.debit_ledger_id" />
+                <BaseSelect label="Credit Ledger" v-model="form.credit_ledger_id" :options="creditLedgerOptions"
+                    optionLabel="label" optionValue="value" filter clearable
+                    placeholder="Use account defaults" :error="form.errors.credit_ledger_id" />
+            </div>
+        </section>
+
         <!-- ── Section: Contact & Geography ── -->
         <section>
             <div class="flex items-center gap-2 mb-6">
@@ -302,6 +335,10 @@ onMounted(() => {
                         />
                     </div>
 
+                <!-- 5. Address line 1 (Only Manual Input) -->
+                <div class="col-span-12 md:col-span-3">
+                    <BaseInput label="Address line 1" v-model="form.address_line_1" placeholder="e.g. No. 12, Gandhi Street" :error="form.errors.address_line_1" />
+                </div>
                     <!-- 4. Area Select -->
                     <div class="col-span-12 md:col-span-3">
                         <!-- <BaseSelect 
@@ -317,7 +354,8 @@ onMounted(() => {
                             class="!rounded-xl !border-slate-200"
                         /> -->
                          <BaseInput 
-                        v-model="form.address_line_2"
+                        v-model="form.address_line_2" 
+                        label="Address Line 2 (Area/Locality)"
                         placeholder="e.g. T. Nagar"
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
@@ -356,10 +394,6 @@ onMounted(() => {
                     </div>
                 </template>
 
-                <!-- 5. Address line 1 (Only Manual Input) -->
-                <div class="col-span-12 md:col-span-3">
-                    <BaseInput label="Address line 1" v-model="form.address_line_1" placeholder="e.g. No. 12, Gandhi Street" :error="form.errors.address_line_1" />
-                </div>
 
                 <!-- <template v-if="hasDistrictOptions">
                     <div class="col-span-12 mt-2">

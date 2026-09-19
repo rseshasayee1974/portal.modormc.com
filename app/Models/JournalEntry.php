@@ -349,15 +349,16 @@ class JournalEntry extends Model
 
     /**
      * Resolve ledger_id for a patron:
-     * 1. Check mm_patrons.ledger_id
+     * 1. Check the patron's directional ledger
      * 2. Check AccountDefaultSetting for Patron module ('debit_ledger' if debit > 0, 'credit_ledger' if credit > 0)
      * 3. Fallback to Sundry Debtors (debit) / Sundry Creditors (credit)
      */
     public static function resolvePatronLedgerId($plantId, $patronId, float $debitAmount = 0, float $creditAmount = 0): ?int
     {
         $patron = Patron::find($patronId);
-        if ($patron && !empty($patron->ledger_id)) {
-            return (int) $patron->ledger_id;
+        $directionalLedgerId = $debitAmount > 0 ? $patron?->debit_ledger_id : $patron?->credit_ledger_id;
+        if ($directionalLedgerId) {
+            return (int) $directionalLedgerId;
         }
 
         // Setting key: debit_ledger (Sundry Debtors) when debit, credit_ledger (Sundry Creditors) when credit

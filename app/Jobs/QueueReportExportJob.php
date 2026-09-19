@@ -185,7 +185,7 @@ class QueueReportExportJob implements ShouldQueue
         if ($patronId) {
             $patron = \App\Models\Patron::with(['addresses.state'])->whereNull('deleted_at')->find($patronId);
         } elseif ($ledgerId) {
-            $patron = \App\Models\Patron::with(['addresses.state'])->where('ledger_id', $ledgerId)->whereNull('deleted_at')->first();
+            $patron = \App\Models\Patron::with(['addresses.state'])->where(fn ($q) => $q->where('debit_ledger_id', $ledgerId)->orWhere('credit_ledger_id', $ledgerId))->whereNull('deleted_at')->first();
         }
 
         $extraParams = [];

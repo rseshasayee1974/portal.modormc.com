@@ -483,7 +483,7 @@ const toggleFilterPopover = (event: any) => {
 }
 
 /* ── Toolbar / Search bar ────────────────────────────────── */
-:deep(.p-select-label) {
+:deep(.p-select-label:not(.p-datatable-row-expansion .p-select-label)) {
     font-size: 11px !important;
     padding: 0.2rem 0.3rem !important;
     font-weight: 700 !important;

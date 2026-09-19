@@ -867,7 +867,10 @@ class Invoice extends Model implements Postable
 
     public function getPartnerLedgerId(): ?int
     {
-        return $this->partner?->ledger_id ? (int) $this->partner->ledger_id : null;
+        $config = \App\Accounting\DocumentTypeConfig::get($this->getDocumentType());
+        $field = $config['partner_setting'] . '_id';
+        $ledgerId = $this->partner?->{$field};
+        return $ledgerId ? (int) $ledgerId : null;
     }
 
     public function getPartnerName(): string

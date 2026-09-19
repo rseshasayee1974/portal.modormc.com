@@ -37,11 +37,12 @@ class AccountDefaultSettingController extends Controller
     abort_unless($plantId, 403, 'No active plant selected');
 
         $validated = $request->validate([
-            'settings' => 'nullable|array',
+            'settings' => 'required|array',
             'settings.*.module_id' => 'required|exists:mm_module,id',
             'settings.*.setting_key' => 'required|string|max:100',
-            'settings.*.ledger_id' => 'nullable|exists:mm_ledgers,id',
-
+            'settings.*.ledger_id' => 'required|exists:mm_ledgers,id',
+        ], [
+            'settings.*.ledger_id.required' => 'All ledger mappings must be selected and cannot be empty.',
         ]);
 
 $settings = $validated['settings'] ?? [];

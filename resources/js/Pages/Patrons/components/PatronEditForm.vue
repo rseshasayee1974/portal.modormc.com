@@ -22,7 +22,7 @@ defineEmits<{
 </script>
 
 <template>
-    <div class="flex flex-col gap-2  ">
+    <div class="flex flex-col gap-6">
         <!-- <div class="flex items-start justify-between gap-4">
             <div>
                 <h2 class="text-lg font-bold text-gray-800 dark:text-gray-100">
@@ -33,7 +33,7 @@ defineEmits<{
             <Tag severity="warn" value="Editing" rounded />
         </div> -->
 
-        <form class="flex flex-col gap-2" @submit.prevent="$emit('submit')">
+        <form class="flex flex-col gap-8" @submit.prevent="$emit('submit')">
             <Message v-if="Object.keys(form.errors).length > 0" severity="error" :closable="false">
                 <div class="font-bold">Please correct the following errors before updating:</div>
                 <ul class="mt-1 list-disc pl-4 text-sm font-normal">

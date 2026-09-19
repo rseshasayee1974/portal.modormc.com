@@ -488,7 +488,16 @@ onMounted(() => {
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>
-
+<!-- 5. Address Line 1 -->
+                <div class="md:col-span-4">
+                    <BaseInput 
+                        v-model="form.address.line_1" 
+                        label="Address Line 1 (Street, Building, Door No.)"
+                        placeholder="e.g. No. 12, Gandhi Street" 
+                        :error="errors?.['address.line_1']"
+                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
+                    />
+                </div>
                 <!-- 4. Area / Locality -->
                 <div class="md:col-span-2 flex flex-col gap-1.5">
                     <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Area / Locality</label>
@@ -507,22 +516,14 @@ onMounted(() => {
                     /> -->
                     <!-- Manual input mode -->
                     <BaseInput 
-                        v-model="form.address.line_2"
+                        v-model="form.address.line_2" 
+                        label="Address Line 2 (Area/Locality)"
                         placeholder="e.g. T. Nagar"
                         inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
                     />
                 </div>
 
-                <!-- 5. Address Line 1 -->
-                <div class="md:col-span-4">
-                    <BaseInput 
-                        v-model="form.address.line_1" 
-                        label="Address Line 1 (Street, Building, Door No.)"
-                        placeholder="e.g. No. 12, Gandhi Street" 
-                        :error="errors?.['address.line_1']"
-                        inputClass="!w-full !rounded-md !border-slate-200 font-medium text-sm"
-                    />
-                </div>
+                
 
                 <!-- Latitude & Longitude -->
                 <div class="md:col-span-4">
