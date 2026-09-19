@@ -1,0 +1,118 @@
+resources/js\Services\Schwing\productionOrderService.ts:112:        : new Date().toISOString().substring(0, 10);
+resources/js\Composables\useWeighbridgeSerial.ts:22:                timestamp: new Date().toISOString(),
+resources/js\Composables\useWeighbridgeApi.ts:48:                    params: { _: new Date().getTime() },
+resources/js\Composables\useWeighbridgeApi.ts:93:                    timestamp: new Date().toISOString(),
+resources/js\Pages\Billing\CreateBillingForm.vue:61:    invoice_date: new Date().toISOString().split('T')[0],
+resources/js\Pages\Billing\CreateBillingForm.vue:75:    startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+resources/js\Pages\Billing\CreateBillingForm.vue:76:    endDate: new Date().toISOString().split('T')[0]
+resources/js\Stores\useAIChatStore.ts:49:            created_at: new Date().toISOString()
+resources/js\Stores\useAIChatStore.ts:74:                    created_at: new Date().toISOString()
+resources/js\Stores\useAIChatStore.ts:86:                created_at: new Date().toISOString()
+resources/js\Stores\useAIChatStore.ts:133:                    created_at: new Date().toISOString()
+resources/js\Pages\Batches\useInvoiceActions.ts:30:        const defaultDate = new Date().toISOString().substring(0, 10);
+resources/js\Pages\Batches\useInvoiceActions.ts:314:        const defaultDocDate = new Date().toISOString().split('T')[0];
+resources/js\Pages\Batches\components\BatchCreateForm.vue:71:    start_time: new Date() as Date | null,
+resources/js\Pages\Batches\components\BatchCreateForm.vue:73:    empty_time: new Date() as Date | null,
+resources/js\Pages\Batches\components\BatchCreateForm.vue:74:    load_time: new Date() as Date | null,
+resources/js\Pages\Batches\components\BatchCreateForm.vue:91:            form.empty_time = new Date();
+resources/js\Pages\Batches\components\BatchCreateForm.vue:388:        form.empty_time = new Date();
+resources/js\Pages\Batches\components\BatchCreateForm.vue:495:        form.start_time = new Date();
+resources/js\Pages\Batches\components\BatchCreateForm.vue:497:        form.empty_time = new Date();
+resources/js\Pages\Batches\components\BatchCreateForm.vue:498:        form.load_time = new Date();
+resources/js\Pages\Batches\components\BatchCreateForm.vue:524:            start_time: formatDateTime(form.start_time) || formatDateTime(new Date()),
+resources/js\Pages\Batches\components\BatchCreateForm.vue:530:            created_at: new Date().toISOString(),
+resources/js\Pages\Batches\BatchSheet.vue:234:                    <div>Generation Date: {{ formatDateTime(new Date().toISOString()) }}</div>
+resources/js\Pages\Batches\components\BatchEditForm.vue:103:    start_time: props.batch?.start_time ? new Date(props.batch.start_time) : new Date(),
+resources/js\Pages\Batches\components\BatchEditForm.vue:104:    end_time: props.batch?.end_time ? new Date(props.batch.end_time) : new Date(),
+resources/js\Pages\Batches\components\BatchEditForm.vue:105:    empty_time: props.batch?.dispatches?.[0]?.empty_time ? new Date(props.batch.dispatches[0].empty_time) : new Date(),
+resources/js\Pages\Batches\components\BatchEditForm.vue:106:    load_time: props.batch?.dispatches?.[0]?.load_time ? new Date(props.batch.dispatches[0].load_time) : new Date(),
+resources/js\Pages\Batches\components\BatchEditForm.vue:381:    form.empty_time = dispatch?.empty_time ? new Date(dispatch.empty_time) : new Date();
+resources/js\Pages\Batches\components\BatchEditForm.vue:382:    form.load_time = dispatch?.load_time ? new Date(dispatch.load_time) : new Date();
+resources/js\Pages\Batches\components\BatchEditForm.vue:386:    form.start_time = newBatch.start_time ? new Date(newBatch.start_time) : new Date();
+resources/js\Pages\Batches\components\BatchEditForm.vue:387:    form.end_time = newBatch.end_time ? new Date(newBatch.end_time) : new Date();
+resources/js\Pages\Batches\components\BatchEditForm.vue:468:            form.empty_time = new Date();
+resources/js\Pages\Batches\components\BatchEditForm.vue:471:            form.load_time = new Date();
+resources/js\Pages\Batches\components\BatchEditForm.vue:571:        const d = new Date();
+resources/js\Pages\Dashboard\AnalyticsDashboard.vue:342:    lastUpdated.value = data.generated_at || new Date().toISOString();
+resources/js\Pages\Dashboard\AnalyticsDashboard.vue:442:    lastUpdated.value = new Date().toISOString();
+resources/js\Pages\Dashboard\BatchingDashboard.vue:33:    const d = new Date();
+resources/js\Pages\Dashboard\BatchingDashboard.vue:39:const endDate = ref(new Date().toISOString().substring(0, 10));
+resources/js\Pages\Dashboard\Dashboard.vue:394:    lastUpdated.value = data.generated_at || new Date().toISOString();
+resources/js\Pages\Dashboard\Dashboard.vue:512:    lastUpdated.value = new Date().toISOString();
+resources/js\Pages\ConcreteQualityTests\components\ConcreteQualityTestForm.vue:28:const today = new Date().toISOString().substring(0, 10);
+resources/js\Pages\Drivers\Index.vue:178:    const today = new Date();
+resources/js\Pages\Batches\components\DispatchSection.vue:117:            dispatch_time: currentDispatch.dispatch_time ? new Date(currentDispatch.dispatch_time) : new Date(),
+resources/js\Pages\Batches\components\DispatchSection.vue:134:            invoice_date: currentDispatch.invoice_date ? new Date(currentDispatch.invoice_date) : (currentDispatch.status?.invoice_date ? new Date(currentDispatch.status.invoice_date) : new Date()),
+resources/js\Pages\Batches\components\DispatchSection.vue:241:        dispatch_time: new Date(),
+resources/js\Pages\Batches\components\DispatchSection.vue:257:        invoice_date: new Date(),
+resources/js\Pages\Batches\components\DispatchSection.vue:705:    trans_doc_date: new Date().toISOString().split('T')[0],
+resources/js\Pages\Batches\components\DispatchSection.vue:739:    const defaultDocDate = new Date().toISOString().split('T')[0];
+resources/js\Pages\CustomerPOs\components\CustomerPOCreateForm.vue:44:    order_date: new Date().toISOString().split('T')[0],
+resources/js\Pages\CustomerPOs\components\CustomerPOCreateForm.vue:323:            form.order_date = new Date().toISOString().split('T')[0];
+resources/js\Pages\FuelLogs\Index.vue:90:    log_date: new Date(),
+resources/js\Pages\FuelLogs\Index.vue:134:            editForm.log_date = log.log_date ? new Date(log.log_date) : new Date();
+resources/js\Pages\Discounts\components\DiscountForm.vue:27:    const date = new Date();
+resources/js\Pages\GpsDevices\Index.vue:177:    const diffMs = new Date().getTime() - date.getTime();
+resources/js\Pages\Dashboard\InventoryDashboard.vue:63:    const diffMs = new Date() - date;
+resources/js\Pages\Dashboard\InventoryDashboard.vue:104:                ledgerItems.value[index].last_updated = new Date().toISOString();
+resources/js\Pages\Payments\PaymentEditForm.vue:23:const transactionDate = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Kolkata' });
+resources/js\Pages\Payments\PaymentCreateForm.vue:24: transaction_date : new Date().toLocaleDateString('en-CA', {
+resources/js\Pages\Payments\PaymentCreateForm.vue:25:    timeZone: 'Asia/Kolkata'
+resources/js\Pages\Payments\PaymentCreateForm.vue:422:                                    <span v-if="inv.due_date && new Date(inv.due_date) < new Date()" class="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+resources/js\Pages\Payments\PaymentCreateForm.vue:427:                                    {{ new Date(inv.invoice_date).toLocaleDateString('en-CA', {timeZone: 'Asia/Kolkata' }) }}
+resources/js\Pages\Expenses\components\ExpenseCreateForm.vue:39:    date: new Date().toISOString().split('T')[0],
+resources/js\Pages\EwayBills\Index.vue:55:    from: new Date().toISOString().split('T')[0],
+resources/js\Pages\EwayBills\Index.vue:56:    to: new Date().toISOString().split('T')[0],
+resources/js\Pages\Invoices\createinvoiceform.vue:58:    invoice_date: new Date().toISOString().split('T')[0],
+resources/js\Pages\Invoices\createinvoiceform.vue:76:    startDate: new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0],
+resources/js\Pages\Invoices\createinvoiceform.vue:77:    endDate: new Date().toISOString().split('T')[0]
+resources/js\Pages\GpsTracking\Playback.vue:66:        const d = new Date();
+resources/js\Pages\GpsTracking\Playback.vue:70:    end_time: new Date()
+resources/js\Pages\Invoices\components\InvoiceEditForm.vue:214:    trans_doc_date: new Date().toISOString().split('T')[0],
+resources/js\Pages\MaintenanceRequests\Index.vue:204:        date_planned: new Date(),
+resources/js\Pages\JournalEntry\Index.vue:102:    voucher_date: new Date(),
+resources/js\Pages\JournalEntry\Index.vue:103:    posting_date: new Date(),
+resources/js\Pages\JournalEntry\Index.vue:137:    journalForm.voucher_date = new Date();
+resources/js\Pages\JournalEntry\Index.vue:138:    journalForm.posting_date = new Date();
+resources/js\Pages\JournalEntry\Index.vue:283:    const now = new Date();
+resources/js\Pages\Patrons\Index.vue:346:    downloadCsv(`patrons-${new Date().toISOString().slice(0, 10)}.csv`, [importTemplateColumns, ...rows]);
+resources/js\Pages\PettyCash\Index.vue:59:    date: new Date(),
+resources/js\Pages\PettyCash\Index.vue:64:    date:            new Date(),
+resources/js\Pages\PettyCash\Index.vue:74:    date:            new Date(),
+resources/js\Components\Base\BaseDatePicker.vue:58:                emit('update:modelValue', props.showTime ? new Date() : formatDate(new Date())); // fallback to current date on submit if empty
+resources/js\Components\Base\BaseDataTable.vue:269:                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Generated: {{ new Date().toLocaleString('en-IN') }}</p>
+resources/js\Pages\Personnel\Index.vue:279:        effective_from: new Date(),
+resources/js\Pages\Production\PumpBoomDeployment\Index.vue:54:    schedule_date: props.initialDate || new Date().toISOString().substring(0, 10),
+resources/js\Pages\Production\PumpBoomDeployment\Index.vue:168:        schedule_date: new Date().toISOString().substring(0, 10),
+resources/js\Pages\Quotations\components\QuotationEditForm.vue:93:    quote_date: props.quotation.quote_date ? String(props.quotation.quote_date).substring(0, 10) : new Date().toISOString().substring(0, 10),
+resources/js\Pages\Personnel\components\PersonnelEditForm.vue:152:        effective_from: new Date(),
+resources/js\Pages\Quotations\components\QuotationCreateForm.vue:69:const initialQuoteDate = new Date().toISOString().substring(0, 10);
+resources/js\Pages\Production\PumpBoomDeployment\components\PumpDeploymentForm.vue:41:        default: () => new Date().toISOString().substring(0, 10),
+resources/js\Pages\Production\PumpBoomDeployment\components\PumpDeploymentForm.vue:177:            schedule_date: props.defaultScheduleDate || new Date().toISOString().substring(0, 10),
+resources/js\Pages\Quality\Tests\Execute.vue:649:    test_date: props.test.test_date ? props.test.test_date.substring(0, 10) : new Date().toISOString().substring(0, 10),
+resources/js\Pages\Production\components\BatchingScheduleForm.vue:41:        default: () => new Date().toISOString().substring(0, 10),
+resources/js\Pages\Production\components\BatchingScheduleForm.vue:117:    const nowStr = new Date().toISOString().substring(0, 16);
+resources/js\Pages\Production\components\BatchingScheduleForm.vue:214:            schedule_date: props.defaultScheduleDate || new Date().toISOString().substring(0, 10),
+resources/js\Pages\Production\BatchingScheduleDashboard.vue:40:const scheduleDate = ref(props.initialDate || new Date().toISOString().substring(0, 10));
+resources/js\Pages\Production\BatchingScheduleDashboard.vue:121:    scheduleDate.value = new Date().toISOString().substring(0, 10);
+resources/js\Pages\StockExhausts\Partials\StockExhaustEditForm.vue:155:        issue_date: new Date(),
+resources/js\Pages\StockExhausts\Partials\StockExhaustCreateForm.vue:66:        issue_date: new Date(),
+resources/js\Pages\StockExhausts\Partials\StockExhaustCreateForm.vue:146:        issue_date: new Date(),
+resources/js\Pages\StockExhausts\Partials\StockExhaustCreateForm.vue:234:        form.name = 'Stock Exhaust - ' + new Date().toISOString().slice(0, 10);
+resources/js\Pages\SalesOrders\components\SalesOrderEditForm.vue:101:const defaultStart = new Date();
+resources/js\Pages\Quality\Samples\SampleForm.vue:26:    sample_date: props.sample?.sample_date ? props.sample.sample_date.substring(0, 10) : new Date().toISOString().substring(0, 10),
+resources/js\Pages\PurchaseOrders\PurchaseOrderForm.vue:57:    date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : new Date().toISOString().substring(0, 10),
+resources/js\Pages\SalesOrders\components\SalesOrderCreateForm.vue:122:const defaultStart = new Date();
+resources/js\Pages\PurchaseOrders\Edit.vue:36:    date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : new Date().toISOString().substring(0, 10),
+resources/js\Pages\PurchaseOrders\Edit.vue:59:        received_date: new Date().toISOString().substring(0, 10),
+resources/js\Pages\PurchaseOrders\Edit.vue:80:        received_date: new Date().toISOString().substring(0, 10),
+resources/js\Pages\Reports\components\BulkDocumentReport.vue:35:    start_date: props.defaultStartDate?.substring(0, 10) || new Date().toISOString().substring(0, 7) + '-01',
+resources/js\Pages\Reports\components\BulkDocumentReport.vue:36:    end_date: props.defaultEndDate?.substring(0, 10) || new Date().toISOString().substring(0, 10),
+resources/js\Pages\Reports\components\BulkDocumentReport.vue:221:    filters.start_date = props.defaultStartDate?.substring(0, 10) || new Date().toISOString().substring(0, 7) + '-01';
+resources/js\Pages\Reports\components\BulkDocumentReport.vue:222:    filters.end_date = props.defaultEndDate?.substring(0, 10) || new Date().toISOString().substring(0, 10);
+resources/js\Pages\Shifts\Index.vue:94:    const d = new Date();
+resources/js\Pages\PurchaseOrders\components\PurchaseOrderEditForm.vue:53:    invoice_date: new Date().toISOString().substring(0, 10),
+resources/js\Pages\PurchaseOrders\components\PurchaseOrderEditForm.vue:54:    due_date: props.form.due_date || new Date().toISOString().substring(0, 10)
+resources/js\Pages\PurchaseOrders\components\PurchaseOrderEditWrapper.vue:38:    date_order: props.purchaseOrder?.date_order ? props.purchaseOrder.date_order.substring(0, 10) : new Date().toISOString().substring(0, 10),
+resources/js\Pages\PurchaseOrders\Inwards\components\InwardCreateForm.vue:58:    received_date: new Date().toISOString().substring(0, 10),
+resources/js\Pages\Reports\components\PatronStatementView.vue:496:                    {{ plant.legal_name || plant.name || 'DEMO LOGIN' }} - Copyright {{ new Date().getFullYear() }}
