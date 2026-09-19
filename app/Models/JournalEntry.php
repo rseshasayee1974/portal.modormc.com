@@ -54,6 +54,9 @@ class JournalEntry extends Model
         parent::boot();
 
         static::deleting(function ($entry) {
+            if (in_array($entry->ref_module, ['opening_balance', 'opening_balance_reversal'])) {
+                throw new \LogicException('Opening entries cannot be deleted; reverse them through Opening Balances.');
+            }
             // Mass update lines to ensure is_deleted, deleted_by, and deleted_at are set
             $entry->lines()->update([
                 'is_deleted' => 1,
@@ -105,6 +108,8 @@ class JournalEntry extends Model
         $vType = strtoupper($voucherType ?? '');
 
         return match ($module) {
+            'opening_balance'           => 'Opening Balance',
+            'opening_balance_reversal'  => 'Opening Balance Reversal',
             'invoice', 'sales'           => 'Sales',
             'purchase', 'purchase_order' => 'Purchase',
             'bill'                       => 'Purchase Bill',

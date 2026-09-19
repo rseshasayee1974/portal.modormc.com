@@ -102,7 +102,7 @@ const buttonClass = computed(() => {
 
 <template>
     <Button
-        :label="label"
+        :label="$slots.icon || $slots.default ? undefined : label"
         :icon="icon"
         :severity="severity"
         :rounded="rounded"
@@ -114,12 +114,11 @@ const buttonClass = computed(() => {
         :text="variant === 'text'"
         :class="buttonClass"
     >
-        <template v-if="$slots.default" #default>
-            <slot />
-        </template>
-
-        <template v-if="$slots.icon" #icon>
-            <slot name="icon" />
+        <template v-if="$slots.default || $slots.icon" #default>
+            <div class="inline-flex items-center gap-1.5">
+                <slot name="icon" />
+                <slot>{{ label }}</slot>
+            </div>
         </template>
     </Button>
 </template>

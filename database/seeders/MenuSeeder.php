@@ -149,6 +149,11 @@ class MenuSeeder extends Seeder
                 $menu
             );
         }
+        Menu::updateOrCreate(['alias' => 'opening-balances'], [
+            'menutype' => 2, 'title' => 'Opening Balances', 'link' => 'finance/opening-balances',
+            'icon' => 'DocumentChartBarIcon', 'published' => 1, 'parent_id' => 9,
+            'level' => 1, 'ordering' => 9, 'permission_name' => 'JOURNAL_ENTRY.VIEW',
+        ]);
         $this->call(DiscountModuleSeeder::class);
     }
 }

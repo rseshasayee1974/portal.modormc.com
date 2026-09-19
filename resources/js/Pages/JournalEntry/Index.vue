@@ -497,6 +497,7 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                                     Double-entry general ledger voucher posting with real-time balancing
                                 </p>
+                                <a :href="route('opening-balances.index')" class="inline-block mt-2 text-sm font-semibold text-indigo-600">Set opening balances →</a>
                             </div>
                         </div>
 
@@ -950,6 +951,7 @@ const deleteEntry = (id: number, voucherNumber?: string) => {
                                     <button
                                         type="button"
                                         @click="deleteEntry(slotProps.data.id)"
+                                        v-if="!['opening_balance', 'opening_balance_reversal'].includes(slotProps.data.ref_module)"
                                         class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer"
                                         title="Delete Entry"
                                     >

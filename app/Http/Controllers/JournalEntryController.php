@@ -230,6 +230,7 @@ class JournalEntryController extends Controller
         $this->authorizeModule('delete');
         $plantId = session('active_plant_id');
         $entry = JournalEntry::where('plant_id', $plantId)->findOrFail($id);
+        abort_if(in_array($entry->ref_module, ['opening_balance', 'opening_balance_reversal']), 409, 'Opening entries are locked. Use Opening Balances to reverse the setup.');
         
         $entry->delete();
 

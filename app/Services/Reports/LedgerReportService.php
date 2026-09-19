@@ -61,6 +61,9 @@ class LedgerReportService implements ReportServiceInterface
             });
         }
 
+        // Carry the complete account balance forward even when period activity is filtered.
+        $openingBalanceQuery = clone $query;
+
         // Voucher Type Filter
         if ($voucherTypeFilter && $voucherTypeFilter !== 'ALL') {
             if ($voucherTypeFilter === 'PAYMENT_RECEIPT' || $voucherTypeFilter === 'PAYMENT_AND_RECEIPT') {
@@ -70,7 +73,6 @@ class LedgerReportService implements ReportServiceInterface
             }
         }
 
-        $openingBalanceQuery = clone $query;
         $openingBalance = $openingBalanceQuery
             ->whereHas('entry', fn($q) => $q->whereNull('deleted_at')->where(fn($sq) => $sq->where('is_deleted', 0)->orWhereNull('is_deleted'))->where('voucher_date', '<', substr($start, 0, 10)))
             ->selectRaw('SUM(debit_amount) - SUM(credit_amount) as balance')

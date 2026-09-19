@@ -27,7 +27,11 @@ import {
     CreditCardIcon,
     DocumentTextIcon,
     TagIcon,
-    ShoppingCartIcon
+    ShoppingCartIcon,
+    ClockIcon,
+    BanknotesIcon,
+    ScaleIcon,
+    PencilSquareIcon
 } from '@heroicons/vue/24/outline';
 import BaseDeleteButton from '@/Components/Base/BaseDeleteButton.vue';
 import Popover from 'primevue/popover';
@@ -241,7 +245,11 @@ const IconMap = {
     CreditCardIcon,
     DocumentTextIcon,
     TagIcon,
-    ShoppingCartIcon
+    ShoppingCartIcon,
+    ClockIcon,
+    BanknotesIcon,
+    ScaleIcon,
+    PencilSquareIcon
 };
 
 const filterPopover = ref();

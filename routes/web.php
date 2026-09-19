@@ -386,6 +386,14 @@ Route::middleware([
         Route::resource('vouchertypes', \App\Http\Controllers\VoucherTypeController::class);
         Route::get('journalentries/generate-voucher-number', [\App\Http\Controllers\JournalEntryController::class, 'generateVoucherNumber'])->name('journalentries.generate_voucher_number');
         Route::resource('journalentries', \App\Http\Controllers\JournalEntryController::class);
+        Route::prefix('opening-balances')->name('opening-balances.')->controller(\App\Http\Controllers\OpeningBalanceController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::put('/', 'save')->name('save');
+            Route::post('/post', 'post')->name('post');
+            Route::post('/reverse', 'reverse')->name('reverse');
+            Route::get('/template', 'template')->name('template');
+            Route::post('/import', 'import')->name('import');
+        });
         
         Route::resource('expensetypes', \App\Http\Controllers\ExpenseTypeController::class)->except(['create', 'edit', 'show']);
         Route::resource('expenses', \App\Http\Controllers\ExpenseController::class)->only(['index', 'store', 'destroy']);
